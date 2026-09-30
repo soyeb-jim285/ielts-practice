@@ -228,6 +228,12 @@ struct Repetition: Decodable { let phrase: String; let time: Double; let wordIdx
 struct SelfCorrection: Decodable { let time: Double; let wordIdx: Int }
 struct Unclear: Decodable { let wordIdx: Int; let w: String; let conf: Double; let tier: Int }
 struct WpmPoint: Decodable { let t: Double; let wpm: Double }
+/// Fused disfluency event (core `Disfluency`): kind is filled | repetition | repair; sources say which detectors saw it.
+struct Disfluency: Decodable {
+    static let kinds: [(key: String, label: String)] = [("filled", "Filled pauses"), ("repetition", "Repetitions"), ("repair", "Repairs & false starts")]
+    let kind: String; let start: Double; let end: Double; let sources: [String]
+}
+struct FluencyDetail: Decodable { let events: [Disfluency] }
 
 struct SpeechMetrics: Decodable {
     let durationS: Double
@@ -247,6 +253,7 @@ struct SpeechMetrics: Decodable {
     let unclear: [Unclear]
     let wpmSeries: [WpmPoint]
     let wpmStdDev: Double
+    let fluency: FluencyDetail? // absent on analyses stored before disfluency fusion
 }
 
 struct TextMetrics: Decodable {

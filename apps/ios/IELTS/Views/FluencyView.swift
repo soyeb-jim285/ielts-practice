@@ -50,6 +50,8 @@ struct FluencyView: View {
         }
         .card()
 
+        if let events = metrics.fluency?.events, !events.isEmpty { disfluencies(events) }
+
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             stat("Speech rate", "\(Int(metrics.speechRate)) wpm", grade(metrics.speechRate, good: 120...160, warn: 100...180), "Words per minute over the whole answer.")
             stat("Articulation rate", "\(Int(metrics.articulationRate)) wpm", nil, "Speed while actually speaking, pauses excluded.")
@@ -62,6 +64,44 @@ struct FluencyView: View {
             stat("Self-corrections", "\(metrics.selfCorrections.count)", nil, "Restarts like “I go— I went”. Some are natural.")
             stat("Pace variability", "±\(Int(metrics.wpmStdDev)) wpm", metrics.wpmStdDev <= 25 ? .good : metrics.wpmStdDev <= 40 ? .warn : .bad, "Big swings = uneven pace.")
         }
+    }
+
+    private static let kindColors: [String: Color] = ["filled": .brand, "repetition": .purple, "repair": .pink]
+
+    @ViewBuilder private func disfluencies(_ events: [Disfluency]) -> some View {
+        SectionTitle("Disfluencies")
+        VStack(alignment: .leading, spacing: 10) {
+            // Per-type breakdown; the type is named, so colour is never the only cue.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+                ForEach(Disfluency.kinds, id: \.key) { k in
+                    let n = events.filter { $0.kind == k.key }.count
+                    HStack(spacing: 6) {
+                        Circle().fill(Self.kindColors[k.key] ?? .secondary).frame(width: 8, height: 8)
+                        Text("\(k.label) \(n)").font(.caption.weight(.semibold))
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.15))
+                    ForEach(Array(events.enumerated()), id: \.offset) { _, e in
+                        Capsule()
+                            .fill(Self.kindColors[e.kind] ?? .secondary)
+                            .frame(width: max(4, g.size.width * (e.end - e.start) / max(metrics.durationS, 1)), height: 16)
+                            .offset(x: g.size.width * e.start / max(metrics.durationS, 1))
+                            .onTapGesture { player.seek(to: max(0, e.start - 1)) }
+                    }
+                }
+            }
+            .frame(height: 24)
+            .accessibilityLabel("\(events.count) disfluencies along the recording")
+            Text("Filled pauses (um, uh), repetitions and restarts, from the transcript, the audio energy and the audio model. Tap one to hear it.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .card()
     }
 
     private func grade(_ x: Double, good: ClosedRange<Double>, warn: ClosedRange<Double>) -> Color {
