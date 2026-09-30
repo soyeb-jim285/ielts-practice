@@ -1,12 +1,9 @@
 import type { TextMetrics } from '@ielts/core';
 import type { AnalysisResult, VocabUpgrade } from '@server/ai/types';
-import { clsx } from 'clsx';
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Badge, Card, InfoTip, TONE_STYLES, type Tone } from '@/components/ui';
+import { Badge, Card, InfoTip, ProgressBar, type Tone } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
-
-const FILL: Record<Tone, string> = { good: 'bg-good', warn: 'bg-warn', bad: 'bg-bad', accent: 'bg-accent', neutral: 'bg-muted' };
 
 /** MTLD bands are heuristic (typical ranges for exam essays), shown as a hint, not a score. */
 const mtldTone = (m: number): [Tone, string] => (m >= 80 ? ['good', 'Wide range'] : m >= 55 ? ['warn', 'Adequate range'] : ['bad', 'Limited range']);
@@ -15,18 +12,17 @@ function BarList({ rows, label }: { rows: { key: string; label: string; count: n
   // Scale to the top count, but never below 3 so a list of singletons doesn't render as a wall of full bars.
   const max = Math.max(3, ...rows.map((r) => r.count));
   return (
-    <ul className="space-y-2.5" aria-label={label}>
+    <ul className="space-y-3" aria-label={label}>
       {rows.map((r) => (
-        <li key={r.key} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm">
-          <span className="truncate" title={r.label}>
+        // Phones: label and count on one line, the bar under them; from sm up all three share a row.
+        <li key={r.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[13rem_1fr_auto]">
+          <span className="min-w-0 sm:truncate" title={r.label}>
             {r.label}
           </span>
-          <span className="h-2 rounded-full bg-ink/6">
-            <span className={clsx('block h-full rounded-full', FILL[r.tone ?? 'accent'])} style={{ width: `${Math.max(4, (r.count / max) * 100)}%` }} />
-          </span>
-          <span className="flex items-center gap-2 tabular-nums">
-            {r.badge && <Badge tone={r.tone}>{r.badge}</Badge>}
-            {r.count}
+          <ProgressBar label={`${r.label}: ${r.count}`} value={Math.max(0.04, r.count / max)} tone={r.tone ?? 'accent'} className="order-last col-span-2 sm:order-none sm:col-span-1" />
+          <span className="flex items-center justify-end gap-2 tabular-nums sm:min-w-14">
+            {r.badge && <Badge>{r.badge}</Badge>}
+            <span className="w-4 text-right font-medium">{r.count}</span>
           </span>
         </li>
       ))}
@@ -53,7 +49,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
         <section>
           <h2 className="mb-3 text-lg font-semibold">At a glance</h2>
           <Card padded={false} className="overflow-hidden">
-            <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3">
+            <dl className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3">
               <Stat label="Words" value={m.words} />
               <Stat label="Paragraphs" value={m.paragraphs} />
               <Stat label="Sentences" value={m.sentences} />
@@ -61,7 +57,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
               <Stat
                 label="Lexical diversity"
                 value={
-                  <span className="flex flex-wrap items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     MTLD {Math.round(m.mtld)}
                     <Badge tone={mtldTone(m.mtld)[0]}>{mtldTone(m.mtld)[1]}</Badge>
                   </span>
@@ -86,9 +82,9 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
       {linkers.length > 0 && (
         <section>
           <h2 className="mb-1 text-lg font-semibold">Linking words</h2>
-          <p className="mb-3 text-sm text-muted">Examiners penalise mechanical linking. Overused ones are flagged; swap some for referencing (“this trend”, “such policies”).</p>
+          <p className="mb-3 max-w-prose text-sm text-muted text-pretty">Examiners penalise mechanical linking. Overused ones are flagged; swap some for referencing (“this trend”, “such policies”).</p>
           {templated && (
-            <p className="mb-3 rounded-control bg-warn-soft px-4 py-2.5 text-sm text-warn-text">
+            <p className="mb-3 rounded-lg bg-warn-soft px-4 py-3 text-sm text-warn-text">
               {Math.round(opening * m.sentences)} of {m.sentences} sentences start with a linking word. Vary your openings.
             </p>
           )}
@@ -109,9 +105,11 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
           <h2 className="mb-3 text-lg font-semibold">Repeated words</h2>
           <ul className="flex flex-wrap gap-2">
             {m.repeated.map((w) => (
-              <li key={w.word} className={clsx('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm', TONE_STYLES.neutral)}>
-                <span className="text-ink">{w.word}</span>
-                <span className="tabular-nums">×{w.count}</span>
+              <li key={w.word}>
+                <Badge className="h-7 gap-1.5 px-3 text-sm">
+                  <span className="text-ink">{w.word}</span>
+                  <span className="tabular-nums">×{w.count}</span>
+                </Badge>
               </li>
             ))}
           </ul>
@@ -125,7 +123,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
 
 function Stat({ label, value, tip }: { label: string; value: ReactNode; tip?: string }) {
   return (
-    <div className="bg-surface px-5 py-4">
+    <div className="border-r border-b border-line px-5 py-4">
       <dt className="flex items-center gap-1 text-sm text-muted">
         {label}
         {tip && <InfoTip label={`About ${label}`}>{tip}</InfoTip>}
@@ -144,17 +142,17 @@ function VocabList({ items }: { items: VocabUpgrade[] }) {
           {items.map((v) => (
             <li key={v.original} className="px-5 py-4">
               {/* Same treatment as the speaking Language tab. */}
-              <p className="flex flex-wrap items-center gap-2 text-[0.9375rem]">
-                <span className="text-muted">
-                  {v.original}&nbsp;<ArrowRight className="inline size-4 align-[-0.1875em]" aria-label="try" />
-                </span>
-                {v.better.map((b) => (
-                  <Badge key={b} tone="accent" className="h-auto! min-h-7 py-1 text-sm whitespace-normal!">
+              <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.9375rem]">
+                <span className="text-muted">{v.original}</span>
+                <ArrowRight className="size-4 shrink-0 translate-y-0.5 text-muted" aria-label="try" />
+                {v.better.map((b, i) => (
+                  <span key={b} className="font-semibold text-brand-text">
                     {b}
-                  </Badge>
+                    {i < v.better.length - 1 && <span className="font-normal text-muted">,</span>}
+                  </span>
                 ))}
               </p>
-              {v.note && <p className="mt-1 text-sm text-muted">{v.note}</p>}
+              {v.note && <p className="mt-1 max-w-prose text-sm text-muted text-pretty">{v.note}</p>}
             </li>
           ))}
         </ul>

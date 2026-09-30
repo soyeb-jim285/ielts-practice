@@ -25,14 +25,20 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
             <span className="font-semibold tabular-nums">{formatBand(latest[k])}</span>
           </li>
         ))}
+        <li className="flex items-center gap-2 text-sm text-muted">
+          <svg width="16" height="2" aria-hidden>
+            <line x1="0" y1="1" x2="16" y2="1" stroke="var(--muted)" strokeWidth="2" strokeDasharray="3 3" />
+          </svg>
+          Target {formatBand(target)}
+        </li>
       </ul>
-      <div className="-ml-2 h-56" role="img" aria-label={`Band trend over your last ${trend.length} attempts`}>
+      <div className="-ml-2 h-56 md:h-72" role="img" aria-label={`Band trend over your last ${trend.length} attempts`}>
         <ResponsiveContainer>
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis dataKey="date" {...axis} tickFormatter={(d: string) => fmt.format(new Date(d))} minTickGap={24} />
             <YAxis {...axis} width={32} domain={[lo, 9]} ticks={[3, 4, 5, 6, 7, 8, 9].filter((t) => t >= lo)} allowDataOverflow />
-            <ReferenceLine y={target} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: `Target ${formatBand(target)}`, position: 'insideTopRight', fill: 'var(--muted)', fontSize: 11 }} />
+            <ReferenceLine y={target} stroke="var(--muted)" strokeDasharray="4 4" />
             <Tooltip
               cursor={{ stroke: 'var(--line-strong)' }}
               contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-pop)', fontSize: 13 }}
@@ -41,7 +47,7 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
               formatter={(v, k) => [formatBand(Number(v)), criterionLabel(String(k))]}
             />
             {keys.map((k) => (
-              <Line key={k} type="monotone" dataKey={k} stroke={SERIES_COLOR[k]} strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: SERIES_COLOR[k] }} activeDot={{ r: 4 }} connectNulls isAnimationActive={false} />
+              <Line key={k} type="linear" dataKey={k} stroke={SERIES_COLOR[k]} strokeWidth={2} dot={{ r: 3, strokeWidth: 0, fill: SERIES_COLOR[k] }} activeDot={{ r: 5 }} connectNulls isAnimationActive={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>

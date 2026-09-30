@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { AuthLayout, CheckEmail } from '@/components/layout/AuthLayout';
-import { Alert, Button, Input, toast } from '@/components/ui';
+import { Alert, Button, buttonStyles, Input, toast } from '@/components/ui';
 import { authClient, redirectIfSignedIn } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
 
@@ -48,7 +48,7 @@ function Signup() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="hit font-medium text-accent-text hover:underline">
+          <Link to="/login" className={buttonStyles({ variant: 'link', className: 'hit' })}>
             Sign in
           </Link>
         </>

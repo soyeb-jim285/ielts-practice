@@ -3,8 +3,8 @@ import { ArrowDown, ArrowRight } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 
 // Hand-drawn SVG, no recharts: the exam paper is a static figure, so no tooltips or animation are needed (native <title> gives hover values).
-// Distinct series colours from the theme tokens, plus dash patterns so lines stay tellable apart in greyscale / colour-blind viewing.
-const COLORS = ['var(--accent)', 'var(--warn)', 'var(--good)', 'var(--bad)', 'var(--ink)', 'var(--muted)'];
+// Categorical, non-semantic hues (green/amber/red stay reserved for good/warn/bad), plus dash patterns so lines stay tellable apart in greyscale / colour-blind viewing.
+const COLORS = ['oklch(0.58 0.16 265)', 'oklch(0.62 0.11 190)', 'oklch(0.6 0.17 310)', 'oklch(0.64 0.13 75)', 'oklch(0.58 0.03 250)', 'oklch(0.6 0.15 350)'];
 const DASHES = [undefined, '6 3', '2 3', '10 4 2 4', '1 2', '8 2'];
 // Past six (e.g. a 7-slice pie), repeat the palette as lighter tints so neighbouring slices never share a colour.
 const color = (i: number) => (i < COLORS.length ? COLORS[i] : `color-mix(in oklab, ${COLORS[i % COLORS.length]} 45%, var(--surface))`);
@@ -13,8 +13,8 @@ const num = (v: number) => v.toLocaleString('en');
 /** An exam-paper style figure for Academic Task 1: bold centred title, plain axes, legend underneath. */
 export function ChartRenderer({ spec }: { spec: ChartSpec }) {
   return (
-    <figure className="rounded-card border border-line bg-surface px-3 py-5 sm:px-5" aria-label={spec.title}>
-      <figcaption className="mx-auto mb-4 max-w-[52ch] text-center text-[0.9375rem] font-semibold text-balance">{spec.title}</figcaption>
+    <figure className="rounded-card border border-line bg-surface px-3 py-5 shadow-card sm:px-5" aria-label={spec.title}>
+      <figcaption className="mx-auto mb-5 max-w-[52ch] text-center text-[0.9375rem] font-semibold text-balance">{spec.title}</figcaption>
       <Body spec={spec} />
     </figure>
   );
@@ -63,14 +63,17 @@ function Cartesian({ spec }: { spec: Extract<ChartSpec, { kind: 'line' | 'bar' }
   const vals = spec.series.flatMap((s) => s.values).filter(Number.isFinite);
   const ticks = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals));
   const [lo, hi] = [ticks[0]!, ticks.at(-1)!];
-  const bottom = spec.xLabel ? 44 : 28;
   const pw = Math.max(0, w - M.left - M.right);
-  const ph = H - M.top - bottom;
   const band = pw / spec.categories.length;
+  // x labels: wrap onto up to two lines (~7 px per character); only when that still doesn't fit, skip every nth.
+  const maxChars = Math.max(1, Math.floor((band - 8) / 7));
+  const lines = spec.categories.map((c) => wrapLabel(c, maxChars));
+  const fits = lines.every((l) => l.length <= 2 && l.every((t) => t.length <= maxChars));
+  const every = fits ? 1 : Math.ceil((Math.max(...spec.categories.map((c) => c.length)) * 7 + 8) / Math.max(band, 1));
+  const bottom = (spec.xLabel ? 44 : 28) + (fits && lines.some((l) => l.length > 1) ? 14 : 0);
+  const ph = H - M.top - bottom;
   const x = (i: number) => M.left + band * (i + 0.5);
   const y = (v: number) => M.top + ph * (1 - (v - lo) / (hi - lo));
-  // Skip x labels that would collide: ~7 px per character.
-  const every = Math.ceil((Math.max(...spec.categories.map((c) => c.length)) * 7 + 8) / Math.max(band, 1));
   const unit = spec.unit && spec.unit !== spec.yLabel ? ` ${spec.unit}` : '';
   const bw = (band * 0.8) / spec.series.length;
 
@@ -88,7 +91,13 @@ function Cartesian({ spec }: { spec: Extract<ChartSpec, { kind: 'line' | 'bar' }
             <line x1={M.left} x2={M.left} y1={M.top} y2={M.top + ph} stroke="var(--line-strong)" />
             {spec.categories.map((c, i) =>
               i % every && i !== spec.categories.length - 1 ? null : (
-                <text key={i} x={x(i)} y={M.top + ph + 18} textAnchor="middle" fill="var(--muted)">{c}</text>
+                <text key={i} x={x(i)} y={M.top + ph + 18} textAnchor="middle" fill="var(--muted)">
+                  {(fits ? lines[i]! : [c]).map((t, k) => (
+                    <tspan key={k} x={x(i)} dy={k ? 14 : 0}>
+                      {t}
+                    </tspan>
+                  ))}
+                </text>
               ),
             )}
             {spec.xLabel && <text x={M.left + pw / 2} y={H - 4} textAnchor="middle" fill="var(--muted)">{spec.xLabel}</text>}
@@ -98,7 +107,7 @@ function Cartesian({ spec }: { spec: Extract<ChartSpec, { kind: 'line' | 'bar' }
                 <g key={s.name} fill={color(si)}>
                   {s.values.map((v, i) =>
                     Number.isFinite(v) ? (
-                      <rect key={i} x={x(i) - band * 0.4 + bw * si} y={Math.min(y(v), y(0))} width={Math.max(bw - 1, 1)} height={Math.abs(y(v) - y(0))}>
+                      <rect key={i} x={x(i) - band * 0.4 + bw * si} y={Math.min(y(v), y(0))} width={Math.max(bw - 1, 1)} height={Math.abs(y(v) - y(0))} rx={2}>
                         <title>{`${s.name}, ${spec.categories[i]}: ${num(v)}${unit}`}</title>
                       </rect>
                     ) : null,
@@ -124,6 +133,17 @@ function Cartesian({ spec }: { spec: Extract<ChartSpec, { kind: 'line' | 'bar' }
     </div>
   );
 }
+
+/** Greedy word wrap to `max` characters per line. */
+const wrapLabel = (c: string, max: number) => {
+  const out: string[] = [];
+  let cur = '';
+  for (const w of c.split(' ')) {
+    if (!cur || `${cur} ${w}`.length <= max) cur = cur ? `${cur} ${w}` : w;
+    else (out.push(cur), (cur = w));
+  }
+  return [...out, cur];
+};
 
 /** A polyline that breaks at missing values. */
 const linePath = (vs: number[], x: (i: number) => number, y: (v: number) => number) =>

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { Combobox, type ComboOption } from '@/components/ui';
+import { Button, Combobox, type ComboOption } from '@/components/ui';
 import { call, client, type Schemas, type Settings } from '@/lib/api';
 
 export type Capability = 'text' | 'audio-in' | 'stt' | 'tts';
@@ -103,9 +103,9 @@ export function ModelPicker({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {isError ? <span className="text-bad-text">Couldn't load the model list. Your current choice still works.</span> : hint}
           {value !== defaultValue ? (
-            <button type="button" onClick={() => onChange(defaultValue)} className="font-medium text-accent-text underline-offset-2 hover:underline">
+            <Button variant="link" onClick={() => onChange(defaultValue)}>
               Reset to default ({defaultValue})
-            </button>
+            </Button>
           ) : (
             <span>Default</span>
           )}

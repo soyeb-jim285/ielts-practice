@@ -25,7 +25,7 @@ export function TimerRing({ part, seconds }: { part: 1 | 2 | 3; seconds: number 
       <ProgressRing value={seconds / z.max} size={112} stroke={8} tone={zoneTone(part, seconds)} label="Answer time">
         <span className="text-2xl font-semibold tracking-tight">{formatClock(Math.floor(seconds))}</span>
       </ProgressRing>
-      <p className="text-sm text-muted" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         {zoneHint(part, Math.floor(seconds))}
       </p>
     </div>

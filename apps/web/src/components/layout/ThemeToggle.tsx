@@ -1,5 +1,5 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Segmented } from '@/components/ui';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -16,25 +16,26 @@ function read(): Theme {
 
 const apply = (t: Theme) => document.documentElement.classList.toggle('dark', t === 'dark' || (t === 'system' && media().matches));
 
-/** Theme preference (persisted per browser). The pre-paint copy of `apply` lives in index.html. */
-export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(read);
-  useEffect(() => {
-    apply(theme);
-    try {
-      if (theme === 'system') localStorage.removeItem('theme');
-      else localStorage.setItem('theme', theme);
-    } catch {
-      /* private mode: theme still applies for this visit */
-    }
-    if (theme !== 'system') return;
-    const m = media();
-    const h = () => apply('system');
-    m.addEventListener('change', h);
-    return () => m.removeEventListener('change', h);
-  }, [theme]);
-  return [theme, setTheme] as const;
+// One shared store so every useTheme() consumer (settings toggle, account menu) stays in sync.
+let current = read();
+const listeners = new Set<() => void>();
+const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
+if (typeof matchMedia !== 'undefined') media().addEventListener('change', () => current === 'system' && apply('system'));
+
+function setTheme(t: Theme) {
+  current = t;
+  apply(t);
+  try {
+    if (t === 'system') localStorage.removeItem('theme');
+    else localStorage.setItem('theme', t);
+  } catch {
+    /* private mode: theme still applies for this visit */
+  }
+  listeners.forEach((l) => l());
 }
+
+/** Theme preference (persisted per browser). The pre-paint copy of `apply` lives in index.html. */
+export const useTheme = () => [useSyncExternalStore(subscribe, () => current, () => 'system' as Theme), setTheme] as const;
 
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useTheme();

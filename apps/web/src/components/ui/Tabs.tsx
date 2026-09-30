@@ -1,10 +1,11 @@
-import { clsx } from 'clsx';
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+import { Tabs as ShTabs, TabsList, TabsTrigger } from './shadcn/tabs';
 
 export type TabItem<T extends string> = { value: T; label: ReactNode; count?: number };
 
 /**
- * Underlined tab bar (results pages). Controlled; render the active panel yourself:
+ * Underlined tab bar (results pages) on Radix Tabs (roving focus, Home/End, arrows). Controlled; render the active panel yourself:
  * <Tabs id="res" .../> then <div role="tabpanel" id={`res-panel`} aria-labelledby={`res-${value}`}>…</div>
  * Tabs share the width on phones; if they still don't fit, the bar scrolls sideways, the right edge fades while more is hidden, and the active tab is kept in view.
  */
@@ -29,46 +30,29 @@ export function Tabs<T extends string>({ id, items, value, onChange, className }
     const br = b.getBoundingClientRect();
     if (br.left < cr.left || br.right > cr.right - 32) c.scrollLeft += br.left - cr.left - 16;
   }, [value]);
-  const onKey = (e: KeyboardEvent) => {
-    const i = items.findIndex((t) => t.value === value);
-    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-    const next = e.key === 'Home' ? items[0] : e.key === 'End' ? items.at(-1) : d ? items[(i + d + items.length) % items.length] : undefined;
-    if (!next) return;
-    e.preventDefault();
-    onChange(next.value);
-    ref.current?.querySelector<HTMLElement>(`[data-value="${next.value}"]`)?.focus();
-  };
   return (
-    <div
-      ref={ref}
-      role="tablist"
-      onKeyDown={onKey}
-      onScroll={measure}
-      className={clsx('flex overflow-x-auto border-b border-line [scrollbar-width:none] sm:gap-1', more && '[mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)]', className)}
-    >
-      {items.map((t) => {
-        const active = t.value === value;
-        return (
-          <button
+    <ShTabs value={value} onValueChange={(v) => onChange(v as T)}>
+      <TabsList
+        ref={ref}
+        variant="line"
+        onScroll={measure}
+        className={cn('h-auto group-data-[orientation=horizontal]/tabs:h-auto w-full justify-start gap-0 overflow-x-auto rounded-none border-b border-border p-0 [scrollbar-width:none] sm:gap-1', more && '[mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)]', className)}
+      >
+        {items.map((t) => (
+          <TabsTrigger
             key={t.value}
+            value={t.value}
+            // The consumer renders the panel, so point the ARIA pair at its ids instead of Radix's generated ones.
             id={`${id}-${t.value}`}
-            data-value={t.value}
-            role="tab"
-            type="button"
-            aria-selected={active}
             aria-controls={`${id}-panel`}
-            tabIndex={active ? 0 : -1}
-            onClick={() => onChange(t.value)}
-            className={clsx(
-              '-mb-px flex h-11 shrink-0 items-center justify-center gap-1 sm:gap-1.5 border-b-2 px-1 text-[0.8125rem] font-medium whitespace-nowrap transition-colors duration-150 max-sm:grow sm:px-3 sm:text-sm',
-              active ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink',
-            )}
+            data-value={t.value}
+            className="h-11 flex-none shrink-0 gap-1 rounded-none border-0 border-b-2 border-transparent bg-transparent px-1 text-[0.8125rem] text-muted shadow-none after:hidden hover:text-ink data-[state=active]:border-brand data-[state=active]:bg-transparent data-[state=active]:text-ink max-sm:grow sm:gap-1.5 sm:px-3 sm:text-sm"
           >
             {t.label}
-            {t.count != null && <span className="rounded-full bg-ink/6 px-1 text-xs sm:px-1.5 tabular-nums text-muted dark:bg-ink/10">{t.count}</span>}
-          </button>
-        );
-      })}
-    </div>
+            {t.count != null && <span className="rounded-full bg-ink/6 px-1 text-xs text-muted tabular-nums sm:px-1.5 dark:bg-ink/10">{t.count}</span>}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </ShTabs>
   );
 }

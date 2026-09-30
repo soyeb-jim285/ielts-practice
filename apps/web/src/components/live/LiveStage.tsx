@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { CueCard } from '@/components/speaking/CueCard';
 import { TimerRing } from '@/components/speaking/TimerRing';
-import { Alert, Button, Dialog, ProgressRing, Spinner, Textarea } from '@/components/ui';
+import { Alert, Badge, Button, Dialog, ProgressRing, Spinner, Textarea, type Tone } from '@/components/ui';
 import { formatClock } from '@/lib/format';
 import { PREP_S, TALK_S, type LiveExaminer, type Phase } from '@/live/turn';
 
@@ -30,6 +30,8 @@ const STATUS_TEXT: Record<LiveExaminer['status'], string> = {
   error: '',
 };
 
+const STATUS_TONE: Partial<Record<LiveExaminer['status'], Tone>> = { examiner: 'accent', candidate: 'good', waiting: 'accent' };
+
 /** Elapsed test time in seconds, counted only while `running` (paused on an error). */
 export function useElapsed(running: boolean) {
   const [s, setS] = useState(0);
@@ -46,14 +48,14 @@ export function useElapsed(running: boolean) {
 function Avatar({ speaking, listening, level, compact }: { speaking: boolean; listening: boolean; level: number; compact: boolean }) {
   return (
     <div className={clsx('relative grid shrink-0 place-items-center transition-[width,height] duration-250 ease-(--ease-out-quart)', compact ? 'size-24' : 'size-40 sm:size-48')} aria-hidden>
-      {speaking && <span className="absolute inset-0 animate-ping rounded-full bg-accent/15 [animation-duration:1.8s]" />}
+      {speaking && <span className="absolute inset-0 animate-ping rounded-full bg-brand/15 [animation-duration:1.8s]" />}
       <span
-        className={clsx('absolute inset-0 rounded-full transition-transform duration-100', listening ? 'bg-good-soft' : 'bg-accent-soft')}
+        className={clsx('absolute inset-0 rounded-full transition-transform duration-100', listening ? 'bg-good-soft' : 'bg-brand-soft')}
         style={{ transform: `scale(${listening ? 1 + Math.min(level * 1.2, 0.35) : 1})` }}
       />
       <span
         className={clsx(
-          'relative grid place-items-center rounded-full bg-surface font-serif font-semibold text-accent-text shadow-card transition-[width,height] duration-250',
+          'relative grid place-items-center rounded-full bg-surface font-serif font-semibold text-brand-text shadow-card transition-[width,height] duration-250',
           compact ? 'size-16 text-2xl' : 'size-28 text-5xl sm:size-32',
         )}
       >
@@ -82,7 +84,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
       }
       status={
         <>
-          <span className="text-sm font-medium tabular-nums text-muted" aria-label={`Elapsed ${formatClock(elapsed)}`}>
+          <span className="text-sm font-medium tabular-nums text-muted-foreground" aria-label={`Elapsed ${formatClock(elapsed)}`}>
             {formatClock(elapsed)}
           </span>
           <Button
@@ -99,11 +101,15 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
       }
     >
       <div className={clsx('flex flex-col items-center gap-6 text-center', part2 && 'md:gap-8')}>
-        <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-balance">{PHASE_LABEL[ex.phase]}</h1>
-          <p className="min-h-5 text-sm text-muted" aria-live="polite">
-            {STATUS_TEXT[ex.status]}
-          </p>
+        <div className="space-y-3">
+          <h1 className="text-xl font-semibold text-balance">{PHASE_LABEL[ex.phase]}</h1>
+          <div className="flex min-h-7 justify-center" aria-live="polite">
+            {STATUS_TEXT[ex.status] && (
+              <Badge tone={STATUS_TONE[ex.status]} className="h-auto px-3 py-1 text-sm whitespace-normal">
+                {STATUS_TEXT[ex.status]}
+              </Badge>
+            )}
+          </div>
         </div>
 
         <Avatar speaking={ex.status === 'examiner'} listening={ex.status === 'candidate'} level={ex.level} compact={part2} />
@@ -122,7 +128,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         )}
 
         {(captions || ex.voiceError) && ex.caption && (
-          <p className="prose-serif w-full rounded-card bg-surface-2 px-5 py-4 text-left" aria-live="polite">
+          <p className="prose-serif w-full max-w-2xl rounded-card bg-surface-2 px-5 py-4 text-left" aria-live="polite">
             {ex.caption}
           </p>
         )}
@@ -154,7 +160,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
                   <ProgressRing value={(PREP_S - ex.prepLeft) / PREP_S} size={72} stroke={6} tone={ex.prepLeft <= 10 ? 'warn' : 'accent'} label="Preparation time">
                     <span className="text-base font-semibold tabular-nums">{formatClock(ex.prepLeft)}</span>
                   </ProgressRing>
-                  <p className="text-sm text-muted">Preparation. The examiner will ask you to start when the minute is up.</p>
+                  <p className="text-sm text-muted-foreground">Preparation. The examiner will ask you to start when the minute is up.</p>
                 </div>
               ) : (
                 ex.talkRunning && <TimerRing part={2} seconds={TALK_S - ex.talkLeft} />

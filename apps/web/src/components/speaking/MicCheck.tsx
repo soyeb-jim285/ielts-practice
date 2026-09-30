@@ -8,7 +8,7 @@ import { MicProblem } from './MicProblem';
 
 const NONE: MicTally = { loud: 0, soft: 0 };
 const VERDICT = {
-  listening: { text: 'Say a few words, like your name…', cls: 'text-muted', bar: 'bg-accent' },
+  listening: { text: 'Say a few words, like your name…', cls: 'text-muted-foreground', bar: 'bg-brand' },
   quiet: { text: 'Very quiet — move closer to the microphone or speak up.', cls: 'font-medium text-warn-text', bar: 'bg-warn' },
   clear: { text: 'We can hear you clearly.', cls: 'font-medium text-good-text', bar: 'bg-good' },
 };

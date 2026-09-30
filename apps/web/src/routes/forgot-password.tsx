@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { AuthLayout, CheckEmail } from '@/components/layout/AuthLayout';
-import { Alert, Button, Input } from '@/components/ui';
+import { Alert, Button, buttonStyles, Input } from '@/components/ui';
 import { authClient } from '@/lib/auth';
 
 export const Route = createFileRoute('/forgot-password')({ component: ForgotPassword });
@@ -34,7 +34,7 @@ function ForgotPassword() {
       title="Reset your password"
       subtitle="Enter your account email and we’ll send you a link."
       footer={
-        <Link to="/login" className="hit font-medium text-accent-text hover:underline">
+        <Link to="/login" className={buttonStyles({ variant: 'link', className: 'hit' })}>
           Back to sign in
         </Link>
       }

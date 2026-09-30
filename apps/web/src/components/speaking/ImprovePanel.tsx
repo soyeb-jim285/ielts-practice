@@ -13,7 +13,7 @@ export function ImprovePanel({ result, retry }: { result: AnalysisResult; retry:
     onError: (e) => toast(e.message, { tone: 'bad' }),
   });
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Actions first, as on the writing result. */}
       <div className="flex flex-wrap gap-2">
         {retry}
@@ -24,17 +24,12 @@ export function ImprovePanel({ result, retry }: { result: AnalysisResult; retry:
         )}
       </div>
       {result.rewrite.text && (
-        <section className="w-fit">
-          <h2 className="mb-3 text-lg font-semibold">Your answer, one band higher</h2>
+        <section className="max-w-[calc(68ch+2.5rem)] space-y-3">
+          <h2 className="mb-1 text-lg font-semibold">Your answer, one band higher</h2>
           <Card>
             <p className="prose-serif whitespace-pre-wrap">{result.rewrite.text}</p>
           </Card>
-          {result.rewrite.note && (
-            // w-0 min-w-full: the note fills the card width without widening it.
-            <Alert tone="warn" className="mt-3 w-0 min-w-full">
-              {result.rewrite.note}
-            </Alert>
-          )}
+          {result.rewrite.note && <Alert>{result.rewrite.note}</Alert>}
         </section>
       )}
     </div>

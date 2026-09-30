@@ -27,8 +27,8 @@ function Mistake({ error, onSheet, children }: { error: AnalysisError; onSheet: 
         children({
           ref: p.ref as RefObject<HTMLElement | null>,
           expanded: p['aria-expanded'],
-          // ponytail: marks can't be native popover invokers, so we open it by hand; re-clicking an open phrase reopens it.
-          open: () => (matchMedia('(min-width: 48rem)').matches ? document.getElementById(p.popoverTarget)?.showPopover() : onSheet(error)),
+          // Radix light-dismisses on pointerdown, then this click toggles: re-clicking an open phrase reopens it.
+          open: () => (matchMedia('(min-width: 48rem)').matches ? p.onClick() : onSheet(error)),
         })
       }
     >
@@ -63,7 +63,7 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
   const shown = (e: AnalysisError) => !filter || group(e) === filter;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[68ch] space-y-6">
       {categories.length > 1 && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter mistakes">
           <Chip selected={!filter} onClick={() => setFilter(null)}>
@@ -76,6 +76,16 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
           ))}
         </div>
       )}
+
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded bg-bad" aria-hidden /> Major
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0 w-4 border-t-2 border-dotted border-warn" aria-hidden /> Minor
+        </span>
+        <span>Select an underlined phrase for the fix.</span>
+      </p>
 
       <div className="prose-serif whitespace-pre-wrap text-ink">
         {segments.map(({ text: t, error: err }, i) =>
@@ -93,12 +103,12 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
                   onClick={p.open}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), p.open())}
                   className={clsx(
-                    'cursor-pointer rounded-[3px] text-ink underline decoration-2 underline-offset-[5px] transition-colors duration-150',
+                    'cursor-pointer rounded-[3px] text-ink underline underline-offset-[5px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring',
                     err.severity === 'minor'
-                      ? 'bg-warn-soft decoration-warn decoration-dotted hover:bg-warn/20'
+                      ? 'bg-warn-soft decoration-1 decoration-warn decoration-dotted hover:bg-warn/20'
                       : // Whole-sentence errors: a pink block over a full line is too heavy, so underline only.
-                        clsx('decoration-bad hover:bg-bad/10', countWords(t) <= 8 ? 'bg-bad-soft' : 'bg-transparent'),
-                    (p.expanded || open?.id === err.id) && 'ring-2 ring-accent',
+                        clsx('decoration-2 decoration-bad hover:bg-bad/10', countWords(t) <= 8 ? 'bg-bad-soft' : 'bg-transparent'),
+                    (p.expanded || open?.id === err.id) && 'ring-2 ring-brand',
                   )}
                 >
                   {t}
@@ -111,20 +121,11 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
         )}
       </div>
 
-      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-4 rounded bg-bad" aria-hidden /> Major
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0 w-4 border-t-2 border-dotted border-warn" aria-hidden /> Minor
-        </span>
-        <span>Select an underlined phrase for the fix.</span>
-      </p>
 
       {unplaced.filter(shown).length > 0 && (
-        <section className="border-t border-line pt-4">
-          <h3 className="mb-2 text-sm font-semibold">Also noted</h3>
-          <ul className="space-y-1.5">
+        <section>
+          <h3 className="mb-2 text-base font-semibold">Also noted</h3>
+          <ul className="divide-y divide-line rounded-lg bg-surface-2 px-1">
             {unplaced.filter(shown).map((e) => (
               <li key={e.id}>
                 <Mistake error={e} onSheet={setOpen}>
@@ -135,7 +136,7 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
                       aria-haspopup="dialog"
                       aria-expanded={p.expanded}
                       onClick={p.open}
-                      className="flex w-full items-start gap-3 rounded-control bg-surface-2 px-4 py-3 text-left text-sm transition-colors duration-150 hover:bg-ink/6"
+                      className="flex min-h-11 w-full items-start gap-3 rounded-lg px-3 py-3 text-left text-sm outline-none transition-colors duration-150 hover:bg-hover focus-visible:ring-[3px] focus-visible:ring-ring/40"
                     >
                       <Badge tone={e.severity === 'major' ? 'bad' : 'warn'}>{categoryLabel(e.category)}</Badge>
                       <span className="min-w-0 flex-1">

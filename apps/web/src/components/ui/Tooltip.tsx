@@ -1,38 +1,44 @@
-import { clsx } from 'clsx';
 import { Info } from 'lucide-react';
-import { cloneElement, useId, type ReactElement, type ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
+import { Popover as ShPopover, PopoverContent, PopoverTrigger } from './shadcn/popover';
+import { Tooltip as ShTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './shadcn/tooltip';
 
 /**
  * Hover/focus hint for a focusable child (button, link). Plain text only; interactive content → Popover.
- * ponytail: CSS-positioned, can clip inside overflow:hidden parents; switch to Popover there.
+ * Radix portals it, so it is never clipped by overflow:hidden parents. Touch devices don't fire hover: use InfoTip or a Popover there.
  */
-export function Tooltip({ content, children, side = 'top' }: { content: ReactNode; children: ReactElement<{ 'aria-describedby'?: string }>; side?: 'top' | 'bottom' }) {
-  const id = useId();
+export function Tooltip({ content, children, side = 'top' }: { content: ReactNode; children: ReactElement; side?: 'top' | 'bottom' }) {
   return (
-    <span className="group/tt relative inline-flex">
-      {cloneElement(children, { 'aria-describedby': id })}
-      <span
-        id={id}
-        role="tooltip"
-        className={clsx(
-          'pointer-events-none absolute left-1/2 z-[80] w-max max-w-64 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs leading-snug font-normal text-bg opacity-0 shadow-pop transition-opacity duration-150',
-          'group-hover/tt:opacity-100 group-has-focus-visible/tt:opacity-100',
-          side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
-        )}
-      >
-        {content}
-      </span>
-    </span>
+    <TooltipProvider delayDuration={200}>
+      <ShTooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent side={side} className="max-w-64">
+          {content}
+        </TooltipContent>
+      </ShTooltip>
+    </TooltipProvider>
   );
 }
 
-/** ⓘ button with an explanation tooltip, for metrics and jargon. */
+/** ⓘ button with an explanation, for metrics and jargon. Hover shows it on desktop; tap/click/Enter opens it everywhere (touch has no hover). */
 export function InfoTip({ children, label = 'More info' }: { children: ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Tooltip content={children}>
-      <button type="button" aria-label={label} className="hit inline-grid size-5 place-items-center rounded-full text-muted hover:text-ink">
-        <Info className="size-3.5" />
-      </button>
-    </Tooltip>
+    <ShPopover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)}
+          onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}
+          className="hit inline-grid size-5 place-items-center rounded-full text-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        >
+          <Info className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" collisionPadding={8} onOpenAutoFocus={(e) => e.preventDefault()} className="w-auto max-w-64 rounded-lg bg-foreground px-2.5 py-1.5 text-xs leading-snug text-background">
+        {children}
+      </PopoverContent>
+    </ShPopover>
   );
 }

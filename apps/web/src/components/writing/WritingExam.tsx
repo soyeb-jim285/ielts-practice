@@ -1,9 +1,9 @@
 import { useNavigate } from '@tanstack/react-router';
 import { clsx } from 'clsx';
-import { Clock, NotebookPen, X } from 'lucide-react';
+import { ChevronDown, Clock, NotebookPen, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
-import { Alert, Button, Dialog, Tabs, toast } from '@/components/ui';
+import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Tabs, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { formatClock, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
@@ -29,8 +29,8 @@ function TimerPill({ left }: { left: number }) {
       role="timer"
       aria-label={left < 0 ? `Overtime ${formatClock(-left)}` : `${formatClock(left)} left`}
       className={clsx(
-        'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold tabular-nums transition-colors duration-200',
-        tone === 'bad' ? 'bg-bad-soft text-bad-text' : tone === 'warn' ? 'bg-warn-soft text-warn-text' : 'bg-ink/6 text-ink dark:bg-ink/10',
+        'inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[0.9375rem] font-semibold tabular-nums transition-colors duration-200',
+        tone === 'bad' ? 'bg-bad-soft text-bad-text' : tone === 'warn' ? 'bg-warn-soft text-warn-text' : 'bg-surface-2 text-ink',
       )}
     >
       <Clock className="size-4" aria-hidden />
@@ -62,6 +62,7 @@ export function WritingExam({
   const [active, setActive] = useState(prompts[0]!.id);
   const [confirm, setConfirm] = useState<'submit' | 'exit' | null>(null);
   const [busy, setBusy] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(() => !drafts[prompts[0]!.id]!.text); // phones: collapse the question once the answer is under way
   const [error, setError] = useState<string | null>(null);
   const left = useDeadline(seconds);
   const created = useRef<Record<string, string>>({}); // promptId → attemptId, so a retried submit never duplicates attempts
@@ -129,7 +130,7 @@ export function WritingExam({
       status={
         <>
           <TimerPill left={left} />
-          <Button size="sm" onClick={() => setConfirm('submit')} loading={busy}>
+          <Button onClick={() => setConfirm('submit')} loading={busy}>
             Submit
           </Button>
         </>
@@ -154,12 +155,27 @@ export function WritingExam({
           role={multi ? 'tabpanel' : undefined}
           id={multi ? 'task-panel' : undefined}
           aria-labelledby={multi ? `task-${active}` : undefined}
-          className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden"
         >
-          <section aria-label="Question" className="border-line px-4 py-6 sm:px-6 lg:overflow-y-auto lg:border-r lg:px-8 lg:py-8">
-            <PromptPanel key={current.id} prompt={current} />
+          <section aria-label="Question" className="shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0 lg:bg-transparent">
+            <button
+              type="button"
+              aria-expanded={promptOpen}
+              aria-controls="question-body"
+              onClick={() => setPromptOpen((o) => !o)}
+              className="flex h-12 w-full items-center gap-2 px-4 text-sm font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset sm:px-6 lg:hidden"
+            >
+              Question
+              <span className="ml-auto flex items-center gap-1 font-normal text-muted">
+                {promptOpen ? 'Hide' : 'Show'}
+                <ChevronDown className={clsx('size-4 transition-transform duration-200', promptOpen && 'rotate-180')} aria-hidden />
+              </span>
+            </button>
+            <div id="question-body" className={clsx('px-4 pt-2 pb-6 sm:px-6 lg:px-10 lg:py-10', !promptOpen && 'max-lg:hidden')}>
+              <PromptPanel key={current.id} prompt={current} />
+            </div>
           </section>
-          <section aria-label="Answer" className="flex min-h-[60vh] flex-col gap-3 px-4 pb-6 sm:px-6 lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:py-8">
+          <section aria-label="Answer" className="flex min-h-[70vh] flex-1 flex-col gap-3 px-4 py-4 sm:px-6 lg:min-h-0 lg:overflow-y-auto lg:px-10 lg:py-10">
             {current.part === 2 && <PlanPad value={draft.plan} onChange={(plan) => update(current.id, { plan })} />}
             <WritingEditor
               key={current.id}
@@ -190,14 +206,14 @@ export function WritingExam({
           </>
         }
       >
-        <ul className="space-y-2 text-sm">
+        <ul className="divide-y divide-line rounded-lg bg-surface-2 px-4 text-sm">
           {prompts.map((p) => {
             const n = countWords(drafts[p.id]!.text);
             const min = minWords(p.part);
             return (
-              <li key={p.id} className="flex items-center justify-between gap-3 rounded-control bg-surface-2 px-3 py-2">
-                <span>{taskLabel(p)}</span>
-                <span className={clsx('tabular-nums', n < min ? 'text-bad-text' : 'text-good-text')}>
+              <li key={p.id} className="flex items-center justify-between gap-3 py-3">
+                <span className="font-medium">{taskLabel(p)}</span>
+                <span className={clsx('tabular-nums', n < min ? 'text-warn-text' : 'text-good-text')}>
                   {plural(n, 'word')}
                   {n < min && ` · under ${min}`}
                 </span>
@@ -209,7 +225,7 @@ export function WritingExam({
           <p className="mt-3 text-sm text-muted">Write at least a paragraph{multi ? ' for each task' : ''} before submitting.</p>
         ) : (
           under && (
-            <p className="mt-3 text-sm text-bad-text">
+            <p className="mt-3 text-sm text-warn-text">
               Under {minWords(under.part)} words loses {under.part === 1 ? 'Task Achievement' : 'Task Response'} marks
               {left > 0 && ` — you have ${formatClock(left)} left`}.
             </p>
@@ -239,25 +255,26 @@ export function WritingExam({
 
 function PlanPad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <details className="group shrink-0 rounded-card border border-line bg-surface-2" open={!!value || undefined}>
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-card px-4 py-3 text-sm font-medium select-none hover:bg-ink/[0.03] [&::-webkit-details-marker]:hidden">
+    <Collapsible defaultOpen={!!value} className="group/plan shrink-0 rounded-card bg-surface-2">
+      <CollapsibleTrigger className="flex h-11 w-full items-center gap-2 rounded-card px-4 text-sm font-medium outline-none hover:bg-hover focus-visible:ring-[3px] focus-visible:ring-ring/40">
         <NotebookPen className="size-4 text-muted" aria-hidden />
         Plan <span className="font-normal text-muted">· about 5 minutes, not graded</span>
-        <span className="ml-auto text-xs text-muted group-open:hidden">Show</span>
-        <span className="ml-auto hidden text-xs text-muted group-open:inline">Hide</span>
-      </summary>
-      <label className="sr-only" htmlFor="plan-pad">
-        Essay plan
-      </label>
-      <textarea
-        id="plan-pad"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={5}
-        placeholder={'Position: …\nBody 1: idea + example\nBody 2: idea + example\nConclusion: …'}
-        className="block w-full resize-y border-t border-line bg-transparent px-4 py-3 text-[0.9375rem] outline-none placeholder:text-muted"
-        {...NO_ASSIST}
-      />
-    </details>
+        <ChevronDown className="ml-auto size-4 text-muted transition-transform duration-200 group-data-[state=open]/plan:rotate-180" aria-hidden />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <label className="sr-only" htmlFor="plan-pad">
+          Essay plan
+        </label>
+        <textarea
+          id="plan-pad"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={5}
+          placeholder={'Position: …\nBody 1: idea + example\nBody 2: idea + example\nConclusion: …'}
+          className="block w-full resize-y rounded-b-card border-t border-line bg-transparent px-4 py-3 text-[0.9375rem] outline-none placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset"
+          {...NO_ASSIST}
+        />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

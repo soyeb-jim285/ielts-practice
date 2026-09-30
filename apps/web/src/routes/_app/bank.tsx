@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Check, ChevronRight, LibraryBig, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
+import { rowStyles } from '@/components/bank/ListRow';
 import { PromptLink } from '@/components/bank/PracticeLink';
 import { Badge, Button, Card, EmptyState, Input, PageHeader, Segmented, Select, Skeleton } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
@@ -101,14 +102,15 @@ function BankPage() {
     <>
       <PageHeader title="Prompt bank" description={total != null ? `${total.toLocaleString('en')} ${total === 1 ? 'prompt' : 'prompts'}${filtered ? ' match' : ''}` : 'Every question and task you can practise.'} />
 
-      <div className="mb-5 space-y-3">
+      <div className="mb-6 space-y-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted" aria-hidden />
-          <Input label="Search prompts" hideLabel type="search" placeholder="Search titles and questions…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted" aria-hidden />
+          <Input label="Search prompts" hideLabel type="search" placeholder="Search titles and questions…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-10" />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <Segmented
             label="Skill"
+            className="max-sm:w-full"
             value={f.skill ?? 'all'}
             onChange={(v) => set({ skill: v === 'all' ? undefined : v, part: undefined, variant: undefined, type: undefined, topic: undefined })}
             options={[
@@ -120,6 +122,7 @@ function BankPage() {
           {f.skill && (
             <Segmented
               label={f.skill === 'speaking' ? 'Part' : 'Task'}
+              className="max-sm:w-full"
               value={f.part ? `${f.part}${f.variant ? `-${f.variant}` : ''}` : 'all'}
               onChange={(v) => {
                 const [part, variant] = v.split('-') as [string, Variant | undefined];
@@ -128,46 +131,46 @@ function BankPage() {
               options={PARTS[f.skill]}
             />
           )}
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:max-w-xl sm:grid-cols-3">
-          <Select label="Type" hideLabel value={f.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}>
-            <option value="">All types</option>
-            {typeGroups.map((g) => (
-              <optgroup key={g.label} label={g.label}>
-                {g.types.map((t) => (
-                  <option key={t} value={t}>
-                    {typeLabel(t)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </Select>
-          <Select label="Topic" hideLabel value={f.topic ?? ''} onChange={(e) => set({ topic: e.target.value || undefined })}>
-            <option value="">All topics</option>
-            {topics.map((t) => (
-              <option key={t} value={t}>
-                {pretty(t)}
-              </option>
-            ))}
-          </Select>
-          {/* Without Cambridge access everything is generated, so a source filter means nothing. */}
-          {cambridgeAccess && (
-            <Select label="Source" hideLabel value={f.source ?? ''} onChange={(e) => set({ source: (e.target.value || undefined) as Filters['source'] })}>
-              <option value="">All sources</option>
-              <option value="generated">Generated</option>
-              <option value="cambridge">Cambridge</option>
+          <div className="grid grow grid-cols-2 gap-3 sm:ml-auto sm:flex sm:grow-0 sm:[&>*]:w-44">
+            <Select label="Type" hideLabel value={f.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}>
+              <option value="">All types</option>
+              {typeGroups.map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.types.map((t) => (
+                    <option key={t} value={t}>
+                      {typeLabel(t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </Select>
-          )}
+            <Select label="Topic" hideLabel value={f.topic ?? ''} onChange={(e) => set({ topic: e.target.value || undefined })}>
+              <option value="">All topics</option>
+              {topics.map((t) => (
+                <option key={t} value={t}>
+                  {pretty(t)}
+                </option>
+              ))}
+            </Select>
+            {/* Without Cambridge access everything is generated, so a source filter means nothing. */}
+            {cambridgeAccess && (
+              <Select label="Source" hideLabel value={f.source ?? ''} onChange={(e) => set({ source: (e.target.value || undefined) as Filters['source'] })}>
+                <option value="">All sources</option>
+                <option value="generated">Generated</option>
+                <option value="cambridge">Cambridge</option>
+              </Select>
+            )}
+          </div>
         </div>
       </div>
 
       {list.isPending ? (
-        <Card padded={false} aria-busy>
+        <Card padded={false} className="overflow-clip" aria-busy>
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="flex items-center gap-4 border-b border-line px-5 py-4 last:border-0">
+            <div key={i} className="flex items-center gap-3 border-b border-line px-5 py-4 last:border-0">
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-[1.125rem] w-2/3" />
+                <Skeleton className="h-4 w-1/3" />
               </div>
             </div>
           ))}
@@ -175,6 +178,7 @@ function BankPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={<LibraryBig />}
+          className="md:py-14"
           title={filtered ? 'No prompts match' : 'The bank is empty'}
           action={
             filtered && (
@@ -187,10 +191,10 @@ function BankPage() {
           {filtered ? 'Try a broader search or fewer filters.' : 'Seed the prompt bank on the server to start practising.'}
         </EmptyState>
       ) : (
-        <Card padded={false}>
+        <Card padded={false} className="overflow-clip">
           {groups.map((g) => (
             <section key={g.key} aria-label={g.label}>
-              <h2 className="sticky top-0 z-10 border-b border-line bg-surface-2/95 px-4 py-2 text-xs font-medium text-muted backdrop-blur sm:px-5 [section:first-child>&]:rounded-t-card [section:not(:first-child)>&]:border-t">
+              <h2 className="sticky top-0 z-10 border-b border-line bg-surface-2 px-5 py-2 text-sm font-medium text-muted [section:not(:first-child)>&]:border-t">
                 {g.label}
               </h2>
               <ul className="divide-y divide-line">
@@ -199,7 +203,7 @@ function BankPage() {
                   const question = p.skill === 'speaking' ? p.body.split('\n')[0] : typeLabel(p.type);
                   return (
                     <li key={p.id}>
-                      <PromptLink prompt={p} className="flex items-center gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-ink/[0.03] sm:px-5">
+                      <PromptLink prompt={p} className={rowStyles}>
                         <span className="min-w-0 flex-1">
                           <span className="line-clamp-2 text-[0.9375rem] font-medium text-pretty">{p.title}</span>
                           <span className="mt-0.5 flex items-center gap-2 text-sm text-muted">

@@ -13,12 +13,12 @@ test('sign up, set a target band, browse the bank', async ({ page }) => {
 
   await page.goto('/settings');
   const band = page.getByLabel('Target band');
-  await expect(band).toHaveValue('7');
+  await expect(band).toHaveAttribute('aria-valuenow', '7');
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.ok());
-  await band.fill('8');
+  await band.press('End'); // Radix slider thumb: keyboard, not fill()
   await saved;
   await page.reload();
-  await expect(page.getByLabel('Target band')).toHaveValue('8');
+  await expect(page.getByLabel('Target band')).toHaveAttribute('aria-valuenow', '9');
 
   await page.goto('/bank');
   await expect(page.getByRole('heading', { name: 'Prompt bank' })).toBeVisible();

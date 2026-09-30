@@ -16,8 +16,8 @@ export function WpmPill({ wpm, elapsedMs }: { wpm: number; elapsedMs: number }) 
 /** Gentle nudge after 3 s of silence while recording. */
 export function SilenceNudge({ silenceMs }: { silenceMs: number }) {
   return (
-    <p aria-live="polite" className="h-8">
-      {silenceMs >= 3000 && <Badge tone="accent" className="h-8 px-3 text-sm">Keep going… add a reason or an example</Badge>}
+    <p aria-live="polite" className="min-h-8">
+      {silenceMs >= 3000 && <Badge tone="accent" className="h-auto px-3 py-1.5 text-sm">Keep going… add a reason or an example</Badge>}
     </p>
   );
 }
