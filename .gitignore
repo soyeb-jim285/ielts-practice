@@ -9,3 +9,4 @@ data/cambridge/
 apps/ios/*.xcodeproj
 apps/ios/build/
 DerivedData/
+.impeccable/

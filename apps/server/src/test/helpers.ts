@@ -47,7 +47,7 @@ type Route = (url: string, init: RequestInit) => Response | Promise<Response>;
 /** Builds a fetch stub routing by URL substring. Records calls. */
 export function fakeFetch(routes: Record<string, Route>) {
   const calls: { url: string; body: any }[] = [];
-  const f = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const f = (async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = String(input instanceof Request ? input.url : input);
     let body: any = init.body;
     try {
