@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, type LinkProps } from '@tanstack/react-router';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AudioLines, ListOrdered } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
+import { PendingUploads } from '@/components/speaking/PendingUploads';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
@@ -25,9 +26,11 @@ function SpeakingHome() {
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
       <div className="space-y-12">
+        <PendingUploads />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
             link={{ to: '/speaking/session', search: { mode: 'full' } }}
+            icon={<ListOrdered />}
             kind="Practice test, at your own pace"
             title="Full practice test"
             body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
@@ -36,6 +39,8 @@ function SpeakingHome() {
           />
           <ModeCard
             link={{ to: '/speaking/live' }}
+            tone="live"
+            icon={<AudioLines />}
             kind="Live, spoken conversation"
             title="Live examiner"
             body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
@@ -67,12 +72,24 @@ function SpeakingHome() {
   );
 }
 
-/** One of the two ways to practise. Static card, identical for both modes; the button is the only interactive part. */
-function ModeCard({ link, kind, title, body, meta, cta }: { link: LinkProps; kind: string; title: string; body: string; meta: string; cta: string }) {
+/** One of the two ways to practise. Static card; the button is the only interactive part.
+ *  Colour tells the modes apart without a second accent: the self-paced test sits on a cool slate wash, the live examiner on a soft teal wash
+ *  (teal = the spoken, "live" mode). Both washes are mixes of existing tokens, so dark mode and contrast follow the palette. */
+const MODE_TONE = {
+  test: { card: 'border-line bg-[color-mix(in_oklab,var(--surface-2)_75%,var(--surface))]', icon: 'text-ink' },
+  live: { card: 'border-brand/25 bg-[color-mix(in_oklab,var(--accent-soft)_70%,var(--surface))]', icon: 'text-accent-text' },
+};
+function ModeCard({ link, tone = 'test', icon, kind, title, body, meta, cta }: { link: LinkProps; tone?: keyof typeof MODE_TONE; icon: ReactNode; kind: string; title: string; body: string; meta: string; cta: string }) {
+  const t = MODE_TONE[tone];
   return (
-    <div className="flex flex-col gap-6 rounded-lg border border-line bg-card p-6 sm:p-7">
+    <div className={cn('flex flex-col gap-6 rounded-lg border p-6 sm:p-7', t.card)}>
       <div>
-        <p className="type-caption">{kind}</p>
+        <p className="type-caption flex items-center gap-2">
+          <span aria-hidden className={cn('[&_svg]:size-4', t.icon)}>
+            {icon}
+          </span>
+          {kind}
+        </p>
         <h2 className="type-title-sm mt-2">{title}</h2>
         <p className="type-lede mt-2 max-w-[46ch]">{body}</p>
       </div>
@@ -91,17 +108,20 @@ function RowText({ title, desc }: { title: ReactNode; desc: string }) {
   return (
     <span className="min-w-0 flex-1">
       <span className="type-subheading block">{title}</span>
-      <span className="type-lede mt-0.5 block max-w-[60ch] text-sm">{desc}</span>
+      <span className="type-lede mt-0.5 block max-w-[72ch] text-sm">{desc}</span>
     </span>
   );
 }
 
+/** Duration flush with the row's right edge; on hover it gives way to the arrow (same slot), instead of reserving a gap for it. */
 function RowEnd({ children }: { children: ReactNode }) {
   return (
-    <>
-      <span className="type-caption type-num hidden sm:block">{children}</span>
-      <RowChevron />
-    </>
+    <span className="relative grid place-items-center self-stretch">
+      <span className="type-caption type-num hidden text-right transition-opacity duration-[120ms] group-hover:opacity-0 group-focus-visible:opacity-0 sm:block">{children}</span>
+      <span className="absolute right-0 flex">
+        <RowChevron />
+      </span>
+    </span>
   );
 }
 
