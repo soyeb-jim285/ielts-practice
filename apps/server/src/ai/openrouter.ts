@@ -337,8 +337,9 @@ export function pcmToWav(pcm: Uint8Array, rate = 24000, channels = 1) {
 /** Gemini TTS only returns raw PCM ("only supports response_format=pcm"); every other speech model gets mp3. */
 const pcmOnly = (model: string) => /^google\/.*tts/.test(model);
 
-/** Returns mp3 (audio/mpeg) or, for PCM-only models, WAV (audio/wav). */
-export async function speak(o: { model: string; voice: string; text: string }): Promise<{ audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' }> {
+type Speech = { audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' };
+
+async function speakOnce(o: { model: string; voice: string; text: string }): Promise<Speech> {
   const pcm = pcmOnly(o.model);
   const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' });
   const audio = new Uint8Array(await res.arrayBuffer());
@@ -346,6 +347,34 @@ export async function speak(o: { model: string; voice: string; text: string }): 
   // content-type is e.g. "audio/pcm;rate=24000;channels=1"
   const param = (k: string, d: number) => Number(res.headers.get('content-type')?.match(new RegExp(`${k}=(\\d+)`))?.[1] ?? d);
   return { audio: pcmToWav(audio, param('rate', 24000), param('channels', 1)), contentType: 'audio/wav' };
+}
+
+/** Sentence groups of a long line (at most 3, about 80+ characters each) so that they can be synthesised in parallel: TTS time grows with text length. */
+export function speechChunks(text: string, per = 80, max = 3): string[] {
+  const sentences = text.match(/[^.!?]+(?:[.!?]+["')\]]*|$)\s*/g)?.map((x) => x.trim()).filter(Boolean) ?? [text];
+  const n = Math.min(max, sentences.length, Math.floor(text.length / per));
+  if (n < 2) return [text];
+  const goal = text.length / n, out: string[] = [];
+  let cur = '';
+  for (const x of sentences) {
+    if (cur.length >= goal && out.length < n - 1) (out.push(cur), (cur = ''));
+    cur = cur ? `${cur} ${x}` : x;
+  }
+  return [...out, cur];
+}
+
+/** Joins chunks of one line: mp3 frames concatenate; WAV chunks share a rate, so their PCM is re-wrapped in one header. */
+function joinSpeech(parts: Speech[]): Speech {
+  if (parts.length === 1) return parts[0]!;
+  if (parts[0]!.contentType === 'audio/mpeg') return { audio: new Uint8Array(Buffer.concat(parts.map((p) => p.audio))), contentType: 'audio/mpeg' };
+  const rate = Buffer.from(parts[0]!.audio).readUInt32LE(24), channels = Buffer.from(parts[0]!.audio).readUInt16LE(22);
+  return { audio: pcmToWav(new Uint8Array(Buffer.concat(parts.map((p) => p.audio.subarray(44)))), rate, channels), contentType: 'audio/wav' };
+}
+
+/** Returns mp3 (audio/mpeg) or, for PCM-only models, WAV (audio/wav). A line of several sentences is synthesised as parallel chunks (lower time to first audio). */
+export async function speak(o: { model: string; voice: string; text: string }): Promise<Speech> {
+  const chunks = speechChunks(o.text);
+  return joinSpeech(await Promise.all(chunks.map((text) => speakOnce({ ...o, text }))));
 }
 
 export type ModelInfo = { id: string; name: string; input: string[]; output: string[]; pricing: { prompt: string; completion: string }; voices: string[] };

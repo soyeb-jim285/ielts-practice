@@ -30,10 +30,11 @@ it('counts numbers, percentages and currency as words', () => {
   expect(countWords('It cost $20 - a rise of 5.5 points.')).toBe(8);
   expect(computeTextMetrics('Sales rose 75% in 2017.').words).toBe(5);
 });
-it('promptOverlap counts words in 4-grams shared with the prompt', () => {
+it('promptOverlap counts words in runs of 8+ words shared with the prompt', () => {
   const prompt = 'Some people think that governments should spend money on railways. Discuss both views.';
   expect(promptOverlap('Some people think that governments should spend money on railways, but I disagree.', prompt)).toBe(10);
-  expect(promptOverlap('Some people think roads matter more.', prompt)).toBe(0); // 3 shared words are not a 4-gram
+  expect(promptOverlap('Some people think roads matter more.', prompt)).toBe(0);
+  expect(promptOverlap('I agree that governments should spend money on railways and roads.', prompt)).toBe(0); // topic vocabulary: a 6-word run is not copied rubric
   expect(promptOverlap('anything', '')).toBe(0);
 });
 it('textFlags: injection, non-English, copied prompt', () => {

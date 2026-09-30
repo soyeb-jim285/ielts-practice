@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -10,7 +10,7 @@ import { NotSubmittedActions } from '@/components/speaking/PendingUploads';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
-import { Alert, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
+import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
@@ -29,8 +29,9 @@ export const Route = createFileRoute('/_app/speaking/result/$attemptId')({
   component: ResultPage,
 });
 
-// Recharts (~100 KB gz) loads only when the Fluency tab opens.
-const FluencyPanel = lazy(() => import('@/components/speaking/FluencyPanel').then((m) => ({ default: m.FluencyPanel })));
+// Recharts (~100 KB gz) is its own chunk: fetched while the result is scoring (or once a finished result is open), so the Fluency tab does not pop in late.
+const loadFluency = () => import('@/components/speaking/FluencyPanel').then((m) => ({ default: m.FluencyPanel }));
+const FluencyPanel = lazy(loadFluency);
 
 const STEPS = ['Uploading', 'Transcribing', 'Measuring fluency', 'Scoring against the band descriptors'];
 
@@ -41,6 +42,10 @@ function ResultPage() {
   const { data: a } = useQuery(attemptQuery(attemptId));
   const { data: me } = useMe();
   const audio = useAudio();
+  const warm = a?.status === 'analyzing' || (a?.status === 'done' && !!a.analysis?.metrics);
+  useEffect(() => {
+    if (warm) void loadFluency();
+  }, [warm]);
   if (!a) return null; // loader guarantees data; keeps types narrow
   const target = me?.settings.targetBand ?? 7;
   const r = a.analysis;
@@ -119,17 +124,22 @@ function ResultPage() {
   const off = offTopicAnswers(r);
   return (
     <PageContainer>
-      <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target} back={back}>
+      <ResultHeader
+        result={r}
+        title={a.prompt.title}
+        meta={meta}
+        target={target}
+        back={back}
+        flags={
+          off && (
+            <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="rounded-full">
+              <Badge tone="bad">Off topic</Badge>
+            </Link>
+          )
+        }
+      >
         {switcher}
       </ResultHeader>
-      {off && (
-        <Alert tone="bad" title="Off topic" className="mb-6">
-          {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
-          <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
-            See details in Language
-          </Link>
-        </Alert>
-      )}
       {/* One sticky strip: the tabs, plus the player on the tabs that seek into the recording. */}
       <StickyTabs>
         <Tabs id="res" value={tab} onChange={setTab} items={[
@@ -146,17 +156,34 @@ function ResultPage() {
         )}
       </StickyTabs>
       <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1} className="pt-5 pb-8">
-        <Panel tab={tab} a={a} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} />
+        <Panel tab={tab} a={a} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} />
       </div>
     </PageContainer>
   );
 }
 
-function Panel({ tab, a, target, audio, retry, parentLink }: { tab: Tab; a: Attempt; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode }) {
+function Panel({ tab, a, target, audio, retry, parentLink, off }: { tab: Tab; a: Attempt; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
   const r = a.analysis!;
   switch (tab) {
     case 'overview':
-      return <OverviewPanel result={r} order={SPEAKING_CRITERIA} target={target} parentLink={parentLink} />;
+      return (
+        <OverviewPanel
+          result={r}
+          order={SPEAKING_CRITERIA}
+          target={target}
+          parentLink={parentLink}
+          alert={
+            off && (
+              <Alert tone="bad" title="Off topic">
+                {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
+                <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
+                  See details in Language
+                </Link>
+              </Alert>
+            )
+          }
+        />
+      );
     case 'transcript':
       return <Transcript result={r} audio={audio} />;
     case 'fluency':

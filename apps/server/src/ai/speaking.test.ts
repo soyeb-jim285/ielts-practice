@@ -193,3 +193,19 @@ it('disfluency tagger spans are fused with the other detectors and summarised pe
   expect(r.timings).toMatchObject({ sttMs: expect.any(Number), totalMs: expect.any(Number) });
   expect(r.sttModel).toBe('openai/whisper-large-v3');
 });
+
+it('FC stays within one band of the measured fluency band, and P within reach of FC (+1 from ASR evidence, +2 with an audio report)', async () => {
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ bands: { fc: 2, lr: 9, gra: 9, p: 9 } }) }));
+  const low = await run();
+  const flu = (low.metrics as any).fluency.band as number;
+  expect(low.criteria.fc!.band).toBe(Math.max(Math.ceil(flu - 1), 2));
+  expect(low.criteria.p!.band).toBeLessThanOrEqual(low.criteria.fc!.band + 1);
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ bands: { fc: 9, lr: 9, gra: 9, p: 9 } }) }));
+  const high = await run();
+  expect(high.criteria.fc!.band).toBe(Math.min(Math.floor(flu + 1), 9));
+  // audio report with no word-level evidence: P = the model's band, capped at 7 and at FC + 2
+  const pron = { words: [], misheard: [], disfluencies: { filledPauses: [], repetitions: [], falseStarts: [] }, prosody: 'Clear.', band: 9 };
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ bands: { fc: 9, lr: 9, gra: 9 }, other: () => pron }) }));
+  const r = await run(settings({ audioPronEnabled: true }));
+  expect(r.criteria.p!.band).toBeLessThanOrEqual(Math.min(7, r.criteria.fc!.band + 2));
+});

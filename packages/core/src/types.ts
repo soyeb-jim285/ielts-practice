@@ -8,7 +8,9 @@ export type SpeechMetrics = {
   wordCount: number;
   speechRate: number; // words/min over total time
   articulationRate: number; // words/min over phonation time
+  /** Share of the recording the words themselves occupy (sum of word durations / duration). The rest is pauses, short inter-word gaps under PAUSE_MS and leading/trailing silence, so it does not add up with pauseRatio to 1. */
   phonationRatio: number;
+  /** Share of the recording inside pauses of PAUSE_MS (0.5 s) or longer between words; shorter gaps are not counted. */
   pauseRatio: number;
   mlr: number; // mean length of run (words between pauses)
   pauses: Pause[];

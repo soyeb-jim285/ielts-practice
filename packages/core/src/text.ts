@@ -86,12 +86,14 @@ export function computeTextMetrics(text: string): TextMetrics {
 const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 const wordTokens = (text: string) => text.split(/\s+/).map(norm).filter(Boolean);
 
-/** Words of `text` inside a word 4-gram that also occurs in `prompt` ("any copied rubric must be discounted", IELTS band descriptors). */
+/** Shortest shared run that counts as copied rubric: ordinary topic vocabulary ("the use of mobile phones in schools") repeats the prompt in runs of 4-7 words. */
+export const COPY_RUN = 8;
+/** Words of `text` inside a word COPY_RUN-gram that also occurs in `prompt` ("any copied rubric must be discounted", IELTS band descriptors). */
 export function promptOverlap(text: string, prompt: string): number {
-  const p = wordTokens(prompt), t = wordTokens(text), gram = (a: string[], i: number) => a.slice(i, i + 4).join(' ');
-  const grams = new Set(p.slice(0, Math.max(0, p.length - 3)).map((_, i) => gram(p, i)));
+  const p = wordTokens(prompt), t = wordTokens(text), gram = (a: string[], i: number) => a.slice(i, i + COPY_RUN).join(' ');
+  const grams = new Set(p.slice(0, Math.max(0, p.length - COPY_RUN + 1)).map((_, i) => gram(p, i)));
   const copied = new Set<number>();
-  for (let i = 0; i + 4 <= t.length; i++) if (grams.has(gram(t, i))) for (let k = i; k < i + 4; k++) copied.add(k);
+  for (let i = 0; i + COPY_RUN <= t.length; i++) if (grams.has(gram(t, i))) for (let k = i; k < i + COPY_RUN; k++) copied.add(k);
   return copied.size;
 }
 

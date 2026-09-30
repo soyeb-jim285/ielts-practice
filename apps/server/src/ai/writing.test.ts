@@ -7,7 +7,7 @@ import { analyzeWriting, applyRules, scoreWriting, scorerK, settleWriting, WRITI
 import { criterionScore, settings, writingChat, writingLlm } from './fixtures';
 import type { LlmCriterion } from './schemas';
 import { keepVerbatimEvidence } from './schemas';
-import { roundBand } from '@ielts/core';
+import { roundBand, taskBand } from '@ielts/core';
 import { calibrationKey, clearCalibrationCache } from './calibration';
 import { clearAnchorCache, loadAnchors, pickAnchors, promptHash } from './prompts';
 
@@ -72,12 +72,24 @@ it('one feedback call without bands plus K joint scoring calls: essay wrapped as
   expect(r.criteria.ta!.evidence).toEqual(['people has']);
 });
 
-it('mean of K samples per criterion; samples 2+ bands apart widen the range by 0.5', async () => {
+it('early exit: the two fastest samples agree, so the score is their mean (not K replicas); disagreement waits for the third', async () => {
+  const run = async (ta: number[]) => {
+    setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
+    const scored = await scoreWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() }, { early: true });
+    return scored;
+  };
+  const agreeing = await run([6, 6, 4]);
+  expect(agreeing.used).toBe(2);
+  expect(agreeing.samples.map((s) => s.ta.band)).toEqual([6, 6]);
+  expect((await run([5, 7, 6])).used).toBe(3);
+});
+
+it('mean of K samples per criterion; samples 2+ bands apart on TA widen the range by a band', async () => {
   const ta = [5, 7, 6];
   setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
   const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
   expect(r.criteria.ta).toMatchObject({ band: 6 });
-  expect(r).toMatchObject({ q: 1.5, range: [4.5, 7.5] });
+  expect(r).toMatchObject({ q: 2, range: [4, 8] });
 });
 
 it('anchors: rotated per sample by band bin, never on the scored prompt, and part of promptHash', async () => {
@@ -180,13 +192,27 @@ it('rule layer: under-length and cut-off scripts are capped at criterion level',
   expect(c2.ta.band).toBe(6); // just under the minimum
   const cut = profile(7, 7, 8, 8);
   applyRules(cut, rule({ words: 180, text: 'and this is why the government should' }));
-  expect([cut.ta.band, cut.cc.band, cut.lr.band, cut.gra.band]).toEqual([5, 6, 7, 7]);
+  expect([cut.ta.band, cut.cc.band, cut.lr.band, cut.gra.band]).toEqual([5, 5, 5, 5]); // capped at TA + 1 (under 80% of the minimum), then one lower for the cut-off
   expect(cut.cc.summary).toContain('stops mid-sentence');
   const t1 = profile(7, 7, 7, 7);
   applyRules(t1, rule({ task: 1, words: 120 }));
   expect(t1.ta.band).toBe(5);
   const full = profile(7, 7, 7, 7);
   expect(applyRules(full, rule({ words: 250 }))).toEqual([]);
+});
+
+it('rule layer: under 80% of the minimum caps CC, LR and GRA at TA + 1 (the scorer rated them on the language alone)', () => {
+  const short = profile(5, 9, 8, 7); // the "short" probes: TA 5 but the other criteria 7-9
+  applyRules(short, rule({ words: 190, text: 'Ends properly.' }));
+  expect([short.ta.band, short.cc.band, short.lr.band, short.gra.band]).toEqual([5, 6, 6, 6]);
+  expect(short.cc.summary).toContain('one band above Task Response');
+  expect(taskBand({ ta: 5, cc: 6, lr: 6, gra: 6 })).toBeLessThanOrEqual(6); // the overall cannot pass TA + 1
+  const t1 = profile(7, 8, 8, 8);
+  applyRules(t1, rule({ task: 1, words: 100, text: 'Ends properly.' })); // 100 < 80% of 150
+  expect([t1.ta.band, t1.cc.band, t1.lr.band, t1.gra.band]).toEqual([5, 6, 6, 6]);
+  const near = profile(7, 8, 8, 8);
+  applyRules(near, rule({ words: 230, text: 'Ends properly.' })); // 92% of 250: only TA is capped
+  expect([near.ta.band, near.cc.band]).toEqual([6, 8]);
 });
 
 it('rule layer: Task 1 Academic without an overview caps TA and CC at 5', () => {

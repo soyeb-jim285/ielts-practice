@@ -11,24 +11,43 @@ import { sendEmail } from './email';
 import { storage } from './storage';
 import type { AppEnv } from './types';
 
+const ORIGINS = [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS];
+
+/** Email links open in the browser, so they point at the web origin the user signed up from (the Origin header when trusted, else WEB_ORIGIN), not at the API host:
+ *  the web dev server proxies /api and production serves both from one origin. A relative callbackURL is made absolute against the same origin. */
+export function webLink(url: string, request?: Request) {
+  const o = request?.headers.get('origin');
+  const base = new URL(o && ORIGINS.includes(o) ? o : env.WEB_ORIGIN);
+  const u = new URL(url);
+  u.protocol = base.protocol;
+  u.host = base.host;
+  for (const k of ['callbackURL', 'redirectTo']) {
+    const v = u.searchParams.get(k);
+    if (v?.startsWith('/')) u.searchParams.set(k, new URL(v, base).toString());
+  }
+  return u.toString();
+}
+
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: 'pg', schema }),
-  trustedOrigins: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS],
+  trustedOrigins: ORIGINS,
   // Web: session + user come from a signed cookie for 5 min instead of two DB lookups per request.
   session: { cookieCache: { enabled: true, maxAge: 300 } },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: env.NODE_ENV === 'production',
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url: api }, request) => {
+      const url = webLink(api, request);
       await sendEmail({ to: user.email, subject: 'Reset your IELTS Practice password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
     },
   },
   emailVerification: {
     sendOnSignUp: !IS_TEST,
     autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({ user, url: api }, request) => {
+      const url = webLink(api, request);
       await sendEmail({ to: user.email, subject: 'Verify your email', html: `<p>Welcome to IELTS Practice!</p><p><a href="${url}">Verify your email</a></p>` });
     },
   },

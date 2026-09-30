@@ -147,17 +147,19 @@ export function poolCriteria<K extends string>(
   samples: Record<K, LlmCriterion>[],
   target: (mean: number) => number = (m) => m,
   describe?: (key: K, band: number) => string | undefined,
+  /** Share of each criterion's distance from the criteria mean that is kept (1 = all; below 1 flattens the profile, see settleWriting). */
+  keep = 1,
 ): Record<K, LlmCriterion> {
   const keys = Object.keys(samples[0]!) as K[];
   const mean = (f: (x: Record<K, LlmCriterion>) => number) => samples.reduce((s, x) => s + f(x), 0) / samples.length;
   const means = keys.map((k) => mean((x) => x[k].band));
   const avg = means.reduce((a, b) => a + b) / keys.length;
-  const goal = target(avg), x = means.map((m) => m + goal - avg);
+  const goal = target(avg), x = means.map((m) => avg + keep * (m - avg) + goal - avg);
   const bands = x.map(Math.floor);
   let left = Math.round(goal * keys.length + 1e-9) - bands.reduce((a, b) => a + b);
-  // Largest remainder first; on a tie the later criterion (writing LR/GRA, which the model under-scores most) goes up.
+  // Largest remainder first; on a tie the later criterion (writing LR/GRA, which the model under-scores most) goes up, or the weakest one when the profile is flattened.
   const frac = (i: number) => Math.round((x[i]! - bands[i]!) * 1e6);
-  for (const i of keys.map((_, i) => i).sort((a, b) => frac(b) - frac(a) || b - a)) if (left-- > 0) bands[i]!++;
+  for (const i of keys.map((_, i) => i).sort((a, b) => frac(b) - frac(a) || (keep < 1 ? means[a]! - means[b]! : b - a))) if (left-- > 0) bands[i]!++; // a flattened profile lifts its weakest criterion first
   const whole = (v: number) => Math.min(9, Math.max(0, Math.round(v + goal - avg)));
   return Object.fromEntries(
     keys.map((k, i) => {
@@ -179,12 +181,19 @@ export const retryOnce = <T>(f: () => Promise<T>): Promise<T> =>
     return f();
   });
 
-/** Runs the scoring calls in parallel and returns every successful sample; failed calls are dropped, all failing throws the first error. */
-export async function scoringSamples<S>(calls: (() => Promise<S>)[]): Promise<S[]> {
-  const rs = await Promise.allSettled(calls.map((f) => f()));
-  const ok = rs.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
-  if (!ok.length && rs.length) throw (rs[0] as PromiseRejectedResult).reason;
-  return ok;
+/** Runs the scoring calls in parallel and returns every successful sample; failed calls are dropped, all failing throws the first error.
+ *  `early`: once 2+ samples are in and it accepts them (they agree), returns at once without waiting for the slowest call (the calls still finish in the background). */
+export function scoringSamples<S>(calls: (() => Promise<S>)[], early?: (ok: S[]) => boolean): Promise<S[]> {
+  return new Promise((resolve, reject) => {
+    const ok: S[] = [];
+    let left = calls.length, first: unknown;
+    if (!left) return resolve(ok);
+    for (const f of calls)
+      f().then(
+        (v) => void (ok.push(v), ok.length >= 2 && early?.(ok) && resolve([...ok])),
+        (e) => void (first ??= e),
+      ).finally(() => (--left === 0 ? (ok.length ? resolve(ok) : reject(first)) : undefined));
+  });
 }
 
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}']+/gu, ' ').trim()} `;

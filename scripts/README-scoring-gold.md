@@ -59,3 +59,10 @@ official bands:
   Academic and ielts.org rows carry only a `prompt.figure` page reference. No verified chart data yet (§2.1).
 - Labels are overall task bands only; there are no official criterion bands.
 - All of these scripts are public, so contamination is possible (§7.4).
+
+## Fitting with anchors (iteration 5)
+
+`pnpm eval:scoring --split calib --fit --with-anchors` also scores the anchor scripts, each with itself left out of the benchmarks
+(`skipAnchor`), so the calibration fit reaches the bands the calibration pool lacks (3.5-4 and 8-8.5). Anchors never enter the
+test or probe splits. Fit of 2026-10-01 (promptHash `c2c869d31a9fcf39`, n = 86): slope 1.17, intercept -0.32, CV QWK 0.80, MAE 0.51,
+within 0.5 of 71%; gate failed (MAE, band >= 7 bias CI), so the record is stored inactive and `DEFAULT_MAPS` carries the same map.

@@ -25,8 +25,21 @@ export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; 
         </Link>
       }
     >
-      <PageContainer width="narrow" className="space-y-10">
+      <PageContainer width="narrow" className="space-y-8">
         <PageHeader title="Live examiner" description="A full speaking test with a voice examiner. About 11-14 minutes, like the real thing." />
+
+        <section aria-labelledby="mic">
+          <h2 id="mic" className="type-heading mb-4">
+            Microphone check
+          </h2>
+          <Card className="space-y-4">
+            <div className="flex items-start gap-3 text-body">
+              <Headphones className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+              <p>Headphones work best, so the examiner's voice doesn't reach your microphone. Find a quiet room.</p>
+            </div>
+            <MicCheck mic={mic} />
+          </Card>
+        </section>
 
         <section aria-labelledby="how">
           <h2 id="how" className="type-heading mb-4">
@@ -57,20 +70,7 @@ export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; 
           )}
         </section>
 
-        <section aria-labelledby="mic">
-          <h2 id="mic" className="type-heading mb-4">
-            Microphone check
-          </h2>
-          <Card className="space-y-4">
-            <div className="flex items-start gap-3 text-body">
-              <Headphones className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
-              <p>Headphones work best, so the examiner's voice doesn't reach your microphone. Find a quiet room.</p>
-            </div>
-            <MicCheck mic={mic} />
-          </Card>
-        </section>
-
-        <div className="space-y-3">
+        <div className="sticky bottom-0 z-10 -mx-4 space-y-2 border-t border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
           <Button
             size="lg"
             className="w-full sm:w-auto sm:px-8"

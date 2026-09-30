@@ -34,6 +34,7 @@ HOW TO READ THE EVIDENCE:
 
 OUTPUT RULES:
 - errors: list EVERY clear grammar error (tense, agreement, plural, article, preposition, word order) with its correction, up to about 15, and every wrong word choice: do not stop at the first few. Recognisers repair many slips ("two year ago" becomes "two years ago"), so read the spoken forms list too, and check each sentence for a missing or wrong tense ("I see the sea" about the past). "start"/"end" are inclusive word indices from the transcript; "original" is exactly those words. Keep spans tight (the minimal words containing the error). Use "fluency.hesitation" only for a specific breakdown (a false start, abandoned sentence) and "pronunciation.word" only for words the evidence says were unclear.
+- topFixes: when fewer than 3 grammar or vocabulary errors are found, fill the remaining fixes with the candidate's fluency habits shown in the metrics and transcript (repairs and self-corrections, repetitions, false starts, fillers): "before" quotes the transcript words where it happens, "after" the fluent version.
 - relevance: exactly one entry per question (questionIdx is 0-based: Q1 → 0), onTopic false if the answer does not address it; note says briefly how well it was answered.
 - rewrite: spoken register (contractions and natural discourse markers are fine), keep the part's natural length, keep the same question order, no headings.
 
@@ -326,17 +327,23 @@ export async function analyzeSpeaking(i: {
       return [k, ok];
     }),
   ) as Partial<Record<Key, z.infer<typeof CriterionScoreSchema>[]>>;
-  const asCriterion = (s: { band: number; descriptor: string; evidence: string[]; summary: string }, cap = 9): LlmCriterion => {
-    const band = Math.min(cap, s.band);
+  const asCriterion = (s: { band: number; descriptor: string; evidence: string[]; summary: string }, [lo, hi] = [0, 9]): LlmCriterion => {
+    const band = s.band === 0 ? 0 : Math.max(lo, Math.min(hi, s.band)); // 0 = nothing rateable: never pulled up
     return { band, range: [band, band], descriptor: s.descriptor, evidence: s.evidence, summary: s.summary };
   };
-  // Without acoustic evidence of word-level problems (fewer than 2 confirmed words) P cannot sit more than one band under the other criteria's mean: the
-  // audio model's Pronunciation band was pulling clear, fluent clips to 6 (and its "issues" were invented from the transcript).
-  const meanBand = (ks: Key[]) => ks.reduce((t, k) => t + byKey[k]!.reduce((x, y) => x + y.band, 0) / byKey[k]!.length, 0) / ks.length;
-  const pBand = pron && (pron.words.length >= 2 ? pron.band : Math.max(pron.band, Math.min(9, Math.round(meanBand(['fc', 'lr', 'gra']) - 1))));
+  const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
+  // FC stays within one band of the measured timing composite (fluencyBand): the LLM read scripted fluent speech at 6 against a composite of 8.
+  const fluB = fluencyBand(composite), fcRange: [number, number] = [Math.ceil(fluB - 1), Math.floor(fluB + 1)];
+  const fcBands = byKey.fc!.map((s) => (s.band === 0 ? 0 : Math.max(fcRange[0], Math.min(fcRange[1], s.band))));
+  const fcMean = mean(fcBands);
+  // P is not judged from a transcript. It stays tied to fluency (at most FC + 2 with an audio report, FC + 1 without one) and, without acoustic evidence of
+  // word-level problems (fewer than 2 confirmed words), is pulled up to at most one band under the other criteria's mean and capped at 7.
+  const meanBand = (ks: Key[]) => ks.reduce((t, k) => t + (k === 'fc' ? fcMean : mean(byKey[k]!.map((x) => x.band))), 0) / ks.length;
+  const pLimit = Math.round(fcMean) + (pron ? 2 : 1);
+  const pBand = pron && Math.min(pLimit, pron.words.length >= 2 ? pron.band : Math.min(7, Math.max(pron.band, Math.min(9, Math.round(meanBand(['fc', 'lr', 'gra']) - 1)))));
   const pCrit = pron && asCriterion({ band: pBand!, descriptor: bandDescriptor(SPEAKING_DESCRIPTORS.p, pBand!) ?? '', evidence: [], summary: pron.prosody });
   const samples = Array.from({ length: SCORE_K }, (_, n) =>
-    Object.fromEntries((['fc', 'lr', 'gra', 'p'] as Key[]).map((k) => [k, pCrit && k === 'p' ? pCrit : asCriterion(byKey[k]![n % byKey[k]!.length]!, k === 'p' ? 7 : 9)])) as Record<Key, LlmCriterion>,
+    Object.fromEntries((['fc', 'lr', 'gra', 'p'] as Key[]).map((k) => [k, pCrit && k === 'p' ? pCrit : asCriterion(byKey[k]![n % byKey[k]!.length]!, k === 'fc' ? fcRange : k === 'p' ? [0, Math.min(7, pLimit)] : undefined)])) as Record<Key, LlmCriterion>,
   );
 
   const c = poolCriteria(samples, undefined, (key, band) => bandDescriptor(SPEAKING_DESCRIPTORS[key], band));

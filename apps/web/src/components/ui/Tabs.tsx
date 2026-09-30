@@ -59,7 +59,7 @@ export function Tabs<T extends string>({ id, items, value, onChange, className }
             id={`${id}-${t.value}`}
             aria-controls={`${id}-panel`}
             data-value={t.value}
-            className="h-10 max-md:h-11 flex-none shrink-0 gap-1 rounded-none border-0 bg-transparent px-1 text-xs text-muted shadow-none after:hidden hover:text-ink data-[state=active]:bg-transparent data-[state=active]:text-ink max-sm:grow sm:gap-1.5 sm:px-3 sm:text-sm"
+            className="h-11 flex-none shrink-0 gap-1.5 rounded-none border-0 bg-transparent px-3 text-sm text-muted shadow-none after:hidden hover:text-ink data-[state=active]:bg-transparent data-[state=active]:text-ink max-sm:grow md:h-10"
           >
             {t.label}
             {t.count != null && <Badge className="type-num h-5 px-1.5">{t.count}</Badge>}

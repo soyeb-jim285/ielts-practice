@@ -79,12 +79,10 @@ function BankPage() {
 
   const meta = useQuery(metaQuery).data?.groups ?? [];
   const scoped = meta.filter((g) => (!f.skill || g.skill === f.skill) && (!f.part || g.part === f.part));
-  // Type options grouped by skill/part, so Task 1 and Task 2 types (or speaking formats) never mix in one flat list.
+  // Type only appears once a part is picked (the tabs already split the bank by part; speaking Parts 1 and 2 have one type each), and then lists just that part's types.
   // Task 1 types are shared across variants in the meta; letters are General, everything else Academic (as on the Writing page).
   const ofVariant = (t: string) => !f.variant || (f.variant === 'general') === t.startsWith('letter');
-  const typeGroups = scoped
-    .map((g) => ({ label: `${pretty(g.skill)} ${partName(g.skill, g.part)}`, types: g.types.filter(ofVariant).sort() }))
-    .filter((g) => g.types.length);
+  const types = f.part ? [...new Set(scoped.flatMap((g) => g.types.filter(ofVariant)))].sort() : [];
   const topics = [...new Set(scoped.flatMap((g) => g.topics))].sort();
 
   const list = useInfiniteQuery(bankQuery(f));
@@ -131,18 +129,16 @@ function BankPage() {
             />
           )}
           <div className="grid grow grid-cols-2 gap-3 sm:ml-auto sm:flex sm:grow-0 sm:[&>*]:w-44">
-            <Select label="Type" hideLabel value={f.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}>
-              <option value="">All types</option>
-              {typeGroups.map((g) => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.types.map((t) => (
-                    <option key={t} value={t}>
-                      {typeLabel(t)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </Select>
+            {types.length > 1 && (
+              <Select label="Type" hideLabel value={f.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}>
+                <option value="">Any type</option>
+                {types.map((t) => (
+                  <option key={t} value={t}>
+                    {typeLabel(t)}
+                  </option>
+                ))}
+              </Select>
+            )}
             <Select label="Topic" hideLabel value={f.topic ?? ''} onChange={(e) => set({ topic: e.target.value || undefined })}>
               <option value="">All topics</option>
               {topics.map((t) => (

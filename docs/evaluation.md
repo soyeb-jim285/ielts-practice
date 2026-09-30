@@ -337,3 +337,72 @@ Fresh evaluation of the running stack (real OpenRouter, ElevenLabs and OpenAI ke
 - The Scribe prolongation threshold (0.6 s on one character) and the disfluency tagger are validated only on scripted fixtures, not real speech. The iOS disfluency section has not been run on a device, and the iOS kind list may not yet include the new kinds.
 - The speaking result charts were never captured against a real scored run in the evaluation (uploads stalled before the fix). A re-run is needed to score visual quality there.
 - Dev-server perf numbers are inflated by unbundled modules and were not used for scoring.
+
+## Iteration 5
+
+Fresh evaluation of the running stack (OpenRouter only, plus ElevenLabs Scribe and OpenAI Realtime), then a fix pass. Evidence and screenshots are in the gitignored `.eval/5/`. OpenRouter spend stayed under the $3 budget (harness about $0.7, server fixer about $1.3). Judges seeded speaking results so the transcript and fluency charts were judged for the first time.
+
+### Scores (before the fix pass)
+
+| Dimension | Score | Summary |
+|---|---|---|
+| Performance | 7.6 | Fast and well split. Endpoints answer in 2-3.5 ms p50, production LCP about 0.5 s, the charting chunk is lazy. Weak spots: eager entry about 150 KB gzip, analysis pipeline 26 s, polling returned the whole attempt, `/api/models` 122 KB with no cache header. Timings came from a near-empty account. |
+| Ease of use | 7.3 | Low-click core journeys (sign-up to first recording in 2 clicks), good guardrails (early-finish confirm, word-count warning, no-speech retry). Remaining: mobile result hero, persistent off-topic banner, hidden live-test start button, ghost skeletons on empty states. |
+| UI/UX visual quality | 7.4 | Coherent and calm, dark mode well tuned, fluency charts legible, no hover lifts or decorative dots, static tinted hub cards work. Defects: broken glyph on transcript pause chips, banner above the tabs, tiny mobile tab type, skeleton rows under the mistakes empty state, sparse criterion rows. Not a complete sweep (full-test session, live examiner and most 390 px dark screens unopened). |
+| Feature completeness vs spec | 7.6 | Nearly every spec section works end to end on the live stack: speaking upload, Scribe transcript, scored result with disfluency events and pronunciation; writing with feedback first then scores; retry comparison; SRS cards; live examiner speaks; realtime token. Gaps: web ignored `stage`/`partial`, no status endpoint, iOS lacked new disfluency kinds, mobile hero, off-topic banner, speaking calibration on disfluent audio, verification emails pointed at the LAN IP. |
+| Scoring accuracy | 7 | Clearly better than iteration 4 in the middle of the scale, extremes still compressed (band 8-9 low, weak answers high). Speaking ranks fluent over halting correctly (7.5 vs 4.5) but mislabels the verb "like" as a filler and gave the halting clip a pronunciation score far above its fluency. |
+
+### Key evidence
+
+- Build: eager JS about 150 KB gzip plus 23 KB CSS. FluencyPanel (recharts, 104 KB) and overlay (60 KB) are lazy. Preview FCP 160-245 ms, LCP 480-580 ms. No N+1 found, indexes present.
+- Analysis pipeline: submit 5 ms, feedback stage at about 1 s, scoring at 11 s, done at 26 s. The scorer calls themselves are about 25 s each.
+- Harness, test split (n=42, luna, default map): QWK 0.84, MAE 0.42, within 0.5 81%, SMD -0.14, band >= 7 bias -0.50 (gate 0.35 not met). Iteration 4: QWK 0.76, MAE 0.50. Band 8 bias -0.88, band 4 bias +0.38.
+- Probe split (n=83): ceiling 20/48 (was 19/48), floor 1/3, short 2/4, copied 4/4, errors 12/12, offtopic 4/4.
+- Independent 15 Cambridge samples (band 5-8) through the real `analyzeWriting` path: MAE 0.43, bias -0.10, max error 1.5. These share books with the harness test split, so they are not independent of it.
+- Speaking: TTS fluent 7.5 (179 wpm, MTLD 148) vs halting 4.5 (63 wpm, 7 long pauses, 11 fillers). Word times line up with the transcript. The audio pass returned pronunciation 8 for the halting clip while fluency was 4.
+- Speaking result in the browser: five tabs, colour-coded disfluency chips, clicking a word seeks the audio, pace chart with band-7 zone, pause and filler strips.
+
+### Fixed in this iteration
+
+**Server and scoring**
+- Top-end compression: default map refit on the calibration pool plus the 22 anchors, each scored leave-one-out (slope 1.17, intercept -0.32), and a top-band profile flattening for calibrated overall >= 8.5. Ceiling probes 20/48 to 35/48. The flattening rule was designed after seeing the ceiling failures, so that gain is not independent evidence.
+- Under 80% of the word minimum caps CC, LR and GRA at TA+1 and adds an UNDER LENGTH line to the scorer message. Short probes 2/4 to 4/4.
+- Low-band prompt rule (basic errors in most sentences means band 4 or below for GRA and LR). The copy detector now counts only runs of 8 or more shared words, so cam-7-4-w2 no longer trips `copied`. Floor probes are still 1/3.
+- TA instability: per-criterion spread across samples is logged, and a TA spread of 2 or more widens the range by a band. Early exit once two samples agree.
+- Speaking: LLM FC clamped to within 1 band of the measured fluency band, pronunciation capped at FC+1 (FC+2 with an audio report). Transcript-only "like" and "you know" count as fillers only between two pauses. The feedback prompt fills thin error lists with fluency habits.
+- `/api/models` has `Cache-Control: private, max-age=3600` and an ETag (304 tested). Verification and reset links use the web origin. Live examiner lines are voiced as up to 3 parallel sentence chunks, with fixed-wording lines cached; a route test covers p1 to p2-prep to p2-talk and the 2:00 cut-in. `pnpm seed` and `pnpm gen:bank` root scripts, `scripts/README.md`.
+- `GET /api/attempts/:id/status` (`status`, `stage`, `error`, `retryable`).
+
+**Web**
+- Better Auth client replaced by a small fetch wrapper with the same API (auth chunk 31.5 KB to 1 KB); the unused `better-auth` dependency is removed from the web package. The styleguide is stubbed out of production builds (12.6 KB gzip less).
+- Polling uses the status endpoint and reloads the full attempt only when the stage changes. `AnalyzingState` shows real stage labels and, once partial feedback exists, "Your feedback is ready" with the mistake count and top fixes while scores are pending.
+- Result hero collapses to one row on phones (tabs at about y=310, was 450), the numeral is ink, and the off-topic alert lives in the Overview tab, with an "Off topic" header badge linking to it. The writing off-topic alert has a "Rewrite on this topic" action. The "Last try" comparison now renders after the criteria.
+- Transcript pause chips read "pause 0.5s" (the double box was a 12 px lucide icon). Fluency tab: the normal / hurts-when text is behind a disclosure, the "Typical band 7" label no longer overlaps the line, and the chunk is prefetched while analysing. Criterion rows keep the band to the right of the label at all widths.
+- Tabs are `h-11 text-sm` and scroll horizontally with an edge fade. Mobile nav labels are 12 px with a soft pill on the active icon. The mistakes and history empty states no longer show skeleton rows. The bank filters are reduced, and the dashboard right column matches the hero height.
+- Live pre-screen: the mic check comes first and the Start bar is sticky with its reason text. The Part 1 question is top-aligned on phones.
+
+**iOS:** all six disfluency kinds with a per-type breakdown and normal-vs-hurts guidance, `FluencyDetail.profile`, and a `check-models.mjs` check that Swift and core kind lists match. CI green.
+
+### Accuracy gate
+
+Shipped default map, prompt hash `c2c869d31a9fcf39`:
+
+| | QWK | MAE | within 0.5 | SMD | bias <= 5 | bias >= 7 | band 8 | band 4 |
+|---|---|---|---|---|---|---|---|---|
+| Test (n=42) | 0.83 | 0.48 | 0.86 | -0.07 | +0.36 | -0.35 | -0.63 | +0.50 |
+| Calibration + anchors, cross-validated (n=86) | 0.80 | 0.51 | 0.71 | | | -0.26 | | |
+
+The gate fails on test MAE (0.48 against 0.45) and on the >= 7 bias confidence interval (-0.69 to -0.06). The calibration record is stored inactive and the same map ships as the unvalidated default.
+
+### Verification
+
+`pnpm typecheck` clean, `TEST_DB=verify pnpm test` passes (core 55, web 75, server 118 with 1 skipped), `pnpm build` passes, `pnpm gen:api` regenerated `openapi.json` and `schema.d.ts` (status endpoint), Playwright e2e 6/6 (desktop and mobile).
+
+### Remaining gaps
+
+- Accuracy is not at the gate: band >= 7 is still biased low (about -0.35), band 4-5 about +0.4 high, floor probes 1/3. No new 8.5-9 anchors exist because the only other 9.0 scripts are the excluded model probes. The MTLD / error-density calibration feature and the keyword overview cap were not built (a keyword detector flagged about half of official band 6-8 scripts as missing an overview, so the cap stays tied to the feedback call's flag).
+- Analysis latency is still about 26 s: the K=3 scorer calls dominate and the early exit fires only when the first two samples agree. A live run of a 272-word essay took 27 s.
+- Pronunciation without word-level evidence is capped at 7, not 6, so clean speakers are not penalised. The audio pass can still over-score TTS voices.
+- The status endpoint has no `partial`, so the web refetches the full attempt on stage change. `metrics.fluency` is not typed in OpenAPI, so the iOS `profile` decode is not schema-checked.
+- Hierarchy on the fluency tab is only partly improved (section headings are the same size). Streaming TTS for the live examiner is not done. The Scribe prolongation threshold and disfluency tagger are validated only on scripted fixtures.
+- Unreviewed screens: full-test session, live examiner and review/history at 1440, most 390 px dark screens. The AI models section of Settings was only glimpsed.

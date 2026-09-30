@@ -165,7 +165,7 @@ Each row: what it wraps, variants, and when to use it. Wrappers keep the origina
 | `Tooltip`, `InfoTip` | shadcn `tooltip` / `popover` | `content`, `side` | short plain-text hints on a focusable child; InfoTip opens on hover (mouse) and on tap/click/Enter (touch). |
 | `toast()` / `<Toaster/>` | sonner | `tone` neutral/good/bad, `action`, `durationMs` | confirmations ("Saved", "Added to review deck" + Undo). Bottom-centre, above the mobile tab bar. sonner loads on the first toast, not with the entry. |
 | `Skeleton`, `PageSkeleton`, `Spinner` | shadcn `skeleton` | | loading shaped like content; `Spinner` only for small inline waits |
-| `EmptyState`, `GhostList` | custom | `icon`, `title`, `action`, `preview`, `bare`, `as` | zero data: no frame, hairline + serif title + one or two lines + one action; `preview={<GhostList/>}` fades in a skeleton of the populated list (only where a list will really appear; never shimmer bars for a non-loading state). Give each screen its own copy and action. |
+| `EmptyState`, `GhostList` | custom | `icon`, `title`, `action`, `preview`, `bare`, `as` | zero data: no frame, hairline + serif title + one or two lines + one action; `preview={<GhostList/>}` exists but the app does not use it: greyed rows under a finished message read as a stuck loader (mistakes and history show the message and its action alone). Skeletons are for `isPending` only. Give each screen its own copy and action. |
 | `IconTile` | custom | `tone` muted / brand | the one icon slot for rows and empty states: a bare 20 px icon, no box |
 | `Kbd` | custom | `onBrand` | keyboard shortcut hint |
 | `StickyTabs` | custom | | wraps a tab bar (and the audio strip) so it sticks under the top edge at z-20 and bleeds over the shell gutter (`--gutter`) |

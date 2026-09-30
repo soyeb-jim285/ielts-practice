@@ -97,12 +97,14 @@ function UserMenu() {
               <span className="block truncate text-xs text-muted">{me?.user.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="h-9 gap-2">
-              <Link to="/styleguide">
-                <Palette className="size-4 text-muted" aria-hidden />
-                Style guide
-              </Link>
-            </DropdownMenuItem>
+            {import.meta.env.DEV && (
+              <DropdownMenuItem asChild className="h-9 gap-2">
+                <Link to="/styleguide">
+                  <Palette className="size-4 text-muted" aria-hidden />
+                  Style guide
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={doSignOut} className="h-9 gap-2">
               <LogOut className="size-4 text-muted" aria-hidden />
               Sign out
@@ -174,8 +176,9 @@ const initiallyOpen = () => {
   }
 };
 
-const tabClass = 'group relative flex h-14 w-full flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted transition-colors duration-150 focus-visible:bg-hover data-[status=active]:text-accent-text';
-const bar = 'absolute inset-x-5 top-0 h-0.5 origin-center scale-x-0 rounded-b-full bg-brand transition-transform duration-200 ease-(--ease-out-expo) group-data-[status=active]:scale-x-100';
+const tabClass = 'group relative flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[12px] leading-4 font-medium text-muted transition-colors duration-150 focus-visible:bg-hover data-[status=active]:text-accent-text';
+// Active tab: the icon sits on a brand-soft pill (colour, not just a hairline, carries the state); labels are 12px.
+const pill = 'grid h-7 w-14 place-items-center rounded-full transition-colors duration-150 group-data-[status=active]:bg-brand-soft';
 
 /** Authed app frame: shadcn Sidebar (collapsible to icons, 240px) from md, bottom tab bar + "More" sheet below. Pages render their own PageHeader inside. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -204,16 +207,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           {TABS.map(({ to, short, label, icon: Icon }) => (
             <li key={to}>
               <Link to={to} activeOptions={{ exact: to === '/' }} className={tabClass}>
-                <span aria-hidden className={bar} />
-                <Icon className="size-5" aria-hidden />
+                <span aria-hidden className={pill}>
+                  <Icon className="size-5" />
+                </span>
                 {short ?? label}
               </Link>
             </li>
           ))}
           <li>
             <button ref={moreButton} type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-current={moreActive ? 'page' : undefined} data-status={moreActive ? 'active' : undefined} className={tabClass}>
-              <span aria-hidden className={bar} />
-              <Ellipsis className="size-5" aria-hidden />
+              <span aria-hidden className={pill}>
+                <Ellipsis className="size-5" />
+              </span>
               More
             </button>
           </li>

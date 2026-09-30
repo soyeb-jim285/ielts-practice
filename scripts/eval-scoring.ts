@@ -2,12 +2,14 @@
 // scoring sample, prints the agreement panel, per-band error 3..9 and probe checks, and with --fit writes the per-model calibration record.
 //
 //   pnpm eval:scoring --model <id> --split calib|test|probe [--fit] [--activate] [--k 3] [--ablate per-criterion]
-//                     [--feedback] [--limit N] [--ids a,b] [--conc 16] [--yes]
+//                     [--feedback] [--with-anchors] [--limit N] [--ids a,b] [--conc 16] [--yes]
 //
 // --fit (calib split): leave-one-group-out fitCalibration on the raw means, CV panel on out-of-fold predictions, record written to
 //   scoring_calibrations (active only with --activate and a passing gate). Other splits apply the key's active record, else identity.
 // --feedback also runs the feedback call (the production path), so a major task.relevance error can cap the overall; off by default to save
 //   cost: scoring alone decides the calibration, and the TA ≤ 4 cap still applies.
+// --with-anchors (calib split): also scores the anchor scripts, each with itself left out of the benchmarks (leave-one-out), so the fit reaches the
+//   bands the calibration pool lacks (3.5-4 and 8-8.5). Anchors never enter the test or probe splits.
 // Raw outputs are cached in .eval/scoring-cache/<model>/<promptHash>-<effort>-k<K>-<mode>/<id>-<sha8>.json (gitignored): a rerun only pays
 // for new scripts or a changed prompt. Script text never leaves the DB / .eval.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -27,7 +29,7 @@ import { storage } from '../apps/server/src/storage';
 const { values: a } = parseArgs({
   options: {
     model: { type: 'string', default: DEFAULT_SETTINGS.models.analysis }, split: { type: 'string', default: 'calib' }, k: { type: 'string', default: '3' },
-    fit: { type: 'boolean' }, activate: { type: 'boolean' }, fitted: { type: 'boolean' }, ablate: { type: 'string' }, feedback: { type: 'boolean' },
+    fit: { type: 'boolean' }, 'with-anchors': { type: 'boolean' }, activate: { type: 'boolean' }, fitted: { type: 'boolean' }, ablate: { type: 'string' }, feedback: { type: 'boolean' },
     limit: { type: 'string' }, ids: { type: 'string' }, conc: { type: 'string', default: '16' }, yes: { type: 'boolean' },
   },
 });
@@ -43,12 +45,12 @@ const settings = { ...DEFAULT_SETTINGS, models: { ...DEFAULT_SETTINGS.models, an
 // ---------- scripts ----------
 type Row = typeof scoringScripts.$inferSelect;
 let rows = (await sql<Row[]>`select id, skill, task_family as "taskFamily", role, split, band, group_id as "groupId", prompt, text, note, expect, sha256
-  from scoring_scripts where skill = 'writing' and ${split === 'probe' ? sql`role = 'probe' and split <> 'anchor'` : sql`role = ${split} and split = ${split === 'calib' ? 'calibration' : 'test'}`} order by id`).slice();
+  from scoring_scripts where skill = 'writing' and ${split === 'probe' ? sql`role = 'probe' and split <> 'anchor'` : sql`((role = ${split} and split = ${split === 'calib' ? 'calibration' : 'test'}) ${a['with-anchors'] && split === 'calib' ? sql`or role = 'anchor'` : sql``})`} order by id`).slice();
 if (a.ids) rows = rows.filter((r) => a.ids!.split(',').includes(r.id));
 if (a.limit) rows = rows.slice(0, Number(a.limit));
-if (rows.some((r) => r.role === 'anchor' || r.split === 'anchor')) throw new Error('refusing to score an anchor');
+if (rows.some((r) => (r.role === 'anchor' || r.split === 'anchor') && !(a['with-anchors'] && r.role === 'anchor'))) throw new Error('refusing to score an anchor');
 const anchors = await loadAnchors();
-if (rows.some((r) => anchors.some((x) => x.promptBody.trim() === (r.prompt?.body ?? '').trim()))) throw new Error('a scored script shares its prompt with an anchor');
+if (rows.some((r) => r.role !== 'anchor' && anchors.some((x) => x.promptBody.trim() === (r.prompt?.body ?? '').trim()))) throw new Error('a scored script shares its prompt with an anchor');
 if (!rows.length) throw new Error('no scripts selected');
 
 const slugs = rows.map((r) => r.prompt?.slug).filter((s): s is string => !!s);
@@ -96,10 +98,10 @@ async function scoreAll(mode: ScoringMode): Promise<Map<string, Cached>> {
           // Production rule: 20 own words or fewer is Band 1 with no AI call (analyzeWriting); cached as empty samples.
           if (ownWords(inp) <= TOO_SHORT_WORDS) [scored, tooShort] = [{ samples: [], served: [], flags: [], words: 0, copied: 0, figure: 'none', family: 't2', promptHash: '', key: '' }, true];
           else if (a.feedback && mode === 'joint') {
-            const res = await analyzeWriting({ ...inp, onScored: (s) => (scored = s) });
+            const res = await analyzeWriting({ ...inp, skipAnchor: r.role === 'anchor' ? r.id : undefined, onScored: (s) => (scored = s) });
             offTopic = res.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
             rules = { errors: res.errors, sentences: res.textMetrics?.sentences, upgrades: res.vocabUpgrades.length, overviewMissing: inp.task === 1 && inp.variant === 'academic' && (res.structure?.overview?.present === false || res.errors.some((e) => e.category === 'task.overview' && e.severity === 'major')) };
-          } else scored = await scoreWriting(inp, { mode, k: K });
+          } else scored = await scoreWriting(inp, { mode, k: K, skipAnchor: r.role === 'anchor' ? r.id : undefined });
           const c: Cached = { id: r.id, ...scored, offTopic, tooShort, rules, ms: Date.now() - t0 };
           writeFileSync(fileOf(mode, r), JSON.stringify(c));
           out.set(r.id, c);
@@ -149,7 +151,7 @@ for (const mode of modes) {
   const key = calibrationKey(model, promptHash(anchors, mode), WRITING_EFFORT, K);
   const settle = (r: Row, cal: Pick<Calibration, 'map' | 'q'>) => {
     const s = scored.get(r.id)!, one = { band: 1, range: [1, 1] as [number, number], descriptor: '', evidence: [], summary: '' };
-    if (s.tooShort) return { criteria: { ta: one, cc: one, lr: one, gra: one }, m: 1, overall: 1, overallRaw: 1, range: [1, 1] as [number, number], q: 0, rules: [] as string[] };
+    if (s.tooShort) return { criteria: { ta: one, cc: one, lr: one, gra: one }, m: 1, overall: 1, overallRaw: 1, range: [1, 1] as [number, number], q: 0, rules: [] as string[], spread: { ta: 0, cc: 0, lr: 0, gra: 0 } };
     const task = r.taskFamily === 't2' ? 2 : 1;
     // Rules that need the feedback call (errors, overview) only fire on --feedback runs; the word-count rules always do.
     return settleWriting(s, cal, { task, offTopic: s.offTopic, rules: { task, variant: r.taskFamily === 't1g' ? 'general' : 'academic', words: s.words - s.copied, text: r.text ?? '', ...s.rules } });

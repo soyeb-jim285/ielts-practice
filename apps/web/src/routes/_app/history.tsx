@@ -4,7 +4,7 @@ import { History, Mic, PenLine } from 'lucide-react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
 import { dayBucket, runs } from '@/components/bank/group';
-import { Badge, buttonStyles, EmptyState, GhostList, PageContainer, PageHeader, Segmented, type Tone } from '@/components/ui';
+import { Badge, buttonStyles, EmptyState, PageContainer, PageHeader, Segmented, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
@@ -70,7 +70,6 @@ function HistoryPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={<History />}
-          preview={<GhostList rows={4} />}
           title={skill ? `No ${skill} attempts yet` : 'Nothing practised yet'}
           action={
             <Link to={skill === 'writing' ? '/writing' : '/speaking'} className={buttonStyles()}>

@@ -1,15 +1,15 @@
 import { WPM_WINDOW_S, type SpeechMetrics } from '@ielts/core';
 import type { Criterion } from '@server/ai/types';
-import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Alert, Card, InfoTip } from '@/components/ui';
+import { Alert, buttonStyles, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip } from '@/components/ui';
 import { formatClock, plural } from '@/lib/format';
 import { DISFLUENCY, disfluencyEvents, disfluencyTypes, isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const TICK = { fill: 'var(--muted)', fontSize: 12 };
 
-/** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the heuristic band-7 zone shaded. */
+/** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the typical band-7 zone shaded. */
 export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeries']; durationS: number }) {
   if (series.length < 2) return <p className="text-sm text-muted">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
   const max = Math.max(200, ...series.map((p) => p.wpm));
@@ -19,7 +19,7 @@ export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeri
         <ResponsiveContainer>
           <AreaChart data={series.map((p) => ({ ...p, x: p.t + WPM_WINDOW_S / 2 }))} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
-            <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'band-7 zone (heuristic)', position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12 }} />
+            <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'Typical band 7', position: 'insideTopRight', fill: 'var(--muted)', fontSize: 12 }} />
             <XAxis dataKey="x" type="number" domain={[0, Math.max(durationS, 1)]} tickFormatter={(t: number) => formatClock(t)} tick={TICK} tickLine={false} axisLine={{ stroke: 'var(--line)' }} />
             <YAxis domain={[0, Math.ceil(max / 40) * 40]} tick={TICK} tickLine={false} axisLine={false} width={48} />
             <Tooltip
@@ -146,16 +146,25 @@ function DisfluencyBreakdown({ metrics }: { metrics: SpeechMetrics }) {
                   {ind.text}
                 </p>
               )}
-              <dl className="space-y-1.5 text-sm">
-                <div>
-                  <dt className="inline font-medium">Normal: </dt>
-                  <dd className="inline text-muted">{t.normal}</dd>
-                </div>
-                <div>
-                  <dt className="inline font-medium">Hurts when: </dt>
-                  <dd className="inline text-muted">{t.harmful}</dd>
-                </div>
-              </dl>
+              <Collapsible className="group">
+                <CollapsibleTrigger className={buttonStyles({ variant: 'link', className: 'hit -ml-0.5 text-sm' })}>
+                  <span className="group-data-[state=open]:hidden">When is this a problem?</span>
+                  <span className="hidden group-data-[state=open]:inline">Hide</span>
+                  <ChevronDown className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180" aria-hidden />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <dl className="space-y-1.5 pt-2 text-sm">
+                    <div>
+                      <dt className="inline font-medium">Normal: </dt>
+                      <dd className="inline text-muted">{t.normal}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Hurts when: </dt>
+                      <dd className="inline text-muted">{t.harmful}</dd>
+                    </div>
+                  </dl>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
           </li>
         );
@@ -204,7 +213,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
   );
 }
 
-/** Fluency tab: pace chart, pause timeline, stat grid. `fc`/`target` explain a low band when the measures look fine. */
+/** Fluency tab: pace chart, pause timeline, measures, then the fillers and restarts. `fc`/`target` explain a low band when the measures look fine. */
 export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMetrics; audio: AudioControls; fc?: Criterion; target: number }) {
   const stats = speechStats(metrics);
   const heldBack = fc && fc.band < target && !tooShortToMeasure(metrics) && stats.every((s) => s.tone !== 'bad');
@@ -231,17 +240,17 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
         </Card>
       </section>
       <section>
+        <h2 className="type-heading">Fluency measures</h2>
+        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
+        <StatGrid stats={stats} />
+      </section>
+      <section>
         <h2 className="type-heading">Fillers, repeats and restarts</h2>
         <p className="type-caption mt-1 mb-4 text-sm">Each kind is colour-coded the same way in the Transcript tab. Tap a mark to hear it.</p>
         <Card className="mb-4">
           <DisfluencyStrip metrics={metrics} audio={audio} />
         </Card>
         <DisfluencyBreakdown metrics={metrics} />
-      </section>
-      <section>
-        <h2 className="type-heading">Fluency measures</h2>
-        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
-        <StatGrid stats={stats} />
       </section>
     </div>
   );

@@ -50,16 +50,19 @@ export function computeSpeechMetrics(
     pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced });
   }
 
+  // "like" and "you know" are ordinary words far more often than fillers ("I like football"), so the transcript alone counts them only between two pauses;
+  // the text LLM and the audio model can still tag them (fuseDisfluencies).
+  const weak = (i: number, len: number) => gapBefore(i) * 1000 < PAUSE_MS || gapBefore(i + len) * 1000 < PAUSE_MS;
   const fillers: SpeechMetrics['fillers'] = [];
   const isFillerAt = new Array<boolean>(n).fill(false);
   for (let i = 0; i < n; i++) {
     if (i + 1 < n && BIGRAM_FILLERS.has(`${norm[i]} ${norm[i + 1]}`)) {
+      if (norm[i] === 'you' && weak(i, 2)) continue;
       fillers.push({ word: `${norm[i]} ${norm[i + 1]}`, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = isFillerAt[i + 1] = true;
       i++;
     } else if (SINGLE_FILLERS.has(norm[i]!)) {
-      // "like" is only a filler when a pause sits next to it; otherwise it's a verb/preposition.
-      if (norm[i] === 'like' && gapBefore(i) * 1000 < PAUSE_MS && gapBefore(i + 1) * 1000 < PAUSE_MS) continue;
+      if (norm[i] === 'like' && weak(i, 1)) continue;
       fillers.push({ word: norm[i]!, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = true;
     }

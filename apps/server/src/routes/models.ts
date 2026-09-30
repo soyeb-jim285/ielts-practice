@@ -1,4 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import { etag } from 'hono/etag';
 import { listModels, type ModelInfo } from '../ai/openrouter';
 import { requireUser } from '../auth';
 import type { App } from '../types';
@@ -32,7 +33,7 @@ export function register(app: App) {
       tags: ['Settings'],
       summary: 'OpenRouter models (cached 1 h), optionally filtered by capability',
       security: [{ bearer: [] }],
-      middleware: [requireUser] as const,
+      middleware: [requireUser, etag()] as const,
       request: { query: z.object({ capability: Capability.optional() }) },
       responses: {
         200: { description: 'Models', content: { 'application/json': { schema: z.object({ models: z.array(ModelSchema) }).openapi('ModelList') } } },
@@ -43,6 +44,7 @@ export function register(app: App) {
       const { capability } = c.req.valid('query');
       try {
         const all = await listModels();
+        c.header('Cache-Control', 'private, max-age=3600'); // near-static list (cached server-side for 1 h too); ETag revalidation is free after that
         return c.json({ models: capability ? all.filter(FILTERS[capability]) : all }, 200);
       } catch (e) {
         return c.json({ error: (e as Error).message }, 502);

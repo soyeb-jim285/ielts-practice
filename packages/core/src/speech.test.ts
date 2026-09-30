@@ -89,7 +89,9 @@ it('fluency composite: fixed signs, band-5/7 reference profiles map to 5/7, extr
 });
 it('cleanTranscript drops fillers, the first copy of repetitions and self-correction reparanda', () => {
   // "it take" is abandoned: 0.5 s pause, then "it took"
-  const words = mk('um he say he say it it take it took you know a kind of long time'.split(' ').map((w, i) => [w, i * 0.3 + (i >= 8 ? 0.5 : 0), i * 0.3 + 0.25 + (i >= 8 ? 0.5 : 0)]));
-  const m = computeSpeechMetrics(words, { durationS: 6 });
+  // "you know" is dropped only between pauses (here 0.5 s on each side); "I like football" keeps its verb
+  const off = (i: number) => (i >= 8 ? 0.5 : 0) + (i >= 10 ? 0.5 : 0) + (i >= 12 ? 0.5 : 0);
+  const words = mk('um he say he say it it take it took you know a kind of long time'.split(' ').map((w, i) => [w, i * 0.3 + off(i), i * 0.3 + 0.25 + off(i)]));
+  const m = computeSpeechMetrics(words, { durationS: 7 });
   expect(cleanTranscript(words, m).map(w => w.w).join(' ')).toBe('he say it took a kind of long time');
 });

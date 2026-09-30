@@ -16,9 +16,9 @@ export const UNCALIBRATED_LABEL = 'Estimated with an unvalidated model: scores m
 
 /** Fixed maps for models without an active record (docs/scoring-validation.md §7): the raw scorer compresses the scale towards the pool mean, so the
  *  slope is above 1. The map is part of what the app serves, but the model stays "unvalidated" (calibrated: false, q = 1) because the record's CV gate
- *  is not met. Fitted by `pnpm eval:scoring --split calib --fit` (lambda 1) on the current promptHash: refit and paste when the prompt or model changes. */
+ *  is not met. Fitted by `pnpm eval:scoring --split calib --fit --with-anchors` (lambda 1) on the current promptHash: refit and paste when the prompt or model changes. */
 export const DEFAULT_MAPS: Record<string, { slope: number; intercept: number; mLo: number; mHi: number }> = {
-  'openai/gpt-6-luna': { slope: 1.09, intercept: 0.11, mLo: 4.08, mHi: 7.42 }, // fitted 2026-10-01 on promptHash 74dd9986267aa369 (64 calibration scripts, mean/SD equating)
+  'openai/gpt-6-luna': { slope: 1.17, intercept: -0.32, mLo: 3.67, mHi: 7.83 }, // fitted 2026-10-01 on promptHash c2c869d31a9fcf39 (64 calibration scripts + 22 anchors scored leave-one-out, so the fit reaches 3.5-8.5; mean/SD equating)
 };
 
 export const calibrationKey = (modelId: string, promptHash: string, effort: string, k: number) =>

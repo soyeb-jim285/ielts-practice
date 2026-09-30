@@ -1,6 +1,5 @@
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { clsx } from 'clsx';
-import { Pause } from 'lucide-react';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
 import { Card, Chip, TONE_STYLES } from '@/components/ui';
@@ -101,8 +100,8 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
           filter === 'pauses' && 'ring-1 ring-current',
         )}
       >
-        <Pause className="size-3" aria-hidden />
         <span className="sr-only">pause </span>
+        <span aria-hidden>pause</span>
         {pauseSec(p)}s
       </span>
     );

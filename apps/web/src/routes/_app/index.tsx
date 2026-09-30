@@ -84,7 +84,7 @@ function Dashboard() {
           <>
             <section aria-label="Where you stand" className="stagger grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
               <NextUp weakest={weakest} trend={p.trend} target={target} />
-              <Card padded={false} className="divide-y divide-line self-start px-5">
+              <Card padded={false} className="flex flex-col divide-y divide-line px-5">
                 <Predicted skill="speaking" band={p.predicted.speaking} n={p.trend.filter((t) => t.skill === 'speaking').length} target={target} />
                 <Predicted skill="writing" band={p.predicted.writing} n={p.trend.filter((t) => t.skill === 'writing').length} target={target} />
               </Card>
@@ -93,7 +93,7 @@ function Dashboard() {
           </>
         )}
 
-        <div className={cn('stagger grid gap-x-16 gap-y-12', p.topMistakes.length > 0 && 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]')}>
+        <div className={cn('stagger grid gap-x-12 gap-y-12', p.topMistakes.length > 0 && 'lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]')}>
           <section aria-labelledby="practise-h" className="min-w-0">
             <PanelHeader id="practise-h" title="Practise" />
             <ul className={cn(listStyles, 'stagger')}>
@@ -215,7 +215,7 @@ function NextUp({ weakest, trend, target }: { weakest: { key: CriterionKey; avg:
 function Predicted({ skill, band, n, target }: { skill: Skill; band: number | null; n: number; target: number }) {
   const label = skill === 'speaking' ? 'Speaking' : 'Writing';
   return (
-    <section className="py-5" aria-label={`Predicted ${label.toLowerCase()} band`}>
+    <section className="flex flex-1 flex-col justify-center py-5" aria-label={`Predicted ${label.toLowerCase()} band`}>
       {band == null ? (
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">

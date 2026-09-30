@@ -119,7 +119,17 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
       ) : (
         (offTopic || under) && (
           // One alert for everything wrong with the essay itself, so the band breakdown stays near the top.
-          <Alert tone={offTopic ? 'bad' : 'warn'} title={offTopic ? 'Off topic' : `Under ${minWords(a.part)} words`}>
+          <Alert
+            tone={offTopic ? 'bad' : 'warn'}
+            title={offTopic ? 'Off topic' : `Under ${minWords(a.part)} words`}
+            action={
+              offTopic && (
+                <Link to="/writing/task/$promptId" params={{ promptId: a.promptId }} search={{ parent: a.id }} className={buttonStyles({ size: 'sm' })}>
+                  <RotateCcw aria-hidden /> Rewrite on this topic
+                </Link>
+              )
+            }
+          >
             {offTopic && (
               <p>
                 Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question, so your overall band can’t go above {formatBand(r.criteria.ta!.band + 1)}: one band over your {ta} score.

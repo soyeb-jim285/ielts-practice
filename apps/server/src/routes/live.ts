@@ -54,11 +54,23 @@ function ownKey(s: LiveState, key: string) {
   return key;
 }
 
+/** Fixed examiner lines (intro, "Can you start speaking now", closing, Part 1 questions) repeat across sessions: the audio is kept in memory (same model and voice), so they cost no TTS round trip.
+ *  ponytail: per process, 40 lines, evicted oldest first. */
+const speechCache = new Map<string, Awaited<ReturnType<typeof speak>>>();
+export const clearSpeechCache = () => speechCache.clear();
+
 /** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3 (or .wav for PCM-only voices). A TTS failure degrades to captions only (url null) instead of failing the turn. */
 async function voice(s: LiveState, n: number, text: string, settings: Settings): Promise<{ key?: string; url: string | null; voiceError?: string }> {
   const { tts, ttsVoice } = settings.models;
   try {
-    const { audio, contentType } = await speak({ model: tts, voice: ttsVoice, text });
+    const k = `${tts}|${ttsVoice}|${text}`;
+    let speech = speechCache.get(k);
+    if (!speech) {
+      speech = await speak({ model: tts, voice: ttsVoice, text });
+      speechCache.set(k, speech);
+      if (speechCache.size > 40) speechCache.delete(speechCache.keys().next().value!);
+    }
+    const { audio, contentType } = speech;
     const key = `live/${s.sessionId}/e${n}.${contentType === 'audio/wav' ? 'wav' : 'mp3'}`;
     await storage.put(key, audio, contentType);
     return { key, url: await storage.presignGet(key) };

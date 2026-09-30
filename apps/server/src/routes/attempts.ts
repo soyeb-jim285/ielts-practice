@@ -56,6 +56,15 @@ const SubmitAttempt = z
   })
   .openapi('SubmitAttempt');
 
+const AttemptStatusSchema = z
+  .object({
+    status: Status,
+    stage: z.enum(['transcribing', 'analyzing', 'feedback', 'scoring', 'finalizing']).nullable(),
+    error: z.string().nullable(),
+    retryable: z.boolean(),
+  })
+  .openapi('AttemptStatus');
+
 const AttemptSchema = z
   .object({
     id: z.string(),
@@ -196,6 +205,21 @@ export function register(app: App) {
       if (!updated) return c.json({ error: 'Attempt is already analyzing' }, 409); // lost a double-submit race
       void runAnalysis(id).catch((e) => console.error('runAnalysis', id, e));
       return c.json({ status: 'analyzing' as const }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...authed,
+      method: 'get',
+      path: '/api/attempts/{id}/status',
+      summary: 'Lightweight status for polling (no analysis, prompt or presigned URLs); fetch the full attempt when status or stage changes',
+      request: { params: Id },
+      responses: { 200: json(AttemptStatusSchema, 'Status'), ...notFound },
+    }),
+    async (c) => {
+      const a = await ownAttempt(c.req.valid('param').id, currentUser(c).id);
+      return c.json({ status: a.status, stage: a.status === 'analyzing' ? a.stage : null, error: a.error, retryable: a.errorRetryable }, 200);
     },
   );
 

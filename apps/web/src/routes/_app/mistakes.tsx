@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { runs } from '@/components/bank/group';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { listStyles } from '@/components/bank/ListRow';
-import { Badge, Button, buttonStyles, Chip, EmptyState, GhostList, PageContainer, PageHeader, toast } from '@/components/ui';
+import { Badge, Button, buttonStyles, Chip, EmptyState, PageContainer, PageHeader, toast } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
 import { formatClock, formatRelative, plural } from '@/lib/format';
 import { categoryLabel } from '@/lib/result';
@@ -44,7 +44,6 @@ function MistakesPage() {
         <EmptyState
           icon={<TriangleAlert />}
           title="Your error log is empty"
-          preview={<GhostList rows={3} />}
           action={
             <Link to="/writing" className={buttonStyles()}>
               Write an essay

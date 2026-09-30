@@ -16,8 +16,19 @@ const preloadFonts = (): Plugin => ({
   },
 });
 
+/** The styleguide is a dev-only reference (its menu link is gated on import.meta.env.DEV too): production builds swap the 40 KB page for a 404 stub so it is not emitted. */
+const stubStyleguide = (): Plugin => ({
+  name: 'stub-styleguide',
+  apply: 'build',
+  enforce: 'pre',
+  transform: (_code, id) =>
+    id.replace(/\\/g, '/').endsWith('/routes/_app/styleguide.tsx')
+      ? "import { createFileRoute, notFound } from '@tanstack/react-router';\nexport const Route = createFileRoute('/_app/styleguide')({ beforeLoad: () => { throw notFound(); } });"
+      : null,
+});
+
 export default defineConfig({
-  plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss(), preloadFonts()],
+  plugins: [stubStyleguide(), tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss(), preloadFonts()],
   build: {
     rolldownOptions: {
       // The ui barrel (components/ui/index.ts) re-exports every primitive; its modules only declare components, so importing Button must not drag in the menu/dialog/slider code too.

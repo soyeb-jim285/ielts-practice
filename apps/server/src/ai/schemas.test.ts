@@ -33,6 +33,24 @@ it('retryOnce retries a retryable failure once, not others; scoringSamples drops
   await expect(scoringSamples([bad, bad])).rejects.toMatchObject({ status: 402 });
 });
 
+it('scoringSamples early exit: returns once two samples agree without waiting for the slowest; waits for all when they do not', async () => {
+  const after = (ms: number, v: number) => () => new Promise<number>((r) => setTimeout(() => r(v), ms));
+  const agree = (ok: number[]) => Math.abs(ok[0]! - ok[1]!) <= 1;
+  const t0 = Date.now();
+  expect(await scoringSamples([after(5, 6), after(10, 7), after(400, 2)], agree)).toEqual([6, 7]);
+  expect(Date.now() - t0).toBeLessThan(300);
+  expect(await scoringSamples([after(5, 3), after(10, 7), after(30, 5)], agree)).toEqual([3, 7, 5]);
+});
+
+it('poolCriteria: keep < 1 pulls criteria towards their mean without moving the overall', () => {
+  const c = (band: number): LlmCriterion => ({ band, range: [band, band], descriptor: 'd', evidence: [], summary: 's' });
+  const sample = { ta: c(7), cc: c(9), lr: c(9), gra: c(9) };
+  expect(Object.values(poolCriteria([sample], () => 8.5, undefined, 1)).map((x) => x.band)).toEqual([7, 9, 9, 9]);
+  const flat = poolCriteria([sample], () => 8.5, undefined, 0.5);
+  expect(Object.values(flat).map((x) => x.band).reduce((a, b) => a + b)).toBe(34);
+  expect(flat.ta.band).toBe(8);
+});
+
 it('poolCriteria: mean of samples (not the median sample), mapped then rounded; text from a sample at that band, else the official descriptor', () => {
   const s = (band: number, summary = `at ${band}`) => ({ a: { ...crit(band, [band, band]), summary } });
   // median of [5, 5, 7, 7, 7] is 7; the mean 6.2 rounds to 6

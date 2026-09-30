@@ -74,6 +74,18 @@ it('writing: stores text and plan; failed attempt can be re-run', async () => {
   expect(got.prompt.imageUrl).toContain('images/x.png');
 });
 
+it('status: lightweight poll shape, stage only while analyzing, owner only', async () => {
+  const { headers } = await testUser();
+  const other = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const { id } = (await (await req('/api/attempts', { headers, body: { promptId: p.id, skill: 'writing', part: 2, text: 'draft' } })).json()) as any;
+  await db.update(attempts).set({ status: 'analyzing', stage: 'scoring' }).where(eq(attempts.id, id));
+  expect(await (await req(`/api/attempts/${id}/status`, { headers })).json()).toEqual({ status: 'analyzing', stage: 'scoring', error: null, retryable: true });
+  await db.update(attempts).set({ status: 'failed', error: 'boom', errorRetryable: false }).where(eq(attempts.id, id));
+  expect(await (await req(`/api/attempts/${id}/status`, { headers })).json()).toEqual({ status: 'failed', stage: null, error: 'boom', retryable: false });
+  expect((await req(`/api/attempts/${id}/status`, { headers: other.headers })).status).toBe(404);
+});
+
 it('skill and part must match the prompt; a retry must use its parent prompt', async () => {
   const { headers } = await testUser();
   const p = await seedPrompt();

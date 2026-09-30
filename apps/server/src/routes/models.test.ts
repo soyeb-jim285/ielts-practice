@@ -34,3 +34,12 @@ it('requires auth and validates capability', async () => {
   const { headers } = await testUser();
   expect((await req('/api/models?capability=video', { headers })).status).toBe(400);
 });
+
+it('is cacheable for 1 h and revalidates with its ETag', async () => {
+  setFetch(fakeFetch({ '/models': () => json({ data }) }));
+  const { headers } = await testUser('cache@x.com');
+  const first = await req('/api/models', { headers });
+  expect(first.headers.get('cache-control')).toBe('private, max-age=3600');
+  headers.set('If-None-Match', first.headers.get('etag')!);
+  expect((await req('/api/models', { headers })).status).toBe(304);
+});

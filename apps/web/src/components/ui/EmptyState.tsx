@@ -4,8 +4,7 @@ import { IconTile } from './IconTile';
 
 /**
  * Zero-data state that teaches the next step. No frame: a hairline rule, a small icon, a serif title, one or two lines saying what will
- * appear here, and the action that creates it, all left-aligned to the page grid. Pass `preview` (a <GhostList />) to sketch the populated
- * layout underneath. `bare` drops the rule when it already sits inside a Card. `as` sets the heading level (default h2).
+ * appear here, and the action that creates it, all left-aligned to the page grid. `preview` (a <GhostList />) is for the styleguide only: under a finished message greyed rows look like a stuck loader. `bare` drops the rule when it already sits inside a Card. `as` sets the heading level (default h2).
  */
 export function EmptyState({
   icon,

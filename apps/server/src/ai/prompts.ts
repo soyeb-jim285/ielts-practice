@@ -29,8 +29,9 @@ PROCEDURE (identical for every criterion and every band)
 3. Check upward: take the key features of band B+1 from the descriptors. For each, say met / partly / not met, with a short verbatim quote from the response. If most are met, set B = B+1 and repeat this step.
 4. Check downward: take the key features that define band B-1. For each, say present / partly / absent, with a quote. If most are present, set B = B-1 and repeat this step.
 5. Award the band whose descriptor fits MOST of the evidence (best fit). A band is not withheld for one weaker feature when its other features are met, and one isolated strength does not lift a band. Judge errors by their density and effect on the reader, not their raw count. Do not favour lower, higher or middle bands: bands 0 to 9 are all awarded to real candidates.
-6. Use the whole scale. The top and the bottom are awarded to real candidates, so do not stop at 6 or 7 because a script is imperfect, and do not stop at 4 or 5 because a script is trying. At the top, the descriptors expect "rare" or "occasional, non-systematic" errors: a script with only a few slips and precise, varied vocabulary meets Lexical Resource and Grammatical Range and Accuracy 8 or 9, whatever its topic or length. At the bottom, errors that predominate or distort meaning are band 4 or below (band 3 when most meaning fails to come through). As a rough cross-check only (best fit still decides), count the errors that a careful reader would correct, per 100 words: under 1 is 8 to 9; 1 to 3 is 7; 3 to 6 is 6; 6 to 10 is 5; over 10, or errors that often impede meaning, is 4 or below.
-7. Fill the reasoning fields first, then "band". "evidence" holds verbatim quotes only; "descriptor" copies the awarded band's descriptor phrase(s); "summary" is 1-2 plain sentences to the candidate ("you") naming the feature of the next band up that is missing.
+6. Use the whole scale. The top and the bottom are awarded to real candidates, so do not stop at 6 or 7 because a script is imperfect, and do not stop at 4 or 5 because a script is trying. At the top, the descriptors expect "rare" or "occasional, non-systematic" errors: a script with only a few slips and precise, varied vocabulary meets Lexical Resource and Grammatical Range and Accuracy 8 or 9, whatever its topic or length. At the bottom, errors that predominate or distort meaning are band 4 or below (band 3 when most meaning fails to come through): a response with basic errors (verb forms, agreement, articles, plurals, word forms, spelling) in most of its sentences, and mostly simple or faulty sentence structures, is band 4 or below for Grammatical Range and Accuracy and for Lexical Resource when word choice and word formation are equally shaky, however relevant its ideas and however clear its paragraphing. As a rough cross-check only (best fit still decides), count the errors that a careful reader would correct, per 100 words: under 1 is 8 to 9; 1 to 3 is 7; 3 to 6 is 6; 6 to 10 is 5; over 10, or errors that often impede meaning, is 4 or below.
+7. {TA_OR_TR} is about content, not about length beyond the minimum or ornament: a response that covers every requirement of the task (Task 2: every part of the prompt and a clear position kept throughout; Task 1: the key features with data, and for Academic an overview) with relevant, specific, well-supported content meets band 8 even when its ideas are conventional, and band 9 when it does so fully and in depth without lapses. Do not withhold bands 8 and 9 because a point could have been extended further, and do not lower it for language errors (those belong to the other criteria).
+8. Fill the reasoning fields first, then "band". "evidence" holds verbatim quotes only; "descriptor" copies the awarded band's descriptor phrase(s); "summary" is 1-2 plain sentences to the candidate ("you") naming the feature of the next band up that is missing.
 
 OFFICIAL REQUIREMENTS (IELTS Writing band descriptors, May 2023, and key assessment criteria)
 - Any copied rubric (words copied from the task prompt) must be discounted.
@@ -53,7 +54,7 @@ const USER_TEMPLATE = `<task>
 Task: {TASK}
 Prompt: {PROMPT}
 {FIGURE}
-Minimum words: {MIN}. Candidate word count: {WORDS} ({COPIED} words copied from the prompt, not counted).
+Minimum words: {MIN}. Candidate word count: {WORDS} ({COPIED} words copied from the prompt, not counted).{SHORT}
 </task>
 
 <measurements note="deterministic, for reference only">
@@ -113,8 +114,8 @@ const bin = (b: number) => (b <= 4.5 ? 4 : b >= 8 ? 8 : Math.floor(b));
  *  GT letters borrow the Academic Task 1 ladder: only one GT anchor exists), ascending bands on even k, descending on odd k.
  *  Anchors answering the scored prompt are skipped, so a benchmark never shares the candidate's topic. */
 const ROTATION = 'bins4-8;k-mod-n;own-family-first;t1g+t1a;asc-even-desc-odd;skip-same-prompt';
-export function pickAnchors(all: Anchor[], family: Family, k: number, promptBody = ''): Anchor[] {
-  const pool = all.filter((a) => (a.family === family || (family === 't1g' && a.family === 't1a')) && (!promptBody || a.promptBody.trim() !== promptBody.trim()));
+export function pickAnchors(all: Anchor[], family: Family, k: number, promptBody = '', skipId?: string): Anchor[] {
+  const pool = all.filter((a) => a.id !== skipId && (a.family === family || (family === 't1g' && a.family === 't1a')) && (!promptBody || a.promptBody.trim() !== promptBody.trim()));
   const picked = [4, 5, 6, 7, 8].flatMap((b) => {
     const inBin = pool.filter((a) => bin(a.band) === b).sort((x, y) => +(x.family !== family) - +(y.family !== family));
     return inBin.length ? [inBin[k % inBin.length]!] : [];
@@ -154,6 +155,7 @@ export function scorerUser(i: {
     MIN: i.min,
     WORDS: i.words,
     COPIED: i.copied,
+    SHORT: i.words < i.min ? ` UNDER LENGTH: ${i.min - i.words} words short, ${Math.round((i.words / i.min) * 100)}% of the minimum, so the task cannot be fully met.` : '',
     PARAGRAPHS: i.metrics.paragraphs,
     SENTENCES: i.metrics.sentences,
     AVG: Math.round(i.metrics.avgSentenceLen),

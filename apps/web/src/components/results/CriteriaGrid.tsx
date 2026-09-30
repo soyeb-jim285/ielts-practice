@@ -20,13 +20,13 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
           const d = deltas?.[k];
           const name = criterionLabel(k);
           return (
-            <section key={k} aria-labelledby={`crit-${k}`} className="grid gap-x-12 gap-y-3 py-6 md:grid-cols-[14rem_minmax(0,1fr)]">
+            <section key={k} aria-labelledby={`crit-${k}`} className="grid gap-x-10 gap-y-3 py-6 md:grid-cols-[16rem_minmax(0,1fr)]">
               <div className="space-y-2.5">
-                <div className="flex items-baseline justify-between gap-3 md:block">
+                <div className="flex items-baseline justify-between gap-3">
                   <h3 id={`crit-${k}`} className="type-subheading">
                     {name}
                   </h3>
-                  <p className="type-band text-4xl md:mt-2">{formatBand(c.band)}</p>
+                  <p className="type-band text-4xl">{formatBand(c.band)}</p>
                 </div>
                 <BandBar band={c.band} target={target} label={`${name} band`} />
                 <p className="type-caption type-num">
@@ -39,7 +39,7 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
                   ) : null}
                 </p>
               </div>
-              <div className="min-w-0 max-w-[68ch] space-y-2">
+              <div className="min-w-0 max-w-[60ch] space-y-2">
                 <p className="type-body">{c.summary}</p>
                 {(c.descriptor || c.evidence.length > 0) && (
                   <Collapsible className="group">

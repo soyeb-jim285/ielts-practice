@@ -178,7 +178,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       {phase === 'finishing' ? (
         <Finishing uploads={uploads} total={segments.length} onRetry={(k) => void upload(k)} />
       ) : (
-        <PageContainer width="narrow" className="flex min-h-[68dvh] flex-col justify-center gap-8">
+        <PageContainer width="narrow" className="flex flex-col gap-8 sm:min-h-[68dvh] sm:justify-center">
           {seg.part === 2 ? (
             <>
               <h1 className="sr-only">Part 2: Long turn</h1>

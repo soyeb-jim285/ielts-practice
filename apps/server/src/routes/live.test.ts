@@ -9,10 +9,12 @@ import { setAnalyzer } from '../jobs';
 import { setFetch } from '../ai/openrouter';
 import type { LiveState } from '../ai/examiner';
 import { storage } from '../storage';
+import { clearSpeechCache } from './live';
 
 let ai: ReturnType<typeof fakeFetch>;
 let analyzed: string[];
 beforeEach(async () => {
+  clearSpeechCache();
   analyzed = [];
   setAnalyzer(async (id) => void analyzed.push(id));
   ai = fakeFetch({
@@ -162,4 +164,46 @@ it('skipTts starts a (realtime) session without calling TTS', async () => {
   expect(s).toMatchObject({ phase: 'intro', audioUrl: null });
   expect(s.voiceError).toBeUndefined();
   expect(ai.calls.some((c) => c.url.includes('/audio/speech'))).toBe(false);
+});
+
+it('fixed examiner lines are voiced once per model and voice, not once per session', async () => {
+  const { headers } = await testUser();
+  await start(headers);
+  const tts = () => ai.calls.filter((c) => c.url.includes('/audio/speech')).length;
+  const first = tts();
+  expect(first).toBeGreaterThan(0);
+  await start(headers); // the intro line is fixed wording
+  expect(tts()).toBe(first);
+});
+
+it('Part 2 long turn: prep timer, talk, then the 2:00 cut-in leads into the rounding-off question', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const turn = async (body: Record<string, unknown> = { skipped: true }) => (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, ...body } })).json()) as any;
+  const set = async (patch: Partial<LiveState>) => db.update(liveSessions).set({ state: { ...(await state(s.sessionId)), ...patch } }).where(eq(liveSessions.id, s.sessionId));
+  await set({ phase: 'p1', p1Asked: 12 });
+  const prep = await turn();
+  expect(prep).toMatchObject({ phase: 'p2-prep', prepSeconds: 60 });
+  await set({ phaseStartedAt: Date.now() - 45_000 }); // asking too early: the remaining preparation time comes back
+  const mid = await turn();
+  expect(mid).toMatchObject({ phase: 'p2-prep', examinerText: 'You still have a little time to prepare.' });
+  expect(mid.prepSeconds).toBeLessThanOrEqual(15);
+  expect(mid.prepSeconds).toBeGreaterThan(10);
+  await set({ phaseStartedAt: Date.now() - 61_000 });
+  expect(await turn()).toMatchObject({ phase: 'p2-talk', examinerText: expect.stringContaining('Can you start speaking now') });
+  // the candidate talks for the full two minutes: the examiner cuts in with the end-of-time line, then asks the rounding-off question
+  const long = fakeFetch({
+    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
+    '/audio/transcriptions': () => json({ text: 'I talked about a book for two minutes.', duration: 120, words: [] }),
+    '/chat/completions': () => chatReply("Thank you. That's the end of your time. Do you read often?"),
+  });
+  setFetch(long);
+  await set({ phaseStartedAt: Date.now() - 121_000 });
+  const cut = await turn({ audioKey: await upload(headers, s.sessionId) });
+  expect(cut).toMatchObject({ phase: 'p2-follow', transcript: 'I talked about a book for two minutes.', examinerText: "Thank you. That's the end of your time. Do you read often?" });
+  // the examiner LLM was told to use the end-of-time lead because the talk ran to the limit
+  expect(JSON.stringify(long.calls.findLast((c) => c.url.includes('/chat/completions'))!.body.messages[0])).toContain("That's the end of your time.");
+  expect((await state(s.sessionId)).history.filter((h) => h.phase === 'p2-talk').map((h) => [h.role, h.durationMs])).toEqual([['examiner', undefined], ['candidate', 120_000]]);
+  const after = await turn({ skipped: true });
+  expect(after.phase).toBe('p3');
 });

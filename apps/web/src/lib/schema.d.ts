@@ -574,6 +574,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attempts/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lightweight status for polling (no analysis, prompt or presigned URLs); fetch the full attempt when status or stage changes */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AttemptStatus"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/attempts/{id}": {
         parameters: {
             query?: never;
@@ -1469,6 +1516,14 @@ export interface components {
             text?: string;
             plan?: string;
             overtime?: boolean;
+        };
+        AttemptStatus: {
+            /** @enum {string} */
+            status: "recording" | "analyzing" | "done" | "failed";
+            /** @enum {string|null} */
+            stage: "transcribing" | "analyzing" | "feedback" | "scoring" | "finalizing" | null;
+            error: string | null;
+            retryable: boolean;
         };
         Attempt: {
             id: string;

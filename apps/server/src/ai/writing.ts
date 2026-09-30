@@ -86,7 +86,7 @@ export type WritingInput = {
 };
 type Sample = Record<WritingKey, CriterionScore>;
 /** Raw scoring output of one essay: what the eval harness caches and the calibration is fitted on. */
-export type Scored = { samples: Sample[]; served: Served[]; flags: TextFlag[]; words: number; copied: number; figure: Figure; family: Family; promptHash: string; key: string };
+export type Scored = { samples: Sample[]; /** scoring calls whose output was used (fewer than K on an early exit or failed calls) */ used?: number; served: Served[]; flags: TextFlag[]; words: number; copied: number; figure: Figure; family: Family; promptHash: string; key: string };
 
 const family = (i: Pick<WritingInput, 'task' | 'variant'>): Family => (i.task === 2 ? 't2' : i.variant === 'general' ? 't1g' : 't1a');
 const promptText = (p: WritingInput['prompt']) => [p.title, p.body, ...(p.bullets ?? [])].join('\n');
@@ -100,7 +100,7 @@ async function figureFor(i: WritingInput): Promise<Figure> {
 }
 
 /** Steps 0-2 (§2.1): deterministic pre-checks and the K anchored scoring calls. Each sample rotates its anchors and criterion order. */
-export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?: number; figure?: Figure } = {}): Promise<Scored> {
+export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?: number; figure?: Figure; early?: boolean; skipAnchor?: string } = {}): Promise<Scored> {
   const { mode = 'joint', k = WRITING_K } = o;
   const model = i.settings.models.analysis, fam = family(i), metrics = computeTextMetrics(i.text);
   const figure = o.figure ?? (await figureFor(i));
@@ -111,7 +111,7 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
   const call = (n: number, keys: WritingKey[]) =>
     chatJson({
       model,
-      system: scorerSystem(i.task, pickAnchors(anchors, fam, n, i.prompt.body)),
+      system: scorerSystem(i.task, pickAnchors(anchors, fam, n, i.prompt.body, o.skipAnchor)),
       user: withImage(figure === 'image' ? i.prompt.image : null, scorerUser({
         family: fam, keys, prompt: i.prompt, figure, min: i.task === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2,
         words: countWords(i.text) - copied, copied, metrics, essay: i.text,
@@ -124,8 +124,17 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
       onServed: (s) => served.push(s),
     }) as Promise<Partial<Sample>>;
   const calls = Array.from({ length: k }, (_, n) => (mode === 'joint' ? [() => call(n, sampleOrder(n))] : WRITING_KEYS.map((c) => () => call(n, [c])))).flat();
-  return { samples: mergeSamples(await scoringSamples(calls), k), served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
+  const parts = await scoringSamples(calls, o.early && mode === 'joint' ? agree : undefined);
+  return { samples: mergeSamples(parts, o.early && parts.length >= 2 ? parts.length : k), used: parts.length, served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
 }
+
+/** Early-exit test for the first samples: every criterion within one band of the other sample's and their overall means within half a band. */
+const agree = (ok: Partial<Sample>[]) => {
+  const [a, b] = ok as Sample[];
+  if (!WRITING_KEYS.every((k) => a![k] && b![k])) return false;
+  const d = WRITING_KEYS.map((k) => Math.abs(a![k].band - b![k].band));
+  return Math.max(...d) <= 1 && Math.abs(mean(WRITING_KEYS.map((k) => a![k].band)) - mean(WRITING_KEYS.map((k) => b![k].band))) <= 0.5;
+};
 
 /** Per-criterion partial outputs → whole samples (a failed call leaves its criterion with fewer samples; those are reused round-robin). */
 function mergeSamples(parts: Partial<Sample>[], k: number): Sample[] {
@@ -142,7 +151,8 @@ const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
 export type RuleInput = { task: 1 | 2; variant: 'academic' | 'general'; words: number; text: string; errors?: { category: string }[]; sentences?: number; overviewMissing?: boolean; upgrades?: number };
 
 /** Criterion-level rules after pooling (docs/scoring-research §2.1 step 6), each a cap or floor with its reason written into the criterion's summary:
- *  - under the word minimum: TA ≤ 6 (≤ 5 below 90% of it); cut off mid-sentence as well: CC, LR and GRA each one band lower;
+ *  - under the word minimum: TA ≤ 6 (≤ 5 below 90% of it); below 80% of it CC, LR and GRA are capped at TA + 1 (a short response cannot show range or control,
+ *    and the scorer rated those criteria on the language alone); cut off mid-sentence as well: CC, LR and GRA each one band lower;
  *  - Task 1 Academic without an overview (feedback call) and TA already ≤ 6: TA and CC ≤ 5;
  *  - over 12 flagged errors per 100 words, or sentence-structure errors in over half the sentences: GRA ≤ 4;
  *  - under 1 error per 100 words, none in vocabulary and few basic words flagged, with TA and CC at 7+: LR and GRA ≥ 8 (the scorer under-reaches the top).
@@ -161,6 +171,7 @@ export function applyRules(c: Record<WritingKey, LlmCriterion>, r: RuleInput): s
   if (r.words < min) {
     const why = `Only ${r.words} words, under the ${min}-word minimum.`;
     cap('ta', r.words < 0.9 * min ? 5 : 6, `${why} A response this short cannot fully meet the task.`);
+    if (r.words < 0.8 * min) for (const k of ['cc', 'lr', 'gra'] as const) cap(k, c.ta.band + 1, `${why} A response this short cannot show the range or control that band needs: capped at one band above ${r.task === 1 ? 'Task Achievement' : 'Task Response'}.`);
     if (!/[.!?]["')\]”’]?\s*$/.test(r.text.trim()))
       for (const k of ['cc', 'lr', 'gra'] as const) set(k, c[k].band - 1, `${why} The response stops mid-sentence, so organisation, range and control cannot be shown.`);
   }
@@ -187,7 +198,9 @@ export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Ca
   const y = roundBand(means[0]! < 4.5 || s.flags.includes('injection') ? Math.min(m, cal.map(m)) : cal.map(m));
   const asCriterion = (x: CriterionScore): LlmCriterion => ({ band: x.band, range: [x.band, x.band], descriptor: x.descriptor, evidence: x.evidence, summary: x.summary });
   const bands = DESCRIPTORS(o.task);
-  const c = poolCriteria(s.samples.map((x) => Object.fromEntries(WRITING_KEYS.map((k) => [k, asCriterion(x[k])])) as Record<WritingKey, LlmCriterion>), () => y, (key, band) => bandDescriptor(bands[key], band));
+  // Top band: the scorer under-reads Task Response / Achievement on polished scripts (TA 6-7 beside 8-9 on the other three, on 15 of 48 model answers), and a
+  // script good enough for 8.5+ has a flat profile, so criteria keep only half of their distance from the mean there (the overall is unchanged).
+  const c = poolCriteria(s.samples.map((x) => Object.fromEntries(WRITING_KEYS.map((k) => [k, asCriterion(x[k])])) as Record<WritingKey, LlmCriterion>), () => y, (key, band) => bandDescriptor(bands[key], band), y >= 8.5 ? 0.5 : 1);
   if (o.text) keepVerbatimEvidence(c, o.text);
   const rules = o.rules ? applyRules(c, o.rules) : [];
   const raw = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
@@ -195,17 +208,18 @@ export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Ca
   const cap = c.ta.band <= 4 || o.offTopic ? c.ta.band + 1 : 9;
   const overall = Math.min(roundBand(raw), cap);
   // Wider when a flag is set or a criterion's samples span 2+ bands (the IELTS second-marking trigger for jagged profiles).
-  const split = WRITING_KEYS.some((k) => { const b = s.samples.map((x) => x[k].band); return Math.max(...b) - Math.min(...b) >= 2; });
-  const q = cal.q + (s.flags.length || split ? 0.5 : 0);
+  const spread = Object.fromEntries(WRITING_KEYS.map((k) => { const b = s.samples.map((x) => x[k].band); return [k, Math.max(...b) - Math.min(...b)]; })) as Record<WritingKey, number>;
+  // Task Response / Achievement is the least stable criterion (samples 2+ bands apart on it missed the official band by 1.5 on cam-5-5-w2 and cam-7-1-w1): widen by a full band then.
+  const q = cal.q + (spread.ta >= 2 ? 1 : s.flags.length || Object.values(spread).some((d) => d >= 2) ? 0.5 : 0);
   const range = settleRanges(c, overall, q);
-  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: [Math.min(range[0], cap), Math.min(range[1], cap)] as [number, number], q, rules };
+  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: [Math.min(range[0], cap), Math.min(range[1], cap)] as [number, number], q, rules, spread };
 }
 
 /** Scoring samples for a script: short scripts (under the word minimum) are capped by the rule layer anyway, so two samples are enough. */
 export const scorerK = (words: number, min: number) => (words < min ? Math.min(2, WRITING_K) : WRITING_K);
 
 /** `onStage` / `onPartial` let the caller show progress: the feedback is handed over as soon as it is ready, while the scorer (the slow part) runs on. */
-export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) => void; onStage?: (s: AnalysisStage) => void; onPartial?: (p: AnalysisPartial) => void | Promise<void> }): Promise<AnalysisResult> {
+export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; onScored?: (s: Scored) => void; onStage?: (s: AnalysisStage) => void; onPartial?: (p: AnalysisPartial) => void | Promise<void> }): Promise<AnalysisResult> {
   const textMetrics = computeTextMetrics(i.text);
   const min = i.task === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2;
   const own = ownWords(i);
@@ -256,7 +270,7 @@ export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) 
     await i.onPartial?.({ skill: 'writing', part: i.task, text: i.text, textMetrics, structure: fb.structure, errors: located, topFixes: fb.topFixes, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE } });
     return { fb, errors: located };
   });
-  const scoredP = scoreWriting(i, { figure, k: scorerK(own, min) }).then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
+  const scoredP = scoreWriting(i, { figure, k: scorerK(own, min), early: true, skipAnchor: i.skipAnchor }).then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
   const [{ fb, errors }, scored] = await Promise.all([fbP, scoredP]);
   i.onScored?.(scored);
   i.onStage?.('finalizing');
@@ -274,7 +288,7 @@ export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) 
   });
   timings.calibrationMs = Date.now() - t1;
   timings.totalMs = Date.now() - t0;
-  console.log(`writing analysis timings ${JSON.stringify(timings)} k=${scored.samples.length} words=${own} rules=${r.rules.length}`);
+  console.log(`writing analysis timings ${JSON.stringify(timings)} k=${scored.used ?? scored.samples.length}/${scored.samples.length} words=${own} rules=${r.rules.length} spread=${JSON.stringify(r.spread)}`);
   return {
     v: 1, skill: 'writing', part: i.task, overall: r.overall, overallRaw: r.overallRaw, range: r.range, criteria: r.criteria,
     topFixes: fb.topFixes, errors, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE },

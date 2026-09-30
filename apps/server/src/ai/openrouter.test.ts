@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { chatReply, fakeFetch, json } from '../test/helpers';
-import { AiError, chatJson, punctuate, setFetch, speak, toStrictSchema, transcribe, verbatimSane } from './openrouter';
+import { AiError, chatJson, punctuate, setFetch, speak, speechChunks, toStrictSchema, transcribe, verbatimSane } from './openrouter';
 
 const schema = z.object({ band: z.number().int(), range: z.tuple([z.number(), z.number()]) });
 const ask = () => chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x' });
@@ -176,6 +176,23 @@ it('speak: PCM-only Gemini TTS is requested as pcm and wrapped in a WAV header; 
   setFetch(g);
   expect((await speak({ model: 'deepgram/aura-2', voice: 'aura-2-thalia-en', text: 'Hi' })).contentType).toBe('audio/mpeg');
   expect(g.calls[0]!.body.response_format).toBe('mp3');
+});
+
+it('speak: a long multi-sentence line is synthesised as parallel chunks and joined in order (one WAV header)', async () => {
+  const text = 'Thank you. Now, I am going to give you a topic and I would like you to talk about it for one to two minutes. Before you talk, you will have one minute to think about what you are going to say. You can make some notes if you wish.';
+  const chunks = speechChunks(text);
+  expect(chunks.length).toBeGreaterThanOrEqual(2);
+  expect(chunks.length).toBeLessThanOrEqual(3);
+  expect(chunks.join(' ')).toBe(text);
+  expect(speechChunks('Where is your hometown? Do you like it?')).toEqual(['Where is your hometown? Do you like it?']); // short lines stay whole
+  let n = 0;
+  const f = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([++n, 0]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }) });
+  setFetch(f);
+  const r = await speak({ model: 'google/gemini-3.8-flash-tts', voice: 'Charon', text });
+  expect(f.calls.map((c) => c.body.input)).toEqual(chunks);
+  const b = Buffer.from(r.audio);
+  expect([b.toString('ascii', 0, 4), b.readUInt32LE(24), b.readUInt32LE(40), b.length]).toEqual(['RIFF', 24000, chunks.length * 2, 44 + chunks.length * 2]);
+  expect([...b.subarray(44)].filter((_, i) => i % 2 === 0)).toEqual(chunks.map((_, i) => i + 1));
 });
 
 // Live smoke test of the default voice (a fraction of a cent): SMOKE=1 OPENROUTER_API_KEY=… pnpm exec vitest run src/ai/openrouter.test.ts -t smoke
