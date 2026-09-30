@@ -175,7 +175,7 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
   - The examiner prompt encodes the real script: intro/ID, P1 × 3 topics, P2 card (the server starts a 60 s prep timer, then a 2 min talk with the examiner cutting in at 2:00), P3 linked, and the close.
   - The server is authoritative for state (part, elapsed, questions asked). The client shows the current part, a timer, and the examiner caption.
 - **OpenAI Realtime** (if `liveProvider = openai-realtime` and the server has `OPENAI_API_KEY`):
-  - The server mints an ephemeral token carrying the same examiner instructions. Web connects over WebRTC; iOS uses the WebRTC SDK or falls back to turn-based.
+  - The server mints an ephemeral token carrying the same examiner instructions. Web connects over WebRTC; iOS connects over WebSocket (`URLSessionWebSocketTask` + `AVAudioEngine` PCM16, no extra dependency).
   - The client records its own mic track locally for analysis.
 - Both variants end in `/api/live/finish`, which runs the same pipeline per part (split by part-change timestamps).
 
