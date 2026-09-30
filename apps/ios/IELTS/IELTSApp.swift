@@ -32,6 +32,8 @@ enum Route: Hashable {
     case writing(WritingMode)
     case result([String])
     case bank(skill: String)
+    case history
+    case mistakes(category: String?)
 }
 
 extension View {
@@ -43,6 +45,8 @@ extension View {
             case let .writing(mode): WritingEditorView(mode: mode)
             case let .result(ids): ResultView(ids: ids)
             case let .bank(skill): BankView(skill: skill)
+            case .history: HistoryView()
+            case let .mistakes(category): MistakesView(category: category)
             }
         }
     }

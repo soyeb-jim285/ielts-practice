@@ -164,15 +164,21 @@ struct DashboardView: View {
 
     private func mistakes(_ m: [ProgressData.CategoryCount]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("Recurring mistakes")
+            titled("Recurring mistakes", .mistakes(category: nil))
             ForEach(m, id: \.category) { c in
-                HStack {
-                    Text(categoryLabel(c.category))
-                    Spacer()
-                    Text("\(c.count)").monospacedDigit().foregroundStyle(.secondary)
+                NavigationLink(value: Route.mistakes(category: c.category)) {
+                    HStack {
+                        Text(categoryLabel(c.category))
+                        Spacer()
+                        Text("\(c.count)").monospacedDigit().foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
                 }
             }
         }
+        .buttonStyle(.plain)
         .card()
     }
 
@@ -202,24 +208,19 @@ struct DashboardView: View {
 
     private var recentCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("Recent attempts")
+            titled("Recent attempts", .history)
             ForEach(recent) { a in
-                NavigationLink(value: Route.result([a.id])) {
-                    HStack {
-                        Image(systemName: a.skill == "speaking" ? "mic" : "pencil").foregroundStyle(.secondary).frame(width: 24)
-                        VStack(alignment: .leading) {
-                            Text(a.promptTitle).lineLimit(1)
-                            Text("\(a.skill == "speaking" ? "Part" : "Task") \(a.part) · \(a.createdAt.prefix(10))").font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if let o = a.overall { BandPill(band: o, target: target) } else { Chip(text: a.status.capitalized) }
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                NavigationLink(value: Route.result([a.id])) { AttemptRow(a: a, target: target) }
             }
         }
+        .buttonStyle(.plain)
         .card()
+    }
+
+    private func titled(_ title: String, _ all: Route) -> some View {
+        HStack {
+            SectionTitle(title)
+            NavigationLink("See all", value: all).font(.subheadline.weight(.medium)).foregroundStyle(.brand).fixedSize()
+        }
     }
 }

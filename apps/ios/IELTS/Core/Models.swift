@@ -180,6 +180,8 @@ struct AttemptListItem: Decodable, Identifiable {
     let createdAt: String
 }
 
+struct AttemptPage: Decodable { let items: [AttemptListItem]; let total: Int }
+
 // MARK: - Analysis (ai/types.ts)
 
 struct Criterion: Decodable { let band: Double; let range: [Double]; let descriptor: String; let evidence: [String]; let summary: String }
@@ -304,6 +306,23 @@ struct ProgressData: Decodable {
 }
 
 struct ReviewCard: Decodable, Identifiable { let id: String; let front: String; let back: String }
+
+struct Mistake: Decodable, Identifiable {
+    let id: String
+    let attemptId: String
+    let skill: String
+    let part: Int
+    let promptTitle: String
+    let category: String
+    let original: String
+    let correction: String
+    let explanation: String
+    let time: Double?
+    var inDeck: Bool
+    let createdAt: String
+}
+
+struct MistakeLog: Decodable { let groups: [ProgressData.CategoryCount]; let items: [Mistake]; let total: Int }
 
 struct ModelInfo: Decodable, Identifiable {
     struct Pricing: Decodable { let prompt: String?; let completion: String? }

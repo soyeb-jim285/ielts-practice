@@ -31,6 +31,18 @@ final class BandTests: XCTestCase {
         XCTAssertEqual(ends, 1)
     }
 
+    func testMistakeLogAndAttemptPageDecode() throws {
+        let log = #"{"groups":[{"category":"grammar.articles","count":2}],"items":[{"id":"m1","attemptId":"a1","skill":"writing","part":2,"promptTitle":"P","category":"grammar.articles","original":"a apple","correction":"an apple","explanation":"vowel","time":null,"inDeck":false,"createdAt":"2026-09-30T00:00:00.000Z"}],"total":1,"page":1,"pageSize":30}"#
+        let m = try JSONDecoder().decode(MistakeLog.self, from: Data(log.utf8))
+        XCTAssertEqual(m.groups.first?.count, 2)
+        XCTAssertEqual(m.items.first?.correction, "an apple")
+        XCTAssertNil(m.items.first?.time)
+        let page = #"{"items":[{"id":"a1","promptId":"p","promptTitle":"P","skill":"speaking","part":1,"mode":"practice","sessionId":null,"status":"analyzing","durationMs":null,"overall":null,"createdAt":"2026-09-30T00:00:00.000Z"}],"page":1,"pageSize":30,"total":31}"#
+        let a = try JSONDecoder().decode(AttemptPage.self, from: Data(page.utf8))
+        XCTAssertEqual(a.total, 31)
+        XCTAssertEqual(a.items.first?.status, "analyzing")
+    }
+
     func testChartSpecDecodesTableWithMixedCells() throws {
         let json = #"{"kind":"table","title":"T","columns":["a","b"],"rows":[["x",1.5],["y",2]]}"#
         guard case let .table(_, columns, rows) = try JSONDecoder().decode(ChartSpec.self, from: Data(json.utf8)) else { return XCTFail("not a table") }
