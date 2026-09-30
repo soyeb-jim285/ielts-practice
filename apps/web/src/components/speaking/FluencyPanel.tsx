@@ -3,7 +3,7 @@ import type { Criterion } from '@server/ai/types';
 import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Alert, Card, InfoTip } from '@/components/ui';
-import { formatClock } from '@/lib/format';
+import { formatClock, plural } from '@/lib/format';
 import { isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
@@ -11,7 +11,7 @@ const TICK = { fill: 'var(--muted)', fontSize: 12 };
 
 /** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the heuristic band-7 zone shaded. */
 export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeries']; durationS: number }) {
-  if (series.length < 2) return <p className="text-sm text-muted-foreground">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
+  if (series.length < 2) return <p className="text-sm text-muted">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
   const max = Math.max(200, ...series.map((p) => p.wpm));
   return (
     <figure>
@@ -26,8 +26,8 @@ export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeri
               cursor={{ stroke: 'var(--line-strong, var(--muted))' }}
               content={({ active, payload }) =>
                 active && payload?.[0] ? (
-                  <div className="rounded-card border border-line bg-surface px-3 py-2 text-sm shadow-pop">
-                    <p className="text-muted-foreground tabular-nums">
+                  <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-pop">
+                    <p className="text-muted tabular-nums">
                       {formatClock(payload[0].payload.t)}–{formatClock(Math.min(payload[0].payload.t + WPM_WINDOW_S, durationS))}
                     </p>
                     <p className="font-medium tabular-nums">{Math.round(payload[0].payload.wpm)} wpm</p>
@@ -39,7 +39,7 @@ export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeri
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <figcaption className="mt-2 text-xs text-muted-foreground">Words per minute in 10-second windows, every 5 seconds. Shaded: roughly where band-7 speakers sit.</figcaption>
+      <figcaption className="type-caption mt-2 text-xs">Words per minute in 10-second windows, every 5 seconds. Shaded: roughly where band-7 speakers sit.</figcaption>
     </figure>
   );
 }
@@ -65,7 +65,7 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
           </button>
         ))}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground tabular-nums">
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted tabular-nums">
         <span>0:00</span>
         <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-warn/60" />Short, 0.25–1 s</span>
@@ -93,7 +93,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
           return (
             <div key={s.key} className="p-4">
               {/* The icon is glued to the last word, so a wrapped label keeps it attached. */}
-              <dt className="text-sm text-muted-foreground">
+              <dt className="type-caption">
                 {s.label.split(' ').slice(0, -1).join(' ')}{' '}
                 <span className="whitespace-nowrap">
                   {s.label.split(' ').at(-1)}
@@ -102,7 +102,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
                   </span>
                 </span>
               </dt>
-              <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{s.value}</dd>
+              <dd className="type-num mt-1 text-2xl font-semibold tracking-tight">{s.value}</dd>
               {ind && (
                 <dd className={`mt-1 flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
                   <ind.Icon className="size-3.5" aria-hidden />
@@ -129,23 +129,23 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
         </Alert>
       )}
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Pace</h2>
+        <h2 className="type-heading mb-4">Pace</h2>
         <Card>
           <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} />
         </Card>
       </section>
       <section>
-        <h2 className="text-lg font-semibold">Pauses</h2>
-        <p className="mt-1 mb-4 text-sm text-muted-foreground">
-          {metrics.pauses.length} pauses · {metrics.pauses.filter(isLongPause).length} long · {metrics.midClausePauses} mid-clause. Tap one to hear it.
+        <h2 className="type-heading">Pauses</h2>
+        <p className="type-caption mt-1 mb-4 text-sm">
+          {plural(metrics.pauses.length, 'pause')}, {metrics.pauses.filter(isLongPause).length} long, {metrics.midClausePauses} mid-clause. Tap one to hear it.
         </p>
         <Card>
           <PauseTimeline metrics={metrics} audio={audio} />
         </Card>
       </section>
       <section>
-        <h2 className="text-lg font-semibold">Fluency measures</h2>
-        <p className="mt-1 mb-4 text-sm text-muted-foreground">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
+        <h2 className="type-heading">Fluency measures</h2>
+        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
         <StatGrid stats={stats} />
       </section>
     </div>

@@ -1,11 +1,12 @@
 import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Check, ChevronRight, LibraryBig, Search } from 'lucide-react';
+import { Check, LibraryBig, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
-import { rowStyles } from '@/components/bank/ListRow';
+import { GroupHeading, listStyles, RowChevron, rowStyles } from '@/components/bank/ListRow';
+import { runs } from '@/components/bank/group';
 import { PromptLink } from '@/components/bank/PracticeLink';
-import { Badge, Button, Card, EmptyState, Input, PageHeader, Segmented, Select, Skeleton } from '@/components/ui';
+import { Alert, Badge, Button, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
 import { typeLabel } from '@/lib/writing';
 import { useMe } from '@/lib/query';
@@ -91,21 +92,19 @@ function BankPage() {
   const total = list.data?.pages[0]?.total;
   const filtered = !!(f.skill || f.type || f.topic || f.source || f.q);
   // Rows arrive sorted by skill, then part: group consecutive runs under one sticky header.
-  const groups: { key: string; label: string; items: BankPrompt[] }[] = [];
-  for (const p of items) {
-    const key = `${p.skill}${p.part}`;
-    if (groups.at(-1)?.key !== key) groups.push({ key, label: `${pretty(p.skill)} · ${partName(p.skill, p.part)}${p.skill === 'writing' && f.variant ? ` ${pretty(f.variant)}` : ''}`, items: [] });
-    groups.at(-1)!.items.push(p);
-  }
+  const groups = runs(items, (p) => `${p.skill}${p.part}`).map((g) => {
+    const p = g.items[0]!;
+    return { ...g, label: `${pretty(p.skill)}, ${partName(p.skill, p.part)}${p.skill === 'writing' && f.variant ? ` ${pretty(f.variant)}` : ''}` };
+  });
 
   return (
-    <>
+    <PageContainer>
       <PageHeader title="Prompt bank" description={total != null ? `${total.toLocaleString('en')} ${total === 1 ? 'prompt' : 'prompts'}${filtered ? ' match' : ''}` : 'Every question and task you can practise.'} />
 
       <div className="mb-6 space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted" aria-hidden />
-          <Input label="Search prompts" hideLabel type="search" placeholder="Search titles and questions…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-10" />
+          <Input label="Search prompts" hideLabel type="search" placeholder="Search titles and questions" value={q} onChange={(e) => setQ(e.target.value)} className="pl-10" />
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <Segmented
@@ -164,25 +163,34 @@ function BankPage() {
         </div>
       </div>
 
-      {list.isPending ? (
-        <Card padded={false} className="overflow-clip" aria-busy>
+      {list.isError ? (
+        <Alert
+          tone="bad"
+          title="Couldn't load prompts"
+          action={
+            <Button variant="outline" size="sm" onClick={() => void list.refetch()}>
+              Try again
+            </Button>
+          }
+        >
+          Check your connection and try again.
+        </Alert>
+      ) : list.isPending ? (
+        <div className={listStyles} aria-busy>
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="flex items-center gap-3 border-b border-line px-5 py-4 last:border-0">
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-[1.125rem] w-2/3" />
-                <Skeleton className="h-4 w-1/3" />
-              </div>
+            <div key={i} className="space-y-2 py-4">
+              <Skeleton className="h-[1.125rem] w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
             </div>
           ))}
-        </Card>
+        </div>
       ) : items.length === 0 ? (
         <EmptyState
           icon={<LibraryBig />}
-          className="md:py-14"
           title={filtered ? 'No prompts match' : 'The bank is empty'}
           action={
             filtered && (
-              <Button variant="secondary" onClick={() => (setQ(''), navigate({ search: {}, replace: true }))}>
+              <Button variant="outline" onClick={() => (setQ(''), navigate({ search: {}, replace: true }))}>
                 Clear filters
               </Button>
             )
@@ -191,13 +199,11 @@ function BankPage() {
           {filtered ? 'Try a broader search or fewer filters.' : 'Seed the prompt bank on the server to start practising.'}
         </EmptyState>
       ) : (
-        <Card padded={false} className="overflow-clip">
+        <div>
           {groups.map((g) => (
             <section key={g.key} aria-label={g.label}>
-              <h2 className="sticky top-0 z-10 border-b border-line bg-surface-2 px-5 py-2 text-sm font-medium text-muted [section:not(:first-child)>&]:border-t">
-                {g.label}
-              </h2>
-              <ul className="divide-y divide-line">
+              <GroupHeading>{g.label}</GroupHeading>
+              <ul className={listStyles}>
                 {g.items.map((p) => {
                   // Speaking Part 1/3 titles are just the topic: show the first question under it; writing shows the task type.
                   const question = p.skill === 'speaking' ? p.body.split('\n')[0] : typeLabel(p.type);
@@ -205,8 +211,8 @@ function BankPage() {
                     <li key={p.id}>
                       <PromptLink prompt={p} className={rowStyles}>
                         <span className="min-w-0 flex-1">
-                          <span className="line-clamp-2 text-[0.9375rem] font-medium text-pretty">{p.title}</span>
-                          <span className="mt-0.5 flex items-center gap-2 text-sm text-muted">
+                          <span className="type-reading-sm line-clamp-2 block text-pretty">{p.title}</span>
+                          <span className="type-caption mt-0.5 flex items-center gap-2">
                             {question && question !== p.title && <span className="truncate">{question}</span>}
                             {p.source === 'cambridge' && <Badge tone="accent">{p.sourceRef ?? 'Cambridge'}</Badge>}
                             {p.done && (
@@ -216,7 +222,7 @@ function BankPage() {
                             )}
                           </span>
                         </span>
-                        <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
+                        <RowChevron />
                       </PromptLink>
                     </li>
                   );
@@ -224,9 +230,9 @@ function BankPage() {
               </ul>
             </section>
           ))}
-        </Card>
+        </div>
       )}
       <LoadMore hasMore={!!list.hasNextPage} loading={list.isFetchingNextPage} onLoad={() => void list.fetchNextPage()} />
-    </>
+    </PageContainer>
   );
 }

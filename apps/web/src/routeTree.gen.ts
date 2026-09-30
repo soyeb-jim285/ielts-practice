@@ -20,6 +20,7 @@ import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppStyleguideRouteImport } from './routes/_app/styleguide'
 import { Route as AppSpeakingIndexRouteImport } from './routes/_app/speaking/index'
 import { Route as AppSpeakingLiveRouteImport } from './routes/_app/speaking/live'
 import { Route as AppSpeakingSessionRouteImport } from './routes/_app/speaking/session'
@@ -83,6 +84,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStyleguideRoute = AppStyleguideRouteImport.update({
+  id: '/styleguide',
+  path: '/styleguide',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSpeakingIndexRoute = AppSpeakingIndexRouteImport.update({
   id: '/speaking/',
   path: '/speaking/',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/mistakes': typeof AppMistakesRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
+  '/styleguide': typeof AppStyleguideRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/mistakes': typeof AppMistakesRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
+  '/styleguide': typeof AppStyleguideRoute
   '/': typeof AppIndexRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_app/mistakes': typeof AppMistakesRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/styleguide': typeof AppStyleguideRoute
   '/_app/': typeof AppIndexRoute
   '/_app/speaking/live': typeof AppSpeakingLiveRoute
   '/_app/speaking/session': typeof AppSpeakingSessionRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/mistakes'
     | '/review'
     | '/settings'
+    | '/styleguide'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/mistakes'
     | '/review'
     | '/settings'
+    | '/styleguide'
     | '/'
     | '/speaking/live'
     | '/speaking/session'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_app/mistakes'
     | '/_app/review'
     | '/_app/settings'
+    | '/_app/styleguide'
     | '/_app/'
     | '/_app/speaking/live'
     | '/_app/speaking/session'
@@ -339,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/styleguide': {
+      id: '/_app/styleguide'
+      path: '/styleguide'
+      fullPath: '/styleguide'
+      preLoaderRoute: typeof AppStyleguideRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/speaking/': {
       id: '/_app/speaking/'
       path: '/speaking'
@@ -404,6 +423,7 @@ interface AppRouteChildren {
   AppMistakesRoute: typeof AppMistakesRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppStyleguideRoute: typeof AppStyleguideRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSpeakingLiveRoute: typeof AppSpeakingLiveRoute
   AppSpeakingSessionRoute: typeof AppSpeakingSessionRoute
@@ -421,6 +441,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMistakesRoute: AppMistakesRoute,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppStyleguideRoute: AppStyleguideRoute,
   AppIndexRoute: AppIndexRoute,
   AppSpeakingLiveRoute: AppSpeakingLiveRoute,
   AppSpeakingSessionRoute: AppSpeakingSessionRoute,

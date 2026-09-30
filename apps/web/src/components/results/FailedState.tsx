@@ -18,7 +18,7 @@ export function FailedState({ attemptId, message, title = 'Analysis failed', act
         <div className="flex flex-wrap items-center gap-2">
           {action ?? (
             // Not retryable (AI service out of credit/misconfigured): an immediate retry fails the same way, so offer it as "later".
-            <Button size="sm" variant={retryable ? 'primary' : 'secondary'} loading={retry.isPending} onClick={() => retry.mutate()}>
+            <Button size="sm" variant={retryable ? 'primary' : 'outline'} loading={retry.isPending} onClick={() => retry.mutate()}>
               {retryable ? 'Retry analysis' : 'Try again later'}
             </Button>
           )}

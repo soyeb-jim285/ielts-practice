@@ -20,7 +20,7 @@ function BarList({ rows, label }: { rows: { key: string; label: string; count: n
             {r.label}
           </span>
           <ProgressBar label={`${r.label}: ${r.count}`} value={Math.max(0.04, r.count / max)} tone={r.tone ?? 'accent'} className="order-last col-span-2 sm:order-none sm:col-span-1" />
-          <span className="flex items-center justify-end gap-2 tabular-nums sm:min-w-14">
+          <span className="flex items-center justify-end gap-2 type-num sm:min-w-14">
             {r.badge && <Badge>{r.badge}</Badge>}
             <span className="w-4 text-right font-medium">{r.count}</span>
           </span>
@@ -44,10 +44,10 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
     .map((v) => ({ ...v, better: v.better.filter((b) => b.trim().toLowerCase() !== v.original.trim().toLowerCase()) }))
     .filter((v) => v.better.length > 0);
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {m && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">At a glance</h2>
+          <h2 className="mb-3 type-heading">At a glance</h2>
           <Card padded={false} className="overflow-hidden">
             <dl className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3">
               <Stat label="Words" value={m.words} />
@@ -72,7 +72,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
 
       {byCat.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Mistakes by type</h2>
+          <h2 className="mb-3 type-heading">Mistakes by type</h2>
           <Card>
             <BarList label="Mistakes by type" rows={byCat.map(([c, n]) => ({ key: c, label: categoryLabel(c), count: n }))} />
           </Card>
@@ -81,7 +81,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
 
       {linkers.length > 0 && (
         <section>
-          <h2 className="mb-1 text-lg font-semibold">Linking words</h2>
+          <h2 className="mb-1 type-heading">Linking words</h2>
           <p className="mb-3 max-w-prose text-sm text-muted text-pretty">Examiners penalise mechanical linking. Overused ones are flagged; swap some for referencing (“this trend”, “such policies”).</p>
           {templated && (
             <p className="mb-3 rounded-lg bg-warn-soft px-4 py-3 text-sm text-warn-text">
@@ -102,13 +102,13 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
 
       {m && m.repeated.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Repeated words</h2>
+          <h2 className="mb-3 type-heading">Repeated words</h2>
           <ul className="flex flex-wrap gap-2">
             {m.repeated.map((w) => (
               <li key={w.word}>
                 <Badge className="h-7 gap-1.5 px-3 text-sm">
                   <span className="text-ink">{w.word}</span>
-                  <span className="tabular-nums">×{w.count}</span>
+                  <span className="type-num">×{w.count}</span>
                 </Badge>
               </li>
             ))}
@@ -128,7 +128,7 @@ function Stat({ label, value, tip }: { label: string; value: ReactNode; tip?: st
         {label}
         {tip && <InfoTip label={`About ${label}`}>{tip}</InfoTip>}
       </dt>
-      <dd className="mt-1 text-lg font-semibold tabular-nums">{value}</dd>
+      <dd className="type-num mt-1 text-lg font-semibold">{value}</dd>
     </div>
   );
 }
@@ -136,15 +136,15 @@ function Stat({ label, value, tip }: { label: string; value: ReactNode; tip?: st
 function VocabList({ items }: { items: VocabUpgrade[] }) {
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold">Vocabulary upgrades</h2>
+      <h2 className="mb-3 type-heading">Vocabulary upgrades</h2>
       <Card padded={false}>
         <ul className="divide-y divide-line">
           {items.map((v) => (
             <li key={v.original} className="px-5 py-4">
               {/* Same treatment as the speaking Language tab. */}
-              <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.9375rem]">
+              <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-body">
                 <span className="text-muted">{v.original}</span>
-                <ArrowRight className="size-4 shrink-0 translate-y-0.5 text-muted" aria-label="try" />
+                <ArrowRight role="img" className="size-4 shrink-0 translate-y-0.5 text-muted" aria-label="try" />
                 {v.better.map((b, i) => (
                   <span key={b} className="font-semibold text-brand-text">
                     {b}

@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, BookmarkPlus, FileText, RotateCcw } from 'lucide-react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
-import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Segmented, Skeleton, Tabs, toast } from '@/components/ui';
+import { Alert, Badge, Button, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, toast } from '@/components/ui';
 import { DiffView } from '@/components/writing/DiffView';
 import { EssayHighlights } from '@/components/writing/EssayHighlights';
 import { LanguagePanel } from '@/components/writing/LanguagePanel';
@@ -39,9 +39,11 @@ function ResultPage() {
 
   if (error)
     return (
-      <Alert tone="bad" title="Couldn't load this result" action={<Button size="sm" variant="secondary" onClick={() => void refetch()}>Try again</Button>}>
+      <PageContainer>
+      <Alert tone="bad" title="Couldn't load this result" action={<Button size="sm" variant="outline" onClick={() => void refetch()}>Try again</Button>}>
         {error.message}
       </Alert>
+      </PageContainer>
     );
   if (!a) return <ResultSkeleton />;
 
@@ -50,8 +52,13 @@ function ResultPage() {
   const pairTasks = other ? [a, other].sort((x, y) => x.part - y.part) : null;
   const [p1, p2] = pairTasks?.map((x) => x.analysis && capOffTopic(x.analysis).result.overall) ?? [];
   const combined = p1 != null && p2 != null ? writingOverall(p1, p2) : null;
-  const meta = `Writing · ${taskLabel(a.prompt)} · ${formatDate(a.createdAt)}`;
+  const meta = `Writing, ${taskLabel(a.prompt)}, ${formatDate(a.createdAt)}`;
 
+  const back = (
+    <Link to="/writing" className={buttonStyles({ variant: 'ghost', size: 'sm', className: '-ml-3 text-muted' })}>
+      <ArrowLeft aria-hidden /> Writing
+    </Link>
+  );
   const switcher = pairTasks && (
     <Segmented
       label="Task"
@@ -63,13 +70,9 @@ function ResultPage() {
   );
 
   return (
-    <div>
-      <Link to="/writing" className={buttonStyles({ variant: 'ghost', size: 'sm', className: '-ml-3 mb-2 text-muted' })}>
-        <ArrowLeft aria-hidden /> Writing
-      </Link>
-
+    <PageContainer>
       {r ? (
-        <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target}>
+        <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target} back={back}>
           <div className="flex flex-wrap items-center gap-2">
             {switcher}
             {offTopic && <Badge tone="bad">Capped: off topic</Badge>}
@@ -79,20 +82,16 @@ function ResultPage() {
           </div>
         </ResultHeader>
       ) : (
-        <header className="mb-6 space-y-2">
-          <p className="text-sm text-muted">{meta}</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-balance md:text-[1.75rem]">{a.prompt.title}</h1>
-          {switcher}
-        </header>
+        <PageHeader title={a.prompt.title} description={meta} actions={switcher} back={back} />
       )}
 
       {combined && (
         <Card className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">Writing band for this test</h2>
-            <p className="text-sm text-muted">Task 2 counts twice as much as Task 1.</p>
+            <h2 className="type-subheading">Writing band for this test</h2>
+            <p className="type-caption mt-0.5">Task 2 counts twice as much as Task 1.</p>
           </div>
-          <p className={`text-4xl font-semibold tracking-tight tabular-nums ${TONE_TEXT[bandColor(combined.band, target)]}`}>{formatBand(combined.band)}</p>
+          <p className={`type-band text-4xl ${TONE_TEXT[bandColor(combined.band, target)]}`}>{formatBand(combined.band)}</p>
         </Card>
       )}
 
@@ -103,7 +102,7 @@ function ResultPage() {
       ) : (
         <Done a={a} r={r} offTopic={offTopic} under={under} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true })} />
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -133,8 +132,8 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
           </Alert>
         )
       )}
-      {/* Stays under the top edge while a long panel scrolls; bleeds to the page gutters so content never shows beside it. */}
-      <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+      {/* Stays under the top edge while a long panel scrolls. */}
+      <StickyTabs>
         <Tabs
           id="wr"
           value={tab}
@@ -147,8 +146,8 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
             { value: 'improve', label: 'Improve' },
           ]}
         />
-      </div>
-      <div role="tabpanel" id="wr-panel" aria-labelledby={`wr-${tab}`} className="pt-6 pb-8">
+      </StickyTabs>
+      <div key={tab} role="tabpanel" id="wr-panel" aria-labelledby={`wr-${tab}`} className="page-enter pt-6 pb-8">
         {tab === 'overview' && (
           <OverviewPanel
             result={r}
@@ -165,9 +164,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
         )}
         {tab === 'essay' &&
           (text.trim() ? (
-            <Card className="p-5 sm:p-8">
-              <EssayHighlights text={text} errors={r.errors} />
-            </Card>
+            <EssayHighlights text={text} errors={r.errors} />
           ) : (
             <EmptyState icon={<FileText />} title="No essay text">
               Nothing was written for this task.
@@ -195,13 +192,13 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
     onError: (e) => toast(e.message, { tone: 'bad' }),
   });
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex flex-col gap-2 sm:flex-row">
         <Link to="/writing/task/$promptId" params={{ promptId: a.promptId }} search={{ parent: a.id }} className={buttonStyles()}>
           <RotateCcw aria-hidden /> Retry this prompt
         </Link>
         {r.topFixes.length > 0 && (
-          <Button variant="secondary" icon={<BookmarkPlus />} loading={addFixes.isPending} disabled={addFixes.isSuccess} onClick={() => addFixes.mutate()}>
+          <Button variant="outline" icon={<BookmarkPlus />} loading={addFixes.isPending} disabled={addFixes.isSuccess} onClick={() => addFixes.mutate()}>
             {addFixes.isSuccess ? 'Fixes in your deck' : 'Add top fixes to review deck'}
           </Button>
         )}
@@ -209,9 +206,9 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
       {a.parentAttemptId && <RetryDiff parentId={a.parentAttemptId} text={text} />}
       {r.rewrite.text ? (
         <section>
-          <h2 className="mb-1 text-lg font-semibold">One band higher</h2>
+          <h2 className="type-heading mb-1">One band higher</h2>
           <p className="mb-4 max-w-prose text-sm text-muted text-pretty">{r.rewrite.note || 'Study what changed and why. Don’t memorise it: examiners recognise learned essays.'}</p>
-          <Card className="p-5 sm:p-8">
+          <Card padded={false} className="px-5 py-6 sm:px-10 sm:py-9">
             <DiffView original={text} rewrite={r.rewrite.text} />
           </Card>
         </section>
@@ -231,28 +228,33 @@ function RetryDiff({ parentId, text }: { parentId: string; text: string }) {
   if (!before) return null;
   return (
     <section>
-      <h2 className="mb-1 text-lg font-semibold">Since your last attempt</h2>
+      <h2 className="type-heading mb-1">Since your last attempt</h2>
       <p className="mb-4 max-w-prose text-sm text-muted">Your previous answer against this one.</p>
-      <Card className="p-5 sm:p-8">
+      <Card padded={false} className="px-5 py-6 sm:px-10 sm:py-9">
         <DiffView original={before} rewrite={text} cleanLabel="This attempt" />
       </Card>
     </section>
   );
 }
 
-/** Header, tabs and a couple of panels in the shape of the loaded page. */
+/** Back link, header, band strip, tabs and a panel in the shape of the loaded page, so nothing jumps when the result arrives. */
 function ResultSkeleton() {
   return (
-    <div className="space-y-6" aria-busy aria-label="Loading result">
-      <div className="flex items-end justify-between gap-6">
-        <div className="min-w-0 flex-1 space-y-3">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-8 w-full max-w-lg" />
-        </div>
-        <Skeleton className="h-14 w-24" />
+    <PageContainer aria-busy aria-label="Loading result">
+      <Skeleton className="mb-3 h-8 w-28" />
+      <div className="mb-6 space-y-3 md:mb-8">
+        <Skeleton className="h-10 w-full max-w-xl" />
+        <Skeleton className="h-4 w-56" />
       </div>
-      <Skeleton className="h-11 w-full" />
-      <Skeleton className="h-72 w-full rounded-card" />
-    </div>
+      <div className="mb-8 flex items-end gap-10 border-y border-line py-6 md:mb-10">
+        <Skeleton className="h-[4.5rem] w-32" />
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+      </div>
+      <Skeleton className="mb-6 h-10 w-full" />
+      <Skeleton className="h-72 w-full" />
+    </PageContainer>
   );
 }

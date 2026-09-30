@@ -29,7 +29,7 @@ function TimerPill({ left }: { left: number }) {
       role="timer"
       aria-label={left < 0 ? `Overtime ${formatClock(-left)}` : `${formatClock(left)} left`}
       className={clsx(
-        'inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[0.9375rem] font-semibold tabular-nums transition-colors duration-200',
+        'type-num inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-body font-semibold transition-colors duration-200 ease-(--ease-out-expo)',
         tone === 'bad' ? 'bg-bad-soft text-bad-text' : tone === 'warn' ? 'bg-warn-soft text-warn-text' : 'bg-surface-2 text-ink',
       )}
     >
@@ -121,7 +121,7 @@ export function WritingExam({
   return (
     <ExamShell
       wide
-      title={multi ? 'Writing · Full test' : `Writing · ${taskLabel(current)}`}
+      title={multi ? 'Writing, full test' : `Writing, ${taskLabel(current)}`}
       exit={
         <Button variant="ghost" size="sm" icon={<X />} onClick={() => setConfirm('exit')} aria-label="Exit">
           <span className="hidden sm:inline">Exit</span>
@@ -143,7 +143,7 @@ export function WritingExam({
             className="shrink-0 bg-surface px-3 sm:px-5"
             value={active}
             onChange={setActive}
-            items={prompts.map((p) => ({ value: p.id, label: `${p.part === 1 ? 'Task 1' : 'Task 2'} · ${plural(countWords(drafts[p.id]!.text), 'word')}` }))}
+            items={prompts.map((p) => ({ value: p.id, label: `${p.part === 1 ? 'Task 1' : 'Task 2'}, ${plural(countWords(drafts[p.id]!.text), 'word')}` }))}
           />
         )}
         {error && (
@@ -157,13 +157,13 @@ export function WritingExam({
           aria-labelledby={multi ? `task-${active}` : undefined}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden"
         >
-          <section aria-label="Question" className="shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0 lg:bg-transparent">
+          <section aria-label="Question" className="shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0">
             <button
               type="button"
               aria-expanded={promptOpen}
               aria-controls="question-body"
               onClick={() => setPromptOpen((o) => !o)}
-              className="flex h-12 w-full items-center gap-2 px-4 text-sm font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset sm:px-6 lg:hidden"
+              className="type-subheading flex h-12 w-full items-center gap-2 px-4 text-sm  focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-6 lg:hidden"
             >
               Question
               <span className="ml-auto flex items-center gap-1 font-normal text-muted">
@@ -171,7 +171,7 @@ export function WritingExam({
                 <ChevronDown className={clsx('size-4 transition-transform duration-200', promptOpen && 'rotate-180')} aria-hidden />
               </span>
             </button>
-            <div id="question-body" className={clsx('px-4 pt-2 pb-6 sm:px-6 lg:px-10 lg:py-10', !promptOpen && 'max-lg:hidden')}>
+            <div id="question-body" className={clsx('px-4 pt-2 pb-6 sm:px-6 lg:px-12 lg:py-10', !promptOpen && 'max-lg:hidden')}>
               <PromptPanel key={current.id} prompt={current} />
             </div>
           </section>
@@ -200,7 +200,7 @@ export function WritingExam({
             <Button variant={under ? 'primary' : 'ghost'} onClick={() => setConfirm(null)}>
               Keep writing
             </Button>
-            <Button variant={under ? 'secondary' : 'primary'} onClick={() => void submit()} loading={busy} disabled={tooShort}>
+            <Button variant={under ? 'outline' : 'primary'} onClick={() => void submit()} loading={busy} disabled={tooShort}>
               Submit
             </Button>
           </>
@@ -213,9 +213,9 @@ export function WritingExam({
             return (
               <li key={p.id} className="flex items-center justify-between gap-3 py-3">
                 <span className="font-medium">{taskLabel(p)}</span>
-                <span className={clsx('tabular-nums', n < min ? 'text-warn-text' : 'text-good-text')}>
+                <span className={clsx('type-num', n < min ? 'text-warn-text' : 'text-good-text')}>
                   {plural(n, 'word')}
-                  {n < min && ` · under ${min}`}
+                  {n < min && `, under ${min}`}
                 </span>
               </li>
             );
@@ -226,8 +226,8 @@ export function WritingExam({
         ) : (
           under && (
             <p className="mt-3 text-sm text-warn-text">
-              Under {minWords(under.part)} words loses {under.part === 1 ? 'Task Achievement' : 'Task Response'} marks
-              {left > 0 && ` — you have ${formatClock(left)} left`}.
+              Under {minWords(under.part)} words costs {under.part === 1 ? 'Task Achievement' : 'Task Response'} marks
+              {left > 0 && `. You have ${formatClock(left)} left to add more`}.
             </p>
           )
         )}
@@ -243,7 +243,7 @@ export function WritingExam({
             <Button variant="ghost" onClick={() => setConfirm(null)}>
               Stay
             </Button>
-            <Button variant="secondary" onClick={() => void navigate({ to: '/writing' })}>
+            <Button variant="outline" onClick={() => void navigate({ to: '/writing' })}>
               Leave
             </Button>
           </>
@@ -256,9 +256,9 @@ export function WritingExam({
 function PlanPad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <Collapsible defaultOpen={!!value} className="group/plan shrink-0 rounded-card bg-surface-2">
-      <CollapsibleTrigger className="flex h-11 w-full items-center gap-2 rounded-card px-4 text-sm font-medium outline-none hover:bg-hover focus-visible:ring-[3px] focus-visible:ring-ring/40">
+      <CollapsibleTrigger className="flex h-11 w-full items-center gap-2 rounded-card px-4 text-sm font-medium hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <NotebookPen className="size-4 text-muted" aria-hidden />
-        Plan <span className="font-normal text-muted">· about 5 minutes, not graded</span>
+        Plan <span className="font-normal text-muted">(about 5 minutes, not graded)</span>
         <ChevronDown className="ml-auto size-4 text-muted transition-transform duration-200 group-data-[state=open]/plan:rotate-180" aria-hidden />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -271,7 +271,7 @@ function PlanPad({ value, onChange }: { value: string; onChange: (v: string) => 
           onChange={(e) => onChange(e.target.value)}
           rows={5}
           placeholder={'Position: …\nBody 1: idea + example\nBody 2: idea + example\nConclusion: …'}
-          className="block w-full resize-y rounded-b-card border-t border-line bg-transparent px-4 py-3 text-[0.9375rem] outline-none placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset"
+          className="block w-full resize-y rounded-b-card border-t border-line bg-transparent px-4 py-3 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           {...NO_ASSIST}
         />
       </CollapsibleContent>

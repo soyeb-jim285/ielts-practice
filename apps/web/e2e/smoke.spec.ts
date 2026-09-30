@@ -9,7 +9,7 @@ test('sign up, set a target band, browse the bank', async ({ page }) => {
   await page.getByRole('button', { name: 'Create account' }).click();
 
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'Three steps to your first predicted band' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Get your first band' })).toBeVisible();
 
   await page.goto('/settings');
   const band = page.getByLabel('Target band');

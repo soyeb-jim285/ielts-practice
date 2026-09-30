@@ -26,16 +26,16 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
   return (
     <div className="space-y-10">
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Mistakes by type</h2>
+        <h2 className="type-heading mb-4">Mistakes by type</h2>
         {groups.length ? (
           <Card padded={false} className="divide-y divide-line overflow-hidden">
             {groups.map(([cat, errs]) => (
               <Collapsible key={cat} className="group">
                 <CollapsibleTrigger className="flex min-h-14 w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-hover">
                   <span className="w-32 shrink-0 text-sm font-medium sm:w-56">{categoryLabel(cat)}</span>
-                  <ProgressBar value={errs.length / maxCount} label={`${errs.length} ${categoryLabel(cat)} mistakes`} className="min-w-0 flex-1" />
+                  <ProgressBar value={errs.length / Math.max(maxCount, 5)} label={`${errs.length} ${categoryLabel(cat)} mistakes`} className="min-w-0 flex-1" />
                   <span className="w-6 text-right text-sm tabular-nums">{errs.length}</span>
-                  <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+                  <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-data-[state=open]:rotate-180" aria-hidden />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <ul className="divide-y divide-line bg-surface-2">
@@ -51,77 +51,79 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
           </Card>
         ) : (
           <Card>
-            <p className="text-sm text-muted-foreground">No grammar or vocabulary mistakes were flagged.</p>
+            <p className="text-sm text-muted">No grammar or vocabulary mistakes were flagged in this answer.</p>
           </Card>
         )}
       </section>
 
       {result.vocabUpgrades.length > 0 && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold">Vocabulary upgrades</h2>
+          <h2 className="type-heading mb-4">Vocabulary upgrades</h2>
           <Card padded={false} className="divide-y divide-line">
             {result.vocabUpgrades.map((v) => (
               <div key={v.original} className="space-y-2 px-5 py-4">
-                <p className="flex flex-wrap items-center gap-2 text-[0.9375rem]">
-                  <span className="text-muted-foreground line-through decoration-muted-foreground/50">{v.original}</span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-label="try" />
+                <p className="type-reading-sm flex flex-wrap items-center gap-2">
+                  <span className="text-muted line-through decoration-muted/50">{v.original}</span>
+                  <ArrowRight role="img" className="size-4 shrink-0 text-muted" aria-label="try" />
                   {v.better.map((b) => (
-                    <Badge key={b} tone="accent" className="h-auto py-1 text-sm whitespace-normal">
+                    <span key={b} className="rounded-sm bg-accent-soft px-2 py-0.5 text-accent-text ring-1 ring-brand/15 ring-inset">
                       {b}
-                    </Badge>
+                    </span>
                   ))}
                 </p>
-                <p className="max-w-[68ch] text-sm text-muted-foreground">{v.note}</p>
+                <p className="max-w-[68ch] text-sm text-muted">{v.note}</p>
               </div>
             ))}
           </Card>
         </section>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <h2 className="flex items-center gap-1 text-base font-semibold">
-            Lexical diversity
-            <InfoTip label="About lexical diversity">MTLD: how long you keep using new words before repeating yourself. Higher means a wider range. Around 70+ is typical of band 7 speech.</InfoTip>
-          </h2>
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-3xl font-semibold tracking-tight tabular-nums">
-            {Math.round(text.mtld)} <span className="text-sm font-medium tracking-normal text-muted-foreground">MTLD</span>
-            <Badge tone={mtldTone}>{mtldLabel}</Badge>
-          </p>
-          {(text.words < 50 || mtldTone !== 'good') && <p className="mt-2 text-sm text-muted-foreground">{text.words < 50 ? 'Short answer — treat this number as rough.' : 'Try synonyms and more precise words for repeated ideas.'}</p>}
-        </Card>
-        <Card>
-          <h2 className="text-base font-semibold">Words you leaned on</h2>
-          {text.repeated.length ? (
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {text.repeated.slice(0, 10).map((r) => (
-                <li key={r.word}>
-                  <Badge tone="neutral" className="h-7 text-sm">
-                    {r.word} <span className="tabular-nums">×{r.count}</span>
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No content word stood out as overused.</p>
-          )}
+      <section>
+        <Card padded={false} className="grid md:grid-cols-2 md:divide-x md:divide-line">
+          <div className="p-5">
+            <h2 className="type-subheading flex items-center gap-1">
+              Lexical diversity
+              <InfoTip label="About lexical diversity">MTLD: how long you keep using new words before repeating yourself. Higher means a wider range. Around 70+ is typical of band 7 speech.</InfoTip>
+            </h2>
+            <p className="type-band mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-4xl">
+              {Math.round(text.mtld)} <span className="font-sans text-sm font-medium tracking-normal text-muted">MTLD</span>
+              <Badge tone={mtldTone} className="font-sans tracking-normal">{mtldLabel}</Badge>
+            </p>
+            {(text.words < 50 || mtldTone !== 'good') && <p className="type-caption mt-3">{text.words < 50 ? 'Short answer, so treat this number as rough.' : 'Try synonyms and more precise words for repeated ideas.'}</p>}
+          </div>
+          <div className="border-t border-line p-5 md:border-t-0">
+            <h2 className="type-subheading">Words you leaned on</h2>
+            {text.repeated.length ? (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {text.repeated.slice(0, 10).map((r) => (
+                  <li key={r.word}>
+                    <Badge tone="neutral" className="type-num h-7 font-serif text-body">
+                      {r.word} <span className="font-sans text-xs">x{r.count}</span>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="type-caption mt-2">No content word stood out as overused.</p>
+            )}
+          </div>
         </Card>
       </section>
 
       {result.relevance && result.relevance.length > 0 && (
         <section id="relevance" className="scroll-mt-20">
-          <h2 className="mb-4 text-lg font-semibold">Did you answer the question?</h2>
+          <h2 className="type-heading mb-4">Did you answer the question?</h2>
           <Card padded={false} className="divide-y divide-line">
             {result.relevance.map((r) => {
               // Cue-card text is title + body (which restates the title): show the title, then the rest muted.
               const q = questionHead(result.questions?.[r.questionIdx]?.text ?? `Question ${r.questionIdx + 1}`);
               return (
                 <div key={r.questionIdx} className="flex gap-3 px-5 py-4">
-                  {r.onTopic ? <CircleCheck className="mt-0.5 size-5 shrink-0 text-good-text" aria-label="On topic" /> : <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn-text" aria-label="Off topic" />}
+                  {r.onTopic ? <CircleCheck role="img" className="mt-0.5 size-5 shrink-0 text-good-text" aria-label="On topic" /> : <TriangleAlert role="img" className="mt-0.5 size-5 shrink-0 text-warn-text" aria-label="Off topic" />}
                   <div className="min-w-0">
-                    <p className="text-[0.9375rem] font-medium">{q.head}</p>
-                    {q.rest && <p className="mt-0.5 text-xs text-muted-foreground">{q.rest}</p>}
-                    <p className="mt-1.5 text-sm text-muted-foreground">{r.note}</p>
+                    <p className="text-body font-medium">{q.head}</p>
+                    {q.rest && <p className="mt-0.5 text-xs text-muted">{q.rest}</p>}
+                    <p className="mt-1.5 text-sm text-muted">{r.note}</p>
                   </div>
                 </div>
               );
@@ -141,10 +143,10 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
   const llm = result.pronunciation?.llm;
   return (
     <section>
-      <h2 className="text-lg font-semibold">Pronunciation</h2>
-      <p className="mt-1 mb-4 text-sm text-muted-foreground">Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.</p>
+      <h2 className="type-heading">Pronunciation</h2>
+      <p className="type-caption mt-1 mb-4 text-sm">Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.</p>
       <Card padded={false} className="divide-y divide-line">
-        {unclear.length === 0 && !llm && <p className="px-5 py-4 text-sm text-muted-foreground">Speech recognition understood every word clearly.</p>}
+        {unclear.length === 0 && !llm && <p className="px-5 py-4 text-sm text-muted">Speech recognition understood every word clearly.</p>}
         {unclear.map((u) => {
           const w = words[u.wordIdx];
           return (
@@ -154,7 +156,7 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
               </Button>
               <span className="min-w-0 flex-1 font-medium">{u.w}</span>
               <Badge tone={u.tier === 3 ? 'bad' : 'warn'}>{u.tier === 3 ? 'Hard to recognise' : 'Slightly unclear'}</Badge>
-              <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">{Math.round(u.conf * 100)}%</span>
+              <span className="w-12 text-right text-xs text-muted tabular-nums">{Math.round(u.conf * 100)}%</span>
             </div>
           );
         })}
@@ -167,14 +169,14 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
               <p className="font-medium">
                 {w.word} <Badge tone="neutral">{ISSUE[w.issue]}</Badge>
               </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{w.tip}</p>
+              <p className="mt-0.5 text-sm text-muted">{w.tip}</p>
             </div>
           </div>
         ))}
         {llm?.prosody && (
           <div className="px-5 py-4">
             <p className="text-sm font-medium">Rhythm and intonation</p>
-            <p className="mt-1 text-sm text-muted-foreground">{llm.prosody}</p>
+            <p className="mt-1 text-sm text-muted">{llm.prosody}</p>
           </div>
         )}
       </Card>

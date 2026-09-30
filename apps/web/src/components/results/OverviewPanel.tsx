@@ -1,6 +1,5 @@
 import type { AnalysisResult, CriterionKey } from '@server/ai/types';
 import type { ReactNode } from 'react';
-import { Card } from '@/components/ui';
 import { ComparisonStrip } from './ComparisonStrip';
 import { CriteriaGrid } from './CriteriaGrid';
 import { FixCard } from './FixCard';
@@ -11,21 +10,19 @@ export function OverviewPanel({ result, order, target, parentLink }: { result: A
     <div className="space-y-10">
       <ComparisonStrip result={result} parentLink={parentLink} />
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Band by criterion</h2>
+        <h2 className="type-heading mb-4">Band by criterion</h2>
         <CriteriaGrid criteria={result.criteria} order={order} target={target} deltas={result.comparison?.deltas} />
       </section>
       {result.topFixes.length > 0 && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold">{result.topFixes.length} things to fix next</h2>
-          <Card padded={false} className="overflow-hidden">
-            <ol className="divide-y divide-line">
-              {result.topFixes.map((f, i) => (
-                <li key={f.title}>
-                  <FixCard fix={f} n={i + 1} />
-                </li>
-              ))}
-            </ol>
-          </Card>
+          <h2 className="type-heading mb-4">{result.topFixes.length === 1 ? 'One thing to fix next' : `${result.topFixes.length} things to fix next`}</h2>
+          <ol className="stagger divide-y divide-line border-y border-line">
+            {result.topFixes.map((f, i) => (
+              <li key={f.title}>
+                <FixCard fix={f} n={i + 1} />
+              </li>
+            ))}
+          </ol>
         </section>
       )}
     </div>

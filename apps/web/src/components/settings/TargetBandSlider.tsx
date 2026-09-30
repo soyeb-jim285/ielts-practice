@@ -18,7 +18,7 @@ export function TargetBandSlider({ hint }: { hint?: string }) {
   };
   const scale = (
     <>
-      <span className="flex justify-between px-1 tabular-nums" aria-hidden>
+      <span className="type-num flex justify-between px-1" aria-hidden>
         {SCALE.map((n) => (
           <span key={n}>{n}</span>
         ))}
@@ -26,5 +26,5 @@ export function TargetBandSlider({ hint }: { hint?: string }) {
       {hint && <span className="mt-3 block">{hint}</span>}
     </>
   );
-  return <Slider label="Target band" min={4} max={9} step={0.5} value={value} onChange={change} format={formatBand} hint={scale} />;
+  return <Slider label="Target band" min={4} max={9} step={0.5} value={value} onChange={change} format={(v) => <span className="type-num text-lg font-semibold text-ink">{formatBand(v)}</span>} hint={scale} />;
 }

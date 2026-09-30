@@ -1,4 +1,5 @@
 import { RadioGroup } from 'radix-ui';
+import { rowStyles } from '@/components/bank/ListRow';
 import type { Settings } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -16,20 +17,17 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
     },
   ];
   return (
-    <RadioGroup.Root value={value} onValueChange={(v) => onChange(v as Provider)} aria-label="Conversation mode" className="divide-y divide-line">
+    <RadioGroup.Root value={value} onValueChange={(v) => onChange(v as Provider)} aria-label="Conversation mode" className="-my-4 divide-y divide-line">
       {options.map((o) => (
         <RadioGroup.Item
           key={o.value}
           value={o.value}
           disabled={o.disabled}
-          className={cn(
-            'group flex w-full items-center gap-4 px-5 py-4 text-left transition-colors duration-150 outline-none',
-            'hover:bg-hover focus-visible:bg-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent',
-          )}
+          className={cn(rowStyles, 'gap-4 py-4 aria-checked:before:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:before:bg-transparent')}
         >
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">{o.label}</span>
-            <span className="mt-0.5 block max-w-[60ch] text-sm text-muted">{o.description}</span>
+            <span className="type-caption mt-0.5 block max-w-[60ch]">{o.description}</span>
           </span>
           <span className="grid size-5 shrink-0 place-items-center rounded-full border-2 border-input transition-colors group-aria-checked:border-brand group-aria-checked:bg-brand">
             <RadioGroup.Indicator className="size-1.5 rounded-full bg-brand-ink" />

@@ -36,7 +36,7 @@ describe('WritingEditor', () => {
     expect(screen.getByText('0 words')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: 'The chart  shows\nfour trends.' } });
     expect(screen.getByText('5 words')).toBeTruthy();
-    expect(screen.getByText('145 to go · min 150')).toBeTruthy();
+    expect(screen.getByText('145 more to reach 150')).toBeTruthy();
   });
 
   it('counts words on whitespace', () => {

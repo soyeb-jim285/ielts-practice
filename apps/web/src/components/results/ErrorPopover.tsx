@@ -20,19 +20,19 @@ export function ErrorDetails({ error, onPlay, onDone, hideCategory }: { error: A
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={error.severity === 'major' ? 'bad' : 'warn'}>{error.severity}</Badge>
-        {!hideCategory && <span className="text-xs text-muted-foreground">{categoryLabel(error.category)}</span>}
+        {!hideCategory && <span className="type-caption">{categoryLabel(error.category)}</span>}
       </div>
       {(error.original || error.correction) && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">
-          <span className="text-muted-foreground line-through decoration-bad/60">{error.original}</span>
-          <ArrowRight className="size-4 text-muted-foreground" aria-label="should be" />
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 type-reading-sm">
+          <span className="text-muted line-through decoration-bad/60">{error.original}</span>
+          <ArrowRight role="img" className="size-4 text-muted" aria-label="should be" />
           <span className="font-medium text-good-text">{error.correction}</span>
         </p>
       )}
-      <p className="text-sm leading-relaxed">{error.explanation}</p>
+      <p className="text-sm leading-relaxed text-ink/85">{error.explanation}</p>
       <div className="flex flex-wrap gap-2">
         {onPlay && (
-          <Button size="sm" variant="secondary" icon={<Play />} onClick={onPlay}>
+          <Button size="sm" variant="outline" icon={<Play />} onClick={onPlay}>
             Play this bit
           </Button>
         )}

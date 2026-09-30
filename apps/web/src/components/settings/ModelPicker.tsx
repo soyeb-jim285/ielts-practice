@@ -20,7 +20,7 @@ export const DEFAULT_MODELS: Settings['models'] = {
 /** Voice to keep when the TTS model changes: the current one if the new model supports it, else its first voice (unknown list → keep). */
 export const pickVoice = (voices: string[] | undefined, current: string) => (!voices?.length || voices.includes(current) ? current : voices[0]!);
 
-const useModels = (capability: Capability) =>
+export const useModels = (capability: Capability) =>
   useQuery({
     queryKey: ['models', capability],
     queryFn: () => call(client.GET('/api/models', { params: { query: { capability } } })),

@@ -1,12 +1,14 @@
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ChevronRight, History, Mic, PenLine } from 'lucide-react';
+import { History, Mic, PenLine } from 'lucide-react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
-import { RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
-import { Badge, buttonStyles, Card, EmptyState, PageHeader, Segmented, type Tone } from '@/components/ui';
+import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
+import { dayBucket, runs } from '@/components/bank/group';
+import { Badge, buttonStyles, EmptyState, GhostList, PageContainer, PageHeader, Segmented, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
+import { cn } from '@/lib/utils';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
@@ -28,7 +30,7 @@ export const Route = createFileRoute('/_app/history')({
 
 const STATUS: Record<Exclude<AttemptItem['status'], 'done'>, { label: string; tone: Tone }> = {
   recording: { label: 'Not submitted', tone: 'warn' },
-  analyzing: { label: 'Scoring…', tone: 'accent' },
+  analyzing: { label: 'Scoring', tone: 'accent' },
   failed: { label: 'Scoring failed', tone: 'bad' },
 };
 const partLabel = (a: AttemptItem) => (a.skill === 'speaking' ? `Part ${a.part}` : `Task ${a.part}`);
@@ -47,10 +49,10 @@ function HistoryPage() {
   const total = data.pages[0]?.total ?? 0;
 
   return (
-    <>
+    <PageContainer>
       <PageHeader
         title="History"
-        description={total ? `${total} ${total === 1 ? 'attempt' : 'attempts'}` : undefined}
+        description={total ? `${total} ${total === 1 ? 'attempt' : 'attempts'}, newest first` : 'Every answer you record and essay you submit.'}
         actions={
           <Segmented
             label="Skill"
@@ -68,60 +70,70 @@ function HistoryPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={<History />}
-          className="md:py-14"
-          title="No attempts yet"
+          preview={<GhostList rows={4} />}
+          title={skill ? `No ${skill} attempts yet` : 'Nothing practised yet'}
           action={
             <Link to={skill === 'writing' ? '/writing' : '/speaking'} className={buttonStyles()}>
               Start practising
             </Link>
           }
         >
-          Every answer you record and essay you submit shows up here with its band.
+          Each answer you record and essay you submit is listed here with its band, newest first, so you can see the trend.
         </EmptyState>
       ) : (
-        <Card padded={false} className="overflow-clip">
-          <ul className="divide-y divide-line">
-            {items.map((a) => {
-              const Icon = a.skill === 'speaking' ? Mic : PenLine;
-              const status = a.status === 'done' ? null : STATUS[a.status];
-              const flag = FLAG[(a as { flag?: string | null }).flag ?? ''];
-              return (
-                <li key={a.id}>
-                  <Link to={a.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'} params={{ attemptId: a.id }} className={rowStyles}>
-                    <RowIcon>
-                      <Icon aria-label={a.skill} />
-                    </RowIcon>
-                    <RowText
-                      title={a.promptTitle}
-                      meta={
-                        <>
-                          {partLabel(a)} · {formatDate(a.createdAt)}
-                          {showDuration(a) ? ` · ${formatDuration(a.durationMs!)}` : ''}
-                        </>
-                      }
-                    />
-                    {status ? (
-                      <Badge tone={status.tone}>{status.label}</Badge>
-                    ) : (
-                      a.overall != null && (
-                        <>
-                          {flag && <Badge tone="warn">{flag}</Badge>}
-                          <span className={`w-9 text-right text-lg font-semibold tabular-nums ${BAND_TEXT[bandColor(a.overall, target)]}`}>
-                            <span className="sr-only">Band </span>
-                            {formatBand(a.overall)}
+        <div>
+          {runs(items, (a) => dayBucket(a.createdAt)).map((g) => (
+            <section key={g.key} aria-label={g.key}>
+              <GroupHeading>{g.key}</GroupHeading>
+              <ul className={listStyles}>
+                {g.items.map((a) => {
+                  const Icon = a.skill === 'speaking' ? Mic : PenLine;
+                  const status = a.status === 'done' ? null : STATUS[a.status];
+                  const flag = FLAG[(a as { flag?: string | null }).flag ?? ''];
+                  const duration = showDuration(a) ? formatDuration(a.durationMs!) : null;
+                  return (
+                    <li key={a.id}>
+                      {/* Phones: icon, title + one meta line, band. From md: icon, title, part, date, duration, band as aligned columns. */}
+                      <Link
+                        to={a.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'}
+                        params={{ attemptId: a.id }}
+                        className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_5.5rem_4.5rem_3rem_1rem] md:gap-x-4')}
+                      >
+                        <RowIcon>
+                          <Icon />
+                        </RowIcon>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="type-subheading line-clamp-2 min-w-0 font-medium text-pretty">
+                              <span className="sr-only">{a.skill}: </span>
+                              {a.promptTitle}
+                            </span>
+                            {status && <Badge tone={status.tone} className="shrink-0">{status.label}</Badge>}
+                            {flag && !status && <Badge tone="warn" className="shrink-0">{flag}</Badge>}
                           </span>
-                        </>
-                      )
-                    )}
-                    <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
+                          <span className="type-caption mt-0.5 block md:hidden">
+                            {partLabel(a)}, {formatDate(a.createdAt)}
+                            {duration ? `, ${duration}` : ''}
+                          </span>
+                        </span>
+                        <span className="type-caption hidden md:block">{partLabel(a)}</span>
+                        <span className="type-caption hidden md:block">{formatDate(a.createdAt)}</span>
+                        <span className="type-caption type-num hidden md:block">{duration}</span>
+                        <span className={cn('type-band justify-self-end text-lg', a.overall != null && !status ? BAND_TEXT[bandColor(a.overall, target)] : 'text-muted')}>
+                          <span className="sr-only">Band </span>
+                          {status || a.overall == null ? <span aria-hidden>-</span> : formatBand(a.overall)}
+                        </span>
+                        <RowChevron />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
       <LoadMore hasMore={!!hasNextPage} loading={isFetchingNextPage} onLoad={() => void fetchNextPage()} />
-    </>
+    </PageContainer>
   );
 }

@@ -6,38 +6,38 @@ import { criterionLabel } from '@/lib/result';
 
 const Delta = ({ d }: { d: number }) =>
   d > 0 ? (
-    <span className="inline-flex items-center gap-0.5 text-good-text">
-      <ArrowUp className="size-3.5" aria-label="up" />+{d}
+    <span className="inline-flex items-center gap-0.5 font-medium text-good-text">
+      <ArrowUp role="img" className="size-4" aria-label="up" />+{d}
     </span>
   ) : d < 0 ? (
-    <span className="inline-flex items-center gap-0.5 text-bad-text">
-      <ArrowDown className="size-3.5" aria-label="down" />
-      {d}
+    <span className="inline-flex items-center gap-0.5 font-medium text-bad-text">
+      <ArrowDown role="img" className="size-4" aria-label="down" />
+      {`−${Math.abs(d)}`}
     </span>
   ) : (
-    <span className="inline-flex items-center gap-0.5 text-muted-foreground">
-      <Minus className="size-3.5" aria-label="no change" />0
+    <span className="inline-flex items-center gap-0.5 text-muted">
+      <Minus role="img" className="size-4" aria-label="no change" />0
     </span>
   );
 
-/** Retry comparison: previous overall → this overall, plus per-criterion deltas. Props: result (with .comparison), parentLink (e.g. a Link to the parent result). */
+/** Retry comparison: previous overall to this overall, plus per-criterion deltas. Props: result (with .comparison), parentLink (e.g. a Link to the parent result). */
 export function ComparisonStrip({ result, parentLink }: { result: AnalysisResult; parentLink?: ReactNode }) {
   const c = result.comparison;
   if (!c) return null;
-  const overall = result.overall - c.parentOverall;
+  const overall = Math.round((result.overall - c.parentOverall) * 10) / 10;
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-card bg-surface-2 px-5 py-4 text-sm">
-      <p className="flex items-center gap-2 font-medium">
-        <span className="text-muted-foreground">Last try</span>
-        <span className="tabular-nums">{formatBand(c.parentOverall)}</span>
-        <ArrowRight className="size-4 text-muted-foreground" aria-label="to" />
-        <span className="tabular-nums">{formatBand(result.overall)}</span>
+    <div className="type-num flex flex-wrap items-center gap-x-8 gap-y-3 rounded-lg bg-surface-2 px-5 py-3.5 text-sm">
+      <p className="flex items-center gap-2.5">
+        <span className="text-muted">Last try</span>
+        <span className="font-semibold">{formatBand(c.parentOverall)}</span>
+        <ArrowRight role="img" className="size-4 text-muted" aria-label="to" />
+        <span className="font-semibold">{formatBand(result.overall)}</span>
         <Delta d={overall} />
       </p>
       <ul className="flex flex-wrap gap-x-5 gap-y-1">
         {Object.entries(c.deltas).map(([k, d]) => (
-          <li key={k} className="flex items-center gap-1.5 tabular-nums">
-            <span className="text-muted-foreground">{criterionLabel(k)}</span>
+          <li key={k} className="flex items-center gap-1.5">
+            <span className="text-muted">{criterionLabel(k)}</span>
             <Delta d={d!} />
           </li>
         ))}

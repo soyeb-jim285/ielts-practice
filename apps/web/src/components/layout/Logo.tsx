@@ -1,16 +1,23 @@
 import { cn } from '@/lib/utils';
 
-/** Wordmark: a small waveform tile + name. */
+/** The mark alone: a serif "I" on a teal tile. The same Newsreader as the page titles, so brand and content share one voice. */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" className={cn('size-7 shrink-0', className)} aria-hidden>
+      <rect width="28" height="28" rx="6" fill="var(--accent)" />
+      <text x="14" y="21" textAnchor="middle" fill="var(--accent-ink)" fontFamily="var(--font-serif)" fontSize="21" fontWeight="500">
+        I
+      </text>
+    </svg>
+  );
+}
+
+/** Wordmark: the mark + the name in one weight, set in the serif. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2.5 text-base font-semibold tracking-tight', className)}>
-      <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden>
-        <rect width="32" height="32" rx="8" fill="var(--accent)" />
-        <path d="M9 20v-8M13 23V9M17 19v-6M21 22V10M25 18v-4" stroke="var(--accent-ink)" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-      <span>
-        IELTS <span className="font-serif font-medium italic">Practice</span>
-      </span>
+    <span className={cn('inline-flex items-center gap-2.5 font-serif text-lg font-medium tracking-[-0.01em]', className)}>
+      <LogoMark />
+      IELTS Practice
     </span>
   );
 }

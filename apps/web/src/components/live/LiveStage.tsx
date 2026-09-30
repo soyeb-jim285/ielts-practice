@@ -1,36 +1,35 @@
-import { clsx } from 'clsx';
 import { Captions, CaptionsOff, Check, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { CueCard } from '@/components/speaking/CueCard';
 import { TimerRing } from '@/components/speaking/TimerRing';
-import { Alert, Badge, Button, Dialog, ProgressRing, Spinner, Textarea, type Tone } from '@/components/ui';
+import { Alert, Button, Card, Dialog, PageContainer, ProgressRing, Spinner, Textarea } from '@/components/ui';
 import { formatClock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { PREP_S, TALK_S, type LiveExaminer, type Phase } from '@/live/turn';
 
 export const PHASE_LABEL: Record<Phase, string> = {
   intro: 'Introduction',
-  p1: 'Part 1 · Introduction and interview',
-  'p2-prep': 'Part 2 · Preparation',
-  'p2-talk': 'Part 2 · Long turn',
-  'p2-follow': 'Part 2 · Long turn',
-  p3: 'Part 3 · Discussion',
+  p1: 'Part 1: Introduction and interview',
+  'p2-prep': 'Part 2: Preparation',
+  'p2-talk': 'Part 2: Long turn',
+  'p2-follow': 'Part 2: Long turn',
+  p3: 'Part 3: Discussion',
   closing: 'End of the test',
   done: 'End of the test',
 };
 
 const STATUS_TEXT: Record<LiveExaminer['status'], string> = {
   idle: '',
-  starting: 'Connecting to your examiner…',
+  starting: 'Connecting to your examiner',
   examiner: 'The examiner is speaking',
-  candidate: 'Your turn — answer when you are ready',
-  thinking: 'The examiner is thinking…',
+  candidate: 'Your turn. Answer when you are ready',
+  thinking: 'The examiner is thinking',
   waiting: 'Use this minute to prepare',
-  finishing: 'Uploading your recordings…',
+  finishing: 'Uploading your recordings',
   error: '',
 };
 
-const STATUS_TONE: Partial<Record<LiveExaminer['status'], Tone>> = { examiner: 'accent', candidate: 'good', waiting: 'accent' };
 
 /** Elapsed test time in seconds, counted only while `running` (paused on an error). */
 export function useElapsed(running: boolean) {
@@ -44,23 +43,33 @@ export function useElapsed(running: boolean) {
   return s;
 }
 
-/** Examiner presence: breathes while the examiner speaks, follows the candidate's voice while they answer. */
-function Avatar({ speaking, listening, level, compact }: { speaking: boolean; listening: boolean; level: number; compact: boolean }) {
+const BARS = 13;
+
+/** Re-renders every 160 ms while `active`, to move the examiner's bars. Static under reduced motion. */
+function useBreath(active: boolean) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!active || globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => setTick((t) => t + 1), 160);
+    return () => clearInterval(id);
+  }, [active]);
+  return tick;
+}
+
+/**
+ * Examiner presence as a row of voice bars: they move while the examiner speaks, follow your voice while you answer,
+ * and rest at a low line otherwise. Only transform changes, so it is cheap.
+ */
+function Voice({ speaking, listening, level, compact }: { speaking: boolean; listening: boolean; level: number; compact: boolean }) {
+  const tick = useBreath(speaking);
   return (
-    <div className={clsx('relative grid shrink-0 place-items-center transition-[width,height] duration-250 ease-(--ease-out-quart)', compact ? 'size-24' : 'size-40 sm:size-48')} aria-hidden>
-      {speaking && <span className="absolute inset-0 animate-ping rounded-full bg-brand/15 [animation-duration:1.8s]" />}
-      <span
-        className={clsx('absolute inset-0 rounded-full transition-transform duration-100', listening ? 'bg-good-soft' : 'bg-brand-soft')}
-        style={{ transform: `scale(${listening ? 1 + Math.min(level * 1.2, 0.35) : 1})` }}
-      />
-      <span
-        className={clsx(
-          'relative grid place-items-center rounded-full bg-surface font-serif font-semibold text-brand-text shadow-card transition-[width,height] duration-250',
-          compact ? 'size-16 text-2xl' : 'size-28 text-5xl sm:size-32',
-        )}
-      >
-        A
-      </span>
+    <div className={cn('flex items-center justify-center gap-1.5 transition-[height] duration-200 ease-(--ease-out-expo)', compact ? 'h-14' : 'h-24')} aria-hidden>
+      {Array.from({ length: BARS }, (_, i) => {
+        const mid = 1 - Math.abs(i - (BARS - 1) / 2) / ((BARS - 1) / 2); // 0 at the edges, 1 in the middle
+        const rest = 0.1 + 0.08 * mid;
+        const scale = listening ? Math.min(1, rest + level * (0.7 + 1.1 * mid)) : speaking ? 0.18 + 0.82 * mid * Math.abs(Math.sin(tick * 0.9 + i * 1.7)) : rest;
+        return <span key={i} className={cn('h-full w-1.5 rounded-sm transition-transform duration-150 ease-out', listening ? 'bg-ink/70' : 'bg-brand')} style={{ transform: `scaleY(${scale})` }} />;
+      })}
     </div>
   );
 }
@@ -84,7 +93,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
       }
       status={
         <>
-          <span className="text-sm font-medium tabular-nums text-muted-foreground" aria-label={`Elapsed ${formatClock(elapsed)}`}>
+          <span className="type-caption type-num font-medium" aria-label={`Elapsed ${formatClock(elapsed)}`}>
             {formatClock(elapsed)}
           </span>
           <Button
@@ -100,25 +109,20 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         </>
       }
     >
-      <div className={clsx('flex flex-col items-center gap-6 text-center', part2 && 'md:gap-8')}>
-        <div className="space-y-3">
-          <h1 className="text-xl font-semibold text-balance">{PHASE_LABEL[ex.phase]}</h1>
-          <div className="flex min-h-7 justify-center" aria-live="polite">
-            {STATUS_TEXT[ex.status] && (
-              <Badge tone={STATUS_TONE[ex.status]} className="h-auto px-3 py-1 text-sm whitespace-normal">
-                {STATUS_TEXT[ex.status]}
-              </Badge>
-            )}
-          </div>
-        </div>
+      <PageContainer width="narrow" className="flex flex-col gap-6 md:gap-8">
+        <h1 className="type-title">{PHASE_LABEL[ex.phase]}</h1>
 
-        <Avatar speaking={ex.status === 'examiner'} listening={ex.status === 'candidate'} level={ex.level} compact={part2} />
-
-        {ex.needsTap && (
-          <Button icon={<Volume2 />} onClick={ex.resume}>
-            Play the examiner
-          </Button>
-        )}
+        <Card className="flex flex-col items-center gap-4 py-7 text-center">
+          <Voice speaking={ex.status === 'examiner'} listening={ex.status === 'candidate'} level={ex.level} compact={part2} />
+          <p className="min-h-6 text-body font-medium" aria-live="polite">
+            {STATUS_TEXT[ex.status] || '\u00a0'}
+          </p>
+          {ex.needsTap && (
+            <Button icon={<Volume2 />} onClick={ex.resume}>
+              Play the examiner
+            </Button>
+          )}
+        </Card>
 
         {ex.voiceError && (
           // ponytail: the server's detail (model id, Settings hint) is for logs, not the candidate.
@@ -128,7 +132,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         )}
 
         {(captions || ex.voiceError) && ex.caption && (
-          <p className="prose-serif w-full max-w-2xl rounded-card bg-surface-2 px-5 py-4 text-left" aria-live="polite">
+          <p className="type-reading w-full max-w-none rounded-lg bg-surface-2 px-5 py-4 text-left" aria-live="polite">
             {ex.caption}
           </p>
         )}
@@ -152,15 +156,15 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         {busy && <Spinner label="Uploading your recordings" />}
 
         {part2 && ex.cueCard && (
-          <div className="grid w-full gap-4 text-left md:grid-cols-[1fr_16rem]">
+          <div className="grid w-full gap-6 text-left md:grid-cols-[minmax(0,1fr)_16rem]">
             <CueCard prompt={ex.cueCard} />
             <div className="flex flex-col gap-4">
               {ex.phase === 'p2-prep' ? (
                 <div className="flex items-center gap-3 md:flex-col md:items-start">
                   <ProgressRing value={(PREP_S - ex.prepLeft) / PREP_S} size={72} stroke={6} tone={ex.prepLeft <= 10 ? 'warn' : 'accent'} label="Preparation time">
-                    <span className="text-base font-semibold tabular-nums">{formatClock(ex.prepLeft)}</span>
+                    <span className="type-num text-base font-semibold">{formatClock(ex.prepLeft)}</span>
                   </ProgressRing>
-                  <p className="text-sm text-muted-foreground">Preparation. The examiner will ask you to start when the minute is up.</p>
+                  <p className="type-caption">Preparation. The examiner will ask you to start when the minute is up.</p>
                 </div>
               ) : (
                 ex.talkRunning && <TimerRing part={2} seconds={TALK_S - ex.talkLeft} />
@@ -169,21 +173,24 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
                 label="Notes"
                 hint="Only you see these."
                 rows={6}
+                className="type-reading-sm"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 readOnly={ex.phase !== 'p2-prep'}
-                placeholder="Key words, examples…"
+                placeholder="Key words, examples"
               />
             </div>
           </div>
         )}
 
         {ex.endTurn && (
-          <Button size="lg" variant={ex.phase === 'p2-talk' ? 'primary' : 'secondary'} icon={<Check />} onClick={ex.endTurn} className="w-full sm:w-auto">
-            I'm done
-          </Button>
+          <div>
+            <Button size="lg" variant={ex.phase === 'p2-talk' ? 'primary' : 'outline'} icon={<Check />} onClick={ex.endTurn} className="w-full sm:w-auto">
+              I'm done
+            </Button>
+          </div>
         )}
-      </div>
+      </PageContainer>
 
       <Dialog
         open={confirm}

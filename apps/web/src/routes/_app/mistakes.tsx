@@ -2,11 +2,13 @@ import { infiniteQueryOptions, useMutation, useSuspenseInfiniteQuery } from '@ta
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { clsx } from 'clsx';
 import { ArrowRight, Check, Plus, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { runs } from '@/components/bank/group';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
-import { Badge, Button, buttonStyles, Card, Chip, EmptyState, PageHeader, toast } from '@/components/ui';
+import { listStyles } from '@/components/bank/ListRow';
+import { Badge, Button, buttonStyles, Chip, EmptyState, GhostList, PageContainer, PageHeader, toast } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
-import { formatClock, formatRelative } from '@/lib/format';
+import { formatClock, formatRelative, plural } from '@/lib/format';
 import { categoryLabel } from '@/lib/result';
 
 type Mistake = Schemas['Mistake'];
@@ -37,12 +39,12 @@ function MistakesPage() {
 
   if (all === 0)
     return (
-      <>
-        <PageHeader title="Mistakes" />
+      <PageContainer>
+        <PageHeader title="Mistakes" description="Every correction from your results, grouped so patterns stand out." />
         <EmptyState
           icon={<TriangleAlert />}
-          className="md:py-14"
           title="Your error log is empty"
+          preview={<GhostList rows={3} />}
           action={
             <Link to="/writing" className={buttonStyles()}>
               Write an essay
@@ -51,31 +53,58 @@ function MistakesPage() {
         >
           Grammar slips, word choices and cohesion issues from your results collect here, so you can spot the ones that keep coming back.
         </EmptyState>
-      </>
+      </PageContainer>
     );
 
   return (
-    <>
-      <PageHeader title="Mistakes" description="Every correction from your results, grouped so patterns stand out." />
-      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Filter by category">
+    <PageContainer>
+      <PageHeader title="Mistakes" description={`${plural(all, 'correction')} from your results, grouped so patterns stand out.`} />
+      <div className="-mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Filter by category">
         <Chip className="shrink-0" selected={!category} onClick={() => pick()}>
-          All <span className="tabular-nums opacity-70">{all}</span>
+          All <span className="type-num opacity-70">{all}</span>
         </Chip>
         {groups.map((g) => (
           <Chip key={g.category} className="shrink-0" selected={category === g.category} onClick={() => pick(g.category)}>
-            {categoryLabel(g.category)} <span className="tabular-nums opacity-70">{g.count}</span>
+            {categoryLabel(g.category)} <span className="type-num opacity-70">{g.count}</span>
           </Chip>
         ))}
       </div>
-      <Card padded={false} className="overflow-clip">
-        <ul className="divide-y divide-line">
-          {items.map((m) => (
-            <MistakeItem key={m.id} m={m} showCategory={!category} />
-          ))}
-        </ul>
-      </Card>
+      {/* One block per attempt: its prompt is named once, the corrections from it follow. */}
+      {runs(items, (m) => m.attemptId).map((g) => (
+        <AttemptGroup key={`${g.key}-${g.items[0]!.id}`} first={g.items[0]!}>
+          <ul className={listStyles}>
+            {g.items.map((m) => (
+              <MistakeItem key={m.id} m={m} showCategory={!category} />
+            ))}
+          </ul>
+        </AttemptGroup>
+      ))}
       <LoadMore hasMore={!!hasNextPage} loading={isFetchingNextPage} onLoad={() => void fetchNextPage()} />
-    </>
+    </PageContainer>
+  );
+}
+
+const resultLink = (m: Mistake) =>
+  m.skill === 'speaking'
+    ? ({ to: '/speaking/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'transcript' } } as const)
+    : ({ to: '/writing/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'essay' } } as const);
+
+/** Heading of one attempt's corrections: the prompt title (links to the result), then where and when. */
+function AttemptGroup({ first: m, children }: { first: Mistake; children: ReactNode }) {
+  return (
+    <section aria-label={m.promptTitle} className="[&:not(:first-of-type)]:mt-12">
+      <div className="mb-2 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+        <h2 className="min-w-0">
+          <Link {...resultLink(m)} className="type-reading-sm block truncate rounded-sm hover:text-accent-text">
+            {m.promptTitle}
+          </Link>
+        </h2>
+        <span className="type-caption shrink-0">
+          {m.skill === 'speaking' ? `Speaking Part ${m.part}` : `Writing Task ${m.part}`}, {formatRelative(m.createdAt)}
+        </span>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -94,22 +123,19 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
     },
     onError: (e) => toast(e.message, { tone: 'bad' }),
   });
-  const where = `${m.skill === 'speaking' ? `Speaking Part ${m.part}` : `Writing Task ${m.part}`}${m.time != null ? ` at ${formatClock(m.time)}` : ''}`;
-  const link =
-    m.skill === 'speaking'
-      ? ({ to: '/speaking/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'transcript' } } as const)
-      : ({ to: '/writing/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'essay' } } as const);
 
   return (
-    <li className="grid grid-cols-[1fr_auto] gap-x-3 px-5 py-4">
-      <div className="min-w-0">
-        {showCategory && <Badge className="mb-2">{categoryLabel(m.category)}</Badge>}
+    <li className="grid gap-x-8 gap-y-2 py-5 md:grid-cols-[9rem_minmax(0,1fr)_auto]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:items-start md:gap-y-1.5">
+        {showCategory && <Badge>{categoryLabel(m.category)}</Badge>}
+        {m.time != null && <span className="type-caption type-num">at {formatClock(m.time)}</span>}
+      </div>
+      <div className="min-w-0 max-w-[68ch]">
         {!same && (
-          // Phones stack the phrases; the arrow always stays in front of the correction.
-          <p className="flex flex-col gap-1 font-serif text-[1.0625rem] leading-relaxed sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
+          <p className="type-reading-sm flex flex-col gap-1">
             <del className={clsx('text-bad-text decoration-bad/60', clamp && 'line-clamp-2')}>{m.original}</del>
             <span className="flex min-w-0 items-start gap-2">
-              <ArrowRight className="mt-1.5 size-4 shrink-0 text-muted" aria-label="corrected to" />
+              <ArrowRight role="img" className="mt-1.5 size-4 shrink-0 text-muted" aria-label="corrected to" />
               <ins className={clsx('min-w-0 font-medium text-good-text no-underline', clamp && 'line-clamp-2')}>{m.correction}</ins>
             </span>
           </p>
@@ -119,15 +145,13 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
             {expanded ? 'Show less' : 'Show more'}
           </Button>
         )}
-        <p className={clsx('max-w-[65ch] text-sm text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
-        <Link {...link} className="mt-2 block rounded-sm text-sm text-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="block truncate font-medium text-brand-text">{m.promptTitle}</span>
-          {[where, formatRelative(m.createdAt)].join(' · ')}
-        </Link>
+        <p className={clsx('type-body text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
       </div>
-      <Button size="sm" variant="ghost" className="-mr-2 max-sm:-mt-1.5 max-sm:px-2" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
-        <span className="max-sm:sr-only">{added ? 'In deck' : 'Add to deck'}</span>
-      </Button>
+      <div className="md:justify-self-end">
+        <Button size="sm" variant="ghost" className="-ml-3 md:ml-0 md:-mr-3" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
+          {added ? 'In deck' : 'Add to deck'}
+        </Button>
+      </div>
     </li>
   );
 }

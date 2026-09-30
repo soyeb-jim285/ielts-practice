@@ -109,7 +109,7 @@ export function WritingEditor({
   };
 
   return (
-    <div className={clsx('flex min-h-0 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow duration-150 focus-within:border-brand focus-within:ring-[3px] focus-within:ring-ring/25', className)}>
+    <div className={clsx('flex min-h-0 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-[border-color,box-shadow] duration-200 ease-(--ease-out-expo) focus-within:border-brand focus-within:ring-[3px] focus-within:ring-ring/25', className)}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
@@ -119,21 +119,17 @@ export function WritingEditor({
         onChange={(e) => onChange(e.target.value)}
         onPaste={block}
         onDrop={block}
-        placeholder="Start writing…"
+        placeholder="Start writing here. Your draft saves on this device as you type."
         aria-describedby={`${id}-count`}
-        className="prose-serif min-h-[18rem] w-full max-w-none flex-1 resize-none bg-transparent px-5 py-5 text-ink outline-none placeholder:text-muted sm:px-7"
+        className="type-reading min-h-[18rem] w-full max-w-none flex-1 resize-none bg-transparent px-5 py-5 text-ink outline-none placeholder:text-muted sm:px-7 sm:py-6"
         {...NO_ASSIST}
       />
       <ProgressBar label="Progress to the minimum word count" value={words / minWords} tone={under ? 'accent' : 'good'} className="h-1 rounded-none" />
-      <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-        <span
-          id={`${id}-count`}
-          aria-live="polite"
-          className={clsx('font-medium tabular-nums', !under ? 'text-good-text' : words >= minWords * 0.9 ? 'text-warn-text' : 'text-muted')}
-        >
+      <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm sm:px-7">
+        <span id={`${id}-count`} aria-live="polite" className={clsx('type-num font-medium', !under ? 'text-good-text' : words >= minWords * 0.9 ? 'text-warn-text' : 'text-muted')}>
           {plural(words, 'word')}
         </span>
-        <span className="text-muted tabular-nums">{under ? `${minWords - words} to go · min ${minWords}` : `Minimum ${minWords} reached`}</span>
+        <span className="type-num text-muted">{!under ? `${minWords}-word minimum reached` : words ? `${minWords - words} more to reach ${minWords}` : `Minimum ${minWords} words`}</span>
       </div>
     </div>
   );

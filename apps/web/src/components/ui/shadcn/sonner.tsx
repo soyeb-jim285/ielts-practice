@@ -18,13 +18,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
-      toastOptions={{ classNames: { actionButton: "!bg-brand !text-brand-ink !font-medium", closeButton: "!bg-card" } }}
+      toastOptions={{ classNames: { toast: "!shadow-pop", actionButton: "!bg-brand !text-brand-ink !font-medium !rounded-md", closeButton: "!bg-card", success: "[&_[data-icon]]:!text-good-text", error: "[&_[data-icon]]:!text-bad-text" } }}
       style={
         {
           "--normal-bg": "var(--surface)",
           "--normal-text": "var(--ink)",
           "--normal-border": "var(--line)",
-          "--border-radius": "14px",
+          "--border-radius": "12px",
         } as React.CSSProperties
       }
       {...props}

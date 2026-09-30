@@ -50,7 +50,7 @@ export function Combobox({
         }}
       >
         <PopoverTrigger asChild>
-          <button id={id} type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox" className={cn(inputStyles, 'flex h-11 items-center justify-between gap-2 text-left')}>
+          <button id={id} type="button" role="combobox" aria-expanded={open} aria-haspopup="listbox" className={cn(inputStyles, 'flex h-9 items-center justify-between gap-2 text-left')}>
             <span className={cn('truncate', !selected && 'text-muted')}>{selected?.label ?? placeholder}</span>
             <ChevronsUpDown className="size-4 shrink-0 text-muted" aria-hidden />
           </button>

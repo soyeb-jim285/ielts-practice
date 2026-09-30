@@ -1,20 +1,24 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { BarChart3, ChevronRight, CircleCheck, Mail, PenLine, Search, Shuffle, Timer } from 'lucide-react';
+import { BarChart3, CircleCheck, Mail, PenLine, Search, Shuffle } from 'lucide-react';
 import { useDeferredValue, useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
+import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
+import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
-import { api } from '@/lib/api';
-import { plural } from '@/lib/format';
+import { api, call, client } from '@/lib/api';
+import { formatBand, formatDate, plural } from '@/lib/format';
+import { useMe } from '@/lib/query';
+import { bandColor } from '@/lib/result';
+import { cn } from '@/lib/utils';
 import { typeLabel } from '@/lib/writing';
 
 export const Route = createFileRoute('/_app/writing/')({ component: WritingHome });
 
 type Kind = 't1a' | 't1g' | 't2';
 const KIND: Record<Kind, { part: 1 | 2; variant?: 'academic' | 'general'; title: string; blurb: string; meta: string; icon: ReactNode }> = {
-  t1a: { part: 1, variant: 'academic', title: 'Task 1 Academic', blurb: 'Describe a chart, table, process or map', meta: '20 min · 150+ words', icon: <BarChart3 /> },
-  t1g: { part: 1, variant: 'general', title: 'Task 1 General', blurb: 'Write a letter covering three points', meta: '20 min · 150+ words', icon: <Mail /> },
-  t2: { part: 2, title: 'Task 2', blurb: 'Argue a position in an essay', meta: '40 min · 250+ words', icon: <PenLine /> },
+  t1a: { part: 1, variant: 'academic', title: 'Task 1 Academic', blurb: 'Describe a chart, table, process or map', meta: '20 min, 150+ words', icon: <BarChart3 /> },
+  t1g: { part: 1, variant: 'general', title: 'Task 1 General', blurb: 'Write a letter covering three points', meta: '20 min, 150+ words', icon: <Mail /> },
+  t2: { part: 2, title: 'Task 2', blurb: 'Argue a position in an essay', meta: '40 min, 250+ words', icon: <PenLine /> },
 };
 const kindQuery = (k: Kind) => `skill=writing&part=${KIND[k].part}${KIND[k].variant ? `&variant=${KIND[k].variant}` : ''}`;
 
@@ -46,79 +50,107 @@ function WritingHome() {
   };
 
   return (
-    <div className="space-y-10">
+    <PageContainer>
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <Card tone="hero" className="flex flex-col p-5 sm:p-6">
-          <p className="flex items-center gap-2 text-sm font-medium text-brand-text">
-            <Timer className="size-4" aria-hidden /> Exam conditions
-          </p>
-          <h2 className="mt-2 text-lg font-semibold">Full test</h2>
-          <p className="mt-1 max-w-prose text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
-          {/* The suggested split drawn to scale: Task 2 is worth twice as much, so it gets twice the time. */}
-          <ol className="mt-5 flex gap-1.5 text-sm" aria-label="Suggested timing">
-            {[
-              ['Task 1', '20 min', 'flex-1', 'bg-brand/35'],
-              ['Task 2', '40 min', 'flex-[2]', 'bg-brand'],
-            ].map(([t, m, f, c]) => (
-              <li key={t} className={`min-w-0 ${f}`}>
-                <span className={`block h-2 rounded-full ${c}`} aria-hidden />
-                <span className="mt-2 flex items-baseline gap-2">
-                  <span className="font-medium">{t}</span>
-                  <span className="text-muted tabular-nums">{m}</span>
+      <div className="space-y-12">
+        <section aria-label="Start a task" className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <Card tone="hero" className="flex flex-col p-5 sm:p-7">
+            <h2 className="type-title-sm">Full test</h2>
+            <p className="type-lede mt-2 max-w-[46ch]">Task 1 and Task 2 on one 60-minute clock, as on test day. You manage your own time.</p>
+            <p className="type-caption type-num mt-4">Task 1, 20 min. Task 2, 40 min. Both answers are marked together into one writing band.</p>
+            <div className="mt-auto flex flex-col gap-3 pt-8 sm:flex-row sm:items-center sm:justify-between">
+              <Segmented
+                label="Test type"
+                value={fullVariant}
+                onChange={setFullVariant}
+                className="sm:min-w-56"
+                options={[
+                  { value: 'academic', label: 'Academic' },
+                  { value: 'general', label: 'General' },
+                ]}
+              />
+              <Button size="lg" onClick={() => void start('full')} loading={starting === 'full'} disabled={!!starting && starting !== 'full'}>
+                Start full test
+              </Button>
+            </div>
+          </Card>
+
+          <section aria-labelledby="one-h" className="flex flex-col">
+            <PanelHeader id="one-h" title="Or practise one task" />
+            <ul className={cn(listStyles, 'stagger flex-1')}>
+              {(Object.keys(KIND) as Kind[]).map((k) => (
+                <li key={k}>
+                  <button type="button" onClick={() => void start(k)} disabled={!!starting} aria-busy={starting === k || undefined} className={cn(rowStyles, 'min-h-[4.75rem] disabled:opacity-50')}>
+                    <RowIcon>{KIND[k].icon}</RowIcon>
+                    <span className="min-w-0 flex-1">
+                      <span className="type-subheading block">{KIND[k].title}</span>
+                      <span className="type-lede block text-sm">{KIND[k].blurb}</span>
+                      <span className="type-caption type-num block">{KIND[k].meta}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-text">
+                      <Shuffle className="size-4" aria-hidden />
+                      {starting === k ? 'Picking...' : 'Random'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </section>
+
+        <Recent />
+        <Bank />
+      </div>
+    </PageContainer>
+  );
+}
+
+/** The last few writing attempts with their band, so a returning learner can reopen feedback or see progress at a glance. Hidden until there is one. */
+function Recent() {
+  const target = useMe().data?.settings.targetBand ?? 7;
+  const { data } = useQuery({
+    queryKey: ['writing-recent'],
+    queryFn: () => call(client.GET('/api/attempts', { params: { query: { page: 1, skill: 'writing' } } })),
+  });
+  const items = (data?.items ?? []).filter((a) => a.status === 'done' || a.status === 'analyzing').slice(0, 3);
+  if (!items.length) return null;
+  const TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
+  return (
+    <section aria-labelledby="recent-h">
+      <PanelHeader
+        id="recent-h"
+        title="Recent writing"
+        meta={
+          <Link to="/history" search={{ skill: 'writing' }} className={buttonStyles({ variant: 'link', className: 'hit' })}>
+            All writing attempts
+          </Link>
+        }
+      />
+      <ul className={cn(listStyles, 'stagger')}>
+        {items.map((a) => (
+          <li key={a.id}>
+            <Link to="/writing/result/$attemptId" params={{ attemptId: a.id }} search={{}} className={rowStyles}>
+              <span className="min-w-0 flex-1">
+                <span className="type-reading-sm line-clamp-1 block">{a.promptTitle}</span>
+                <span className="type-caption mt-0.5 block">
+                  Task {a.part}, {formatDate(a.createdAt)}
                 </span>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-auto flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <Segmented
-              label="Test type"
-              value={fullVariant}
-              onChange={setFullVariant}
-              className="sm:min-w-56"
-              options={[
-                { value: 'academic', label: 'Academic' },
-                { value: 'general', label: 'General' },
-              ]}
-            />
-            <Button size="lg" onClick={() => void start('full')} loading={starting === 'full'} disabled={!!starting}>
-              Start full test
-            </Button>
-          </div>
-        </Card>
-
-        <Card padded={false} className="flex flex-col">
-          <h2 className="px-5 pt-5 pb-2 text-base font-semibold">Or practise one task</h2>
-          <ul className="flex flex-1 flex-col divide-y divide-line border-t border-line">
-            {(Object.keys(KIND) as Kind[]).map((k) => (
-              <li key={k} className="flex flex-1">
-                <button
-                  type="button"
-                  onClick={() => void start(k)}
-                  disabled={!!starting}
-                  aria-busy={starting === k || undefined}
-                  className="flex min-h-20 w-full items-center gap-4 px-5 py-4 text-left transition-colors duration-150 outline-none hover:bg-hover focus-visible:bg-hover focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset disabled:opacity-60"
-                >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-2 text-muted [&_svg]:size-5">{KIND[k].icon}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-base font-semibold">{KIND[k].title}</span>
-                    <span className="block text-sm text-muted">{KIND[k].blurb}</span>
-                    <span className="block text-sm text-muted tabular-nums">{KIND[k].meta}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-text">
-                    <Shuffle className="size-4" aria-hidden />
-                    {starting === k ? 'Picking…' : 'Random'}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </section>
-
-      <Bank />
-    </div>
+              </span>
+              {a.status === 'analyzing' ? (
+                <Badge tone="accent">Scoring...</Badge>
+              ) : a.overall != null ? (
+                <span className={cn('type-band text-xl', TEXT[bandColor(a.overall, target)])}>
+                  <span className="sr-only">Band </span>
+                  {formatBand(a.overall)}
+                </span>
+              ) : null}
+              <RowChevron />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -170,14 +202,10 @@ function Bank() {
 
   return (
     <section aria-labelledby="bank-h">
-      <div className="mb-4 flex items-baseline justify-between gap-2">
-        <h2 id="bank-h" className="text-lg font-semibold">
-          Choose a prompt
-        </h2>
-        {total != null && <p className="text-sm text-muted tabular-nums">{plural(total, 'prompt')}</p>}
-      </div>
+      <PanelHeader id="bank-h" title="Choose a prompt" meta={total != null && <span className="type-num">{plural(total, 'prompt')}</span>} />
 
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+      {/* One row of 40px controls: same height, border and text size (Segmented, Select, Input share the scale). */}
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
         <Segmented
           label="Task"
           className="lg:shrink-0"
@@ -204,64 +232,58 @@ function Bank() {
           </Select>
           <div className="relative col-span-2 lg:col-span-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted" aria-hidden />
-            <Input label="Search prompts" hideLabel type="search" placeholder="Search prompts…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+            <Input label="Search prompts" hideLabel type="search" placeholder="Search prompts" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
         </div>
       </div>
 
       {list.isError ? (
-        <Alert tone="bad" title="Couldn't load prompts" action={<Button size="sm" variant="secondary" onClick={() => void list.refetch()}>Try again</Button>}>
+        <Alert tone="bad" title="Couldn't load prompts" action={<Button size="sm" variant="outline" onClick={() => void list.refetch()}>Try again</Button>}>
           {list.error.message}
         </Alert>
       ) : list.isPending ? (
-        <Card padded={false} className="divide-y divide-line">
+        <div className={listStyles} aria-busy>
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="space-y-2 px-5 py-4">
+            <div key={i} className="space-y-2 py-4">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-1/3" />
             </div>
           ))}
-        </Card>
+        </div>
       ) : items.length === 0 ? (
-        <EmptyState icon={<Search />} title="No prompts match" action={<Button variant="secondary" onClick={() => (setType(''), setTopic(''), setQ(''))}>Clear filters</Button>}>
+        <EmptyState icon={<Search />} title="No prompts match" action={<Button variant="outline" onClick={() => (setType(''), setTopic(''), setQ(''))}>Clear filters</Button>}>
           Try another type or topic, or clear the search.
         </EmptyState>
       ) : (
         <>
-          <Card padded={false} className={list.isPlaceholderData ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-            <ul className="divide-y divide-line">
-              {items.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    to="/writing/task/$promptId"
-                    params={{ promptId: p.id }}
-                    search={{}}
-                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-150 hover:bg-hover focus-visible:bg-hover"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 text-[0.9375rem] font-medium">{p.title}</span>
-                      <span className="mt-1 block text-sm text-muted">
-                        {p.topic} · {typeLabel(p.type)}
-                      </span>
+          <ul className={cn(listStyles, 'stagger', list.isPlaceholderData ? 'opacity-60 transition-opacity' : 'transition-opacity')}>
+            {items.map((p) => (
+              <li key={p.id}>
+                <Link to="/writing/task/$promptId" params={{ promptId: p.id }} search={{}} className={rowStyles}>
+                  <span className="min-w-0 flex-1">
+                    <span className="type-reading-sm line-clamp-2 block text-pretty">{p.title}</span>
+                    <span className="type-caption mt-1 block">
+                      {p.topic}, {typeLabel(p.type).toLowerCase()}
                     </span>
-                    {p.done && (
-                      <Badge tone="good">
-                        <CircleCheck aria-hidden /> Done
-                      </Badge>
-                    )}
-                    <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Card>
-          {more && (
-            <div className="mt-4 flex justify-center">
-              <Button variant="secondary" onClick={showMore} loading={list.isFetchingNextPage}>
+                  </span>
+                  {p.done && (
+                    <Badge tone="good">
+                      <CircleCheck aria-hidden /> Done
+                    </Badge>
+                  )}
+                  <RowChevron />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <p className="type-caption type-num">{total != null ? `Showing ${items.length} of ${total}` : `Showing ${items.length}`}</p>
+            {more && (
+              <Button variant="outline" onClick={showMore} loading={list.isFetchingNextPage}>
                 Load more
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
     </section>

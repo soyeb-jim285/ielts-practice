@@ -1,40 +1,44 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, LogOut, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LiveProvider } from '@/components/settings/LiveProvider';
-import { DEFAULT_MODELS, ModelPicker, TtsPicker } from '@/components/settings/ModelPicker';
+import { DEFAULT_MODELS, ModelPicker, TtsPicker, useModels } from '@/components/settings/ModelPicker';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
-import { Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageHeader, Switch } from '@/components/ui';
+import { Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
 import { authClient, signOut } from '@/lib/auth';
 import type { Settings } from '@/lib/api';
 import { useMe } from '@/lib/query';
+import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/settings')({ component: SettingsPage });
 
-/** One settings group: title + description in a left column from md, one card of rows on the right. */
-function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+/**
+ * One settings group: a left column with the serif heading and what it does, a right column with plain rows between hairlines (no card).
+ * Stacks on phones. Rows use the page grid, so every section lines up.
+ */
+function Section({ title, description, children, className }: { title: string; description: string; children: ReactNode; className?: string }) {
   return (
-    <section className="grid items-start gap-4 md:grid-cols-[14rem_1fr] md:gap-8">
+    <section aria-labelledby={`s-${title}`} className={cn('grid gap-x-12 gap-y-4 border-t border-line pt-8 md:grid-cols-[14rem_minmax(0,1fr)]', className)}>
       <div>
-        <h2 className="text-base font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted">{description}</p>
+        <h2 id={`s-${title}`} className="type-heading">
+          {title}
+        </h2>
+        <p className="type-caption mt-1.5 max-w-[34ch]">{description}</p>
       </div>
-      <Card className="min-w-0 divide-y divide-line overflow-clip" padded={false}>
-        {children}
-      </Card>
+      <div className="min-w-0 max-w-[40rem] divide-y divide-line [&>*:first-child]:pt-0">{children}</div>
     </section>
   );
 }
-const Row = ({ children }: { children: ReactNode }) => <div className="p-5">{children}</div>;
+const Row = ({ children }: { children: ReactNode }) => <div className="py-5 first:pt-0 last:pb-0">{children}</div>;
 /** Label left, control right (wraps under on phones). */
 const InlineRow = ({ title, description, children }: { title: ReactNode; description?: ReactNode; children: ReactNode }) => (
   <Row>
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
       <div className="min-w-0 flex-1 basis-56">
         <p className="text-sm font-medium">{title}</p>
-        {description && <p className="mt-0.5 max-w-[60ch] text-sm text-muted">{description}</p>}
+        {description && <p className="type-caption mt-0.5 max-w-[60ch]">{description}</p>}
       </div>
       {children}
     </div>
@@ -46,14 +50,17 @@ function SettingsPage() {
   const s = me.settings;
   const { mutate } = useUpdateSettings();
   const setModel = (key: keyof Settings['models']) => (v: string) => mutate({ models: { [key]: v } });
+  // Human name of the scoring model for the collapsed summary (same cached query as the picker), falling back to the id's last segment.
+  const { data: textModels } = useModels('text');
+  const scoringName = textModels?.models.find((m) => m.id === s.models.analysis)?.name ?? s.models.analysis.split('/').pop();
 
   return (
-    <div className="pb-8">
-      <PageHeader title="Settings" description="Changes save automatically." />
-      <div className="space-y-8 md:space-y-10">
+    <PageContainer className="pb-8">
+      <PageHeader compact title="Settings" description="Changes save automatically." />
+      <div className="space-y-10">
         <Section title="Goal" description="Scores at or above your target show green; up to one band below, amber; further below, red.">
           <Row>
-            <TargetBandSlider hint="Most universities ask for 6.5–7.0 overall." />
+            <TargetBandSlider hint="Most universities ask for 6.5-7.0 overall." />
           </Row>
         </Section>
 
@@ -78,16 +85,16 @@ function SettingsPage() {
 
         <Section title="AI models" description="The models that score your work and play the examiner. The defaults suit most people.">
           <Collapsible>
-            <CollapsibleTrigger className="group flex min-h-16 w-full items-center gap-3 px-5 py-4 text-left transition-colors duration-150 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+            <CollapsibleTrigger className="group -my-1 flex min-h-14 w-full items-center gap-3 rounded-md py-2 text-left hover:text-accent-text">
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium">Customise models</span>
-                <span className="mt-0.5 block truncate text-sm text-muted">Scoring: {s.models.analysis}</span>
+                <span className="type-caption mt-0.5 block truncate">Scoring: {scoringName}</span>
               </span>
               <ChevronDown className="size-4 shrink-0 text-muted transition-transform duration-150 group-data-[state=open]:rotate-180" aria-hidden />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="divide-y divide-line border-t border-line">
-                <p className="max-w-[65ch] px-5 py-4 text-sm text-muted">Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.</p>
+                <p className="type-caption max-w-[65ch] py-4">Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.</p>
                 <Row>
                   <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
                 </Row>
@@ -120,7 +127,7 @@ function SettingsPage() {
 
         <Account email={me.user.email} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -130,6 +137,7 @@ function Account({ email }: { email: string }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const deleteButton = useRef<HTMLButtonElement>(null);
 
   const out = async () => {
     await signOut();
@@ -150,20 +158,25 @@ function Account({ email }: { email: string }) {
   };
 
   return (
-    <Section title="Account" description="Your sign-in and data.">
-      <InlineRow title="Signed in as" description={<span className="block truncate">{email}</span>}>
-        <Button variant="secondary" icon={<LogOut />} onClick={out}>
-          Sign out
-        </Button>
-      </InlineRow>
-      <InlineRow title="Delete account" description="Removes your recordings, essays, results and review cards. This can't be undone.">
-        <Button variant="danger" icon={<Trash2 />} onClick={() => setOpen(true)}>
-          Delete account
-        </Button>
-      </InlineRow>
+    <>
+      <Section title="Account" description="Your sign-in.">
+        <InlineRow title="Signed in as" description={<span className="block truncate">{email}</span>}>
+          <Button variant="outline" icon={<LogOut />} onClick={out}>
+            Sign out
+          </Button>
+        </InlineRow>
+      </Section>
+      <Section title="Danger zone" description="Permanent actions.">
+        <InlineRow title="Delete account" description="Removes your recordings, essays, results and review cards. This can't be undone.">
+          <Button ref={deleteButton} variant="ghost" className="text-bad-text hover:bg-bad-soft hover:text-bad-text" icon={<Trash2 />} onClick={() => setOpen(true)}>
+            Delete account
+          </Button>
+        </InlineRow>
+      </Section>
       <Dialog
         open={open}
         onClose={close}
+        returnFocusRef={deleteButton}
         title="Delete your account?"
         description="Everything you've recorded and written will be permanently deleted."
         footer={
@@ -186,6 +199,6 @@ function Account({ email }: { email: string }) {
           <Input label="Confirm with your password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
         </form>
       </Dialog>
-    </Section>
+    </>
   );
 }

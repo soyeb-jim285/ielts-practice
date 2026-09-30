@@ -41,13 +41,20 @@ function SessionPage() {
   return (
     <ExamShell title="Speaking">
       {q.isPending ? (
-        <div className="flex flex-col items-center gap-4" aria-busy aria-label="Loading questions">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-full max-w-md" />
-          <Skeleton className="mt-6 size-20 rounded-full" />
+        <div className="space-y-4" aria-busy aria-label="Loading questions">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-2/3" />
+          <div className="flex items-center gap-6 pt-8">
+            <Skeleton className="size-24 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-3 w-full max-w-xs" />
+            </div>
+          </div>
         </div>
       ) : q.error instanceof ApiError && q.error.status === 404 ? (
-        <EmptyState icon={<MicOff />} title="No questions available yet" action={<Link to="/speaking" className={buttonStyles({ variant: 'secondary' })}>Back to speaking</Link>}>
+        <EmptyState icon={<MicOff />} title="No questions available yet" action={<Link to="/speaking" className={buttonStyles({ variant: 'outline' })}>Back to speaking</Link>}>
           The prompt bank has no speaking prompts for this part. Seed the bank, then try again.
         </EmptyState>
       ) : (

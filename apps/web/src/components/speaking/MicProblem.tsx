@@ -8,8 +8,9 @@ export function MicProblem({ state, error, onRetry }: { state: RecorderState; er
     <Alert
       tone="bad"
       title={state === 'denied' ? 'Microphone access is blocked' : 'Microphone unavailable'}
+      className="w-full text-left"
       action={
-        <Button size="sm" variant="secondary" onClick={onRetry}>
+        <Button size="sm" variant="outline" onClick={onRetry}>
           Try again
         </Button>
       }
@@ -18,7 +19,7 @@ export function MicProblem({ state, error, onRetry }: { state: RecorderState; er
       {state === 'denied' && (
         <ol className="mt-2 list-decimal space-y-0.5 pl-5">
           <li>Click the lock or tune icon next to the address bar.</li>
-          <li>Set Microphone to Allow (on iPhone: Settings → Safari → Microphone).</li>
+          <li>Set Microphone to Allow (on iPhone: Settings, Safari, Microphone).</li>
           <li>Come back and press Try again.</li>
         </ol>
       )}

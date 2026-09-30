@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { Check } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { AuthLayout, CheckEmail } from '@/components/layout/AuthLayout';
 import { Alert, Button, buttonStyles, Input, toast } from '@/components/ui';
@@ -11,6 +12,8 @@ function Signup() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exists, setExists] = useState(false);
+  const [pwLen, setPwLen] = useState(0);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const callbackURL = `${location.origin}/`;
 
@@ -20,9 +23,13 @@ function Signup() {
     const email = String(f.get('email')).trim();
     setBusy(true);
     setError(null);
+    setExists(false);
     const { data, error } = await authClient.signUp.email({ name: String(f.get('name')).trim(), email, password: String(f.get('password')), callbackURL });
     setBusy(false);
-    if (error) return setError(error.code === 'USER_ALREADY_EXISTS' || error.status === 422 ? 'An account with this email already exists. Try signing in.' : error.message || 'Could not create the account.');
+    if (error) {
+      if (error.code === 'USER_ALREADY_EXISTS' || error.status === 422) return setExists(true);
+      return setError(error.message || 'Could not create the account.');
+    }
     if (!data?.token) return setSentTo(email); // email verification required before first sign-in
     queryClient.removeQueries({ queryKey: ['me'] });
     router.history.push('/');
@@ -57,8 +64,44 @@ function Signup() {
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
         <Input label="Name" name="name" autoComplete="name" required autoFocus />
-        <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required />
-        <Input label="Password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required hint="At least 8 characters." />
+        <Input
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          required
+          onChange={() => exists && setExists(false)}
+          error={
+            exists && (
+              <>
+                An account with this email already exists.{' '}
+                <Link to="/login" className="font-medium underline underline-offset-2">
+                  Sign in instead
+                </Link>
+              </>
+            )
+          }
+        />
+        <Input
+          label="Password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          maxLength={128}
+          required
+          onChange={(e) => setPwLen(e.target.value.length)}
+          hint={
+            pwLen >= 8 ? (
+              <span className="inline-flex items-center gap-1 text-good-text">
+                <Check className="size-4" aria-hidden /> 8 characters or more
+              </span>
+            ) : (
+              'At least 8 characters.'
+            )
+          }
+        />
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Create account
         </Button>

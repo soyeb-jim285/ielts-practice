@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton as ShSkeleton } from './shadcn/skeleton';
 
 /** Loading placeholder shaped like the content it replaces. Prefer over spinners for page content. */
-export const Skeleton = ({ className }: { className?: string }) => <ShSkeleton aria-hidden className={cn('rounded-control', className)} />;
+export const Skeleton = ({ className }: { className?: string }) => <ShSkeleton aria-hidden className={cn('rounded-md', className)} />;
 
 /** Inline busy indicator (buttons use `loading` instead). */
 export function Spinner({ label = 'Loading', className }: { label?: string; className?: string }) {
@@ -24,10 +24,10 @@ export function PageSkeleton() {
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Skeleton className="h-36 rounded-card" />
-        <Skeleton className="h-36 rounded-card" />
+        <Skeleton className="h-36 rounded-lg" />
+        <Skeleton className="h-36 rounded-lg" />
       </div>
-      <Skeleton className="h-64 rounded-card" />
+      <Skeleton className="h-64 rounded-lg" />
     </div>
   );
 }

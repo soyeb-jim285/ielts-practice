@@ -3,8 +3,8 @@ import { ArrowDown, ArrowRight } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 
 // Hand-drawn SVG, no recharts: the exam paper is a static figure, so no tooltips or animation are needed (native <title> gives hover values).
-// Categorical, non-semantic hues (green/amber/red stay reserved for good/warn/bad), plus dash patterns so lines stay tellable apart in greyscale / colour-blind viewing.
-const COLORS = ['oklch(0.58 0.16 265)', 'oklch(0.62 0.11 190)', 'oklch(0.6 0.17 310)', 'oklch(0.64 0.13 75)', 'oklch(0.58 0.03 250)', 'oklch(0.6 0.15 350)'];
+// Series colours come from the design tokens (teal, sky, slate, amber, rose, ink) so charts follow the theme in both modes; dash patterns keep lines tellable apart in greyscale / colour-blind viewing.
+const COLORS = ['var(--accent)', 'var(--sky)', 'var(--chart-3)', 'var(--warn)', 'var(--bad)', 'var(--ink)'];
 const DASHES = [undefined, '6 3', '2 3', '10 4 2 4', '1 2', '8 2'];
 // Past six (e.g. a 7-slice pie), repeat the palette as lighter tints so neighbouring slices never share a colour.
 const color = (i: number) => (i < COLORS.length ? COLORS[i] : `color-mix(in oklab, ${COLORS[i % COLORS.length]} 45%, var(--surface))`);
@@ -13,8 +13,8 @@ const num = (v: number) => v.toLocaleString('en');
 /** An exam-paper style figure for Academic Task 1: bold centred title, plain axes, legend underneath. */
 export function ChartRenderer({ spec }: { spec: ChartSpec }) {
   return (
-    <figure className="rounded-card border border-line bg-surface px-3 py-5 shadow-card sm:px-5" aria-label={spec.title}>
-      <figcaption className="mx-auto mb-5 max-w-[52ch] text-center text-[0.9375rem] font-semibold text-balance">{spec.title}</figcaption>
+    <figure className="rounded-card border border-line bg-surface px-3 py-5 sm:px-5" aria-label={spec.title}>
+      <figcaption className="type-subheading mx-auto mb-5 max-w-[52ch] text-center text-balance">{spec.title}</figcaption>
       <Body spec={spec} />
     </figure>
   );
@@ -155,7 +155,7 @@ const describe = (s: Extract<ChartSpec, { kind: 'line' | 'bar' }>) =>
 
 function Legend({ items, line }: { items: string[]; line?: boolean }) {
   return (
-    <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[0.8125rem]">
+    <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-caption">
       {items.map((l, i) => (
         <li key={l} className="inline-flex items-center gap-1.5">
           {line ? (
@@ -262,7 +262,7 @@ function Process({ steps }: { steps: string[] }) {
       {steps.map((s, i) => (
         <Fragment key={i}>
           <li className="flex items-start gap-2.5 rounded-control border border-line-strong bg-surface-2 px-3 py-2.5 text-sm sm:max-w-[13rem]">
-            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ink text-xs font-semibold text-bg tabular-nums">{i + 1}</span>
+            <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-ink text-xs font-semibold text-bg tabular-nums">{i + 1}</span>
             <span className="pt-0.5">{s}</span>
           </li>
           {i < steps.length - 1 && (

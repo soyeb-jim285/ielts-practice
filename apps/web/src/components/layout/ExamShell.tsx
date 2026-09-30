@@ -1,13 +1,13 @@
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { buttonStyles } from '@/components/ui';
+import { buttonStyles, WIDTH } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 /**
  * Distraction-free full-screen frame for timed tasks. Routes using it set `staticData: { exam: true }`
  * so the _app layout renders them without AppShell (no hidden nav in the tab order).
- * Top bar: exit (left) · title (center) · `status` slot for timer / word count / submit (right).
+ * Top bar: exit (left), title (center), `status` slot for timer / word count / submit (right).
  */
 export function ExamShell({
   title,
@@ -35,11 +35,11 @@ export function ExamShell({
             </Link>
           )}
         </div>
-        {title && <div className={cn('min-w-0 truncate text-center text-sm font-semibold', status && 'hidden sm:block')}>{title}</div>}
+        {title && <div className={cn('min-w-0 truncate text-center text-sm font-semibold tracking-tight', status && 'hidden sm:block')}>{title}</div>}
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">{status}</div>
       </header>
       <main id="main" className="min-h-0 flex-1 overflow-y-auto">
-        <div className={wide ? 'h-full' : 'mx-auto w-full max-w-3xl px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 md:py-12'}>{children}</div>
+        <div className={wide ? 'h-full' : `mx-auto w-full ${WIDTH.reading} px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 md:py-12`}>{children}</div>
       </main>
     </div>
   );

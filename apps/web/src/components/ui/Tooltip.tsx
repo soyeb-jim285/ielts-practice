@@ -31,12 +31,12 @@ export function InfoTip({ children, label = 'More info' }: { children: ReactNode
           aria-label={label}
           onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)}
           onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}
-          className="hit inline-grid size-5 place-items-center rounded-full text-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          className="hit inline-grid size-5 place-items-center rounded-full text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <Info className="size-3.5" />
+          <Info className="size-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" collisionPadding={8} onOpenAutoFocus={(e) => e.preventDefault()} className="w-auto max-w-64 rounded-lg bg-foreground px-2.5 py-1.5 text-xs leading-snug text-background">
+      <PopoverContent side="top" collisionPadding={8} onOpenAutoFocus={(e) => e.preventDefault()} className="w-auto max-w-64 rounded-md bg-foreground px-2.5 py-1.5 text-xs leading-snug font-medium text-background">
         {children}
       </PopoverContent>
     </ShPopover>

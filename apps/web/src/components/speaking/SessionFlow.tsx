@@ -4,11 +4,12 @@ import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronRight, CircleAlert, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
-import { Alert, Badge, Button, Card, Dialog, ProgressRing, Textarea } from '@/components/ui';
+import { Alert, Badge, Button, Card, Dialog, PageContainer, ProgressBar, ProgressRing, Stat, Textarea } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useRecorder, type Recording } from '@/hooks/useRecorder';
 import { api, ApiError } from '@/lib/api';
 import { formatClock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { CueCard } from './CueCard';
 import { SilenceNudge, WpmPill } from './LiveHints';
 import { MicButton } from './MicButton';
@@ -26,8 +27,8 @@ export const toSegment = (prompt: Prompt): Segment => {
 };
 
 const INTRO = {
-  1: 'Short answers about you. One recording covers every question — press Next question as you go.',
-  2: 'Talk for 1–2 minutes about the card. You get 1 minute to prepare and can make notes. Recording stops at 2:00.',
+  1: 'Short answers about you. One recording covers every question. Press Next question as you go.',
+  2: 'Talk for 1 to 2 minutes about the card. You get 1 minute to prepare and can make notes. Recording stops at 2:00.',
   3: 'A discussion linked to Part 2. Develop each answer with reasons and examples. Press Next question as you go.',
 };
 const P2_MAX_MS = SPEAKING_ZONES[2].max * 1000;
@@ -94,7 +95,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     }
   };
 
-  const label = (s: Segment, i: number) => (s.part === 1 && p1Count > 1 ? `Part 1 · ${segments.slice(0, i + 1).filter((x) => x.part === 1).length} of ${p1Count}` : `Part ${s.part}`);
+  const label = (s: Segment, i: number) => (s.part === 1 && p1Count > 1 ? `Part 1, ${segments.slice(0, i + 1).filter((x) => x.part === 1).length} of ${p1Count}` : `Part ${s.part}`);
 
   const finishPart = async () => {
     if (stopping.current || rec.state !== 'recording') return;
@@ -102,7 +103,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     try {
       const r = await rec.stop();
       recordings.current[segIdx] = { s: seg, r, m: marks.current };
-      setUploads((u) => [...u, { key: segIdx, label: `${label(seg, segIdx)} — ${seg.prompt.topic || seg.prompt.title}`, status: 'uploading' }]);
+      setUploads((u) => [...u, { key: segIdx, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, status: 'uploading' }]);
       void upload(segIdx);
       if (segIdx + 1 < segments.length) {
         setSegIdx(segIdx + 1);
@@ -159,6 +160,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
   const answerS = (rec.elapsedMs - (marks.current.at(-1) ?? 0)) / 1000;
   const title = phase === 'finishing' ? 'Saving your answers' : label(seg, segIdx);
+  const multiQ = seg.questions.length > 1;
 
   return (
     <ExamShell
@@ -166,7 +168,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       status={
         phase !== 'finishing' &&
         segments.length > 1 && (
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="type-caption type-num">
             {segIdx + 1}/{segments.length}
           </span>
         )
@@ -180,16 +182,16 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       {phase === 'finishing' ? (
         <Finishing uploads={uploads} total={segments.length} onRetry={(k) => void upload(k)} />
       ) : (
-        <div className="flex flex-col items-center gap-8 text-center">
+        <PageContainer width="narrow" className="flex flex-col gap-8">
           {seg.part === 2 ? (
             <>
-              <h1 className="sr-only">Part 2 · Long turn</h1>
+              <h1 className="sr-only">Part 2: Long turn</h1>
               <CueCard prompt={seg.prompt} />
             </>
           ) : (
-            <div className="w-full space-y-4">
-              <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} question={recording || qIdx > 0 ? `Question ${qIdx + 1} of ${seg.questions.length}` : undefined} />
-              <h1 key={qIdx} className="mx-auto max-w-2xl font-serif text-2xl leading-snug text-balance md:text-[1.75rem] motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
+            <div className="space-y-4">
+              <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} n={multiQ ? qIdx + 1 : undefined} total={seg.questions.length} />
+              <h1 key={qIdx} className="type-title motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
                 {seg.questions[qIdx]}
               </h1>
             </div>
@@ -198,25 +200,32 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
           <MicProblem state={rec.state} error={rec.error} onRetry={() => void startRecording()} />
 
           {recording ? (
-            <div className="flex w-full flex-col items-center gap-6">
-              <RecordingDot />
-              <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
-              <Waveform level={rec.level} tick={rec.elapsedMs} active />
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <WpmPill wpm={rec.liveWpm} elapsedMs={rec.elapsedMs} />
-                {seg.part === 2 && <Badge tone="neutral">Stops at {formatClock(SPEAKING_ZONES[2].max)}</Badge>}
+            <div className="flex w-full flex-col gap-7">
+              <div className="grid items-center gap-x-10 gap-y-6 sm:grid-cols-[auto_minmax(0,1fr)]">
+                <div className="flex flex-col items-start gap-4">
+                  <RecordingDot />
+                  <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
+                </div>
+                <div className="min-w-0 space-y-4">
+                  <Waveform level={rec.level} tick={rec.elapsedMs} active />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <WpmPill wpm={rec.liveWpm} elapsedMs={rec.elapsedMs} />
+                    {seg.part === 2 && <Badge tone="neutral">Stops at {formatClock(SPEAKING_ZONES[2].max)}</Badge>}
+                  </div>
+                  <SilenceNudge silenceMs={rec.silenceMs} />
+                </div>
               </div>
-              <SilenceNudge silenceMs={rec.silenceMs} />
               {seg.part === 2 && notes && (
-                <div className="w-full rounded-card bg-surface-2 p-4 text-left">
-                  <p className="text-xs font-medium text-muted-foreground">Your notes</p>
-                  <p className="mt-1 text-sm whitespace-pre-wrap">{notes}</p>
+                <div className="rounded-lg bg-surface-2 p-4 text-left">
+                  <p className="type-caption">Your notes</p>
+                  <p className="mt-1 type-reading-sm whitespace-pre-wrap">{notes}</p>
                 </div>
               )}
-              <div className="flex w-full max-w-sm flex-col-reverse gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+              {/* Sticky on phones: a tall cue card must never push Finish off screen while you are speaking. */}
+              <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-3 self-stretch border-t border-line bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:flex-row sm:justify-start md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="secondary" size="lg" onClick={() => void finishPart()}>
+                    <Button variant="outline" size="lg" onClick={() => void finishPart()}>
                       Finish part early
                     </Button>
                     <Button size="lg" onClick={nextQuestion} icon={<ChevronRight />}>
@@ -232,17 +241,17 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
             </div>
           ) : seg.part === 2 && phase === 'prep' ? (
             <>
-              <div className="flex w-full flex-col items-center gap-5">
-                <ProgressRing value={prep.left / P2_PREP_S} size={96} stroke={7} tone={prep.left <= 10 ? 'warn' : 'accent'} label="Preparation time left">
-                  <span className="text-xl font-semibold">{formatClock(prep.left)}</span>
+              <div className="grid items-start gap-x-8 gap-y-5 sm:grid-cols-[auto_minmax(0,1fr)]">
+                <ProgressRing value={prep.left / P2_PREP_S} size={96} stroke={6} tone={prep.left <= 10 ? 'warn' : 'accent'} label="Preparation time left">
+                  <span className="type-num text-xl font-semibold">{formatClock(prep.left)}</span>
                 </ProgressRing>
                 <Textarea
                   label="Notes"
                   hint="Only you see these. Recording starts automatically when the minute is up."
-                  rows={3}
+                  rows={4}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="text-left"
+                  className="type-reading-sm text-left"
                   autoFocus={globalThis.matchMedia?.('(pointer: fine)').matches} // a phone keyboard would cover the cue card during prep
                   spellCheck={false}
                 />
@@ -255,10 +264,15 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               </div>
             </>
           ) : seg.part === 2 ? (
-            <div className="flex flex-col items-center gap-3">
-              <p className="max-w-md text-[0.9375rem] text-muted-foreground">{INTRO[2]}</p>
+            <div className="space-y-6">
+              <dl className="flex gap-10">
+                <Stat label="Preparation" value={formatClock(P2_PREP_S)} />
+                <Stat label="Speaking" value={`up to ${formatClock(SPEAKING_ZONES[2].max)}`} />
+              </dl>
+              <p className="max-w-[60ch] type-lede">{INTRO[2]}</p>
               <Button
                 size="lg"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setPhase('prep');
                   prep.start();
@@ -268,9 +282,12 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-5 sm:gap-7">
               <MicButton state={rec.state} level={rec.level} onStart={() => void startRecording()} onStop={() => void finishPart()} />
-              <p className="max-w-md text-[0.9375rem] text-muted-foreground">{INTRO[seg.part]}</p>
+              <div className="min-w-0">
+                <p className="type-subheading">Press to start recording</p>
+                <p className="type-caption mt-1 max-w-[46ch]">{INTRO[seg.part]}</p>
+              </div>
             </div>
           )}
 
@@ -278,10 +295,10 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
           {uploads.some((u) => u.status === 'failed') && (
             <Alert tone="warn" title="An earlier answer didn't upload">
-              Keep going — you can retry it at the end.
+              Keep going. You can retry it at the end.
             </Alert>
           )}
-        </div>
+        </PageContainer>
       )}
 
       <Dialog
@@ -310,7 +327,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   );
 }
 
-/** Unmistakable "mic is live" cue: red dot (pulsing unless reduced motion) + label. */
+/** Unmistakable "mic is live" cue: red dot (pulsing unless reduced motion) + label. The only perpetual motion on the screen. */
 function RecordingDot() {
   return (
     <p className="inline-flex items-center gap-2 text-sm font-medium text-bad-text">
@@ -328,9 +345,11 @@ function MicCheckStep() {
   const mic = useRecorder();
   if (mic.state === 'idle' || mic.state === 'stopped')
     return (
-      <Button variant="ghost" size="sm" icon={<Mic />} onClick={() => void mic.start()}>
-        Check your microphone first
-      </Button>
+      <div>
+        <Button variant="ghost" size="sm" icon={<Mic />} onClick={() => void mic.start()}>
+          Check your microphone first
+        </Button>
+      </div>
     );
   return (
     <Card className="w-full max-w-md space-y-3 p-4 text-left">
@@ -344,19 +363,30 @@ function MicCheckStep() {
   );
 }
 
-/** Topic chip (+ part and question position on phones, where the top bar title is hidden in a multi-part test) above each question. */
-function PartMeta({ seg, p1Pos, p1Count, multi, question }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean; question?: string }) {
+/** Topic (+ part on phones, where the top bar title is hidden in a multi-part test) and a segmented track showing which question you are on. */
+function PartMeta({ seg, p1Pos, p1Count, multi, n, total }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean; n?: number; total: number }) {
   return (
-    <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted-foreground tabular-nums">
-      {multi && (
-        <span className="font-medium text-brand-text sm:hidden">
-          Part {seg.part}
-          {seg.part === 1 && p1Count > 1 && ` · ${p1Pos}/${p1Count}`}
-        </span>
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+      <p className="type-caption type-num flex flex-wrap items-center gap-x-2">
+        {multi && (
+          <span className="font-medium text-brand-text sm:hidden">
+            Part {seg.part}
+            {seg.part === 1 && p1Count > 1 && `, ${p1Pos}/${p1Count}`}
+          </span>
+        )}
+        <span className="font-medium text-ink">{seg.prompt.topic || seg.prompt.title}</span>
+      </p>
+      {n != null && (
+        <p className="type-caption type-num flex items-center gap-2.5">
+          Question {n} of {total}
+          <span className="flex gap-1" aria-hidden>
+            {Array.from({ length: total }, (_, i) => (
+              <span key={i} className={cn('h-1 w-5 rounded-sm transition-colors duration-200', i < n - 1 ? 'bg-ink/60' : i === n - 1 ? 'bg-brand' : 'bg-line-strong/40')} />
+            ))}
+          </span>
+        </p>
       )}
-      <Badge tone="accent">{seg.prompt.topic || seg.prompt.title}</Badge>
-      {question && <span>{question}</span>}
-    </p>
+    </div>
   );
 }
 
@@ -374,29 +404,31 @@ function useStalled(active: boolean, ms = 20_000) {
 function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: number; onRetry: (key: number) => void }) {
   const failed = uploads.some((u) => u.status === 'failed');
   const stalled = useStalled(!failed && uploads.some((u) => u.status === 'uploading'));
+  const done = uploads.filter((u) => u.status === 'done').length;
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">{failed ? 'Some answers need another try' : 'Uploading your answers'}</h1>
-        <p className="text-sm text-muted-foreground">{failed ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
+    <PageContainer width="narrow" className="space-y-7">
+      <div className="space-y-1.5">
+        <h1 className="type-title">{failed ? 'Some answers need another try' : 'Uploading your answers'}</h1>
+        <p className="type-lede">{failed ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
       </div>
+      <ProgressBar value={done / total} tone={failed ? 'warn' : 'accent'} label={`${done} of ${total} recordings uploaded`} />
       <Card padded={false} className="overflow-hidden">
         <ul className="divide-y divide-line" aria-live="polite">
           {uploads.map((u) => (
             <li key={u.key} className="flex min-h-14 items-center gap-3 px-5 py-3 text-left text-sm">
               {u.status === 'done' ? (
-                <Check className="size-5 shrink-0 text-good-text" aria-label="uploaded" />
+                <Check role="img" className="size-5 shrink-0 text-good-text" aria-label="uploaded" />
               ) : u.status === 'failed' ? (
-                <CircleAlert className="size-5 shrink-0 text-bad-text" aria-label="failed" />
+                <CircleAlert role="img" className="size-5 shrink-0 text-bad-text" aria-label="failed" />
               ) : (
-                <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" aria-label="uploading" />
+                <LoaderCircle role="img" className="size-5 shrink-0 animate-spin text-muted" aria-label="uploading" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate">{u.label}</p>
                 {u.error && <p className="text-xs text-bad-text">{u.error}</p>}
               </div>
               {u.status === 'failed' && (
-                <Button size="sm" variant="secondary" icon={<RotateCcw />} onClick={() => onRetry(u.key)}>
+                <Button size="sm" variant="outline" icon={<RotateCcw />} onClick={() => onRetry(u.key)}>
                   Retry
                 </Button>
               )}
@@ -409,6 +441,6 @@ function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: numb
           A slow connection can do this. Keep this tab open; if nothing changes, reload and record again.
         </Alert>
       )}
-    </div>
+    </PageContainer>
   );
 }

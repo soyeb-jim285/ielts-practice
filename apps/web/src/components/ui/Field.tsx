@@ -23,7 +23,7 @@ function Field({ id, label, hint, error, hideLabel, children }: FieldProps & { i
         </p>
       ) : (
         hint && (
-          <p id={`${id}-h`} className="mt-1.5 text-xs text-muted">
+          <p id={`${id}-h`} className="type-caption mt-1.5">
             {hint}
           </p>
         )
@@ -49,7 +49,7 @@ export function Input({ label, hint, error, hideLabel, className, type = 'text',
             onClick={() => setShow((s) => !s)}
             aria-label={show ? 'Hide password' : 'Show password'}
             aria-pressed={show}
-            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
@@ -77,7 +77,7 @@ export function Select({ label, hint, error, hideLabel, className, ...rest }: Fi
   return (
     <Field {...{ id, label, hint, error, hideLabel }}>
       <div className="relative">
-        <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={cn(inputStyles, 'h-11 appearance-none pr-9', className)} {...rest} />
+        <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={cn(inputStyles, 'h-9 appearance-none pr-9', className)} {...rest} />
         <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
       </div>
     </Field>

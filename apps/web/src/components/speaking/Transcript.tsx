@@ -1,5 +1,6 @@
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { clsx } from 'clsx';
+import { Pause } from 'lucide-react';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
 import { Card, Chip } from '@/components/ui';
@@ -45,7 +46,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   // Sentence-wide notes (relevance etc.) would drown word-level marks, so they only show under their own filter.
   const shown = (e: AnalysisError) => !isSentenceNote(e) || filter === errorGroup(e);
   const playing = (t: Token) => audio.time >= t.start && audio.time < t.end + 0.05 && 'bg-brand-soft text-ink';
-  const filler = (t: Token) => t.filler && 'text-muted-foreground line-through decoration-muted-foreground';
+  const filler = (t: Token) => t.filler && 'text-muted line-through decoration-muted';
 
   const word = (t: Token) => (
     <span
@@ -71,13 +72,13 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       <span
         onClick={() => audio.seek(p.start)}
         className={clsx(
-          'mx-0.5 inline-flex h-6 cursor-pointer items-center rounded-full px-2 align-middle font-sans text-xs font-medium tabular-nums',
-          long ? 'bg-bad-soft text-bad-text' : 'bg-surface-2 text-muted-foreground',
+          'type-num mx-0.5 inline-flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 align-middle font-sans text-xs font-medium',
+          long ? 'bg-bad-soft text-bad-text' : 'bg-surface-2 text-muted',
           filter !== 'all' && filter !== 'pauses' && 'opacity-35',
           filter === 'pauses' && 'ring-1 ring-current',
         )}
       >
-        <span aria-hidden>⏸ </span>
+        <Pause className="size-3" aria-hidden />
         <span className="sr-only">pause </span>
         {pauseSec(p)}s
       </span>
@@ -91,7 +92,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     const q = heads.get(i);
     if (q)
       out.push(
-        <p key={`q${i}`} className={clsx('mb-1.5 font-sans text-sm font-medium text-muted-foreground', i > 0 && 'mt-5')}>
+        <p key={`q${i}`} className={clsx('mb-1.5 font-sans text-sm font-medium text-muted', i > 0 && 'mt-6 border-t border-line pt-5')}>
           Q{q.n}. {q.head}
           {q.rest && <span className="mt-0.5 block font-normal">{q.rest}</span>}
         </p>,
@@ -134,8 +135,8 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   // Phones: filters, transcript, legend. lg+: the 68ch transcript on the left, filters and legend sticky on the right.
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-x-10">
-      <Card className="order-2 p-5 sm:p-7 lg:col-start-1 lg:row-start-1">
-        <div className="prose-serif leading-[2]">{out}</div>
+      <Card className="order-2 p-5 sm:p-8 lg:col-start-1 lg:row-start-1">
+        <div className="type-reading leading-[2]">{out}</div>
       </Card>
       <aside className="contents lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block lg:space-y-5">
         <div role="toolbar" aria-label="Show" className="order-1 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
@@ -155,11 +156,11 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
 
 function Legend({ notes }: { notes: boolean }) {
   return (
-    <ul className="order-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground lg:flex-col">
+    <ul className="type-caption order-3 flex flex-wrap gap-x-5 gap-y-2 lg:flex-col">
       <li className="flex items-center gap-1.5"><span className="underline decoration-bad decoration-2 underline-offset-4">word</span> major error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-2 underline-offset-4">word</span> minor error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4">word</span> unclear to speech recognition</li>
-      <li className="flex items-center gap-1.5"><span className="text-muted-foreground line-through decoration-muted-foreground">um</span> filler</li>
+      <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>
       {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
       <li>Tap any word to hear it</li>
     </ul>
@@ -169,7 +170,7 @@ function Legend({ notes }: { notes: boolean }) {
 function Unplaced({ errors }: { errors: AnalysisError[] }) {
   return (
     <section className="order-4 lg:col-start-1">
-      <h3 className="mb-3 text-base font-semibold">Also noted</h3>
+      <h3 className="type-heading mb-3">Also noted</h3>
       <Card padded={false} className="overflow-hidden">
         <ul className="divide-y divide-line">
           {errors.map((e) => (

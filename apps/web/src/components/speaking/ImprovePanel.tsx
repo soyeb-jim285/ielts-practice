@@ -18,16 +18,16 @@ export function ImprovePanel({ result, retry }: { result: AnalysisResult; retry:
       <div className="flex flex-wrap gap-2">
         {retry}
         {result.topFixes.length > 0 && (
-          <Button variant="secondary" icon={<BookmarkPlus />} loading={add.isPending} disabled={add.isSuccess} onClick={() => add.mutate()}>
+          <Button variant="outline" icon={<BookmarkPlus />} loading={add.isPending} disabled={add.isSuccess} onClick={() => add.mutate()}>
             {add.isSuccess ? 'Fixes in your deck' : 'Add top fixes to review deck'}
           </Button>
         )}
       </div>
       {result.rewrite.text && (
-        <section className="max-w-[calc(68ch+2.5rem)] space-y-3">
-          <h2 className="mb-1 text-lg font-semibold">Your answer, one band higher</h2>
-          <Card>
-            <p className="prose-serif whitespace-pre-wrap">{result.rewrite.text}</p>
+        <section className="max-w-[calc(68ch+3.5rem)] space-y-4">
+          <h2 className="type-heading">Your answer, one band higher</h2>
+          <Card className="sm:p-7">
+            <p className="type-reading whitespace-pre-wrap">{result.rewrite.text}</p>
           </Card>
           {result.rewrite.note && <Alert>{result.rewrite.note}</Alert>}
         </section>

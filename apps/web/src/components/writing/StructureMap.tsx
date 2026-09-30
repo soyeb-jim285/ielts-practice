@@ -22,7 +22,7 @@ function CheckRow({ title, checks, note }: { title: string; checks: Check[]; not
       <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
         {checks.map((c) => (
           <li key={c.label} className="inline-flex items-center gap-1.5">
-            {c.ok ? <CircleCheck className="size-4 text-good-text" aria-label="Yes" /> : <CircleX className="size-4 text-bad-text" aria-label="No" />}
+            {c.ok ? <CircleCheck role="img" className="size-4 text-good-text" aria-label="Yes" /> : <CircleX role="img" className="size-4 text-bad-text" aria-label="No" />}
             {c.label}
           </li>
         ))}
@@ -37,10 +37,10 @@ export function StructureMap({ structure }: { structure: WritingStructure }) {
   const { paragraphs, overview, position, planFollowed } = structure;
   const hasChecks = overview || position || planFollowed;
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {hasChecks && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Checks</h2>
+          <h2 className="mb-3 type-heading">Checks</h2>
           <Card padded={false}>
             <ul className="divide-y divide-line">
               {overview && (
@@ -71,13 +71,13 @@ export function StructureMap({ structure }: { structure: WritingStructure }) {
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Paragraph map</h2>
+        <h2 className="mb-3 type-heading">Paragraph map</h2>
         {paragraphs.length ? (
           <Card padded={false}>
             <ol className="divide-y divide-line">
               {paragraphs.map((p, i) => (
                 <li key={i} className="flex gap-4 px-5 py-4">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-sm font-semibold tabular-nums" aria-hidden>
+                  <span className="grid size-8 shrink-0 place-items-center rounded-md bg-surface-2 text-sm font-semibold type-num" aria-hidden>
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -91,7 +91,7 @@ export function StructureMap({ structure }: { structure: WritingStructure }) {
                         {p.ok ? 'Works' : 'Needs work'}
                       </span>
                     </p>
-                    {p.topicSentence && <p className="prose-serif">“{p.topicSentence}”</p>}
+                    {p.topicSentence && <p className="type-reading">“{p.topicSentence}”</p>}
                     {p.note && <p className="max-w-prose text-sm text-muted text-pretty">{p.note}</p>}
                   </div>
                 </li>

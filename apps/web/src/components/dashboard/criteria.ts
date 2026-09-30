@@ -1,13 +1,14 @@
 import type { CriterionKey } from '@server/ai/types';
 import type { Schemas } from '@/lib/api';
 
-// Categorical, non-semantic hues (indigo, teal, violet, slate) that read on both themes: green/amber/red stay reserved for good/warn/bad.
-// Each skill's four criteria get four distinct colours. ponytail: move to styles.css tokens if more charts need a categorical palette.
-const INDIGO = 'oklch(0.6 0.15 265)';
-const TEAL = 'oklch(0.64 0.11 190)';
-const VIOLET = 'oklch(0.6 0.16 310)';
-const SLATE = 'oklch(0.6 0.03 250)';
-export const SERIES_COLOR: Record<CriterionKey, string> = { fc: INDIGO, ta: INDIGO, lr: TEAL, gra: VIOLET, p: SLATE, cc: SLATE };
+// Chart series come from the palette (teal, sky, slate, ink); green/amber/red stay reserved for good/warn/bad. Every skill has four criteria,
+// so the fourth (ink) is also dashed: series stay distinguishable without colour.
+const TEAL = 'var(--accent)';
+const SKY = 'var(--sky)';
+const SLATE = 'var(--chart-3)';
+const INK = 'var(--ink)';
+export const SERIES_COLOR: Record<CriterionKey, string> = { fc: TEAL, ta: TEAL, lr: SKY, gra: SLATE, p: INK, cc: INK };
+export const SERIES_DASH: Partial<Record<CriterionKey, string>> = { p: '5 3', cc: '5 3' };
 
 /** Where to practise a weak criterion. */
 export const PRACTICE: Record<CriterionKey, { label: string; skill: 'speaking' | 'writing'; part: 1 | 2 | 3 }> = {

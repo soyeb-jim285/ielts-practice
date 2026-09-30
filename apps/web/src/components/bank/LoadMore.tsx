@@ -14,7 +14,7 @@ export function LoadMore({ hasMore, loading, onLoad }: { hasMore: boolean; loadi
   if (!hasMore) return null;
   return (
     <div ref={ref} className="flex justify-center py-6">
-      <Button variant="secondary" loading={loading} onClick={onLoad}>
+      <Button variant="outline" loading={loading} onClick={onLoad}>
         Load more
       </Button>
     </div>

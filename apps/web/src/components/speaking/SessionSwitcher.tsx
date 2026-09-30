@@ -1,9 +1,9 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { clsx } from 'clsx';
 import { LoaderCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatBand } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { attemptQuery, notAssessed, sessionOverall, type AttemptListItem } from '@/lib/result';
 
 /** Full-test part switcher + session overall (criteria weighted by speaking time). */
@@ -22,10 +22,10 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <nav aria-label="Test parts" className="inline-flex flex-wrap gap-1 rounded-lg bg-surface-2 p-1 ring-1 ring-border ring-inset">
+      <nav aria-label="Test parts" className="inline-flex flex-wrap gap-1 rounded-md bg-surface-2 p-0.5 ring-1 ring-line ring-inset">
         {parts.map((p, i) => {
           const d = details[i]?.data;
-          const label = p.part === 1 && p1Total > 1 ? `P1·${++p1}` : `P${p.part}`;
+          const label = p.part === 1 && p1Total > 1 ? `P1.${++p1}` : `P${p.part}`;
           const current = p.id === currentId;
           return (
             <Link
@@ -35,26 +35,26 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
               search={{ session: sessionId }}
               aria-current={current ? 'page' : undefined}
               title={p.promptTitle}
-              className={clsx(
+              className={cn(
                 // Same look as Segmented: one raised segment marks the current part.
-                'hit inline-flex h-9 items-center gap-1.5 rounded-[7px] px-3 text-sm font-medium tabular-nums transition-[background-color,color,box-shadow] duration-150 md:h-8',
-                current ? 'bg-card text-ink shadow-card ring-1 ring-border' : 'text-muted-foreground hover:text-ink',
+                'hit type-num inline-flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ease-(--ease-out-expo) md:h-8',
+                current ? 'bg-card text-ink shadow-card ring-1 ring-line' : 'text-muted hover:text-ink',
               )}
             >
               {label}
               {d?.status === 'analyzing' ? (
-                <LoaderCircle className="size-3.5 animate-spin" aria-label="analysing" />
+                <LoaderCircle role="img" className="size-4 animate-spin" aria-label="analysing" />
               ) : d?.analysis && !notAssessed(d.analysis) ? (
-                <span className="text-muted-foreground">{formatBand(d.analysis.overall)}</span>
+                <span className="text-muted">{formatBand(d.analysis.overall)}</span>
               ) : null}
             </Link>
           );
         })}
       </nav>
       {summary && (
-        <p className="text-sm text-muted-foreground">
-          Test overall <span className="font-semibold text-ink tabular-nums">{formatBand(summary.band)}</span>
-          {summary.scored < parts.length && ` · ${summary.scored} of ${parts.length} parts scored`}
+        <p className="type-caption type-num">
+          Test overall <span className="font-semibold text-ink">{formatBand(summary.band)}</span>
+          {summary.scored < parts.length && `, ${summary.scored} of ${parts.length} parts scored`}
         </p>
       )}
     </div>

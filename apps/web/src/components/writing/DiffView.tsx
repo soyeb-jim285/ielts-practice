@@ -65,7 +65,7 @@ export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite' }: { 
           </p>
         )}
       </div>
-      <div className="prose-serif whitespace-pre-wrap text-ink">
+      <div className="type-reading whitespace-pre-wrap text-ink">
         {view === 'clean'
           ? rewrite
           : chunks.map((c, i) =>

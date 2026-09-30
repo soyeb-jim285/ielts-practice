@@ -21,19 +21,19 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
   const chart = asChart(prompt.chart);
   const time = prompt.part === 1 ? 20 : 40;
   return (
-    <article className="space-y-5">
-      <header className="space-y-1.5">
-        <p className="text-sm font-medium text-muted">
-          {taskLabel(prompt)} · about {time} minutes
+    <article className="mx-auto max-w-[68ch] space-y-6 lg:mx-0">
+      <header className="space-y-2">
+        <p className="type-caption">
+          {taskLabel(prompt)}, about {time} minutes
         </p>
         {/* Seeded titles are the body's first sentence (cut with "…" past 120 chars); the figure repeats its own title. Don't print either twice. */}
-        {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && chart?.title !== prompt.title && <h2 className="text-lg font-semibold text-balance">{prompt.title}</h2>}
+        {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && chart?.title !== prompt.title && <h2 className="type-heading text-balance">{prompt.title}</h2>}
       </header>
-      <div className="prose-serif space-y-3 whitespace-pre-line text-ink">{prompt.body}</div>
+      <div className="type-reading space-y-4 whitespace-pre-line text-ink">{prompt.body}</div>
       {prompt.bullets?.length ? (
-        <div>
-          <p className="prose-serif mb-1.5">In your letter:</p>
-          <ul className="prose-serif list-disc space-y-1 pl-6">
+        <div className="type-reading">
+          <p className="mb-2">In your letter:</p>
+          <ul className="list-disc space-y-1.5 pl-6 marker:text-muted">
             {prompt.bullets.map((b) => (
               <li key={b}>{b}</li>
             ))}
@@ -41,12 +41,15 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
         </div>
       ) : null}
       {chart && <ChartRenderer spec={chart} />}
+      {/* Raster exam figures are drawn on white, so the frame stays white in dark mode on purpose (see DESIGN.md, Surfaces). */}
       {!chart && prompt.imageUrl && (
         <figure className="overflow-hidden rounded-card border border-line bg-white p-2">
           <img src={prompt.imageUrl} alt={`Figure for: ${prompt.title}`} className="mx-auto h-auto max-w-full" loading="eager" />
         </figure>
       )}
-      <p className="border-t border-line pt-4 text-sm text-muted">Write at least {minWords(prompt.part)} words.</p>
+      <p className="type-caption border-t border-line pt-4">
+        Write at least <span className="type-num font-medium text-ink">{minWords(prompt.part)}</span> words.
+      </p>
     </article>
   );
 }

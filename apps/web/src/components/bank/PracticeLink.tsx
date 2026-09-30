@@ -22,8 +22,8 @@ export function PromptLink({ prompt, className, children }: { prompt: { id: stri
   );
 }
 
-/** Opens the editor on a random Task (default 2) prompt, preferring ones not done yet. */
-export function StartWritingButton({ task = 2, children, ...rest }: { task?: 1 | 2; children: ReactNode } & Omit<ComponentProps<typeof Button>, 'onClick' | 'loading'>) {
+/** Starts a writing task on a random prompt (default Task 2), preferring ones not done yet. `start` navigates; `busy` is true while it fetches. */
+export function useStartWriting(task: 1 | 2 = 2) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const start = async () => {
@@ -37,6 +37,12 @@ export function StartWritingButton({ task = 2, children, ...rest }: { task?: 1 |
       setBusy(false);
     }
   };
+  return { start, busy };
+}
+
+/** Button that starts a random writing task. */
+export function StartWritingButton({ task = 2, children, ...rest }: { task?: 1 | 2; children: ReactNode } & Omit<ComponentProps<typeof Button>, 'onClick' | 'loading'>) {
+  const { start, busy } = useStartWriting(task);
   return (
     <Button {...rest} loading={busy} onClick={start}>
       {children}

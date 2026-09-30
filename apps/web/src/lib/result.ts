@@ -106,10 +106,10 @@ const CATEGORY_GROUP: Record<string, string> = {
   pronunciation: 'Pronunciation',
   fluency: 'Fluency',
 };
-/** "grammar.article" → "Grammar · article" */
+/** "grammar.article" → "Grammar: article" */
 export function categoryLabel(c: string) {
   const [g = '', sub] = c.split('.');
-  return sub ? `${CATEGORY_GROUP[g] ?? g} · ${sub.replace(/-/g, ' ')}` : (CATEGORY_GROUP[g] ?? g);
+  return sub ? `${CATEGORY_GROUP[g] ?? g}: ${sub.replace(/-/g, ' ')}` : (CATEGORY_GROUP[g] ?? g);
 }
 
 // ---- transcript tokens ----
