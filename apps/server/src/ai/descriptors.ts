@@ -1,5 +1,6 @@
 // Condensed public IELTS band descriptors (Speaking + Writing, rev. May 2023), bands 4-9.
-// Wording kept close to the official text so the model can quote it in `descriptor`. See docs/research.md §1.
+// Adapted from the IELTS public band descriptors, © IELTS Partners (British Council, IDP, Cambridge University Press & Assessment).
+// Wording kept close to the official text so the model can quote it in `descriptor`. See docs/research.md §1, scoring-research.md §5.
 
 /** Descriptors by band (4-9) as the prompt lists them, highest first. */
 export const fmt = (bands: Record<number, string>) =>
@@ -93,20 +94,17 @@ export const WRITING_DESCRIPTORS = {
 export const BELOW_4 =
   'Bands 3 and below: meaning is conveyed only in very limited ways — long pauses or isolated words, very basic vocabulary for personal information, few correct sentence forms, frequent breakdowns in communication or intelligibility (speaking), or a response largely unrelated to the task with little control of organisation, vocabulary or grammar (writing). Band 0 (writing only): did not attempt, wholly memorised, or totally unrelated to the task. In speaking, off-topic answers are rated under Fluency and Coherence (coherence and relevance), never band 0 for connected speech.';
 
-/** Shared scoring discipline for every rubric prompt. */
+/** Shared rules for the feedback prompts. The scoring procedure (best fit, no favoured bands) lives in the neutral scorer prompt (prompts.ts). */
 export const EXAMINER_RULES = `SCORING DISCIPLINE (apply to every criterion):
 1. Best fit, as certified examiners mark: for each criterion, read the descriptors of the bands above and below and award the band whose descriptor BEST fits the response overall. A band is not withheld for one weaker feature if its other features are clearly met, and one isolated strength does not lift a band.
-2. When the response sits between two bands, weigh which descriptor fits more of the evidence; do not systematically favour the lower (or the higher) band. Put the other plausible band in the range.
-3. Errors that do not impede communication are compatible with band 7 LR and GRA (the band 7 descriptors allow "a few errors", "inappropriacies occur", "a few errors in grammar may persist"); band 7 needs frequent error-free sentences and some flexible, less common language, not error-free work. 8+ needs wide, natural, mostly error-free control. Length, big words, memorised idioms and template linkers do NOT raise bands; inaccurate "risky" vocabulary lowers precision.
-4. "descriptor": copy the phrase(s) of the AWARDED band from the descriptors below, verbatim, that best match this response.
-5. "evidence": up to 4 short quotes copied verbatim from the candidate's response that prove the band. Quotes only: never metric names, numbers or paraphrases (quotes not found in the response are discarded). Put metric observations in plain English in "summary" (e.g. "You spoke for about 40 seconds").
-6. "summary": 1-2 plain sentences naming the specific feature of the next band that is missing.
-7. "range": [lo, hi] in whole bands with lo <= band <= hi: the bands another certified examiner could plausibly award. Use lo = hi = band only when the evidence is unambiguous; otherwise include one band either side where plausible, centred on your band (not skewed low or high).
-8. Errors: list every clear, unambiguous error (max 40), most serious first. severity "major" = impedes meaning or is a basic, systematic error; otherwise "minor". Use only the allowed categories. Do not flag stylistic preferences or correct variants (British/American spelling, contractions in speech).
-9. topFixes: EXACTLY 3, distinct, each targeting a recurring pattern that most limits the NEXT band (not one-off slips). "before" is verbatim from the response; "after" is the corrected/upgraded version; "why" names the descriptor feature it unlocks. Order by impact.
-10. vocabUpgrades: up to 8 basic, vague or wrongly-used words/phrases from the response, each with up to 3 natural, context-appropriate alternatives a real speaker/writer at the next band would use. No obscure or showy words.
-11. rewrite: the candidate's OWN response raised by ONE band above your overall — same ideas, same personal details, same voice and register, similar length. Fix the errors, upgrade the flagged language, improve linking. Do not add new arguments, facts or clichéd idioms. Plain text only.
-12. Write feedback in clear, simple English addressed to the candidate ("you"). Be direct and specific; no praise padding.
+2. "descriptor": copy the phrase(s) of the AWARDED band from the descriptors below, verbatim, that best match this response.
+3. "evidence": up to 4 short quotes copied verbatim from the candidate's response that prove the band. Quotes only: never metric names, numbers or paraphrases (quotes not found in the response are discarded). Put metric observations in plain English in "summary" (e.g. "You spoke for about 40 seconds").
+4. "summary": 1-2 plain sentences naming the specific feature of the next band that is missing.
+5. Errors: list every clear, unambiguous error (max 40), most serious first. severity "major" = impedes meaning or is a basic, systematic error; otherwise "minor". Use only the allowed categories. Do not flag stylistic preferences or correct variants (British/American spelling, contractions in speech).
+6. topFixes: EXACTLY 3, distinct, each targeting a recurring pattern that most limits the NEXT band (not one-off slips). "before" is verbatim from the response; "after" is the corrected/upgraded version; "why" names the descriptor feature it unlocks. Order by impact.
+7. vocabUpgrades: up to 8 basic, vague or wrongly-used words/phrases from the response, each with up to 3 natural, context-appropriate alternatives a real speaker/writer at the next band would use. No obscure or showy words.
+8. rewrite: the candidate's OWN response raised ONE band above the level you judge it to be — same ideas, same personal details, same voice and register, similar length. Fix the errors, upgrade the flagged language, improve linking. Do not add new arguments, facts or clichéd idioms. Plain text only.
+9. Write feedback in clear, simple English addressed to the candidate ("you"). Be direct and specific; no praise padding.
 
 ${BELOW_4}`;
 

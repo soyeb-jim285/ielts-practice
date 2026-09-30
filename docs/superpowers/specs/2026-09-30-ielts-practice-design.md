@@ -179,6 +179,29 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
   - The client records its own mic track locally for analysis.
 - Both variants end in `/api/live/finish`, which runs the same pipeline per part (split by part-change timestamps).
 
+### 5.1 Disfluency detection (required)
+
+Detect, time-stamp, show and score every disfluency type in the standard taxonomy (Shriberg; used by SpeechRater and disfluency-annotated corpora such as Switchboard and Speak & Improve):
+
+| Type | Example | Main signal |
+|---|---|---|
+| Filled pause | "um", "uh", "er", "erm", "hmm" | verbatim ASR tokens + voiced gaps in the energy timeline |
+| Silent pause | ≥ 250 ms (long ≥ 1 s), mid-clause vs boundary | word timestamps |
+| Repetition | "I I think", "the the city" | adjacent identical 1-3-grams |
+| False start / abandoned utterance | "I went to the- Actually my hometown is…" | cut-off (partial word or hyphen in verbatim ASR), clause restarted without completion |
+| Revision / self-repair (restart) | "he go- he goes", "on Monday- on Tuesday" | reparandum → optional editing term ("I mean", "sorry", "no") → repair |
+| Partial word / cut-off | "sh- she", "beau- beautiful" | verbatim ASR partial tokens, very short word durations |
+| Prolongation (optional) | "sooo", "theee" | word duration outlier vs syllable count |
+
+Pipeline:
+1. **Verbatim STT** (chosen by the STT bake-off: model that keeps fillers, repetitions, partial words and learner grammar, with word timestamps).
+2. **Rule tagger** in `packages/core/src/speech.ts` over timestamped verbatim words: fillers, repetitions, partial words, editing terms, silent/voiced pauses; candidate reparandum/repair spans.
+3. **LLM tagger** (text-only, cheap model, strict JSON): given the indexed verbatim transcript, label false starts and revisions as `{type, reparandum:[i,j], interregnum:[i,j]|null, repair:[i,j]|null}`. Merged with rule tags (union by span; rule tags win on overlap). Optional audio-LLM pass adds events the ASR missed.
+4. **Clean transcript** (disfluencies removed) is used for grammar and lexis scoring, so learners are not penalised twice. The **verbatim transcript** is used for fluency.
+5. **Metrics:** counts and rates per minute and per 100 words for each type, mean length of run, and the share of mid-clause pauses. These feed the fluency composite and the Fluency & Coherence score. Repairs that fix a real error count as positive self-monitoring (band 7 descriptor: "some hesitation, repetition and/or self-correction" that does not affect coherence), not as errors.
+6. **UI:** colour-coded chips in the transcript for each type, with a hover or tap label ("false start", "self-correction: he go → he goes"). A disfluency timeline under the audio. A per-type breakdown in the Fluency tab with explanations and the "normal vs affects coherence" guidance. The same on iOS.
+7. **Validation:** a test set of scripted disfluent clips with a known reference annotation. Report recall and precision per type; target ≥ 0.8 recall for fillers, repetitions and false starts.
+
 ## 6. Analysis result schema (shared, versioned `v: 1`)
 
 ```ts

@@ -32,3 +32,18 @@ export const writingLlm = (quote: string) => ({
   vocabUpgrades: [],
   rewrite: 'Better essay.',
 });
+
+const reply = (content: unknown) => new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: JSON.stringify(content) } }] }), { headers: { 'Content-Type': 'application/json' } });
+export const criterionScore = (band: number, o: { injection?: boolean } = {}) =>
+  ({ placement: { closest: '', relation: 'similar' as const }, checks: [], evidence: ['people has'], descriptor: `band ${band} phrase`, summary: 'Next band up.', injection: o.injection ?? false, band });
+/** Fake /chat/completions for writing: scoring calls ("writing_scores") get the criteria their request lists at band(key, n) for the n-th scoring call; any other call gets `feedback`. */
+export function writingChat(band: (key: string, n: number) => number = () => 6, feedback: unknown = writingLlm('people has')) {
+  let n = 0;
+  return (_: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    if (body.response_format?.json_schema?.name !== 'writing_scores') return reply(feedback);
+    const user = body.messages[1].content, text: string = typeof user === 'string' ? user : user[0].text;
+    const i = n++;
+    return reply(Object.fromEntries([...text.matchAll(/<criterion id="(\w+)"/g)].map(([, k]) => [k, criterionScore(band(k!, i))])));
+  };
+}

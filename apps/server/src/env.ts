@@ -8,6 +8,8 @@ const Env = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(8787),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
+  // Dev: extra allowed web origins, comma-separated (e.g. a second web dev server).
+  EXTRA_ORIGINS: z.string().default('').transform((s) => s.split(',').map((o) => o.trim()).filter(Boolean)),
   DATABASE_URL: z.string().default('postgres://postgres:ielts@localhost:5433/ielts'),
   BETTER_AUTH_SECRET: secret('test-secret-test-secret-test-secret'),
   BETTER_AUTH_URL: z.string().default('http://localhost:8787'),

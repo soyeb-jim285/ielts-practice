@@ -82,3 +82,30 @@ export function computeTextMetrics(text: string): TextMetrics {
     linkers, linkerOpeningRatio, repeated,
   };
 }
+
+const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const wordTokens = (text: string) => text.split(/\s+/).map(norm).filter(Boolean);
+
+/** Words of `text` inside a word 4-gram that also occurs in `prompt` ("any copied rubric must be discounted", IELTS band descriptors). */
+export function promptOverlap(text: string, prompt: string): number {
+  const p = wordTokens(prompt), t = wordTokens(text), gram = (a: string[], i: number) => a.slice(i, i + 4).join(' ');
+  const grams = new Set(p.slice(0, Math.max(0, p.length - 3)).map((_, i) => gram(p, i)));
+  const copied = new Set<number>();
+  for (let i = 0; i + 4 <= t.length; i++) if (grams.has(gram(t, i))) for (let k = i; k < i + 4; k++) copied.add(k);
+  return copied.size;
+}
+
+// ponytail: fixed regex and function-word list (scoring-research §2.1 step 0); a template/memorised-text detector needs a corpus (out of scope).
+const INJECTION = /\b(ignore (all|any|the|previous|prior|above)\b|as an ai\b|(dear|to the) (grader|examiner|marker|ai)\b|award (me |this )?(a )?band|give (this|me|it) (a )?(band|score)|system prompt|you are (an?|the) (ai|examiner|grader))/i;
+const FUNCTION_WORDS = new Set(('the a an and or but of to in on at for with by from as is are was were be been it this that these those there their they ' +
+  'i you he she we my our your his her its not no do does did have has had can will would should could which who what so if than then more').split(' '));
+
+export type TextFlag = 'injection' | 'language' | 'copied';
+/** Deterministic pre-check flags (lower confidence, wider range): text addressed to the grader, little English, or 10%+ of words copied from the prompt. */
+export function textFlags(text: string, prompt = ''): TextFlag[] {
+  const t = wordTokens(text), flags: TextFlag[] = [];
+  if (INJECTION.test(text)) flags.push('injection');
+  if (t.length && t.filter((w) => FUNCTION_WORDS.has(w)).length / t.length < 0.2) flags.push('language');
+  if (prompt && promptOverlap(text, prompt) * 10 >= t.length) flags.push('copied');
+  return flags;
+}

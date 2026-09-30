@@ -58,6 +58,8 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
       });
+      // The body is read under the same timeout, so a stall mid-body must also become an AiError, not a raw TimeoutError.
+      if (res.ok) res = new Response(await res.arrayBuffer(), res);
     } catch (e) {
       if ((e as Error).name === 'TimeoutError') throw new AiError('timeout', 'The AI service took too long to respond. Please retry.');
       throw new AiError('network', 'Could not reach the AI service. Please retry.');
@@ -74,10 +76,17 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | ContentPart[] };
 
-async function chat(body: Record<string, unknown>, timeoutMs?: number): Promise<string> {
-  const data = (await (await call('/chat/completions', body, timeoutMs)).json()) as { choices?: { message?: { content?: string | null } }[] };
+/** Served model and provider of a chat call (OpenRouter reports which provider answered), and chatJson's output mode. */
+export type Served = { provider?: string; model?: string; mode?: 'json_schema' | 'json_object' };
+
+async function chat(body: Record<string, unknown>, timeoutMs?: number, onServed?: (s: Served) => void): Promise<string> {
+  const data = (await (await call('/chat/completions', body, timeoutMs)).json()) as Served & { choices?: { message?: { content?: string | null } }[] };
+  onServed?.({ provider: data.provider, model: data.model });
   return data.choices?.[0]?.message?.content ?? '';
 }
+
+/** OpenRouter provider routing: pin with { order: [slug], allow_fallbacks: false }; require_parameters refuses providers that would ignore the json_schema. */
+export type ProviderPrefs = { order?: string[]; only?: string[]; allow_fallbacks?: boolean; require_parameters?: boolean; data_collection?: 'allow' | 'deny' };
 
 /** Parses model output that may be fenced or wrapped in prose. */
 function parseJson(s: string): unknown {
@@ -112,7 +121,11 @@ export async function chatJson<T>(o: {
   /** OpenRouter unified reasoning effort; ignored by non-reasoning models. Unset = provider default (medium). */
   effort?: 'low' | 'medium' | 'high';
   timeoutMs?: number;
+  provider?: ProviderPrefs;
+  /** Called with the served provider/model of each attempt (calibration records key on it). */
+  onServed?: (s: Served) => void;
 }): Promise<T> {
+  const schema = toStrictSchema(o.schema);
   const messages: ChatMessage[] = [
     { role: 'system', content: o.system },
     { role: 'user', content: o.user },
@@ -121,10 +134,23 @@ export async function chatJson<T>(o: {
     model: o.model,
     temperature: o.temperature ?? 0.2,
     ...(o.effort && { reasoning: { effort: o.effort } }),
-    response_format: { type: 'json_schema', json_schema: { name: o.schemaName, strict: true, schema: toStrictSchema(o.schema) } },
+    ...(o.provider && { provider: o.provider }),
   };
+  let mode: Served['mode'] = 'json_schema';
   for (let attempt = 0; attempt < 2; attempt++) {
-    const content = await chat({ ...base, messages }, o.timeoutMs);
+    const response_format = mode === 'json_schema' ? { type: 'json_schema', json_schema: { name: o.schemaName, strict: true, schema } } : { type: 'json_object' };
+    let content: string;
+    try {
+      content = await chat({ ...base, response_format, messages }, o.timeoutMs, (s) => o.onServed?.({ ...s, mode }));
+    } catch (e) {
+      // Some providers reject a strict schema they cannot compile (Gemini 3.8 Flash: 400 "invalid argument" on the errors enum array):
+      // fall back to JSON mode with the schema, in field order, in the prompt; zod still validates (scoring-research §2.3).
+      if (!(e instanceof AiError && e.status === 400 && mode === 'json_schema')) throw e;
+      mode = 'json_object';
+      messages[0] = { role: 'system', content: `${o.system}\n\nReturn one JSON object that matches this JSON Schema, with its fields in the order listed:\n${JSON.stringify(schema)}` };
+      attempt--;
+      continue;
+    }
     let issues: string;
     try {
       const r = o.schema.safeParse(parseJson(content));
@@ -158,7 +184,9 @@ type SttResponse = {
 };
 
 // Whisper disfluency-priming prompt (research.md §3): Whisper imitates its style, so disfluent, ungrammatical text keeps um/uh and the speaker's own word forms instead of repairing them.
+// OpenRouter ignores a top-level `prompt` on transcriptions and applies no routing to them: only provider.options[<serving slug>] is forwarded, so the prompt goes to every Whisper host.
 const VERBATIM_PROMPT = 'Umm, let me think, uh... he go... he go there. Uh, she have, um, two book. Hmm, I mean, like, you know.';
+const VERBATIM_PROVIDER = { options: Object.fromEntries(['groq', 'together', 'deepinfra', 'deepinfra/us'].map((slug) => [slug, { prompt: VERBATIM_PROMPT }])) };
 const bare = (s: string) => s.toLowerCase().replace(/[^a-z0-9']/g, '');
 
 /** Word timestamps come without punctuation; copy trailing punctuation back from the full text so clause boundaries survive. */
@@ -177,20 +205,46 @@ export function punctuate(words: { w: string }[], text: string) {
   }
 }
 
-export async function transcribe(o: { model: string; audio: Uint8Array; format: 'webm' | 'm4a' | 'wav' | 'mp3' | 'ogg' }): Promise<{ text: string; words: SttWord[]; duration: number }> {
+const FILLER = /^(u+m+|u+h+|e+r+m*|a+h+|h+m+|m+)$/;
+const grams = (t: string[], n: number) => t.slice(0, Math.max(0, t.length - n + 1)).map((_, i) => t.slice(i, i + n).join(' '));
+const PROMPT_5GRAMS = new Set(grams(VERBATIM_PROMPT.split(/\s+/).map(bare), 5));
+
+/** Prompted Whisper sometimes loops, echoes the prompt or drops a stretch of speech (1 of 6 TTS clips, reproducibly, in .eval/4/speaking).
+ *  The verbatim transcript is kept only when its non-filler word count is close to the unprompted one, no 2-6 word phrase repeats 3+ times
+ *  in a row (a single word 4+ times) and no 5 words of the prompt appear. */
+export function verbatimSane(verbatim: string[], plain: string[]) {
+  const v = verbatim.map(bare).filter(Boolean), content = (t: string[]) => t.filter((w) => !FILLER.test(w)).length;
+  const ratio = content(v) / Math.max(1, content(plain.map(bare).filter(Boolean)));
+  if (ratio < 0.85 || ratio > 1.3) return false;
+  const loops = (n: number, times: number) => v.some((_, i) => i + n * times <= v.length && Array.from({ length: times }, (_, k) => v.slice(i + k * n, i + k * n + n).join(' ')).every((g, _k, all) => g === all[0]));
+  if (loops(1, 4) || [2, 3, 4, 5, 6].some((n) => loops(n, 3))) return false;
+  return !grams(v, 5).some((g) => PROMPT_5GRAMS.has(g));
+}
+
+type Format = 'webm' | 'm4a' | 'wav' | 'mp3' | 'ogg';
+async function stt(o: { model: string; audio: Uint8Array; format: Format }, extra?: object) {
   const res = await call(
     '/audio/transcriptions',
     {
       model: o.model,
       input_audio: { data: Buffer.from(o.audio).toString('base64'), format: o.format },
       language: 'en',
-      prompt: VERBATIM_PROMPT,
       response_format: 'verbose_json',
       timestamp_granularities: ['word', 'segment'],
+      ...extra,
     },
     120_000,
   );
-  const d = (await res.json()) as SttResponse;
+  return (await res.json()) as SttResponse;
+}
+
+/** `verbatim`: for Whisper models, also runs a disfluency-primed pass (in parallel) and keeps it when verbatimSane; `verbatim` in the result says which was used. */
+export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean }> {
+  const primed = o.verbatim && /whisper/.test(o.model);
+  const [plain, v] = await Promise.all([stt(o), primed ? stt(o, { provider: VERBATIM_PROVIDER }).catch(() => undefined) : undefined]);
+  const toks = (d: SttResponse) => (d.words ?? []).map((w) => w.word);
+  const verbatim = !!v && verbatimSane(toks(v), toks(plain));
+  const d = verbatim ? v! : plain;
   // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
   // ponytail: segment-level, so a poorly recognised segment flags all its words; the audio pronunciation pass is the precise signal.
   const segConf = (t: number) => {
@@ -201,7 +255,7 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
     .filter((w) => w.word.trim())
     .map((w) => ({ w: w.word.trim(), start: w.start, end: w.end, conf: w.confidence ?? w.probability ?? segConf(w.start) }));
   if (d.text) punctuate(words, d.text);
-  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0 };
+  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim };
 }
 
 /** 44-byte RIFF header around raw s16le PCM so browsers and AVPlayer can play it. */

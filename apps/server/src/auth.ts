@@ -15,7 +15,7 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: 'pg', schema }),
-  trustedOrigins: [env.WEB_ORIGIN, env.BETTER_AUTH_URL],
+  trustedOrigins: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS],
   // Web: session + user come from a signed cookie for 5 min instead of two DB lookups per request.
   session: { cookieCache: { enabled: true, maxAge: 300 } },
   emailAndPassword: {

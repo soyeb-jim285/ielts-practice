@@ -53,6 +53,12 @@ export type AnalysisResult = {
   overall: number; // rounded band
   overallRaw: number;
   range: [number, number];
+  /** false: no validated calibration record for this model and prompt (scoring-research §2.4), so the range is ±1 band and the UI says so. Absent on older analyses. */
+  calibrated?: boolean;
+  /** Conformal half-width of `range` before flag/disagreement widening. */
+  q?: number;
+  /** Deterministic pre-check flags (injection, language, copied): lower confidence, wider range. */
+  flags?: ('injection' | 'language' | 'copied')[];
   criteria: Partial<Record<CriterionKey, Criterion>>;
   topFixes: Fix[]; // exactly 3 (0 when noSpeech / too short)
   errors: AnalysisError[];

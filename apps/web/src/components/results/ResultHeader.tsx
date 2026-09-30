@@ -27,6 +27,9 @@ export function ResultHeader({ result, title, meta, target, actions, children }:
         </div>
         <div className="space-y-1.5 pb-1.5">
           {result.overall > 0 && <Badge tone="neutral">likely {formatRange([Math.max(result.range[0], result.overall - 1), Math.min(result.range[1], result.overall + 1)])}</Badge>}
+          {result.overall > 0 && result.calibrated === false && (
+            <Badge tone="warn" title="Estimated with an unvalidated model: scores may be off by about a band.">uncalibrated</Badge>
+          )}
           <p className="text-xs text-muted tabular-nums" title={`Average of the four criteria before IELTS rounding: ${result.overallRaw.toFixed(2)}`}>
             {VERDICT[tone]} ({formatBand(target)})
           </p>

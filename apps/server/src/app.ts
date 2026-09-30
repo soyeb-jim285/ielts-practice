@@ -21,7 +21,7 @@ export function createApp() {
 
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
-  app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL], credentials: true, exposeHeaders: ['set-auth-token'] }));
+  app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS], credentials: true, exposeHeaders: ['set-auth-token'] }));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => {
     if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password)/.test(c.req.path)) clearBearerCache();
     return auth.handler(c.req.raw);

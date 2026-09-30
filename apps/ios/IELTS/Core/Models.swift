@@ -292,6 +292,7 @@ struct AnalysisResult: Decodable {
     let overall: Double
     let overallRaw: Double
     let range: [Double]
+    let calibrated: Bool? // false: unvalidated model, range ±1 band; absent on older analyses
     let criteria: [String: Criterion]
     let topFixes: [Fix]
     let errors: [AnalysisError]

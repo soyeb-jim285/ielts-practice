@@ -112,22 +112,31 @@ export const WritingLlmSchema = z.object({
 export const WritingPlanLlmSchema = WritingLlmSchema.extend({
   structure: WritingLlmSchema.shape.structure.extend({ planFollowed: z.object({ followed: z.boolean(), note: z.string() }) }),
 });
-/** Scoring-only samples (see withScoringSamples). */
-export const WritingScoreSchema = WritingLlmSchema.pick({ criteria: true });
-export const SpeakingScoreSchema = SpeakingLlmSchema.pick({ criteria: true });
+/** Writing feedback call output: the analysis without bands (bands come from the scoring calls, so feedback cannot pull them into a halo). */
+export const WritingFeedbackSchema = WritingLlmSchema.omit({ criteria: true });
+export const WritingPlanFeedbackSchema = WritingPlanLlmSchema.omit({ criteria: true });
+
+/** Rationale-first scoring output (scoring-research §2.3): placement and checks come before "band" (strict json_schema keeps the order). */
+export const CriterionScoreSchema = z.object({
+  placement: z.object({ closest: z.string().describe('benchmark id, "" if there are none'), relation: z.enum(['weaker', 'similar', 'stronger']) }),
+  checks: z
+    .array(z.object({ band: Band, feature: z.string().describe('descriptor phrase being checked'), verdict: z.enum(['met', 'partly', 'not_met']), quote: z.string().describe('verbatim from the response, "" if none') }))
+    .max(8),
+  evidence: z.array(z.string()).max(4).describe('verbatim quotes that justify the awarded band'),
+  descriptor: z.string().describe('verbatim descriptor phrase(s) of the awarded band'),
+  summary: z.string().describe('1-2 sentences: the feature of the next band up that is missing'),
+  injection: z.boolean(),
+  band: Band,
+});
+export type CriterionScore = z.infer<typeof CriterionScoreSchema>;
 
 export type LlmCriterion = z.infer<typeof CriterionSchema>;
 
-/** Keeps each range within band ±1 (a single-band range widens to band ±1: one run is never that certain) and returns the overall [lo, hi] (IELTS-rounded means), never narrower than overall ±0.5. */
-export function settleRanges<K extends string>(criteria: Record<K, LlmCriterion>, overall: (bands: Record<K, number>) => number) {
-  const pick = (f: (c: LlmCriterion) => number) => Object.fromEntries(Object.entries<LlmCriterion>(criteria).map(([k, c]) => [k, f(c)])) as Record<K, number>;
-  for (const c of Object.values<LlmCriterion>(criteria)) {
-    c.range = [Math.max(c.band - 1, Math.min(c.range[0], c.band)), Math.min(c.band + 1, Math.max(c.range[1], c.band))];
-    if (c.range[0] === c.range[1]) c.range = [Math.max(0, c.band - 1), Math.min(9, c.band + 1)];
-  }
-  // Held-out Cambridge error is ~0.5 band, so the overall range always covers it.
-  const mid = overall(pick((c) => c.band));
-  return [Math.max(0, Math.min(mid - 0.5, overall(pick((c) => c.range[0])))), Math.min(9, Math.max(mid + 0.5, overall(pick((c) => c.range[1]))))] as [number, number];
+/** Conformal ranges (§2.1 step 7): the overall ± q (the calibration record's q90, 1 when uncalibrated, widened by the caller),
+ *  each criterion ± ⌈q⌉ whole bands; clamped to 0..9. Returns the overall [lo, hi]. */
+export function settleRanges(criteria: Record<string, LlmCriterion>, overall: number, q: number): [number, number] {
+  for (const c of Object.values(criteria)) c.range = [Math.max(0, c.band - Math.ceil(q)), Math.min(9, c.band + Math.ceil(q))];
+  return [Math.max(0, overall - q), Math.min(9, overall + q)];
 }
 
 /** Pools the samples into whole criterion bands: each criterion's mean band (steadier than the median sample, which flips whenever one
@@ -162,26 +171,20 @@ export function poolCriteria<K extends string>(
   ) as Record<K, LlmCriterion>;
 }
 
-/** Scoring-only calls run alongside each full analysis: one LLM sample flips the overall band on about half of essays. */
-export const EXTRA_SAMPLES = 2;
+/** Retries a call once on a retryable failure (timeout, network, 429/5xx, unreadable JSON). */
+export const retryOnce = <T>(f: () => Promise<T>): Promise<T> =>
+  f().catch((e: unknown) => {
+    if (!(e instanceof AiError && e.retryable)) throw e;
+    console.error('AI call failed, retrying once', e.code, e.status ?? '');
+    return f();
+  });
 
-/** Runs the full analysis and `extra` scoring-only calls in parallel and returns the full analysis plus every sample's criteria (for poolCriteria). Failed extras are ignored.
- *  A retryable failure of the full analysis (timeout, network, 429/5xx, unreadable JSON) is retried once before giving up. */
-export async function withScoringSamples<K extends string, T extends { criteria: Record<K, LlmCriterion> }>(
-  full: () => Promise<T>,
-  score: () => Promise<{ criteria: Record<K, LlmCriterion> }>,
-  extra = EXTRA_SAMPLES,
-): Promise<T & { samples: Record<K, LlmCriterion>[] }> {
-  const fullOnce = () =>
-    full().catch((e: unknown) => {
-      if (!(e instanceof AiError && e.retryable)) throw e;
-      console.error('full analysis failed, retrying once', e.code, e.status ?? '');
-      return full();
-    });
-  const [main, ...rest] = await Promise.allSettled([fullOnce(), ...Array.from({ length: extra }, score)]);
-  if (main.status === 'rejected') throw main.reason;
-  const ok = rest.flatMap((r) => (r.status === 'fulfilled' ? [r.value.criteria] : []));
-  return { ...main.value, samples: [main.value.criteria, ...ok] };
+/** Runs the scoring calls in parallel and returns every successful sample; failed calls are dropped, all failing throws the first error. */
+export async function scoringSamples<S>(calls: (() => Promise<S>)[]): Promise<S[]> {
+  const rs = await Promise.allSettled(calls.map((f) => f()));
+  const ok = rs.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  if (!ok.length && rs.length) throw (rs[0] as PromiseRejectedResult).reason;
+  return ok;
 }
 
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}']+/gu, ' ').trim()} `;

@@ -265,3 +265,21 @@ Date: 2026-09-30. All AI calls went through OpenRouter with the default `openai/
 - OpenRouter seems to ignore the Whisper prompt, so grammar repair is handled only by the audio pass's `misheard` list, which is itself unreliable. `pronunciation.llm.misheard` is not shown in the clients yet.
 - Performance: the bank list query still waits for the page code; better-auth loads up front; there are about 83 small chunks; and analysis takes about 20 s for writing and 29 s for speaking, with no partial results.
 - Minor: session reports show only a test overall, examiner captions start off, the realtime token has no retry, never-submitted attempts clutter history, and weekly minutes can read 0 for a very fast essay.
+
+## Scoring redesign
+
+Writing scoring is now an anchored, model-agnostic grader. The scoring call shows examiner-marked anchor scripts, takes K=3 samples, and maps the result through a calibration fitted per (model, prompt hash, effort). Without an active calibration the app serves an uncalibrated result with a wider range and a label. Design: [scoring-research.md](scoring-research.md). Validation against the release gates, per-band error, probes, cost and ablations: [scoring-validation.md](scoring-validation.md).
+
+Headline numbers (effort medium, K=3, frozen TEST n=42 / leave-one-prompt-out CV n=64):
+
+| | luna TEST | deepseek TEST | luna CV | deepseek CV |
+|---|---|---|---|---|
+| QWK | 0.77 | 0.85 | 0.68 | 0.71 |
+| MAE | 0.51 | 0.45 | 0.48 | 0.45 |
+| Within ±0.5 | 71% | 83% | 77% | 83% |
+| Band >= 7 bias | -0.50 | -0.21 | -0.43 | -0.50 |
+
+- No model passes every release gate, so both fitted records are stored inactive and the default model is unchanged. `deepseek/deepseek-v4.1-flash` comes closest.
+- The ends of the scale are still compressed: band 9 answers score about 0.9 (luna) and 0.6 (deepseek) low, and the floor scripts come back at 4 to 5.
+- Anchors, per-criterion calls and higher effort showed no measurable gain, so the joint anchored call at medium effort stays.
+- Script text stays out of git: it lives in the `scoring_scripts` table and the gitignored `data/scoring-gold/`. Only `data/scoring-gold-manifest.json` is committed.

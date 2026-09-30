@@ -242,6 +242,7 @@ struct AttemptResultView: View {
                 HStack {
                     if r.range.count == 2 { Chip(text: "likely \(Band.format(r.range[0]))–\(Band.format(r.range[1]))", color: .brand) }
                     Chip(text: "raw \(fmt(r.overallRaw, 2))")
+                    if r.calibrated == false { Chip(text: "uncalibrated", color: .warn).accessibilityHint("Estimated with an unvalidated model: scores may be off by about a band.") }
                     if attempt.overtime == true { Chip(text: "overtime", color: .warn) }
                     if r.tooShort == true { Chip(text: "under word limit", color: .bad) }
                 }

@@ -15,6 +15,13 @@
       "when": 1790750988381,
       "tag": "0001_perf_indexes_retryable",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790765653384,
+      "tag": "0002_scoring_gold",
+      "breakpoints": true
     }
   ]
 }

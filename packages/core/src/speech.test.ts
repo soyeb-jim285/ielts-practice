@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { computeSpeechMetrics, type Word } from './speech';
+import { cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PROVISIONAL_FLUENCY_NORMS, type Word } from './speech';
 const mk = (a: [string, number, number, number?][]): Word[] => a.map(([w, start, end, conf]) => ({ w, start, end, conf }));
 it('detects short and long pauses, mid-clause flag', () => {
   const m = computeSpeechMetrics(mk([['I', 0, 0.2], ['love', 0.25, 0.5], ['the', 0.9, 1.0], ['city.', 1.1, 1.5], ['It', 2.8, 3.0]]), { durationS: 3 });
@@ -58,4 +58,38 @@ it('lexical profile: mtld, ttr, less-common %, overused', () => {
   expect(m.lexical!.lessCommonPct).toBeCloseTo(35.7); // commuting ×4 + exhausting of 14
   expect(m.lexical!.ttr).toBeCloseTo(0.79);
   expect(m.lexical!.mtld).toBeGreaterThan(0);
+});
+it('fuses disfluencies by time: same-kind events within 0.3 s count once, sources merged', () => {
+  const energy = Array.from({ length: 80 }, (_, i) => (i >= 20 && i < 40 ? 120 : 150)); // voiced gap 1.0-2.0 s
+  const m = computeSpeechMetrics(mk([['I', 0, 0.3], ['um', 0.4, 0.6], ['went', 0.7, 1.0], ['home', 2.0, 2.3], ['home', 2.35, 2.6]]), { durationS: 4, energy, frameMs: 50, voiceThreshold: 60 });
+  expect(m.fillers.map(f => f.kind)).toEqual(['lexical', 'voiced']);
+  const ev = fuseDisfluencies(m, { filledPauses: [0.5, 1.6, 3.5], repetitions: [2.1], falseStarts: [3.0] });
+  expect(ev.map(e => [e.kind, e.start, e.sources.join('+')])).toEqual([
+    ['filled', 0.4, 'stt+audio'], // lexical "um" and the audio model's 0.5 s
+    ['filled', 1.0, 'voiced+audio'], // audio 1.6 s falls inside the voiced gap
+    ['repetition', 2.0, 'stt+audio'],
+    ['repair', 3.0, 'audio'],
+    ['filled', 3.5, 'audio'], // only the audio model heard it
+  ]);
+  expect(fuseDisfluencies(m).length).toBe(3); // without the audio model: um, voiced gap, "home home"
+  const f = fluencyFeatures(m, ev);
+  expect(f.filledPausesPerMin).toBeCloseTo(3 / (4 / 60));
+  expect(f.repairsPer100w).toBeCloseTo(100 / m.wordCount);
+  expect(f.repetitionsPer100w).toBeCloseTo(100 / m.wordCount);
+});
+it('fluency composite: fixed signs, band-5/7 reference profiles map to 5/7, extremes clamp', () => {
+  const at = (x: 'mu' | 'lo' | 'hi') => Object.fromEntries(Object.entries(PROVISIONAL_FLUENCY_NORMS).map(([k, n]) => [k, x === 'mu' ? n.mu : n.mu + (x === 'hi' ? 1 : -1) * n.sd])) as any;
+  expect(fluencyComposite({ ...at('mu'), repetitionsPer100w: 0 })).toBeCloseTo(0);
+  const b7 = { speechRate: 140, mlr: 9, filledPausesPerMin: 4, pauseRatio: 0.2, longPausesPerMin: 2, midClausePausesPerMin: 2, repairsPer100w: 1.5, repetitionsPer100w: 9 };
+  const b5 = { speechRate: 95, mlr: 4.5, filledPausesPerMin: 10, pauseRatio: 0.35, longPausesPerMin: 6, midClausePausesPerMin: 6, repairsPer100w: 4, repetitionsPer100w: 0 };
+  expect([fluencyBand(fluencyComposite(b7)), fluencyBand(fluencyComposite(b5))]).toEqual([7, 5]); // repetitions are not in the composite
+  expect(fluencyComposite({ ...b7, mlr: 1000 })).toBeCloseTo((6 + 3) / 7); // one extreme feature clamps at z = 3
+  expect(fluencyComposite({ ...b7, filledPausesPerMin: 30 })).toBeLessThan(fluencyComposite(b7)); // more fillers, less fluent
+  expect(fluencyBand(50)).toBe(9);
+});
+it('cleanTranscript drops fillers, the first copy of repetitions and self-correction reparanda', () => {
+  // "it take" is abandoned: 0.5 s pause, then "it took"
+  const words = mk('um he say he say it it take it took you know a kind of long time'.split(' ').map((w, i) => [w, i * 0.3 + (i >= 8 ? 0.5 : 0), i * 0.3 + 0.25 + (i >= 8 ? 0.5 : 0)]));
+  const m = computeSpeechMetrics(words, { durationS: 6 });
+  expect(cleanTranscript(words, m).map(w => w.w).join(' ')).toBe('he say it took a kind of long time');
 });

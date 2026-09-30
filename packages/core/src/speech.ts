@@ -18,6 +18,7 @@ export function computeSpeechMetrics(
 ): SpeechMetrics {
   // Trim stretched words to their expected length and expose the rest as a gap before them.
   // ponytail: the hidden gap may really sit after the word; placing it before only shifts which clause edge it touches.
+  const orig = words; // events keep the transcript's start times, which the audio model's disfluency times align to
   words = words.map((w, i) => {
     const expected = S_PER_LETTER * w.w.replace(/[^a-z]/gi, '').length;
     if (i === 0 || w.end - w.start <= Math.max(STRETCH_MIN_S, 2 * expected)) return w;
@@ -52,13 +53,13 @@ export function computeSpeechMetrics(
   const isFillerAt = new Array<boolean>(n).fill(false);
   for (let i = 0; i < n; i++) {
     if (i + 1 < n && BIGRAM_FILLERS.has(`${norm[i]} ${norm[i + 1]}`)) {
-      fillers.push({ word: `${norm[i]} ${norm[i + 1]}`, time: words[i]!.start, kind: 'lexical' });
+      fillers.push({ word: `${norm[i]} ${norm[i + 1]}`, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = isFillerAt[i + 1] = true;
       i++;
     } else if (SINGLE_FILLERS.has(norm[i]!)) {
       // "like" is only a filler when a pause sits next to it; otherwise it's a verb/preposition.
       if (norm[i] === 'like' && gapBefore(i) * 1000 < PAUSE_MS && gapBefore(i + 1) * 1000 < PAUSE_MS) continue;
-      fillers.push({ word: norm[i]!, time: words[i]!.start, kind: 'lexical' });
+      fillers.push({ word: norm[i]!, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = true;
     }
   }
@@ -76,7 +77,7 @@ export function computeSpeechMetrics(
       if (!clean(i, i + 2 * len)) continue;
       const a = norm.slice(i, i + len).join(' ');
       if (a !== norm.slice(i + len, i + 2 * len).join(' ')) continue;
-      repetitions.push({ phrase: a, time: words[i]!.start, wordIdx: i });
+      repetitions.push({ phrase: a, time: orig[i]!.start, wordIdx: i });
       i += len - 1; // loop's i++ completes the skip of n
       break;
     }
@@ -89,7 +90,7 @@ export function computeSpeechMetrics(
     for (let j = i + 2; j <= i + 4 && j < n; j++) {
       if (norm[i] !== norm[j] || norm[i + 1] === norm[j + 1] || !clean(i, i + 2) || !clean(j, j + 1) || (j + 1 < n && isFillerAt[j + 1])) continue;
       if (gapBefore(j) * 1000 < PAUSE_MS && !isFillerAt[j - 1]) continue;
-      selfCorrections.push({ time: words[j]!.start, wordIdx: j });
+      selfCorrections.push({ time: orig[j]!.start, wordIdx: j });
       i = j - 1; // loop's i++ lands on j
       break;
     }
@@ -134,4 +135,84 @@ export function computeSpeechMetrics(
     wpmStdDev,
     lexical: lexicalProfile(tokenize(spoken.map(w => w.w).join(' '))),
   };
+}
+
+/** Timed disfluency event after fusion; `sources` says which detectors saw it (stt = transcript tokens, voiced = energy in a gap, audio = audio model). */
+export type Disfluency = { kind: 'filled' | 'repetition' | 'repair'; start: number; end: number; sources: ('stt' | 'voiced' | 'audio')[] };
+export type AudioDisfluencies = { filledPauses: number[]; repetitions: number[]; falseStarts: number[] };
+
+/** Union by time of the three disfluency detectors, each of which under-counts (Whisper drops "um"s, the audio model misses some, energy is crude):
+ *  same-kind events within `tol` s (the audio model's timing error) are one event. Repairs = self-corrections + false starts. */
+export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, tol = 0.3): Disfluency[] {
+  const gapEnd = (t: number) => m.pauses.find(p => p.start === t)?.end ?? t;
+  const ev: Disfluency[] = [
+    ...m.fillers.map((f): Disfluency => (f.kind === 'voiced' ? { kind: 'filled', start: f.time, end: gapEnd(f.time), sources: ['voiced'] } : { kind: 'filled', start: f.time, end: f.time, sources: ['stt'] })),
+    ...m.repetitions.map((r): Disfluency => ({ kind: 'repetition', start: r.time, end: r.time, sources: ['stt'] })),
+    ...m.selfCorrections.map((s): Disfluency => ({ kind: 'repair', start: s.time, end: s.time, sources: ['stt'] })),
+    ...([['filled', audio?.filledPauses], ['repetition', audio?.repetitions], ['repair', audio?.falseStarts]] as const).flatMap(([kind, ts]) =>
+      (ts ?? []).map((t): Disfluency => ({ kind, start: t, end: t, sources: ['audio'] })),
+    ),
+  ].sort((a, b) => a.start - b.start);
+  const out: Disfluency[] = [];
+  for (const e of ev) {
+    const same = out.findLast(o => o.kind === e.kind);
+    if (same && e.start <= same.end + tol) {
+      same.end = Math.max(same.end, e.end);
+      for (const s of e.sources) if (!same.sources.includes(s)) same.sources.push(s);
+    } else out.push({ ...e, sources: [...e.sources] });
+  }
+  return out;
+}
+
+/** de Jong timing features plus fused disfluency rates (per minute of recording / per 100 spoken words). */
+export type FluencyFeatures = {
+  speechRate: number; mlr: number; pauseRatio: number; longPausesPerMin: number; midClausePausesPerMin: number;
+  filledPausesPerMin: number; repetitionsPer100w: number; repairsPer100w: number;
+};
+export function fluencyFeatures(m: SpeechMetrics, events: Disfluency[]): FluencyFeatures {
+  const mins = Math.max(m.durationS, 1) / 60, per100 = 100 / Math.max(m.wordCount, 1);
+  const n = (k: Disfluency['kind']) => events.filter(e => e.kind === k).length;
+  return {
+    speechRate: m.speechRate, mlr: m.mlr, pauseRatio: m.pauseRatio,
+    longPausesPerMin: m.longPauses / mins, midClausePausesPerMin: m.midClausePauses / mins,
+    filledPausesPerMin: n('filled') / mins, repetitionsPer100w: n('repetition') * per100, repairsPer100w: n('repair') * per100,
+  };
+}
+
+/** Fixed signs from the literature (arXiv 2608.26137; de Jong et al. 2021): higher is more fluent. Articulation rate and repetitions are left out. */
+const SIGNS = { mlr: 1, pauseRatio: -1, speechRate: 1, longPausesPerMin: -1, midClausePausesPerMin: -1, filledPausesPerMin: -1, repairsPer100w: -1 } as const;
+export type FluencyNorms = Record<keyof typeof SIGNS, { mu: number; sd: number }>;
+// ponytail: provisional two-point norms from the docs/research.md §3 heuristics (band 5 ≈ 95 wpm, MLR 4.5, 10 fillers/min; band 7 ≈ 140 wpm, MLR 9,
+// 4 fillers/min; the pause and repair profiles are our guesses): mu = midpoint, sd = half the gap, so the band-5 profile scores -1 and band 7 +1.
+// Not measured data; re-norm on ICNALE / labelled speaking data before letting the composite drive FC (scoring-research §3.1, §7.2 item 7).
+const B5 = { mlr: 4.5, pauseRatio: 0.35, speechRate: 95, longPausesPerMin: 6, midClausePausesPerMin: 6, filledPausesPerMin: 10, repairsPer100w: 4 };
+const B7 = { mlr: 9, pauseRatio: 0.2, speechRate: 140, longPausesPerMin: 2, midClausePausesPerMin: 2, filledPausesPerMin: 4, repairsPer100w: 1.5 };
+export const PROVISIONAL_FLUENCY_NORMS = Object.fromEntries(
+  (Object.keys(SIGNS) as (keyof typeof SIGNS)[]).map(k => [k, { mu: (B5[k] + B7[k]) / 2, sd: Math.abs(B7[k] - B5[k]) / 2 }]),
+) as FluencyNorms;
+
+/** F = mean of signed z-scores (each clamped to ±3 so one extreme feature cannot dominate). */
+export function fluencyComposite(f: FluencyFeatures, norms: FluencyNorms = PROVISIONAL_FLUENCY_NORMS) {
+  const ks = Object.keys(SIGNS) as (keyof typeof SIGNS)[];
+  return ks.reduce((s, k) => s + SIGNS[k] * Math.max(-3, Math.min(3, (f[k] - norms[k].mu) / norms[k].sd)), 0) / ks.length;
+}
+/** Provisional map fluencyBand = 6 + F (band 5 and 7 profiles at F = ∓1), IELTS half-band steps within 0-9. Uncalibrated. */
+export const fluencyBand = (F: number) => Math.min(9, Math.max(0, Math.round((6 + F) * 2) / 2));
+
+/** Transcript for rating LR and GRA (Speak & Improve style): drops lexical fillers, the first copy of each repetition and the abandoned words
+ *  before each self-correction, so a repair counts once, under fluency. Keeps "kind of"/"sort of", which are grammatical in most uses. */
+export function cleanTranscript(words: Word[], m: SpeechMetrics): Word[] {
+  const drop = new Set<number>();
+  const norm = words.map(w => w.w.toLowerCase().replace(/[^a-z']/g, ''));
+  for (const f of m.fillers) {
+    if (f.kind !== 'lexical' || f.word === 'kind of' || f.word === 'sort of') continue;
+    const i = words.findIndex(w => Math.abs(w.start - f.time) < 1e-6);
+    for (let k = 0; i >= 0 && k < f.word.split(' ').length; k++) drop.add(i + k);
+  }
+  for (const r of m.repetitions) for (let k = 0; k < r.phrase.split(' ').length; k++) drop.add(r.wordIdx + k);
+  for (const { wordIdx: j } of m.selfCorrections) {
+    const i = [j - 4, j - 3, j - 2].find(k => k >= 0 && norm[k] === norm[j]); // the restart repeats the abandoned phrase's first word
+    for (let k = i ?? j; k < j; k++) drop.add(k);
+  }
+  return words.filter((_, i) => !drop.has(i));
 }

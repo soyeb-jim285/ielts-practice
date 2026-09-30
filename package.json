@@ -8,6 +8,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
+    "eval:scoring": "pnpm -F @ielts/server exec tsx --env-file-if-exists=../../.env ../../scripts/eval-scoring.ts",
     "gen:api": "pnpm -F @ielts/server exec tsx ../../scripts/export-openapi.ts && pnpm dlx --package=openapi-typescript@7.13.0 --package=typescript@5.9 openapi-typescript apps/web/src/openapi.json -o apps/web/src/lib/schema.d.ts"
   },
   "devDependencies": {

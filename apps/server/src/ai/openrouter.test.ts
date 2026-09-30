@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { chatReply, fakeFetch, json } from '../test/helpers';
-import { AiError, chatJson, punctuate, setFetch, speak, toStrictSchema, transcribe } from './openrouter';
+import { AiError, chatJson, punctuate, setFetch, speak, toStrictSchema, transcribe, verbatimSane } from './openrouter';
 
 const schema = z.object({ band: z.number().int(), range: z.tuple([z.number(), z.number()]) });
 const ask = () => chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x' });
@@ -48,7 +48,7 @@ it('retries once on 503, then succeeds; gives up after a second failure', async 
   expect(f.calls).toHaveLength(2);
 });
 
-it('transcribe: maps words, falls back to segment confidence, restores punctuation, primes verbatim fillers', async () => {
+it('transcribe: maps words, falls back to segment confidence, restores punctuation', async () => {
   const f = fakeFetch({
     '/audio/transcriptions': () =>
       json({
@@ -71,7 +71,35 @@ it('transcribe: maps words, falls back to segment confidence, restores punctuati
   expect(r.words.map((w) => w.w)).toEqual(['Hello', 'there,', 'friend.', 'It', 'was', 'big.']);
   // per-word probability wins; otherwise the segment's mean token probability (exp avg_logprob)
   expect(r.words.map((w) => w.conf)).toEqual([0.9, 0.5, 0.7, 0.5, 0.5, 0.5]);
-  expect(f.calls[0]!.body).toMatchObject({ input_audio: { data: 'AQID', format: 'webm' }, response_format: 'verbose_json', prompt: expect.stringContaining('uh') });
+  expect(f.calls[0]!.body).toMatchObject({ input_audio: { data: 'AQID', format: 'webm' }, response_format: 'verbose_json' });
+  expect(f.calls).toHaveLength(1); // not verbatim: one plain pass
+});
+
+it('transcribe verbatim: primes Whisper through provider.options (top-level prompt is ignored), keeps it when sane, else falls back', async () => {
+  const stt = (ws: string[]) => json({ text: ws.join(' '), duration: 3, words: ws.map((word, i) => ({ word, start: i * 0.3, end: i * 0.3 + 0.2 })) });
+  const plain = ['I', 'go', 'there'];
+  const go = (primed: string[]) => {
+    const f = fakeFetch({ '/audio/transcriptions': (_, init) => stt(String(init.body).includes('"provider"') ? primed : plain) });
+    setFetch(f);
+    return transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm', verbatim: true }).then((r) => ({ r, f }));
+  };
+  const { r, f } = await go(['um', 'I', 'go', 'uh', 'there']);
+  expect(r).toMatchObject({ verbatim: true, text: 'um I go uh there' });
+  const primed = f.calls.find((c) => c.body.provider)!.body;
+  expect(primed.prompt).toBeUndefined();
+  expect(primed.provider.options.groq.prompt).toContain('uh');
+  expect(Object.keys(primed.provider.options)).toEqual(expect.arrayContaining(['groq', 'deepinfra/us', 'together']));
+  expect((await go(['I', 'think', 'um', 'I', 'think', 'um', 'I', 'think', 'um'])).r).toMatchObject({ verbatim: false, text: 'I go there' });
+  expect((await transcribe({ model: 'deepgram/nova-3', audio: new Uint8Array([1]), format: 'webm', verbatim: true })).verbatim).toBe(false); // only Whisper is primed
+});
+
+it('verbatimSane: rejects loops, prompt echoes and dropped or invented content', () => {
+  const plain = 'because my father he say it is important for safety so I go to the pool'.split(' ');
+  expect(verbatimSane('um because my father he say he say it is uh important for for safety so I go to the the pool'.split(' '), plain)).toBe(true);
+  expect(verbatimSane('um because my father he say'.split(' '), plain)).toBe(false); // dropped a stretch
+  expect(verbatimSane([...plain, ...'I think um I think um I think um'.split(' ')], plain)).toBe(false); // loop
+  expect(verbatimSane([...plain.slice(0, 12), 'uh', 'she', 'have', 'um', 'two', 'book'], plain)).toBe(false); // prompt echo
+  expect(verbatimSane(['um', 'um', 'um', 'um', ...plain], plain)).toBe(false);
 });
 
 it('punctuate: re-syncs after a word the text spells differently', () => {
@@ -96,6 +124,35 @@ it('transcribe: low segment probability yields unclear words', async () => {
   setFetch(fakeFetch({ '/audio/transcriptions': () => json({ text: 'I like it', duration: 2, words: ['I', 'like', 'it'].map((word, i) => ({ word, start: i * 0.5, end: i * 0.5 + 0.4 })), segments: [{ start: 0, end: 2, avg_logprob: -1.2 }] }) }));
   const r = await transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm' });
   expect(computeSpeechMetrics(r.words, { durationS: 2 }).unclear.map((u) => u.tier)).toEqual([3, 3, 3]);
+});
+
+it('chatJson: a provider that rejects the strict schema (400) gets JSON mode with the schema in the prompt', async () => {
+  const f = fakeFetch({ '/chat/completions': (_, init) => (String(init.body).includes('"json_schema"') ? json({ error: 'invalid argument' }, 400) : chatReply({ band: 6, range: [5, 6] })) });
+  setFetch(f);
+  const served: unknown[] = [];
+  expect(await chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x', onServed: (s) => served.push(s) })).toEqual({ band: 6, range: [5, 6] });
+  expect(f.calls.map((c) => c.body.response_format.type)).toEqual(['json_schema', 'json_object']);
+  expect(f.calls[1]!.body.messages[0].content).toContain('"required":["band","range"]');
+  expect(served).toEqual([{ mode: 'json_object' }]);
+  setFetch(fakeFetch({ '/chat/completions': () => json({ error: 'bad' }, 400) }));
+  await expect(ask()).rejects.toMatchObject({ code: 'http', status: 400 }); // JSON mode rejected too: give up
+});
+
+it('a timeout while reading the body is an AiError timeout, not a raw TimeoutError', async () => {
+  const stalled = new ReadableStream({ start: (c) => c.error(new DOMException('The operation was aborted due to timeout', 'TimeoutError')) });
+  setFetch(fakeFetch({ '/chat/completions': () => new Response(stalled, { status: 200 }) }));
+  await expect(ask()).rejects.toMatchObject({ code: 'timeout' });
+});
+
+it('chatJson: pins the provider when asked and reports the served provider', async () => {
+  const f = fakeFetch({ '/chat/completions': () => json({ provider: 'OpenAI', model: 'openai/gpt-x', choices: [{ message: { content: '{"band":6,"range":[5,6]}' } }] }) });
+  setFetch(f);
+  const served: unknown[] = [];
+  await chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x', provider: { order: ['openai'], allow_fallbacks: false, require_parameters: true }, onServed: (s) => served.push(s) });
+  expect(f.calls[0]!.body.provider).toEqual({ order: ['openai'], allow_fallbacks: false, require_parameters: true });
+  expect(served).toEqual([{ provider: 'OpenAI', model: 'openai/gpt-x', mode: 'json_schema' }]);
+  await ask();
+  expect(f.calls[1]!.body.provider).toBeUndefined();
 });
 
 it('chatJson: sends the reasoning effort when set', async () => {

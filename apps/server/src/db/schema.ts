@@ -160,3 +160,46 @@ export const liveSessions = pgTable('live_sessions', {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => [index('live_sessions_user_idx').on(t.userId)]);
+
+// ---------- Scoring gold set + per-model calibration (docs/scoring-research.md §2.4, §4, §6 P0-4) ----------
+// PRIVATE: Cambridge / ielts.org script text lives only here (loaded by scripts/gold-import.ts), never in git.
+export const scoringScripts = pgTable('scoring_scripts', {
+  id: text('id').primaryKey(), // cam-{book}-{test}-w{task}, ieltsorg-{doc}-{n}, probe-…
+  skill: skillEnum('skill').notNull(),
+  taskFamily: text('task_family').notNull(), // writing: t2 | t1a | t1g; speaking: p1 | p2 | p3 | full
+  role: text('role').notNull(), // anchor | calib | test | probe
+  split: text('split').notNull(), // anchor | calibration | test (probes inherit their base script's split)
+  band: real('band'), // official overall task band; for probes the nominal expected band
+  groupId: text('group_id').notNull(), // task prompt (+ book/doc): CV folds and the anchor/scored split never straddle it
+  prompt: jsonb('prompt').$type<{ slug?: string; title: string; body: string; bullets?: string[]; imageKey?: string; figure?: string; reconstructed?: boolean }>(),
+  text: text('text'), // writing script or speaking transcript
+  audioKey: text('audio_key'),
+  note: text('note'), // short examiner comment
+  expect: jsonb('expect').$type<Record<string, unknown>>(), // probes: { base, kind, level, maxBand, minBand, criterionMin, … }
+  source: text('source').notNull(), // 'Cambridge IELTS 12 p124' | ielts.org URL | 'variant'
+  sha256: text('sha256').notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index('scoring_scripts_skill_split_idx').on(t.skill, t.split, t.role)]);
+
+export const scoringCalibrations = pgTable('scoring_calibrations', {
+  key: text('key').primaryKey(), // sha256(modelId | promptHash | effort | k)
+  skill: skillEnum('skill').notNull(),
+  modelId: text('model_id').notNull(),
+  promptHash: text('prompt_hash').notNull(),
+  effort: text('effort').notNull(),
+  k: integer('k').notNull(),
+  provider: text('provider'),
+  form: text('form').notNull(), // shift | linear | provisional
+  slope: real('slope').notNull(),
+  intercept: real('intercept').notNull(),
+  mLo: real('m_lo'),
+  mHi: real('m_hi'),
+  lambda: real('lambda'),
+  q90: real('q90').notNull(),
+  q95: real('q95'),
+  cv: jsonb('cv').$type<Record<string, unknown>>(),
+  scriptIds: jsonb('script_ids').$type<string[]>().notNull().default([]),
+  active: boolean('active').notNull().default(false),
+  createdAt: createdAt(),
+}, (t) => [index('scoring_calibrations_lookup_idx').on(t.modelId, t.promptHash, t.effort, t.k)]);

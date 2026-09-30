@@ -5,7 +5,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db/client';
 import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema';
 import { setFetch } from './ai/openrouter';
-import { speakingLlm, sttWords, writingLlm } from './ai/fixtures';
+import { speakingLlm, sttWords, writingChat } from './ai/fixtures';
 import type { AnalysisResult } from './ai/types';
 import { recoverStale, runAnalysis } from './jobs';
 import { storage } from './storage';
@@ -21,8 +21,16 @@ async function speakingAttempt(extra: Partial<typeof attempts.$inferInsert> = {}
   return a!;
 }
 
+/** Routes speaking chat calls by schema: feedback, one criterion score per call (bands fc 7, lr 6, gra 6, p 6), else the fixture. */
+const speakingChat = (_: string, init: RequestInit) => {
+  const body = JSON.parse(String(init.body));
+  if (body.response_format?.json_schema?.name !== 'criterion_score') return chatReply(speakingLlm);
+  const band = ({ fc: 7, lr: 6, gra: 6, p: 6 } as Record<string, number>)[body.messages[1].content.match(/<criterion id="(\w+)"/)[1]]!;
+  return chatReply({ checks: [], evidence: [], descriptor: '', summary: '', injection: false, band });
+};
+
 it('speaking: stores analysis + mistakes, marks done, compares with parent', async () => {
-  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(speakingLlm) });
+  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': speakingChat });
   setFetch(f);
   const parent = await speakingAttempt();
   await runAnalysis(parent.id);
@@ -54,7 +62,7 @@ it('writing: uses stored text; a failing AI marks the attempt failed with a read
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'failed', error: expect.stringContaining('retry') });
 
-  setFetch(fakeFetch({ '/chat/completions': () => chatReply(writingLlm('people has')) }));
+  setFetch(fakeFetch({ '/chat/completions': writingChat() }));
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done' });
   const r = (await db.query.analyses.findFirst({ where: eq(analyses.attemptId, a!.id) }))!.result as AnalysisResult;
@@ -75,9 +83,9 @@ it('recoverStale fails attempts analyzing for over 10 min, leaves recent and fin
 });
 
 it('live Part 1 is analysed against the examiner lines of the session; full-test P1 against the 4 asked questions', async () => {
-  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(speakingLlm) });
+  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': speakingChat });
   setFetch(f);
-  const questionsSent = () => JSON.parse(f.calls.findLast((c) => c.url.includes('/chat/completions'))!.body.messages[1].content).questions;
+  const questionsSent = () => JSON.parse(f.calls.findLast((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content).questions;
   const five = ['q1?', 'q2?', 'q3?', 'q4?', 'q5?'];
 
   const a = await speakingAttempt({ mode: 'live', sessionId: crypto.randomUUID() });
@@ -103,7 +111,7 @@ it('writing: an Academic Task 1 figure without chart data is sent to the model a
   await storage.put('cambridge/c1.png', new Uint8Array([1, 2]), 'image/png');
   const text = 'The chart shows how people has travelled to work in three cities between 2000 and 2020, and overall car use rose while bus use fell in every city shown.';
   const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 1, text, status: 'analyzing' }).returning();
-  const f = fakeFetch({ '/models': () => json({ data: [] }), '/chat/completions': () => chatReply(writingLlm('people has')) });
+  const f = fakeFetch({ '/models': () => json({ data: [] }), '/chat/completions': writingChat() });
   setFetch(f);
   await runAnalysis(a!.id);
   const chat = f.calls.find((c) => c.url.includes('/chat/completions'))!.body;
@@ -121,7 +129,7 @@ it('out of AI credit (402): failed, not retryable, candidate-safe message; retry
   const row = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
   expect(row).toMatchObject({ status: 'failed', errorRetryable: false, error: expect.stringContaining('try again later') });
   expect(row!.error).not.toContain('402');
-  setFetch(fakeFetch({ '/chat/completions': () => chatReply(writingLlm('people has')) }));
+  setFetch(fakeFetch({ '/chat/completions': writingChat() }));
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done', errorRetryable: true });
 });
