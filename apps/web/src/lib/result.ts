@@ -1,6 +1,6 @@
 // Result helpers shared by the speaking and writing results pages.
 import { queryOptions } from '@tanstack/react-query';
-import { speakingOverall, type Pause, type SpeechMetrics } from '@ielts/core';
+import { LONG_PAUSE_MS, speakingOverall, type Pause, type SpeechMetrics } from '@ielts/core';
 import type { AnalysisError, AnalysisResult, CriterionKey, Fix } from '@server/ai/types';
 import { api } from './api';
 
@@ -25,6 +25,8 @@ export type Attempt = {
   overtime: boolean;
   status: AttemptStatus;
   error: string | null;
+  /** status failed: false when an immediate retry cannot help (AI credit/key problem). */
+  retryable?: boolean;
   createdAt: string;
   analysis: AnalysisResult | null;
   prompt: {
@@ -90,7 +92,7 @@ export const criterionLabel = (k: string) => LABELS[k] ?? k;
 
 /** good when band ≥ target, warn when within 0.5 below, bad otherwise. */
 export function bandColor(b: number, target: number): 'good' | 'warn' | 'bad' {
-  return b >= target ? 'good' : b >= target - 0.5 ? 'warn' : 'bad';
+  return b >= target ? 'good' : b > target - 1.5 ? 'warn' : 'bad'; // red only when 1.5+ bands short: 0.5–1 below target is "close", not failure
 }
 
 const CATEGORY_GROUP: Record<string, string> = {
@@ -138,11 +140,26 @@ export function buildTokens(r: AnalysisResult): Token[] {
   return tokens;
 }
 
-export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'pauses' | 'fillers' | 'unclear';
+export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'other' | 'pauses' | 'fillers' | 'unclear';
+export type ErrorGroup = 'grammar' | 'vocab' | 'other';
 
-export function errorGroup(e: AnalysisError): TranscriptFilter | null {
-  return e.category.startsWith('grammar') ? 'grammar' : e.category.startsWith('lexis') ? 'vocab' : null;
+/** Transcript filter for an error: task, cohesion, fluency and pronunciation notes all go under "other". */
+export function errorGroup(e: AnalysisError): ErrorGroup {
+  return e.category.startsWith('grammar') ? 'grammar' : e.category.startsWith('lexis') ? 'vocab' : 'other';
 }
+
+/** `s` without a leading `lead` it repeats (cue-card bodies restate the title: "Describe X.\nand explain…"). */
+export const stripLead = (lead: string, s: string) => (lead && s.startsWith(lead) ? s.slice(lead.length).trim() : s);
+
+/** Transcript heading for a question: its first line, plus the rest (cue card) without a repeat of that line. */
+export function questionHead(text: string) {
+  const [head = '', ...rest] = text.split('\n');
+  return { head, rest: stripLead(head, rest.join('\n')).replace(/\s*\n\s*/g, ' ') };
+}
+
+/** Pause length as shown ("1.0"), and long = what that shows ≥ 1 s, so a pause labelled "1.0s" is never drawn as short. */
+export const pauseSec = (p: Pause) => (Math.round(p.dur * 10) / 10).toFixed(1);
+export const isLongPause = (p: Pause) => Math.round(p.dur * 10) >= LONG_PAUSE_MS / 100;
 
 // ---- fluency stats (heuristic band-7 targets) ----
 
@@ -156,12 +173,13 @@ const atLeast = (v: number, good: number, warn: number) => (v >= good ? 'good' :
 export function speechStats(m: SpeechMetrics): Stat[] {
   const perMin = (n: number) => n / Math.max(m.durationS / 60, 0.25);
   const rate = m.speechRate;
+  const long = m.pauses.filter(isLongPause).length;
   return [
     { key: 'rate', label: 'Speech rate', value: `${Math.round(rate)} wpm`, tone: rate >= 120 && rate <= 170 ? 'good' : rate >= 100 && rate <= 190 ? 'warn' : 'bad', info: 'Words per minute over the whole answer, pauses included. Band 7+ speakers usually sit around 120–170.' },
     { key: 'artic', label: 'Articulation rate', value: `${Math.round(m.articulationRate)} wpm`, tone: atLeast(m.articulationRate, 150, 130), info: 'Words per minute while you are actually speaking (pauses removed). Low values mean slow, effortful delivery.' },
     { key: 'mlr', label: 'Mean length of run', value: `${m.mlr.toFixed(1)} words`, tone: atLeast(m.mlr, 8, 5), info: 'Average number of words between pauses. Longer runs sound more fluent.' },
     { key: 'pauseRatio', label: 'Pause ratio', value: `${Math.round(m.pauseRatio * 100)}%`, tone: upTo(m.pauseRatio, 0.2, 0.3), info: 'Share of the answer spent in silence.' },
-    { key: 'long', label: 'Long pauses', value: String(m.longPauses), tone: upTo(perMin(m.longPauses), 1, 2), info: 'Silences of 1 second or more. Examiners hear these as searching for words.' },
+    { key: 'long', label: 'Long pauses', value: String(long), tone: upTo(perMin(long), 1, 2), info: 'Silences of 1 second or more. Examiners hear these as searching for words.' },
     { key: 'mid', label: 'Mid-clause pauses', value: String(m.midClausePauses), tone: upTo(perMin(m.midClausePauses), 1, 2.5), info: 'Pauses inside a clause rather than at a natural boundary. These hurt fluency more than pauses between ideas.' },
     { key: 'fillers', label: 'Fillers', value: `${m.fillersPerMin.toFixed(1)}/min`, tone: upTo(m.fillersPerMin, 2, 4), info: 'um, uh, er, "you know", "sort of" and voiced hesitations per minute.' },
     { key: 'reps', label: 'Repetitions', value: String(m.repetitions.length), tone: upTo(perMin(m.repetitions.length), 1, 2), info: 'Words or phrases repeated back-to-back while you search for the next idea.' },

@@ -1,10 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { Combobox, type ComboOption } from '@/components/ui';
-import { api } from '@/lib/api';
+import { call, client, type Schemas, type Settings } from '@/lib/api';
 
 export type Capability = 'text' | 'audio-in' | 'stt' | 'tts';
-type Model = { id: string; name: string; input: string[]; output: string[]; pricing: { prompt: string; completion: string } };
+type Model = Omit<Schemas['Model'], 'voices'> & { voices?: string[] };
+
+// ponytail: mirrors DEFAULT_SETTINGS.models in apps/server/src/settings.ts (that module imports the db, so the web can't import it
+// at runtime); ModelPicker.test.ts fails if they drift.
+export const DEFAULT_MODELS: Settings['models'] = {
+  analysis: 'openai/gpt-6-luna',
+  examiner: 'openai/gpt-6-luna',
+  stt: 'openai/whisper-large-v3',
+  tts: 'google/gemini-3.8-flash-tts',
+  ttsVoice: 'Charon',
+  audioPron: 'google/gemini-2.5-flash',
+};
+
+/** Voice to keep when the TTS model changes: the current one if the new model supports it, else its first voice (unknown list → keep). */
+export const pickVoice = (voices: string[] | undefined, current: string) => (!voices?.length || voices.includes(current) ? current : voices[0]!);
+
+const useModels = (capability: Capability) =>
+  useQuery({
+    queryKey: ['models', capability],
+    queryFn: () => call(client.GET('/api/models', { params: { query: { capability } } })),
+    staleTime: 60 * 60_000,
+  });
 
 /** USD-per-token string → "$0.25" per 1M tokens. OpenRouter uses "-1" for variable pricing. */
 export function perMillion(perToken: string) {
@@ -36,11 +57,7 @@ export function ModelPicker({
   onChange: (id: string) => void;
   hint?: string;
 }) {
-  const { data, isPending, isError } = useQuery({
-    queryKey: ['models', capability],
-    queryFn: () => api.get<{ models: Model[] }>(`/models?capability=${capability}`),
-    staleTime: 60 * 60_000,
-  });
+  const { data, isPending, isError } = useModels(capability);
   const options = useMemo(() => {
     const list = (data?.models ?? []).map(modelOption);
     // Keep the saved id selectable even when it's missing from the list (loading, error, or delisted).
@@ -68,5 +85,19 @@ export function ModelPicker({
         </span>
       }
     />
+  );
+}
+
+/** Examiner voice model + a Voice picker limited to the voices that model supports. */
+export function TtsPicker({ value, voice, onChange }: { value: string; voice: string; onChange: (patch: { tts?: string; ttsVoice?: string }) => void }) {
+  const { data } = useModels('tts');
+  const voicesOf = (id: string) => data?.models.find((m) => m.id === id)?.voices;
+  const voices = voicesOf(value) ?? [];
+  const options = (voices.includes(voice) ? voices : [voice, ...voices]).map((v) => ({ value: v, label: v }));
+  return (
+    <div className="space-y-4">
+      <ModelPicker label="Examiner voice model" capability="tts" value={value} defaultValue={DEFAULT_MODELS.tts} onChange={(tts) => onChange({ tts, ttsVoice: pickVoice(voicesOf(tts), voice) })} />
+      <Combobox label="Voice" options={options} value={voice} onChange={(ttsVoice) => onChange({ ttsVoice })} placeholder="Search voices…" emptyText="No voices match" />
+    </div>
   );
 }

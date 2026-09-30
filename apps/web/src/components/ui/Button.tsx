@@ -12,7 +12,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: 'bg-bad text-white hover:brightness-95 shadow-card',
 };
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5 [&_svg]:size-4',
+  sm: 'hit h-8 px-3 text-sm gap-1.5 [&_svg]:size-4', // 44 px touch target on phones via `hit`
   md: 'h-10 px-4 text-sm gap-2 [&_svg]:size-4',
   lg: 'h-12 px-5 text-base gap-2 [&_svg]:size-5',
   icon: 'size-10 [&_svg]:size-5',

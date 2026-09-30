@@ -57,11 +57,13 @@ describe('GET /api/progress', () => {
     expect(all.trend).toHaveLength(5);
   });
 
-  it('is empty for a new user', async () => {
-    const { headers } = await testUser();
+  it('is empty for a new user, then reports a failed latest attempt', async () => {
+    const { headers, user } = await testUser();
     expect(await body(await req('/api/progress', { headers }))).toEqual({
-      trend: [], streak: 0, minutesThisWeek: 0, attempts: 0, weakest: null, topMistakes: [], predicted: { speaking: null, writing: null },
+      trend: [], streak: 0, minutesThisWeek: 0, attempts: 0, weakest: null, topMistakes: [], predicted: { speaking: null, writing: null }, lastFailed: null,
     });
+    const [f] = await db.insert(attempts).values({ userId: user.id, promptId: (await seedPrompt()).id, skill: 'speaking', part: 1, status: 'failed' }).returning();
+    expect((await body(await req('/api/progress', { headers }))).lastFailed).toEqual({ id: f!.id, skill: 'speaking' });
   });
 });
 
@@ -98,7 +100,7 @@ describe('mistakes + cards', () => {
     expect((await body(await req('/api/cards/due', { headers }))).total).toBe(3);
 
     const g1 = await body(await req(`/api/cards/${card.id}/review`, { headers, body: { grade: 4 } }));
-    expect(g1.interval).toBe(1);
+    expect(g1.interval).toBe(3); // first "Good" review
     const g2 = await body(await req(`/api/cards/${card.id}/review`, { headers, body: { grade: 4 } }));
     expect(g2.interval).toBe(6);
     expect(Date.parse(g2.due)).toBeGreaterThan(Date.now() + 5 * DAY);
@@ -108,4 +110,11 @@ describe('mistakes + cards', () => {
     expect((await req(`/api/cards/${card.id}/review`, { headers: other.headers, body: { grade: 4 } })).status).toBe(404);
     expect((await req(`/api/cards/${card.id}/review`, { headers, body: { grade: 6 } })).status).toBe(400);
   });
+});
+
+it('minutesThisWeek counts nominal task time for writing without a duration', async () => {
+  const { headers, user } = await testUser();
+  const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  await db.insert(attempts).values({ userId: user.id, promptId: w.id, skill: 'writing', part: 2, status: 'done' });
+  expect((await body(await req('/api/progress', { headers }))).minutesThisWeek).toBe(40);
 });

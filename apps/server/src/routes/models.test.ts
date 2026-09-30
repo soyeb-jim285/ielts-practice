@@ -8,6 +8,7 @@ const data = [
   { id: 'google/gemini-2.5-flash', name: 'Gemini Flash', architecture: arch(['text', 'audio'], ['text']), pricing: { prompt: '0.3', completion: '2' } },
   { id: 'openai/whisper-large-v3', name: 'Whisper', architecture: arch(['audio'], ['text']), pricing: { prompt: '0', completion: '0' } },
   { id: 'google/gemini-3.8-flash-tts', name: 'TTS', architecture: arch(['text'], ['speech']), pricing: { prompt: '0', completion: '0' }, supported_voices: ['Charon', 'Kore'] },
+  { id: 'typesafe/jev-router', name: 'Router', architecture: arch(['text', 'audio'], ['text']), pricing: { prompt: '-1', completion: '-1' } },
 ];
 
 it('lists and filters models by capability, cached', async () => {

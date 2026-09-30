@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
-import { FluencyPanel } from '@/components/speaking/FluencyPanel';
+import { CueCard } from '@/components/speaking/CueCard';
 import { ImprovePanel } from '@/components/speaking/ImprovePanel';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
-import { buttonStyles, EmptyState, PageHeader, Tabs } from '@/components/ui';
+import { buttonStyles, Card, EmptyState, PageHeader, Skeleton, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
@@ -26,6 +26,9 @@ export const Route = createFileRoute('/_app/speaking/result/$attemptId')({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(attemptQuery(params.attemptId)),
   component: ResultPage,
 });
+
+// Recharts (~100 KB gz) loads only when the Fluency tab opens.
+const FluencyPanel = lazy(() => import('@/components/speaking/FluencyPanel').then((m) => ({ default: m.FluencyPanel })));
 
 const STEPS = ['Uploading', 'Transcribing', 'Measuring fluency', 'Scoring against the band descriptors'];
 
@@ -45,9 +48,15 @@ function ResultPage() {
       <ArrowLeft className="size-4" aria-hidden /> Speaking
     </Link>
   );
-  const retry = (
-    <Link to="/speaking/session" search={{ mode: `p${a.part}` as 'p1' | 'p2' | 'p3', promptId: a.promptId, parent: a.id }} className={buttonStyles()}>
+  const retryLink = (variant?: ButtonVariant, size?: 'sm') => (
+    <Link to="/speaking/session" search={{ mode: `p${a.part}` as 'p1' | 'p2' | 'p3', promptId: a.promptId, parent: a.id }} className={buttonStyles({ variant, size })}>
       <RotateCcw className="size-4" aria-hidden /> Retry this question
+    </Link>
+  );
+  const retry = retryLink();
+  const another = (
+    <Link to="/speaking" className="px-2 text-sm font-medium text-accent-text hover:underline">
+      Practise another part
     </Link>
   );
   const meta = `Speaking · Part ${a.part} · ${formatDate(a.createdAt)}${a.durationMs ? ` · ${formatDuration(a.durationMs)}` : ''}`;
@@ -59,11 +68,18 @@ function ResultPage() {
         {switcher && <div className="mb-6">{switcher}</div>}
         {a.status === 'analyzing' ? (
           <AnalyzingState steps={STEPS} stepSeconds={7} />
-        ) : a.status === 'recording' ? (
-          // The audio never arrived, so there is nothing to re-analyse: record it again.
-          <FailedState attemptId={a.id} title="Not submitted" message="This recording never finished uploading, so there is nothing to analyse." action={retry} />
         ) : (
-          <FailedState attemptId={a.id} message={a.error} />
+          // Not a dead end: the recording (if any), the questions, and ways to record again or move on.
+          <div className="space-y-6">
+            {a.status === 'recording' ? (
+              // The audio never arrived, so there is nothing to re-analyse: record it again.
+              <FailedState attemptId={a.id} title="Not submitted" message="This recording never finished uploading, so there is nothing to analyse." action={retryLink(undefined, 'sm')} extra={another} />
+            ) : (
+              <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} extra={<>{retryLink('secondary', 'sm')}{another}</>} />
+            )}
+            {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} />}
+            <Questions a={a} />
+          </div>
         )}
       </div>
     );
@@ -122,10 +138,30 @@ function Panel({ tab, a, target, audio, retry, parentLink }: { tab: Tab; a: Atte
     case 'transcript':
       return <Transcript result={r} audio={audio} />;
     case 'fluency':
-      return r.metrics ? <FluencyPanel metrics={r.metrics} audio={audio} /> : null;
+      return r.metrics ? (
+        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+          <FluencyPanel metrics={r.metrics} audio={audio} fc={r.criteria.fc} target={target} />
+        </Suspense>
+      ) : null;
     case 'language':
       return <LanguagePanel result={r} audio={audio} />;
     case 'improve':
       return <ImprovePanel result={r} retry={retry} />;
   }
+}
+
+/** What the candidate was asked: the cue card (Part 2) or the question list. */
+function Questions({ a }: { a: Attempt }) {
+  if (a.part === 2) return <CueCard prompt={a.prompt} />;
+  const qs = a.prompt.followUps?.length ? a.prompt.followUps : [a.prompt.body];
+  return (
+    <Card>
+      <h2 className="mb-2 text-base font-semibold">Questions</h2>
+      <ol className="list-decimal space-y-1 pl-5 text-[0.9375rem]">
+        {qs.map((q) => (
+          <li key={q}>{q}</li>
+        ))}
+      </ol>
+    </Card>
+  );
 }

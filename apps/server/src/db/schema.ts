@@ -24,7 +24,7 @@ export const session = pgTable('session', {
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-});
+}, (t) => [index('session_user_idx').on(t.userId)]);
 
 export const account = pgTable('account', {
   id: text('id').primaryKey(),
@@ -40,7 +40,7 @@ export const account = pgTable('account', {
   password: text('password'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index('account_user_idx').on(t.userId)]);
 
 export const verification = pgTable('verification', {
   id: text('id').primaryKey(),
@@ -109,10 +109,12 @@ export const attempts = pgTable('attempts', {
   overtime: boolean('overtime').notNull().default(false),
   status: statusEnum('status').notNull().default('recording'),
   error: text('error'),
+  errorRetryable: boolean('error_retryable').notNull().default(true), // false: retrying now cannot help (AI credit/key), UI says "try later"
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => [
   index('attempts_user_created_idx').on(t.userId, t.createdAt),
+  index('attempts_user_prompt_idx').on(t.userId, t.promptId),
   index('attempts_session_idx').on(t.sessionId),
 ]);
 
@@ -136,7 +138,7 @@ export const mistakes = pgTable('mistakes', {
   explanation: text('explanation').notNull(),
   time: real('time'), // seconds into audio (speaking)
   createdAt: createdAt(),
-}, (t) => [index('mistakes_user_cat_idx').on(t.userId, t.category)]);
+}, (t) => [index('mistakes_user_cat_idx').on(t.userId, t.category), index('mistakes_attempt_idx').on(t.attemptId)]);
 
 export const cards = pgTable('cards', {
   id: id(),
@@ -149,7 +151,7 @@ export const cards = pgTable('cards', {
   reps: integer('reps').notNull().default(0),
   due: timestamp('due', { withTimezone: true }).notNull().defaultNow(),
   createdAt: createdAt(),
-}, (t) => [index('cards_user_due_idx').on(t.userId, t.due)]);
+}, (t) => [index('cards_user_due_idx').on(t.userId, t.due), index('cards_user_front_idx').on(t.userId, t.front)]);
 
 export const liveSessions = pgTable('live_sessions', {
   id: id(),
@@ -157,4 +159,4 @@ export const liveSessions = pgTable('live_sessions', {
   state: jsonb('state').$type<unknown>().notNull(), // LiveState (ai/examiner.ts)
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index('live_sessions_user_idx').on(t.userId)]);

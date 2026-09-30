@@ -28,7 +28,7 @@ export function ExamShell({
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 pt-[env(safe-area-inset-top)] sm:px-5">
         <div className="flex min-w-0 flex-1 items-center">
           {exit ?? (
-            <Link to="/" aria-label="Exit" className="inline-flex h-9 items-center gap-1.5 rounded-control px-2 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink">
+            <Link to="/" aria-label="Exit" className="hit inline-flex h-9 items-center gap-1.5 rounded-control px-2 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink">
               <X className="size-5" aria-hidden />
               <span className="hidden sm:inline">Exit</span>
             </Link>

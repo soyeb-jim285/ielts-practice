@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { modelOption, perMillion } from './ModelPicker';
+import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../../../server/src/settings';
+import { DEFAULT_MODELS, modelOption, perMillion, pickVoice } from './ModelPicker';
+
+vi.mock('../../../../server/src/db/client', () => ({ db: {} })); // settings.ts only needs the db for reads we don't call
+
+describe('DEFAULT_MODELS', () => {
+  it('matches the server defaults (else a new user sees "Reset to default")', () => expect(DEFAULT_MODELS).toEqual(DEFAULT_SETTINGS.models));
+});
+
+describe('pickVoice', () => {
+  it('keeps a supported voice, else falls back to the model\'s first, and keeps it when the list is unknown', () => {
+    expect(pickVoice(['Zephyr', 'Charon'], 'Charon')).toBe('Charon');
+    expect(pickVoice(['eve', 'ara'], 'Charon')).toBe('eve');
+    expect(pickVoice([], 'Charon')).toBe('Charon');
+    expect(pickVoice(undefined, 'Charon')).toBe('Charon');
+  });
+});
 
 describe('perMillion', () => {
   it('formats per-token prices per 1M tokens', () => {

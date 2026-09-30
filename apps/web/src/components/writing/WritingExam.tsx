@@ -7,7 +7,8 @@ import { Alert, Button, Dialog, Tabs, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { formatClock, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { minWords, PromptPanel, taskLabel, type WritingPrompt } from './PromptPanel';
+import { minWords, SUBMIT_FLOOR, taskLabel } from '@/lib/writing';
+import { PromptPanel, type WritingPrompt } from './PromptPanel';
 import { countWords, NO_ASSIST, useDrafts, WritingEditor } from './WritingEditor';
 
 /** Seconds left on a wall-clock deadline; negative once overtime. Survives tab throttling (derived from Date.now()). */
@@ -110,6 +111,8 @@ export function WritingExam({
   const current = prompts.find((p) => p.id === active)!;
   const draft = drafts[current.id]!;
   const multi = prompts.length > 1;
+  // Manual submit needs a real attempt at every task; the time-up auto-submit still sends whatever is there.
+  const tooShort = prompts.some((p) => countWords(drafts[p.id]!.text) < SUBMIT_FLOOR);
 
   return (
     <ExamShell
@@ -178,7 +181,7 @@ export function WritingExam({
             <Button variant="ghost" onClick={() => setConfirm(null)}>
               Keep writing
             </Button>
-            <Button onClick={() => void submit()} loading={busy}>
+            <Button onClick={() => void submit()} loading={busy} disabled={tooShort}>
               Submit
             </Button>
           </>
@@ -199,6 +202,7 @@ export function WritingExam({
             );
           })}
         </ul>
+        {tooShort && <p className="mt-3 text-sm text-muted">Write at least a paragraph{multi ? ' for each task' : ''} before submitting.</p>}
       </Dialog>
 
       <Dialog

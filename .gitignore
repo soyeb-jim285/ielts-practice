@@ -16,3 +16,5 @@ data/local-storage/
 test-results/
 playwright-report/
 __pycache__/
+.eval/
+.claude/

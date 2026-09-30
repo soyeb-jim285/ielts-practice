@@ -22,7 +22,20 @@ export class AiError extends Error {
   ) {
     super(message);
   }
+  /** False when retrying now cannot help (credit, key or request problems): clients should say "try later" instead of offering Retry. */
+  get retryable() {
+    return this.code !== 'http' || this.status === 429 || (this.status ?? 500) >= 500;
+  }
 }
+
+/** Candidate-facing copy per upstream status; only 429/5xx/timeouts say "retry". Operator detail goes to the server log. */
+function httpMessage(status: number) {
+  if (status === 429) return 'The AI service is rate-limited right now. Please retry in a minute.';
+  if (status >= 500) return `The AI service returned an error (${status}). Please retry.`;
+  if (status === 402 || status === 401 || status === 403) return 'The AI service is temporarily unavailable. Your work is saved, so try again later.';
+  return `The AI service rejected the request (${status}). If this keeps happening, choose another model in Settings.`;
+}
+const OPERATOR_HINT: Record<number, string> = { 402: 'OpenRouter credits exhausted: add credits at openrouter.ai/settings/credits', 401: 'OpenRouter API key invalid', 403: 'OpenRouter API key forbidden' };
 
 export type ContentPart =
   | { type: 'text'; text: string }
@@ -54,8 +67,8 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
       await new Promise((r) => setTimeout(r, 1500));
       continue;
     }
-    console.error(`openrouter ${path} ${res.status}`, (await res.text().catch(() => '')).slice(0, 500));
-    throw new AiError('http', res.status === 429 ? 'The AI service is rate-limited right now. Please retry in a minute.' : `The AI service returned an error (${res.status}). Please retry.`, res.status);
+    console.error(`openrouter ${path} ${res.status}`, OPERATOR_HINT[res.status] ?? '', (await res.text().catch(() => '')).slice(0, 500));
+    throw new AiError('http', httpMessage(res.status), res.status);
   }
 }
 
@@ -96,6 +109,8 @@ export async function chatJson<T>(o: {
   schema: z.ZodType<T>;
   schemaName: string;
   temperature?: number;
+  /** OpenRouter unified reasoning effort; ignored by non-reasoning models. Unset = provider default (medium). */
+  effort?: 'low' | 'medium' | 'high';
   timeoutMs?: number;
 }): Promise<T> {
   const messages: ChatMessage[] = [
@@ -105,6 +120,7 @@ export async function chatJson<T>(o: {
   const base = {
     model: o.model,
     temperature: o.temperature ?? 0.2,
+    ...(o.effort && { reasoning: { effort: o.effort } }),
     response_format: { type: 'json_schema', json_schema: { name: o.schemaName, strict: true, schema: toStrictSchema(o.schema) } },
   };
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -138,6 +154,7 @@ type SttResponse = {
   text?: string;
   duration?: number;
   words?: { word: string; start: number; end: number; confidence?: number; probability?: number }[];
+  segments?: { start: number; end: number; avg_logprob?: number }[];
 };
 
 // Standard Whisper disfluency-priming prompt: keeps um/uh in the transcript instead of cleaning them out (research.md §3).
@@ -169,15 +186,20 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
       language: 'en',
       prompt: VERBATIM_PROMPT,
       response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
+      timestamp_granularities: ['word', 'segment'],
     },
     120_000,
   );
   const d = (await res.json()) as SttResponse;
-  // Only a real per-word probability counts as confidence: segment avg_logprob would flag whole accented segments as unclear.
+  // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
+  // ponytail: segment-level, so a poorly recognised segment flags all its words; the audio pronunciation pass is the precise signal.
+  const segConf = (t: number) => {
+    const lp = d.segments?.find((s) => t >= s.start && t < s.end)?.avg_logprob;
+    return lp == null ? undefined : Math.round(Math.exp(lp) * 100) / 100;
+  };
   const words: SttWord[] = (d.words ?? [])
     .filter((w) => w.word.trim())
-    .map((w) => ({ w: w.word.trim(), start: w.start, end: w.end, conf: w.confidence ?? w.probability }));
+    .map((w) => ({ w: w.word.trim(), start: w.start, end: w.end, conf: w.confidence ?? w.probability ?? segConf(w.start) }));
   if (d.text) punctuate(words, d.text);
   return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0 };
 }
@@ -197,7 +219,8 @@ export async function listModels(): Promise<ModelInfo[]> {
   const { data } = (await res.json()) as {
     data: { id: string; name?: string; architecture?: { input_modalities?: string[]; output_modalities?: string[] }; pricing?: { prompt?: string; completion?: string }; supported_voices?: string[] | null }[];
   };
-  const models = data.map((m) => ({
+  // Routers/meta models report price -1 (variable): unusable in the picker.
+  const models = data.filter((m) => !(Number(m.pricing?.prompt) < 0 || Number(m.pricing?.completion) < 0)).map((m) => ({
     id: m.id,
     name: m.name ?? m.id,
     input: m.architecture?.input_modalities ?? ['text'],

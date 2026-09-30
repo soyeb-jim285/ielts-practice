@@ -28,14 +28,14 @@ export type SettingsPatch = z.infer<typeof SettingsPatchSchema>;
 // ponytail: defaults verified against OpenRouter /models at build time; users override in Settings.
 export const DEFAULT_SETTINGS: Settings = {
   models: {
-    analysis: 'openai/gpt-5-mini',
-    examiner: 'openai/gpt-5-mini',
+    analysis: 'openai/gpt-6-luna',
+    examiner: 'openai/gpt-6-luna',
     stt: 'openai/whisper-large-v3',
     tts: 'google/gemini-3.8-flash-tts',
     ttsVoice: 'Charon', // must be one of the model's supported_voices (GET /api/models → voices)
     audioPron: 'google/gemini-2.5-flash',
   },
-  audioPronEnabled: false,
+  audioPronEnabled: true,
   liveProvider: 'turn',
   targetBand: 7,
   writingAutoSubmit: true,

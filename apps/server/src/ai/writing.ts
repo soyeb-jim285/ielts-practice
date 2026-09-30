@@ -2,7 +2,7 @@ import { computeTextMetrics, MIN_WORDS, roundBand, taskBand } from '@ielts/core'
 import type { Settings } from '../settings';
 import { EXAMINER_RULES, WRITING_DESCRIPTORS } from './descriptors';
 import { acceptsImages, chatJson, type ContentPart } from './openrouter';
-import { settleRanges, WritingLlmSchema } from './schemas';
+import { keepVerbatimEvidence, settleRanges, withScoringSamples, WritingLlmSchema, WritingPlanLlmSchema, WritingScoreSchema } from './schemas';
 import type { AnalysisResult, Criterion } from './types';
 
 export const WRITING_REWRITE_NOTE = "Study the upgrades, don't memorise — examiners spot and penalise memorised language.";
@@ -16,7 +16,7 @@ function system(task: 1 | 2, variant: 'academic' | 'general', figure: Figure) {
     task === 2
       ? `TASK 2 (essay, min 250 words). Criterion "ta" = Task Response.
 - Identify the question type (opinion, discussion + opinion, problem/cause-solution, advantages/disadvantages, two-part question) and check EVERY part of the prompt is answered. Answering only part of it = "main parts incompletely addressed" (band 5 feature).
-- The position must be clear from the introduction and consistent through the conclusion; an unclear or contradictory position caps TR at 5. Ideas must be extended and supported with explanation/examples, not listed. Over-generalised support stops at 7.
+- A clear position anywhere in the response meets band 7 ("clear and developed position"); a position that emerges only in the conclusion or is slightly inconsistent is a band 6 feature ("conclusions drawn may be unclear"), not band 5. Cap TR at 5 only when no position can be identified or the main parts of the prompt are not addressed. Ideas must be extended and supported with explanation/examples, not listed. Over-generalised support stops at 7.
 - Tangential or misunderstood prompts: TR 4 or below. Memorised, generic "template" paragraphs that could fit any topic are not credited.`
       : variant === 'academic'
         ? `TASK 1 ACADEMIC (report on visual information, min 150 words). Criterion "ta" = Task Achievement. Use the (Academic) lines of the descriptor.
@@ -32,20 +32,20 @@ function system(task: 1 | 2, variant: 'academic' | 'general', figure: Figure) {
         : `TASK 1 GENERAL TRAINING (letter, min 150 words). Criterion "ta" = Task Achievement. Use the (GT) lines of the descriptor.
 - All three bullet points must be covered and extended; a missing bullet caps TA at 4, a thinly covered one at 5.
 - The purpose must be clear from the opening, and tone/register (formal, semi-formal, informal) must match the recipient and stay consistent, including greeting and sign-off.`;
-  return `You are a senior IELTS Writing examiner and trainer of examiners. You rate strictly and conservatively against the official public band descriptors, exactly as a certified examiner would. Your ratings are used for self-study: inflated scores harm the candidate, so accuracy beats encouragement.
+  return `You are a senior IELTS Writing examiner and trainer of examiners. You rate against the official public band descriptors with best-fit marking, exactly as a certified examiner would. Your ratings are used for self-study: inflated or deflated scores both mislead the candidate, so accuracy beats encouragement.
 
 ${taskRules}
 
 GENERAL RULES:
-- Word count: responses under the minimum are penalised under TA/TR (the prompt tells you the count). Words copied from the prompt are not counted as the candidate's language and earn no LR credit.
+- Word count: when wordCount < minimumWords, penalise under TA/TR (the app shows the count to the candidate; never log it as an error). Numbers count as words. Words copied from the prompt are not counted as the candidate's language and earn no LR credit.
 - Coherence & Cohesion: judge progression, paragraphing and referencing, not the number of linkers. Mechanical or overused linkers (e.g. Moreover/Furthermore/In addition opening every sentence; the metrics list overused linkers) are the band 5-6 CC feature. No paragraphing caps CC at 5.
 - Lexical Resource: precision and collocation beat rarity. Count spelling and word-formation errors. Repetition of the same words (see metrics) limits range.
 - Grammar: estimate the share of error-free sentences and the accuracy of complex structures; punctuation counts.
 - errors: "quote" MUST be copied character-for-character from the essay (same spelling, punctuation, capitalisation, spacing) — the minimal span of 1-8 words containing the error, long enough to be unique. "original" is the erroneous text, "correction" the fixed text. Categories task.overview / task.position / task.relevance are for task-level problems, quoting the relevant sentence.
 - structure.paragraphs: one entry per paragraph of the essay in order; topicSentence is the paragraph's first sentence copied verbatim; ok = the paragraph does its job for its role; note = what to change (or why it works).
 - structure.overview: ${task === 1 && variant === 'academic' ? 'required (present = an overview exists; mainTrends = it states the main trends/differences; noData = it contains no specific figures).' : 'null.'}
-- structure.position: ${task === 2 ? 'required (clear = position obvious in intro and conclusion; consistent = never contradicted).' : 'null.'}
-- structure.planFollowed: null unless a plan is given; then whether the essay follows the plan's ideas and order.
+- structure.position: ${task === 2 ? 'required (clear = a position can be identified anywhere in the essay; consistent = never contradicted; note says where it is stated and whether stating it in the introduction would help).' : 'null.'}
+- structure.planFollowed: null when no plan is given; when a plan is given it is required: whether the essay follows the plan's ideas and order.
 - rewrite: the whole response rewritten one band higher, keeping the same paragraphs, ideas${task === 1 ? ' and data' : ', examples'} and register, at least the minimum word count, paragraphs separated by blank lines.
 
 ${EXAMINER_RULES}
@@ -99,19 +99,19 @@ export async function analyzeWriting(i: {
 
   const model = i.settings.models.analysis;
   const figure: Figure = i.prompt.chart ? 'data' : i.prompt.image && (await acceptsImages(model)) ? 'image' : 'none';
-  const llm = await chatJson({
+  const plan = i.plan?.trim() || undefined;
+  const base = {
     model,
     system: system(i.task, i.variant, figure),
-    schema: WritingLlmSchema,
-    schemaName: 'writing_analysis',
     temperature: 0.2,
+    // ponytail: low effort cuts wall time (~37 s at default medium); the median of 3 samples buys back stability. Re-measure band agreement if the model changes.
+    effort: 'low' as const,
     user: withImage(figure === 'image' ? i.prompt.image : null, JSON.stringify({
       task: i.task,
       variant: i.task === 1 ? i.variant : undefined,
       prompt: { title: i.prompt.title, body: i.prompt.body, bullets: i.prompt.bullets ?? undefined, chartData: i.prompt.chart ?? undefined },
       wordCount: textMetrics.words,
       minimumWords: min,
-      underLength: textMetrics.words < min ? `UNDER LENGTH: ${textMetrics.words}/${min} words — penalise under Task ${i.task === 1 ? 'Achievement' : 'Response'}.` : undefined,
       metrics: {
         paragraphs: textMetrics.paragraphs,
         sentences: textMetrics.sentences,
@@ -120,12 +120,17 @@ export async function analyzeWriting(i: {
         overusedLinkers: textMetrics.linkers.filter((l) => l.overused).map((l) => `${l.word} ×${l.count}`),
         repeatedWords: textMetrics.repeated.map((r) => `${r.word} ×${r.count}`),
       },
-      plan: i.plan || undefined,
+      plan,
       essay: i.text,
     })),
-  });
+  };
+  const llm = await withScoringSamples(
+    () => chatJson({ ...base, schema: plan ? WritingPlanLlmSchema : WritingLlmSchema, schemaName: 'writing_analysis' }),
+    () => chatJson({ ...base, schema: WritingScoreSchema, schemaName: 'writing_scores' }),
+  );
 
   const c = llm.criteria;
+  keepVerbatimEvidence(c, i.text);
   const raw = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
   const range = settleRanges(c, (b) => roundBand(taskBand(b)));
   return {

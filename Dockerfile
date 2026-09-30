@@ -10,7 +10,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/core packages/core
 COPY apps/server apps/server
 COPY apps/web apps/web
+# Precompressed .gz next to each text asset: serveStatic({ precompressed: true }) sends them without per-request gzip.
 RUN pnpm -F @ielts/web build \
+ && find apps/web/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' -o -name '*.json' \) -exec gzip -k9 {} + \
  && pnpm deploy --legacy --filter @ielts/server --prod /app/apps/server
 
 FROM node:24-alpine

@@ -159,7 +159,7 @@ export function useRealtimeExaminer(onFinished: (sessionId: string, attemptIds: 
     c.audio ??= Object.assign(new Audio(), { autoplay: true });
     setStatus('starting');
     try {
-      const st = c.sessionId ? null : await api.post<LiveStarted>('/live/start', {});
+      const st = c.sessionId ? null : await api.post<LiveStarted>('/live/start', { skipTts: true });
       if (st) {
         c.sessionId = st.sessionId;
         c.cueCard = st.test.part2;

@@ -28,7 +28,7 @@ Tokens are defined in `styles.css` (`:root` for light, `.dark` for dark) and exp
 | Hover wash | `hover:bg-ink/5` | ghost buttons, list rows |
 | Radius | `rounded-card` (14 px), `rounded-control` (10 px), `rounded-full` | cards/sheets, buttons/inputs, chips |
 | Shadow | `shadow-card`, `shadow-pop` | resting surfaces, floating layers |
-| Fonts | `font-sans` (Inter, the default), `font-serif` (Source Serif 4) | UI, essays/transcripts/prompts |
+| Fonts | `font-sans` (Inter, the default), `font-serif` (Source Serif 4) | UI, essays/transcripts/prompts. Self-hosted variable woff2 (latin) in `public/fonts`, declared in `styles.css`; Inter is preloaded in `index.html`. |
 | Prose | `prose-serif` | serif 17 px/1.7, max 68ch: essays, transcripts, reading prompts |
 | Easing | `ease-(--ease-out-quart)` | transitions |
 
@@ -45,10 +45,14 @@ When you need raw CSS values (SVG strokes, Recharts colours, inline styles), use
 ## Lib
 
 ```ts
-import { api, ApiError, type Me, type Settings } from '@/lib/api';
+import { call, client, ApiError, type Schemas, type Me, type Settings } from '@/lib/api';
+// Contract-typed (preferred): paths, params, bodies and responses come from src/lib/schema.d.ts, generated from openapi.json.
+const page = await call(client.GET('/api/prompts', { params: { query: { skill: 'writing', page: 1 } } }));
+await call(client.POST('/api/cards/{id}/review', { params: { path: { id } }, body: { grade: 4 } }));
+type Mistake = Schemas['Mistake'];
+// Legacy, caller-typed (not checked against the contract; migrate when you touch it):
 await api.get<T>('/prompts?skill=writing');     // path is relative to /api ('/api/…' also accepted)
-await api.post<T>('/attempts', body); api.put<T>(path, body); api.del<T>(path);
-// Non-2xx → throws ApiError { status, message } (message = server `{error}`).
+// Both throw ApiError { status, message } on non-2xx (message = server `{error}`).
 
 import { queryClient, meQuery, useMe } from '@/lib/query';
 const { data: me } = useMe();                     // user + settings + cambridgeAccess + realtimeAvailable
@@ -110,6 +114,8 @@ These are for signed-out pages only (login, signup, forgot-password, reset-passw
 ```
 Variants are `primary | secondary | ghost | danger`. Sizes are `sm (32) | md (40) | lg (48) | icon (40²)`. `loading` disables the button and shows a spinner.
 
+**Touch targets:** everything tappable is ≥ 44 px on phones. `sm` buttons and Segmented options keep their look and get an invisible 44 px hit area from the `hit` utility (styles.css); use `hit` on any other compact control (icon links). Don't put `hit` controls inside `overflow-x-auto` rows (the overhang makes the row scroll vertically); Chip instead grows to `h-11` below `md`.
+
 ### Card
 `<Card>` is a padded surface with a border and `shadow-card`. Pass `padded={false}` for edge-to-edge content (lists, charts with their own padding). Pass `interactive` for a clickable card (hover lift); wrap it in a `<Link>` or make it a button yourself. **Never nest.**
 
@@ -151,7 +157,7 @@ Use it for 2–5 exclusive options (a radiogroup driven by the arrow keys).
 `size="sm"` is available. For icon-only options, give each one an `'aria-label'`.
 
 ### Tabs
-This is the underlined tab bar used by the results pages. It is controlled, and you render the panel yourself:
+This is the underlined tab bar used by the results pages. On phones the tabs share the width with tighter padding, so five short labels fit in 360 px; if they still don't fit, the bar scrolls, fades its right edge while tabs are hidden, and keeps the active tab in view. Keep labels to one short word. It is controlled, and you render the panel yourself:
 ```tsx
 <Tabs id="res" value={tab} onChange={setTab} items={[{ value: 'overview', label: 'Overview' }, { value: 'transcript', label: 'Transcript', count: 12 }]} />
 <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`}>…</div>
@@ -227,5 +233,5 @@ Values run from 0 to 1. Use it for timers (with the tone switching by zone), goa
 - **Lists of items:** use one `Card padded={false}` with `divide-y divide-line` rows (`px-5 py-4`, hover `hover:bg-ink/[0.03]`), not a grid of identical cards.
 - **Forms:** use `space-y-4`, a full-width primary submit on mobile, and an `Alert tone="bad"` above the fields for server errors.
 - **Loading / error / empty:** every data view handles all three. Error = `Alert tone="bad"` plus a retry action. Empty = `EmptyState`.
-- **Charts (Recharts):** use `stroke="var(--accent)"`, grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-card shadow-pop`).
+- **Charts (Recharts):** recharts is ~100 KB gz, so load chart components with `lazy()` and render them only when there is data to plot (see the dashboard); draw tiny decorative sparklines as inline SVG. Use `stroke="var(--accent)"`, grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-card shadow-pop`).
 - **Exam screens:** use `ExamShell`, large type (`text-lg`/`prose-serif`), the timer on the right of the top bar, and no other chrome.

@@ -6,6 +6,7 @@ import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Segmented, S
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
 import { api } from '@/lib/api';
 import { plural } from '@/lib/format';
+import { typeLabel } from '@/lib/writing';
 
 export const Route = createFileRoute('/_app/writing/')({ component: WritingHome });
 
@@ -17,20 +18,7 @@ const KIND: Record<Kind, { part: 1 | 2; variant?: 'academic' | 'general'; title:
 };
 const kindQuery = (k: Kind) => `skill=writing&part=${KIND[k].part}${KIND[k].variant ? `&variant=${KIND[k].variant}` : ''}`;
 
-const TYPE_LABEL: Record<string, string> = {
-  'adv-disadv': 'Advantages & disadvantages',
-  'problem-solution': 'Problem & solution',
-  'two-part': 'Two-part question',
-  'letter-formal': 'Formal letter',
-  'letter-semi': 'Semi-formal letter',
-  'letter-informal': 'Informal letter',
-  line: 'Line graph',
-  bar: 'Bar chart',
-  pie: 'Pie chart',
-  mixed: 'Mixed charts',
-};
-const typeLabel = (t: string) => TYPE_LABEL[t] ?? t.charAt(0).toUpperCase() + t.slice(1);
-
+const PAGE = 15;
 type PromptPage = { items: WritingPrompt[]; total: number; page: number; pageSize: number };
 type Meta = { groups: { skill: string; part: number; topics: string[]; types: string[] }[] };
 
@@ -61,14 +49,14 @@ function WritingHome() {
     <div className="space-y-10">
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
-      <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <Card className="flex flex-col">
+      <section className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <Card>
           <div className="mb-1 flex items-center gap-2 text-sm font-medium text-accent-text">
             <Timer className="size-4" aria-hidden /> Exam conditions
           </div>
           <h2 className="text-lg font-semibold">Full test</h2>
           <p className="mt-1 text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
-          <div className="mt-5 flex flex-1 flex-wrap items-end justify-between gap-3">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <Segmented
               label="Test type"
               size="sm"
@@ -140,7 +128,15 @@ function Bank() {
     getNextPageParam: (last) => (last.page * last.pageSize < last.total ? last.page + 1 : undefined),
     placeholderData: keepPreviousData,
   });
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  // ponytail: the API pages at 30; show 15 at a time so the list stays scannable.
+  const [shown, setShown] = useState(PAGE);
+  const all = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const items = all.slice(0, shown);
+  const more = all.length > shown || list.hasNextPage;
+  const showMore = () => {
+    if (all.length < shown + PAGE && list.hasNextPage) void list.fetchNextPage();
+    setShown((n) => n + PAGE);
+  };
   const total = list.data?.pages[0]?.total;
 
   const changeKind = (k: Kind) => {
@@ -148,6 +144,12 @@ function Bank() {
     setType('');
     setTopic('');
   };
+  // New filters → back to the first 15 (adjusting state during render, per React docs).
+  const [prevParams, setPrevParams] = useState(params.toString());
+  if (prevParams !== params.toString()) {
+    setPrevParams(params.toString());
+    setShown(PAGE);
+  }
 
   return (
     <section aria-labelledby="bank-h">
@@ -158,14 +160,14 @@ function Bank() {
         {total != null && <p className="text-sm text-muted tabular-nums">{plural(total, 'prompt')}</p>}
       </div>
 
-      <div className="mb-4 space-y-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented
           label="Task"
           value={kind}
           onChange={changeKind}
           options={(Object.keys(KIND) as Kind[]).map((k) => ({ value: k, label: k === 't2' ? 'Task 2' : k === 't1a' ? 'T1 Academic' : 'T1 General' }))}
         />
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr]">
+        <div className="grid min-w-[min(100%,34rem)] flex-1 gap-3 sm:grid-cols-[1fr_1fr_1.4fr]">
           <Select label="Type" hideLabel value={type} onChange={(e) => setType(e.target.value)}>
             <option value="">All types</option>
             {types.map((t) => (
@@ -237,9 +239,9 @@ function Bank() {
               ))}
             </ul>
           </Card>
-          {list.hasNextPage && (
+          {more && (
             <div className="mt-4 flex justify-center">
-              <Button variant="secondary" onClick={() => void list.fetchNextPage()} loading={list.isFetchingNextPage}>
+              <Button variant="secondary" onClick={showMore} loading={list.isFetchingNextPage}>
                 Load more
               </Button>
             </div>

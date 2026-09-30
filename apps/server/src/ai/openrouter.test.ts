@@ -48,7 +48,7 @@ it('retries once on 503, then succeeds; gives up after a second failure', async 
   expect(f.calls).toHaveLength(2);
 });
 
-it('transcribe: maps words, keeps only per-word confidence, restores punctuation, primes verbatim fillers', async () => {
+it('transcribe: maps words, falls back to segment confidence, restores punctuation, primes verbatim fillers', async () => {
   const f = fakeFetch({
     '/audio/transcriptions': () =>
       json({
@@ -69,7 +69,8 @@ it('transcribe: maps words, keeps only per-word confidence, restores punctuation
   const r = await transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1, 2, 3]), format: 'webm' });
   expect(r.duration).toBe(3);
   expect(r.words.map((w) => w.w)).toEqual(['Hello', 'there,', 'friend.', 'It', 'was', 'big.']);
-  expect(r.words.map((w) => w.conf)).toEqual([0.9, undefined, 0.7, undefined, undefined, undefined]);
+  // per-word probability wins; otherwise the segment's mean token probability (exp avg_logprob)
+  expect(r.words.map((w) => w.conf)).toEqual([0.9, 0.5, 0.7, 0.5, 0.5, 0.5]);
   expect(f.calls[0]!.body).toMatchObject({ input_audio: { data: 'AQID', format: 'webm' }, response_format: 'verbose_json', prompt: expect.stringContaining('uh') });
 });
 
@@ -77,4 +78,29 @@ it('punctuate: re-syncs after a word the text spells differently', () => {
   const words = [{ w: 'I' }, { w: 'have' }, { w: 'twenty' }, { w: 'cats' }, { w: 'Really' }];
   punctuate(words, 'I have 20 cats. Really?');
   expect(words.map((w) => w.w)).toEqual(['I', 'have', 'twenty', 'cats.', 'Really?']);
+});
+
+it('maps 402/401 to non-retryable, candidate-safe copy; 429/5xx stay retryable', async () => {
+  for (const [status, msg, retryable] of [[402, 'try again later', false], [401, 'try again later', false], [400, 'choose another model', false], [429, 'retry in a minute', true]] as const) {
+    setFetch(fakeFetch({ '/chat/completions': () => json({ error: 'x' }, status) }));
+    const e = (await ask().catch((x) => x)) as AiError;
+    expect(e.message).toContain(msg);
+    expect(e.message).not.toContain('Please retry.');
+    expect(e.retryable).toBe(retryable);
+  }
+  expect(new AiError('timeout', 'x').retryable).toBe(true);
+});
+
+it('transcribe: low segment probability yields unclear words', async () => {
+  const { computeSpeechMetrics } = await import('@ielts/core');
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json({ text: 'I like it', duration: 2, words: ['I', 'like', 'it'].map((word, i) => ({ word, start: i * 0.5, end: i * 0.5 + 0.4 })), segments: [{ start: 0, end: 2, avg_logprob: -1.2 }] }) }));
+  const r = await transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm' });
+  expect(computeSpeechMetrics(r.words, { durationS: 2 }).unclear.map((u) => u.tier)).toEqual([3, 3, 3]);
+});
+
+it('chatJson: sends the reasoning effort when set', async () => {
+  const f = fakeFetch({ '/chat/completions': () => chatReply({ band: 6, range: [5, 6] }) });
+  setFetch(f);
+  await chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x', effort: 'low' });
+  expect(f.calls[0]!.body.reasoning).toEqual({ effort: 'low' });
 });

@@ -44,3 +44,17 @@ describe('WritingEditor', () => {
     expect(countWords('well-known  data,\tsuch as')).toBe(4);
   });
 });
+
+describe('word counter tone', () => {
+  const tone = (text: string) => {
+    render(<WritingEditor value={text} onChange={() => {}} blockPaste={false} minWords={10} />);
+    const cls = screen.getByText(/^\d+ words?$/).className;
+    cleanup();
+    return cls;
+  };
+  it('is muted while short, warn within 10%, good once reached', () => {
+    expect(tone('')).toContain('text-muted');
+    expect(tone('a b c d e f g h i')).toContain('text-warn-text');
+    expect(tone('a b c d e f g h i j')).toContain('text-good-text');
+  });
+});

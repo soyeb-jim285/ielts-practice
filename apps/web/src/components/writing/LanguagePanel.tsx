@@ -11,7 +11,9 @@ const FILL: Record<Tone, string> = { good: 'bg-good', warn: 'bg-warn', bad: 'bg-
 /** MTLD bands are heuristic (typical ranges for exam essays), shown as a hint, not a score. */
 const mtldTone = (m: number): [Tone, string] => (m >= 80 ? ['good', 'Wide range'] : m >= 55 ? ['warn', 'Adequate range'] : ['bad', 'Limited range']);
 
-function BarList({ rows, max, label }: { rows: { key: string; label: string; count: number; tone?: Tone; badge?: string }[]; max: number; label: string }) {
+function BarList({ rows, label }: { rows: { key: string; label: string; count: number; tone?: Tone; badge?: string }[]; label: string }) {
+  // Scale to the top count, but never below 3 so a list of singletons doesn't render as a wall of full bars.
+  const max = Math.max(3, ...rows.map((r) => r.count));
   return (
     <ul className="space-y-2.5" aria-label={label}>
       {rows.map((r) => (
@@ -39,6 +41,12 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
     r.errors.reduce<Record<string, number>>((acc, e) => ((acc[e.category] = (acc[e.category] ?? 0) + 1), acc), {}),
   ).sort((a, b) => b[1] - a[1]);
   const linkers = [...(m?.linkers ?? [])].sort((a, b) => b.count - a.count);
+  // ponytail: optional until every stored analysis carries it (older ones predate the field).
+  const opening = (m as (TextMetrics & { linkerOpeningRatio?: number }) | undefined)?.linkerOpeningRatio;
+  const templated = m && opening != null && m.sentences >= 5 && opening > 0.4;
+  const upgrades = r.vocabUpgrades
+    .map((v) => ({ ...v, better: v.better.filter((b) => b.trim().toLowerCase() !== v.original.trim().toLowerCase()) }))
+    .filter((v) => v.better.length > 0);
   return (
     <div className="space-y-8">
       {m && (
@@ -54,7 +62,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
                 label="Lexical diversity"
                 value={
                   <span className="flex flex-wrap items-center gap-2">
-                    {Math.round(m.mtld)}
+                    MTLD {Math.round(m.mtld)}
                     <Badge tone={mtldTone(m.mtld)[0]}>{mtldTone(m.mtld)[1]}</Badge>
                   </span>
                 }
@@ -70,7 +78,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
         <section>
           <h2 className="mb-3 text-lg font-semibold">Mistakes by type</h2>
           <Card>
-            <BarList label="Mistakes by type" max={byCat[0]![1]} rows={byCat.map(([c, n]) => ({ key: c, label: categoryLabel(c), count: n, tone: 'bad' }))} />
+            <BarList label="Mistakes by type" rows={byCat.map(([c, n]) => ({ key: c, label: categoryLabel(c), count: n, tone: 'bad' }))} />
           </Card>
         </section>
       )}
@@ -79,11 +87,18 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
         <section>
           <h2 className="mb-1 text-lg font-semibold">Linking words</h2>
           <p className="mb-3 text-sm text-muted">Examiners penalise mechanical linking. Overused ones are flagged; swap some for referencing (“this trend”, “such policies”).</p>
+          {templated && (
+            <p className="mb-3 rounded-control bg-warn-soft px-4 py-2.5 text-sm text-warn-text">
+              {Math.round(opening * m.sentences)} of {m.sentences} sentences start with a linking word. Vary your openings.
+            </p>
+          )}
           <Card>
             <BarList
               label="Linking words"
-              max={linkers[0]!.count}
-              rows={linkers.map((l) => ({ key: l.word, label: l.word, count: l.count, tone: l.overused ? 'warn' : 'accent', badge: l.overused ? 'Overused' : undefined }))}
+              rows={linkers.map((l) => {
+                const over = l.overused && l.count >= 2; // a word used once is never "overused", whatever older analyses say
+                return { key: l.word, label: l.word, count: l.count, tone: over ? 'warn' : 'accent', badge: over ? 'Overused' : undefined };
+              })}
             />
           </Card>
         </section>
@@ -103,7 +118,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
         </section>
       )}
 
-      {r.vocabUpgrades.length > 0 && <VocabList items={r.vocabUpgrades} />}
+      {upgrades.length > 0 && <VocabList items={upgrades} />}
     </div>
   );
 }

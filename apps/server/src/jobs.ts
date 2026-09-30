@@ -81,12 +81,12 @@ async function analyze(attemptId: string): Promise<void> {
         await tx.insert(mistakes).values(
           result.errors.map((e) => ({ userId: a.userId, attemptId, errorId: e.id, category: e.category, original: e.original, correction: e.correction, explanation: e.explanation, time: e.time })),
         );
-      await tx.update(attempts).set({ status: 'done', error: null }).where(eq(attempts.id, attemptId));
+      await tx.update(attempts).set({ status: 'done', error: null, errorRetryable: true }).where(eq(attempts.id, attemptId));
     });
   } catch (e) {
     console.error('analysis failed', attemptId, e);
     const error = e instanceof AiError ? e.message : 'Analysis failed. Please retry.';
-    await db.update(attempts).set({ status: 'failed', error }).where(eq(attempts.id, attemptId)).catch((e2) => console.error('could not mark attempt failed', attemptId, e2));
+    await db.update(attempts).set({ status: 'failed', error, errorRetryable: !(e instanceof AiError) || e.retryable }).where(eq(attempts.id, attemptId)).catch((e2) => console.error('could not mark attempt failed', attemptId, e2));
   }
 }
 
@@ -103,5 +103,5 @@ export function runAnalysis(attemptId: string): Promise<void> {
 /** Call once at boot: the runner is in-process, so every attempt still `analyzing` was orphaned by the restart. Marks them failed so they can be retried.
  *  ponytail: assumes a single server process; with several, limit this to rows older than the longest analysis. */
 export async function recoverStale(): Promise<void> {
-  await db.update(attempts).set({ status: 'failed', error: 'Interrupted, retry' }).where(eq(attempts.status, 'analyzing'));
+  await db.update(attempts).set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true }).where(eq(attempts.status, 'analyzing'));
 }

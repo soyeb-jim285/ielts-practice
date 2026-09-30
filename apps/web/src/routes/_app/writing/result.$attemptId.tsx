@@ -8,11 +8,11 @@ import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Segmented, Skelet
 import { DiffView } from '@/components/writing/DiffView';
 import { EssayHighlights } from '@/components/writing/EssayHighlights';
 import { LanguagePanel } from '@/components/writing/LanguagePanel';
-import { taskLabel } from '@/components/writing/PromptPanel';
 import { StructureMap } from '@/components/writing/StructureMap';
 import { formatBand, formatDate, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { addFixesToDeck, attemptQuery, bandColor, WRITING_CRITERIA, type Attempt } from '@/lib/result';
+import { minWords, taskLabel } from '@/lib/writing';
 
 const TABS = ['overview', 'essay', 'structure', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -69,7 +69,12 @@ function ResultPage() {
         <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target}>
           <div className="flex flex-wrap items-center gap-2">
             {switcher}
-            {r.textMetrics && <Badge>{plural(r.textMetrics.words, 'word')}</Badge>}
+            {r.textMetrics && (
+              <Badge tone={r.textMetrics.words < minWords(a.part) ? 'warn' : undefined}>
+                {plural(r.textMetrics.words, 'word')}
+                {r.textMetrics.words < minWords(a.part) && ` · under ${minWords(a.part)}`}
+              </Badge>
+            )}
             {a.overtime && <Badge tone="warn">Overtime</Badge>}
           </div>
         </ResultHeader>
@@ -94,7 +99,7 @@ function ResultPage() {
       {a.status === 'analyzing' || a.status === 'recording' ? (
         <AnalyzingState title="Marking your answer" steps={['Measuring vocabulary and linking', 'Scoring against the band descriptors', 'Locating mistakes', 'Writing your fixes']} />
       ) : !r ? (
-        <FailedState attemptId={a.id} message={a.error} />
+        <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} />
       ) : (
         <Done a={a} r={r} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true })} />
       )}
@@ -108,7 +113,12 @@ function Done({ a, r, tab, setTab, target }: { a: Attempt; r: AnalysisResult; ta
     <div className="space-y-6">
       {r.tooShort && (
         <Alert tone="warn" title="Too short to assess">
-          Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {a.part === 1 ? 150 : 250} words.
+          Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.
+        </Alert>
+      )}
+      {!r.tooShort && r.textMetrics && r.textMetrics.words < minWords(a.part) && (
+        <Alert tone="warn" title={`Under ${minWords(a.part)} words`}>
+          You wrote {r.textMetrics.words} words. Answers under the minimum lose marks for {a.part === 1 ? 'Task Achievement' : 'Task Response'}.
         </Alert>
       )}
       <Tabs
@@ -181,6 +191,7 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
           </Button>
         )}
       </div>
+      {a.parentAttemptId && <RetryDiff parentId={a.parentAttemptId} text={text} />}
       {r.rewrite.text ? (
         <section>
           <h2 className="mb-1 text-lg font-semibold">One band higher</h2>
@@ -195,5 +206,21 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
         </EmptyState>
       )}
     </div>
+  );
+}
+
+/** Spec §7: a retry shows a word diff against the attempt it retried. */
+function RetryDiff({ parentId, text }: { parentId: string; text: string }) {
+  const { data: parent } = useQuery(attemptQuery(parentId));
+  const before = parent?.analysis?.text ?? parent?.text;
+  if (!before) return null;
+  return (
+    <section>
+      <h2 className="mb-1 text-lg font-semibold">Since your last attempt</h2>
+      <p className="mb-4 max-w-prose text-sm text-muted">Your previous answer against this one.</p>
+      <Card className="sm:p-8">
+        <DiffView original={before} rewrite={text} cleanLabel="This attempt" />
+      </Card>
+    </section>
   );
 }

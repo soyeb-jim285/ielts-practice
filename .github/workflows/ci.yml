@@ -29,7 +29,7 @@ jobs:
       - name: OpenAPI contract is up to date (run `pnpm gen:api` and commit)
         run: |
           pnpm gen:api
-          git status --porcelain -- apps/web/src/openapi.json | tee /dev/stderr | (! grep .)
+          git status --porcelain -- apps/web/src/openapi.json apps/web/src/lib/schema.d.ts | tee /dev/stderr | (! grep .)
 
   docker:
     needs: check

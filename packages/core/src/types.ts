@@ -30,6 +30,8 @@ export type TextMetrics = {
   mtld: number;
   ttr: number;
   linkers: { word: string; count: number; overused: boolean }[];
+  /** Share of sentences that open with a linker (>0.4 over 5+ sentences reads as templated). */
+  linkerOpeningRatio: number;
   repeated: { word: string; count: number }[];
 };
 

@@ -5,35 +5,19 @@ import { useEffect, useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { PracticeLink } from '@/components/bank/PracticeLink';
 import { Badge, Button, Card, Chip, EmptyState, Input, PageHeader, Select, Skeleton } from '@/components/ui';
-import { api } from '@/lib/api';
+import { call, client, type Schemas } from '@/lib/api';
+import { typeLabel } from '@/lib/writing';
 import { useMe } from '@/lib/query';
 
 type Skill = 'speaking' | 'writing';
-export type BankPrompt = {
-  id: string;
-  skill: Skill;
-  part: number;
-  variant: 'academic' | 'general' | null;
-  type: string;
-  topic: string;
-  title: string;
-  source: 'generated' | 'cambridge';
-  sourceRef: string | null;
-  done: boolean;
-};
+export type BankPrompt = Schemas['Prompt'];
 type Filters = { skill?: Skill; part?: number; type?: string; topic?: string; source?: 'generated' | 'cambridge'; q?: string };
-type PromptPage = { items: BankPrompt[]; page: number; pageSize: number; total: number };
-type Meta = { groups: { skill: Skill; part: number; topics: string[]; types: string[] }[] };
 
-const metaQuery = queryOptions({ queryKey: ['prompts', 'meta'], queryFn: () => api.get<Meta>('/prompts/meta'), staleTime: 10 * 60_000 });
+const metaQuery = queryOptions({ queryKey: ['prompts', 'meta'], queryFn: () => call(client.GET('/api/prompts/meta')), staleTime: 10 * 60_000 });
 const bankQuery = (f: Filters) =>
   infiniteQueryOptions({
     queryKey: ['prompts', 'list', f],
-    queryFn: ({ pageParam }) => {
-      const qs = new URLSearchParams({ page: String(pageParam) });
-      for (const [k, v] of Object.entries(f)) if (v != null && v !== '') qs.set(k, String(v));
-      return api.get<PromptPage>(`/prompts?${qs}`);
-    },
+    queryFn: ({ pageParam }) => call(client.GET('/api/prompts', { params: { query: { ...f, type: f.type || undefined, topic: f.topic || undefined, q: f.q || undefined, page: pageParam } } })),
     initialPageParam: 1,
     getNextPageParam: nextPage,
   });
@@ -127,7 +111,7 @@ function BankPage() {
             <option value="">All types</option>
             {types.map((t) => (
               <option key={t} value={t}>
-                {pretty(t)}
+                {typeLabel(t)}
               </option>
             ))}
           </Select>

@@ -8,7 +8,7 @@ import { useVad } from '@/hooks/useVad';
 import { api } from '@/lib/api';
 
 export type { Phase };
-export type ExaminerLine = { examinerText: string; audioUrl: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
+export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
 export type LiveStarted = ExaminerLine & { sessionId: string; test: SpeakingTest };
 type Part = 1 | 2 | 3;
 
@@ -29,6 +29,8 @@ export type LiveExaminer = {
   /** Candidate mic level 0..1 while recording. */
   level: number;
   error?: string;
+  /** Examiner voice failed: the test continues on captions only. */
+  voiceError?: string;
   /** Browser blocked autoplay: show a tap-to-play control that calls resume(). */
   needsTap: boolean;
   resume(): void;
@@ -139,6 +141,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
   const [caption, setCaption] = useState('');
   const [cueCard, setCueCard] = useState<Prompt>();
   const [error, setError] = useState<string>();
+  const [voiceError, setVoiceError] = useState<string>();
   const [retry, setRetry] = useState<() => void>();
   const turn = useRecorder();
   const parts = usePartRecorder();
@@ -183,6 +186,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     c.phase = line.phase;
     setPhase(line.phase);
     setCaption(line.examinerText);
+    if (line.voiceError) setVoiceError(line.voiceError);
     // Part recorders follow the phase; the Part 2 long turn reuses its turn recording.
     if (line.phase === 'p1' || line.phase === 'p3') {
       await parts.start(line.phase === 'p1' ? 1 : 3);
@@ -194,7 +198,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
       else c.prepTimer = setTimeout(() => void submit(null), (line.prepSeconds ?? 5) * 1000);
     }
     setStatus(line.phase === 'p2-prep' ? 'waiting' : 'examiner');
-    await audio.play(line.audioUrl);
+    if (line.audioUrl) await audio.play(line.audioUrl); // null = TTS failed: captions only, go straight to listening
     if (c.ended) return;
     if (line.phase === 'done') return void finish();
     if (line.phase === 'p2-prep') return;
@@ -259,6 +263,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     talkRunning: talk.running,
     level: turn.level,
     error,
+    voiceError,
     needsTap: audio.needsTap,
     resume: audio.resume,
     retry,

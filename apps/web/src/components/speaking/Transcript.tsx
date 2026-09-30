@@ -3,13 +3,14 @@ import { clsx } from 'clsx';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
 import { Chip } from '@/components/ui';
-import { buildTokens, errorGroup, type Token, type TranscriptFilter } from '@/lib/result';
+import { buildTokens, errorGroup, isLongPause, pauseSec, questionHead, type Token, type TranscriptFilter } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const FILTERS: { value: TranscriptFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'grammar', label: 'Grammar' },
   { value: 'vocab', label: 'Vocabulary' },
+  { value: 'other', label: 'Task & other' },
   { value: 'pauses', label: 'Pauses' },
   { value: 'fillers', label: 'Fillers' },
   { value: 'unclear', label: 'Unclear' },
@@ -22,13 +23,14 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   const [filter, setFilter] = useState<TranscriptFilter>('all');
   const tokens = useMemo(() => buildTokens(result), [result]);
   const errors = useMemo(() => new Map(result.errors.map((e) => [e.id, e])), [result.errors]);
-  const heads = useMemo(() => new Map((result.questions ?? []).filter((q) => q.startWord >= 0).map((q, n) => [q.startWord, { n: n + 1, text: q.text }])), [result.questions]);
+  const heads = useMemo(() => new Map((result.questions ?? []).flatMap((q, n) => (q.startWord >= 0 ? [[q.startWord, { n: n + 1, ...questionHead(q.text) }] as const] : []))), [result.questions]);
   const unplaced = result.errors.filter((e) => e.start < 0 || e.start >= tokens.length);
 
   const counts: Record<TranscriptFilter, number> = {
     all: 0,
     grammar: result.errors.filter((e) => errorGroup(e) === 'grammar').length,
     vocab: result.errors.filter((e) => errorGroup(e) === 'vocab').length,
+    other: result.errors.filter((e) => errorGroup(e) === 'other').length,
     pauses: result.metrics?.pauses.length ?? 0,
     fillers: tokens.filter((t) => t.filler).length,
     unclear: tokens.filter((t) => t.unclearTier).length,
@@ -38,7 +40,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     filter === 'all' ||
     (filter === 'fillers' && t.filler) ||
     (filter === 'unclear' && !!t.unclearTier) ||
-    ((filter === 'grammar' || filter === 'vocab') && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
+    ((filter === 'grammar' || filter === 'vocab' || filter === 'other') && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
 
   const word = (t: Token) => (
     <span
@@ -59,7 +61,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
 
   const pause = (t: Token) => {
     const p = t.pauseAfter!;
-    const long = p.kind === 'long';
+    const long = isLongPause(p);
     return (
       <span
         onClick={() => audio.seek(p.start)}
@@ -72,7 +74,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       >
         <span aria-hidden>⏸ </span>
         <span className="sr-only">pause </span>
-        {p.dur.toFixed(1)}s
+        {pauseSec(p)}s
       </span>
     );
   };
@@ -85,7 +87,8 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     if (q)
       out.push(
         <p key={`q${i}`} className={clsx('mb-1.5 font-sans text-sm font-medium text-muted', i > 0 && 'mt-5')}>
-          Q{q.n}. {q.text}
+          Q{q.n}. {q.head}
+          {q.rest && <span className="mt-0.5 block text-xs font-normal">{q.rest}</span>}
         </p>,
       );
     const e = t.errorIds.map((id) => errors.get(id)!).find((x) => x.start === i);
@@ -126,7 +129,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   return (
     <div className="space-y-5">
       <div role="toolbar" aria-label="Show" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-        {FILTERS.map((f) => (
+        {FILTERS.filter((f) => f.value === 'all' || f.value === filter || counts[f.value] > 0).map((f) => (
           <Chip key={f.value} selected={filter === f.value} onClick={() => setFilter(f.value)}>
             {f.label}
             {f.value !== 'all' && <span className="tabular-nums opacity-70">{counts[f.value]}</span>}

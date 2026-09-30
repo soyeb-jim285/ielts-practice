@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, questionBoundaries } from './speaking';
+import { analyzeSpeaking, anchorSpan, questionBoundaries } from './speaking';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
-const run = (s = settings()) =>
+const run = (s = settings({ audioPronEnabled: false })) =>
   analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['What did you do yesterday?'], part: 1, settings: s });
 
 it('scores, rounds and locates errors in time', async () => {
@@ -35,12 +35,12 @@ it('no speech: returns noSpeech and never calls chat', async () => {
 
 it('audio pronunciation pass runs first with input_audio', async () => {
   const pron = { words: [{ word: 'park', time: 2, issue: 'sound', tip: 'open the vowel' }], prosody: 'Flat.', band: 6 };
-  const replies = [pron, speakingLlm];
-  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(replies.shift()) });
+  const replies = [pron];
+  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(replies.shift() ?? speakingLlm) });
   setFetch(f);
   const r = await run(settings({ audioPronEnabled: true }));
   const chats = f.calls.filter((c) => c.url.includes('/chat'));
-  expect(chats).toHaveLength(2);
+  expect(chats).toHaveLength(4); // pronunciation, full analysis, 2 scoring samples
   expect(JSON.stringify(chats[0]!.body)).toContain('input_audio');
   expect(r.pronunciation?.llm).toEqual(pron);
 });
@@ -61,3 +61,16 @@ it('maps question marks to word boundaries', () => {
     { text: 'c', startWord: -1 },
   ]);
 });
+
+it('re-anchors an off-by-one LLM error span on its words', async () => {
+  const words = ['Also,', 'my', 'father,', 'he,', 'he', "don't", 'use', 'the', 'computer.'].map((w, i) => ({ w, start: i, end: i + 0.5 }));
+  expect(anchorSpan(words, { start: 4, original: "he he don't" })).toEqual({ start: 3, end: 5 });
+  expect(anchorSpan(words, { start: 4, original: 'he he' })).toEqual({ start: 3, end: 4 });
+  expect(anchorSpan(words, { start: 4, original: 'not there' })).toBeNull();
+  const llm = { ...speakingLlm, errors: [{ ...speakingLlm.errors[0], start: 2, end: 2, original: 'goes' }] };
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(llm) }));
+  const r = await run();
+  expect(r.errors[0]).toMatchObject({ start: 1, end: 1, time: r.words![1]!.start });
+});
+
+it('default settings enable the audio pronunciation pass', () => expect(settings().audioPronEnabled).toBe(true));

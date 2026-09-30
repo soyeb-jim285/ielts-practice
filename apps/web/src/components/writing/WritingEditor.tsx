@@ -1,10 +1,11 @@
+import { countWords } from '@ielts/core';
 import { clsx } from 'clsx';
 import { useCallback, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { toast } from '@/components/ui';
 import { plural } from '@/lib/format';
 
-/** Words as IELTS examiners count them: whitespace-separated tokens. */
-export const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
+/** Words as IELTS examiners count them. */
+export { countWords }; // core rule, same as the server scores with (numbers and "75%" count, bare punctuation does not)
 
 /** Kills autocorrect / spellcheck / Grammarly (Global Constraints). Spread onto every writing input. */
 export const NO_ASSIST = {
@@ -124,7 +125,11 @@ export function WritingEditor({
         {...NO_ASSIST}
       />
       <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-2.5 text-sm">
-        <span id={`${id}-count`} aria-live="polite" className={clsx('font-medium tabular-nums', under ? 'text-bad-text' : 'text-good-text')}>
+        <span
+          id={`${id}-count`}
+          aria-live="polite"
+          className={clsx('font-medium tabular-nums', !under ? 'text-good-text' : words >= minWords * 0.9 ? 'text-warn-text' : 'text-muted')}
+        >
           {plural(words, 'word')}
         </span>
         <span className="text-muted tabular-nums">{under ? `${minWords - words} to go · min ${minWords}` : `Minimum ${minWords} reached`}</span>

@@ -5,12 +5,11 @@ import { clsx } from 'clsx';
 import { CircleCheck, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button, buttonStyles, Card, EmptyState, PageHeader, Skeleton, toast } from '@/components/ui';
-import { api } from '@/lib/api';
+import { call, client } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { queryClient } from '@/lib/query';
 
-type ReviewCard = { id: string; front: string; back: string; source: 'mistake' | 'vocab' | 'fix'; ease: number; interval: number; reps: number; due: string };
-const dueQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => api.get<{ cards: ReviewCard[]; total: number }>('/cards/due'), staleTime: 0 });
+const dueQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => call(client.GET('/api/cards/due')), staleTime: 0 });
 
 export const Route = createFileRoute('/_app/review')({
   loader: ({ context }) => context.queryClient.ensureQueryData(dueQuery),
@@ -34,7 +33,7 @@ function ReviewPage() {
   const [revealed, setRevealed] = useState(false);
   const card = data.cards[i];
   const grade = useMutation({
-    mutationFn: (g: number) => api.post(`/cards/${card!.id}/review`, { grade: g }),
+    mutationFn: (g: number) => call(client.POST('/api/cards/{id}/review', { params: { path: { id: card!.id } }, body: { grade: g } })),
     onSuccess: () => {
       setRevealed(false);
       setI(i + 1);
@@ -59,6 +58,8 @@ function ReviewPage() {
   }, [card, revealed, grade]);
 
   const left = data.total - i;
+  const next = card ? GRADES.map((g) => days(review({ ...card, due: new Date(card.due) }, g.grade).interval)) : [];
+  const sameNext = new Set(next).size === 1; // e.g. a new card: every grade schedules 1 day, so the labels would only confuse
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Review" description={card ? `${plural(left, 'card')} due today` : undefined} />
@@ -101,7 +102,7 @@ function ReviewPage() {
                 </Button>
               ) : (
                 <div className="grid grid-cols-4 gap-2" role="group" aria-label="How well did you remember?">
-                  {GRADES.map((g) => (
+                  {GRADES.map((g, n) => (
                     <button
                       key={g.grade}
                       type="button"
@@ -111,8 +112,11 @@ function ReviewPage() {
                     >
                       <span className={clsx('text-sm font-semibold', g.tone)}>{g.label}</span>
                       <span className="text-xs tabular-nums text-muted">
-                        {days(review({ ...card, due: new Date(card.due) }, g.grade).interval)}
-                        <span className="hidden sm:inline"> · {g.key}</span>
+                        {!sameNext && next[n]}
+                        <span className="hidden sm:inline">
+                          {!sameNext && ' · '}
+                          {g.key}
+                        </span>
                       </span>
                     </button>
                   ))}

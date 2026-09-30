@@ -9,6 +9,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useRecorder, type Recording } from '@/hooks/useRecorder';
 import { api, ApiError } from '@/lib/api';
 import { formatClock } from '@/lib/format';
+import { CueCard } from './CueCard';
 import { SilenceNudge, WpmPill } from './LiveHints';
 import { MicButton } from './MicButton';
 import { MicProblem } from './MicProblem';
@@ -170,7 +171,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
         )
       }
       exit={
-        <Button variant="ghost" size="sm" icon={<X />} onClick={() => (recording || phase === 'prep' || segIdx > 0 || unsaved ? setExitOpen(true) : exit())}>
+        <Button variant="ghost" size="sm" icon={<X />} aria-label="Exit" onClick={() => (recording || phase === 'prep' || segIdx > 0 || unsaved ? setExitOpen(true) : exit())}>
           <span className="hidden sm:inline">Exit</span>
         </Button>
       }
@@ -179,7 +180,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
         <Finishing uploads={uploads} total={segments.length} onRetry={(k) => void upload(k)} />
       ) : (
         <div className="flex flex-col items-center gap-8 text-center">
-          <PartHeading seg={seg} p1Pos={p1Pos} p1Count={p1Count} />
+          <PartHeading seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} />
 
           {seg.part === 2 ? (
             <CueCard prompt={seg.prompt} />
@@ -231,24 +232,29 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               </div>
             </div>
           ) : seg.part === 2 && phase === 'prep' ? (
-            <div className="flex w-full flex-col items-center gap-5">
-              <ProgressRing value={prep.left / P2_PREP_S} size={96} stroke={7} tone={prep.left <= 10 ? 'warn' : 'accent'} label="Preparation time left">
-                <span className="text-xl font-semibold">{formatClock(prep.left)}</span>
-              </ProgressRing>
-              <Textarea
-                label="Notes"
-                hint="Only you see these. Recording starts automatically when the minute is up."
-                rows={5}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="text-left"
-                autoFocus
-                spellCheck={false}
-              />
-              <Button size="lg" onClick={() => void startRecording()} loading={rec.state === 'requesting'}>
-                Start speaking now
-              </Button>
-            </div>
+            <>
+              <div className="flex w-full flex-col items-center gap-5">
+                <ProgressRing value={prep.left / P2_PREP_S} size={96} stroke={7} tone={prep.left <= 10 ? 'warn' : 'accent'} label="Preparation time left">
+                  <span className="text-xl font-semibold">{formatClock(prep.left)}</span>
+                </ProgressRing>
+                <Textarea
+                  label="Notes"
+                  hint="Only you see these. Recording starts automatically when the minute is up."
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="text-left"
+                  autoFocus
+                  spellCheck={false}
+                />
+              </div>
+              {/* Sticky on phones so the cue card and notes never push the CTA below the fold. */}
+              <div className="sticky bottom-0 z-10 -mx-4 self-stretch bg-bg/90 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-6 sm:px-6 md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+                <Button size="lg" className="w-full md:w-auto" onClick={() => void startRecording()} loading={rec.state === 'requesting'}>
+                  Start speaking now
+                </Button>
+              </div>
+            </>
           ) : seg.part === 2 ? (
             <div className="flex flex-col items-center gap-3">
               <p className="max-w-md text-[0.9375rem] text-muted">{INTRO[2]}</p>
@@ -303,33 +309,18 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   );
 }
 
-function PartHeading({ seg, p1Pos, p1Count }: { seg: Segment; p1Pos: number; p1Count: number }) {
+/** Eyebrow repeats the ExamShell title, so it only shows on phones in a multi-part test (where that title is hidden). */
+function PartHeading({ seg, p1Pos, p1Count, multi }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean }) {
+  if (seg.part === 2 && !multi) return null;
   return (
     <div className="space-y-1">
-      <p className="text-sm font-medium text-accent-text">
-        Part {seg.part}
-        {seg.part === 1 && p1Count > 1 && ` · topic ${p1Pos} of ${p1Count}`}
-      </p>
+      {multi && (
+        <p className="text-sm font-medium text-accent-text sm:hidden">
+          Part {seg.part}
+          {seg.part === 1 && p1Count > 1 && ` · topic ${p1Pos} of ${p1Count}`}
+        </p>
+      )}
       {seg.part !== 2 && <h2 className="text-lg font-semibold">{seg.prompt.topic || seg.prompt.title}</h2>}
-    </div>
-  );
-}
-
-function CueCard({ prompt }: { prompt: Prompt }) {
-  return (
-    <div className="w-full rounded-card border border-line bg-surface p-6 text-left shadow-card">
-      <p className="font-serif text-xl leading-snug text-balance">{prompt.title}</p>
-      {prompt.body && prompt.body !== prompt.title && <p className="mt-2 text-[0.9375rem] text-muted">{prompt.body}</p>}
-      {prompt.bullets?.length ? (
-        <>
-          <p className="mt-4 text-sm font-medium">You should say:</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[0.9375rem]">
-            {prompt.bullets.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
     </div>
   );
 }

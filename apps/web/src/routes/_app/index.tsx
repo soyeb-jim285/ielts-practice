@@ -2,20 +2,21 @@ import type { CriterionKey } from '@server/ai/types';
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, ChevronRight, Flame, Layers, MessagesSquare, Mic, PenLine } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { speakingSession, StartWritingButton } from '@/components/bank/PracticeLink';
-import { CriteriaTrend, Sparkline } from '@/components/dashboard/Charts';
 import { PRACTICE, type Progress } from '@/components/dashboard/criteria';
 import { Onboarding } from '@/components/dashboard/Onboarding';
-import { Badge, buttonStyles, Card, PageHeader, Tabs } from '@/components/ui';
-import { api } from '@/lib/api';
+import { Alert, Badge, buttonStyles, Card, PageHeader, Skeleton, Tabs } from '@/components/ui';
+import { call, client } from '@/lib/api';
 import { formatBand, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { bandColor, categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
-const progressQuery = queryOptions({ queryKey: ['progress'], queryFn: () => api.get<Progress>('/progress'), staleTime: 0 });
-const dueCountQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => api.get<{ cards: unknown[]; total: number }>('/cards/due'), staleTime: 0 });
+// recharts (~100 KB gz) loads only when a criteria chart actually renders.
+const CriteriaTrend = lazy(() => import('@/components/dashboard/Charts'));
+const progressQuery = queryOptions({ queryKey: ['progress'], queryFn: () => call(client.GET('/api/progress')), staleTime: 0 });
+const dueCountQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => call(client.GET('/api/cards/due')), staleTime: 0 });
 
 export const Route = createFileRoute('/_app/')({
   loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(progressQuery), context.queryClient.ensureQueryData(dueCountQuery)]),
@@ -54,6 +55,25 @@ function Dashboard() {
         }
       />
 
+      {p.lastFailed && (
+        <Alert
+          tone="warn"
+          title="Your last attempt couldn't be scored"
+          action={
+            <Link
+              to={p.lastFailed.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'}
+              params={{ attemptId: p.lastFailed.id }}
+              search={{}}
+              className={buttonStyles({ variant: 'secondary', size: 'sm' })}
+            >
+              Open it
+            </Link>
+          }
+        >
+          Your answer is saved. Open it to retry the analysis.
+        </Alert>
+      )}
+
       {p.attempts === 0 ? (
         <Onboarding />
       ) : (
@@ -63,11 +83,11 @@ function Dashboard() {
             <Predicted skill="writing" band={p.predicted.writing} trend={p.trend} target={target} />
           </div>
           {p.weakest && <Weakest k={p.weakest.key as CriterionKey} avg={p.weakest.avg} />}
-          <Trend trend={p.trend} target={target} />
+          {(['speaking', 'writing'] as const).some((k) => p.trend.filter((t) => t.skill === k).length >= 2) && <Trend trend={p.trend} target={target} />}
         </>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid items-start gap-4 md:grid-cols-2">
         <Card padded={false} className="min-w-0">
           <h2 className="px-5 pt-5 text-base font-semibold">Start practising</h2>
           <ul className="mt-2 divide-y divide-line">
@@ -169,7 +189,7 @@ function Predicted({ skill, band, trend, target }: { skill: Skill; band: number 
         <>
           <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums">{formatBand(band)}</p>
           <p className="mt-1 text-xs text-muted">
-            Average of your last {Math.min(values.length, 5)} {skill} scores · target {formatBand(target)}
+            {values.length > 1 ? `Average of your last ${plural(Math.min(values.length, 5), `${skill} score`)}` : `Your latest ${skill} score`} · target {formatBand(target)}
           </p>
           <div className="mt-3">
             <Sparkline values={values} />
@@ -205,7 +225,7 @@ function Weakest({ k, avg }: { k: CriterionKey; avg: number }) {
 }
 
 function Trend({ trend, target }: { trend: Progress['trend']; target: number }) {
-  const has = (s: Skill) => trend.some((t) => t.skill === s);
+  const has = (s: Skill) => trend.filter((t) => t.skill === s).length >= 2;
   const [skill, setSkill] = useState<Skill>(has('speaking') || !has('writing') ? 'speaking' : 'writing');
   const rows = trend.filter((t) => t.skill === skill);
   return (
@@ -225,13 +245,27 @@ function Trend({ trend, target }: { trend: Progress['trend']; target: number }) 
       </div>
       <div role="tabpanel" id="trend-panel" aria-labelledby={`trend-${skill}`} className="border-t border-line p-5">
         {rows.length < 2 ? (
-          <p className="py-10 text-center text-sm text-muted">
+          <p className="text-sm text-muted">
             {rows.length ? 'One more scored attempt and your trend appears here.' : `Your ${skill} criteria trend appears after two scored attempts.`}
           </p>
         ) : (
-          <CriteriaTrend trend={rows} keys={skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA} target={target} />
+          <Suspense fallback={<Skeleton className="h-68" />}>
+            <CriteriaTrend trend={rows} keys={skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA} target={target} />
+          </Suspense>
         )}
       </div>
     </Card>
+  );
+}
+
+/** Tiny decorative trend line (plain SVG, no chart library); the numbers it summarises are shown as text next to it. */
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const [lo, hi] = [Math.min(...values) - 0.5, Math.max(...values) + 0.5];
+  const points = values.map((v, i) => `${(i / (values.length - 1)) * 100},${44 - ((v - lo) / (hi - lo)) * 40}`).join(' ');
+  return (
+    <svg className="h-12 w-full overflow-visible" viewBox="0 0 100 48" preserveAspectRatio="none" aria-hidden>
+      <polyline points={points} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }

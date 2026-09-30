@@ -1,38 +1,41 @@
-import type { SpeechMetrics } from '@ielts/core';
+import { WPM_WINDOW_S, type SpeechMetrics } from '@ielts/core';
+import type { Criterion } from '@server/ai/types';
 import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Card, InfoTip } from '@/components/ui';
+import { Alert, Card, InfoTip } from '@/components/ui';
 import { formatClock } from '@/lib/format';
-import { speechStats, type Stat } from '@/lib/result';
+import { isLongPause, pauseSec, speechStats, type Stat } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const TICK = { fill: 'var(--muted)', fontSize: 12 };
 
-/** Pace over time (10 s windows) with the heuristic band-7 zone shaded. */
-export function WpmChart({ series }: { series: SpeechMetrics['wpmSeries'] }) {
+/** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the heuristic band-7 zone shaded. */
+export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeries']; durationS: number }) {
   if (series.length < 2) return <p className="text-sm text-muted">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
   const max = Math.max(200, ...series.map((p) => p.wpm));
   return (
     <figure>
       <div className="h-56 w-full" role="img" aria-label={`Words per minute over time, from ${Math.round(Math.min(...series.map((p) => p.wpm)))} to ${Math.round(Math.max(...series.map((p) => p.wpm)))}`}>
         <ResponsiveContainer>
-          <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          <AreaChart data={series.map((p) => ({ ...p, x: p.t + WPM_WINDOW_S / 2 }))} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
             <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'band-7 zone (heuristic)', position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12 }} />
-            <XAxis dataKey="t" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(t: number) => formatClock(t)} tick={TICK} tickLine={false} axisLine={{ stroke: 'var(--line)' }} />
+            <XAxis dataKey="x" type="number" domain={[0, Math.max(durationS, 1)]} tickFormatter={(t: number) => formatClock(t)} tick={TICK} tickLine={false} axisLine={{ stroke: 'var(--line)' }} />
             <YAxis domain={[0, Math.ceil(max / 40) * 40]} tick={TICK} tickLine={false} axisLine={false} width={48} />
             <Tooltip
               cursor={{ stroke: 'var(--line-strong, var(--muted))' }}
               content={({ active, payload }) =>
                 active && payload?.[0] ? (
                   <div className="rounded-card border border-line bg-surface px-3 py-2 text-sm shadow-pop">
-                    <p className="text-muted tabular-nums">from {formatClock(payload[0].payload.t)}</p>
+                    <p className="text-muted tabular-nums">
+                      {formatClock(payload[0].payload.t)}–{formatClock(Math.min(payload[0].payload.t + WPM_WINDOW_S, durationS))}
+                    </p>
                     <p className="font-medium tabular-nums">{Math.round(payload[0].payload.wpm)} wpm</p>
                   </div>
                 ) : null
               }
             />
-            <Area type="monotone" dataKey="wpm" stroke="var(--accent)" strokeWidth={2} fill="var(--accent)" fillOpacity={0.12} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
+            <Area type="monotone" dataKey="wpm" stroke="var(--accent)" strokeWidth={2} fill="none" activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -46,17 +49,20 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
   const d = Math.max(metrics.durationS, 1);
   return (
     <div>
-      <div className="relative h-10 rounded-control bg-surface-2">
+      <div className="relative h-11 rounded-control bg-surface-2">
         <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-accent" style={{ left: `${Math.min(100, (audio.time / d) * 100)}%` }} />
         {metrics.pauses.map((p) => (
           <button
             key={p.start}
             type="button"
             onClick={() => audio.seek(p.start)}
-            aria-label={`${p.kind === 'long' ? 'Long pause' : 'Pause'} of ${p.dur.toFixed(1)} seconds at ${formatClock(Math.floor(p.start))}${p.midClause ? ', mid-clause' : ''}`}
-            className={`absolute inset-y-1.5 min-w-1.5 rounded-sm transition-transform hover:scale-y-110 ${p.kind === 'long' ? 'bg-bad' : 'bg-warn/60'}`}
+            aria-label={`${isLongPause(p) ? 'Long pause' : 'Pause'} of ${pauseSec(p)} seconds at ${formatClock(Math.floor(p.start))}${p.midClause ? ', mid-clause' : ''}`}
+            className="group absolute inset-y-0 min-w-3"
             style={{ left: `${(p.start / d) * 100}%`, width: `${(p.dur / d) * 100}%` }}
-          />
+          >
+            {/* Full-height (44 px) hit area; the visible mark sits inside it. */}
+            <span className={`absolute inset-x-0 inset-y-1.5 rounded-sm transition-transform group-hover:scale-y-110 ${isLongPause(p) ? 'bg-bad' : 'bg-warn/60'}`} />
+          </button>
         ))}
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
@@ -102,25 +108,32 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
   );
 }
 
-/** Fluency tab: pace chart, pause timeline, stat grid. */
-export function FluencyPanel({ metrics, audio }: { metrics: SpeechMetrics; audio: AudioControls }) {
+/** Fluency tab: pace chart, pause timeline, stat grid. `fc`/`target` explain a low band when the measures look fine. */
+export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMetrics; audio: AudioControls; fc?: Criterion; target: number }) {
+  const stats = speechStats(metrics);
+  const heldBack = fc && fc.band < target && stats.every((s) => s.tone !== 'bad');
   return (
     <div className="space-y-8">
+      {heldBack && (
+        <Alert title={`Your delivery measures look fine, but Fluency & Coherence is ${fc.band.toFixed(1)}`}>
+          The band is limited by something these numbers don't capture, such as answer length, relevance or how ideas connect. {fc.summary}
+        </Alert>
+      )}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Pace</h2>
-        <WpmChart series={metrics.wpmSeries} />
+        <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} />
       </section>
       <section>
         <h2 className="mb-1 text-lg font-semibold">Pauses</h2>
         <p className="mb-3 text-sm text-muted">
-          {metrics.pauses.length} pauses · {metrics.longPauses} long · {metrics.midClausePauses} mid-clause. Tap one to hear it.
+          {metrics.pauses.length} pauses · {metrics.pauses.filter(isLongPause).length} long · {metrics.midClausePauses} mid-clause. Tap one to hear it.
         </p>
         <PauseTimeline metrics={metrics} audio={audio} />
       </section>
       <section>
         <h2 className="mb-1 text-lg font-semibold">Fluency measures</h2>
         <p className="mb-3 text-sm text-muted">Compared with typical band-7 speech. These are guides, not the score.</p>
-        <StatGrid stats={speechStats(metrics)} />
+        <StatGrid stats={stats} />
       </section>
     </div>
   );

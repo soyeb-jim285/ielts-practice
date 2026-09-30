@@ -1,9 +1,10 @@
+import { clsx } from 'clsx';
 import { diffWords } from 'diff';
 import { useMemo, useState } from 'react';
 import { Segmented } from '@/components/ui';
 
-/** Word-level diff of the original essay against the band+1 rewrite, with a clean-read toggle. */
-export function DiffView({ original, rewrite }: { original: string; rewrite: string }) {
+/** Word-level diff of the original essay against a rewrite (band+1 or a retry), with a clean-read toggle. */
+export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite' }: { original: string; rewrite: string; cleanLabel?: string }) {
   const [view, setView] = useState<'diff' | 'clean'>('diff');
   const parts = useMemo(() => diffWords(original, rewrite), [original, rewrite]);
   return (
@@ -16,7 +17,7 @@ export function DiffView({ original, rewrite }: { original: string; rewrite: str
           onChange={setView}
           options={[
             { value: 'diff', label: 'Show changes' },
-            { value: 'clean', label: 'Clean rewrite' },
+            { value: 'clean', label: cleanLabel },
           ]}
         />
         {view === 'diff' && (
@@ -35,11 +36,12 @@ export function DiffView({ original, rewrite }: { original: string; rewrite: str
           ? rewrite
           : parts.map((p, i) =>
               p.removed ? (
-                <del key={i} className="rounded-sm bg-bad-soft text-bad-text decoration-bad/60">
+                <del key={i} className="rounded-sm bg-bad-soft px-0.5 text-bad-text decoration-bad/60">
                   {p.value}
                 </del>
               ) : p.added ? (
-                <ins key={i} className="rounded-sm bg-good-soft text-good-text no-underline">
+                // A replacement (del directly followed by ins) gets a gap so "has"+"have" doesn't read "hashave".
+                <ins key={i} className={clsx('rounded-sm bg-good-soft px-0.5 text-good-text no-underline', parts[i - 1]?.removed && 'ml-1')}>
                   {p.value}
                 </ins>
               ) : (

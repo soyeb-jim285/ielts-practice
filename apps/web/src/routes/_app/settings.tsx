@@ -1,28 +1,17 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { clsx } from 'clsx';
-import { LogOut, Trash2 } from 'lucide-react';
+import { ChevronDown, LogOut, Trash2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { ModelPicker } from '@/components/settings/ModelPicker';
+import { DEFAULT_MODELS, ModelPicker, TtsPicker } from '@/components/settings/ModelPicker';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
-import { Button, Card, Dialog, Input, PageHeader, Select, Switch } from '@/components/ui';
+import { Button, Card, Dialog, Input, PageHeader, Switch } from '@/components/ui';
 import { authClient, signOut } from '@/lib/auth';
 import type { Settings } from '@/lib/api';
 import { useMe } from '@/lib/query';
 
 export const Route = createFileRoute('/_app/settings')({ component: SettingsPage });
-
-// ponytail: mirrors DEFAULT_SETTINGS.models in apps/server/src/settings.ts (that module imports the db, so the web can't import it).
-const DEFAULT_MODELS: Settings['models'] = {
-  analysis: 'openai/gpt-5-mini',
-  examiner: 'openai/gpt-5-mini',
-  stt: 'openai/whisper-large-v3',
-  tts: 'openai/gpt-4o-mini-tts',
-  ttsVoice: 'alloy',
-  audioPron: 'google/gemini-2.5-flash',
-};
-const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
@@ -70,42 +59,41 @@ function SettingsPage() {
           </Row>
         </Section>
 
-        <Section title="AI models" description="Any OpenRouter model. Prices are per million tokens.">
-          <Row>
-            <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
-          </Row>
-          <Row>
-            <ModelPicker label="Examiner" capability="text" value={s.models.examiner} defaultValue={DEFAULT_MODELS.examiner} onChange={setModel('examiner')} hint="Asks the questions in turn-based live tests." />
-          </Row>
-          <Row>
-            <ModelPicker label="Speech to text" capability="stt" value={s.models.stt} defaultValue={DEFAULT_MODELS.stt} onChange={setModel('stt')} hint="Needs word timestamps for fluency metrics." />
-          </Row>
-          <Row>
-            <div className="space-y-4">
-              <ModelPicker label="Examiner voice model" capability="tts" value={s.models.tts} defaultValue={DEFAULT_MODELS.tts} onChange={setModel('tts')} />
-              <Select label="Voice" value={s.models.ttsVoice} onChange={(e) => setModel('ttsVoice')(e.target.value)}>
-                {!VOICES.includes(s.models.ttsVoice) && <option value={s.models.ttsVoice}>{s.models.ttsVoice}</option>}
-                {VOICES.map((v) => (
-                  <option key={v} value={v}>
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
-                  </option>
-                ))}
-              </Select>
+        <Section title="Advanced" description="The AI models that score your work and play the examiner. The defaults suit most people.">
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              AI models
+              <ChevronDown className="size-4 text-muted transition-transform duration-150 group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="divide-y divide-line border-t border-line">
+              <p className="px-5 py-3 text-sm text-muted">Any OpenRouter model works. Prices are per million tokens.</p>
+              <Row>
+                <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
+              </Row>
+              <Row>
+                <ModelPicker label="Examiner" capability="text" value={s.models.examiner} defaultValue={DEFAULT_MODELS.examiner} onChange={setModel('examiner')} hint="Asks the questions when the examiner waits for you to finish." />
+              </Row>
+              <Row>
+                <ModelPicker label="Speech to text" capability="stt" value={s.models.stt} defaultValue={DEFAULT_MODELS.stt} onChange={setModel('stt')} hint="Needs word timestamps for fluency metrics." />
+              </Row>
+              <Row>
+                <TtsPicker value={s.models.tts} voice={s.models.ttsVoice} onChange={(models) => mutate({ models })} />
+              </Row>
+              <Row>
+                <div className="space-y-4">
+                  <Switch
+                    label="Audio pronunciation check"
+                    description="Sends your recording to an audio model for prosody and pronunciation notes. Slower and costs more."
+                    checked={s.audioPronEnabled}
+                    onChange={(v) => mutate({ audioPronEnabled: v })}
+                  />
+                  {s.audioPronEnabled && (
+                    <ModelPicker label="Pronunciation model" capability="audio-in" value={s.models.audioPron} defaultValue={DEFAULT_MODELS.audioPron} onChange={setModel('audioPron')} hint="Must accept audio input." />
+                  )}
+                </div>
+              </Row>
             </div>
-          </Row>
-          <Row>
-            <div className="space-y-4">
-              <Switch
-                label="Audio pronunciation check"
-                description="Sends your recording to an audio model for prosody and pronunciation notes. Slower and costs more."
-                checked={s.audioPronEnabled}
-                onChange={(v) => mutate({ audioPronEnabled: v })}
-              />
-              {s.audioPronEnabled && (
-                <ModelPicker label="Pronunciation model" capability="audio-in" value={s.models.audioPron} defaultValue={DEFAULT_MODELS.audioPron} onChange={setModel('audioPron')} hint="Must accept audio input." />
-              )}
-            </div>
-          </Row>
+          </details>
         </Section>
 
         <Section title="Appearance" description="Saved in this browser.">
@@ -125,11 +113,11 @@ function SettingsPage() {
 
 function LiveProvider({ value, available, onChange }: { value: Settings['liveProvider']; available: boolean; onChange: (v: Settings['liveProvider']) => void }) {
   const options = [
-    { value: 'turn' as const, label: 'Turn-based (OpenRouter)', description: 'The examiner speaks, then listens until you pause. Works with any key.' },
+    { value: 'turn' as const, label: 'Examiner waits for you to finish', description: 'The examiner asks a question, then listens until you pause.' },
     {
       value: 'openai-realtime' as const,
-      label: 'OpenAI Realtime',
-      description: available ? 'Natural back-and-forth with interruptions. Uses your OpenAI key.' : 'Unavailable: the server has no OPENAI_API_KEY set.',
+      label: 'Natural conversation',
+      description: available ? 'Talk back and forth as in the real test. You can interrupt each other.' : 'Not available right now.',
       disabled: !available,
     },
   ];

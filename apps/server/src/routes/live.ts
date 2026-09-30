@@ -31,7 +31,8 @@ const SessionRef = z.object({ sessionId: z.string() });
 const ExaminerLine = z
   .object({
     examinerText: z.string(),
-    audioUrl: z.string(),
+    audioUrl: z.string().nullable().openapi({ description: 'Examiner TTS; null when the voice failed or was skipped: show examinerText as a caption and start listening' }),
+    voiceError: z.string().optional().openapi({ description: 'Why audioUrl is null (voice failed)' }),
     phase: Phase.openapi({ description: "Phase of this line; 'done' after the closing line" }),
     transcript: z.string().optional().openapi({ description: "The candidate's transcribed answer" }),
     prepSeconds: z.number().optional().openapi({ description: 'p2-prep: seconds of preparation left; POST /turn (skipped) when it ends' }),
@@ -53,18 +54,24 @@ function ownKey(s: LiveState, key: string) {
   return key;
 }
 
-/** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3. */
-async function voice(s: LiveState, n: number, text: string, settings: Settings) {
+/** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3. A TTS failure degrades to captions only (url null) instead of failing the turn. */
+async function voice(s: LiveState, n: number, text: string, settings: Settings): Promise<{ key?: string; url: string | null; voiceError?: string }> {
   const { tts, ttsVoice } = settings.models;
-  const { audio, contentType } = await speak({ model: tts, voice: ttsVoice, text }).catch((e) => {
-    // A 4xx here is a bad model/voice choice that retrying cannot fix.
-    if (e instanceof AiError && e.status && e.status < 500 && e.status !== 429)
-      throw new AiError('http', `Examiner voice model ${tts} (voice ${ttsVoice}) is unavailable – change it in Settings.`, e.status);
-    throw e;
-  });
-  const key = `live/${s.sessionId}/e${n}.mp3`;
-  await storage.put(key, audio, contentType);
-  return { key, url: await storage.presignGet(key) };
+  try {
+    const { audio, contentType } = await speak({ model: tts, voice: ttsVoice, text });
+    const key = `live/${s.sessionId}/e${n}.mp3`;
+    await storage.put(key, audio, contentType);
+    return { key, url: await storage.presignGet(key) };
+  } catch (e) {
+    if (!(e instanceof AiError)) throw e;
+    console.error('examiner TTS failed, captions only', e.status, e.message);
+    // 400/404 is a bad model/voice choice; credit/key/outage problems are not the user's to fix.
+    const voiceError =
+      e.status === 400 || e.status === 404
+        ? `Examiner voice model ${tts} (voice ${ttsVoice}) is unavailable – change it in Settings.`
+        : 'The examiner voice is unavailable right now, so questions are shown as captions.';
+    return { url: null, voiceError };
+  }
 }
 
 /** Maps AI failures to a readable 502 instead of a generic 500. */
@@ -84,7 +91,14 @@ export function register(app: App) {
       method: 'post',
       path: '/api/live/start',
       summary: 'Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio',
-      request: body(z.object({ source: z.enum(['generated', 'cambridge', 'any']).default('any') }).openapi('LiveStart')),
+      request: body(
+        z
+          .object({
+            source: z.enum(['generated', 'cambridge', 'any']).default('any'),
+            skipTts: z.boolean().default(false).openapi({ description: 'Realtime sessions speak for themselves: create the session without examiner TTS (audioUrl null)' }),
+          })
+          .openapi('LiveStart'),
+      ),
       responses: {
         200: json(
           ExaminerLine.extend({ sessionId: z.string(), test: z.object({ part1: z.array(PromptSchema), part2: PromptSchema, part3: PromptSchema }) }).openapi('LiveStarted'),
@@ -97,14 +111,15 @@ export function register(app: App) {
     }),
     async (c) => {
       const user = currentUser(c);
-      const test = await pickSpeakingTest(user, c.req.valid('json').source);
+      const { source, skipTts } = c.req.valid('json');
+      const test = await pickSpeakingTest(user, source);
       if (!test) return c.json({ error: 'No speaking test available' }, 404);
       const sessionId = crypto.randomUUID();
       const s = newState(sessionId, test, Date.now());
-      const audio = await ai(async () => voice(s, 0, s.history[0]!.text, await getSettings(user.id)));
-      s.history[0]!.audioKey = audio.key;
+      const { key, ...audio } = skipTts ? { url: null } : await voice(s, 0, s.history[0]!.text, await getSettings(user.id));
+      s.history[0]!.audioKey = key;
       await db.insert(liveSessions).values({ id: sessionId, userId: user.id, state: s });
-      return c.json({ sessionId, test, examinerText: s.history[0]!.text, audioUrl: audio.url, phase: s.phase }, 200);
+      return c.json({ sessionId, test, examinerText: s.history[0]!.text, audioUrl: audio.url, voiceError: audio.voiceError, phase: s.phase }, 200);
     },
   );
 
@@ -175,12 +190,12 @@ export function register(app: App) {
       if (s.phase === 'p1') s.p1Asked++;
       if (s.phase === 'p3') s.p3Asked++;
 
-      const audio = await ai(() => voice(s, s.history.length, text, settings));
+      const audio = await voice(s, s.history.length, text, settings);
       s.history.push({ role: 'examiner', text, at: now, audioKey: audio.key, phase: s.phase });
       if (s.phase === 'closing') s.phase = 'done';
       await save(s);
       const prep = s.phase === 'p2-prep' ? { prepSeconds: Math.max(0, Math.ceil((s.phaseStartedAt + PREP_MS - now) / 1000)), cueCard: s.test.part2 } : {};
-      return c.json({ examinerText: text, audioUrl: audio.url, phase: s.phase, transcript, ...prep }, 200);
+      return c.json({ examinerText: text, audioUrl: audio.url, voiceError: audio.voiceError, phase: s.phase, transcript, ...prep }, 200);
     },
   );
 

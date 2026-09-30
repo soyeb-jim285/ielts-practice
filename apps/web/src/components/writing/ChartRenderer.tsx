@@ -15,10 +15,6 @@ const tooltip = {
 };
 const legend = { wrapperStyle: { fontSize: 13, color: 'var(--ink)', paddingTop: 8 } };
 
-/** Accepts the untyped `prompt.chart` JSON; anything that isn't a known ChartSpec renders nothing. */
-export const asChart = (c: unknown): ChartSpec | null =>
-  c && typeof c === 'object' && ['line', 'bar', 'pie', 'table', 'process', 'map'].includes((c as { kind?: string }).kind ?? '') ? (c as ChartSpec) : null;
-
 /** An exam-paper style figure for Academic Task 1: bold centred title, plain axes, legend underneath. */
 export function ChartRenderer({ spec }: { spec: ChartSpec }) {
   return (

@@ -1,8 +1,9 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Scalar } from '@scalar/hono-api-reference';
+import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
-import { auth, sessionMiddleware } from './auth';
+import { auth, clearBearerCache, sessionMiddleware } from './auth';
 import { env, R2_CONFIGURED } from './env';
 import { MAX_AUDIO_BYTES, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
@@ -18,8 +19,13 @@ export function createApp() {
     },
   });
 
+  // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
+  app.use('*', compress());
   app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL], credentials: true, exposeHeaders: ['set-auth-token'] }));
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+  app.on(['GET', 'POST'], '/api/auth/*', (c) => {
+    if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password)/.test(c.req.path)) clearBearerCache();
+    return auth.handler(c.req.raw);
+  });
   app.use('/api/*', sessionMiddleware);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'bearer', { type: 'http', scheme: 'bearer' });

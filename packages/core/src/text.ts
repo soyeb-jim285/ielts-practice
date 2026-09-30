@@ -10,6 +10,9 @@ const STOP = new Set(
 
 export const tokenize = (text: string): string[] => text.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g) ?? [];
 
+/** IELTS word count: whitespace tokens holding a letter or digit, so numbers, "75%" and "$20" count (tokenize() drops them). */
+export const countWords = (text: string): number => text.split(/\s+/).filter((t) => /[\p{L}\p{N}]/u.test(t)).length;
+
 function mtldPass(tokens: string[], threshold: number): number {
   let factors = 0, types = new Set<string>(), count = 0, ttr = 1;
   for (const t of tokens) {
@@ -29,7 +32,7 @@ export function mtld(tokens: string[], threshold = 0.72): number {
 }
 
 export function computeTextMetrics(text: string): TextMetrics {
-  const tokens = tokenize(text), words = tokens.length;
+  const tokens = tokenize(text), words = countWords(text);
   const sentenceList = (text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? []).map(s => s.trim().toLowerCase()).filter(Boolean);
   const sentences = sentenceList.length;
   const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim()).length;
@@ -41,10 +44,10 @@ export function computeTextMetrics(text: string): TextMetrics {
     count: lower.match(new RegExp(re(word), 'g'))?.length ?? 0,
     opens: sentenceList.filter(s => new RegExp(`^${re(word)}`).test(s)).length,
   })).filter(l => l.count > 0);
-  // Overuse = mechanical sentence-initial linking (the band 5-6 CC feature): one linker opening 3+ sentences,
-  // or linkers opening over 40% of sentences. Mid-sentence "however"/"for example" is normal cohesion.
-  const templated = sentences >= 5 && counted.reduce((n, l) => n + l.opens, 0) / sentences > 0.4;
-  const linkers = counted.map(({ word, count, opens }) => ({ word, count, overused: opens >= 3 || (templated && opens > 0) }));
+  // Overuse = one linker opening 3+ sentences (the band 5-6 CC feature). Many different linkers each opening once is
+  // reported separately as linkerOpeningRatio, not as per-word overuse. Mid-sentence "however"/"for example" is normal cohesion.
+  const linkers = counted.map(({ word, count, opens }) => ({ word, count, overused: opens >= 3 }));
+  const linkerOpeningRatio = sentences ? counted.reduce((n, l) => n + l.opens, 0) / sentences : 0;
   const freq = new Map<string, number>();
   for (const t of tokens) if (t.length > 3 && !STOP.has(t)) freq.set(t, (freq.get(t) ?? 0) + 1);
   const repeated = [...freq]
@@ -56,7 +59,7 @@ export function computeTextMetrics(text: string): TextMetrics {
     words, sentences, paragraphs,
     avgSentenceLen: sentences ? words / sentences : 0,
     mtld: mtld(tokens),
-    ttr: words ? new Set(tokens).size / words : 0,
-    linkers, repeated,
+    ttr: tokens.length ? new Set(tokens).size / tokens.length : 0,
+    linkers, linkerOpeningRatio, repeated,
   };
 }

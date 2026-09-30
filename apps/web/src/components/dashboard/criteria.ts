@@ -1,4 +1,5 @@
 import type { CriterionKey } from '@server/ai/types';
+import type { Schemas } from '@/lib/api';
 
 // ponytail: mid-lightness hues that read on both themes; move to styles.css tokens if more charts need a categorical palette.
 export const SERIES_COLOR: Record<CriterionKey, string> = {
@@ -20,15 +21,7 @@ export const PRACTICE: Record<CriterionKey, { label: string; skill: 'speaking' |
   cc: { label: 'Task 2 essay', skill: 'writing', part: 2 },
 };
 
-export type Progress = {
-  trend: { attemptId: string; date: string; skill: 'speaking' | 'writing'; part: number; overall: number; criteria: Record<string, number> }[];
-  streak: number;
-  minutesThisWeek: number;
-  attempts: number;
-  weakest: { key: string; avg: number } | null;
-  topMistakes: { category: string; count: number }[];
-  predicted: { speaking: number | null; writing: number | null };
-};
+export type Progress = Schemas['Progress'];
 
 // Kept for the writing results screens that import these from here; lib/result is the source.
 export { bandColor as bandTone, categoryLabel } from '@/lib/result';

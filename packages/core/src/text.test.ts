@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { computeTextMetrics, mtld, tokenize } from './text';
+import { computeTextMetrics, countWords, mtld, tokenize } from './text';
 it('counts paragraphs, sentences, words', () => {
   const m = computeTextMetrics('First para. Has two sentences!\n\nSecond one?');
   expect([m.paragraphs, m.sentences, m.words]).toEqual([2, 3, 7]);
@@ -17,10 +17,16 @@ it('does not flag mid-sentence linkers or "in addition to"', () => {
   expect(m.linkers.find(l => l.word === 'for example')).toMatchObject({ count: 2, overused: false });
   expect(m.linkers.find(l => l.word === 'in addition')).toBeUndefined();
 });
-it('flags sentence-initial linkers opening over 40% of sentences', () => {
+it('reports the linker-opening ratio without flagging linkers used once', () => {
   const m = computeTextMetrics('Firstly, cars pollute. Moreover, they are loud. Cities grow. Furthermore, roads fill. People move. Parks shrink.');
-  expect(m.linkers.filter(l => l.overused).map(l => l.word).sort()).toEqual(['firstly', 'furthermore', 'moreover']);
+  expect(m.linkers.filter(l => l.overused)).toEqual([]);
+  expect(m.linkerOpeningRatio).toBeCloseTo(0.5);
 });
 it('mtld higher for diverse text', () => {
   expect(mtld(tokenize('the cat the cat the cat the cat the cat the cat'))).toBeLessThan(mtld(tokenize('a quick brown fox jumps over lazy dogs while seven wizards quietly hex ancient boxes')));
+});
+it('counts numbers, percentages and currency as words', () => {
+  expect(countWords('75% in 2017')).toBe(3);
+  expect(countWords('It cost $20 - a rise of 5.5 points.')).toBe(8);
+  expect(computeTextMetrics('Sales rose 75% in 2017.').words).toBe(5);
 });

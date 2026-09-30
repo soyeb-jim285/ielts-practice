@@ -1,5 +1,9 @@
-import { MIN_WORDS } from '@ielts/core';
-import { ChartRenderer, asChart } from './ChartRenderer';
+import { lazy, Suspense } from 'react';
+import { Skeleton } from '@/components/ui';
+import { asChart, minWords, taskLabel } from '@/lib/writing';
+
+// recharts is ~100 KB gz: only load it for prompts that actually have a chart.
+const ChartRenderer = lazy(() => import('./ChartRenderer').then((m) => ({ default: m.ChartRenderer })));
 
 /** The subset of the server `Prompt` / `AttemptPrompt` the writing screens use. */
 export type WritingPrompt = {
@@ -16,10 +20,6 @@ export type WritingPrompt = {
   done?: boolean;
 };
 
-export const minWords = (part: number) => (part === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2);
-export const taskLabel = (p: Pick<WritingPrompt, 'part' | 'variant'>) =>
-  p.part === 2 ? 'Task 2' : `Task 1 ${p.variant === 'general' ? 'General' : 'Academic'}`;
-
 /** Exam-paper rendering of a writing prompt: instructions, the figure (chart JSON or Cambridge image), letter bullets. */
 export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
   const chart = asChart(prompt.chart);
@@ -30,8 +30,8 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
         <p className="text-sm font-medium text-muted">
           {taskLabel(prompt)} · about {time} minutes
         </p>
-        {/* Seeded Task 2 titles are the body's first sentence; don't print it twice. */}
-        {!prompt.body.startsWith(prompt.title) && <h2 className="text-lg font-semibold text-balance">{prompt.title}</h2>}
+        {/* Seeded titles are the body's first sentence (cut with "…" past 120 chars); don't print it twice. */}
+        {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && <h2 className="text-lg font-semibold text-balance">{prompt.title}</h2>}
       </header>
       <div className="prose-serif space-y-3 whitespace-pre-line text-ink">{prompt.body}</div>
       {prompt.bullets?.length ? (
@@ -44,7 +44,11 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
           </ul>
         </div>
       ) : null}
-      {chart && <ChartRenderer spec={chart} />}
+      {chart && (
+        <Suspense fallback={<Skeleton className="h-72 w-full" />}>
+          <ChartRenderer spec={chart} />
+        </Suspense>
+      )}
       {!chart && prompt.imageUrl && (
         <figure className="overflow-hidden rounded-card border border-line bg-white p-2">
           <img src={prompt.imageUrl} alt={`Figure for: ${prompt.title}`} className="mx-auto h-auto max-w-full" loading="eager" />

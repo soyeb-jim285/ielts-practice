@@ -1,6 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { roundBand } from '@ielts/core';
-import { and, count, desc, eq, gt, gte, sql } from 'drizzle-orm';
+import { roundBand, WRITING_SECONDS } from '@ielts/core';
+import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { analyses, attempts, mistakes } from '../db/schema';
@@ -31,6 +31,7 @@ const Progress = z
     weakest: z.object({ key: z.string(), avg: z.number() }).nullable(),
     topMistakes: z.array(z.object({ category: z.string(), count: z.number() })).openapi({ description: 'Top 5 categories, last 30 days' }),
     predicted: z.object({ speaking: z.number().nullable(), writing: z.number().nullable() }).openapi({ description: 'roundBand of the mean of the last 5 overalls per skill (ignores the skill filter)' }),
+    lastFailed: z.object({ id: z.string(), skill: Skill }).nullable().openapi({ description: "The user's most recent submitted attempt, when its analysis failed" }),
   })
   .openapi('Progress');
 
@@ -62,7 +63,7 @@ export function register(app: App) {
           .limit(5);
       const day = sql<string>`to_char(${attempts.createdAt} at time zone 'UTC', 'YYYY-MM-DD')`;
 
-      const [trend, days, [week], [total], topMistakes, sp, wr] = await Promise.all([
+      const [trend, days, [week], [total], topMistakes, sp, wr, [last]] = await Promise.all([
         db
           .select({ attemptId: attempts.id, date: attempts.createdAt, skill: attempts.skill, part: attempts.part, overall: analyses.overall, criteria: analyses.criteria })
           .from(attempts)
@@ -71,7 +72,8 @@ export function register(app: App) {
           .orderBy(desc(attempts.createdAt))
           .limit(30),
         db.selectDistinct({ day }).from(attempts).where(done).orderBy(desc(day)).limit(400),
-        db.select({ ms: sql<string>`coalesce(sum(${attempts.durationMs}), 0)` }).from(attempts).where(and(done, gte(attempts.createdAt, sql`date_trunc('week', now())`))),
+        // Writing without a timed duration (API submits) counts the task's nominal time: T1 20 min, T2 40 min.
+        db.select({ ms: sql<string>`coalesce(sum(coalesce(${attempts.durationMs}, case when ${attempts.skill} = 'writing' then (case when ${attempts.part} = 1 then ${sql.raw(String(WRITING_SECONDS.t1 * 1000))} else ${sql.raw(String(WRITING_SECONDS.t2 * 1000))} end) end)), 0)` }).from(attempts).where(and(done, gte(attempts.createdAt, sql`date_trunc('week', now())`))),
         db.select({ n: count() }).from(attempts).innerJoin(analyses, eq(analyses.attemptId, attempts.id)).where(assessed),
         db
           .select({ category: mistakes.category, count: count() })
@@ -83,6 +85,12 @@ export function register(app: App) {
           .limit(5),
         lastOveralls('speaking'),
         lastOveralls('writing'),
+        db
+          .select({ id: attempts.id, skill: attempts.skill, status: attempts.status })
+          .from(attempts)
+          .where(and(eq(attempts.userId, uid), ne(attempts.status, 'recording')))
+          .orderBy(desc(attempts.createdAt))
+          .limit(1),
       ]);
 
       const sums: Record<string, { sum: number; n: number }> = {};
@@ -106,6 +114,7 @@ export function register(app: App) {
           weakest,
           topMistakes,
           predicted: { speaking: predict(sp), writing: predict(wr) },
+          lastFailed: last?.status === 'failed' ? { id: last.id, skill: last.skill } : null,
         },
         200,
       );

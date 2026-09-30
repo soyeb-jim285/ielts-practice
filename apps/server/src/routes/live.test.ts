@@ -124,10 +124,28 @@ it('finish creates one live attempt per part and analyses each, once', async () 
   expect((await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).status).toBe(409);
 });
 
-it('a TTS model/voice rejected upstream (4xx) says to change it in Settings', async () => {
+it('a TTS model/voice rejected upstream (4xx) says to change it in Settings, captions only', async () => {
   setFetch(fakeFetch({ '/audio/speech': () => json({ error: { message: 'Model does not exist' } }, 400) }));
   const { headers } = await testUser();
   const r = await req('/api/live/start', { headers, body: {} });
-  expect(r.status).toBe(502);
-  expect(((await r.json()) as any).error).toMatch(/Examiner voice model .* is unavailable – change it in Settings/);
+  expect(r.status).toBe(200);
+  expect((await r.json()) as any).toMatchObject({ audioUrl: null, voiceError: expect.stringMatching(/Examiner voice model .* is unavailable – change it in Settings/) });
+});
+
+it('TTS failure (402) degrades to captions: start and turn still work with audioUrl null', async () => {
+  ai = fakeFetch({ '/audio/speech': () => json({ error: 'Insufficient credits' }, 402), '/audio/transcriptions': () => json({ text: 'Sam.', duration: 1, words: [] }), '/chat/completions': () => chatReply('Where is your hometown?') });
+  setFetch(ai);
+  const { headers } = await testUser();
+  const s = await start(headers);
+  expect(s).toMatchObject({ phase: 'intro', audioUrl: null, voiceError: expect.stringContaining('captions') });
+  const t = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey: await upload(headers, s.sessionId) } })).json()) as any;
+  expect(t).toMatchObject({ phase: 'p1', audioUrl: null });
+});
+
+it('skipTts starts a (realtime) session without calling TTS', async () => {
+  const { headers } = await testUser();
+  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  expect(s).toMatchObject({ phase: 'intro', audioUrl: null });
+  expect(s.voiceError).toBeUndefined();
+  expect(ai.calls.some((c) => c.url.includes('/audio/speech'))).toBe(false);
 });

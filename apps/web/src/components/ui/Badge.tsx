@@ -28,7 +28,7 @@ export function Chip({ selected, className, type = 'button', ...rest }: ButtonHT
       type={type}
       aria-pressed={selected}
       className={clsx(
-        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 [&_svg]:size-4',
+        'inline-flex h-8 items-center gap-1.5 rounded-full max-md:h-11 border px-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 [&_svg]:size-4',
         selected ? 'border-transparent bg-ink text-bg' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
         className,
       )}

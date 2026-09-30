@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState, type KeyboardEvent } from 'react';
 import { ErrorDetails } from '@/components/results';
 import { Badge, Chip, Sheet } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
+import { countWords } from './WritingEditor';
 
 /** Filter by top-level category ('grammar.tense' → 'grammar'). */
 const group = (e: AnalysisError) => e.category.split('.')[0]!;
@@ -70,7 +71,10 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
               onKeyDown={(e) => onKey(e, s.error!)}
               className={clsx(
                 'cursor-pointer rounded-[3px] text-ink underline decoration-2 underline-offset-[5px] transition-colors duration-150',
-                s.error.severity === 'major' ? 'bg-bad-soft decoration-bad hover:bg-bad/20' : 'bg-warn-soft decoration-warn decoration-dotted hover:bg-warn/20',
+                s.error.severity === 'minor'
+                  ? 'bg-warn-soft decoration-warn decoration-dotted hover:bg-warn/20'
+                  : // Whole-sentence errors: a pink block over a full line is too heavy, so underline only.
+                    clsx('decoration-bad hover:bg-bad/10', countWords(s.text) <= 8 ? 'bg-bad-soft' : 'bg-transparent'),
                 open?.id === s.error.id && 'ring-2 ring-accent',
               )}
             >
@@ -93,12 +97,12 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
       </p>
 
       {unplaced.filter(shown).length > 0 && (
-        <section>
+        <section className="border-t border-line pt-4">
           <h3 className="mb-2 text-sm font-semibold">Also noted</h3>
-          <ul className="divide-y divide-line rounded-card border border-line">
+          <ul className="space-y-1.5">
             {unplaced.filter(shown).map((e) => (
               <li key={e.id}>
-                <button type="button" onClick={() => setOpen(e)} className="flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-ink/[0.03]">
+                <button type="button" onClick={() => setOpen(e)} className="flex w-full items-start gap-3 rounded-control bg-surface-2 px-4 py-3 text-left text-sm transition-colors duration-150 hover:bg-ink/6">
                   <Badge tone={e.severity === 'major' ? 'bad' : 'warn'}>{categoryLabel(e.category)}</Badge>
                   <span className="min-w-0 flex-1">
                     <span className="text-muted line-through">{e.original}</span> <ArrowRight className="inline size-3.5 text-muted" aria-hidden /> {e.correction}

@@ -744,6 +744,10 @@
               "null"
             ]
           },
+          "retryable": {
+            "type": "boolean",
+            "description": "status failed: false when retrying now cannot help (AI credit/key problem); show \"try later\" instead of Retry"
+          },
           "createdAt": {
             "type": "string"
           },
@@ -776,6 +780,7 @@
           "overtime",
           "status",
           "error",
+          "retryable",
           "createdAt",
           "topFixesInDeck",
           "prompt"
@@ -1016,7 +1021,15 @@
             "type": "string"
           },
           "audioUrl": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Examiner TTS; null when the voice failed or was skipped: show examinerText as a caption and start listening"
+          },
+          "voiceError": {
+            "type": "string",
+            "description": "Why audioUrl is null (voice failed)"
           },
           "phase": {
             "type": "string",
@@ -1061,6 +1074,11 @@
               "any"
             ],
             "default": "any"
+          },
+          "skipTts": {
+            "type": "boolean",
+            "default": false,
+            "description": "Realtime sessions speak for themselves: create the session without examiner TTS (audioUrl null)"
           }
         }
       },
@@ -1343,6 +1361,29 @@
               "writing"
             ],
             "description": "roundBand of the mean of the last 5 overalls per skill (ignores the skill filter)"
+          },
+          "lastFailed": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "skill": {
+                "type": "string",
+                "enum": [
+                  "speaking",
+                  "writing"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "skill"
+            ],
+            "description": "The user's most recent submitted attempt, when its analysis failed"
           }
         },
         "required": [
@@ -1352,7 +1393,8 @@
           "attempts",
           "weakest",
           "topMistakes",
-          "predicted"
+          "predicted",
+          "lastFailed"
         ]
       },
       "MistakeLog": {

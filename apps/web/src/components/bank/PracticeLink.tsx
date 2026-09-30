@@ -2,7 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Play } from 'lucide-react';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Button, buttonStyles, toast } from '@/components/ui';
-import { api } from '@/lib/api';
+import { call, client } from '@/lib/api';
 
 type Mode = 'full' | 'p1' | 'p2' | 'p3';
 
@@ -32,7 +32,7 @@ export function StartWritingButton({ task = 2, children, ...rest }: { task?: 1 |
   const start = async () => {
     setBusy(true);
     try {
-      const p = await api.get<{ id: string }>(`/prompts/random?skill=writing&part=${task}`);
+      const p = await call(client.GET('/api/prompts/random', { params: { query: { skill: 'writing', part: task } } }));
       await navigate({ to: '/writing/task/$promptId', params: { promptId: p.id } });
     } catch (e) {
       toast((e as Error).message, { tone: 'bad' });

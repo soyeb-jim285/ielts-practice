@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import { computeSpeechMetrics, type Word } from './speech';
 const mk = (a: [string, number, number, number?][]): Word[] => a.map(([w, start, end, conf]) => ({ w, start, end, conf }));
 it('detects short and long pauses, mid-clause flag', () => {
-  const m = computeSpeechMetrics(mk([['I', 0, 0.2], ['like', 0.25, 0.5], ['the', 0.9, 1.0], ['city.', 1.1, 1.5], ['It', 2.8, 3.0]]), { durationS: 3 });
+  const m = computeSpeechMetrics(mk([['I', 0, 0.2], ['love', 0.25, 0.5], ['the', 0.9, 1.0], ['city.', 1.1, 1.5], ['It', 2.8, 3.0]]), { durationS: 3 });
   expect(m.pauses.map(p => [p.kind, p.midClause])).toEqual([['short', true], ['long', false]]);
   expect(m.longPauses).toBe(1);
   expect(m.mlr).toBeCloseTo(5 / 3);
@@ -25,3 +25,9 @@ it('wpm series 10s windows 5s hop and unclear tiers', () => {
   expect(m.unclear).toEqual([{ wordIdx: 3, w: 'w', conf: 0.3, tier: 3 }]);
 });
 it('empty words', () => expect(computeSpeechMetrics([], { durationS: 5 }).wordCount).toBe(0));
+it('fillers are not counted as words and break runs', () => {
+  const m = computeSpeechMetrics(mk([['I', 0, .2], ['um', .2, .5], ['think', .5, .8], ['it', .8, 1], ['uh', 1, 1.3], ['works', 1.3, 1.6]]), { durationS: 1.8 });
+  expect(m.wordCount).toBe(4);
+  expect(m.speechRate).toBeCloseTo(4 / (1.8 / 60));
+  expect(m.mlr).toBeCloseTo(4 / 3);
+});

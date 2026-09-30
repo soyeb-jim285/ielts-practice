@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export function PageHeader({ title, description, actions, back }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
   return (
     <header className="mb-6 md:mb-8">
-      {back && <div className="mb-3">{back}</div>}
+      {back && <div className="mb-3 *:-my-3 *:py-3">{back}</div>}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight md:text-[1.75rem]">{title}</h1>

@@ -1,7 +1,7 @@
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { describe, expect, it } from 'vitest';
-import { bandColor, buildTokens, criterionLabel, sessionOverall, speechStats } from './result';
+import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, pauseSec, questionHead, sessionOverall, speechStats } from './result';
 
 const metrics = (over: Partial<SpeechMetrics> = {}): SpeechMetrics => ({
   durationS: 60, wordCount: 6, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
@@ -64,7 +64,8 @@ describe('labels and colours', () => {
   it('colours bands against the target', () => {
     expect(bandColor(7, 7)).toBe('good');
     expect(bandColor(6.5, 7)).toBe('warn');
-    expect(bandColor(6, 7)).toBe('bad');
+    expect(bandColor(6, 7)).toBe('warn');
+    expect(bandColor(5.5, 7)).toBe('bad');
   });
 });
 
@@ -74,6 +75,26 @@ describe('speechStats', () => {
     const bad = speechStats(metrics({ speechRate: 70, mlr: 3, pauseRatio: 0.5, fillersPerMin: 8 }));
     expect(bad.find((s) => s.key === 'rate')!.tone).toBe('bad');
     expect(bad.find((s) => s.key === 'mlr')!.tone).toBe('bad');
+  });
+});
+
+describe('pauses', () => {
+  const p = (dur: number, kind: 'short' | 'long' = 'short') => ({ start: 0, end: dur, dur, kind, midClause: false, voiced: false });
+  it('classifies by the shown value, so "1.0" is always long', () => {
+    expect([pauseSec(p(5.3 - 4.3)), isLongPause(p(5.3 - 4.3))]).toEqual(['1.0', true]); // 0.9999…96
+    expect([pauseSec(p(0.93)), isLongPause(p(0.93))]).toEqual(['0.9', false]);
+    expect(speechStats(metrics({ pauses: [p(5.3 - 4.3)], longPauses: 0 })).find((s) => s.key === 'long')!.value).toBe('1');
+  });
+});
+
+describe('errorGroup / questionHead', () => {
+  it('puts non-grammar/lexis errors under other', () => {
+    const e = (category: string) => ({ id: 'e', category, severity: 'minor' as const, start: -1, end: -1, original: '', correction: '', explanation: '' });
+    expect(['grammar.tense', 'lexis.collocation', 'task.relevance'].map((c) => errorGroup(e(c)))).toEqual(['grammar', 'vocab', 'other']);
+  });
+  it('drops a cue-card title the body repeats', () => {
+    expect(questionHead('Describe a website.\nDescribe a website.\nand explain why.\nYou should say: what; how')).toEqual({ head: 'Describe a website.', rest: 'and explain why. You should say: what; how' });
+    expect(questionHead('Do you work or study?')).toEqual({ head: 'Do you work or study?', rest: '' });
   });
 });
 

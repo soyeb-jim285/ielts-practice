@@ -162,7 +162,7 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
    - the pronunciation evidence,
    - the condensed official descriptors for bands 4–9.
 
-   It returns the schema in §6. The rules are strict: award a band only if all its positive features are met, cite a descriptor phrase for each criterion, and give a range. Errors reference word index spans. Top 3 fixes. Topic relevance for each answer. A band+1 rewrite that is labelled "don't memorise". Mistake categories come from a fixed taxonomy.
+   It returns the schema in §6. Marking is best fit against the descriptors (as examiners mark, revised after eval iteration 1 found strict all-features gating deflated band 7 work by about 1 band): cite a descriptor phrase for each criterion, quote evidence verbatim from the answer (non-verbatim evidence is dropped), and give a range at least one band wide. The full call runs alongside 2 scoring-only calls; each criterion takes the median of the 3. Errors reference word index spans. Top 3 fixes. Topic relevance for each answer. A band+1 rewrite that is labelled "don't memorise". Mistake categories come from a fixed taxonomy.
 5. **Band maths**: criteria are whole bands. Overall = mean, rounded by the IELTS rule (.25 → .5, .75 → next whole band). The raw value is shown too.
 6. Mistakes are persisted and SRS cards are offered (not auto-created; the user clicks "add to deck").
 
@@ -197,6 +197,13 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
   rewrite: { text, note }, comparison?: { parentAttemptId, deltas: {...} }
 }
 ```
+
+**As shipped (source of truth: `apps/server/src/ai/types.ts` and `/openapi.json`):**
+- `topFixes` is flat: `{ title, why, before, after }`.
+- Linkers live in `textMetrics.linkers` (plus `textMetrics.linkerOpeningRatio`); `overused` means one linker opens 3+ sentences. `textMetrics.words` uses the IELTS count (numbers and "75%" are words).
+- Speaking errors carry top-level word indices `start`/`end` (re-anchored on the `original` text); writing errors carry char offsets.
+- Attempts expose `retryable` when `failed` (false = AI credit/key problem, retry later). `/api/live/start` accepts `skipTts` (realtime) and returns `audioUrl: null` plus `voiceError` when examiner TTS fails, so the test continues on captions.
+- `/api/progress` returns `lastFailed` so the dashboard can point at an attempt that could not be scored.
 
 ## 7. Writing
 

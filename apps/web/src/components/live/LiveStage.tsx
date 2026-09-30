@@ -1,8 +1,8 @@
-import type { Prompt } from '@server/routes/prompts';
 import { clsx } from 'clsx';
 import { Captions, CaptionsOff, Check, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
+import { CueCard } from '@/components/speaking/CueCard';
 import { TimerRing } from '@/components/speaking/TimerRing';
 import { Alert, Button, Dialog, ProgressRing, Spinner, Textarea } from '@/components/ui';
 import { formatClock } from '@/lib/format';
@@ -63,25 +63,6 @@ function Avatar({ speaking, listening, level, compact }: { speaking: boolean; li
   );
 }
 
-function CueCard({ prompt }: { prompt: Prompt }) {
-  return (
-    <section aria-label="Cue card" className="rounded-card border border-line bg-surface p-5 text-left shadow-card sm:p-6">
-      <p className="font-serif text-xl leading-snug text-balance">{prompt.title}</p>
-      {prompt.body && prompt.body !== prompt.title && <p className="mt-2 text-[0.9375rem] text-muted">{prompt.body}</p>}
-      {prompt.bullets?.length ? (
-        <>
-          <p className="mt-4 text-sm font-medium">You should say:</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[0.9375rem]">
-            {prompt.bullets.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-    </section>
-  );
-}
-
 /** The running live test: examiner, phase, timers, captions, cue card and notes, end-test control. */
 export function LiveStage({ ex }: { ex: LiveExaminer }) {
   const elapsed = useElapsed(!ex.error);
@@ -133,7 +114,13 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
           </Button>
         )}
 
-        {captions && ex.caption && (
+        {ex.voiceError && (
+          <Alert tone="warn" title="Examiner voice unavailable">
+            The test continues with captions. {ex.voiceError}
+          </Alert>
+        )}
+
+        {(captions || ex.voiceError) && ex.caption && (
           <p className="prose-serif w-full rounded-card bg-surface-2 px-5 py-4 text-left" aria-live="polite">
             {ex.caption}
           </p>

@@ -1,5 +1,5 @@
 import { QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
-import { api, ApiError, type Me } from './api';
+import { ApiError, call, client } from './api';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,7 +12,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const meQuery = queryOptions({ queryKey: ['me'], queryFn: () => api.get<Me>('/me'), staleTime: 5 * 60_000 });
+export const meQuery = queryOptions({ queryKey: ['me'], queryFn: () => call(client.GET('/api/me')), staleTime: 5 * 60_000 });
 
 /** Current user + settings. Always resolved inside the authed `_app` layout (the guard preloads it). */
 export const useMe = () => useQuery(meQuery);

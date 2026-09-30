@@ -8,6 +8,13 @@
       "when": 1790736109877,
       "tag": "0000_strong_mesmero",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790750988381,
+      "tag": "0001_perf_indexes_retryable",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouteError } from '@/components/layout/RouteError';
 import { PageSkeleton } from '@/components/ui';
-import { queryClient } from '@/lib/query';
+import { meQuery, queryClient } from '@/lib/query';
 import { routeTree } from './routeTree.gen';
 import './styles.css';
 
@@ -17,6 +17,11 @@ const router = createRouter({
   defaultErrorComponent: RouteError, // loader errors render inside the parent layout (AppShell)
   scrollRestoration: true,
 });
+
+// Hard load: fetch the session and the matched routes' split chunks in parallel. Otherwise _app's beforeLoad awaits /api/me
+// (it reuses this in-flight query) before the router starts on the chunks: entry JS → me → chunks becomes entry JS → (me ‖ chunks).
+if (!/^\/(login|signup|forgot-password|reset-password)\b/.test(location.pathname)) void queryClient.prefetchQuery(meQuery);
+for (const r of router.getMatchedRoutes(location.pathname)[0]) router.loadRouteChunk(r)?.catch(() => {}); // the router retries and reports on navigation
 
 declare module '@tanstack/react-router' {
   interface Register {

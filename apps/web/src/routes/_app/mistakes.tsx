@@ -3,30 +3,17 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, Check, Plus, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
-import { Badge, Button, buttonStyles, Card, Chip, EmptyState, PageHeader, toast } from '@/components/ui';
-import { api } from '@/lib/api';
+import { Button, buttonStyles, Card, Chip, EmptyState, PageHeader, toast } from '@/components/ui';
+import { call, client, type Schemas } from '@/lib/api';
 import { formatClock, formatRelative } from '@/lib/format';
 import { categoryLabel } from '@/lib/result';
 
-type Mistake = {
-  id: string;
-  attemptId: string;
-  skill: 'speaking' | 'writing';
-  part: number;
-  promptTitle: string;
-  category: string;
-  original: string;
-  correction: string;
-  explanation: string;
-  time: number | null;
-  createdAt: string;
-};
-type MistakeLog = { groups: { category: string; count: number }[]; items: Mistake[]; total: number; page: number; pageSize: number };
+type Mistake = Schemas['Mistake'];
 
 const mistakesQuery = (category?: string) =>
   infiniteQueryOptions({
     queryKey: ['mistakes', { category }],
-    queryFn: ({ pageParam }) => api.get<MistakeLog>(`/mistakes?page=${pageParam}${category ? `&category=${encodeURIComponent(category)}` : ''}`),
+    queryFn: ({ pageParam }) => call(client.GET('/api/mistakes', { params: { query: { page: pageParam, category } } })),
     initialPageParam: 1,
     getNextPageParam: nextPage,
   });
@@ -78,22 +65,22 @@ function MistakesPage() {
           </Chip>
         ))}
       </div>
-      <ul className="space-y-3">
-        {items.map((m) => (
-          <li key={m.id}>
-            <MistakeItem m={m} showCategory={!category} />
-          </li>
-        ))}
-      </ul>
+      <Card padded={false}>
+        <ul className="divide-y divide-line">
+          {items.map((m) => (
+            <MistakeItem key={m.id} m={m} showCategory={!category} />
+          ))}
+        </ul>
+      </Card>
       <LoadMore hasMore={!!hasNextPage} loading={isFetchingNextPage} onLoad={() => void fetchNextPage()} />
     </>
   );
 }
 
 function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean }) {
-  const [added, setAdded] = useState(false);
+  const [added, setAdded] = useState(m.inDeck);
   const add = useMutation({
-    mutationFn: () => api.post(`/mistakes/${m.id}/card`),
+    mutationFn: () => call(client.POST('/api/mistakes/{id}/card', { params: { path: { id: m.id } } })),
     onSuccess: () => {
       setAdded(true);
       toast('Added to your review deck', { tone: 'good' });
@@ -107,28 +94,22 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
       : ({ to: '/writing/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'essay' } } as const);
 
   return (
-    <Card>
-      {showCategory && (
-        <Badge tone="neutral" className="mb-3">
-          {categoryLabel(m.category)}
-        </Badge>
-      )}
-      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-serif text-[1.0625rem] leading-relaxed">
-        <del className="text-bad-text decoration-bad/60">{m.original}</del>
-        <ArrowRight className="size-4 shrink-0 translate-y-0.5 self-center text-muted" aria-label="corrected to" />
-        <ins className="font-medium text-good-text no-underline">{m.correction}</ins>
-      </p>
-      <p className="mt-2 text-sm text-muted text-pretty">{m.explanation}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-        <Link {...link} className="min-w-0 text-sm text-muted hover:text-ink">
-          <span className="block truncate">
-            <span className="font-medium text-accent-text">{m.promptTitle}</span> · {where} · {formatRelative(m.createdAt)}
-          </span>
+    <li className="grid grid-cols-[1fr_auto] gap-x-3 px-5 py-4 transition-colors duration-150 hover:bg-ink/[0.03]">
+      <div className="min-w-0">
+        {showCategory && <p className="mb-1.5 text-xs font-medium text-muted">{categoryLabel(m.category)}</p>}
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-serif text-[1.0625rem] leading-relaxed">
+          <del className="text-bad-text decoration-bad/60">{m.original}</del>
+          <ArrowRight className="size-4 shrink-0 translate-y-0.5 self-center text-muted" aria-label="corrected to" />
+          <ins className="font-medium text-good-text no-underline">{m.correction}</ins>
+        </p>
+        <p className="mt-2 text-sm text-muted text-pretty">{m.explanation}</p>
+        <Link {...link} className="mt-2 block truncate text-sm text-muted hover:text-ink">
+          <span className="font-medium text-accent-text">{m.promptTitle}</span> · {where} · {formatRelative(m.createdAt)}
         </Link>
-        <Button size="sm" variant="ghost" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
-          {added ? 'In deck' : 'Add to deck'}
-        </Button>
       </div>
-    </Card>
+      <Button size="sm" variant="ghost" className="-mr-2 max-sm:-mt-1.5 max-sm:px-2" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
+        <span className="max-sm:sr-only">{added ? 'In deck' : 'Add to deck'}</span>
+      </Button>
+    </li>
   );
 }

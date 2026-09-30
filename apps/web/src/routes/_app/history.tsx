@@ -3,18 +3,17 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ChevronRight, History, Mic, PenLine } from 'lucide-react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { Badge, buttonStyles, Card, EmptyState, PageHeader, Segmented, type Tone } from '@/components/ui';
-import { api } from '@/lib/api';
+import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
-type AttemptPage = { items: AttemptItem[]; page: number; pageSize: number; total: number };
 
 const historyQuery = (skill?: Skill) =>
   infiniteQueryOptions({
     queryKey: ['attempts', { skill }],
-    queryFn: ({ pageParam }) => api.get<AttemptPage>(`/attempts?page=${pageParam}${skill ? `&skill=${skill}` : ''}`),
+    queryFn: ({ pageParam }) => call(client.GET('/api/attempts', { params: { query: { page: pageParam, skill } } })),
     initialPageParam: 1,
     getNextPageParam: nextPage,
   });

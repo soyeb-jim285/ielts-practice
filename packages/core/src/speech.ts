@@ -31,7 +31,7 @@ export function computeSpeechMetrics(
     const gap = gapBefore(i);
     if (gap * 1000 < PAUSE_MS) continue;
     const start = words[i - 1]!.end, end = words[i]!.start;
-    pauses.push({ start, end, dur: gap, kind: gap * 1000 >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced: isVoiced(start, end) });
+    pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced: isVoiced(start, end) });
   }
 
   const fillers: SpeechMetrics['fillers'] = [];
@@ -79,7 +79,14 @@ export function computeSpeechMetrics(
     }
   }
 
-  const phonation = words.reduce((s, w) => s + (w.end - w.start), 0);
+  // Fillers are not words for rate/MLR, and end a run like a pause does (research.md §3), so "um"-heavy speech is not read as fluent.
+  const spoken = words.filter((_, i) => !isFillerAt[i]);
+  let runs = 0;
+  for (let i = 0, inRun = false; i < n; i++) {
+    if (isFillerAt[i] || gapBefore(i) * 1000 >= PAUSE_MS) inRun = false;
+    if (!isFillerAt[i] && !inRun) (runs++, (inRun = true));
+  }
+  const phonation = spoken.reduce((s, w) => s + (w.end - w.start), 0);
   const wpmSeries: SpeechMetrics['wpmSeries'] = [];
   for (let t = 0; t + WPM_WINDOW_S <= Math.max(durationS, WPM_WINDOW_S); t += WPM_HOP_S)
     wpmSeries.push({ t, wpm: words.filter(w => w.start >= t && w.start < t + WPM_WINDOW_S).length * (60 / WPM_WINDOW_S) });
@@ -93,12 +100,12 @@ export function computeSpeechMetrics(
 
   return {
     durationS: opts.durationS,
-    wordCount: n,
-    speechRate: n / mins,
-    articulationRate: phonation > 0 ? n / (phonation / 60) : 0,
+    wordCount: spoken.length,
+    speechRate: spoken.length / mins,
+    articulationRate: phonation > 0 ? spoken.length / (phonation / 60) : 0,
     phonationRatio: phonation / durationS,
     pauseRatio: pauses.reduce((s, p) => s + p.dur, 0) / durationS,
-    mlr: n ? n / (pauses.length + 1) : 0,
+    mlr: runs ? spoken.length / runs : 0,
     pauses,
     longPauses: pauses.filter(p => p.kind === 'long').length,
     midClausePauses: pauses.filter(p => p.midClause).length,

@@ -106,3 +106,18 @@ it('writing: an Academic Task 1 figure without chart data is sent to the model a
   expect(chat.messages[0].content).toContain('attached as an image');
   expect(chat.messages[1].content[1]).toEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,AQI=' } });
 });
+
+it('out of AI credit (402): failed, not retryable, candidate-safe message; retryable again once it succeeds', async () => {
+  const { user } = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const text = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
+  const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing' }).returning();
+  setFetch(fakeFetch({ '/chat/completions': () => json({ error: { message: 'Insufficient credits' } }, 402) }));
+  await runAnalysis(a!.id);
+  const row = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
+  expect(row).toMatchObject({ status: 'failed', errorRetryable: false, error: expect.stringContaining('try again later') });
+  expect(row!.error).not.toContain('402');
+  setFetch(fakeFetch({ '/chat/completions': () => chatReply(writingLlm('people has')) }));
+  await runAnalysis(a!.id);
+  expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done', errorRetryable: true });
+});
