@@ -45,7 +45,8 @@ export function Segmented<T extends string>({
             onClick={() => onChange(o.value)}
             className={clsx(
               'hit inline-flex flex-1 items-center justify-center gap-1.5 rounded-[7px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow] duration-150 [&_svg]:size-4',
-              size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
+              // Phones: every option is 36 px (a 44 px group) plus the `hit` overhang; sm only shrinks from md up.
+              size === 'sm' ? 'h-9 px-3 text-sm md:h-7 md:px-2.5 md:text-xs' : 'h-9 px-3 text-sm md:h-8',
               active ? 'bg-surface text-ink shadow-card ring-1 ring-line' : 'text-muted hover:text-ink',
             )}
           >

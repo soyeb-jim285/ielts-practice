@@ -1,14 +1,15 @@
 // Condensed public IELTS band descriptors (Speaking + Writing, rev. May 2023), bands 4-9.
 // Wording kept close to the official text so the model can quote it in `descriptor`. See docs/research.md §1.
 
-const fmt = (bands: Record<number, string>) =>
+/** Descriptors by band (4-9) as the prompt lists them, highest first. */
+export const fmt = (bands: Record<number, string>) =>
   Object.entries(bands)
     .sort(([a], [b]) => Number(b) - Number(a))
     .map(([b, t]) => `  Band ${b}: ${t}`)
     .join('\n');
 
 export const SPEAKING_DESCRIPTORS = {
-  fc: fmt({
+  fc: ({
     9: 'Fluent with only very occasional repetition or self-correction. Any hesitation that occurs is used only to prepare the content of the next utterance and not to find words or grammar. Speech is situationally appropriate and cohesive features are fully acceptable. Topic development is fully coherent and appropriately extended.',
     8: 'Fluent with only very occasional repetition or self-correction. Hesitation may occasionally be used to find words or grammar, but most will be content related. Topic development is coherent, appropriate and relevant.',
     7: 'Able to keep going and readily produce long turns without noticeable effort. Some hesitation, repetition and/or self-correction may occur, often mid-sentence and indicate problems with accessing appropriate language. However, these will not affect coherence. Flexible use of spoken discourse markers, connectives and cohesive features.',
@@ -16,7 +17,7 @@ export const SPEAKING_DESCRIPTORS = {
     5: 'Usually able to keep going, but relies on repetition and self-correction to do so and/or on slow speech. Hesitations are often associated with mid-sentence searches for fairly basic lexis and grammar. Overuse of certain discourse markers, connectives and other cohesive features. More complex speech usually causes disfluency but simpler language may be produced fluently.',
     4: 'Unable to keep going without noticeable pauses. Speech may be slow with frequent repetition. Often self-corrects. Can link simple sentences but often with repetitious use of connectives. Some breakdowns in coherence.',
   }),
-  lr: fmt({
+  lr: ({
     9: 'Total flexibility and precise use in all contexts. Sustained use of accurate and idiomatic language.',
     8: 'Wide resource, readily and flexibly used to discuss all topics and convey precise meaning. Skilful use of less common and idiomatic items despite occasional inaccuracies in word choice and collocation. Effective use of paraphrase as required.',
     7: 'Resource flexibly used to discuss a variety of topics. Some ability to use less common and idiomatic items and an awareness of style and collocation is evident though inappropriacies occur. Effective use of paraphrase as required.',
@@ -24,7 +25,7 @@ export const SPEAKING_DESCRIPTORS = {
     5: 'Resource sufficient to discuss familiar and unfamiliar topics but there is limited flexibility. Attempts paraphrase but not always with success.',
     4: 'Resource sufficient for familiar topics but only basic meaning can be conveyed on unfamiliar topics. Frequent inappropriacies and errors in word choice. Rarely attempts paraphrase.',
   }),
-  gra: fmt({
+  gra: ({
     9: "Structures are precise and accurate at all times, apart from 'mistakes' characteristic of native speaker speech.",
     8: 'Wide range of structures, flexibly used. The majority of sentences are error free. Occasional inappropriacies and non-systematic errors occur. A few basic errors may persist.',
     7: 'A range of structures flexibly used. Error-free sentences are frequent. Both simple and complex sentences are used effectively despite some errors. A few basic errors persist.',
@@ -32,7 +33,7 @@ export const SPEAKING_DESCRIPTORS = {
     5: 'Basic sentence forms are fairly well controlled for accuracy. Complex structures are attempted but these are limited in range, nearly always contain errors and may lead to the need for reformulation.',
     4: 'Can produce basic sentence forms and some short utterances are error-free. Subordinate clauses are rare and, overall, turns are short, structures are repetitive and errors are frequent.',
   }),
-  p: fmt({
+  p: ({
     9: 'Uses a full range of phonological features to convey precise and/or subtle meaning. Flexible use of features of connected speech is sustained throughout. Can be effortlessly understood throughout. Accent has no effect on intelligibility.',
     8: 'Uses a wide range of phonological features to convey precise and/or subtle meaning. Can sustain appropriate rhythm. Flexible use of stress and intonation across long utterances, despite occasional lapses. Can be easily understood throughout. Accent has minimal effect on intelligibility.',
     7: 'Displays all the positive features of band 6, and some, but not all, of the positive features of band 8.',
@@ -42,7 +43,7 @@ export const SPEAKING_DESCRIPTORS = {
   }),
 };
 
-const TA_T1 = fmt({
+const TA_T1 = ({
   9: 'All the requirements of the task are fully and appropriately satisfied. There may be extremely rare lapses in content.',
   8: 'The response covers all the requirements of the task appropriately, relevantly and sufficiently. (Academic) Key features are skilfully selected, and clearly presented, highlighted and illustrated. (GT) All bullet points are clearly presented, and appropriately illustrated or extended. There may be occasional omissions or lapses in content.',
   7: 'The response covers the requirements of the task. The content is relevant and accurate – there may be a few omissions or lapses. The format is appropriate. (Academic) Key features which are selected are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. (Academic) It presents a clear overview, the data are appropriately categorised, and main trends or differences are identified. (GT) All bullet points are covered and clearly highlighted but could be more fully or more appropriately illustrated or extended. (GT) It presents a clear purpose. The tone is consistent and appropriate to the task. Any lapses are minimal.',
@@ -51,7 +52,7 @@ const TA_T1 = fmt({
   4: 'The response is an attempt to address the task. (Academic) Few key features have been selected. (GT) Not all bullet points are presented. (GT) The purpose of the letter is not clearly explained and may be confused. The tone may be inappropriate. The format may be inappropriate. Key features/bullet points which are presented may be irrelevant, repetitive, inaccurate or inappropriate.',
 });
 
-const TR_T2 = fmt({
+const TR_T2 = ({
   9: 'The prompt is appropriately addressed and explored in depth. A clear and fully developed position is presented which directly answers the question/s. Ideas are relevant, fully extended and well supported. Any lapses in content or support are extremely rare.',
   8: 'The prompt is appropriately and sufficiently addressed. A clear and well-developed position is presented in response to the question/s. Ideas are relevant, well extended and supported. There may be occasional omissions or lapses in content.',
   7: 'The main parts of the prompt are appropriately addressed. A clear and developed position is presented. Main ideas are extended and supported but there may be a tendency to over-generalise or there may be a lack of focus and precision in supporting ideas/material.',
@@ -63,7 +64,7 @@ const TR_T2 = fmt({
 export const WRITING_DESCRIPTORS = {
   ta1: TA_T1,
   tr2: TR_T2,
-  cc: fmt({
+  cc: ({
     9: 'The message can be followed effortlessly. Cohesion is used in such a way that it very rarely attracts attention. Any lapses in coherence or cohesion are minimal. Paragraphing is skilfully managed.',
     8: 'The message can be followed with ease. Information and ideas are logically sequenced, and cohesion is well managed. Occasional lapses in coherence and cohesion may occur. Paragraphing is used sufficiently and appropriately.',
     7: 'Information and ideas are logically organised, and there is a clear progression throughout the response. (A few lapses may occur, but these are minor.) A range of cohesive devices including reference and substitution is used flexibly but with some inaccuracies or some over/under use. Paragraphing is generally used effectively to support overall coherence, and the sequencing of ideas within a paragraph is generally logical.',
@@ -71,7 +72,7 @@ export const WRITING_DESCRIPTORS = {
     5: 'Organisation is evident but is not wholly logical and there may be a lack of overall progression. Nevertheless, there is a sense of underlying coherence to the response. The relationship of ideas can be followed but the sentences are not fluently linked to each other. There may be limited/overuse of cohesive devices with some inaccuracy. The writing may be repetitive due to inadequate and/or inaccurate use of reference and substitution. Paragraphing may not be used or may be inadequate/illogical.',
     4: 'Information and ideas are evident but not arranged coherently and there is no clear progression within the response. Relationships between ideas can be unclear and/or inadequately marked. There is some use of basic cohesive devices, which may be inaccurate or repetitive. There is inaccurate use or lack of substitution or referencing. There may be no paragraphing and/or no clear main topic within paragraphs.',
   }),
-  lr: fmt({
+  lr: ({
     9: 'Full flexibility and precise use are widely evident. A wide range of vocabulary is used accurately and appropriately with very natural and sophisticated control of lexical features. Minor errors in spelling and word formation are extremely rare and have minimal impact on communication.',
     8: 'A wide resource is fluently and flexibly used to convey precise meanings. There is skilful use of uncommon and/or idiomatic items when appropriate, despite occasional inaccuracies in word choice and collocation. Occasional errors in spelling and/or word formation may occur, but have minimal impact on communication.',
     7: 'The resource is sufficient to allow some flexibility and precision. There is some ability to use less common and/or idiomatic items. An awareness of style and collocation is evident, though inappropriacies occur. There are only a few errors in spelling and/or word formation and they do not detract from overall clarity.',
@@ -79,7 +80,7 @@ export const WRITING_DESCRIPTORS = {
     5: 'The resource is limited but minimally adequate for the task. Simple vocabulary may be used accurately but the range does not permit much variation in expression. There may be frequent lapses in the appropriacy of word choice and a lack of flexibility is apparent in frequent simplifications and/or repetitions. Errors in spelling and/or word formation may be noticeable and may cause some difficulty for the reader.',
     4: 'The resource is limited and inadequate for or unrelated to the task. Vocabulary is basic and may be used repetitively. There may be inappropriate use of lexical chunks (e.g. memorised phrases, formulaic language and/or language from the input material). Inappropriate word choice and/or errors in word formation and/or in spelling may impede meaning.',
   }),
-  gra: fmt({
+  gra: ({
     9: 'A wide range of structures is used with full flexibility and control. Punctuation and grammar are used appropriately throughout. Minor errors are extremely rare and have minimal impact on communication.',
     8: 'A wide range of structures is flexibly and accurately used. The majority of sentences are error-free, and punctuation is well managed. Occasional, non-systematic errors and inappropriacies occur, but have minimal impact on communication.',
     7: 'A variety of complex structures is used with some flexibility and accuracy. Grammar and punctuation are generally well controlled, and error-free sentences are frequent. A few errors in grammar may persist, but these do not impede communication.',
@@ -108,3 +109,6 @@ export const EXAMINER_RULES = `SCORING DISCIPLINE (apply to every criterion):
 12. Write feedback in clear, simple English addressed to the candidate ("you"). Be direct and specific; no praise padding.
 
 ${BELOW_4}`;
+
+/** First sentence of a band's official descriptor (bands 4-9), for a pooled band that no sample described. */
+export const bandDescriptor = (bands: Record<number, string>, band: number) => bands[band]?.split(/(?<=\.) /)[0];

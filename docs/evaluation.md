@@ -183,3 +183,85 @@ Date: 2026-09-30. All AI calls went through OpenRouter with the default `openai/
 - The live page at 1440×900 has the avatar ring overlapping the "Introduction" heading.
 - iOS still uses a hand-written client (it is drift-checked), and its new screens have not been seen on a device.
 - The root disk filled up during this iteration and crashed Postgres (restarted with `docker start`). Keep an eye on disk space for the dev volume.
+
+## Iteration 3
+
+Date: 2026-09-30. All AI calls went through OpenRouter with the default `openai/gpt-6-luna`. Writing accuracy was measured on a held-out set for the first time: 24 official samples from Cambridge 19, 13 and 12, none of which were used to fit the calibration (books 15–18).
+
+### Scores (before fixes)
+
+| Dimension | Score | Summary |
+|---|---|---|
+| Performance | 8 | The API is very fast (p50 under 3 ms on every key endpoint), with no N+1 queries, the right indexes and parallel queries. The first load is 141 KB gz JS plus 11.5 KB CSS, and recharts is lazy. The production build gets LCP 140–170 ms unthrottled and 1.8–2.4 s on Slow 4G with 4× CPU. Points were lost because: the 100 KB recharts chunk was on the critical path of the Writing Task 1 editor, and table and diagram prompts loaded it too; the bank fetched its list only after its page code loaded; the better-auth client (12 KB gz) loads up front; 83 small chunks meant 25 JS requests for the login page; and analysis takes 20.7 s for writing and 29 s for speaking, plus up to 2 s of polling. |
+| Ease of use (first-time candidate, 390×844 + 1440×900) | 7.5 | Every journey completed without a crash, on both viewports. The dashboard has 3 numbered steps, speaking is one tap to record, the submit dialog explains too-short essays, and every empty state names a next action. Points were lost on result credibility: the writing criteria averaged 6.0 but the headline said 6.5 next to an "Off topic … caps your score" alert; the "one band higher" rewrite of an off-topic essay was still off topic; an off-topic speaking answer got 6.0 with the warning buried in the Language tab; and the live pace pill said 134 wpm while the result said 186 wpm. |
+| UI/UX visual quality | 7.5 | 24 routes checked at 390 and 1440 px in light and dark. Nothing scrolls sideways, tokens are consistent, dark mode has no broken surfaces, and the results pages are the strongest screens. Points were lost for small polish faults that add up: a stray divider under the Settings account card; the logo word falling back to Times on a first visit; controls under 44 px; native selects next to custom segmented controls; a 3,400 px speaking overview on mobile; three stacked warnings on the writing result; empty space at 1440 px on the Transcript and Improve tabs; and a dark `--surface-2` barely different from the card. |
+| Features vs spec | 8.5 | Almost all of spec §1–§13 works end to end with real OpenRouter calls: auth, settings, models, the bank and Cambridge gating, full speaking tests and practice sessions, writing with retry deltas and diff, review-focus edge cases, mistakes, SRS, progress, and the live examiner. iOS covers every flow, and `check-models.mjs` passes 24/24. The one real defect was the writing calibration: +0.5 was added to the overall but not to any criterion, so the overall no longer matched the bands shown. Minor gaps: the session report shows only a test overall, examiner captions start off, the realtime token has no retry, and history is cluttered with never-submitted attempts. |
+| Scoring accuracy (24 held-out Cambridge samples × 2 runs; 2 synthetic speaking samples) | 6 | On the held-out set: MAE 0.53, bias −0.32, max error 1.5, 79% within 0.5, Pearson 0.59. Scores were compressed: nearly every script got criteria of 5–6, so band 5 scripts were over-scored (+0.36) and 6.5–7.5 scripts under-scored (−0.58). Academic Task 1 TA ran 0.8 band low because the model marked down "inaccuracies" from its own misreading of maps and diagrams. The calibration had a cliff at a mean of 5, which caused a 1.5-band miss. Speaking ranked correctly (fluent 8.0, halting 5.5, stable across runs), but Whisper silently corrected the halting speaker's grammar, and the pronunciation pass logged grammar slips as pronunciation errors. |
+
+### Key evidence
+
+- The Writing Task 1 line chart appeared at 3.5 s on Slow 4G, against an LCP of 2.2 s, because of the recharts chunk. A table prompt still downloaded `ChartRenderer` and `CartesianChart`.
+- Writing result: TA 4, CC 7, LR 6, GRA 7 (mean 6.0) was shown as overall 6.5, because the hidden +0.5 calibration was added to the overall only.
+- Held-out accuracy by band: official 5.0–5.5 bias +0.36; 6.0 bias −0.47; 6.5–7.5 bias −0.58. Criterion bias against the official overall: TA −0.70, CC −0.70, LR −0.87, GRA −0.98. Regression: official ≈ 0.96 × criterion mean + 1.03.
+- Worst miss: 13_4_2, official 6.0, predicted 4.5 in both runs. The raw mean was 4.5, so the calibration (which started at a mean of 5) did not apply.
+- The two runs gave different overall bands on 6 of 24 samples, despite the median of 3 samples.
+- Speaking: Whisper turned "she help me", "it take very long time" and "I learn it" into correct grammar, so that evidence never reached GRA. It also inserted "Thank you" and "you" hallucinations, and counted 7 fillers where the script had about 13.
+- Visual: the Settings divider came from a `<Dialog>` inside a `divide-y` card. The fallback serif came from `font-display: optional` on a font that was not preloaded. Dark `--surface-2` against `--surface` was about 1.05:1.
+- Scratch output is in `.eval/3/{performance,ease,visual,feat,scoring}/`, with fixer output in `.eval/3/fix-*/`.
+
+### What was fixed
+
+**Server (scoring)**
+- The writing calibration now moves whole criterion bands (LR and GRA first on ties), so the four criteria shown always average to the overall. The `calibration` field is gone; no client read it. A criterion moved to a band that no sample gave shows the official descriptor for that band.
+- The calibration is a smooth linear map (`b = 0.55, s = 0.1`) that ramps in from 3.5, with no cliff. It is skipped when TA averages below 4.5, and a test checks that it never decreases.
+- Off-topic writing (TA ≤ 4 or a major `task.relevance` error) is capped at TA + 1 on the server. The web applies the same rule, so the dashboard, history and results page agree.
+- The rubric has band 5/6/7 contrasts for each criterion. The model must name the missing band-7 feature before scoring below 7. For image figures it is told that its own reading of the image can be wrong.
+- Writing makes 1 full call plus 4 scoring calls, in parallel, and each criterion is the mean of its samples. Cost goes up about 1.7×, and wall time stays about the same.
+- An off-topic essay's rewrite must answer the question as set.
+- Speaking:
+  - The audio pass reports a `misheard` list (what was said against what was transcribed), and the grader treats the non-standard form as grammar evidence. The halting sample now scores 5.0.
+  - Pronunciation entries whose `expected` is a different word form, or whose correction equals the original, are dropped.
+  - Speaking and writing have separate mistake categories.
+  - Low-confidence "you" / "Thank you" hallucinations next to a pause are dropped.
+  - The filled-pause count uses the larger of the two sources.
+- Held-out result after the fixes (43 analyses): **MAE 0.53 → 0.38, bias −0.32 → −0.13, max error 1.5 → 1.0, 95% within ±0.5, and runs giving different bands 6/24 → 0/21.**
+
+**Web**
+- The Writing Task 1 figure is plain SVG, with no recharts, loaded eagerly with the prompt panel. Pies use stable per-label colours.
+- There is one alert on the writing result (off topic, or under length), and the header shows the capped band with a "Capped: off topic" badge.
+- An off-topic speaking result shows an alert above the tabs that links to the relevance section.
+- The live pace estimate is calibrated against Whisper rates and shares its thresholds with the Fluency tab. It shows "listening…" when there is too little voiced sound.
+- Mobile criterion cards put the evidence behind "Show evidence", so the mobile speaking overview went from about 3,400 px to about 2,400 px. The transcript has a sticky side column from 1440 px up. Model-answer cards fit their text.
+- The Part 2 notes only get autofocus on devices with a fine pointer, so the phone keyboard no longer covers the cue card.
+- Retry is labelled "Retry Part N" for multi-question prompts.
+- Shell fixes:
+  - Review fix cards show the fix title as a small label.
+  - Friendly 404 copy. An unknown URL shows inside the app shell.
+  - The bank has T1 Academic / T1 General / Task 2 filters, sticky group headers, whole-row links and Segmented filters.
+  - The Settings divider is gone. The serif italic is preloaded.
+  - Segmented options are 44 px on phones, and the dashboard mistake rows and auth links have larger tap targets.
+  - Mistakes stack on mobile and hide identical before/after pairs.
+  - Dark `--surface-2` is `#262522`, and the sidebar has its own `--sidebar` token.
+  - The history band is prominent. The dashboard no longer shows the Task 2 action twice during onboarding.
+- In the verify pass: native `Select` now uses `appearance-none` with a lucide chevron, so it matches the Segmented controls. Writing vocabulary upgrades use the speaking panel's arrow and wrapping chips.
+
+**Docs**
+- Spec §5: writing makes 1 + 4 samples (speaking 1 + 2) and takes the mean per criterion, with the calibration over criterion bands and the off-topic cap. Design system: the SVG Task 1 figure, the `--sidebar` token, the italic preload, and Segmented sizing and filters.
+
+### Verification after fixes
+
+- `pnpm typecheck` is clean.
+- `TEST_DB=verify pnpm test` passes: core 27, web 58, server 82 (1 skipped: the optional live TTS smoke test).
+- `pnpm build` passes. `CartesianChart` (recharts) is still built, but only the dashboard and Fluency panel load it.
+- `pnpm gen:api` produced no drift. `check-models.mjs`: 24 structs match `openapi.json`.
+- Playwright e2e passes 6/6. The bank select chevron was checked in a screenshot at 390 px (`.eval/3/verify/`).
+- Fixers checked with real OpenRouter runs: the held-out writing set, the halting and fluent speaking samples, and an off-topic essay through the running API, with screenshots at 390 and 1440 px.
+
+### Remaining gaps
+
+- **Writing scores are still compressed toward the middle.** Official band 5 scripts come out about 0.4 high and 6.5+ about 0.3 low. The calibration corrects the bias but not the spread. There is no official band 8+ script to test against.
+- The off-topic cap (TA + 1) is a product decision. An essay with TA 1 drops to 2.0 overall, which is harsh but matches how a fully off-topic answer is treated. Revisit it if users find it confusing.
+- History does not yet get an `Off topic` / `Under length` flag from the server. The web renders the flag when present. The Mistakes page can still offer "Add to deck" for an error that was already added as a top fix, because fix cards and mistake cards are matched exactly.
+- OpenRouter seems to ignore the Whisper prompt, so grammar repair is handled only by the audio pass's `misheard` list, which is itself unreliable. `pronunciation.llm.misheard` is not shown in the clients yet.
+- Performance: the bank list query still waits for the page code; better-auth loads up front; there are about 83 small chunks; and analysis takes about 20 s for writing and 29 s for speaking, with no partial results.
+- Minor: session reports show only a test overall, examiner captions start off, the realtime token has no retry, never-submitted attempts clutter history, and weekly minutes can read 0 for a very fast essay.

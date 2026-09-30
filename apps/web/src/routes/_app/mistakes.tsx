@@ -80,8 +80,9 @@ function MistakesPage() {
 
 function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean }) {
   const [added, setAdded] = useState(m.inDeck);
+  const same = m.original.trim() === m.correction.trim(); // nothing to diff: the explanation carries it
   // Off-topic (task.relevance) spans quote whole answers: clamp them to two lines each. ponytail: length heuristic, not measured overflow.
-  const long = m.original.length + m.correction.length > 200;
+  const long = !same && m.original.length + m.correction.length > 200;
   const [expanded, setExpanded] = useState(false);
   const clamp = long && !expanded;
   const add = useMutation({
@@ -102,22 +103,25 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
     <li className="grid grid-cols-[1fr_auto] gap-x-3 px-5 py-4 transition-colors duration-150 hover:bg-ink/[0.03]">
       <div className="min-w-0">
         {showCategory && <p className="mb-1.5 text-xs font-medium text-muted">{categoryLabel(m.category)}</p>}
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-serif text-[1.0625rem] leading-relaxed">
-          <del className={clsx('text-bad-text decoration-bad/60', clamp && 'line-clamp-2')}>{m.original}</del>
-          <ArrowRight className="size-4 shrink-0 translate-y-0.5 self-center text-muted" aria-label="corrected to" />
-          <ins className={clsx('font-medium text-good-text no-underline', clamp && 'line-clamp-2')}>{m.correction}</ins>
-        </p>
+        {!same && (
+          // Phones stack the phrases; the arrow always stays in front of the correction.
+          <p className="flex flex-col gap-1 font-serif text-[1.0625rem] leading-relaxed sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
+            <del className={clsx('text-bad-text decoration-bad/60', clamp && 'line-clamp-2')}>{m.original}</del>
+            <span className="flex min-w-0 items-start gap-2">
+              <ArrowRight className="mt-1.5 size-4 shrink-0 text-muted" aria-label="corrected to" />
+              <ins className={clsx('min-w-0 font-medium text-good-text no-underline', clamp && 'line-clamp-2')}>{m.correction}</ins>
+            </span>
+          </p>
+        )}
         {long && (
           <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="hit mt-1 text-sm font-medium text-accent-text hover:underline">
             {expanded ? 'Show less' : 'Show more'}
           </button>
         )}
-        <p className="mt-2 text-sm text-muted text-pretty">{m.explanation}</p>
-        <Link {...link} className="mt-2 flex flex-wrap gap-x-1 text-sm text-muted hover:text-ink">
-          <span className="max-w-full truncate font-medium text-accent-text sm:max-w-[40ch]">{m.promptTitle}</span>
-          <span>
-            · {where} · {formatRelative(m.createdAt)}
-          </span>
+        <p className={clsx('text-sm text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
+        <Link {...link} className="mt-2 block text-sm text-muted hover:text-ink">
+          <span className="block truncate font-medium text-accent-text">{m.promptTitle}</span>
+          {[where, formatRelative(m.createdAt)].join(' · ')}
         </Link>
       </div>
       <Button size="sm" variant="ghost" className="-mr-2 max-sm:-mt-1.5 max-sm:px-2" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>

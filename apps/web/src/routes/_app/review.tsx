@@ -69,6 +69,9 @@ function ReviewPage() {
   }, [card, revealed, grade]);
 
   const total = data.total + queue.length - data.cards.length;
+  // Fix cards are "title\n\nsentence" (server fixCard): the title is a label, only the sentence is the thing to improve.
+  const cut = card?.source === 'fix' ? card.front.indexOf('\n\n') : -1;
+  const [label, front] = card && cut > 0 ? [card.front.slice(0, cut), card.front.slice(cut + 2)] : [null, card?.front];
   const next = card ? GRADES.map((g) => (g.grade === 1 ? 'This session' : days(review({ ...card, due: new Date(card.due) }, g.grade).interval))) : [];
   return (
     <>
@@ -100,7 +103,8 @@ function ReviewPage() {
               </div>
               <div className="flex flex-1 flex-col justify-center px-5 py-8 text-center sm:px-10">
                 {!revealed && <p className="mb-4 text-sm text-muted">{PROMPT[card.source]}</p>}
-                <p className="font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{card.front}</p>
+                {label && <p className="mb-2 text-sm font-medium text-accent-text">{label}</p>}
+                <p className="font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{front}</p>
                 <div aria-live="polite">
                   {revealed && (
                     <p className="mt-6 border-t border-line pt-6 font-serif text-lg leading-relaxed text-pretty whitespace-pre-line text-ink motion-safe:animate-[fade-in_200ms_ease-out]">{card.back}</p>

@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface-2 md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-sidebar md:flex">
         <div className="px-5 pt-6 pb-5">
           <Link to="/" aria-label="IELTS Practice, dashboard">
             <Logo />

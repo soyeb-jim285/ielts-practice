@@ -34,7 +34,7 @@ function ForgotPassword() {
       title="Reset your password"
       subtitle="Enter your account email and we’ll send you a link."
       footer={
-        <Link to="/login" className="font-medium text-accent-text hover:underline">
+        <Link to="/login" className="hit font-medium text-accent-text hover:underline">
           Back to sign in
         </Link>
       }

@@ -71,7 +71,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       <span
         onClick={() => audio.seek(p.start)}
         className={clsx(
-          'mx-0.5 inline-flex h-5 cursor-pointer items-center rounded-full px-1.5 align-middle font-sans text-[0.6875rem] font-medium tabular-nums',
+          'mx-0.5 inline-flex h-6 cursor-pointer items-center rounded-full px-2 align-middle font-sans text-xs font-medium tabular-nums',
           long ? 'bg-bad-soft text-bad-text' : 'bg-ink/6 text-muted',
           filter !== 'all' && filter !== 'pauses' && 'opacity-35',
           filter === 'pauses' && 'ring-1 ring-current',
@@ -93,7 +93,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       out.push(
         <p key={`q${i}`} className={clsx('mb-1.5 font-sans text-sm font-medium text-muted', i > 0 && 'mt-5')}>
           Q{q.n}. {q.head}
-          {q.rest && <span className="mt-0.5 block text-xs font-normal">{q.rest}</span>}
+          {q.rest && <span className="mt-0.5 block font-normal">{q.rest}</span>}
         </p>,
       );
     const e = t.errorIds.map((id) => errors.get(id)!).find((x) => x.start === i && shown(x));
@@ -131,18 +131,21 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     );
   }
 
+  // Phones: filters, transcript, legend. lg+: the 68ch transcript on the left, filters and legend sticky on the right.
   return (
-    <div className="space-y-5">
-      <div role="toolbar" aria-label="Show" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-        {FILTERS.filter((f) => f.value === 'all' || f.value === filter || counts[f.value] > 0).map((f) => (
-          <Chip key={f.value} selected={filter === f.value} onClick={() => setFilter(f.value)}>
-            {f.label}
-            {f.value !== 'all' && <span className="tabular-nums opacity-70">{counts[f.value]}</span>}
-          </Chip>
-        ))}
-      </div>
-      <div className="prose-serif leading-[2]">{out}</div>
-      <Legend notes={result.errors.some(isSentenceNote)} />
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-x-10">
+      <div className="prose-serif order-2 leading-[2] lg:col-start-1 lg:row-start-1">{out}</div>
+      <aside className="contents lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block lg:space-y-5">
+        <div role="toolbar" aria-label="Show" className="order-1 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+          {FILTERS.filter((f) => f.value === 'all' || f.value === filter || counts[f.value] > 0).map((f) => (
+            <Chip key={f.value} selected={filter === f.value} onClick={() => setFilter(f.value)}>
+              {f.label}
+              {f.value !== 'all' && <span className="tabular-nums opacity-70">{counts[f.value]}</span>}
+            </Chip>
+          ))}
+        </div>
+        <Legend notes={result.errors.some(isSentenceNote)} />
+      </aside>
       {unplaced.length > 0 && <Unplaced errors={unplaced} />}
     </div>
   );
@@ -150,7 +153,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
 
 function Legend({ notes }: { notes: boolean }) {
   return (
-    <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+    <ul className="order-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted lg:flex-col">
       <li className="flex items-center gap-1.5"><span className="underline decoration-bad decoration-2 underline-offset-4">word</span> major error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-2 underline-offset-4">word</span> minor error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4">word</span> unclear to speech recognition</li>
@@ -163,7 +166,7 @@ function Legend({ notes }: { notes: boolean }) {
 
 function Unplaced({ errors }: { errors: AnalysisError[] }) {
   return (
-    <section>
+    <section className="order-4 lg:col-start-1">
       <h3 className="mb-2 text-base font-semibold">Also noted</h3>
       <ul className="divide-y divide-line rounded-card border border-line bg-surface">
         {errors.map((e) => (

@@ -20,7 +20,8 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
   }, [result.errors]);
   const maxCount = groups[0]?.[1].length ?? 1;
   const play = ({ time, end }: AnalysisError) => (time != null ? () => audio.seek(time, (words[end]?.end ?? time + 2) + 0.3) : undefined);
-  const mtldTone = text.mtld >= 70 ? 'good' : text.mtld >= 50 ? 'warn' : 'bad';
+  // Same labels as the writing tab; spoken thresholds sit lower (around 70+ is typical of band 7 speech).
+  const [mtldTone, mtldLabel] = text.mtld >= 70 ? (['good', 'Wide range'] as const) : text.mtld >= 50 ? (['warn', 'Adequate range'] as const) : (['bad', 'Limited range'] as const);
 
   return (
     <div className="space-y-8">
@@ -31,7 +32,7 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
             {groups.map(([cat, errs]) => (
               <details key={cat} className="group">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-3.5 hover:bg-ink/[0.03] [&::-webkit-details-marker]:hidden">
-                  <span className="w-40 shrink-0 truncate text-sm font-medium sm:w-56">{categoryLabel(cat)}</span>
+                  <span className="w-36 shrink-0 text-sm font-medium sm:w-56">{categoryLabel(cat)}</span>
                   <span className="h-2 min-w-0 flex-1 rounded-full bg-surface-2">
                     <span className="block h-full rounded-full bg-accent" style={{ width: `${(errs.length / maxCount) * 100}%` }} />
                   </span>
@@ -60,10 +61,12 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
             {result.vocabUpgrades.map((v) => (
               <div key={v.original} className="space-y-2 px-5 py-4">
                 <p className="flex flex-wrap items-center gap-2 text-[0.9375rem]">
-                  <span className="text-muted">{v.original}</span>
-                  <ArrowRight className="size-4 text-muted" aria-label="try" />
+                  {/* nbsp keeps the arrow on the source phrase's line. */}
+                  <span className="text-muted">
+                    {v.original}&nbsp;<ArrowRight className="inline size-4 align-[-0.1875em]" aria-label="try" />
+                  </span>
                   {v.better.map((b) => (
-                    <Badge key={b} tone="accent" className="h-7 text-sm">
+                    <Badge key={b} tone="accent" className="h-auto! min-h-7 py-1 text-sm whitespace-normal!">
                       {b}
                     </Badge>
                   ))}
@@ -81,11 +84,11 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
             Lexical diversity
             <InfoTip label="About lexical diversity">MTLD: how long you keep using new words before repeating yourself. Higher means a wider range. Around 70+ is typical of band 7 speech.</InfoTip>
           </h2>
-          <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{Math.round(text.mtld)}</p>
-          <div className="mt-3 h-2 rounded-full bg-surface-2" role="meter" aria-label="Lexical diversity" aria-valuemin={0} aria-valuemax={120} aria-valuenow={Math.round(text.mtld)}>
-            <div className={`h-full rounded-full ${mtldTone === 'good' ? 'bg-good' : mtldTone === 'warn' ? 'bg-warn' : 'bg-bad'}`} style={{ width: `${Math.min(100, (text.mtld / 120) * 100)}%` }} />
-          </div>
-          <p className="mt-2 text-xs text-muted">{text.words < 50 ? 'Short answer — treat this number as rough.' : mtldTone === 'good' ? 'Wide range for spoken English.' : 'Try synonyms and more precise words for repeated ideas.'}</p>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-tight tabular-nums">
+            MTLD {Math.round(text.mtld)}
+            <Badge tone={mtldTone}>{mtldLabel}</Badge>
+          </p>
+          {(text.words < 50 || mtldTone !== 'good') && <p className="mt-2 text-sm text-muted">{text.words < 50 ? 'Short answer — treat this number as rough.' : 'Try synonyms and more precise words for repeated ideas.'}</p>}
         </Card>
         <Card>
           <h2 className="text-base font-semibold">Words you leaned on</h2>
@@ -106,7 +109,7 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
       </section>
 
       {result.relevance && result.relevance.length > 0 && (
-        <section>
+        <section id="relevance" className="scroll-mt-20">
           <h2 className="mb-3 text-lg font-semibold">Did you answer the question?</h2>
           <Card padded={false} className="divide-y divide-line">
             {result.relevance.map((r) => {

@@ -33,6 +33,8 @@ export type PronunciationLlm = {
   // heard/expected/disfluencies are absent on analyses stored before they existed
   words: { word: string; time: number; issue: 'sound' | 'stress' | 'intonation' | 'unclear'; heard?: string; expected?: string; tip: string }[];
   disfluencies?: { filledPauses: number[]; repetitions: number[]; falseStarts: number[] };
+  /** Words the audio model heard differently from the transcript (Whisper "corrects" grammar); absent on older analyses. */
+  misheard?: { time: number; transcript: string; spoken: string }[];
   prosody: string;
   band: number;
 };
@@ -51,8 +53,6 @@ export type AnalysisResult = {
   overall: number; // rounded band
   overallRaw: number;
   range: [number, number];
-  /** Writing: bands added to the criterion mean to correct the analysis model's measured bias (overallRaw includes it). Absent when none applied. */
-  calibration?: number;
   criteria: Partial<Record<CriterionKey, Criterion>>;
   topFixes: Fix[]; // exactly 3 (0 when noSpeech / too short)
   errors: AnalysisError[];

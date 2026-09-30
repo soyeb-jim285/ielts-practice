@@ -145,10 +145,11 @@ function VocabList({ items }: { items: VocabUpgrade[] }) {
             <li key={v.original} className="px-5 py-4">
               {/* Same treatment as the speaking Language tab. */}
               <p className="flex flex-wrap items-center gap-2 text-[0.9375rem]">
-                <span className="text-muted">{v.original}</span>
-                <ArrowRight className="size-4 text-muted" aria-label="try" />
+                <span className="text-muted">
+                  {v.original}&nbsp;<ArrowRight className="inline size-4 align-[-0.1875em]" aria-label="try" />
+                </span>
                 {v.better.map((b) => (
-                  <Badge key={b} tone="accent" className="h-7 text-sm">
+                  <Badge key={b} tone="accent" className="h-auto! min-h-7 py-1 text-sm whitespace-normal!">
                     {b}
                   </Badge>
                 ))}

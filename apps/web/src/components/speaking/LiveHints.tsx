@@ -1,10 +1,11 @@
 import { Gauge } from 'lucide-react';
 import { Badge } from '@/components/ui';
+import { paceTone } from '@/lib/result';
 
-/** Rough live pace from energy peaks. Shown after a few seconds so the first estimate isn't noise. */
+/** Rough live pace from energy peaks, judged like the Fluency tab's speech rate. Waits for a few seconds of confident speech (wpm 0 = none yet). */
 export function WpmPill({ wpm, elapsedMs }: { wpm: number; elapsedMs: number }) {
-  if (elapsedMs < 5000) return <Badge tone="neutral">Pace: listening…</Badge>;
-  const [tone, note] = wpm < 90 ? (['warn', 'slow'] as const) : wpm > 180 ? (['warn', 'fast'] as const) : (['good', 'steady'] as const);
+  if (elapsedMs < 5000 || !wpm) return <Badge tone="neutral">Pace: listening…</Badge>;
+  const [tone, note] = paceTone(wpm) === 'good' ? (['good', 'steady'] as const) : (['warn', wpm < 120 ? 'slow' : 'fast'] as const);
   return (
     <Badge tone={tone} title="Rough estimate from your voice, not a transcript">
       <Gauge aria-hidden />~{wpm} wpm · {note}

@@ -157,8 +157,8 @@ type SttResponse = {
   segments?: { start: number; end: number; avg_logprob?: number }[];
 };
 
-// Standard Whisper disfluency-priming prompt: keeps um/uh in the transcript instead of cleaning them out (research.md §3).
-const VERBATIM_PROMPT = 'Umm, let me think, uh... well, like, you know, I mean, hmm.';
+// Whisper disfluency-priming prompt (research.md §3): Whisper imitates its style, so disfluent, ungrammatical text keeps um/uh and the speaker's own word forms instead of repairing them.
+const VERBATIM_PROMPT = 'Umm, let me think, uh... he go... he go there. Uh, she have, um, two book. Hmm, I mean, like, you know.';
 const bare = (s: string) => s.toLowerCase().replace(/[^a-z0-9']/g, '');
 
 /** Word timestamps come without punctuation; copy trailing punctuation back from the full text so clause boundaries survive. */

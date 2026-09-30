@@ -31,6 +31,11 @@ const STATUS: Record<Exclude<AttemptItem['status'], 'done'>, { label: string; to
   failed: { label: 'Failed', tone: 'bad' },
 };
 const partLabel = (a: AttemptItem) => (a.skill === 'speaking' ? `Part ${a.part}` : `Task ${a.part}`);
+const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
+// Editor time under a minute is a pasted or abandoned essay, not a meaningful duration; speaking recordings are short by design.
+const showDuration = (a: AttemptItem) => !!a.durationMs && (a.skill === 'speaking' || a.durationMs >= 60_000);
+// ponytail: `flag` isn't in the list contract yet (server request); rendered when present.
+const FLAG: Record<string, string> = { offTopic: 'Off topic', tooShort: 'Under length' };
 
 function HistoryPage() {
   const { skill } = Route.useSearch();
@@ -77,6 +82,7 @@ function HistoryPage() {
             {items.map((a) => {
               const Icon = a.skill === 'speaking' ? Mic : PenLine;
               const status = a.status === 'done' ? null : STATUS[a.status];
+              const flag = FLAG[(a as { flag?: string | null }).flag ?? ''];
               return (
                 <li key={a.id}>
                   <Link
@@ -91,16 +97,20 @@ function HistoryPage() {
                       <span className="block truncate text-[0.9375rem] font-medium">{a.promptTitle}</span>
                       <span className="block truncate text-sm text-muted">
                         {partLabel(a)} · {formatDate(a.createdAt, true)}
-                        {a.durationMs ? ` · ${formatDuration(a.durationMs)}` : ''}
+                        {showDuration(a) ? ` · ${formatDuration(a.durationMs!)}` : ''}
                       </span>
                     </span>
                     {status ? (
                       <Badge tone={status.tone}>{status.label}</Badge>
                     ) : (
                       a.overall != null && (
-                        <Badge tone={bandColor(a.overall, target)} className="tabular-nums" aria-label={`Band ${formatBand(a.overall)}`}>
-                          {formatBand(a.overall)}
-                        </Badge>
+                        <>
+                          {flag && <Badge tone="warn">{flag}</Badge>}
+                          <span className={`text-base font-semibold tabular-nums ${BAND_TEXT[bandColor(a.overall, target)]}`}>
+                            <span className="sr-only">Band </span>
+                            {formatBand(a.overall)}
+                          </span>
+                        </>
                       )
                     )}
                     <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />

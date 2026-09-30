@@ -1,9 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { Skeleton } from '@/components/ui';
 import { asChart, minWords, taskLabel } from '@/lib/writing';
-
-// recharts is ~100 KB gz: only load it for prompts that actually have a chart.
-const ChartRenderer = lazy(() => import('./ChartRenderer').then((m) => ({ default: m.ChartRenderer })));
+import { ChartRenderer } from './ChartRenderer';
 
 /** The subset of the server `Prompt` / `AttemptPrompt` the writing screens use. */
 export type WritingPrompt = {
@@ -44,11 +40,7 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
           </ul>
         </div>
       ) : null}
-      {chart && (
-        <Suspense fallback={<Skeleton className="h-72 w-full" />}>
-          <ChartRenderer spec={chart} />
-        </Suspense>
-      )}
+      {chart && <ChartRenderer spec={chart} />}
       {!chart && prompt.imageUrl && (
         <figure className="overflow-hidden rounded-card border border-line bg-white p-2">
           <img src={prompt.imageUrl} alt={`Figure for: ${prompt.title}`} className="mx-auto h-auto max-w-full" loading="eager" />

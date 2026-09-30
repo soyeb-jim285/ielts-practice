@@ -1,7 +1,7 @@
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { describe, expect, it } from 'vitest';
-import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, isSentenceNote, notAssessed, pauseSec, questionHead, sessionOverall, speechStats } from './result';
+import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, isSentenceNote, notAssessed, offTopicAnswers, paceTone, pauseSec, questionHead, sessionOverall, speechStats, splitFirstSentence } from './result';
 
 const metrics = (over: Partial<SpeechMetrics> = {}): SpeechMetrics => ({
   durationS: 60, wordCount: 140, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
@@ -119,4 +119,28 @@ describe('sessionOverall', () => {
   });
   it('returns null when nothing is scored', () => expect(sessionOverall([{ result: result({ noSpeech: true }), durationMs: 1 }, { result: result({ overall: 0, criteria: { fc: c(0), lr: c(0), gra: c(0), p: c(0) } }), durationMs: 1 }])).toBeNull());
   it('treats overall 0 as not assessed', () => expect([result(), result({ overall: 0 }), result({ noSpeech: true })].map(notAssessed)).toEqual([false, true, true]));
+});
+
+describe('offTopicAnswers', () => {
+  const rel = (...on: boolean[]) => ({ relevance: on.map((onTopic, questionIdx) => ({ questionIdx, onTopic, note: '' })) }) as AnalysisResult;
+  it('flags only when most answers missed the question', () => {
+    expect(offTopicAnswers(rel(false, false, false, true, true))).toEqual({ off: 3, total: 5 });
+    expect(offTopicAnswers(rel(false, false, true, true))).toBeNull();
+    expect(offTopicAnswers(rel(false))).toEqual({ off: 1, total: 1 });
+    expect(offTopicAnswers({} as AnalysisResult)).toBeNull();
+  });
+});
+
+describe('paceTone', () => {
+  it('uses the band-7 speech-rate range', () => {
+    expect([95, 110, 145, 180, 200].map(paceTone)).toEqual(['bad', 'warn', 'good', 'warn', 'bad']);
+  });
+});
+
+describe('splitFirstSentence', () => {
+  it('splits after the first sentence end', () => {
+    expect(splitFirstSentence('Good range. Some slips! More here.')).toEqual(['Good range.', 'Some slips! More here.']);
+    expect(splitFirstSentence('Only one sentence.')).toEqual(['Only one sentence.', '']);
+    expect(splitFirstSentence('Uses e.g.no space. Next')).toEqual(['Uses e.g.no space.', 'Next']);
+  });
 });

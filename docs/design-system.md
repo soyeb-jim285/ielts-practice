@@ -18,7 +18,8 @@ Tokens are defined in `styles.css` (`:root` for light, `.dark` for dark) and exp
 |---|---|---|
 | Page background | `bg-bg` | body |
 | Surface | `bg-surface` | cards, popovers, inputs |
-| Second surface | `bg-surface-2` | sidebar, insets inside cards, input wells |
+| Second surface | `bg-surface-2` | insets inside cards, input wells, segmented tracks (lighter than `surface` in dark mode, darker in light) |
+| Sidebar | `bg-sidebar` | the desktop nav rail only |
 | Text | `text-ink`, `text-muted` | body text, secondary text (muted passes 4.5:1) |
 | Lines | `border-line`, `border-line-strong` | `line` for dividers and card edges; `line-strong` (≥3:1) for form-control edges, switch tracks and hover borders |
 | Accent | `bg-accent text-accent-ink`, `hover:bg-accent-hover`, `text-accent-text` (links and text), `bg-accent-soft` | primary actions, current selection |
@@ -28,7 +29,7 @@ Tokens are defined in `styles.css` (`:root` for light, `.dark` for dark) and exp
 | Hover wash | `hover:bg-ink/5` | ghost buttons, list rows |
 | Radius | `rounded-card` (14 px), `rounded-control` (10 px), `rounded-full` | cards/sheets, buttons/inputs, chips |
 | Shadow | `shadow-card`, `shadow-pop` | resting surfaces, floating layers |
-| Fonts | `font-sans` (Inter, the default), `font-serif` (Source Serif 4) | UI, essays/transcripts/prompts. Self-hosted variable woff2 (latin) in `public/fonts`, declared in `styles.css`; Inter is preloaded in `index.html`. |
+| Fonts | `font-sans` (Inter, the default), `font-serif` (Source Serif 4) | UI, essays/transcripts/prompts. Self-hosted variable woff2 (latin) in `public/fonts`, declared in `styles.css`; Inter and the serif italic (logo word, descriptor quotes) are preloaded in `index.html`. |
 | Prose | `prose-serif` | serif 17 px/1.7, max 68ch: essays, transcripts, reading prompts |
 | Easing | `ease-(--ease-out-quart)` | transitions |
 
@@ -156,7 +157,7 @@ Use it for 2–5 exclusive options (a radiogroup driven by the arrow keys).
 ```tsx
 <Segmented label="Mode" value={mode} onChange={setMode} options={[{ value: 'practice', label: 'Practice' }, { value: 'exam', label: 'Exam' }]} />
 ```
-`size="sm"` is available. For icon-only options, give each one an `'aria-label'`.
+`size="sm"` is available; it only shrinks from `md` up (on phones every option is 36 px in a 44 px group, plus `hit`). For icon-only options, give each one an `'aria-label'`. Use Segmented (not Chips) for skill / part filters, with the Writing vocabulary `T1 Academic / T1 General / Task 2`.
 
 ### Tabs
 This is the underlined tab bar used by the results pages. On phones the tabs share the width with tighter padding, so five short labels fit in 360 px; if they still don't fit, the bar scrolls, fades its right edge while tabs are hidden, and keeps the active tab in view. Keep labels to one short word. It is controlled, and you render the panel yourself:
@@ -235,5 +236,5 @@ Values run from 0 to 1. Use it for timers (with the tone switching by zone), goa
 - **Lists of items:** use one `Card padded={false}` with `divide-y divide-line` rows (`px-5 py-4`, hover `hover:bg-ink/[0.03]`), not a grid of identical cards.
 - **Forms:** use `space-y-4`, a full-width primary submit on mobile, and an `Alert tone="bad"` above the fields for server errors.
 - **Loading / error / empty:** every data view handles all three. Error = `Alert tone="bad"` plus a retry action. Empty = `EmptyState`.
-- **Charts (Recharts):** recharts is ~100 KB gz, so load chart components with `lazy()` and render them only when there is data to plot (see the dashboard); draw tiny decorative sparklines as inline SVG. Use `stroke="var(--accent)"`, grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-card shadow-pop`).
+- **Charts (Recharts):** recharts is ~100 KB gz, so load chart components with `lazy()` and render them only when there is data to plot (see the dashboard). The Writing Task 1 figure (`ChartRenderer`) is plain SVG with no recharts, so the exam screen never waits on that chunk; draw tiny decorative sparklines as inline SVG. Use `stroke="var(--accent)"`, grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-card shadow-pop`).
 - **Exam screens:** use `ExamShell`, large type (`text-lg`/`prose-serif`), the timer on the right of the top bar, and no other chrome.

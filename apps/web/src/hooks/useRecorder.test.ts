@@ -40,10 +40,15 @@ describe('useRecorder', () => {
 });
 
 describe('estimateWpm', () => {
-  it('counts energy peaks over the last 10 s', () => {
-    // 10 s of frames with a peak every 5 frames (4 syllables/s) → 40 peaks → ~160 wpm
-    const e = Array.from({ length: 200 }, (_, i) => (i % 5 === 2 ? 120 : 20));
-    expect(estimateWpm(e)).toBe(160);
+  it('turns energy peaks in the last 10 s into words/min', () => {
+    // 10 s of speech-like bursts (3 voiced frames in 5, one peak each) → 40 peaks / 1.1 per word × 6 → 218 wpm
+    const e = Array.from({ length: 200 }, (_, i) => [20, 90, 120, 90, 20][i % 5]!);
+    expect(estimateWpm(e)).toBe(218);
     expect(estimateWpm(new Array(200).fill(10))).toBe(0);
+  });
+
+  it('ignores a periodic beep with too few voiced frames to be speech', () => {
+    const beep = Array.from({ length: 200 }, (_, i) => (i % 10 === 1 ? 145 : 10));
+    expect(estimateWpm(beep)).toBe(0);
   });
 });

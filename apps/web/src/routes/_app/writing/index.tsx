@@ -56,6 +56,18 @@ function WritingHome() {
           </div>
           <h2 className="text-lg font-semibold">Full test</h2>
           <p className="mt-1 text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
+          {/* The suggested split, drawn to scale: Task 2 is worth twice as much, so it gets twice the time. */}
+          <ol className="mt-5 flex gap-1 text-sm" aria-label="Suggested timing">
+            {[
+              ['Task 1', '20 min', 'flex-1 bg-accent-soft'],
+              ['Task 2', '40 min', 'flex-[2] bg-surface-2'],
+            ].map(([t, m, c]) => (
+              <li key={t} className={`min-w-0 rounded-control px-3 py-2 first:rounded-r-sm last:rounded-l-sm ${c}`}>
+                <span className="block font-medium">{t}</span>
+                <span className="block text-xs text-muted">{m}</span>
+              </li>
+            ))}
+          </ol>
           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
             <Segmented
               label="Test type"

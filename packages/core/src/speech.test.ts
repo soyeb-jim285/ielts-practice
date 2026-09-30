@@ -43,10 +43,12 @@ it('stretched word timestamps expose hidden (filled) pauses', () => {
   // Whisper dropped an "um" and stretched "many" over it: 1.0 s for a 4-letter word
   const m = computeSpeechMetrics(mk([['there', 0, 0.3], ['are', 0.3, 0.5], ['many', 0.5, 1.5], ['jobs', 1.5, 1.8]]), { durationS: 2 });
   expect(m.pauses).toHaveLength(1);
-  expect(m.pauses[0]).toMatchObject({ voiced: true, midClause: true });
+  expect(m.pauses[0]).toMatchObject({ voiced: false, midClause: true }); // no energy data: silence or "um" cannot be told apart
   expect(m.pauses[0]!.dur).toBeCloseTo(1 - 0.28);
-  expect(m.fillers.map(f => f.kind)).toEqual(['voiced']);
+  expect(m.fillers).toEqual([]);
   expect(m.mlr).toBe(2);
+  const voicedGap = computeSpeechMetrics(mk([['there', 0, 0.3], ['are', 0.3, 0.5], ['many', 0.5, 1.5], ['jobs', 1.5, 1.8]]), { durationS: 2, energy: new Array(40).fill(90) });
+  expect(voicedGap.fillers.map(f => f.kind)).toEqual(['voiced']);
   // a normal-length long word is untouched
   expect(computeSpeechMetrics(mk([['it', 0, 0.2], ['unfortunately', 0.2, 1.0]]), { durationS: 1 }).pauses).toEqual([]);
 });

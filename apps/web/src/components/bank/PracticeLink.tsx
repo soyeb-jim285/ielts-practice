@@ -1,7 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Play } from 'lucide-react';
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import { Button, buttonStyles, toast } from '@/components/ui';
+import { Button, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
 
 type Mode = 'full' | 'p1' | 'p2' | 'p3';
@@ -10,17 +9,15 @@ type Mode = 'full' | 'p1' | 'p2' | 'p3';
 export const speakingSession = (mode: Mode, promptId?: string) =>
   ({ to: '/speaking/session', search: { mode, promptId } }) as const;
 
-/** "Practice" button for a bank prompt. */
-export function PracticeLink({ prompt }: { prompt: { id: string; skill: 'speaking' | 'writing'; part: number } }) {
-  const cls = buttonStyles({ variant: 'secondary', size: 'sm' });
-  const label = <><Play aria-hidden /> Practice</>;
+/** Link that starts practising a bank prompt (the writing editor, or a speaking session on that part). */
+export function PromptLink({ prompt, className, children }: { prompt: { id: string; skill: 'speaking' | 'writing'; part: number }; className?: string; children: ReactNode }) {
   return prompt.skill === 'writing' ? (
-    <Link to="/writing/task/$promptId" params={{ promptId: prompt.id }} className={cls}>
-      {label}
+    <Link to="/writing/task/$promptId" params={{ promptId: prompt.id }} search={{}} className={className}>
+      {children}
     </Link>
   ) : (
-    <Link {...speakingSession(`p${prompt.part}` as Mode, prompt.id)} className={cls}>
-      {label}
+    <Link {...speakingSession(`p${prompt.part}` as Mode, prompt.id)} className={className}>
+      {children}
     </Link>
   );
 }

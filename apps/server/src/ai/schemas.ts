@@ -19,15 +19,22 @@ export const CriterionSchema = z.object({
   summary: z.string().describe('1-2 sentences: what holds this criterion back from the next band'),
 });
 
-export const ErrorSchema = z.object({
-  category: z.enum(MISTAKE_CATEGORIES).describe('Most specific category that fits; punctuation (commas, run-ons, apostrophes) is grammar.punctuation; grammar.other only when none fits'),
-  severity: z.enum(['minor', 'major']),
-  start: z.number().int().describe('First word index (inclusive)'),
-  end: z.number().int().describe('Last word index (inclusive)'),
-  original: z.string(),
-  correction: z.string(),
-  explanation: z.string(),
-});
+type Category = (typeof MISTAKE_CATEGORIES)[number];
+const only = (keep: (c: Category) => boolean) => MISTAKE_CATEGORIES.filter(keep) as [Category, ...Category[]];
+/** Speaking has no spelling, overview or position; writing has no pronunciation or hesitation. */
+const SPEAKING_CATEGORIES = only((c) => c !== 'lexis.spelling' && c !== 'task.overview' && c !== 'task.position');
+const WRITING_CATEGORIES = only((c) => c !== 'pronunciation.word' && c !== 'fluency.hesitation');
+
+const errorSchema = (categories: [Category, ...Category[]]) =>
+  z.object({
+    category: z.enum(categories).describe('Most specific category that fits; punctuation (commas, run-ons, apostrophes) is grammar.punctuation; grammar.other only when none fits'),
+    severity: z.enum(['minor', 'major']),
+    start: z.number().int().describe('First word index (inclusive)'),
+    end: z.number().int().describe('Last word index (inclusive)'),
+    original: z.string(),
+    correction: z.string(),
+    explanation: z.string(),
+  });
 
 export const FixSchema = z.object({
   title: z.string(),
@@ -41,7 +48,7 @@ const VocabUpgradesSchema = z.array(z.object({ original: z.string(), better: z.a
 export const SpeakingLlmSchema = z.object({
   criteria: z.object({ fc: CriterionSchema, lr: CriterionSchema, gra: CriterionSchema, p: CriterionSchema }),
   topFixes: z.array(FixSchema).length(3),
-  errors: z.array(ErrorSchema).max(40),
+  errors: z.array(errorSchema(SPEAKING_CATEGORIES)).max(40),
   relevance: z.array(z.object({ questionIdx: z.number().int(), onTopic: z.boolean(), note: z.string() })),
   vocabUpgrades: VocabUpgradesSchema,
   rewrite: z.string(),
@@ -60,6 +67,15 @@ export const PronLlmSchema = z.object({
       }),
     )
     .max(20),
+  misheard: z
+    .array(
+      z.object({
+        time: z.number(),
+        transcript: z.string().describe('The transcript word ("" when the transcript left out a spoken word)'),
+        spoken: z.string().describe('What was actually said ("" when the transcript added a word that was not said)'),
+      }),
+    )
+    .max(20),
   disfluencies: z.object({
     filledPauses: z.array(z.number()).describe('Start times (s) of each um/uh/er heard'),
     repetitions: z.array(z.number()).describe('Start times (s) of each repeated word or phrase'),
@@ -73,7 +89,7 @@ export const WritingLlmSchema = z.object({
   criteria: z.object({ ta: CriterionSchema, cc: CriterionSchema, lr: CriterionSchema, gra: CriterionSchema }),
   topFixes: z.array(FixSchema).length(3),
   errors: z
-    .array(ErrorSchema.omit({ start: true, end: true }).extend({ quote: z.string().describe('Exact substring of the essay containing the error') }))
+    .array(errorSchema(WRITING_CATEGORIES).omit({ start: true, end: true }).extend({ quote: z.string().describe('Exact substring of the essay containing the error') }))
     .max(40),
   structure: z.object({
     paragraphs: z.array(
@@ -114,13 +130,34 @@ export function settleRanges<K extends string>(criteria: Record<K, LlmCriterion>
   return [Math.max(0, Math.min(mid - 0.5, overall(pick((c) => c.range[0])))), Math.min(9, Math.max(mid + 0.5, overall(pick((c) => c.range[1]))))] as [number, number];
 }
 
-/** Per criterion: the median-band sample (with its descriptor/evidence), its range grown to cover every sample's band. */
-export function medianCriteria<K extends string>(samples: Record<K, LlmCriterion>[]): Record<K, LlmCriterion> {
+/** Pools the samples into whole criterion bands: each criterion's mean band (steadier than the median sample, which flips whenever one
+ *  criterion flips), shifted so the overall becomes `target(mean of means)` (writing calibration), then rounded by largest remainder so
+ *  the shown bands always average to that overall. Text comes from the sample nearest each band (the full analysis on ties); when no
+ *  sample gave exactly that band, `describe` supplies the official descriptor so the text never contradicts the band. */
+export function poolCriteria<K extends string>(
+  samples: Record<K, LlmCriterion>[],
+  target: (mean: number) => number = (m) => m,
+  describe?: (key: K, band: number) => string | undefined,
+): Record<K, LlmCriterion> {
+  const keys = Object.keys(samples[0]!) as K[];
+  const mean = (f: (x: Record<K, LlmCriterion>) => number) => samples.reduce((s, x) => s + f(x), 0) / samples.length;
+  const means = keys.map((k) => mean((x) => x[k].band));
+  const avg = means.reduce((a, b) => a + b) / keys.length;
+  const goal = target(avg), x = means.map((m) => m + goal - avg);
+  const bands = x.map(Math.floor);
+  let left = Math.round(goal * keys.length + 1e-9) - bands.reduce((a, b) => a + b);
+  // Largest remainder first; on a tie the later criterion (writing LR/GRA, which the model under-scores most) goes up.
+  const frac = (i: number) => Math.round((x[i]! - bands[i]!) * 1e6);
+  for (const i of keys.map((_, i) => i).sort((a, b) => frac(b) - frac(a) || b - a)) if (left-- > 0) bands[i]!++;
+  const whole = (v: number) => Math.min(9, Math.max(0, Math.round(v + goal - avg)));
   return Object.fromEntries(
-    Object.keys(samples[0]!).map((k) => {
-      const cs = samples.map((s) => s[k as K]).sort((a, b) => a.band - b.band);
-      const m = cs[(cs.length - 1) >> 1]!;
-      return [k, { ...m, range: [Math.min(m.range[0], cs[0]!.band), Math.max(m.range[1], cs.at(-1)!.band)] }];
+    keys.map((k, i) => {
+      const cs = samples.map((s) => s[k]), band = Math.min(9, Math.max(0, bands[i]!));
+      const rep = cs.reduce((a, c) => (Math.abs(c.band - band) < Math.abs(a.band - band) ? c : a));
+      const range: [number, number] = [whole(Math.min(...cs.map((c) => Math.min(c.band, c.range[0])))), whole(Math.max(...cs.map((c) => Math.max(c.band, c.range[1]))))];
+      const descriptor = rep.band === band ? undefined : describe?.(k, band);
+      const next = describe?.(k, band + 1);
+      return [k, { ...rep, band, range, ...(descriptor && { descriptor, summary: next ? `To reach band ${band + 1}: ${next}` : rep.summary }) }];
     }),
   ) as Record<K, LlmCriterion>;
 }
@@ -128,22 +165,23 @@ export function medianCriteria<K extends string>(samples: Record<K, LlmCriterion
 /** Scoring-only calls run alongside each full analysis: one LLM sample flips the overall band on about half of essays. */
 export const EXTRA_SAMPLES = 2;
 
-/** Runs the full analysis and EXTRA_SAMPLES scoring-only calls in parallel; criteria become the per-criterion median. Failed extras are ignored.
+/** Runs the full analysis and `extra` scoring-only calls in parallel and returns the full analysis plus every sample's criteria (for poolCriteria). Failed extras are ignored.
  *  A retryable failure of the full analysis (timeout, network, 429/5xx, unreadable JSON) is retried once before giving up. */
 export async function withScoringSamples<K extends string, T extends { criteria: Record<K, LlmCriterion> }>(
   full: () => Promise<T>,
   score: () => Promise<{ criteria: Record<K, LlmCriterion> }>,
-): Promise<T> {
+  extra = EXTRA_SAMPLES,
+): Promise<T & { samples: Record<K, LlmCriterion>[] }> {
   const fullOnce = () =>
     full().catch((e: unknown) => {
       if (!(e instanceof AiError && e.retryable)) throw e;
       console.error('full analysis failed, retrying once', e.code, e.status ?? '');
       return full();
     });
-  const [main, ...extra] = await Promise.allSettled([fullOnce(), ...Array.from({ length: EXTRA_SAMPLES }, score)]);
+  const [main, ...rest] = await Promise.allSettled([fullOnce(), ...Array.from({ length: extra }, score)]);
   if (main.status === 'rejected') throw main.reason;
-  const ok = extra.flatMap((r) => (r.status === 'fulfilled' ? [r.value.criteria] : []));
-  return { ...main.value, criteria: medianCriteria([main.value.criteria, ...ok]) };
+  const ok = rest.flatMap((r) => (r.status === 'fulfilled' ? [r.value.criteria] : []));
+  return { ...main.value, samples: [main.value.criteria, ...ok] };
 }
 
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}']+/gu, ' ').trim()} `;

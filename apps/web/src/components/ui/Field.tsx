@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 export const controlStyles = clsx(
@@ -86,7 +86,10 @@ export function Select({ label, hint, error, hideLabel, className, ...rest }: Fi
   const id = useId();
   return (
     <Field {...{ id, label, hint, error, hideLabel }}>
-      <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={clsx(controlStyles, 'h-11 pr-8', className)} {...rest} />
+      <div className="relative">
+        <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={clsx(controlStyles, 'h-11 appearance-none pr-9', className)} {...rest} />
+        <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
+      </div>
     </Field>
   );
 }

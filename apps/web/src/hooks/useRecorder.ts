@@ -15,10 +15,15 @@ export function pickMime(): string {
   return ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => MR.isTypeSupported(t)) ?? '';
 }
 
-/** Syllable-like energy peaks in the last 10 s → rough words/min. ponytail: a pacing hint, not a measurement. */
+// ponytail: calibrated in Chrome against Whisper speech rate on TTS answers (176/186 wpm → 3.4/3.2 peaks/s); peaks merge syllables, so ~1.1 per word.
+const PEAKS_PER_WORD = 1.1;
+/** Below this share of voiced frames the window is a tone or noise, not speech (Chrome's fake-mic beep: 0.10; halting speech: ≥ 0.28). */
+const MIN_VOICED = 0.2;
+
+/** Energy peaks in the last 10 s → words/min on the same scale as core speechRate; 0 = no confident speech yet. ponytail: a pacing hint, not a measurement. */
 export function estimateWpm(energy: number[]): number {
   const win = energy.slice(-200);
-  if (win.length < 40) return 0;
+  if (win.length < 40 || win.filter((e) => e >= VOICE).length < win.length * MIN_VOICED) return 0;
   let peaks = 0;
   let last = -10;
   for (let i = 1; i < win.length - 1; i++) {
@@ -28,7 +33,7 @@ export function estimateWpm(energy: number[]): number {
       last = i;
     }
   }
-  return Math.round((peaks / 1.5) * (200 / win.length) * 6);
+  return Math.round((peaks / PEAKS_PER_WORD) * (60_000 / (win.length * FRAME_MS)));
 }
 
 const MESSAGES = {

@@ -8,6 +8,7 @@ import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Segmented, Skelet
 import { DiffView } from '@/components/writing/DiffView';
 import { EssayHighlights } from '@/components/writing/EssayHighlights';
 import { LanguagePanel } from '@/components/writing/LanguagePanel';
+import { capOffTopic } from '@/components/writing/offTopic';
 import { StructureMap } from '@/components/writing/StructureMap';
 import { formatBand, formatDate, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
@@ -44,9 +45,11 @@ function ResultPage() {
     );
   if (!a) return <Skeleton className="h-64 w-full" />;
 
-  const r = a.status === 'done' ? a.analysis : null;
+  const { result: r, offTopic } = a.status === 'done' && a.analysis ? capOffTopic(a.analysis) : { result: null, offTopic: false };
+  const under = !!r && !r.tooShort && !!r.textMetrics && r.textMetrics.words < minWords(a.part);
   const pairTasks = other ? [a, other].sort((x, y) => x.part - y.part) : null;
-  const combined = pairTasks?.[0]!.analysis && pairTasks[1]!.analysis ? writingOverall(pairTasks[0]!.analysis.overall, pairTasks[1]!.analysis.overall) : null;
+  const [p1, p2] = pairTasks?.map((x) => x.analysis && capOffTopic(x.analysis).result.overall) ?? [];
+  const combined = p1 != null && p2 != null ? writingOverall(p1, p2) : null;
   const meta = `Writing · ${taskLabel(a.prompt)} · ${formatDate(a.createdAt)}`;
 
   const switcher = pairTasks && (
@@ -69,12 +72,9 @@ function ResultPage() {
         <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target}>
           <div className="flex flex-wrap items-center gap-2">
             {switcher}
-            {r.textMetrics && (
-              <Badge tone={r.textMetrics.words < minWords(a.part) ? 'warn' : undefined}>
-                {plural(r.textMetrics.words, 'word')}
-                {r.textMetrics.words < minWords(a.part) && ` · under ${minWords(a.part)}`}
-              </Badge>
-            )}
+            {offTopic && <Badge tone="bad">Capped: off topic</Badge>}
+            {/* Under-length answers get the word count in the alert below instead. */}
+            {r.textMetrics && !under && !r.tooShort && <Badge>{plural(r.textMetrics.words, 'word')}</Badge>}
             {a.overtime && <Badge tone="warn">Overtime</Badge>}
           </div>
         </ResultHeader>
@@ -101,32 +101,37 @@ function ResultPage() {
       ) : !r ? (
         <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} />
       ) : (
-        <Done a={a} r={r} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true })} />
+        <Done a={a} r={r} offTopic={offTopic} under={under} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true })} />
       )}
     </div>
   );
 }
 
-function Done({ a, r, tab, setTab, target }: { a: Attempt; r: AnalysisResult; tab: Tab; setTab: (t: Tab) => void; target: number }) {
+function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: AnalysisResult; offTopic: boolean; under: boolean; tab: Tab; setTab: (t: Tab) => void; target: number }) {
   const text = r.text ?? a.text ?? '';
-  // TR/TA ≤ 4 or a major relevance mistake: the answer misses the question, whatever the other criteria say.
-  const offTopic = !r.tooShort && ((r.criteria.ta?.band ?? 9) <= 4 || r.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major'));
+  const ta = a.part === 1 ? 'Task Achievement' : 'Task Response';
   return (
     <div className="space-y-6">
-      {offTopic && (
-        <Alert tone="bad" title="Off topic">
-          Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question — in the exam this caps your score.
-        </Alert>
-      )}
-      {r.tooShort && (
+      {r.tooShort ? (
         <Alert tone="warn" title="Too short to assess">
           Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.
         </Alert>
-      )}
-      {!r.tooShort && r.textMetrics && r.textMetrics.words < minWords(a.part) && (
-        <Alert tone="warn" title={`Under ${minWords(a.part)} words`}>
-          You wrote {r.textMetrics.words} words. Answers under the minimum lose marks for {a.part === 1 ? 'Task Achievement' : 'Task Response'}.
-        </Alert>
+      ) : (
+        (offTopic || under) && (
+          // One alert for everything wrong with the essay itself, so the band breakdown stays near the top.
+          <Alert tone={offTopic ? 'bad' : 'warn'} title={offTopic ? 'Off topic' : `Under ${minWords(a.part)} words`}>
+            {offTopic && (
+              <p>
+                Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question, so your overall band can’t go above {formatBand(r.criteria.ta!.band + 1)}: one band over your {ta} score.
+              </p>
+            )}
+            {under && (
+              <p>
+                You wrote {r.textMetrics!.words} of the {minWords(a.part)} words required, which lowers {ta}.
+              </p>
+            )}
+          </Alert>
+        )
       )}
       <Tabs
         id="wr"

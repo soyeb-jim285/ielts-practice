@@ -1,12 +1,12 @@
 @import 'tailwindcss';
 
-/* Self-hosted variable fonts, ~30 KB each (public/fonts; only Inter is preloaded in index.html). Built from the upstream
+/* Self-hosted variable fonts, ~30 KB each (public/fonts; Inter and the serif italic are preloaded in index.html). Built from the upstream
    variable woff2s: `fonttools varLib.instancer <src> opsz=14|20 wght=400:700|400:600`, then `pyftsubset --flavor=woff2
    --unicodes=<Google 'latin' range + U+2070-209F,U+2190-2193,U+2248,U+2264-2265> --layout-features+=cv11,ss01,tnum,case`. */
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/inter.woff2') format('woff2'); }
 @font-face { font-family: 'Source Serif 4'; font-style: normal; font-weight: 400 600; font-display: swap; src: url('/fonts/source-serif-4.woff2') format('woff2'); }
-/* The italic (logo word, descriptor quotes) is decorative: `optional` shows the Georgia fallback on a cold first load instead of
-   visibly swapping after first paint; the file still downloads and is used from cache next time. */
+/* The italic (logo word, descriptor quotes) is preloaded so `optional` normally gets it for first paint; on a slow connection
+   it keeps the Georgia fallback instead of visibly swapping (the file is still cached for next time). */
 @font-face { font-family: 'Source Serif 4'; font-style: italic; font-weight: 400 600; font-display: optional; src: url('/fonts/source-serif-4-italic.woff2') format('woff2'); }
 
 /* Dark mode = .dark on <html> (set from localStorage/system before paint, see index.html). */
@@ -16,7 +16,8 @@
 :root {
   --bg: #faf9f7;
   --surface: #ffffff;
-  --surface-2: #f3f1ed; /* sidebar, inset panels, input wells */
+  --surface-2: #f3f1ed; /* inset panels, input wells */
+  --sidebar: #f3f1ed;
   --ink: #1c1b19;
   --muted: #6b6660; /* 5.3:1 on --bg */
   --line: #e8e4de;
@@ -44,7 +45,8 @@
 .dark {
   --bg: #161514;
   --surface: #1e1d1b;
-  --surface-2: #1a1918;
+  --surface-2: #262522; /* insets read lighter than the card in dark mode */
+  --sidebar: #1a1918;
   --ink: #edebe7;
   --muted: #a29c94;
   --line: #2e2c29;
@@ -75,6 +77,7 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-sidebar: var(--sidebar);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);

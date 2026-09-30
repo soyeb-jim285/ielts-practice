@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, questionBoundaries } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries } from './speaking';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
 const run = (s = settings({ audioPronEnabled: false })) =>
@@ -34,7 +34,7 @@ it('no speech: returns noSpeech and never calls chat', async () => {
 });
 
 it('audio pronunciation pass runs first with input_audio', async () => {
-  const pron = { words: [{ word: 'park', time: 2, issue: 'sound', heard: 'pak', expected: 'pɑːk', tip: 'open the vowel' }], disfluencies: { filledPauses: [0.2], repetitions: [], falseStarts: [] }, prosody: 'Flat.', band: 6 };
+  const pron = { words: [{ word: 'park', time: 2, issue: 'sound', heard: 'pak', expected: 'pɑːk', tip: 'open the vowel' }], misheard: [], disfluencies: { filledPauses: [0.2], repetitions: [], falseStarts: [] }, prosody: 'Flat.', band: 6 };
   const replies = [pron];
   const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(replies.shift() ?? speakingLlm) });
   setFetch(f);
@@ -57,12 +57,14 @@ it('pronunciation: drops words whose "heard" is the dictionary form; pronunciati
       { word: 'really', time: 2.5, issue: 'stress', heard: 'REAL-ly', expected: 'REAL-ly', tip: 'stress the first syllable' },
       { word: 'nice', time: 1.5, issue: 'sound', heard: 'nice', expected: 'NICE', tip: 'say it clearly' },
       { word: 'is', time: 0.5, issue: 'stress', heard: 'IS', expected: 'is', tip: 'unstressed' },
+      { word: 'a', time: 1, issue: 'sound', heard: 'a', expected: 'the', tip: 'grammar, not pronunciation' },
     ],
+    misheard: [],
     disfluencies: { filledPauses: [], repetitions: [], falseStarts: [] },
     prosody: 'Clear.',
     band: 8,
   };
-  const llm = { ...speakingLlm, errors: [{ category: 'pronunciation.word', severity: 'minor', start: 0, end: 0, original: 'park', correction: 'park', explanation: 'vowel' }, { ...speakingLlm.errors[0], original: 'not said' }] };
+  const llm = { ...speakingLlm, errors: [{ category: 'pronunciation.word', severity: 'minor', start: 0, end: 0, original: 'park', correction: 'pɑːk', explanation: 'vowel' }, { category: 'pronunciation.word', severity: 'minor', start: 0, end: 0, original: 'Nice', correction: 'nice', explanation: 'says nothing' }, { ...speakingLlm.errors[0], original: 'not said' }] };
   const replies: unknown[] = [pron];
   setFetch(fakeFetch({ '/audio/transcriptions': () => json(stt), '/chat/completions': () => chatReply(replies.shift() ?? llm) }));
   const r = await run(settings({ audioPronEnabled: true }));
@@ -114,3 +116,22 @@ it('re-anchors an off-by-one LLM error span on its words', async () => {
 });
 
 it('default settings enable the audio pronunciation pass', () => expect(settings().audioPronEnabled).toBe(true));
+
+it('spoken forms the transcript repaired reach the examiner and anchor errors; the larger filled-pause count wins', async () => {
+  const pron = { words: [], misheard: [{ time: 0.5, transcript: 'goes', spoken: 'go' }, { time: 1, transcript: 'to', spoken: 'to' }], disfluencies: { filledPauses: [0.1, 0.2, 0.3], repetitions: [], falseStarts: [] }, prosody: 'Clear.', band: 7 };
+  const llm = { ...speakingLlm, errors: [{ ...speakingLlm.errors[0], start: 0, end: 1, original: 'I go', correction: 'I went' }, { ...speakingLlm.errors[0], original: 'goes', correction: 'goes' }] };
+  const replies: unknown[] = [pron];
+  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': () => chatReply(replies.shift() ?? llm) });
+  setFetch(f);
+  const r = await run(settings({ audioPronEnabled: true }));
+  const user = JSON.parse(f.calls.filter((c) => c.url.includes('/chat'))[1]!.body.messages[1].content);
+  expect(user.spokenFormsDifferingFromTranscript).toEqual([{ i: 1, transcript: 'goes', spoken: 'go' }]);
+  expect(user.metrics.fillers.total).toBe(3);
+  expect(r.errors).toEqual([expect.objectContaining({ original: 'I go', start: 0, end: 1 })]); // the no-op "goes" -> "goes" is dropped
+});
+
+it('drops Whisper\'s shaky "you" / "Thank you" next to a pause, keeps confident ones', () => {
+  const w = (w: string, start: number, end: number, conf?: number) => ({ w, start, end, conf });
+  const words = [w('it', 0, 0.2), w('is', 0.2, 0.4), w('you', 1.0, 1.3, 0.22), w('fine,', 2, 2.3), w('thank', 2.3, 2.5, 0.9), w('you.', 2.5, 2.7, 0.9), w('Thank', 3.5, 3.8, 0.47), w('you.', 3.8, 3.8)];
+  expect(dropHallucinations(words).map((x) => x.w)).toEqual(['it', 'is', 'fine,', 'thank', 'you.']);
+});

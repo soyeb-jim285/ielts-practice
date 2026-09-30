@@ -9,10 +9,10 @@ import { ImprovePanel } from '@/components/speaking/ImprovePanel';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
-import { buttonStyles, Card, EmptyState, PageHeader, Skeleton, Tabs, type ButtonVariant } from '@/components/ui';
+import { Alert, buttonStyles, Card, EmptyState, PageHeader, Skeleton, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { attemptQuery, notAssessed, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
+import { attemptQuery, notAssessed, offTopicAnswers, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -50,7 +50,8 @@ function ResultPage() {
   );
   const retryLink = (variant?: ButtonVariant, size?: 'sm') => (
     <Link to="/speaking/session" search={{ mode: `p${a.part}` as 'p1' | 'p2' | 'p3', promptId: a.promptId, parent: a.id }} className={buttonStyles({ variant, size })}>
-      <RotateCcw className="size-4" aria-hidden /> Retry this question
+      {/* A retry re-records the whole part, so name the part when it has several questions. */}
+      <RotateCcw className="size-4" aria-hidden /> {(a.prompt.followUps?.length ?? 0) > 1 ? `Retry Part ${a.part}` : 'Retry this question'}
     </Link>
   );
   const retry = retryLink();
@@ -105,12 +106,21 @@ function ResultPage() {
     </Link>
   );
 
+  const off = offTopicAnswers(r);
   return (
     <div>
       <div className="mb-3">{back}</div>
       <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target}>
         {switcher}
       </ResultHeader>
+      {off && (
+        <Alert tone="bad" title="Off topic" className="mb-6">
+          {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
+          <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="font-medium text-accent-text hover:underline">
+            See details in Language
+          </Link>
+        </Alert>
+      )}
       <Tabs id="res" value={tab} onChange={setTab} items={[
         { value: 'overview', label: 'Overview' },
         { value: 'transcript', label: 'Transcript', count: r.errors.length },

@@ -45,7 +45,7 @@ function Login() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="font-medium text-accent-text hover:underline">
+          <Link to="/signup" className="hit font-medium text-accent-text hover:underline">
             Create an account
           </Link>
         </>
@@ -69,7 +69,7 @@ function Login() {
         <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required autoFocus />
         <div>
           <Input label="Password" name="password" type="password" autoComplete="current-password" required />
-          <Link to="/forgot-password" className="mt-2 inline-block text-sm text-muted hover:text-ink hover:underline">
+          <Link to="/forgot-password" className="hit mt-2 inline-block text-sm text-muted hover:text-ink hover:underline">
             Forgot password?
           </Link>
         </div>

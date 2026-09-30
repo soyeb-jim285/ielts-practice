@@ -18,11 +18,9 @@ export function computeSpeechMetrics(
 ): SpeechMetrics {
   // Trim stretched words to their expected length and expose the rest as a gap before them.
   // ponytail: the hidden gap may really sit after the word; placing it before only shifts which clause edge it touches.
-  const hidden = new Set<number>();
   words = words.map((w, i) => {
     const expected = S_PER_LETTER * w.w.replace(/[^a-z]/gi, '').length;
     if (i === 0 || w.end - w.start <= Math.max(STRETCH_MIN_S, 2 * expected)) return w;
-    hidden.add(i);
     return { ...w, start: w.end - expected };
   });
   const durationS = opts.durationS > 0 ? opts.durationS : 1;
@@ -45,8 +43,8 @@ export function computeSpeechMetrics(
     const gap = gapBefore(i);
     if (gap * 1000 < PAUSE_MS) continue;
     const start = words[i - 1]!.end, end = words[i]!.start;
-    // A hidden gap with no energy data is taken as a filled pause: that is what Whisper deletes and stretches over.
-    const voiced = isVoiced(start, end) || (hidden.has(i) && !opts.energy);
+    // Only energy frames can tell a filled pause from silence; without them no gap is called voiced (a stretched word may hide either).
+    const voiced = isVoiced(start, end);
     pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced });
   }
 

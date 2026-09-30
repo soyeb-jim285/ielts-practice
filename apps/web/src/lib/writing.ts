@@ -1,4 +1,4 @@
-// Writing labels with no component imports, so routes can use them without pulling in PromptPanel/recharts.
+// Writing labels with no component imports, so routes can use them without pulling in PromptPanel.
 import { MIN_WORDS } from '@ielts/core';
 import type { ChartSpec } from '@server/ai/types';
 

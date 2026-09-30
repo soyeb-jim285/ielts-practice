@@ -246,7 +246,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="text-left"
-                  autoFocus
+                  autoFocus={globalThis.matchMedia?.('(pointer: fine)').matches} // a phone keyboard would cover the cue card during prep
                   spellCheck={false}
                 />
               </div>

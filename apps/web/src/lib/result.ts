@@ -167,6 +167,19 @@ export function questionHead(text: string) {
 export const pauseSec = (p: Pause) => (Math.round(p.dur * 10) / 10).toFixed(1);
 export const isLongPause = (p: Pause) => Math.round(p.dur * 10) >= LONG_PAUSE_MS / 100;
 
+/** [first sentence, the rest]; rest is '' for a single sentence. */
+export function splitFirstSentence(text: string): [string, string] {
+  const m = /^.+?[.!?](?=\s+\S)/s.exec(text);
+  return m ? [m[0], text.slice(m[0].length).trim()] : [text, ''];
+}
+
+/** Speaking answers that missed their question, when that is most of them (the speaking twin of writing's off-topic alert); else null. */
+export function offTopicAnswers(r: AnalysisResult): { off: number; total: number } | null {
+  const rel = r.relevance ?? [];
+  const off = rel.filter((x) => !x.onTopic).length;
+  return off * 2 > rel.length ? { off, total: rel.length } : null;
+}
+
 // ---- fluency stats (heuristic band-7 targets) ----
 
 export type Stat = { key: string; label: string; value: string; tone: 'good' | 'warn' | 'bad' | 'na'; info: string };
@@ -178,13 +191,16 @@ export const tooShortToMeasure = (m: SpeechMetrics) => m.wordCount < 20 || m.dur
 const upTo = (v: number, good: number, warn: number) => (v <= good ? 'good' : v <= warn ? 'warn' : 'bad') as Stat['tone'];
 const atLeast = (v: number, good: number, warn: number) => (v >= good ? 'good' : v >= warn ? 'warn' : 'bad') as Stat['tone'];
 
+/** Speech-rate verdict shared by the Fluency tab and the live pace pill, so both teach the same pace. */
+export const paceTone = (wpm: number): Exclude<Stat['tone'], 'na'> => (wpm >= 120 && wpm <= 170 ? 'good' : wpm >= 100 && wpm <= 190 ? 'warn' : 'bad');
+
 /** Stat grid with tone vs a band-7 heuristic. ponytail: fixed thresholds from docs/research.md norms; tune when self-eval data says so. */
 export function speechStats(m: SpeechMetrics): Stat[] {
   const perMin = (n: number) => n / Math.max(m.durationS / 60, 0.25);
   const rate = m.speechRate;
   const long = m.pauses.filter(isLongPause).length;
   const stats: Stat[] = [
-    { key: 'rate', label: 'Speech rate', value: `${Math.round(rate)} wpm`, tone: rate >= 120 && rate <= 170 ? 'good' : rate >= 100 && rate <= 190 ? 'warn' : 'bad', info: 'Words per minute over the whole answer, pauses included. Band 7+ speakers usually sit around 120–170.' },
+    { key: 'rate', label: 'Speech rate', value: `${Math.round(rate)} wpm`, tone: paceTone(rate), info: 'Words per minute over the whole answer, pauses included. Band 7+ speakers usually sit around 120–170.' },
     { key: 'artic', label: 'Articulation rate', value: `${Math.round(m.articulationRate)} wpm`, tone: atLeast(m.articulationRate, 150, 130), info: 'Words per minute while you are actually speaking (pauses removed). Low values mean slow, effortful delivery.' },
     { key: 'mlr', label: 'Mean length of run', value: `${m.mlr.toFixed(1)} words`, tone: atLeast(m.mlr, 8, 5), info: 'Average number of words between pauses. Longer runs sound more fluent.' },
     { key: 'pauseRatio', label: 'Pause ratio', value: `${Math.round(m.pauseRatio * 100)}%`, tone: upTo(m.pauseRatio, 0.2, 0.3), info: 'Share of the answer spent in silence.' },

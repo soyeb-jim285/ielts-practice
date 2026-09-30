@@ -15,7 +15,7 @@ export const Route = createFileRoute('/_app/settings')({ component: SettingsPage
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <section className="grid gap-3 md:grid-cols-[13rem_1fr] md:gap-8">
+    <section className="grid items-start gap-3 md:grid-cols-[13rem_1fr] md:gap-8">
       <div>
         <h2 className="text-base font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted">{description}</p>
@@ -175,7 +175,7 @@ function Account({ email }: { email: string }) {
     <Section title="Account" description="Your sign-in and data.">
       <Row>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-56">
             <p className="text-sm text-muted">Signed in as</p>
             <p className="truncate font-medium">{email}</p>
           </div>
@@ -186,7 +186,7 @@ function Account({ email }: { email: string }) {
       </Row>
       <Row>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-56">
             <p className="text-sm font-medium">Delete account</p>
             <p className="mt-0.5 text-sm text-muted">Removes your recordings, essays, results and review cards. This can't be undone.</p>
           </div>
@@ -194,32 +194,33 @@ function Account({ email }: { email: string }) {
             Delete account
           </Button>
         </div>
-      </Row>
-      <Dialog
-        open={open}
-        onClose={close}
-        title="Delete your account?"
-        description="Everything you've recorded and written will be permanently deleted."
-        footer={
-          <>
-            <Button variant="ghost" onClick={close}>
-              Keep account
-            </Button>
-            <Button variant="danger" loading={busy} disabled={!password} onClick={del}>
-              Delete forever
-            </Button>
-          </>
-        }
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (password) void del();
-          }}
+        {/* Inside the Row, not a direct Card child: the Card's divide-y would border the hidden <dialog>. */}
+        <Dialog
+          open={open}
+          onClose={close}
+          title="Delete your account?"
+          description="Everything you've recorded and written will be permanently deleted."
+          footer={
+            <>
+              <Button variant="ghost" onClick={close}>
+                Keep account
+              </Button>
+              <Button variant="danger" loading={busy} disabled={!password} onClick={del}>
+                Delete forever
+              </Button>
+            </>
+          }
         >
-          <Input label="Confirm with your password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
-        </form>
-      </Dialog>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (password) void del();
+            }}
+          >
+            <Input label="Confirm with your password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+          </form>
+        </Dialog>
+      </Row>
     </Section>
   );
 }

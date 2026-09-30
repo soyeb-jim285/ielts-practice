@@ -97,11 +97,14 @@ function Dashboard() {
             <QuickRow icon={<MessagesSquare />} title="Live examiner" meta="A spoken conversation with an AI examiner">
               <Link to="/speaking/live" className="absolute inset-0" aria-label="Start a live examiner test" />
             </QuickRow>
-            <QuickRow icon={<PenLine />} title="Task 2 essay" meta="40 min · at least 250 words">
-              <StartWritingButton variant="ghost" className="absolute inset-0 h-full w-full justify-end rounded-none pr-12 hover:bg-transparent active:scale-100">
-                <span className="sr-only">Start a Task 2 essay</span>
-              </StartWritingButton>
-            </QuickRow>
+            {/* Onboarding step 3 already offers Task 2. */}
+            {p.attempts > 0 && (
+              <QuickRow icon={<PenLine />} title="Task 2 essay" meta="40 min · at least 250 words">
+                <StartWritingButton variant="ghost" className="absolute inset-0 h-full w-full justify-end rounded-none pr-12 hover:bg-transparent active:scale-100">
+                  <span className="sr-only">Start a Task 2 essay</span>
+                </StartWritingButton>
+              </QuickRow>
+            )}
           </ul>
         </Card>
 
@@ -127,7 +130,7 @@ function Dashboard() {
               <ul className="mt-2 px-2 pb-2">
                 {p.topMistakes.map((m) => (
                   <li key={m.category}>
-                    <Link to="/mistakes" search={{ category: m.category }} className="flex items-center justify-between gap-3 rounded-control px-3 py-2 text-sm hover:bg-ink/5">
+                    <Link to="/mistakes" search={{ category: m.category }} className="flex items-center justify-between gap-3 rounded-control px-3 py-3 text-sm hover:bg-ink/5">
                       <span className="truncate">{categoryLabel(m.category)}</span>
                       <span className="shrink-0 tabular-nums text-muted">×{m.count}</span>
                     </Link>
