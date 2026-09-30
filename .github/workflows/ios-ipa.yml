@@ -1,0 +1,43 @@
+name: iOS device IPA (unsigned, for sideloading)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["apps/ios/**", ".github/workflows/ios-ipa.yml"]
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -iv -e beta -e rc | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE" && xcodebuild -version
+      - run: brew install xcodegen
+      - run: xcodegen generate && mkdir -p build
+      # Unsigned device build; sideload tools (Sideloader / AltStore / SideStore) re-sign it with your Apple ID.
+      - name: Archive (generic iOS device, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild archive -project IELTS.xcodeproj -scheme IELTS -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/IELTS.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tee build/archive.log | grep -E 'error:|ARCHIVE' || true
+          grep -q '\*\* ARCHIVE SUCCEEDED \*\*' build/archive.log
+      - name: Package .ipa
+        run: |
+          mkdir -p build/Payload
+          cp -R build/IELTS.xcarchive/Products/Applications/IELTS.app build/Payload/
+          cd build && zip -qry "$GITHUB_WORKSPACE/IELTS-unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IELTS-unsigned-ipa
+          path: IELTS-unsigned.ipa
