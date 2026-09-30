@@ -68,7 +68,7 @@ it('fuses disfluencies by time: same-kind events within 0.3 s count once, source
     ['filled', 0.4, 'stt+audio'], // lexical "um" and the audio model's 0.5 s
     ['filled', 1.0, 'voiced+audio'], // audio 1.6 s falls inside the voiced gap
     ['repetition', 2.0, 'stt+audio'],
-    ['repair', 3.0, 'audio'],
+    ['false_start', 3.0, 'audio'],
     ['filled', 3.5, 'audio'], // only the audio model heard it
   ]);
   expect(fuseDisfluencies(m).length).toBe(3); // without the audio model: um, voiced gap, "home home"

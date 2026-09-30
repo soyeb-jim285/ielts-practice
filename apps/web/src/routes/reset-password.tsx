@@ -58,7 +58,7 @@ function ResetPassword() {
     <AuthLayout title="Choose a new password">
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Input label="New password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required autoFocus hint="At least 8 characters." />
+        <Input label="New password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required hint="At least 8 characters." />
         <Input
           label="Confirm password"
           name="confirm"

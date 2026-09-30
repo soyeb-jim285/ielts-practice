@@ -1,79 +1,11 @@
 // Result helpers shared by the speaking and writing results pages.
 import { queryOptions } from '@tanstack/react-query';
-import { LONG_PAUSE_MS, speakingOverall, type Pause, type SpeechMetrics } from '@ielts/core';
+import { fuseDisfluencies, LONG_PAUSE_MS, speakingOverall, type Disfluency, type DisfluencyKind, type Pause, type SpeechMetrics } from '@ielts/core';
 import type { AnalysisError, AnalysisResult, CriterionKey, Fix } from '@server/ai/types';
 import { api } from './api';
 
-export type AttemptStatus = 'recording' | 'analyzing' | 'done' | 'failed';
-
-/** GET /api/attempts/:id */
-export type Attempt = {
-  id: string;
-  promptId: string;
-  skill: 'speaking' | 'writing';
-  part: number;
-  mode: 'practice' | 'live' | 'exam';
-  sessionId: string | null;
-  parentAttemptId: string | null;
-  audioMime: string | null;
-  audioUrl: string | null;
-  text: string | null;
-  plan: string | null;
-  energy: number[] | null;
-  marks: number[] | null;
-  durationMs: number | null;
-  overtime: boolean;
-  status: AttemptStatus;
-  error: string | null;
-  /** status failed: false when an immediate retry cannot help (AI credit/key problem). */
-  retryable?: boolean;
-  createdAt: string;
-  analysis: AnalysisResult | null;
-  prompt: {
-    id: string;
-    skill: 'speaking' | 'writing';
-    part: number;
-    variant: 'academic' | 'general' | null;
-    type: string;
-    topic: string;
-    title: string;
-    body: string;
-    bullets: string[] | null;
-    followUps: string[] | null;
-    chart: unknown;
-    imageUrl: string | null;
-    groupId: string | null;
-  };
-};
-
-/** GET /api/attempts list row */
-export type AttemptListItem = {
-  id: string;
-  promptId: string;
-  promptTitle: string;
-  skill: 'speaking' | 'writing';
-  part: number;
-  mode: 'practice' | 'live' | 'exam';
-  sessionId: string | null;
-  status: AttemptStatus;
-  durationMs: number | null;
-  overall: number | null;
-  createdAt: string;
-};
-
-const pending = (s?: AttemptStatus) => s === 'analyzing';
-
-/** Attempt query that polls every 2 s while the analysis runs. */
-export const attemptQuery = (id: string) =>
-  queryOptions({
-    queryKey: ['attempt', id],
-    queryFn: () => api.get<Attempt>(`/attempts/${id}`),
-    refetchInterval: (q) => (pending(q.state.data?.status) ? 2000 : false),
-    staleTime: (q) => (pending(q.state.data?.status) ? 0 : 5 * 60_000), // presigned audio URL lives longer than this
-  });
-
-/** Re-run a failed analysis (or submit a never-submitted one with its stored data). */
-export const retryAnalysis = (id: string) => api.post<{ status: 'analyzing' }>(`/attempts/${id}/submit`, {});
+import type { Attempt, AttemptStatus } from './attempt';
+export * from './attempt';
 
 /** No usable speech: flagged by the pipeline, or overall 0 (the server treats that as not assessed too). */
 export const notAssessed = (r: AnalysisResult) => !!r.noSpeech || r.overall === 0;
@@ -114,7 +46,7 @@ export function categoryLabel(c: string) {
 
 // ---- transcript tokens ----
 
-export type Token = { i: number; w: string; start: number; end: number; conf?: number; errorIds: string[]; filler?: boolean; pauseAfter?: Pause; unclearTier?: 1 | 2 | 3 };
+export type Token = { i: number; w: string; start: number; end: number; conf?: number; errorIds: string[]; filler?: boolean; pauseAfter?: Pause; unclearTier?: 1 | 2 | 3; disfluency?: DisfluencyMark[] };
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
@@ -140,10 +72,16 @@ export function buildTokens(r: AnalysisResult): Token[] {
     if (f.word.includes(' ') && tokens[i + 1]) tokens[i + 1]!.filler = true;
   }
   for (const u of m.unclear) if (tokens[u.wordIdx]) tokens[u.wordIdx]!.unclearTier = u.tier;
+  for (const e of disfluencyEvents(m)) {
+    if (e.kind === 'filled' && e.sources.includes('stt')) continue; // already struck through on its word
+    const i = tokens.findIndex((t) => t.end > e.start - 0.02);
+    const t = tokens[i < 0 ? tokens.length - 1 : i];
+    if (t) (t.disfluency ??= []).push(describeDisfluency(e, tokens, m));
+  }
   return tokens;
 }
 
-export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'other' | 'pauses' | 'fillers' | 'unclear';
+export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'other' | 'pauses' | 'fillers' | 'repeats' | 'unclear';
 export type ErrorGroup = 'grammar' | 'vocab' | 'other';
 
 /** Transcript filter for an error: task, cohesion, fluency and pronunciation notes all go under "other". */
@@ -173,9 +111,21 @@ export function splitFirstSentence(text: string): [string, string] {
   return m ? [m[0], text.slice(m[0].length).trim()] : [text, ''];
 }
 
-/** Speaking answers that missed their question, when that is most of them (the speaking twin of writing's off-topic alert); else null. */
+/** Whether question `i` has any speech in the transcript (a question you skipped has no start word, or shares it with the next one). Unknown boundaries count as answered. */
+export function wasAnswered(r: AnalysisResult, i: number) {
+  const qs = r.questions;
+  const q = qs?.[i];
+  if (!qs || !q) return true;
+  const next = qs.slice(i + 1).find((x) => x.startWord >= 0);
+  return q.startWord >= 0 && q.startWord < (r.words?.length ?? 0) && (!next || next.startWord > q.startWord);
+}
+
+/** Relevance verdicts for the questions you actually answered: the same unit as the transcript, so a skipped question is never "off topic". */
+export const answeredRelevance = (r: AnalysisResult) => (r.relevance ?? []).filter((x) => wasAnswered(r, x.questionIdx));
+
+/** Speaking answers that missed their question, when that is most of them (the speaking twin of writing's off-topic alert); else null. Counts answered questions only. */
 export function offTopicAnswers(r: AnalysisResult): { off: number; total: number } | null {
-  const rel = r.relevance ?? [];
+  const rel = answeredRelevance(r);
   const off = rel.filter((x) => !x.onTopic).length;
   return off * 2 > rel.length ? { off, total: rel.length } : null;
 }
@@ -212,6 +162,98 @@ export function speechStats(m: SpeechMetrics): Stat[] {
     { key: 'var', label: 'Pace variability', value: `±${Math.round(m.wpmStdDev)} wpm`, tone: upTo(m.wpmStdDev, 20, 35), info: 'Standard deviation of your pace across 10-second windows. Big swings = uneven pace.' },
   ];
   return tooShortToMeasure(m) ? stats.map((s) => ({ ...s, value: '—', tone: 'na' })) : stats;
+}
+
+// ---- disfluencies (spec §5.1): fused events from the pipeline, typed for the transcript chips, timeline and per-type breakdown ----
+
+type WithFluency = SpeechMetrics & { fluency?: { events?: Disfluency[] } };
+/** Fused filler/repetition/repair events (stored with the analysis); rebuilt from the transcript-level metrics for older analyses. */
+export const disfluencyEvents = (m: SpeechMetrics): Disfluency[] => (m as WithFluency).fluency?.events ?? fuseDisfluencies(m);
+
+export type DisfluencyMark = { kind: DisfluencyKind; time: number; short: string; detail: string };
+
+/** Tone per type (chips, timeline ticks, breakdown) and the chip text. Colour is never the only cue: every chip carries its label. */
+export const DISFLUENCY: Record<DisfluencyKind, { label: string; tone: 'neutral' | 'info' | 'accent' | 'warn'; short: string }> = {
+  filled: { label: 'Filled pauses', tone: 'neutral', short: 'filler' },
+  repetition: { label: 'Repetitions', tone: 'info', short: 'repeat' },
+  repair: { label: 'Self-corrections', tone: 'accent', short: 'repair' },
+  false_start: { label: 'False starts', tone: 'warn', short: 'false start' },
+  partial: { label: 'Cut-off words', tone: 'neutral', short: 'cut-off' },
+  prolongation: { label: 'Held sounds', tone: 'neutral', short: 'held sound' },
+};
+
+const norm = (w: string) => w.toLowerCase().replace(/[^a-z']/g, '');
+const span = (ts: Token[]) => ts.map((t) => t.w).join(' ');
+
+/** Chip text plus the hover/tap explanation: "self-correction: he go → he goes", "repetition: the the". Needs the transcript words to quote; falls back to the type alone for audio-only events. */
+export function describeDisfluency(e: Disfluency, tokens: Token[], m: SpeechMetrics): DisfluencyMark {
+  const kind = e.kind;
+  const { short } = DISFLUENCY[kind];
+  const mark = (detail: string): DisfluencyMark => ({ kind, time: e.start, short, detail });
+  if (kind === 'repetition') {
+    const r = m.repetitions.find((x) => near(x.time, e.start));
+    return mark(r ? `Repetition: “${r.phrase}” said twice` : 'Repetition: a word or phrase said twice in a row');
+  }
+  if (kind === 'repair') {
+    const j = m.selfCorrections.find((x) => near(x.time, e.start))?.wordIdx ?? -1;
+    // Pattern "A B … A C": the word before the restart that matches it starts the abandoned wording.
+    const k = tokens[j] ? [j - 4, j - 3, j - 2].find((x) => x >= 0 && norm(tokens[x]!.w) === norm(tokens[j]!.w)) : undefined;
+    if (k != null) return mark(`Self-correction: “${span(tokens.slice(k, k + 2))}” → “${span(tokens.slice(j, j + 2))}”`);
+    return mark('Self-correction: you restarted and changed the wording');
+  }
+  if (kind === 'false_start') return mark('False start: a sentence abandoned or restarted');
+  if (kind === 'partial') return mark('Cut-off word: you stopped mid-word and started again');
+  if (kind === 'prolongation') return mark('Held sound: a word stretched while you thought');
+  return mark('Filled pause (heard in the audio, not shown in the transcript)');
+}
+
+const PER_MIN = { filled: [2, 4], repetition: [1, 2], repair: [1, 2], false_start: [1, 2], partial: [1, 2], prolongation: [2, 4] } as const;
+const GUIDE: Record<DisfluencyKind, { what: string; normal: string; harmful: string }> = {
+  filled: {
+    what: '"um", "uh", "er" and similar sounds you make while searching for a word.',
+    normal: 'A couple a minute is natural, even for native speakers.',
+    harmful: 'More than about 4 a minute, or several in a row, makes you sound unsure. Pause silently or use "let me think" instead.',
+  },
+  repetition: {
+    what: 'A word or phrase said twice in a row, like "I I think" or "the the city".',
+    normal: 'An occasional repeat while you plan the next word is fine.',
+    harmful: 'Frequent repeats signal word-searching and break the flow of an idea. Plan the first few words before you start.',
+  },
+  repair: {
+    what: 'You restart and change the wording, like "he go… he goes".',
+    normal: 'Fixing a real mistake shows self-monitoring. Band 7 allows some self-correction.',
+    harmful: 'Many restarts in a row make the listener lose the idea. Correct only what matters, then keep going.',
+  },
+  false_start: {
+    what: 'A sentence you abandon and begin again, like "I went to the… actually my hometown is…".',
+    normal: 'One now and then is normal in unplanned speech.',
+    harmful: 'Often abandoning sentences hurts coherence. Start with a short, safe clause and build on it.',
+  },
+  partial: {
+    what: 'A word you cut off and restart, like "sh- she" or "beau- beautiful".',
+    normal: 'Occasional cut-offs happen when you change your mind about a word.',
+    harmful: 'Many cut-offs suggest you are reaching for words you are not sure of. Choose a simpler word you can say cleanly.',
+  },
+  prolongation: {
+    what: 'A sound held while you think, like "sooo" or "theee".',
+    normal: 'An occasional stretched word is an ordinary way to buy thinking time.',
+    harmful: 'Frequent stretching slows the answer and can sound hesitant. Try a short pause instead.',
+  },
+};
+
+/** Per-type counts and rates with a verdict, for the Fluency tab. Always the four types, so a zero is visible as good news. */
+export function disfluencyTypes(m: SpeechMetrics) {
+  const events = disfluencyEvents(m);
+  const mins = Math.max(m.durationS, 1) / 60;
+  const short = tooShortToMeasure(m);
+  // The four main types always show (a zero is good news); cut-offs and held sounds only when there are some.
+  const kinds = (Object.keys(DISFLUENCY) as DisfluencyKind[]).filter((k) => ['filled', 'repetition', 'repair', 'false_start'].includes(k) || events.some((e) => e.kind === k));
+  return kinds.map((kind) => {
+    const count = events.filter((e) => e.kind === kind).length;
+    const perMin = count / Math.max(mins, 0.25);
+    const [good, warn] = PER_MIN[kind];
+    return { kind, label: DISFLUENCY[kind].label, count, perMin, tone: (short ? 'na' : upTo(perMin, good, warn)) as Stat['tone'], ...GUIDE[kind] };
+  });
 }
 
 // ---- session (full test) ----

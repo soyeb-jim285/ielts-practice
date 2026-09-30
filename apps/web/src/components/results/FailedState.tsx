@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Alert, Button } from '@/components/ui';
-import { retryAnalysis } from '@/lib/result';
+import { retryAnalysis } from '@/lib/attempt';
 
 /** Failed attempt: readable server message plus "Retry analysis" (POST submit again, then refetch), or a custom `action` (e.g. "Record again" when there is nothing to re-analyse). `extra` adds secondary ways out. */
 export function FailedState({ attemptId, message, title = 'Analysis failed', action, extra, retryable = true }: { attemptId: string; message?: string | null; title?: string; action?: ReactNode; extra?: ReactNode; retryable?: boolean }) {

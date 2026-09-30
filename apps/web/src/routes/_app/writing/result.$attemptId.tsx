@@ -12,7 +12,8 @@ import { capOffTopic } from '@/components/writing/offTopic';
 import { StructureMap } from '@/components/writing/StructureMap';
 import { formatBand, formatDate, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { addFixesToDeck, attemptQuery, bandColor, WRITING_CRITERIA, type Attempt } from '@/lib/result';
+import { attemptQuery } from '@/lib/attempt';
+import { addFixesToDeck, bandColor, WRITING_CRITERIA, type Attempt } from '@/lib/result';
 import { minWords, taskLabel } from '@/lib/writing';
 
 const TABS = ['overview', 'essay', 'structure', 'language', 'improve'] as const;
@@ -75,7 +76,7 @@ function ResultPage() {
         <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target} back={back}>
           <div className="flex flex-wrap items-center gap-2">
             {switcher}
-            {offTopic && <Badge tone="bad">Capped: off topic</Badge>}
+            {offTopic && <Badge>Capped: off topic</Badge>}
             {/* Under-length answers get the word count in the alert below instead. */}
             {r.textMetrics && !under && !r.tooShort && <Badge>{plural(r.textMetrics.words, 'word')}</Badge>}
             {a.overtime && <Badge tone="warn">Overtime</Badge>}

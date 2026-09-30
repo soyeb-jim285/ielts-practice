@@ -88,6 +88,9 @@ export const prompts = pgTable('prompts', {
   uniqueIndex('prompts_slug_idx').on(t.slug),
   index('prompts_skill_part_idx').on(t.skill, t.part),
   index('prompts_group_idx').on(t.groupId),
+  // free-text search (routes/prompts.ts ilike '%q%'); needs the pg_trgm extension (created in migration 0003)
+  index('prompts_title_trgm_idx').using('gin', t.title.op('gin_trgm_ops')),
+  index('prompts_body_trgm_idx').using('gin', t.body.op('gin_trgm_ops')),
 ]);
 
 export const attempts = pgTable('attempts', {
@@ -110,6 +113,8 @@ export const attempts = pgTable('attempts', {
   status: statusEnum('status').notNull().default('recording'),
   error: text('error'),
   errorRetryable: boolean('error_retryable').notNull().default(true), // false: retrying now cannot help (AI credit/key), UI says "try later"
+  stage: text('stage').$type<import('../ai/types').AnalysisStage>(), // while analyzing: the pipeline step now running (ai/types.ts AnalysisStage); null otherwise
+  partial: jsonb('partial').$type<unknown>(), // while analyzing: feedback that is ready before the scores (AnalysisPartial)
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => [

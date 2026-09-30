@@ -32,7 +32,7 @@ apps/web        Vite + React 19 + TanStack Router + TanStack Query + Tailwind v4
                 typed API client generated from /openapi.json (openapi-typescript + openapi-fetch)
 apps/ios        SwiftUI (iOS 17+), Swift Package with swift-openapi-generator client, XcodeGen project
 packages/core   pure TS: speech metrics, text metrics, band rounding, IELTS timing constants (unit tested)
-scripts/        seed-bank (generate prompt bank via OpenRouter), cambridge-extract (private), openapi export
+scripts/        seed-bank (seed the DB from the committed bank JSON), gen-bank (generate prompts via OpenRouter), cambridge-extract (private), openapi export
 docker-compose.yml   app + postgres + nightly pg_dump → R2
 ```
 

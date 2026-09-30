@@ -14,6 +14,8 @@ const Env = z.object({
   BETTER_AUTH_SECRET: secret('test-secret-test-secret-test-secret'),
   BETTER_AUTH_URL: z.string().default('http://localhost:8787'),
   OPENROUTER_API_KEY: secret('test-openrouter'),
+  // Optional: ElevenLabs Scribe v2 speech-to-text (spec §5.2). Unset: Whisper via OpenRouter is the default stt.
+  ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
   OPENAI_API_KEY: z.string().optional().transform((v) => v || undefined),
   // Optional outside production: without them, dev falls back to local-disk storage (storage.ts).
   R2_ACCOUNT_ID: z.string().optional().transform((v) => v || undefined),

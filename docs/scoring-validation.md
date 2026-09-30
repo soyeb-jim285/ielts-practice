@@ -2,6 +2,20 @@
 
 Scope: the neutral anchored writing scorer of `docs/scoring-research.md` (§2, §7), run through `pnpm eval:scoring` against the private gold set. Skill: Writing only (Speaking is not covered). Every number below is regenerated from the harness output in `.eval/scoring/*.json` (gitignored). No script text is quoted here or committed.
 
+## 0. Shipped default (iteration 4)
+
+The shipped default is `openai/gpt-6-luna` with a fixed default map (`DEFAULT_MAPS` in `apps/server/src/ai/calibration.ts`, still labelled unvalidated in the UI) and the revised prompt. Through the production path on the 42-script TEST split:
+
+| Metric | Old default (identity map) | Shipped default |
+|---|---|---|
+| MAE | 0.74 | 0.50 |
+| Within ±0.5 | 55% | 81% |
+| SMD | -0.57 | -0.25 |
+| QWK | 0.61 | 0.76 |
+| Band >= 7 bias | -1.12 | -0.62 |
+
+Ceiling probes: 19 of 48 pass (0 before), bias -0.89. The authored band 3 floor scripts still score 4.5 to 5. The "fitted" numbers in the sections below describe an inactive record: what the scorer would give if that record were activated. They are not what users get.
+
 ## 1. Verdict
 
 - **No model meets the §4.4 release gate on both panels.** `deepseek/deepseek-v4.1-flash` comes closest. On the frozen TEST split it has QWK 0.85, MAE 0.45, within ±0.5 83% and SMD 0.11; on leave-one-prompt-out CV it fails one of the harness's activation gates (QWK, abs SMD, within ±0.5, MAE, band-group bias): the band >= 7 bias of -0.50. The wider §4.4 list also flags per-family SMD and over-coverage (97%). `openai/gpt-6-luna` fails QWK, MAE, within ±0.5 and the band >= 7 bias on CV, and MAE, within ±0.5, exact, SD ratio, per-family SMD, the band >= 7 bias and coverage on TEST.

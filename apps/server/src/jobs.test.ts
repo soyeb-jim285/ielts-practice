@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 // helpers first: it loads the app, which installs zod .openapi() before settings.ts is evaluated
-import { chatReply, fakeFetch, json, seedPrompt, testUser } from './test/helpers';
+import { chatReply, fakeFetch, json, req, seedPrompt, testUser } from './test/helpers';
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db/client';
 import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema';
@@ -132,4 +132,36 @@ it('out of AI credit (402): failed, not retryable, candidate-safe message; retry
   setFetch(fakeFetch({ '/chat/completions': writingChat() }));
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done', errorRetryable: true });
+});
+
+it('writing: feedback is stored as `partial` (stage scoring) while the scorer still runs, and cleared when the attempt is done', async () => {
+  const { user, headers } = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const text = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(16)}`;
+  const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing' }).returning();
+  const chat = writingChat();
+  let seen: { stage: string | null; partial: any } | undefined, viaApi: any;
+  setFetch(
+    fakeFetch({
+      '/chat/completions': async (u, init) => {
+        if (JSON.parse(String(init.body)).response_format?.json_schema?.name === 'writing_scores' && !seen)
+          for (let i = 0; i < 100 && !seen; i++) {
+            const row = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
+            if (row?.partial) {
+              seen = { stage: row.stage, partial: row.partial };
+              viaApi = await (await req(`/api/attempts/${a!.id}`, { headers })).json();
+            } else await new Promise((r) => setTimeout(r, 20));
+          }
+        return chat(u, init);
+      },
+    }),
+  );
+  await runAnalysis(a!.id);
+  expect(seen).toMatchObject({ stage: 'scoring', partial: { skill: 'writing', topFixes: expect.any(Array), errors: expect.any(Array), rewrite: { text: 'Better essay.' } } });
+  expect(seen!.partial.topFixes).toHaveLength(3);
+  expect(viaApi).toMatchObject({ status: 'analyzing', stage: 'scoring', partial: { rewrite: { text: 'Better essay.' } }, analysis: null });
+  const done = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
+  expect(done).toMatchObject({ status: 'done', stage: null, partial: null });
+  const r = (await db.query.analyses.findFirst({ where: eq(analyses.attemptId, a!.id) }))!.result as AnalysisResult;
+  expect(r.timings).toMatchObject({ feedbackMs: expect.any(Number), scorerMs: expect.any(Number), calibrationMs: expect.any(Number) });
 });

@@ -8,10 +8,11 @@ import { settings, speakingLlm, sttWords } from './fixtures';
 const score = (band: number) => ({ checks: [{ band: Math.min(9, band + 1), feature: 'Error-free sentences are frequent', verdict: 'not_met', quote: 'I goes' }], evidence: ['I goes'], descriptor: 'A range of structures flexibly used.', summary: 'More complex sentences.', injection: false, band });
 const bands: Record<string, number> = { fc: 7, lr: 6, gra: 6, p: 6 };
 /** Routes chat calls by schema name (and criterion id for scores); `other` answers the rest (pronunciation). */
-const chat = (o: { feedback?: unknown; bands?: Record<string, number>; other?: () => unknown } = {}) => (_: string, init: RequestInit) => {
+const chat = (o: { feedback?: unknown; bands?: Record<string, number>; other?: () => unknown; tags?: unknown } = {}) => (_: string, init: RequestInit) => {
   const body = JSON.parse(String(init.body));
   const name = body.response_format?.json_schema?.name;
   if (name === 'speaking_feedback') return chatReply(o.feedback ?? speakingLlm);
+  if (name === 'disfluency_tags') return chatReply(o.tags ?? { tags: [] });
   if (name === 'criterion_score') return chatReply(score({ ...bands, ...o.bands }[body.messages[1].content.match(/<criterion id="(\w+)"/)[1] as string]!));
   return chatReply(o.other?.() ?? speakingLlm);
 };
@@ -71,18 +72,19 @@ it('audio pronunciation pass runs first with input_audio', async () => {
   setFetch(f);
   const r = await run(settings({ audioPronEnabled: true }));
   const chats = f.calls.filter((c) => c.url.includes('/chat'));
-  expect(chats).toHaveLength(11); // pronunciation, feedback, 3 criteria × 3 samples (P comes from the audio pass)
+  expect(chats).toHaveLength(12); // pronunciation, disfluency tagger, feedback, 3 criteria × 3 samples (P comes from the audio pass)
   expect(JSON.stringify(chats[0]!.body)).toContain('input_audio');
-  expect(r.pronunciation?.llm).toEqual(pron);
+  expect(r.pronunciation?.llm).toEqual({ ...pron, words: [] }); // "park" has no acoustic evidence (confident ASR word, audio model agrees with the transcript): dropped
   expect(r.criteria.p).toMatchObject({ band: 6, summary: 'Flat.' });
-  const user = JSON.parse(chats[1]!.body.messages[1].content);
+  const user = JSON.parse(chats.find((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content);
   expect(user.metrics.disfluencies).toMatchObject({ filledPauses: 1, repetitions: 0, repairs: 0 });
   expect(user.metrics.lexical).toMatchObject({ mtld: expect.any(Number), lessCommonPct: expect.any(Number) });
 });
 
 it('pronunciation: drops words whose "heard" is the dictionary form; pronunciation errors anchor on the reported time', async () => {
   const words = ['park', 'is', 'a', 'nice', 'park', 'really'];
-  const stt = { text: words.join(' '), duration: 3, words: words.map((word, i) => ({ word, start: i * 0.5, end: i * 0.5 + 0.4 })) };
+  // "park" (2 s) and "is" are words the recogniser was unsure of: the only ones with acoustic evidence.
+  const stt = { text: words.join(' '), duration: 3, words: words.map((word, i) => ({ word, start: i * 0.5, end: i * 0.5 + 0.4, confidence: i === 1 || i === 4 ? 0.3 : 0.95 })) };
   const pron = {
     words: [
       { word: 'park', time: 2, issue: 'sound', heard: 'pak', expected: 'park', tip: 'open the vowel' },
@@ -154,7 +156,7 @@ it('spoken forms the transcript repaired reach the examiner and anchor errors; d
   const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ feedback: llm, other: () => pron }) });
   setFetch(f);
   const r = await run(settings({ audioPronEnabled: true }));
-  const user = JSON.parse(f.calls.filter((c) => c.url.includes('/chat'))[1]!.body.messages[1].content);
+  const user = JSON.parse(f.calls.find((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content);
   expect(user.spokenFormsDifferingFromTranscript).toEqual([{ i: 1, transcript: 'goes', spoken: 'go' }]);
   expect(user.metrics.disfluencies.filledPauses).toBe(3); // 0.1 and 0.2 s are one event
   const gra = f.calls.find((c) => c.body?.messages?.[1]?.content?.includes?.('<criterion id="gra"'))!.body.messages[1].content;
@@ -166,4 +168,28 @@ it('drops Whisper\'s shaky "you" / "Thank you" next to a pause, keeps confident 
   const w = (w: string, start: number, end: number, conf?: number) => ({ w, start, end, conf });
   const words = [w('it', 0, 0.2), w('is', 0.2, 0.4), w('you', 1.0, 1.3, 0.22), w('fine,', 2, 2.3), w('thank', 2.3, 2.5, 0.9), w('you.', 2.5, 2.7, 0.9), w('Thank', 3.5, 3.8, 0.47), w('you.', 3.8, 3.8)];
   expect(dropHallucinations(words).map((x) => x.w)).toEqual(['it', 'is', 'fine,', 'thank', 'you.']);
+});
+
+it('P without acoustic evidence stays within one band of the other criteria; with confirmed word issues the audio band stands', async () => {
+  const pron = (words: unknown[]) => ({ words, misheard: [], disfluencies: { filledPauses: [], repetitions: [], falseStarts: [] }, prosody: 'Clear.', band: 4 });
+  const strong = { fc: 8, lr: 8, gra: 8 };
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ bands: strong, other: () => pron([{ word: 'park', time: 2, issue: 'stress', heard: 'PARK', expected: 'park', tip: 'x' }]) }) }));
+  expect((await run(settings({ audioPronEnabled: true }))).criteria.p!.band).toBe(7); // invented word claim dropped, P lifted to mean 8 - 1
+  const unsure = { text: sttWords.text, duration: 3, words: sttWords.words.map((w) => ({ ...w, confidence: w.word === 'goes' || w.word === 'park' ? 0.3 : 0.95 })) };
+  const two = [{ word: 'goes', time: 0.5, issue: 'sound', heard: 'gose', expected: 'goes', tip: 'x' }, { word: 'park', time: 2, issue: 'sound', heard: 'pak', expected: 'park', tip: 'x' }];
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(unsure), '/chat/completions': chat({ bands: strong, other: () => pron(two) }) }));
+  const r = await run(settings({ audioPronEnabled: true }));
+  expect(r.criteria.p!.band).toBe(4);
+  expect(r.pronunciation!.llm!.words).toHaveLength(2);
+});
+
+it('disfluency tagger spans are fused with the other detectors and summarised per type', async () => {
+  const tags = { tags: [{ type: 'false_start', start: 1, reparandum: 'goes', interregnum: '', repair: '' }] };
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ tags }) }));
+  const r = await run();
+  const fl = (r.metrics as any).fluency;
+  expect(fl.events).toEqual([{ kind: 'false_start', start: 0.5, end: 0.9, sources: ['llm'] }]);
+  expect(fl.profile).toMatchObject({ byKind: { false_start: { n: 1 } }, total: { n: 1 }, midClauseShare: 1 });
+  expect(r.timings).toMatchObject({ sttMs: expect.any(Number), totalMs: expect.any(Number) });
+  expect(r.sttModel).toBe('openai/whisper-large-v3');
 });

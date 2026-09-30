@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Word } from '@ielts/core';
-import { env } from '../env';
+import { env, IS_TEST } from '../env';
 
 const BASE = 'https://openrouter.ai/api/v1';
 
@@ -43,6 +43,11 @@ export type ContentPart =
   | { type: 'image_url'; image_url: { url: string } };
 export type SttWord = Word;
 
+const RETRIES = 2;
+/** Jittered exponential backoff: ~1 s, ~2 s (instant under vitest). */
+const backoff = (n: number) => new Promise((r) => setTimeout(r, IS_TEST ? 1 : 1000 * 2 ** n * (0.5 + Math.random())));
+
+/** Retries network errors, 429 and 5xx twice with jittered backoff; timeouts are not retried (they already waited minutes). */
 async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'POST'): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     let res: Response;
@@ -62,11 +67,17 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
       if (res.ok) res = new Response(await res.arrayBuffer(), res);
     } catch (e) {
       if ((e as Error).name === 'TimeoutError') throw new AiError('timeout', 'The AI service took too long to respond. Please retry.');
+      const cause = (e as Error & { cause?: { code?: string; message?: string } }).cause;
+      console.error(`openrouter ${path} fetch failed (attempt ${attempt + 1}/${RETRIES + 1}):`, (e as Error).message, cause?.code ?? cause?.message ?? '');
+      if (attempt < RETRIES) {
+        await backoff(attempt);
+        continue;
+      }
       throw new AiError('network', 'Could not reach the AI service. Please retry.');
     }
     if (res.ok) return res;
-    if (attempt === 0 && (res.status === 429 || res.status >= 500)) {
-      await new Promise((r) => setTimeout(r, 1500));
+    if (attempt < RETRIES && (res.status === 429 || res.status >= 500)) {
+      await backoff(attempt);
       continue;
     }
     console.error(`openrouter ${path} ${res.status}`, OPERATOR_HINT[res.status] ?? '', (await res.text().catch(() => '')).slice(0, 500));
@@ -172,8 +183,10 @@ export async function chatText(o: {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   temperature?: number;
   maxTokens?: number;
+  /** Reasoning effort for reasoning models: a one-line examiner turn does not need the default (medium) thinking time. */
+  effort?: 'low' | 'medium' | 'high';
 }): Promise<string> {
-  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens });
+  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: { effort: o.effort } }) });
 }
 
 type SttResponse = {
@@ -238,8 +251,53 @@ async function stt(o: { model: string; audio: Uint8Array; format: Format }, extr
   return (await res.json()) as SttResponse;
 }
 
-/** `verbatim`: for Whisper models, also runs a disfluency-primed pass (in parallel) and keeps it when verbatimSane; `verbatim` in the result says which was used. */
-export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean }> {
+export const SCRIBE_MODEL = 'elevenlabs/scribe_v2';
+const WHISPER_FALLBACK = 'openai/whisper-large-v3';
+const SCRIBE_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
+const SCRIBE_MIME: Record<Format, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg' };
+/** A single character held this long (s) marks a prolonged sound (fluent TTS clips reach 0.4 s on stressed vowels; 0.6 s is conservative, unvalidated on real speech). */
+const HELD_CHAR_S = 0.6;
+
+type ScribeResponse = {
+  words?: { text: string; start?: number; end?: number; type: 'word' | 'spacing' | 'audio_event'; logprob?: number; characters?: { text: string; start: number; end: number }[] }[];
+};
+
+/** ElevenLabs Scribe v2 (spec §5.2): verbatim (fillers and false starts kept), character timestamps, audio events tagged then dropped.
+ *  Throws on any failure; transcribe() falls back to Whisper. */
+async function scribe(o: { audio: Uint8Array; format: Format }) {
+  const form = new FormData();
+  form.set('model_id', 'scribe_v2');
+  form.set('language_code', 'en');
+  form.set('no_verbatim', 'false');
+  form.set('timestamps_granularity', 'character');
+  form.set('tag_audio_events', 'true');
+  form.set('file', new Blob([Buffer.from(o.audio)], { type: SCRIBE_MIME[o.format] }), `audio.${o.format}`);
+  const res = await fetcher(SCRIBE_URL, { method: 'POST', headers: { 'xi-api-key': env.ELEVENLABS_API_KEY! }, body: form, signal: AbortSignal.timeout(120_000) });
+  if (!res.ok) throw new Error(`scribe ${res.status} ${(await res.text().catch(() => '')).slice(0, 300)}`);
+  const d = (await res.json()) as ScribeResponse;
+  // "…" and cut-offs ("th-", "I went to the—") stay in the word text: core's rule tagger and the text tagger read them as false starts / partials.
+  const words: SttWord[] = (d.words ?? [])
+    .filter((w) => w.type === 'word' && w.text.trim() && w.start != null && w.end != null)
+    .map((w) => ({
+      w: w.text.trim(), start: w.start!, end: w.end!,
+      conf: w.logprob == null ? undefined : Math.round(Math.exp(w.logprob) * 100) / 100,
+      ...(w.characters?.some((c) => c.end - c.start >= HELD_CHAR_S) && w.text.length > 1 && { prolonged: true }),
+    }));
+  return { text: words.map((w) => w.w).join(' '), words, duration: words.at(-1)?.end ?? 0, verbatim: true, model: SCRIBE_MODEL };
+}
+
+/** `verbatim`: for Whisper models, also runs a disfluency-primed pass (in parallel) and keeps it when verbatimSane; `verbatim` in the result says which was used.
+ *  model `elevenlabs/scribe_v2` uses ElevenLabs when ELEVENLABS_API_KEY is set and falls back to Whisper on any error or quota; `model` in the result is the one that answered. */
+export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean; model: string }> {
+  if (o.model === SCRIBE_MODEL) {
+    if (env.ELEVENLABS_API_KEY)
+      try {
+        return await scribe(o);
+      } catch (e) {
+        console.error('ElevenLabs Scribe failed, falling back to Whisper:', (e as Error).message);
+      }
+    return transcribe({ ...o, model: WHISPER_FALLBACK });
+  }
   const primed = o.verbatim && /whisper/.test(o.model);
   const [plain, v] = await Promise.all([stt(o), primed ? stt(o, { provider: VERBATIM_PROVIDER }).catch(() => undefined) : undefined]);
   const toks = (d: SttResponse) => (d.words ?? []).map((w) => w.word);
@@ -255,7 +313,7 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
     .filter((w) => w.word.trim())
     .map((w) => ({ w: w.word.trim(), start: w.start, end: w.end, conf: w.confidence ?? w.probability ?? segConf(w.start) }));
   if (d.text) punctuate(words, d.text);
-  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim };
+  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim, model: o.model };
 }
 
 /** 44-byte RIFF header around raw s16le PCM so browsers and AVPlayer can play it. */
@@ -309,6 +367,7 @@ export async function listModels(): Promise<ModelInfo[]> {
     pricing: { prompt: m.pricing?.prompt ?? '0', completion: m.pricing?.completion ?? '0' },
     voices: m.supported_voices ?? [],
   }));
+  if (env.ELEVENLABS_API_KEY) models.push({ id: SCRIBE_MODEL, name: 'ElevenLabs Scribe v2', input: ['audio'], output: ['transcription'], pricing: { prompt: '0', completion: '0' }, voices: [] });
   modelCache = { at: Date.now(), models };
   return models;
 }

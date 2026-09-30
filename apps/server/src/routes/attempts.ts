@@ -77,6 +77,8 @@ const AttemptSchema = z
     error: z.string().nullable(),
     retryable: z.boolean().openapi({ description: 'status failed: false when retrying now cannot help (AI credit/key problem); show "try later" instead of Retry' }),
     createdAt: z.string(),
+    stage: z.enum(['transcribing', 'analyzing', 'feedback', 'scoring', 'finalizing']).nullable().openapi({ description: 'While analyzing: the pipeline step now running. writing: feedback → scoring (feedback is ready in `partial`) → finalizing; speaking: transcribing → analyzing → finalizing. null once done|failed or before the first step.' }),
+    partial: z.unknown().nullable().openapi({ description: 'Writing, while stage is scoring: the feedback that is ready before the scores (errors, structure, top fixes, vocab upgrades, rewrite, text metrics: AnalysisResult fields without criteria/overall). null otherwise.' }),
     analysis: z.unknown().nullable().openapi({ description: 'AnalysisResult (spec §6) once status is done' }),
     models: z.record(z.string(), z.string()).nullable().openapi({ description: 'OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done' }),
     topFixesInDeck: z.boolean().openapi({ description: "Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them)" }),
@@ -188,7 +190,7 @@ export function register(app: App) {
       // drizzle skips undefined keys, so a bare {} re-runs a failed attempt with its stored data.
       const [updated] = await db
         .update(attempts)
-        .set({ ...b, status: 'analyzing', error: null, errorRetryable: true })
+        .set({ ...b, status: 'analyzing', error: null, errorRetryable: true, stage: null, partial: null })
         .where(and(eq(attempts.id, id), eq(attempts.status, a.status)))
         .returning({ id: attempts.id });
       if (!updated) return c.json({ error: 'Attempt is already analyzing' }, 409); // lost a double-submit race
@@ -241,6 +243,8 @@ export function register(app: App) {
           error: a.error,
           retryable: a.errorRetryable,
           createdAt: a.createdAt.toISOString(),
+          stage: a.status === 'analyzing' ? a.stage : null,
+          partial: a.status === 'analyzing' ? a.partial : null,
           analysis: an?.result ?? null,
           models: an?.models ?? null,
           topFixesInDeck: fixes.length > 0 && fixesAdded.every(Boolean),

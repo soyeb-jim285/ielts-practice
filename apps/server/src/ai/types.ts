@@ -46,6 +46,12 @@ export type WritingStructure = {
   planFollowed: { followed: boolean; note: string } | null;
 };
 
+/** Pipeline step an analyzing attempt is in (attempts.stage; GET /api/attempts/{id}). writing: feedback (feedback and scoring running) → scoring (feedback is ready in `partial`) → finalizing;
+ *  speaking: transcribing → analyzing → finalizing. */
+export type AnalysisStage = 'transcribing' | 'analyzing' | 'feedback' | 'scoring' | 'finalizing';
+/** Writing feedback that is ready before the scores: the page can show it while the scorer finishes. */
+export type AnalysisPartial = Pick<AnalysisResult, 'skill' | 'part' | 'text' | 'textMetrics' | 'structure' | 'errors' | 'topFixes' | 'vocabUpgrades' | 'rewrite'>;
+
 export type AnalysisResult = {
   v: 1;
   skill: 'speaking' | 'writing';
@@ -76,6 +82,10 @@ export type AnalysisResult = {
   structure?: WritingStructure;
   textMetrics?: TextMetrics;
   tooShort?: boolean;
+  /** Per-stage wall time (ms), for tuning: writing feedback / scorer / calibration, speaking stt / total. */
+  timings?: Record<string, number>;
+  /** Speech-to-text model that produced the transcript (may differ from settings when Scribe fell back to Whisper). */
+  sttModel?: string;
   // retry comparison
   comparison?: { parentAttemptId: string; parentOverall: number; deltas: Partial<Record<CriterionKey, number>> };
 };

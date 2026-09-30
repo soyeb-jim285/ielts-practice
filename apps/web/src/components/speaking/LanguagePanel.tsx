@@ -4,7 +4,7 @@ import { ArrowRight, ChevronDown, CircleCheck, Play, TriangleAlert } from 'lucid
 import { useMemo } from 'react';
 import { ErrorDetails } from '@/components/results';
 import { Badge, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip, ProgressBar } from '@/components/ui';
-import { categoryLabel, questionHead } from '@/lib/result';
+import { answeredRelevance, categoryLabel, questionHead } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const ISSUE = { sound: 'Sound', stress: 'Word stress', intonation: 'Intonation', unclear: 'Unclear' };
@@ -110,11 +110,11 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
         </Card>
       </section>
 
-      {result.relevance && result.relevance.length > 0 && (
+      {answeredRelevance(result).length > 0 && (
         <section id="relevance" className="scroll-mt-20">
           <h2 className="type-heading mb-4">Did you answer the question?</h2>
           <Card padded={false} className="divide-y divide-line">
-            {result.relevance.map((r) => {
+            {answeredRelevance(result).map((r) => {
               // Cue-card text is title + body (which restates the title): show the title, then the rest muted.
               const q = questionHead(result.questions?.[r.questionIdx]?.text ?? `Question ${r.questionIdx + 1}`);
               return (

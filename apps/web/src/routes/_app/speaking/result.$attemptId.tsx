@@ -6,13 +6,15 @@ import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/comp
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
 import { ImprovePanel } from '@/components/speaking/ImprovePanel';
+import { NotSubmittedActions } from '@/components/speaking/PendingUploads';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
 import { Alert, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { attemptQuery, notAssessed, offTopicAnswers, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
+import { attemptQuery } from '@/lib/attempt';
+import { notAssessed, offTopicAnswers, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -73,12 +75,18 @@ function ResultPage() {
           // Not a dead end: the recording (if any), the questions, and ways to record again or move on.
           <div className="space-y-6">
             {a.status === 'recording' ? (
-              // The audio never arrived, so there is nothing to re-analyse: record it again.
-              <FailedState attemptId={a.id} title="Not submitted" message="This recording never finished uploading, so there is nothing to analyse." action={retryLink(undefined, 'sm', true)} extra={another} />
+              // The audio never arrived: resume it if this device still holds the recording, else record again; either way it can be deleted.
+              <FailedState
+                attemptId={a.id}
+                title="Not submitted"
+                message="This recording never finished uploading. If this device still has it, you can resume the upload."
+                action={<NotSubmittedActions attemptId={a.id} onDeleted={() => void navigate({ to: '/history' })} recordAgain={retryLink(undefined, 'sm', true)} />}
+                extra={another}
+              />
             ) : (
               <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} extra={<>{retryLink('outline', 'sm', true)}{another}</>} />
             )}
-            {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
+            {a.audioUrl && a.status !== 'recording' && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
             <Questions a={a} />
           </div>
         )}

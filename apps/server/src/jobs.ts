@@ -6,7 +6,7 @@ import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema
 import { liveQuestions, type LiveState } from './ai/examiner';
 import { AiError } from './ai/openrouter';
 import { analyzeSpeaking } from './ai/speaking';
-import type { AnalysisResult, CriterionKey } from './ai/types';
+import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } from './ai/types';
 import { analyzeWriting } from './ai/writing';
 import { getSettings } from './settings';
 import { storage } from './storage';
@@ -20,9 +20,14 @@ const dataUrl = async (key: string) => `data:${IMAGE_MIME[key.split('.').pop()!.
 
 const bands = (r: AnalysisResult) => Object.fromEntries(Object.entries(r.criteria).map(([k, c]) => [k, c!.band])) as Partial<Record<CriterionKey, number>>;
 
+/** Progress shown to a polling client: the pipeline step now running and, for writing, the feedback that is already ready. Best effort: never fails the analysis. */
+const progress = (attemptId: string) => (patch: { stage?: AnalysisStage; partial?: AnalysisPartial }) =>
+  db.update(attempts).set(patch).where(and(eq(attempts.id, attemptId), eq(attempts.status, 'analyzing'))).then(() => undefined, (e) => console.error('progress update failed', attemptId, e));
+
 async function analyze(attemptId: string): Promise<void> {
   const a = await db.query.attempts.findFirst({ where: eq(attempts.id, attemptId) });
   if (!a) return;
+  const setStage = progress(attemptId);
   try {
     const p = await db.query.prompts.findFirst({ where: eq(prompts.id, a.promptId) });
     if (!p) throw new AiError('http', 'The prompt for this attempt no longer exists.');
@@ -41,6 +46,7 @@ async function analyze(attemptId: string): Promise<void> {
           : ((session && liveQuestions(session.state as LiveState, part)) ??
             (p.followUps?.length ? (a.sessionId && part === 1 ? p.followUps.slice(0, P1_TEST_QUESTIONS) : p.followUps) : [p.body]));
       result = await analyzeSpeaking({
+        onStage: (stage) => void setStage({ stage }),
         audio: await storage.get(a.audioKey),
         format: FORMATS.includes(ext) ? ext : 'webm',
         durationMs: a.durationMs ?? 0,
@@ -50,7 +56,7 @@ async function analyze(attemptId: string): Promise<void> {
         part,
         settings,
       });
-      models = { stt: settings.models.stt, analysis: settings.models.analysis, ...(result.pronunciation?.llm && { audioPron: settings.models.audioPron }) };
+      models = { stt: result.sttModel ?? settings.models.stt, analysis: settings.models.analysis, ...(result.pronunciation?.llm && { audioPron: settings.models.audioPron }) };
     } else {
       result = await analyzeWriting({
         text: a.text ?? '',
@@ -59,6 +65,8 @@ async function analyze(attemptId: string): Promise<void> {
         prompt: { title: p.title, body: p.body, bullets: p.bullets, chart: p.chart, image: !p.chart && p.imageKey ? await dataUrl(p.imageKey) : null },
         plan: a.plan,
         settings,
+        onStage: (stage) => void setStage({ stage }),
+        onPartial: (partial) => setStage({ partial }),
       });
       models = result.tooShort ? {} : { analysis: settings.models.analysis };
     }
@@ -81,12 +89,12 @@ async function analyze(attemptId: string): Promise<void> {
         await tx.insert(mistakes).values(
           result.errors.map((e) => ({ userId: a.userId, attemptId, errorId: e.id, category: e.category, original: e.original, correction: e.correction, explanation: e.explanation, time: e.time })),
         );
-      await tx.update(attempts).set({ status: 'done', error: null, errorRetryable: true }).where(eq(attempts.id, attemptId));
+      await tx.update(attempts).set({ status: 'done', error: null, errorRetryable: true, stage: null, partial: null }).where(eq(attempts.id, attemptId));
     });
   } catch (e) {
     console.error('analysis failed', attemptId, e);
     const error = e instanceof AiError ? e.message : 'Analysis failed. Please retry.';
-    await db.update(attempts).set({ status: 'failed', error, errorRetryable: !(e instanceof AiError) || e.retryable }).where(eq(attempts.id, attemptId)).catch((e2) => console.error('could not mark attempt failed', attemptId, e2));
+    await db.update(attempts).set({ status: 'failed', error, errorRetryable: !(e instanceof AiError) || e.retryable, stage: null, partial: null }).where(eq(attempts.id, attemptId)).catch((e2) => console.error('could not mark attempt failed', attemptId, e2));
   }
 }
 
@@ -105,6 +113,6 @@ export function runAnalysis(attemptId: string): Promise<void> {
 export async function recoverStale(): Promise<void> {
   await db
     .update(attempts)
-    .set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true })
+    .set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true, stage: null, partial: null })
     .where(and(eq(attempts.status, 'analyzing'), lt(attempts.updatedAt, sql`now() - interval '10 minutes'`)));
 }

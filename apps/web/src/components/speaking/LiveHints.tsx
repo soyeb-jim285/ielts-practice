@@ -4,7 +4,7 @@ import { paceTone } from '@/lib/result';
 
 /** Rough live pace from energy peaks, judged like the Fluency tab's speech rate. Waits for a few seconds of confident speech (wpm 0 = none yet). */
 export function WpmPill({ wpm, elapsedMs }: { wpm: number; elapsedMs: number }) {
-  if (elapsedMs < 5000 || !wpm) return <Badge tone="neutral">Pace: listening</Badge>;
+  if (elapsedMs < 5000 || !wpm) return <Badge tone="neutral" className="text-ink">Pace: listening</Badge>;
   const [tone, note] = paceTone(wpm) === 'good' ? (['good', 'steady'] as const) : (['warn', wpm < 120 ? 'slow' : 'fast'] as const);
   return (
     <Badge tone={tone} className="type-num" title="Rough estimate from your voice, not a transcript">

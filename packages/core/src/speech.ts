@@ -1,4 +1,5 @@
 import { FILLERS, LONG_PAUSE_MS, PAUSE_MS, UNCLEAR_CONF, VOICED_GAP_MS, WPM_HOP_S, WPM_WINDOW_S } from './constants';
+import { COMMON_WORDS } from './common-words';
 import { lexicalProfile, tokenize } from './text';
 import type { Pause, SpeechMetrics, Word } from './types';
 
@@ -137,21 +138,56 @@ export function computeSpeechMetrics(
   };
 }
 
-/** Timed disfluency event after fusion; `sources` says which detectors saw it (stt = transcript tokens, voiced = energy in a gap, audio = audio model). */
-export type Disfluency = { kind: 'filled' | 'repetition' | 'repair'; start: number; end: number; sources: ('stt' | 'voiced' | 'audio')[] };
+/** repair = STT-visible self-correction; false_start = abandoned / restarted clause; partial = cut-off word ("th-"); prolongation = held sound ("sooo"). */
+export type DisfluencyKind = 'filled' | 'repetition' | 'repair' | 'false_start' | 'partial' | 'prolongation';
+/** Timed disfluency event after fusion; `sources` says which detectors saw it (stt = transcript tokens, voiced = energy in a gap, audio = audio model, rule = token rules, llm = text tagger). */
+export type Disfluency = { kind: DisfluencyKind; start: number; end: number; sources: ('stt' | 'voiced' | 'audio' | 'rule' | 'llm')[] };
 export type AudioDisfluencies = { filledPauses: number[]; repetitions: number[]; falseStarts: number[] };
 
-/** Union by time of the three disfluency detectors, each of which under-counts (Whisper drops "um"s, the audio model misses some, energy is crude):
- *  same-kind events within `tol` s (the audio model's timing error) are one event. Repairs = self-corrections + false starts. */
-export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, tol = 0.3): Disfluency[] {
+/** Cut-offs as the transcript shows them. A dash after a whole word ("I went to the—") is an abandoned clause (false_start); after a fragment
+ *  ("th-") or a stutter ("b-but") it is a partial word. An ellipsis counts only after a fragment that is not a word ("wh…"): "well…" is ordinary hesitation. */
+const CUT = /^(\p{L}+)(?:(?:[-–—]+)|(…|\.{2,}))$/u;
+const STUTTER = /^(\p{L}{1,3})[-–](\p{L}{2,})$/u;
+const SUBJECTS = new Set('i we he she they you it my our there is was are do'.split(' '));
+const commonWords = new Set(COMMON_WORDS.split(' '));
+function cutOff(w: string): 'false_start' | 'partial' | undefined {
+  const t = w.trim(), m = CUT.exec(t);
+  if (m) {
+    const stem = m[1]!.toLowerCase();
+    if (m[2]) return stem.length <= 5 && !commonWords.has(stem) ? 'partial' : undefined;
+    return stem.length >= 4 || FUNCTION_WORDS.has(stem) || SUBJECTS.has(stem) ? 'false_start' : 'partial';
+  }
+  const s = STUTTER.exec(t);
+  return s && s[1]!.length < s[2]!.length && s[1]!.toLowerCase() !== 're' && s[2]!.toLowerCase().startsWith(s[1]!.toLowerCase()) ? 'partial' : undefined;
+}
+const HELD = /(\p{L})\1{2,}/iu; // "sooo", "weeell": no English word has a letter three times in a row
+const STRETCHED_FILLER = /^(h?m{2,}|u+h+|u+m+|e+r+m*|a+h+)[.,!?…]*$/i; // "hmmm", "uhhh" are already fillers
+const isProlonged = (w: Word) => !!w.prolonged || (HELD.test(w.w) && !STRETCHED_FILLER.test(w.w));
+/** Rule tagger for what the transcript shows directly: cut-offs and held sounds. Each is one event at the word. */
+export function tagDisfluencies(words: Word[]): Disfluency[] {
+  return words.flatMap((w, i): Disfluency[] => {
+    const kind = cutOff(w.w) ?? (isProlonged(w) ? 'prolongation' : undefined);
+    if (!kind) return [];
+    // An abandoned clause starts after the previous sentence break (at most 8 words back), not at the cut-off word.
+    let from = i;
+    if (kind === 'false_start') while (from > 0 && i - from < 8 && !/[.!?;:]$/.test(words[from - 1]!.w)) from--;
+    return [{ kind, start: words[from]!.start, end: w.end, sources: ['rule'] }];
+  });
+}
+
+/** Union by time of the disfluency detectors, each of which under-counts (Whisper drops "um"s, the audio model misses some, energy is crude):
+ *  same-kind events within `tol` s (the audio model's timing error) are one event. `tags` = events from other taggers (rules, text LLM).
+ *  Repairs = STT self-corrections; false starts = audio-model false starts plus tagger false starts. */
+export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, tol = 0.3, tags: Disfluency[] = []): Disfluency[] {
   const gapEnd = (t: number) => m.pauses.find(p => p.start === t)?.end ?? t;
   const ev: Disfluency[] = [
     ...m.fillers.map((f): Disfluency => (f.kind === 'voiced' ? { kind: 'filled', start: f.time, end: gapEnd(f.time), sources: ['voiced'] } : { kind: 'filled', start: f.time, end: f.time, sources: ['stt'] })),
     ...m.repetitions.map((r): Disfluency => ({ kind: 'repetition', start: r.time, end: r.time, sources: ['stt'] })),
     ...m.selfCorrections.map((s): Disfluency => ({ kind: 'repair', start: s.time, end: s.time, sources: ['stt'] })),
-    ...([['filled', audio?.filledPauses], ['repetition', audio?.repetitions], ['repair', audio?.falseStarts]] as const).flatMap(([kind, ts]) =>
+    ...([['filled', audio?.filledPauses], ['repetition', audio?.repetitions], ['false_start', audio?.falseStarts]] as const).flatMap(([kind, ts]) =>
       (ts ?? []).map((t): Disfluency => ({ kind, start: t, end: t, sources: ['audio'] })),
     ),
+    ...tags,
   ].sort((a, b) => a.start - b.start);
   const out: Disfluency[] = [];
   for (const e of ev) {
@@ -162,6 +198,27 @@ export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, to
     } else out.push({ ...e, sources: [...e.sources] });
   }
   return out;
+}
+
+/** Per-type counts (total, per minute of recording, per 100 spoken words), words between disfluencies and the share of events inside a clause (spec §5.1). */
+export type DisfluencyProfile = {
+  byKind: Partial<Record<DisfluencyKind, { n: number; perMin: number; per100w: number }>>;
+  total: { n: number; perMin: number; per100w: number };
+  /** Mean spoken words between consecutive disfluency events (all words when there are none). */
+  meanRunLength: number;
+  /** Share of events that start mid-clause (the previous word does not end a clause); mid-clause disfluency signals lexical/grammatical search, clause-edge ones planning. */
+  midClauseShare: number;
+};
+export function disfluencyProfile(events: Disfluency[], m: SpeechMetrics, words: Word[]): DisfluencyProfile {
+  const mins = Math.max(m.durationS, 1) / 60, per100 = 100 / Math.max(m.wordCount, 1);
+  const rate = (n: number) => ({ n, perMin: n / mins, per100w: n * per100 });
+  const byKind: DisfluencyProfile['byKind'] = {};
+  for (const e of events) byKind[e.kind] = rate((byKind[e.kind]?.n ?? 0) + 1);
+  const midClause = events.filter(e => {
+    const i = words.findIndex(w => w.start >= e.start - 1e-6);
+    return i > 0 && !/[.!?,;:]$/.test(words[i - 1]!.w);
+  }).length;
+  return { byKind, total: rate(events.length), meanRunLength: m.wordCount / (events.length + 1), midClauseShare: events.length ? midClause / events.length : 0 };
 }
 
 /** de Jong timing features plus fused disfluency rates (per minute of recording / per 100 spoken words). */
@@ -175,7 +232,7 @@ export function fluencyFeatures(m: SpeechMetrics, events: Disfluency[]): Fluency
   return {
     speechRate: m.speechRate, mlr: m.mlr, pauseRatio: m.pauseRatio,
     longPausesPerMin: m.longPauses / mins, midClausePausesPerMin: m.midClausePauses / mins,
-    filledPausesPerMin: n('filled') / mins, repetitionsPer100w: n('repetition') * per100, repairsPer100w: n('repair') * per100,
+    filledPausesPerMin: n('filled') / mins, repetitionsPer100w: n('repetition') * per100, repairsPer100w: (n('repair') + n('false_start')) * per100,
   };
 }
 
@@ -209,6 +266,7 @@ export function cleanTranscript(words: Word[], m: SpeechMetrics): Word[] {
     const i = words.findIndex(w => Math.abs(w.start - f.time) < 1e-6);
     for (let k = 0; i >= 0 && k < f.word.split(' ').length; k++) drop.add(i + k);
   }
+  for (const t of tagDisfluencies(words)) if (t.kind === 'partial' || t.kind === 'false_start') { const i = words.findIndex(w => w.start === t.start); if (i >= 0) drop.add(i); }
   for (const r of m.repetitions) for (let k = 0; k < r.phrase.split(' ').length; k++) drop.add(r.wordIdx + k);
   for (const { wordIdx: j } of m.selfCorrections) {
     const i = [j - 4, j - 3, j - 2].find(k => k >= 0 && norm[k] === norm[j]); // the restart repeats the abandoned phrase's first word

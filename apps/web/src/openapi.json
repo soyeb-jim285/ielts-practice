@@ -752,6 +752,24 @@
           "createdAt": {
             "type": "string"
           },
+          "stage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "transcribing",
+              "analyzing",
+              "feedback",
+              "scoring",
+              "finalizing",
+              null
+            ],
+            "description": "While analyzing: the pipeline step now running. writing: feedback → scoring (feedback is ready in `partial`) → finalizing; speaking: transcribing → analyzing → finalizing. null once done|failed or before the first step."
+          },
+          "partial": {
+            "description": "Writing, while stage is scoring: the feedback that is ready before the scores (errors, structure, top fixes, vocab upgrades, rewrite, text metrics: AnalysisResult fields without criteria/overall). null otherwise."
+          },
           "analysis": {
             "description": "AnalysisResult (spec §6) once status is done"
           },
@@ -793,6 +811,7 @@
           "error",
           "retryable",
           "createdAt",
+          "stage",
           "models",
           "topFixesInDeck",
           "prompt"

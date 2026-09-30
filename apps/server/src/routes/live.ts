@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { EXAMINER_SYSTEM, direction, newState, nextPhase, PREP_MS, realtimeInstructions, scriptedLine, type LiveState } from '../ai/examiner';
+import { EXAMINER_SYSTEM, direction, newState, nextPhase, PREP_MS, realtimeInstructions, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -162,34 +162,55 @@ export function register(app: App) {
       const settings = await getSettings(user.id);
       const now = Date.now();
 
-      let transcript: string | undefined;
-      if (s.phase !== 'p2-prep') {
-        let durationMs: number | undefined;
-        if (b.audioKey && !b.skipped) {
-          const key = ownKey(s, b.audioKey);
-          const bad = await uploadError(key);
-          if (bad) return c.json({ error: bad }, 400);
-          const r = await ai(async () => transcribe({ model: settings.models.stt, audio: await storage.get(key), format: key.split('.').pop() as 'webm' }));
-          transcript = r.text.trim();
-          durationMs = Math.round(r.duration * 1000);
-        }
-        s.history.push({ role: 'candidate', text: transcript || '[no response]', at: now, audioKey: b.audioKey, durationMs, phase: s.phase });
+      // The candidate's turn goes into the history first (as "[no response]"), because the phase and every scripted line depend on whether a turn
+      // was taken, not on what was said. That lets the examiner's scripted line be voiced while the answer is still being transcribed.
+      const cand: Turn | undefined = s.phase === 'p2-prep' ? undefined : { role: 'candidate', text: '[no response]', at: now, audioKey: b.audioKey, phase: s.phase };
+      if (cand) s.history.push(cand);
+      const t0 = Date.now(), ms: Record<string, number> = {};
+      let audioKey: string | undefined;
+      if (cand && b.audioKey && !b.skipped) {
+        audioKey = ownKey(s, b.audioKey);
+        const bad = await uploadError(audioKey);
+        if (bad) return c.json({ error: bad }, 400);
       }
+      // verbatim: false: live turns need the words, not the disfluency-primed second Whisper pass; Scribe (when configured) is verbatim anyway.
+      const transcribed = (async () => {
+        if (!cand || !audioKey) return undefined;
+        const r = await ai(async () => transcribe({ model: settings.models.stt, audio: await storage.get(audioKey!), format: audioKey!.split('.').pop() as 'webm', verbatim: false }));
+        ms.sttMs = Date.now() - t0;
+        const transcript = r.text.trim();
+        Object.assign(cand, { text: transcript || '[no response]', durationMs: Math.round(r.duration * 1000) });
+        return transcript;
+      })();
 
       const phase = nextPhase(s, now);
       if (phase !== s.phase) Object.assign(s, { phase, phaseStartedAt: now });
-      let text = scriptedLine(s);
-      if (text === null) {
+      // Fixed wording (scripted moments and Part 1 questions) needs no LLM, so the examiner voice starts while the answer is transcribed.
+      let text = scriptedLine(s) ?? (s.phase === 'p1' ? direction(s).fallback : null);
+      let audio: Awaited<ReturnType<typeof voice>>, transcript: string | undefined;
+      const speakLine = async (line: string) => {
+        const t = Date.now();
+        const r = await voice(s, s.history.length, line, settings);
+        ms.ttsMs = Date.now() - t;
+        return r;
+      };
+      if (text !== null) {
+        [transcript, audio] = await Promise.all([transcribed, speakLine(text)]);
+      } else {
+        transcript = await transcribed;
+        const t = Date.now();
         const messages = s.history.map((h) => ({ role: h.role === 'examiner' ? ('assistant' as const) : ('user' as const), content: h.text }));
-        text = (await ai(() => chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages] }))).trim() || direction(s).fallback;
+        text = (await ai(() => chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages], effort: 'low', maxTokens: 200 }))).trim() || direction(s).fallback;
+        ms.llmMs = Date.now() - t;
+        audio = await speakLine(text);
       }
       if (s.phase === 'p1') s.p1Asked++;
       if (s.phase === 'p3') s.p3Asked++;
 
-      const audio = await voice(s, s.history.length, text, settings);
       s.history.push({ role: 'examiner', text, at: now, audioKey: audio.key, phase: s.phase });
       if (s.phase === 'closing') s.phase = 'done';
       await save(s);
+      console.log(`live turn ${s.phase} timings ${JSON.stringify({ ...ms, totalMs: Date.now() - t0 })}`);
       const prep = s.phase === 'p2-prep' ? { prepSeconds: Math.max(0, Math.ceil((s.phaseStartedAt + PREP_MS - now) / 1000)), cueCard: s.test.part2 } : {};
       return c.json({ examinerText: text, audioUrl: audio.url, voiceError: audio.voiceError, phase: s.phase, transcript, ...prep }, 200);
     },

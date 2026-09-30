@@ -88,9 +88,9 @@ function WritingHome() {
                       <span className="type-lede block text-sm">{KIND[k].blurb}</span>
                       <span className="type-caption type-num block">{KIND[k].meta}</span>
                     </span>
-                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-text">
+                    <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 text-sm font-medium text-brand-text">
                       <Shuffle className="size-4" aria-hidden />
-                      {starting === k ? 'Picking...' : 'Random'}
+                      <span className="max-sm:sr-only">{starting === k ? 'Picking...' : 'Random'}</span>
                     </span>
                   </button>
                 </li>

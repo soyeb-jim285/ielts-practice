@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from './db/client';
 import { userSettings } from './db/schema';
+import { env } from './env';
 
 const ModelId = z.string().regex(/^[\w.-]+\/[\w.:-]+$/, 'Invalid model id');
 
@@ -30,7 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   models: {
     analysis: 'openai/gpt-6-luna',
     examiner: 'openai/gpt-6-luna',
-    stt: 'openai/whisper-large-v3',
+    stt: env.ELEVENLABS_API_KEY ? 'elevenlabs/scribe_v2' : 'openai/whisper-large-v3', // Scribe v2 when its key is set (spec §5.2), falling back to Whisper on error
     tts: 'google/gemini-3.8-flash-tts',
     ttsVoice: 'Charon', // must be one of the model's supported_voices (GET /api/models → voices)
     audioPron: 'google/gemini-2.5-flash',

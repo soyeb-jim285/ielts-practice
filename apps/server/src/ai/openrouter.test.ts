@@ -36,7 +36,7 @@ it('chatJson: throws invalid_json after two bad replies', async () => {
   expect(f.calls).toHaveLength(2);
 });
 
-it('retries once on 503, then succeeds; gives up after a second failure', async () => {
+it('retries 503, then succeeds; gives up after the third failure', async () => {
   let n = 0;
   setFetch(fakeFetch({ '/chat/completions': () => (n++ === 0 ? json({}, 503) : chatReply({ band: 7, range: [7, 7] })) }));
   expect((await ask()).band).toBe(7);
@@ -45,7 +45,7 @@ it('retries once on 503, then succeeds; gives up after a second failure', async 
   const f = fakeFetch({ '/chat/completions': () => json({}, 500) });
   setFetch(f);
   await expect(ask()).rejects.toBeInstanceOf(AiError);
-  expect(f.calls).toHaveLength(2);
+  expect(f.calls).toHaveLength(3);
 });
 
 it('transcribe: maps words, falls back to segment confidence, restores punctuation', async () => {
@@ -185,3 +185,59 @@ it.runIf(process.env.SMOKE)('smoke: default TTS model returns playable audio', a
   const r = await speak({ model: DEFAULT_SETTINGS.models.tts, voice: DEFAULT_SETTINGS.models.ttsVoice, text: 'Good morning.' });
   expect(r.audio.length).toBeGreaterThan(1000);
 }, 60_000);
+
+it('call: retries network errors and 5xx twice, then gives up with the generic message', async () => {
+  let n = 0;
+  setFetch(fakeFetch({ '/chat/completions': () => { if (++n <= 2) throw new TypeError('fetch failed'); return chatReply('{"band":6,"range":[5,6]}'); } }));
+  expect(await ask()).toEqual({ band: 6, range: [5, 6] });
+  expect(n).toBe(3);
+  n = 0;
+  setFetch(fakeFetch({ '/chat/completions': () => { n++; return json({ error: 'x' }, 503); } }));
+  expect(((await ask().catch((x) => x)) as AiError).status).toBe(503);
+  expect(n).toBe(3);
+  n = 0;
+  setFetch(fakeFetch({ '/chat/completions': () => { n++; throw new TypeError('fetch failed'); } }));
+  expect(((await ask().catch((x) => x)) as AiError).code).toBe('network');
+  expect(n).toBe(3);
+});
+
+it('transcribe: ElevenLabs Scribe v2 (verbatim, character timing, audio events dropped), Whisper fallback on error or quota', async () => {
+  const { env } = await import('../env');
+  env.ELEVENLABS_API_KEY = 'xi-test';
+  try {
+    const w = (text: string, start: number, end: number, extra: object = {}) => ({ text, start, end, type: 'word', logprob: -0.1, ...extra });
+    const scribe = {
+      words: [
+        w('I', 0, 0.2), { text: ' ', start: 0.2, end: 0.3, type: 'spacing' }, w('um,', 0.4, 0.7, { logprob: -0.7 }), { text: '(laughter)', start: 0.7, end: 1, type: 'audio_event' },
+        w('the—', 1.2, 1.5), w('sooo', 1.6, 2.4, { characters: [{ text: 's', start: 1.6, end: 1.7 }, { text: 'o', start: 1.7, end: 2.35 }, { text: 'o', start: 2.3, end: 2.4 }] }),
+      ],
+    };
+    const f = fakeFetch({ 'api.elevenlabs.io/v1/speech-to-text': () => json(scribe) });
+    setFetch(f);
+    const r = await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1, 2]), format: 'webm', verbatim: true });
+    const form = f.calls[0]!.body as FormData;
+    expect(Object.fromEntries(['model_id', 'no_verbatim', 'timestamps_granularity', 'tag_audio_events'].map((k) => [k, form.get(k)]))).toEqual({ model_id: 'scribe_v2', no_verbatim: 'false', timestamps_granularity: 'character', tag_audio_events: 'true' });
+    expect(r).toMatchObject({ text: 'I um, the— sooo', verbatim: true, model: 'elevenlabs/scribe_v2', duration: 2.4 });
+    expect(r.words.map((x) => x.w)).toEqual(['I', 'um,', 'the—', 'sooo']); // audio event and spacing dropped
+    expect(r.words[1]!.conf).toBeCloseTo(0.5, 1);
+    expect(r.words[3]).toMatchObject({ prolonged: true }); // one character held 0.6 s
+    expect(r.words[0]!.prolonged).toBeUndefined();
+
+    // quota / outage: Whisper answers instead, and the result says so
+    for (const scribeFail of [() => json({ detail: 'quota_exceeded' }, 401), () => { throw new TypeError('fetch failed'); }]) {
+      const g = fakeFetch({ 'api.elevenlabs.io': scribeFail, '/audio/transcriptions': () => json({ text: 'hello there', duration: 1, words: [{ word: 'hello', start: 0, end: 0.4 }, { word: 'there', start: 0.5, end: 0.9 }] }) });
+      setFetch(g);
+      const fb = await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' });
+      expect(fb).toMatchObject({ text: 'hello there', model: 'openai/whisper-large-v3' });
+    }
+
+    // no key: straight to Whisper, Scribe is never called
+    env.ELEVENLABS_API_KEY = undefined;
+    const h = fakeFetch({ '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [{ word: 'hi', start: 0, end: 0.4 }] }) });
+    setFetch(h);
+    expect((await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' })).model).toBe('openai/whisper-large-v3');
+    expect(h.calls.every((c) => !c.url.includes('elevenlabs'))).toBe(true);
+  } finally {
+    env.ELEVENLABS_API_KEY = undefined;
+  }
+});

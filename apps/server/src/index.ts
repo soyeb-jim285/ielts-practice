@@ -18,7 +18,8 @@ if (existsSync(env.WEB_DIST)) {
   });
   // precompressed: serves .br/.gz siblings when the build emitted them; otherwise compress() (app.ts) gzips on the fly.
   app.use('/*', serveStatic({ root: env.WEB_DIST, precompressed: true }));
-  app.get('*', (c) => (c.req.path.startsWith('/api') ? c.notFound() : c.html(indexHtml)));
+  // A missing /assets/* file is a 404, never the HTML shell (which the middleware above would otherwise mark immutable, poisoning the cache after a deploy).
+  app.get('*', (c) => (c.req.path.startsWith('/api') || c.req.path.startsWith('/assets/') ? c.notFound() : c.html(indexHtml)));
 }
 
 const sweep = () => recoverStale().catch((e) => console.error('recoverStale failed', e));

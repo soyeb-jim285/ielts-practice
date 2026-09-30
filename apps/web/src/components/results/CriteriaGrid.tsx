@@ -74,10 +74,7 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
           );
         })}
       </div>
-      <p className="type-caption flex items-center gap-2">
-        <span aria-hidden className="h-3.5 w-0.5 rounded-[1px] bg-ink/70" />
-        Your target band is {formatBand(target)}.
-      </p>
+      <p className="type-caption">Your target band is {formatBand(target)}.</p>
     </div>
   );
 }

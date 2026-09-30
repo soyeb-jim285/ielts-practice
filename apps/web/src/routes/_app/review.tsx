@@ -29,13 +29,6 @@ const PROMPT = {
   vocab: 'Recall the meaning and use it in a sentence, then reveal the answer.',
   fix: 'How would you improve this sentence? Say or write it, then reveal the answer.',
 };
-/** Outline of a card under the "All caught up" state, so the screen previews what a session looks like. */
-const GhostCard = () => (
-  <div aria-hidden className="pointer-events-none flex h-40 flex-col justify-end rounded-lg border border-line p-6 select-none [mask-image:linear-gradient(to_bottom,black_20%,transparent)]">
-    <span className="mb-3 block h-5 w-3/5 rounded-sm bg-surface-2" />
-    <span className="block h-5 w-2/5 rounded-sm bg-surface-2" />
-  </div>
-);
 const days = (n: number) => (n === 1 ? '1 day' : n < 30 ? `${n} days` : `${Math.round(n / 30)} mo`);
 
 function ReviewPage() {
@@ -95,7 +88,6 @@ function ReviewPage() {
         <EmptyState
           icon={<CircleCheck />}
           title={reviewed ? 'Session complete' : 'All caught up'}
-          preview={reviewed ? undefined : <GhostCard />}
           action={
             <div className="flex flex-wrap gap-2">
               <Link to="/mistakes" className={buttonStyles({ variant: reviewed ? 'primary' : 'outline' })}>

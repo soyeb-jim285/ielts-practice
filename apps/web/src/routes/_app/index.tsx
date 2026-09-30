@@ -1,22 +1,21 @@
 import type { CriterionKey } from '@server/ai/types';
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, Flame, Layers, LibraryBig, MessagesSquare, Mic, PenLine } from 'lucide-react';
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { ArrowRight, Flame, History, Layers, LibraryBig, MessagesSquare, Mic, PenLine } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import CriteriaTrend from '@/components/dashboard/Charts';
 import { listStyles, panelFooterStyles, PanelHeader, RowChevron, RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
 import { speakingSession, StartWritingButton, useStartWriting } from '@/components/bank/PracticeLink';
-import { PRACTICE, type Progress } from '@/components/dashboard/criteria';
+import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/components/dashboard/criteria';
 import { Onboarding } from '@/components/dashboard/Onboarding';
-import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented, Skeleton } from '@/components/ui';
+import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
-import { bandColor, categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
+import { categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
-// recharts (~100 KB gz) loads only when a criteria chart actually renders.
-const CriteriaTrend = lazy(() => import('@/components/dashboard/Charts'));
 const progressQuery = queryOptions({ queryKey: ['progress'], queryFn: () => call(client.GET('/api/progress')), staleTime: 0 });
 const dueCountQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => call(client.GET('/api/cards/due')), staleTime: 0 });
 
@@ -84,11 +83,11 @@ function Dashboard() {
         ) : (
           <>
             <section aria-label="Where you stand" className="stagger grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-              <NextUp weakest={weakest} target={target} />
-              <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:border-l lg:border-line lg:pl-10">
+              <NextUp weakest={weakest} trend={p.trend} target={target} />
+              <Card padded={false} className="divide-y divide-line self-start px-5">
                 <Predicted skill="speaking" band={p.predicted.speaking} n={p.trend.filter((t) => t.skill === 'speaking').length} target={target} />
                 <Predicted skill="writing" band={p.predicted.writing} n={p.trend.filter((t) => t.skill === 'writing').length} target={target} />
-              </div>
+              </Card>
             </section>
             {showTrend && <Trend trend={p.trend} target={target} />}
           </>
@@ -130,9 +129,14 @@ function Dashboard() {
                 </Link>
               </li>
             </ul>
-            <Link to="/bank" className={panelFooterStyles}>
-              <LibraryBig className="size-4" aria-hidden /> Choose from the prompt bank
-            </Link>
+            <div className="mt-1 flex flex-wrap gap-x-6">
+              <Link to="/bank" className={panelFooterStyles}>
+                <LibraryBig className="size-4" aria-hidden /> Choose from the prompt bank
+              </Link>
+              <Link to="/history" className={panelFooterStyles}>
+                <History className="size-4" aria-hidden /> Past attempts
+              </Link>
+            </div>
           </section>
 
           {p.topMistakes.length > 0 && (
@@ -176,25 +180,25 @@ function WritingRow() {
   );
 }
 
-/** The one hero: what to practise next. Weakest criterion when known, otherwise a full test. */
-function NextUp({ weakest, target }: { weakest: { key: CriterionKey; avg: number } | null; target: number }) {
-  const practice = weakest ? PRACTICE[weakest.key] : null;
+/** The one hero: what to practise next. Weakest criterion when known (at the part where the user scores lowest on it), otherwise a full test. */
+function NextUp({ weakest, trend, target }: { weakest: { key: CriterionKey; avg: number } | null; trend: Progress['trend']; target: number }) {
+  const practice = weakest ? practiceTarget(weakest.key, trend) : null;
   const avg = weakest ? Math.round(weakest.avg * 2) / 2 : 0;
-  const cta = practice ? `Practise ${practice.label.toLowerCase()}` : 'Start a full speaking test';
+  const cta = weakest && practice ? `Practise ${practice.label} (${CRITERION_SHORT[weakest.key]})` : 'Start a full speaking test';
   return (
     <Card tone="hero" className="flex flex-col justify-between gap-8 sm:p-7">
       <div className="min-w-0">
         <p className="type-caption font-medium text-accent-text">Next up</p>
         <h2 className="type-title-sm mt-2">{weakest ? `${criterionLabel(weakest.key)} is holding your band back` : 'Ready for another round?'}</h2>
         <p className="type-lede mt-3 max-w-[52ch]">
-          {weakest
-            ? `You average ${formatBand(avg)} here${avg < target ? `, ${formatBand(target - avg)} below your ${formatBand(target)} target` : ''}. Focused practice moves it fastest.`
+          {weakest && practice
+            ? `You average ${formatBand(avg)} here${avg < target ? `, ${formatBand(target - avg)} below your ${formatBand(target)} target` : ''}, and your lowest scores came in ${practice.label}. Focused practice there moves it fastest.`
             : 'A full test gives the most complete picture of your band.'}
         </p>
       </div>
       <div>
         {practice?.skill === 'writing' ? (
-          <StartWritingButton size="lg" icon={<ArrowRight />} className="max-sm:w-full">
+          <StartWritingButton task={practice.part === 1 ? 1 : 2} size="lg" icon={<ArrowRight />} className="max-sm:w-full">
             {cta}
           </StartWritingButton>
         ) : (
@@ -207,37 +211,47 @@ function NextUp({ weakest, target }: { weakest: { key: CriterionKey; avg: number
   );
 }
 
+/** One predicted band as a row: label + bar + target on the left, the number on the right. With no scores the row holds the invitation and its action. */
 function Predicted({ skill, band, n, target }: { skill: Skill; band: number | null; n: number; target: number }) {
   const label = skill === 'speaking' ? 'Speaking' : 'Writing';
   return (
-    <section className="flex min-w-0 flex-col" aria-label={`Predicted ${label.toLowerCase()} band`}>
-      <h2 className="type-caption">Predicted {label.toLowerCase()} band</h2>
+    <section className="py-5" aria-label={`Predicted ${label.toLowerCase()} band`}>
       {band == null ? (
-        <div className="mt-3 flex flex-1 flex-col items-start justify-between gap-4">
-          <p className="type-lede">No {label.toLowerCase()} scores yet.</p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="type-caption">Predicted {label.toLowerCase()} band</h2>
+            <p className="type-lede mt-1">No {label.toLowerCase()} scores yet.</p>
+          </div>
           {skill === 'speaking' ? (
-            <Link {...speakingSession('p1')} className={buttonStyles({ variant: 'outline' })}>
+            <Link {...speakingSession('p1')} className={buttonStyles({ variant: 'outline', className: 'shrink-0' })}>
               Try Part 1
             </Link>
           ) : (
-            <StartWritingButton variant="outline">Try Task 2</StartWritingButton>
+            <StartWritingButton variant="outline" className="shrink-0">
+              Try Task 2
+            </StartWritingButton>
           )}
         </div>
       ) : (
-        <>
-          <p className="type-band mt-2 text-6xl">
-            <CountUp value={band} decimals={1} />
-          </p>
-          <div className="relative mt-5">
-            <ProgressBar value={band / 9} label={`${label} band ${formatBand(band)} of 9`} className="h-1.5" />
-            <span aria-hidden className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-ink" style={{ left: `${(target / 9) * 100}%` }} />
+        <div className="flex items-center gap-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="type-caption">Predicted {label.toLowerCase()} band</h2>
+            <div className="relative mt-3">
+              <ProgressBar value={band / 9} label={`${label} band ${formatBand(band)} of 9`} className="h-1.5" />
+              <span aria-hidden className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-ink" style={{ left: `${(target / 9) * 100}%` }} />
+            </div>
+            <p className="type-caption mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Target {formatBand(target)}</span>
+              <Badge tone={band >= target ? 'good' : 'neutral'}>{band >= target ? 'On target' : `${formatBand(target - band)} to go`}</Badge>
+            </p>
           </div>
-          <p className="type-caption mt-3 flex items-center justify-between gap-2">
-            <span>Target {formatBand(target)}</span>
-            <Badge tone={bandColor(band, target)}>{band >= target ? 'On target' : `${formatBand(target - band)} to go`}</Badge>
-          </p>
-          <p className="type-caption mt-5">{n > 1 ? `Average of your last ${Math.min(n, 5)} scores` : 'Your latest score'}</p>
-        </>
+          <div className="shrink-0 text-right">
+            <p className="type-band text-5xl">
+              <CountUp value={band} decimals={1} />
+            </p>
+            <p className="type-caption mt-1">{n > 1 ? `Avg of last ${Math.min(n, 5)}` : 'Latest score'}</p>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -267,9 +281,7 @@ function Trend({ trend, target }: { trend: Progress['trend']; target: number }):
       {rows.length < 2 ? (
         <p className="type-lede py-6">{rows.length ? 'One more scored attempt and your trend appears here.' : `Your ${skill} criteria trend appears after two scored attempts.`}</p>
       ) : (
-        <Suspense fallback={<Skeleton className="h-72" />}>
-          <CriteriaTrend trend={rows} keys={skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA} target={target} />
-        </Suspense>
+        <CriteriaTrend trend={rows} keys={skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA} target={target} />
       )}
     </section>
   );

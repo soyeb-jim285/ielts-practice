@@ -11,7 +11,7 @@ import {
   keepVerbatimEvidence, poolCriteria, retryOnce, scoringSamples, settleRanges, WritingFeedbackSchema, WritingPlanFeedbackSchema,
   type CriterionScore, type LlmCriterion,
 } from './schemas';
-import type { AnalysisResult, Criterion } from './types';
+import type { AnalysisPartial, AnalysisResult, AnalysisStage, Criterion } from './types';
 
 export const WRITING_REWRITE_NOTE = "Study the upgrades, don't memorise — examiners spot and penalise memorised language.";
 const TOO_SHORT = 'Responses of 20 words or fewer are rated at Band 1';
@@ -138,8 +138,47 @@ function mergeSamples(parts: Partial<Sample>[], k: number): Sample[] {
 const DESCRIPTORS = (task: 1 | 2) => ({ ta: task === 1 ? WRITING_DESCRIPTORS.ta1 : WRITING_DESCRIPTORS.tr2, cc: WRITING_DESCRIPTORS.cc, lr: WRITING_DESCRIPTORS.lr, gra: WRITING_DESCRIPTORS.gra });
 const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
 
-/** Steps 3-7 (§2.1), pure: criterion means → raw m → calibrated ŷ → rule layer → whole criterion bands averaging to ŷ → conformal range. */
-export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Calibration, 'map' | 'q'>, o: { task: 1 | 2; offTopic?: boolean; text?: string }) {
+/** What the rule layer knows about the script. `errors`, `sentences` and `overviewMissing` come from the feedback call and are absent when only scoring ran (eval harness). */
+export type RuleInput = { task: 1 | 2; variant: 'academic' | 'general'; words: number; text: string; errors?: { category: string }[]; sentences?: number; overviewMissing?: boolean; upgrades?: number };
+
+/** Criterion-level rules after pooling (docs/scoring-research §2.1 step 6), each a cap or floor with its reason written into the criterion's summary:
+ *  - under the word minimum: TA ≤ 6 (≤ 5 below 90% of it); cut off mid-sentence as well: CC, LR and GRA each one band lower;
+ *  - Task 1 Academic without an overview (feedback call) and TA already ≤ 6: TA and CC ≤ 5;
+ *  - over 12 flagged errors per 100 words, or sentence-structure errors in over half the sentences: GRA ≤ 4;
+ *  - under 1 error per 100 words, none in vocabulary and few basic words flagged, with TA and CC at 7+: LR and GRA ≥ 8 (the scorer under-reaches the top).
+ *  Returns the reasons that fired. */
+export function applyRules(c: Record<WritingKey, LlmCriterion>, r: RuleInput): string[] {
+  const d = DESCRIPTORS(r.task), notes: string[] = [];
+  const set = (k: WritingKey, band: number, why: string) => {
+    band = Math.max(1, Math.min(9, band));
+    if (band === c[k].band) return;
+    const up = band > c[k].band, next = bandDescriptor(d[k], band + 1);
+    Object.assign(c[k], { band, descriptor: bandDescriptor(d[k], band) ?? c[k].descriptor, summary: `${why}${!up && next ? ` To reach band ${band + 1}: ${next}` : ''}` });
+    notes.push(`${k}: ${why}`);
+  };
+  const cap = (k: WritingKey, max: number, why: string) => c[k].band > max && set(k, max, why);
+  const min = r.task === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2;
+  if (r.words < min) {
+    const why = `Only ${r.words} words, under the ${min}-word minimum.`;
+    cap('ta', r.words < 0.9 * min ? 5 : 6, `${why} A response this short cannot fully meet the task.`);
+    if (!/[.!?]["')\]”’]?\s*$/.test(r.text.trim()))
+      for (const k of ['cc', 'lr', 'gra'] as const) set(k, c[k].band - 1, `${why} The response stops mid-sentence, so organisation, range and control cannot be shown.`);
+  }
+  // The feedback model's "no overview" call is unreliable on its own (it flagged 7 of 11 official Academic Task 1 scripts of band 5-8 on TEST), so it only
+  // bites when the scorer already doubts Task Achievement (TA 6 or less).
+  if (r.overviewMissing && c.ta.band <= 6) for (const k of ['ta', 'cc'] as const) cap(k, 5, 'There is no overview of the main trends or differences, which a Task 1 Academic report needs for band 6 and above.');
+  if (r.errors && r.words > 0) {
+    const per100 = (r.errors.length * 100) / r.words;
+    const structural = r.errors.filter((e) => e.category === 'grammar.sentence-structure').length;
+    if (per100 > 12 || (r.sentences && structural / r.sentences > 0.5)) cap('gra', 4, 'Errors are frequent and many sentences are malformed.');
+    else if (per100 < 1 && !r.errors.some((e) => e.category.startsWith('lexis.')) && (r.upgrades ?? 0) <= 3 && r.words >= min && c.ta.band >= 7 && c.cc.band >= 7)
+      for (const k of ['lr', 'gra'] as const) c[k].band < 8 && set(k, 8, 'Very few slips and precise vocabulary: this meets band 8.');
+  }
+  return notes;
+}
+
+/** Steps 3-7 (§2.1), pure: criterion means → raw m → calibrated ŷ → whole criterion bands averaging to ŷ → rule layer → conformal range. */
+export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Calibration, 'map' | 'q'>, o: { task: 1 | 2; offTopic?: boolean; text?: string; rules?: RuleInput }) {
   const means = WRITING_KEYS.map((c) => mean(s.samples.map((x) => x[c].band)));
   const m = mean(means);
   // Rule layer after calibration: an off-topic script (mean TA < 4.5) or one that tried to instruct the scorer gets no upward correction.
@@ -150,6 +189,7 @@ export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Ca
   const bands = DESCRIPTORS(o.task);
   const c = poolCriteria(s.samples.map((x) => Object.fromEntries(WRITING_KEYS.map((k) => [k, asCriterion(x[k])])) as Record<WritingKey, LlmCriterion>), () => y, (key, band) => bandDescriptor(bands[key], band));
   if (o.text) keepVerbatimEvidence(c, o.text);
+  const rules = o.rules ? applyRules(c, o.rules) : [];
   const raw = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
   // Off topic (TA ≤ 4 or a major task.relevance error): the overall is capped at TA + 1, same rule as the web's capOffTopic.
   const cap = c.ta.band <= 4 || o.offTopic ? c.ta.band + 1 : 9;
@@ -158,10 +198,14 @@ export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Ca
   const split = WRITING_KEYS.some((k) => { const b = s.samples.map((x) => x[k].band); return Math.max(...b) - Math.min(...b) >= 2; });
   const q = cal.q + (s.flags.length || split ? 0.5 : 0);
   const range = settleRanges(c, overall, q);
-  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: [Math.min(range[0], cap), Math.min(range[1], cap)] as [number, number], q };
+  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: [Math.min(range[0], cap), Math.min(range[1], cap)] as [number, number], q, rules };
 }
 
-export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) => void }): Promise<AnalysisResult> {
+/** Scoring samples for a script: short scripts (under the word minimum) are capped by the rule layer anyway, so two samples are enough. */
+export const scorerK = (words: number, min: number) => (words < min ? Math.min(2, WRITING_K) : WRITING_K);
+
+/** `onStage` / `onPartial` let the caller show progress: the feedback is handed over as soon as it is ready, while the scorer (the slow part) runs on. */
+export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) => void; onStage?: (s: AnalysisStage) => void; onPartial?: (p: AnalysisPartial) => void | Promise<void> }): Promise<AnalysisResult> {
   const textMetrics = computeTextMetrics(i.text);
   const min = i.task === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2;
   const own = ownWords(i);
@@ -202,20 +246,39 @@ export async function analyzeWriting(i: WritingInput & { onScored?: (s: Scored) 
       temperature: 0.2,
       effort: 'low',
     });
-  const [fb, scored] = await Promise.all([retryOnce(feedback), scoreWriting(i, { figure })]);
+  const t0 = Date.now(), timings: Record<string, number> = {};
+  let scoring = true;
+  i.onStage?.('feedback');
+  const fbP = retryOnce(feedback).then(async (fb) => {
+    timings.feedbackMs = Date.now() - t0;
+    const located = locateQuotes(i.text, fb.errors);
+    if (scoring) i.onStage?.('scoring');
+    await i.onPartial?.({ skill: 'writing', part: i.task, text: i.text, textMetrics, structure: fb.structure, errors: located, topFixes: fb.topFixes, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE } });
+    return { fb, errors: located };
+  });
+  const scoredP = scoreWriting(i, { figure, k: scorerK(own, min) }).then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
+  const [{ fb, errors }, scored] = await Promise.all([fbP, scoredP]);
   i.onScored?.(scored);
+  i.onStage?.('finalizing');
 
-  const cal = await calibrationFor(scored.key);
+  const t1 = Date.now();
+  const cal = await calibrationFor(scored.key, i.settings.models.analysis);
   // A record fitted in one output mode does not carry over to the other (json_object fallback, §2.3).
   const mode = cal.record?.cv && (cal.record.cv as { mode?: string }).mode;
-  const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key) : cal;
-  const errors = locateQuotes(i.text, fb.errors);
+  const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key, undefined, i.settings.models.analysis) : cal;
   const offTopic = errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
-  const r = settleWriting(scored, applied, { task: i.task, offTopic, text: i.text });
+  const overviewMissing = i.task === 1 && i.variant === 'academic' && (fb.structure.overview?.present === false || errors.some((e) => e.category === 'task.overview' && e.severity === 'major'));
+  const r = settleWriting(scored, applied, {
+    task: i.task, offTopic, text: i.text,
+    rules: { task: i.task, variant: i.variant, words: own, text: i.text, errors, sentences: textMetrics.sentences, overviewMissing, upgrades: fb.vocabUpgrades.length },
+  });
+  timings.calibrationMs = Date.now() - t1;
+  timings.totalMs = Date.now() - t0;
+  console.log(`writing analysis timings ${JSON.stringify(timings)} k=${scored.samples.length} words=${own} rules=${r.rules.length}`);
   return {
     v: 1, skill: 'writing', part: i.task, overall: r.overall, overallRaw: r.overallRaw, range: r.range, criteria: r.criteria,
     topFixes: fb.topFixes, errors, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE },
     text: i.text, structure: fb.structure, textMetrics,
-    calibrated: applied.calibrated, q: r.q, ...(scored.flags.length ? { flags: scored.flags } : {}),
+    calibrated: applied.calibrated, q: r.q, ...(scored.flags.length ? { flags: scored.flags } : {}), timings,
   };
 }

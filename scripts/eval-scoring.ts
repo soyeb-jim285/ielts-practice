@@ -20,7 +20,7 @@ import { scoringCalibrations, type scoringScripts } from '../apps/server/src/db/
 import { asCalibration, calibrationKey, getCalibration, type Calibration } from '../apps/server/src/ai/calibration';
 import { listModels, setFetch } from '../apps/server/src/ai/openrouter';
 import { loadAnchors, promptHash, WRITING_KEYS, type ScoringMode } from '../apps/server/src/ai/prompts';
-import { analyzeWriting, ownWords, scoreWriting, settleWriting, TOO_SHORT_WORDS, WRITING_EFFORT, WRITING_K, type Scored, type WritingInput } from '../apps/server/src/ai/writing';
+import { analyzeWriting, ownWords, scoreWriting, settleWriting, TOO_SHORT_WORDS, WRITING_EFFORT, WRITING_K, type RuleInput, type Scored, type WritingInput } from '../apps/server/src/ai/writing';
 import { DEFAULT_SETTINGS } from '../apps/server/src/settings';
 import { storage } from '../apps/server/src/storage';
 
@@ -65,11 +65,12 @@ let cost = 0;
 setFetch(async (url, init) => {
   const res = await fetch(url, init);
   if (!String(url).includes('/chat/completions') || !res.ok) return res;
-  const u = ((await res.clone().json().catch(() => ({}))) as { usage?: { cost?: number } }).usage?.cost ?? 0;
-  cost += u; // not `cost += await …`: that reads cost before the await and loses concurrent calls
-  return res;
+  // Read the body once and hand back a fresh Response: cloning (tee) it made every concurrent call fail with ERR_HTTP2_STREAM_ERROR.
+  const body = await res.arrayBuffer();
+  try { cost += (JSON.parse(Buffer.from(body).toString()) as { usage?: { cost?: number } }).usage?.cost ?? 0; } catch { /* not JSON: cost unknown */ }
+  return new Response(body, res);
 });
-type Cached = Scored & { id: string; offTopic?: boolean; ms: number; tooShort?: boolean };
+type Cached = Scored & { id: string; offTopic?: boolean; ms: number; tooShort?: boolean; rules?: Pick<RuleInput, 'errors' | 'sentences' | 'overviewMissing' | 'upgrades'> };
 const dirOf = (mode: ScoringMode) => `${ROOT}.eval/scoring-cache/${model.replace(/\W/g, '_')}/${promptHash(anchors, mode)}-${WRITING_EFFORT}-k${K}-${mode}${a.feedback ? '-fb' : ''}`;
 const fileOf = (mode: ScoringMode, r: Row) => `${dirOf(mode)}/${r.id}-${r.sha256.slice(0, 8)}.json`;
 const read = (f: string): Cached | undefined => (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : undefined);
@@ -91,14 +92,15 @@ async function scoreAll(mode: ScoringMode): Promise<Map<string, Cached>> {
       for (let attempt = 0; ; attempt++) {
         try {
           const t0 = Date.now(), inp = await input(r);
-          let scored!: Scored, offTopic: boolean | undefined, tooShort: true | undefined;
+          let scored!: Scored, offTopic: boolean | undefined, tooShort: true | undefined, rules: Cached['rules'];
           // Production rule: 20 own words or fewer is Band 1 with no AI call (analyzeWriting); cached as empty samples.
           if (ownWords(inp) <= TOO_SHORT_WORDS) [scored, tooShort] = [{ samples: [], served: [], flags: [], words: 0, copied: 0, figure: 'none', family: 't2', promptHash: '', key: '' }, true];
           else if (a.feedback && mode === 'joint') {
             const res = await analyzeWriting({ ...inp, onScored: (s) => (scored = s) });
             offTopic = res.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
+            rules = { errors: res.errors, sentences: res.textMetrics?.sentences, upgrades: res.vocabUpgrades.length, overviewMissing: inp.task === 1 && inp.variant === 'academic' && (res.structure?.overview?.present === false || res.errors.some((e) => e.category === 'task.overview' && e.severity === 'major')) };
           } else scored = await scoreWriting(inp, { mode, k: K });
-          const c: Cached = { id: r.id, ...scored, offTopic, tooShort, ms: Date.now() - t0 };
+          const c: Cached = { id: r.id, ...scored, offTopic, tooShort, rules, ms: Date.now() - t0 };
           writeFileSync(fileOf(mode, r), JSON.stringify(c));
           out.set(r.id, c);
           console.error(`  ${r.id} m=${tooShort ? 'band 1 (too short)' : (WRITING_KEYS.reduce((s, k) => s + c.samples.reduce((t, x) => t + x[k].band, 0) / c.samples.length, 0) / 4).toFixed(2)} official=${r.band ?? '-'} ${c.ms} ms`);
@@ -147,8 +149,10 @@ for (const mode of modes) {
   const key = calibrationKey(model, promptHash(anchors, mode), WRITING_EFFORT, K);
   const settle = (r: Row, cal: Pick<Calibration, 'map' | 'q'>) => {
     const s = scored.get(r.id)!, one = { band: 1, range: [1, 1] as [number, number], descriptor: '', evidence: [], summary: '' };
-    if (s.tooShort) return { criteria: { ta: one, cc: one, lr: one, gra: one }, m: 1, overall: 1, overallRaw: 1, range: [1, 1] as [number, number], q: 0 };
-    return settleWriting(s, cal, { task: r.taskFamily === 't2' ? 2 : 1, offTopic: s.offTopic });
+    if (s.tooShort) return { criteria: { ta: one, cc: one, lr: one, gra: one }, m: 1, overall: 1, overallRaw: 1, range: [1, 1] as [number, number], q: 0, rules: [] as string[] };
+    const task = r.taskFamily === 't2' ? 2 : 1;
+    // Rules that need the feedback call (errors, overview) only fire on --feedback runs; the word-count rules always do.
+    return settleWriting(s, cal, { task, offTopic: s.offTopic, rules: { task, variant: r.taskFamily === 't1g' ? 'general' : 'academic', words: s.words - s.copied, text: r.text ?? '', ...s.rules } });
   };
   const labelled = done.filter((r) => r.band != null && split !== 'probe');
   const human = labelled.map((r) => r.band!), groups = labelled.map((r) => r.groupId);
@@ -158,7 +162,7 @@ for (const mode of modes) {
   console.log(`${done.length}/${rows.length} scored; served by ${providers.join(', ')}; output mode ${modesServed.join(', ')}`);
 
   // --fitted: apply the stored record even when its gate failed (inactive), to report what the map would do on test / probes.
-  let cal = asCalibration(key, a.fitted ? (await sql<Calibration['record'][]>`select slope, intercept, m_lo as "mLo", m_hi as "mHi", q90 from scoring_calibrations where key = ${key}`)[0] : await getCalibration(key));
+  let cal = asCalibration(key, a.fitted ? (await sql<Calibration['record'][]>`select slope, intercept, m_lo as "mLo", m_hi as "mHi", q90 from scoring_calibrations where key = ${key}`)[0] : await getCalibration(key), model);
   let out = done.map((r) => settle(r, cal));
   if (a.fit && split === 'calib' && labelled.length) {
     const raw = labelled.map((r) => settle(r, asCalibration(key)).m);
@@ -183,7 +187,7 @@ for (const mode of modes) {
     result[mode] = { record: rec, cv: g };
   } else if (labelled.length) {
     const g = agreement(labelled.map((r) => out[done.indexOf(r)]!.overallRaw), human, groups, { ranges: labelled.map((r) => out[done.indexOf(r)]!.range) });
-    panel(cal.calibrated ? `Calibrated with active record (q90 ${cal.q})` : 'Uncalibrated (no active record: identity, q = 1)', g);
+    panel(cal.calibrated ? `Calibrated with active record (q90 ${cal.q})` : a.fitted ? 'Fitted record, not active' : 'Shipped default: no active record, fixed default map (DEFAULT_MAPS) and q = 1, labelled unvalidated', g);
     for (const [name, keep] of [['reconstructed prompts', (r: Row) => !!r.prompt?.reconstructed], ['Task 1 without figure', (r: Row) => scored.get(r.id)!.figure === 'none' && r.taskFamily === 't1a']] as const) {
       const sub = labelled.filter(keep);
       if (sub.length) console.log(`${name}: n=${sub.length}, MAE ${f2(sub.reduce((s, r) => s + Math.abs(out[done.indexOf(r)]!.overall - r.band!), 0) / sub.length)} (reported separately; included above)`);

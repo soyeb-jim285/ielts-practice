@@ -1494,6 +1494,13 @@ export interface components {
             /** @description status failed: false when retrying now cannot help (AI credit/key problem); show "try later" instead of Retry */
             retryable: boolean;
             createdAt: string;
+            /**
+             * @description While analyzing: the pipeline step now running. writing: feedback → scoring (feedback is ready in `partial`) → finalizing; speaking: transcribing → analyzing → finalizing. null once done|failed or before the first step.
+             * @enum {string|null}
+             */
+            stage: "transcribing" | "analyzing" | "feedback" | "scoring" | "finalizing" | null;
+            /** @description Writing, while stage is scoring: the feedback that is ready before the scores (errors, structure, top fixes, vocab upgrades, rewrite, text metrics: AnalysisResult fields without criteria/overall). null otherwise. */
+            partial?: unknown;
             /** @description AnalysisResult (spec §6) once status is done */
             analysis?: unknown;
             /** @description OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done */

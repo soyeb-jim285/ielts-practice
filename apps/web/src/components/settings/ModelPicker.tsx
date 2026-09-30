@@ -30,7 +30,7 @@ export const useModels = (capability: Capability) =>
 /** Well-known models per capability, listed first under "Recommended" (the default always joins them; ids missing from the catalogue are skipped). */
 export const RECOMMENDED: Record<Capability, string[]> = {
   text: ['openai/gpt-6-luna', 'google/gemini-3.8-flash', 'anthropic/claude-sonnet-5.5', 'deepseek/deepseek-v4-flash'],
-  stt: ['openai/whisper-large-v3', 'openai/whisper-large-v3-turbo'],
+  stt: ['elevenlabs/scribe_v2', 'openai/whisper-large-v3', 'openai/whisper-large-v3-turbo'],
   tts: ['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts'],
   'audio-in': ['google/gemini-2.5-flash', 'google/gemini-3.8-flash'],
 };

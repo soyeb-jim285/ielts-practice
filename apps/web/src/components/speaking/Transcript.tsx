@@ -3,8 +3,8 @@ import { clsx } from 'clsx';
 import { Pause } from 'lucide-react';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
-import { Card, Chip } from '@/components/ui';
-import { buildTokens, errorGroup, isLongPause, isSentenceNote, pauseSec, questionHead, type Token, type TranscriptFilter } from '@/lib/result';
+import { Card, Chip, TONE_STYLES } from '@/components/ui';
+import { buildTokens, DISFLUENCY, errorGroup, isLongPause, isSentenceNote, pauseSec, questionHead, type DisfluencyMark, type Token, type TranscriptFilter } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const FILTERS: { value: TranscriptFilter; label: string }[] = [
@@ -14,6 +14,7 @@ const FILTERS: { value: TranscriptFilter; label: string }[] = [
   { value: 'other', label: 'Task & other' },
   { value: 'pauses', label: 'Pauses' },
   { value: 'fillers', label: 'Fillers' },
+  { value: 'repeats', label: 'Repeats & repairs' },
   { value: 'unclear', label: 'Unclear' },
 ];
 
@@ -34,12 +35,14 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     other: result.errors.filter((e) => errorGroup(e) === 'other').length,
     pauses: result.metrics?.pauses.length ?? 0,
     fillers: tokens.filter((t) => t.filler).length,
+    repeats: tokens.reduce((n, t) => n + (t.disfluency?.length ?? 0), 0),
     unclear: tokens.filter((t) => t.unclearTier).length,
   };
 
   const matches = (t: Token) =>
     filter === 'all' ||
     (filter === 'fillers' && t.filler) ||
+    (filter === 'repeats' && !!t.disfluency) ||
     (filter === 'unclear' && !!t.unclearTier) ||
     ((filter === 'grammar' || filter === 'vocab' || filter === 'other') && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
 
@@ -64,6 +67,26 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       {t.w}
     </span>
   );
+
+  // Typed chip before the word where the event happens. Hover (title) or tap explains it; tapping also plays that moment.
+  const chips = (t: Token) =>
+    t.disfluency?.map((d: DisfluencyMark, k) => (
+      <button
+        key={k}
+        type="button"
+        title={d.detail}
+        aria-label={d.detail}
+        onClick={() => audio.seek(d.time)}
+        className={clsx(
+          'mr-1 inline-flex h-5 cursor-pointer items-center rounded-sm px-1.5 align-middle font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap',
+          TONE_STYLES[DISFLUENCY[d.kind].tone],
+          filter !== 'all' && filter !== 'repeats' && 'opacity-35',
+          filter === 'repeats' && 'ring-2',
+        )}
+      >
+        {d.short}
+      </button>
+    ));
 
   const pause = (t: Token) => {
     const p = t.pauseAfter!;
@@ -103,6 +126,9 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       const last = span.at(-1)!;
       out.push(
         <Fragment key={`e${i}`}>
+          {span.map((s) => (
+            <Fragment key={s.i}>{chips(s)}</Fragment> // outside the popover trigger: a button cannot nest in a button
+          ))}
           <ErrorPopover
             error={e}
             onPlay={() => audio.seek(t.start, last.end + 0.3)}
@@ -127,6 +153,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     }
     out.push(
       <Fragment key={i}>
+        {chips(t)}
         {word(t)} {t.pauseAfter && <>{pause(t)} </>}
       </Fragment>,
     );
@@ -161,6 +188,14 @@ function Legend({ notes }: { notes: boolean }) {
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-2 underline-offset-4">word</span> minor error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4">word</span> unclear to speech recognition</li>
       <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>
+      <li className="flex flex-wrap items-center gap-1.5">
+        {(['repetition', 'repair', 'false_start'] as const).map((k) => (
+          <span key={k} className={clsx('rounded-sm px-1.5 py-0.5 text-[0.6875rem] leading-none font-medium', TONE_STYLES[DISFLUENCY[k].tone])}>
+            {DISFLUENCY[k].short}
+          </span>
+        ))}
+        tap or hover for detail
+      </li>
       {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
       <li>Tap any word to hear it</li>
     </ul>

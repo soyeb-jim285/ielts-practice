@@ -29,8 +29,8 @@ export function ResultHeader({ result, title, meta, target, actions, back, child
           <div className="flex flex-wrap items-center gap-1.5">
             {result.overall > 0 && <Badge className="type-num">likely {formatRange([Math.max(result.range[0], result.overall - 1), Math.min(result.range[1], result.overall + 1)])}</Badge>}
             {result.overall > 0 && result.calibrated === false && (
-              <Badge tone="warn" title="Estimated with an unvalidated model: scores may be off by about a band.">
-                uncalibrated
+              <Badge tone="warn" title="Estimate from AI scoring, not an official IELTS result. It may be off by about a band.">
+                AI estimate
               </Badge>
             )}
           </div>

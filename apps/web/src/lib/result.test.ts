@@ -1,7 +1,7 @@
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { describe, expect, it } from 'vitest';
-import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, isSentenceNote, notAssessed, offTopicAnswers, paceTone, pauseSec, questionHead, sessionOverall, speechStats, splitFirstSentence } from './result';
+import { bandColor, buildTokens, criterionLabel, disfluencyTypes, errorGroup, isLongPause, isSentenceNote, notAssessed, offTopicAnswers, paceTone, pauseSec, questionHead, sessionOverall, speechStats, splitFirstSentence } from './result';
 
 const metrics = (over: Partial<SpeechMetrics> = {}): SpeechMetrics => ({
   durationS: 60, wordCount: 140, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
@@ -128,6 +128,46 @@ describe('offTopicAnswers', () => {
     expect(offTopicAnswers(rel(false, false, true, true))).toBeNull();
     expect(offTopicAnswers(rel(false))).toEqual({ off: 1, total: 1 });
     expect(offTopicAnswers({} as AnalysisResult)).toBeNull();
+  });
+  it('counts only answered questions, the unit the transcript shows', () => {
+    // 5 questions, one answered (the rest have no start word): "5 of 5 off topic" must read "1 of 1".
+    const r = { ...rel(false, false, false, false, false), words: [{ w: 'hi', start: 0, end: 1 }], questions: [0, -1, -1, -1, -1].map((startWord) => ({ text: 'q', startWord })) } as AnalysisResult;
+    expect(offTopicAnswers(r)).toEqual({ off: 1, total: 1 });
+    // A skipped question shares its start word with the next one: empty range, not answered.
+    const two = { ...rel(true, false, false), words: [{ w: 'a', start: 0, end: 1 }, { w: 'b', start: 1, end: 2 }], questions: [0, 1, 1].map((startWord) => ({ text: 'q', startWord })) } as AnalysisResult;
+    expect(offTopicAnswers(two)).toBeNull(); // Q1 on topic, Q2 off topic, Q3 skipped
+  });
+});
+
+describe('disfluencies', () => {
+  const words = ['he', 'go', 'um', 'he', 'goes', 'to', 'the', 'the', 'shop'].map((w, i) => ({ w, start: i, end: i + 0.9 }));
+  const m = metrics({
+    durationS: 60,
+    fillers: [{ word: 'um', time: 2, kind: 'lexical' }],
+    repetitions: [{ phrase: 'the', time: 6, wordIdx: 6 }],
+    selfCorrections: [{ time: 3, wordIdx: 3 }],
+    // the audio model also heard a false start at 8 s and a filler the transcript lacks
+    ...{ fluency: { events: [
+      { kind: 'filled', start: 2, end: 2, sources: ['stt'] },
+      { kind: 'repair', start: 3, end: 3, sources: ['stt'] },
+      { kind: 'repetition', start: 6, end: 6, sources: ['stt'] },
+      { kind: 'false_start', start: 8, end: 8, sources: ['audio'] },
+      { kind: 'filled', start: 8.5, end: 8.5, sources: ['audio'] },
+    ] } },
+  });
+  it('attaches typed, explained marks to the word where the event happens', () => {
+    const t = buildTokens(result({ words, metrics: m }));
+    expect(t[2]!.disfluency).toBeUndefined(); // a transcript filler is struck through, not chipped
+    expect(t[3]!.disfluency).toEqual([{ kind: 'repair', time: 3, short: 'repair', detail: 'Self-correction: “he go” → “he goes”' }]);
+    expect(t[6]!.disfluency![0]).toMatchObject({ kind: 'repetition', detail: 'Repetition: “the” said twice' });
+    expect(t[8]!.disfluency!.map((d) => d.kind)).toEqual(['false_start', 'filled']);
+  });
+  it('gives each type a count, a rate and a verdict', () => {
+    const by = Object.fromEntries(disfluencyTypes(m).map((t) => [t.kind, t]));
+    expect(by.filled).toMatchObject({ count: 2, perMin: 2, tone: 'good' });
+    expect(by.repair!.count).toBe(1);
+    expect(by.partial).toBeUndefined(); // only shown when present
+    expect(disfluencyTypes(metrics({ wordCount: 10 })).every((t) => t.tone === 'na')).toBe(true);
   });
 });
 

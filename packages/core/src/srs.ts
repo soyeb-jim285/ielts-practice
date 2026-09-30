@@ -5,7 +5,7 @@ export function review(s: CardState, g: 0 | 1 | 2 | 3 | 4 | 5, now = new Date())
   const ease = Math.max(1.3, s.ease + (0.1 - (5 - g) * (0.08 + (5 - g) * 0.02)));
   if (g < 3) return { ease, reps: 0, interval: 1, due: new Date(now.getTime() + 864e5) };
   const reps = s.reps + 1;
-  // First pass differs by grade (Hard 1d, Good 3d, Easy 5d) so the four buttons mean something on a new card.
-  const interval = reps === 1 ? (g === 3 ? 1 : g === 4 ? 3 : 5) : reps === 2 ? 6 : Math.round(s.interval * ease);
+  // SM-2: 1 day after the first success, 6 after the second; grades then differ through the ease factor.
+  const interval = reps === 1 ? 1 : reps === 2 ? 6 : Math.round(s.interval * ease);
   return { ease, reps, interval, due: new Date(now.getTime() + interval * 864e5) };
 }

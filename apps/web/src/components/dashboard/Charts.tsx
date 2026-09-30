@@ -1,25 +1,48 @@
 import type { CriterionKey } from '@server/ai/types';
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useEffect, useRef, useState } from 'react';
 import { formatBand, formatDate } from '@/lib/format';
 import { criterionLabel } from '@/lib/result';
 import { SERIES_COLOR, SERIES_DASH, type Progress } from './criteria';
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 const dayTimeFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const axis = { stroke: 'var(--muted)', fontSize: 12, tickLine: false, axisLine: false } as const;
 const swatch = (k: CriterionKey) => (
   <svg width="18" height="8" aria-hidden className="shrink-0">
     <line x1="0" y1="4" x2="18" y2="4" stroke={SERIES_COLOR[k]} strokeWidth="2.5" strokeDasharray={SERIES_DASH[k]} strokeLinecap="round" />
   </svg>
 );
 
-/** Per-criterion band lines for one skill, oldest → newest, with the target as a dashed reference. Default export: lazy-loaded so recharts stays out of the dashboard's first load. */
+const M = { top: 8, right: 12, bottom: 22, left: 30 };
+
+/**
+ * Per-criterion band lines for one skill, oldest to newest, with the target as a dashed reference. Plain SVG (a 30-point, 4-series
+ * line chart does not need recharts' ~100 KB): fixed height so nothing shifts, width follows the container.
+ */
 export default function CriteriaTrend({ trend, keys, target }: { trend: Progress['trend']; keys: CriterionKey[]; target: number }) {
-  const data = trend.map((t) => ({ date: t.date, ...t.criteria }));
+  const box = useRef<HTMLDivElement>(null);
+  const [{ w, h }, setSize] = useState({ w: 0, h: 0 });
+  const [hover, setHover] = useState<number | null>(null);
+  useEffect(() => {
+    const el = box.current!;
+    const ro = new ResizeObserver(([e]) => setSize({ w: Math.round(e!.contentRect.width), h: Math.round(e!.contentRect.height) }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Several attempts on one day would all read "30 Sept": add the time when days collide.
   const fmt = new Set(trend.map((t) => dayFmt.format(new Date(t.date)))).size < trend.length ? dayTimeFmt : dayFmt;
   const latest = trend.at(-1)?.criteria ?? {};
   const lo = Math.max(0, Math.min(Math.floor(Math.min(...trend.flatMap((t) => Object.values(t.criteria)))), target) - 0.5);
+  const ticks = [3, 4, 5, 6, 7, 8, 9].filter((t) => t >= lo);
+  const n = trend.length;
+  const iw = Math.max(0, w - M.left - M.right);
+  const ih = h - M.top - M.bottom;
+  const x = (i: number) => M.left + (n > 1 ? (i / (n - 1)) * iw : iw / 2);
+  const y = (v: number) => M.top + (1 - (v - lo) / (9 - lo)) * ih;
+  const step = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 80))));
+  const labelIdx = Array.from({ length: n }, (_, i) => i).filter((i) => (n - 1 - i) % step === 0);
+  const row = hover == null ? null : trend[hover];
+
   return (
     <div>
       <ul className="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:flex-wrap" aria-label="Latest band per criterion">
@@ -37,25 +60,61 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
           Target {formatBand(target)}
         </li>
       </ul>
-      <div className="-ml-2 h-56 md:h-72" role="img" aria-label={`Band trend over your last ${trend.length} attempts`}>
-        <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="date" {...axis} tickFormatter={(d: string) => fmt.format(new Date(d))} minTickGap={24} />
-            <YAxis {...axis} width={32} domain={[lo, 9]} ticks={[3, 4, 5, 6, 7, 8, 9].filter((t) => t >= lo)} allowDataOverflow />
-            <ReferenceLine y={target} stroke="var(--muted)" strokeDasharray="2 4" />
-            <Tooltip
-              cursor={{ stroke: 'var(--line-strong)' }}
-              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, boxShadow: 'var(--shadow-pop)', fontSize: 13 }}
-              labelStyle={{ color: 'var(--muted)', marginBottom: 4 }}
-              labelFormatter={(d) => formatDate(String(d))}
-              formatter={(v, k) => [formatBand(Number(v)), criterionLabel(String(k))]}
-            />
-            {keys.map((k) => (
-              <Line key={k} type="linear" dataKey={k} stroke={SERIES_COLOR[k]} strokeWidth={2.5} strokeDasharray={SERIES_DASH[k]} dot={{ r: 3, strokeWidth: 0, fill: SERIES_COLOR[k] }} activeDot={{ r: 5 }} connectNulls isAnimationActive={false} />
+      <div ref={box} className="relative h-56 md:h-72" role="img" aria-label={`Band trend over your last ${n} attempts`}>
+        {w > 0 && h > 0 && (
+          <svg
+            width={w}
+            height={h}
+            className="block touch-pan-y text-xs"
+            onPointerMove={(e) => {
+              const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
+              setHover(Math.min(n - 1, Math.max(0, Math.round(n > 1 ? ((px - M.left) / iw) * (n - 1) : 0))));
+            }}
+            onPointerLeave={() => setHover(null)}
+          >
+            {ticks.map((t) => (
+              <g key={t}>
+                <line x1={M.left} x2={w - M.right} y1={y(t)} y2={y(t)} stroke="var(--line)" />
+                <text x={M.left - 8} y={y(t)} textAnchor="end" dominantBaseline="middle" fill="var(--muted)">
+                  {t}
+                </text>
+              </g>
             ))}
-          </LineChart>
-        </ResponsiveContainer>
+            {labelIdx.map((i) => (
+              <text key={i} x={x(i)} y={h - 4} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fill="var(--muted)">
+                {fmt.format(new Date(trend[i]!.date))}
+              </text>
+            ))}
+            <line x1={M.left} x2={w - M.right} y1={y(target)} y2={y(target)} stroke="var(--muted)" strokeDasharray="2 4" />
+            {hover != null && <line x1={x(hover)} x2={x(hover)} y1={M.top} y2={M.top + ih} stroke="var(--line-strong)" />}
+            {keys.map((k) => {
+              const pts = trend.flatMap((t, i) => (t.criteria[k] == null ? [] : [[x(i), y(t.criteria[k]!)] as const]));
+              return (
+                <g key={k} stroke={SERIES_COLOR[k]} fill={SERIES_COLOR[k]}>
+                  <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" strokeWidth={2.5} strokeDasharray={SERIES_DASH[k]} strokeLinejoin="round" />
+                  {pts.map(([px, py], i) => (
+                    <circle key={i} cx={px} cy={py} r={3} stroke="none" />
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+        )}
+        {row && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 min-w-36 rounded-lg border border-line bg-surface p-2.5 text-[13px] shadow-pop"
+            style={{ left: Math.min(Math.max(x(hover!) + 12, 0), Math.max(0, w - 160)) }}
+          >
+            <p className="mb-1 text-muted">{formatDate(row.date)}</p>
+            {keys.map((k) => (
+              <p key={k} className="flex items-center gap-2">
+                {swatch(k)}
+                <span className="flex-1 text-muted">{criterionLabel(k)}</span>
+                <span className="type-num font-semibold">{formatBand(row.criteria[k])}</span>
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

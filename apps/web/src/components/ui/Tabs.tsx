@@ -9,7 +9,7 @@ export type TabItem<T extends string> = { value: T; label: ReactNode; count?: nu
 /**
  * Underlined tab bar (results pages) on Radix Tabs (roving focus, Home/End, arrows). Controlled; render the active panel yourself:
  * <Tabs id="res" .../> then <div role="tabpanel" id={`res-panel`} aria-labelledby={`res-${value}`}>...</div>
- * The underline slides to the active tab. Tabs share the width on phones; if they still don't fit, the bar scrolls sideways,
+ * The underline slides to the active tab; changing tab on a phone scrolls the bar to the top of the screen. Tabs share the width on phones; if they still don't fit, the bar scrolls sideways,
  * the right edge fades while more is hidden, and the active tab is kept in view.
  */
 export function Tabs<T extends string>({ id, items, value, onChange, className }: { id: string; items: TabItem<T>[]; value: T; onChange: (v: T) => void; className?: string }) {
@@ -34,8 +34,14 @@ export function Tabs<T extends string>({ id, items, value, onChange, className }
     const br = b.getBoundingClientRect();
     if (br.left < cr.left || br.right > cr.right - 32) c.scrollLeft += br.left - cr.left - 16;
   }, [value]);
+  // On phones the hero above the tabs can fill the screen: bring the bar to the top so the new panel is what you see, not a sliver under the tab bar.
+  const change = (v: string) => {
+    onChange(v as T);
+    const el = ref.current;
+    if (el && matchMedia('(max-width: 47.99rem)').matches && el.getBoundingClientRect().top > 1) requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
+  };
   return (
-    <ShTabs value={value} onValueChange={(v) => onChange(v as T)}>
+    <ShTabs value={value} onValueChange={change}>
       <TabsList
         ref={(el) => {
           ref.current = el;

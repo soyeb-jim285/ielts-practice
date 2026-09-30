@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -92,9 +93,12 @@ export function verifyLocal(method: 'GET' | 'PUT', key: string, exp: number, sig
   const a = Buffer.from(signLocal(method, key, exp)), b = Buffer.from(sig);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+/** Origin of the request being served (app.ts sets it): dev presigned URLs point back at the host the client used, not a detected LAN IP
+ *  or a configured BETTER_AUTH_URL that the client may not reach. Under the Vite proxy that is the web origin, hence the /api prefix it proxies. */
+export const requestOrigin = new AsyncLocalStorage<string>();
 const localUrl = (method: 'GET' | 'PUT', key: string, expiresS: number) => {
   const exp = Math.floor(Date.now() / 1000) + expiresS;
-  return `${env.BETTER_AUTH_URL}/local-storage/${key}?exp=${exp}&sig=${signLocal(method, key, exp)}`;
+  return `${requestOrigin.getStore() ?? env.BETTER_AUTH_URL}/api/local-storage/${key}?exp=${exp}&sig=${signLocal(method, key, exp)}`;
 };
 export const localDisk: Storage = {
   presignPut: async (key, _ct, expiresS = 900) => localUrl('PUT', key, expiresS),

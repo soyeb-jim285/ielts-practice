@@ -283,3 +283,57 @@ Headline numbers (effort medium, K=3, frozen TEST n=42 / leave-one-prompt-out CV
 - The ends of the scale are still compressed: band 9 answers score about 0.9 (luna) and 0.6 (deepseek) low, and the floor scripts come back at 4 to 5.
 - Anchors, per-criterion calls and higher effort showed no measurable gain, so the joint anchored call at medium effort stays.
 - Script text stays out of git: it lives in the `scoring_scripts` table and the gitignored `data/scoring-gold/`. Only `data/scoring-gold-manifest.json` is committed.
+
+## Iteration 4
+
+Fresh evaluation of the running stack (real OpenRouter, ElevenLabs and OpenAI keys), followed by a fix pass. Evidence and screenshots live in the gitignored `.eval/4/`.
+
+### Scores (before the fix pass)
+
+| Dimension | Score | Summary |
+|---|---|---|
+| Performance | 7.5 | API and DB are very fast (p50 2-10 ms). Recharts is in a lazy chunk and does not load on /login. The eager shell was heavy (about 213 KB gzip JS), fonts about 560 KB, writing analysis 38 s. Preview FCP 240-330 ms at 1x CPU, 600-880 ms at 4x. |
+| Ease of use | 7 | Guided first run, clear record, next, finish flow, good empty states, safe submit dialog. Lost points for a dev upload failing with a misleading error, result pages pushing tab content below the fold on mobile, contradictory score signals, jargon chips, unlabeled controls. |
+| UI/UX visual quality | 7.3 | Coherent and calm, solid dark-mode parity. Shell, auth, settings and writing screens near the bar. Weak spots: dashboard score panel, sub-44 px tap targets, ghost skeleton on Review, clipped filter chips, dead canvas on recording and upload screens. The speaking result screen was not captured (uploads stalled in the eval). |
+| Feature completeness vs spec | 7 | Core product works end to end. Missing: §5.2 ElevenLabs Scribe STT, and most of §5.1 (disfluency taxonomy, LLM tagger, chips and timeline). Slow live turns, unreachable examiner audio URL. iOS read only. |
+| Scoring accuracy | 5.5 | Ranks scripts well (r 0.84) but bands are compressed. TEST MAE 0.74, 55% within ±0.5, SMD -0.57. Own 19 Cambridge samples: MAE 0.68, bias -0.47, max 1.5. Band 4-5 scripts about half a band high, band 7-8 scripts 1 to 1.5 low. Band 9 answers scored 7-8. |
+
+### Key evidence
+
+- Bundle: eager JS 212.7 KB gzip, one 75 KB-gzip catch-all `ui` chunk, about 580 KB of fonts (Newsreader italic and opsz subsets). API p50 2.6-9.8 ms on every endpoint checked. No N+1 in `/api/progress`.
+- Writing analysis took 38 s end to end, with no partial result and no stage breakdown.
+- Dev presigned upload URLs used the LAN IP (`192.168.0.105`), unreachable from `localhost`, so every speaking upload failed with "Check your connection" and Retry could not recover. The same host broke the live examiner `audioUrl`.
+- `grep ELEVENLABS` found nothing in the server. `Disfluency.kind` had only filled, repetition and repair. The web showed only struck-through fillers.
+- Scoring: the shipped default (identity map) was worse than the docs' headline (fitted, inactive) numbers. Ceiling probe 0/48, floor probe 0/3. 2 of 19 concurrent writing calls failed with "Could not reach the AI service" (one retry only).
+- Speaking: the fluent TTS sample scored 7.5 and the halting one 4.5. Timestamps, fillers and repetitions matched the scripts. Pronunciation notes for TTS audio looked invented.
+
+### Fixed in this iteration
+
+**Server and scoring**
+- Two-phase pipeline with a per-attempt `stage` and a `partial` (feedback before scores) on `GET /api/attempts/:id`, per-stage timings in `analysis.timings`. One real essay: feedback at 16 s, full result at 28 s (was 38 s). Migration 0003 also adds `pg_trgm` indexes for prompt search.
+- Dev presigned URLs use the request origin, so uploads and examiner audio work through the Vite proxy. A missing `/assets/*` now returns 404 instead of the HTML shell with an immutable header. `/api/prompts/meta` has `Cache-Control: private, max-age=300` and an ETag.
+- ElevenLabs Scribe v2 STT (§5.2), default when `ELEVENLABS_API_KEY` is set, with a Whisper fallback; live `/turn` uses it too. Live Part 1 turns take 2.6-4.6 s (was 8-19 s).
+- Disfluency taxonomy (§5.1): false start, partial and prolongation added, a rule tagger plus a text-LLM tagger fused together, a per-type profile, and `scripts/eval-disfluency.ts` (filler, repetition and false start at or above 0.8 recall and 0.9 precision with the LLM tagger).
+- Scoring: a fixed default map for luna replaces the identity default. TEST n=42, shipped default: MAE 0.74 to 0.50, within ±0.5 55% to 81%, SMD -0.57 to -0.25, QWK 0.61 to 0.76, band >= 7 bias -1.12 to -0.62. Band 3 and 4 descriptors, a whole-scale rule, length and cut-off caps, ceiling probes 0/48 to 19/48 (bias -1.57 to -0.89). Pronunciation claims need acoustic evidence. AI calls retry network errors and 5xx/429 twice with backoff. First SRS review is 1 day, second 6.
+
+**Web**
+- `/login` JS 211 kB to 169 kB gzip: `ui-core` and `overlay` chunks replace the catch-all, sonner and the 404 page load lazily, the dashboard trend chart is plain SVG (no recharts), Newsreader is upright and weight-axis only (58 kB latin), latin fonts are preloaded. Poll back-off (`lib/attempt.ts`, about 13 calls in 40 s instead of 20). The result routes now load `attemptQuery` from `lib/attempt` and `result.ts` re-exports it.
+- Speaking: upload step timeouts, specific error messages, the recording kept in IndexedDB with a resumable retry and an "Upload now" / Delete banner on the hub, a Resume upload page for "Not submitted" attempts, an "N of 5 answered" confirm on early finish, a centred recorder and upload screen with a visible progress track. Off-topic counts only answered questions, and the overview explains how the overall is averaged. History shows "No speech" instead of 0.0. Disfluency chips in the transcript and a timeline plus per-type cards on the Fluency tab.
+- Writing: word count "N / 250" in the sticky header, the question folds to a one-line summary on the first keystroke on mobile, icon-only 44 px Random targets, the off-topic chip is neutral so the alert carries the red. The stray bar on the target-band footnote is gone. The "uncalibrated" chip reads "AI estimate".
+- Dashboard: predicted bands are two divided rows in one card, the "Next up" card targets the weakest part and criterion. The Review ghost card is removed, Mistakes chips fade and snap, tap targets are 44 px, Live examiner selected row stays in its column, the auth form is centred at 420 px. The model picker lists `elevenlabs/scribe_v2`.
+- iOS: a Disfluencies section (chips, timeline, per-type breakdown) on the Fluency tab, built from `metrics.fluency.events`. No Swift toolchain locally: verified by CI only.
+- Docs: `docs/scoring-validation.md` leads with the shipped default, `.env.example` has `ELEVENLABS_API_KEY`, the spec names `seed-bank.ts` and `gen-bank.ts` correctly, the design system has a bundle budget section.
+
+### Verification
+
+`pnpm typecheck` clean, `TEST_DB=verify pnpm test` passes (core 55, web 70, server 105 with 1 skipped), `pnpm build` passes, `pnpm gen:api` regenerated `openapi.json` and `schema.d.ts` (the new `stage` and `partial` fields) and `check-models.mjs` matches 24 structs, Playwright e2e 6/6.
+
+### Remaining gaps
+
+- The web does not yet show the server's `stage` and `partial` (the feedback-first result); it still polls to `done`. The real upload failure cause on the client is surfaced only as the new specific messages.
+- Writing scores are still compressed at the ends. Band 9 answers average about 0.9 low, the authored band 3 floor scripts still score 4.5-5, and there are no official band 8+ scripts to calibrate against. The default map is labelled unvalidated and the fitted records remain inactive (CV gate fails).
+- `/login` still loads about 18.5 kB of `@ielts/core` and about 12 kB of the better-auth client. The entry is about 169 kB gzip. Streaming TTS for the live examiner is not done.
+- Mobile result pages still spend about 560 px above the tabs (hero collapse and moving the off-topic banner to the Overview tab are not done). The overall numeral is still tone-coloured rather than ink with a delta chip. "Not submitted" rows in History have no inline Delete (the result page has one). The Part 1 bank rows have no preview sheet. The hubs' prompt-bank link is not yet prominent on mobile.
+- The Scribe prolongation threshold (0.6 s on one character) and the disfluency tagger are validated only on scripted fixtures, not real speech. The iOS disfluency section has not been run on a device, and the iOS kind list may not yet include the new kinds.
+- The speaking result charts were never captured against a real scored run in the evaluation (uploads stalled before the fix). A re-run is needed to score visual quality there.
+- Dev-server perf numbers are inflated by unbundled modules and were not used for scoring.

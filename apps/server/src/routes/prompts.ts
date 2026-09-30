@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { P1_TEST_QUESTIONS } from '@ielts/core';
 import { and, asc, count, eq, getTableColumns, ilike, isNotNull, or, sql, type SQL } from 'drizzle-orm';
+import { etag } from 'hono/etag';
 import { visiblePromptWhere } from '../access';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -126,6 +127,7 @@ export function register(app: App) {
       ...authed,
       method: 'get',
       path: '/api/prompts/meta',
+      middleware: [requireUser, etag()],
       summary: 'Distinct topics and types per skill/part (for bank filters)',
       responses: {
         200: json(z.object({ groups: z.array(z.object({ skill: Skill, part: z.number(), topics: z.array(z.string()), types: z.array(z.string()) })) }).openapi('PromptMeta'), 'Filter values'),
@@ -143,6 +145,9 @@ export function register(app: App) {
         .where(visiblePromptWhere(currentUser(c)))
         .groupBy(prompts.skill, prompts.part)
         .orderBy(prompts.skill, prompts.part);
+      // Changes only on seed. private: the set differs per user (restricted Cambridge prompts); ETag revalidation is free after max-age.
+      c.header('Cache-Control', 'private, max-age=300');
+      c.header('Vary', 'Cookie, Authorization');
       return c.json({ groups }, 200);
     },
   );

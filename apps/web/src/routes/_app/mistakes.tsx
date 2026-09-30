@@ -59,12 +59,16 @@ function MistakesPage() {
   return (
     <PageContainer>
       <PageHeader title="Mistakes" description={`${plural(all, 'correction')} from your results, grouped so patterns stand out.`} />
-      <div className="-mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Filter by category">
-        <Chip className="shrink-0" selected={!category} onClick={() => pick()}>
+      <div
+        className="-mx-4 mb-8 flex snap-x snap-proximity scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] sm:-mx-6 sm:scroll-px-6 sm:px-6 md:mx-0 md:flex-wrap md:[mask-image:none] md:px-0"
+        role="group"
+        aria-label="Filter by category"
+      >
+        <Chip className="shrink-0 snap-start" selected={!category} onClick={() => pick()}>
           All <span className="type-num opacity-70">{all}</span>
         </Chip>
         {groups.map((g) => (
-          <Chip key={g.category} className="shrink-0" selected={category === g.category} onClick={() => pick(g.category)}>
+          <Chip key={g.category} className="shrink-0 snap-start" selected={category === g.category} onClick={() => pick(g.category)}>
             {categoryLabel(g.category)} <span className="type-num opacity-70">{g.count}</span>
           </Chip>
         ))}
@@ -95,7 +99,7 @@ function AttemptGroup({ first: m, children }: { first: Mistake; children: ReactN
     <section aria-label={m.promptTitle} className="[&:not(:first-of-type)]:mt-12">
       <div className="mb-2 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <h2 className="min-w-0">
-          <Link {...resultLink(m)} className="type-reading-sm block truncate rounded-sm hover:text-accent-text">
+          <Link {...resultLink(m)} className="type-reading-sm block truncate rounded-sm underline decoration-line decoration-1 underline-offset-4 hover:text-accent-text hover:decoration-accent-text">
             {m.promptTitle}
           </Link>
         </h2>
@@ -141,14 +145,14 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
           </p>
         )}
         {long && (
-          <Button variant="link" className="mt-1" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+          <Button variant="link" className="-ml-1 px-1 max-md:min-h-11" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
             {expanded ? 'Show less' : 'Show more'}
           </Button>
         )}
         <p className={clsx('type-body text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
       </div>
       <div className="md:justify-self-end">
-        <Button size="sm" variant="ghost" className="-ml-3 md:ml-0 md:-mr-3" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
+        <Button size="sm" variant="ghost" className="-ml-3 px-3 max-md:min-h-11 md:ml-0 md:-mr-3" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>
           {added ? 'In deck' : 'Add to deck'}
         </Button>
       </div>

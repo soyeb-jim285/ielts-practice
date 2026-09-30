@@ -28,6 +28,16 @@ describe('prompt gating (Review Focus #5)', () => {
     for (let i = 0; i < 5; i++) expect((await body(await req('/api/prompts/random?skill=speaking', { headers }))).id).not.toBe(restrictedId);
   });
 
+  it('meta is cacheable for 5 min (private: it differs per user) and revalidates with its ETag', async () => {
+    const { headers } = await testUser('b@x.com');
+    const first = await req('/api/prompts/meta', { headers });
+    expect(first.headers.get('cache-control')).toBe('private, max-age=300');
+    const etag = first.headers.get('etag')!;
+    expect(etag).toBeTruthy();
+    headers.set('If-None-Match', etag);
+    expect((await req('/api/prompts/meta', { headers })).status).toBe(304);
+  });
+
   it('an unverified allowlisted email is not trusted', async () => {
     const { headers } = await testUser('soyebjim@gmail.com', { verified: false });
     expect((await req(`/api/prompts/${restrictedId}`, { headers })).status).toBe(404);

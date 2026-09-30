@@ -4,7 +4,7 @@ import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Alert, Card, InfoTip } from '@/components/ui';
 import { formatClock, plural } from '@/lib/format';
-import { isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
+import { DISFLUENCY, disfluencyEvents, disfluencyTypes, isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const TICK = { fill: 'var(--muted)', fontSize: 12 };
@@ -77,6 +77,93 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
   );
 }
 
+const TICK_BG = { neutral: 'bg-muted', info: 'bg-sky', accent: 'bg-brand', warn: 'bg-warn' };
+
+/** Every filler, repeat, repair and false start placed on the recording, one colour per type (same as the transcript chips); tap one to hear it. */
+export function DisfluencyStrip({ metrics, audio }: { metrics: SpeechMetrics; audio: AudioControls }) {
+  const d = Math.max(metrics.durationS, 1);
+  const events = disfluencyEvents(metrics);
+  const kinds = [...new Set(events.map((e) => e.kind))];
+  return (
+    <div>
+      <div className="relative h-9 rounded-control bg-surface-2">
+        <span aria-hidden className="absolute inset-y-0 z-10 w-0.5 rounded-full bg-brand" style={{ left: `${Math.min(100, (audio.time / d) * 100)}%` }} />
+        {events.map((e, i) => {
+          const detail = DISFLUENCY[e.kind].short;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => audio.seek(e.start)}
+              aria-label={`${detail} at ${formatClock(Math.floor(e.start))}`}
+              title={`${detail}, ${formatClock(Math.floor(e.start))}`}
+              className="group absolute inset-y-0 w-3 -translate-x-1/2 after:absolute after:inset-y-0 after:left-1/2 after:w-11 after:-translate-x-1/2"
+              style={{ left: `${Math.min(100, (e.start / d) * 100)}%` }}
+            >
+              <span className={`absolute inset-x-[3px] inset-y-1.5 rounded-sm transition-transform group-hover:scale-y-110 group-focus-visible:scale-y-110 ${TICK_BG[DISFLUENCY[e.kind].tone]}`} />
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted tabular-nums">
+        <span>0:00</span>
+        <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          {kinds.map((k) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className={`size-2.5 rounded-xs ${TICK_BG[DISFLUENCY[k].tone]}`} />
+              {DISFLUENCY[k].label}
+            </span>
+          ))}
+        </span>
+        <span>{formatClock(Math.round(d))}</span>
+      </div>
+    </div>
+  );
+}
+
+/** One card per disfluency type: how many, how often, and what is normal versus what hurts coherence. */
+function DisfluencyBreakdown({ metrics }: { metrics: SpeechMetrics }) {
+  return (
+    <ul className="grid gap-4 md:grid-cols-2">
+      {disfluencyTypes(metrics).map((t) => {
+        const ind = t.tone === 'na' ? null : INDICATOR[t.tone];
+        return (
+          <li key={t.kind}>
+            <Card className="h-full space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="type-subheading">{t.label}</h3>
+                  <p className="type-caption mt-0.5">{t.what}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="type-num text-2xl font-semibold tracking-tight">{t.count}</p>
+                  <p className="type-caption type-num">{tooShortToMeasure(metrics) ? '' : `${t.perMin.toFixed(1)}/min`}</p>
+                </div>
+              </div>
+              {ind && (
+                <p className={`flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
+                  <ind.Icon className="size-3.5" aria-hidden />
+                  {ind.text}
+                </p>
+              )}
+              <dl className="space-y-1.5 text-sm">
+                <div>
+                  <dt className="inline font-medium">Normal: </dt>
+                  <dd className="inline text-muted">{t.normal}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Hurts when: </dt>
+                  <dd className="inline text-muted">{t.harmful}</dd>
+                </div>
+              </dl>
+            </Card>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 const INDICATOR = {
   good: { Icon: CircleCheck, text: 'On target', cls: 'text-good-text' },
   warn: { Icon: TriangleAlert, text: 'Watch', cls: 'text-warn-text' },
@@ -142,6 +229,14 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
         <Card>
           <PauseTimeline metrics={metrics} audio={audio} />
         </Card>
+      </section>
+      <section>
+        <h2 className="type-heading">Fillers, repeats and restarts</h2>
+        <p className="type-caption mt-1 mb-4 text-sm">Each kind is colour-coded the same way in the Transcript tab. Tap a mark to hear it.</p>
+        <Card className="mb-4">
+          <DisfluencyStrip metrics={metrics} audio={audio} />
+        </Card>
+        <DisfluencyBreakdown metrics={metrics} />
       </section>
       <section>
         <h2 className="type-heading">Fluency measures</h2>

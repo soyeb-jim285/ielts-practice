@@ -66,7 +66,7 @@ function Login() {
             {error.message}
           </Alert>
         )}
-        <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required autoFocus />
+        <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required />
         <div>
           <Input label="Password" name="password" type="password" autoComplete="current-password" required />
           <div className="mt-3 flex justify-end">

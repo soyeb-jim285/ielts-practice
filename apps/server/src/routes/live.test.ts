@@ -47,12 +47,26 @@ it('start → turn advances intro → p1 and grows the history by 2', async () =
   const res = await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey } });
   expect(res.status).toBe(200);
   const t = (await res.json()) as any;
-  expect(t).toMatchObject({ phase: 'p1', transcript: 'My name is Sam Lee.', examinerText: expect.stringContaining('hometown') });
+  expect(t).toMatchObject({ phase: 'p1', transcript: 'My name is Sam Lee.', examinerText: expect.stringContaining("Let's talk about") });
   const st = await state(s.sessionId);
   expect(st.history).toHaveLength(3);
   expect(st.history.map((h) => [h.role, h.phase])).toEqual([['examiner', 'intro'], ['candidate', 'intro'], ['examiner', 'p1']]);
   expect(st.p1Asked).toBe(1);
+  // Part 1 questions are fixed wording: no examiner LLM call, so the voice is made while the answer is transcribed.
+  expect(ai.calls.some((c) => c.url.includes('/chat/completions'))).toBe(false);
+  expect(ai.calls.filter((c) => c.url.includes('/audio/transcriptions'))).toHaveLength(1);
+});
+
+it('a generated examiner line (Part 3) uses a low-effort, short LLM call after the transcript', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const st = await state(s.sessionId);
+  await db.update(liveSessions).set({ state: { ...st, phase: 'p2-follow' } }).where(eq(liveSessions.id, s.sessionId));
+  const audioKey = await upload(headers, s.sessionId);
+  const t = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey } })).json()) as any;
+  expect(t).toMatchObject({ phase: 'p3', transcript: 'My name is Sam Lee.' });
   const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
+  expect(chat).toMatchObject({ reasoning: { effort: 'low' }, max_tokens: 200 });
   expect(chat.messages[0].content).toMatch(/Never give feedback/);
   expect(chat.messages.at(-1)).toEqual({ role: 'user', content: 'My name is Sam Lee.' });
 });

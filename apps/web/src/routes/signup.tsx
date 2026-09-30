@@ -63,7 +63,7 @@ function Signup() {
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Input label="Name" name="name" autoComplete="name" required autoFocus />
+        <Input label="Name" name="name" autoComplete="name" required />
         <Input
           label="Email"
           name="email"

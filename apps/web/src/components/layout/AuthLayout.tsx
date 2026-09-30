@@ -12,7 +12,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
         <Link to="/login" aria-label="IELTS Practice" className="-m-1 inline-flex w-fit rounded-md p-1">
           <Logo />
         </Link>
-        <div className="mt-12 w-full max-w-sm page-enter md:mt-[12vh]">
+        <div className="mt-12 w-full max-w-[26.25rem] page-enter md:mt-[12vh] lg:mx-auto">
           <h1 className="type-title">{title}</h1>
           {subtitle && <p className="type-lede mt-2">{subtitle}</p>}
           <div className="mt-8">{children}</div>

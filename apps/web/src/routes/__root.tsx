@@ -1,11 +1,12 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, Link, Outlet } from '@tanstack/react-router';
-import { Compass } from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
-import { ErrorPage, RouteError } from '@/components/layout/RouteError';
+import { lazy, Suspense } from 'react';
+import { RouteError } from '@/components/layout/RouteError';
 import { Logo } from '@/components/layout/Logo';
 import { buttonStyles, Toaster } from '@/components/ui';
 import { meQuery } from '@/lib/query';
+
+const NotFoundInShell = lazy(() => import('@/components/layout/NotFoundInShell'));
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => (
@@ -24,11 +25,9 @@ function NotFound() {
   if (me.isPending) return null;
   if (me.data)
     return (
-      <AppShell>
-        <ErrorPage icon={<Compass />} title="Page not found" action={<Link to="/" className={buttonStyles({ variant: 'outline' })}>Back to dashboard</Link>}>
-          The link may be old or mistyped.
-        </ErrorPage>
-      </AppShell>
+      <Suspense fallback={null}>
+        <NotFoundInShell />
+      </Suspense>
     );
   return (
     <main id="main" className="page-enter grid min-h-dvh content-center px-5 py-12 sm:px-10">

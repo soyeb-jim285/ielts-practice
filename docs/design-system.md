@@ -45,7 +45,7 @@ Raw tokens live in `styles.css` (`:root` light, `.dark` dark) as flat hex so the
 | Data | `bg-chart-1` teal, `bg-chart-2` / `bg-sky`, `bg-chart-3` slate, `bg-chart-4` warn, `bg-chart-5` bad | chart series |
 | Radius | `rounded-sm` 6 (badge, chip, menu item), `rounded-md` 8 (controls, popovers), `rounded-lg` 12 (cards, dialogs, sheets; `rounded-card`), `rounded-full` (avatars, switches) | from `@theme` in `styles.css` |
 | Shadow | `shadow-card`, `shadow-pop`, `shadow-(--highlight)` | resting panels; floating layers; 1px top light on filled buttons |
-| Fonts | `font-sans` (Hanken Grotesk), `font-serif` (Newsreader), `font-mono` | UI; titles and reading |
+| Fonts | `font-sans` (Hanken Grotesk), `font-serif` (Newsreader, upright, weight axis only), `font-mono` | UI; titles and reading. The two latin files are preloaded from `vite.config.ts`; don't add italic/opsz/extra subsets. |
 | Easing | `ease-(--ease-out-expo)`, `ease-(--ease-out-quart)` | transitions |
 
 **Legacy names (kept so screens compile):** `bg-accent` / `text-accent-text` / `bg-accent-soft` / `text-accent-ink` / `bg-accent-hover` (same values as `brand-*`). **Collision note:** in shadcn, `accent` means the neutral hover wash and `muted` a neutral *surface*; in our code `accent` is the brand teal and `muted` is text. The vendored shadcn sources therefore use `bg-hover` and `bg-surface-2` instead of `bg-accent` / `bg-muted`. After `shadcn add <x>`, run `sed -i -E 's/accent-foreground/ink/g; s/\bbg-accent\b/bg-hover/g; s/\bbg-muted\b/bg-surface-2/g' src/components/ui/shadcn/<x>.tsx`, fix `import { cn } from "cn"` to `"@/lib/utils"`, and check it. Do not let `shadcn add` overwrite `styles.css` or the existing primitives (it will: restore from git).
@@ -163,9 +163,9 @@ Each row: what it wraps, variants, and when to use it. Wrappers keep the origina
 | `Dialog` / `Sheet` | shadcn `dialog` / `sheet` (Radix) | `open`, `onClose`, `title`, `description`, `footer` | Dialog for confirmations; Sheet (bottom on phones, right panel from md) for details and menus. Focus is trapped and returned to whatever opened it (remembered at open time), or to `returnFocusRef` when the opener is not the focused element (tab-bar "More"). |
 | `Popover` | shadcn `popover` (Radix) | `trigger={(p) => <button {...p}>}`, `children` or `(close) => …`, `align` | rich anchored content (error explanations). Collision-aware, never clipped. |
 | `Tooltip`, `InfoTip` | shadcn `tooltip` / `popover` | `content`, `side` | short plain-text hints on a focusable child; InfoTip opens on hover (mouse) and on tap/click/Enter (touch). |
-| `toast()` / `<Toaster/>` | sonner | `tone` neutral/good/bad, `action`, `durationMs` | confirmations ("Saved", "Added to review deck" + Undo). Bottom-centre, above the mobile tab bar. |
+| `toast()` / `<Toaster/>` | sonner | `tone` neutral/good/bad, `action`, `durationMs` | confirmations ("Saved", "Added to review deck" + Undo). Bottom-centre, above the mobile tab bar. sonner loads on the first toast, not with the entry. |
 | `Skeleton`, `PageSkeleton`, `Spinner` | shadcn `skeleton` | | loading shaped like content; `Spinner` only for small inline waits |
-| `EmptyState`, `GhostList` | custom | `icon`, `title`, `action`, `preview`, `bare`, `as` | zero data: no frame, hairline + serif title + one or two lines + one action; `preview={<GhostList/>}` fades in a skeleton of the populated list. Give each screen its own copy and action. |
+| `EmptyState`, `GhostList` | custom | `icon`, `title`, `action`, `preview`, `bare`, `as` | zero data: no frame, hairline + serif title + one or two lines + one action; `preview={<GhostList/>}` fades in a skeleton of the populated list (only where a list will really appear; never shimmer bars for a non-loading state). Give each screen its own copy and action. |
 | `IconTile` | custom | `tone` muted / brand | the one icon slot for rows and empty states: a bare 20 px icon, no box |
 | `Kbd` | custom | `onBrand` | keyboard shortcut hint |
 | `StickyTabs` | custom | | wraps a tab bar (and the audio strip) so it sticks under the top edge at z-20 and bleeds over the shell gutter (`--gutter`) |
@@ -231,7 +231,7 @@ toast('Added to review deck', { tone: 'good', action: { label: 'Undo', onClick: 
 - **Type:** bands are `type-band` (Hanken, tabular), prompts and the learner's words are Newsreader (`type-reading`, `type-reading-sm`), descriptions `type-lede`. No `text-[...]` sizes: `text-body`, `text-caption`, `text-micro` exist for the odd case.
 - **Forms:** use `space-y-4`, a full-width primary submit on mobile, and an `Alert tone="bad"` above the fields for server errors.
 - **Loading / error / empty:** every data view handles all three. Error = `Alert tone="bad"` plus a retry action. Empty = `EmptyState`.
-- **Charts (Recharts):** recharts is ~100 KB gz, so load chart components with `lazy()` and render them only when there is data to plot (see the dashboard). The Writing Task 1 figure (`ChartRenderer`) is plain SVG with no recharts, so the exam screen never waits on that chunk; draw tiny decorative sparklines as inline SVG. Series colours are `var(--accent)` (teal), `var(--sky)`, `var(--chart-3)`; grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-md shadow-pop`).
+- **Charts:** the dashboard's criteria trend is plain SVG (`components/dashboard/Charts.tsx`, fixed-height container, no chunk to wait for). recharts is ~100 KB gz: where it is still used, load it with `lazy()` and render only when there is data to plot. The Writing Task 1 figure (`ChartRenderer`) is plain SVG with no recharts, so the exam screen never waits on that chunk; draw tiny decorative sparklines as inline SVG. Series colours are `var(--accent)` (teal), `var(--sky)`, `var(--chart-3)`; grid `var(--line)`, axis ticks `var(--muted)` at 12 px, and tooltips styled like a Popover (`bg-surface border-line rounded-md shadow-pop`).
 - **Exam screens:** use `ExamShell`, large type (`text-lg`/`type-reading`), the timer on the right of the top bar, and no other chrome.
 
 ## Redesign status
@@ -252,3 +252,7 @@ Open points:
 - A second editor changed button, input and select heights to 36 px and made `secondary` a borderless soft fill while this pass was running (DESIGN.md section 4 follows that). Screens that put a quiet action beside a primary now use `outline`, so it never reads as disabled. `Segmented` md is 36 px to match.
 - `text-sm text-muted` (14 px) is still used for secondary notes inside panels; `type-caption` (13 px) for hints. Converging them is cosmetic.
 - Reduced-motion behaviour relies on the global rule in `styles.css` and was checked in code only for the examiner voice bars.
+
+## Bundle budget
+
+`vite.config.ts` splits the build so signed-out pages (`/login`, `/signup`) load only the `ui-core` chunk (button, input, alert, `cn`): menus, dialogs, sliders, popovers and the command palette live in `overlay`, which only lazy app routes import. Keep it that way: import from `@/components/ui` (the barrel is side-effect-free), never add top-level side effects to `components/ui/**`, and put heavy libraries behind `lazy()`/dynamic `import()`.

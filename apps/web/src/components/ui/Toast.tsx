@@ -1,26 +1,39 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { toast as sonner } from 'sonner';
-import { Toaster as ShToaster } from './shadcn/sonner';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 
 type Opts = { tone?: 'neutral' | 'good' | 'bad'; action?: { label: string; onClick: () => void }; durationMs?: number };
 
-export const dismissToast = (id?: string | number) => sonner.dismiss(id);
+/*
+ * sonner + its themed <Toaster> (~25 KB gzip) load on the first notice, not with the entry: /login and every route that never toasts skip them.
+ * toast() asks the mounted <Toaster> shell to load the view, waits until it is listening, then publishes.
+ */
+const View = lazy(() => import('./ToasterView'));
+let open = () => {};
+let ready: () => void = () => {};
+const listening = new Promise<void>((res) => (ready = res));
+
+export const dismissToast = (id?: string | number) => void import('sonner').then((m) => m.toast.dismiss(id));
 
 /** Fire-and-forget notice (sonner): toast('Saved'), toast('Upload failed', { tone: 'bad', action: { label: 'Retry', onClick } }). */
 export function toast(message: ReactNode, { tone = 'neutral', action, durationMs }: Opts = {}) {
-  const fn = tone === 'good' ? sonner.success : tone === 'bad' ? sonner.error : sonner;
-  return fn(message, { action, duration: durationMs ?? (action ? 8000 : 4000) });
+  open();
+  void Promise.all([listening, import('sonner')]).then(([, { toast: sonner }]) => {
+    const fn = tone === 'good' ? sonner.success : tone === 'bad' ? sonner.error : sonner;
+    fn(message, { action, duration: durationMs ?? (action ? 8000 : 4000) });
+  });
 }
 
-const isDark = () => document.documentElement.classList.contains('dark');
-
-/** Mounted once in __root. Follows the `.dark` class on <html>; sits above the mobile tab bar. */
+/** Mounted once in __root; renders nothing until the first toast. */
 export function Toaster() {
-  const [dark, setDark] = useState(isDark);
+  const [on, setOn] = useState(false);
   useEffect(() => {
-    const mo = new MutationObserver(() => setDark(isDark()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => mo.disconnect();
+    open = () => setOn(true);
+    return () => {
+      open = () => {};
+    };
   }, []);
-  return <ShToaster theme={dark ? 'dark' : 'light'} position="bottom-center" offset={24} mobileOffset={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))', left: 16, right: 16 }} visibleToasts={3} />;
+  return on ? (
+    <Suspense fallback={null}>
+      <View onReady={ready} />
+    </Suspense>
+  ) : null;
 }

@@ -1,6 +1,6 @@
 @import '@fontsource-variable/hanken-grotesk/wght.css';
-@import '@fontsource-variable/newsreader/opsz.css';
-@import '@fontsource-variable/newsreader/opsz-italic.css';
+/* Newsreader: upright only (nothing italicises the serif), weight axis only (no opsz: 58 KB latin instead of 132 KB). */
+@import '@fontsource-variable/newsreader/wght.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -202,7 +202,6 @@
     @apply bg-bg font-sans text-ink antialiased;
     font-size: 0.9375rem;
     line-height: 1.55;
-    font-optical-sizing: auto;
     text-rendering: optimizeLegibility;
   }
   h1,

@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import {
-  cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PAUSE_MS, speakingOverall,
+  cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PAUSE_MS, roundBand, speakingOverall, tagDisfluencies, UNCLEAR_CONF,
   type FluencyFeatures, type SpeechMetrics, type Word,
 } from '@ielts/core';
 import type { Settings } from '../settings';
 import { bandDescriptor, BELOW_4, EXAMINER_RULES, fmt, SPEAKING_DESCRIPTORS } from './descriptors';
+import { llmDisfluencies } from './disfluency';
 import { AiError, chatJson, transcribe } from './openrouter';
 import { keepVerbatimEvidence, poolCriteria, PronLlmSchema, SpeakingLlmSchema, type LlmCriterion } from './schemas';
-import type { AnalysisResult, PronunciationLlm } from './types';
+import type { AnalysisResult, AnalysisStage, PronunciationLlm } from './types';
 
 export const REWRITE_NOTE = "Study the upgrades, don't memorise — examiners penalise rehearsed answers.";
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -32,7 +33,7 @@ HOW TO READ THE EVIDENCE:
 - "spokenFormsDifferingFromTranscript" (when present): words the audio model heard differently from the transcript. Both recognisers repair grammar far more often than they invent errors, so when they disagree assume the non-standard form is what the candidate said, and count it as GRA/LR evidence (spoken "she help me" is an error even though the transcript says "helped"; transcript "he say" is an error even if the audio model heard "said"). Log such an error with "original" as the non-standard form (e.g. "she help"), start/end on the transcript words.
 
 OUTPUT RULES:
-- errors: "start"/"end" are inclusive word indices from the transcript; "original" is exactly those words. Keep spans tight (the minimal words containing the error). Use "fluency.hesitation" only for a specific breakdown (a false start, abandoned sentence) and "pronunciation.word" only for words the evidence says were unclear.
+- errors: list EVERY clear grammar error (tense, agreement, plural, article, preposition, word order) with its correction, up to about 15, and every wrong word choice: do not stop at the first few. Recognisers repair many slips ("two year ago" becomes "two years ago"), so read the spoken forms list too, and check each sentence for a missing or wrong tense ("I see the sea" about the past). "start"/"end" are inclusive word indices from the transcript; "original" is exactly those words. Keep spans tight (the minimal words containing the error). Use "fluency.hesitation" only for a specific breakdown (a false start, abandoned sentence) and "pronunciation.word" only for words the evidence says were unclear.
 - relevance: exactly one entry per question (questionIdx is 0-based: Q1 → 0), onTopic false if the answer does not address it; note says briefly how well it was answered.
 - rewrite: spoken register (contractions and natural discourse markers are fine), keep the part's natural length, keep the same question order, no headings.
 
@@ -100,7 +101,7 @@ function metricsSummary(m: SpeechMetrics, words: Word[], f: FluencyFeatures, fus
     longPauses: m.longPauses,
     midClausePauses: m.midClausePauses,
     // Union by time of transcript fillers, voiced gaps and the audio model's disfluencies (each detector alone under-counts).
-    disfluencies: { filledPauses: n('filled'), filledPausesPerMin: r1(f.filledPausesPerMin), repetitions: n('repetition'), repairs: n('repair'), repairsPer100Words: r1(f.repairsPer100w) },
+    disfluencies: { filledPauses: n('filled'), filledPausesPerMin: r1(f.filledPausesPerMin), repetitions: n('repetition'), repairs: n('repair') + n('false_start'), repairsPer100Words: r1(f.repairsPer100w), cutOffWords: n('partial'), heldSounds: n('prolongation') },
     wpmStdDev: Math.round(m.wpmStdDev),
     longPauseBeforeWord: m.pauses.filter((p) => p.kind === 'long').map((p) => ({ word: nextWord(p.end), s: r1(p.dur), midClause: p.midClause })),
     lexical: m.lexical && { ...m.lexical, overused: m.lexical.overused.map((o) => `${o.word} ×${o.count}`) },
@@ -115,7 +116,8 @@ function fluencyObservations(m: SpeechMetrics, f: FluencyFeatures, fused: Return
     `on average ${r1(m.mlr)} words between pauses; pausing took ${Math.round(m.pauseRatio * 100)}% of the time`,
     `${m.longPauses} pauses of 1 s or longer (${r1(f.longPausesPerMin)} a minute); ${m.midClausePauses} pauses inside a clause (${r1(f.midClausePausesPerMin)} a minute)`,
     `${n('filled')} filled pauses such as "um" (${r1(f.filledPausesPerMin)} a minute)`,
-    `${n('repetition')} repetitions and ${n('repair')} self-corrections or false starts (${r1(f.repetitionsPer100w)} and ${r1(f.repairsPer100w)} per 100 words)`,
+    `${n('repetition')} repetitions and ${n('repair') + n('false_start')} self-corrections or false starts (${r1(f.repetitionsPer100w)} and ${r1(f.repairsPer100w)} per 100 words)`,
+    `${n('partial')} cut-off words and ${n('prolongation')} held sounds`,
   ].join('; ');
 }
 
@@ -172,6 +174,19 @@ const realMispronunciations = <T extends { word: string; issue: string; heard: s
   });
 };
 
+/** Word-level pronunciation claims are kept only with acoustic evidence: the recogniser was unsure of that word (confidence under UNCLEAR_CONF) or the audio model
+ *  heard something other than the transcript at that time. The rest come from a model reading a transcript, not from the sound, so they are dropped
+ *  (with their invented "heard" and "expected" forms); the prosody summary stays. */
+export function confirmedWords(p: PronunciationLlm, words: Word[], m: SpeechMetrics) {
+  const key = (w: string) => toks(w).join('');
+  const at = (a: number, b: number) => Math.abs(a - b) <= 0.6;
+  return p.words.filter(
+    (w) =>
+      m.unclear.some((u) => key(u.w) === key(w.word) && at(words[u.wordIdx]?.start ?? -9, w.time)) ||
+      (p.misheard ?? []).some((h) => key(h.transcript) === key(w.word) && at(h.time, w.time)),
+  );
+}
+
 /** Whisper fills pauses with "you" / "Thank you": drops such a phrase when it is shaky (confidence < 0.3 or zero length) and next to a pause. */
 export function dropHallucinations(words: Word[]) {
   const drop = new Set<number>();
@@ -207,23 +222,29 @@ export async function analyzeSpeaking(i: {
   questions: string[];
   part: 1 | 2 | 3;
   settings: Settings;
+  onStage?: (s: AnalysisStage) => void;
 }): Promise<AnalysisResult> {
   const { models } = i.settings;
+  const t0 = Date.now();
+  i.onStage?.('transcribing');
   const stt = await transcribe({ model: models.stt, audio: i.audio, format: i.format, verbatim: true });
+  const sttMs = Date.now() - t0;
+  i.onStage?.('analyzing');
   const words = dropHallucinations(stt.words.filter((w) => !SOUND_EVENT.test(w.w))); // "*Ding*", "[music]", "(coughs)"
   const questions = questionBoundaries(i.questions, words, i.marks);
   const noSpeech = (): AnalysisResult => ({
     v: 1, skill: 'speaking', part: i.part, overall: 0, overallRaw: 0, range: [0, 0], criteria: {}, topFixes: [], errors: [], vocabUpgrades: [],
     rewrite: { text: '', note: 'No speech detected. Check your microphone and speak clearly, then try again.' },
-    words, questions, noSpeech: true,
+    words, questions, noSpeech: true, sttModel: stt.model,
   });
   if (isNoSpeech(words)) return noSpeech();
 
   const durationS = i.durationMs > 0 ? i.durationMs / 1000 : stt.duration;
   const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs: 50 });
 
-  let pron: PronunciationLlm | undefined;
-  if (i.settings.audioPronEnabled) {
+  // Audio pronunciation pass and the text disfluency tagger are independent: run them together.
+  const pronPass = async (): Promise<PronunciationLlm | undefined> => {
+    if (!i.settings.audioPronEnabled) return undefined;
     try {
       const p = await chatJson({
         model: models.audioPron,
@@ -235,13 +256,16 @@ export async function analyzeSpeaking(i: {
         schema: PronLlmSchema,
         schemaName: 'pronunciation',
       });
-      pron = { ...p, words: realMispronunciations(p.words) };
+      return { ...p, words: realMispronunciations(p.words) };
     } catch (e) {
       console.error('pronunciation pass failed, continuing without it', e);
+      return undefined;
     }
-  }
+  };
+  const [pronRaw, llmTags] = await Promise.all([pronPass(), llmDisfluencies(words, models.analysis)]);
+  const pron = pronRaw && { ...pronRaw, words: confirmedWords(pronRaw, words, metrics) };
 
-  const fused = fuseDisfluencies(metrics, pron?.disfluencies);
+  const fused = fuseDisfluencies(metrics, pron?.disfluencies, 0.3, [...tagDisfluencies(words), ...llmTags]);
   const features = fluencyFeatures(metrics, fused);
   const composite = fluencyComposite(features);
   const clean = new Set(cleanTranscript(words, metrics));
@@ -306,7 +330,11 @@ export async function analyzeSpeaking(i: {
     const band = Math.min(cap, s.band);
     return { band, range: [band, band], descriptor: s.descriptor, evidence: s.evidence, summary: s.summary };
   };
-  const pCrit = pron && asCriterion({ band: pron.band, descriptor: bandDescriptor(SPEAKING_DESCRIPTORS.p, pron.band) ?? '', evidence: [], summary: pron.prosody });
+  // Without acoustic evidence of word-level problems (fewer than 2 confirmed words) P cannot sit more than one band under the other criteria's mean: the
+  // audio model's Pronunciation band was pulling clear, fluent clips to 6 (and its "issues" were invented from the transcript).
+  const meanBand = (ks: Key[]) => ks.reduce((t, k) => t + byKey[k]!.reduce((x, y) => x + y.band, 0) / byKey[k]!.length, 0) / ks.length;
+  const pBand = pron && (pron.words.length >= 2 ? pron.band : Math.max(pron.band, Math.min(9, Math.round(meanBand(['fc', 'lr', 'gra']) - 1))));
+  const pCrit = pron && asCriterion({ band: pBand!, descriptor: bandDescriptor(SPEAKING_DESCRIPTORS.p, pBand!) ?? '', evidence: [], summary: pron.prosody });
   const samples = Array.from({ length: SCORE_K }, (_, n) =>
     Object.fromEntries((['fc', 'lr', 'gra', 'p'] as Key[]).map((k) => [k, pCrit && k === 'p' ? pCrit : asCriterion(byKey[k]![n % byKey[k]!.length]!, k === 'p' ? 7 : 9)])) as Record<Key, LlmCriterion>,
   );
@@ -314,7 +342,10 @@ export async function analyzeSpeaking(i: {
   const c = poolCriteria(samples, undefined, (key, band) => bandDescriptor(SPEAKING_DESCRIPTORS[key], band));
   if (Object.values(c).every((x) => x.band === 0)) return noSpeech(); // the examiner found nothing rateable
   keepVerbatimEvidence(c, `${words.map((w) => w.w).join(' ')} | ${[...clean].map((w) => w.w).join(' ')}`);
-  const { raw, band } = speakingOverall({ fc: c.fc.band, lr: c.lr.band, gra: c.gra.band, p: c.p.band });
+  const { raw, band: rounded } = speakingOverall({ fc: c.fc.band, lr: c.lr.band, gra: c.gra.band, p: c.p.band });
+  // Sanity bound after the P step: the overall never exceeds the mean of the four criteria by more than a band.
+  const meanC = (c.fc.band + c.lr.band + c.gra.band + c.p.band) / 4;
+  const band = Math.min(rounded, roundBand(meanC + 1));
   // Uncalibrated (no speaking gold labels yet, scoring-research §3.1 step 7): ±1 band, +0.5 when samples disagree by 2+ bands or the transcript tried to instruct the scorer.
   const unsure = Object.values(byKey).some((ss) => ss!.some((s) => s.injection) || Math.max(...ss!.map((s) => s.band)) - Math.min(...ss!.map((s) => s.band)) >= 2);
   const q = unsure ? 1.5 : 1;
@@ -339,9 +370,11 @@ export async function analyzeSpeaking(i: {
     v: 1, skill: 'speaking', part: i.part, overall: band, overallRaw: raw, range, criteria: c, topFixes: llm.topFixes, errors,
     vocabUpgrades: llm.vocabUpgrades, rewrite: { text: llm.rewrite, note: REWRITE_NOTE },
     // fluency: fused disfluencies and the provisional timing composite, stored as features for later calibration (not yet used for FC, §7.2 item 7).
-    words, metrics: Object.assign(metrics, { fluency: { ...features, events: fused, composite: Math.round(composite * 100) / 100, band: fluencyBand(composite), verbatimStt: stt.verbatim } }),
+    words, metrics: Object.assign(metrics, { fluency: { ...features, events: fused, profile: disfluencyProfile(fused, metrics, words), composite: Math.round(composite * 100) / 100, band: fluencyBand(composite), verbatimStt: stt.verbatim } }),
     questions, pronunciation: { unclear: metrics.unclear, ...(pron && { llm: pron }) }, relevance: llm.relevance,
   };
   // No speaking gold labels yet, so no calibration record can exist: always uncalibrated, with the ±1 range above (AnalysisResult gains `calibrated` with P1 item 11).
-  return Object.assign(result, { calibrated: false, q });
+  const timings = { sttMs, totalMs: Date.now() - t0 };
+  console.log(`speaking analysis timings ${JSON.stringify(timings)} stt=${stt.model} words=${words.length}`);
+  return Object.assign(result, { calibrated: false, q, timings, sttModel: stt.model });
 }

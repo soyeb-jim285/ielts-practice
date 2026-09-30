@@ -3,15 +3,19 @@ import { fakeFetch } from '../test/helpers';
 import { db, sql } from '../db/client';
 import { scoringCalibrations, scoringScripts } from '../db/schema';
 import { setFetch } from './openrouter';
-import { analyzeWriting, scoreWriting, settleWriting, WRITING_EFFORT, WRITING_K } from './writing';
+import { analyzeWriting, applyRules, scoreWriting, scorerK, settleWriting, WRITING_EFFORT, WRITING_K, type RuleInput } from './writing';
 import { criterionScore, settings, writingChat, writingLlm } from './fixtures';
+import type { LlmCriterion } from './schemas';
 import { keepVerbatimEvidence } from './schemas';
 import { roundBand } from '@ielts/core';
 import { calibrationKey, clearCalibrationCache } from './calibration';
 import { clearAnchorCache, loadAnchors, pickAnchors, promptHash } from './prompts';
 
 const prompt = { title: 'Technology', body: 'Some people think technology makes life harder. Discuss.' };
-const essay = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(4)}`;
+// 265 words: at the Task 2 minimum, so the under-length rules stay out of the way
+const essay = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(16)}`;
+/** A model without a default map: the raw scorer output passes through unchanged (identity, q = 1). */
+const plain = () => settings({ models: { ...settings().models, analysis: 'other/model' } });
 const bandsOf = (r: { criteria: object }) => Object.values(r.criteria).map((c) => c.band);
 const chatCalls = (f: ReturnType<typeof fakeFetch>, name: string) => f.calls.filter((c) => c.body?.response_format?.json_schema?.name === name);
 
@@ -40,7 +44,7 @@ it('20 words or fewer (copied prompt words not counted): Band 1 without any AI c
 it('one feedback call without bands plus K joint scoring calls: essay wrapped as data, rationale before band, rotated criterion order', async () => {
   const f = fakeFetch({ '/chat/completions': writingChat() });
   setFetch(f);
-  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: settings() });
+  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
   const [e0, e1] = r.errors;
   expect(essay.slice(e0!.start, e0!.end)).toBe('people has');
   expect(e1).toMatchObject({ id: 'e1', start: -1, end: -1 });
@@ -71,7 +75,7 @@ it('one feedback call without bands plus K joint scoring calls: essay wrapped as
 it('mean of K samples per criterion; samples 2+ bands apart widen the range by 0.5', async () => {
   const ta = [5, 7, 6];
   setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
-  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: settings() });
+  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
   expect(r.criteria.ta).toMatchObject({ band: 6 });
   expect(r).toMatchObject({ q: 1.5, range: [4.5, 7.5] });
 });
@@ -110,7 +114,8 @@ it('an active calibration record for (model, promptHash, effort, K) is applied, 
   const rec = { skill: 'writing' as const, modelId: s.models.analysis, promptHash: promptHash([]), effort: WRITING_EFFORT, k: WRITING_K, form: 'linear', slope: 1.5, intercept: -2.5, mLo: 4, mHi: 8, q90: 0.5 };
   await db.insert(scoringCalibrations).values({ ...rec, key, active: false });
   setFetch(fakeFetch({ '/chat/completions': writingChat() }));
-  expect(await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: s })).toMatchObject({ calibrated: false, overall: 6 });
+  // no active record: the fixed default map for the default model (6 → 6.6, snapped to 6.5), still labelled unvalidated
+  expect(await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: s })).toMatchObject({ calibrated: false, overall: 6.5, q: 1 });
 
   await sql`update scoring_calibrations set active = true`;
   clearCalibrationCache();
@@ -159,4 +164,85 @@ it('keepVerbatimEvidence drops metric facts and paraphrases', () => {
   const crit = { fc: { band: 6, range: [5, 6] as [number, number], descriptor: '', summary: '', evidence: ['"he, he don’t use"', 'durationS 39.4 (under ~60s target)', 'speechRateWpm 187', 'my father … the computer', 'he never uses it'] } };
   keepVerbatimEvidence(crit, "Also, um, my father, he, he don't use the computer.");
   expect(crit.fc.evidence).toEqual(['"he, he don’t use"', 'my father … the computer']);
+});
+
+const crit = (band: number): LlmCriterion => ({ band, range: [band, band], descriptor: `band ${band}`, evidence: [], summary: '' });
+const profile = (ta: number, cc: number, lr: number, gra: number) => ({ ta: crit(ta), cc: crit(cc), lr: crit(lr), gra: crit(gra) });
+const rule = (o: Partial<RuleInput> = {}): RuleInput => ({ task: 2, variant: 'academic', words: 280, text: 'A full essay.', ...o });
+const err = (category: string, n = 1) => Array.from({ length: n }, () => ({ category }));
+
+it('rule layer: under-length and cut-off scripts are capped at criterion level', () => {
+  const c = profile(7, 7, 8, 8);
+  expect(applyRules(c, rule({ words: 200, text: 'Ends properly.' }))).toHaveLength(1);
+  expect(c).toMatchObject({ ta: { band: 5 }, cc: { band: 7 }, lr: { band: 8 } }); // 200 < 90% of 250
+  const c2 = profile(7, 7, 8, 8);
+  applyRules(c2, rule({ words: 240, text: 'Ends properly.' }));
+  expect(c2.ta.band).toBe(6); // just under the minimum
+  const cut = profile(7, 7, 8, 8);
+  applyRules(cut, rule({ words: 180, text: 'and this is why the government should' }));
+  expect([cut.ta.band, cut.cc.band, cut.lr.band, cut.gra.band]).toEqual([5, 6, 7, 7]);
+  expect(cut.cc.summary).toContain('stops mid-sentence');
+  const t1 = profile(7, 7, 7, 7);
+  applyRules(t1, rule({ task: 1, words: 120 }));
+  expect(t1.ta.band).toBe(5);
+  const full = profile(7, 7, 7, 7);
+  expect(applyRules(full, rule({ words: 250 }))).toEqual([]);
+});
+
+it('rule layer: Task 1 Academic without an overview caps TA and CC at 5', () => {
+  const c = profile(6, 7, 7, 7);
+  applyRules(c, rule({ task: 1, words: 170, overviewMissing: true }));
+  expect([c.ta.band, c.cc.band, c.lr.band, c.gra.band]).toEqual([5, 5, 7, 7]);
+  const low = profile(4, 6, 6, 6);
+  applyRules(low, rule({ task: 1, words: 170, overviewMissing: true }));
+  expect([low.ta.band, low.cc.band]).toEqual([4, 5]);
+  const fine = profile(7, 7, 7, 7); // the scorer sees a good report: an unreliable "no overview" flag alone changes nothing
+  expect(applyRules(fine, rule({ task: 1, words: 170, overviewMissing: true }))).toEqual([]);
+});
+
+it('rule layer: dense errors cap GRA at 4; near error-free scripts floor LR and GRA at 8', () => {
+  const weak = profile(5, 5, 5, 5);
+  applyRules(weak, rule({ words: 250, errors: err('grammar.tense', 35) })); // 14 per 100 words
+  expect(weak.gra.band).toBe(4);
+  const malformed = profile(5, 5, 5, 6);
+  applyRules(malformed, rule({ words: 250, sentences: 10, errors: [...err('grammar.sentence-structure', 6), ...err('grammar.article', 2)] }));
+  expect(malformed.gra.band).toBe(4);
+  const ok = profile(5, 5, 5, 6);
+  applyRules(ok, rule({ words: 250, sentences: 10, errors: err('grammar.article', 12) }));
+  expect(ok.gra.band).toBe(6); // 4.8 per 100 words: no rule
+
+  const strong = profile(7, 7, 6, 7);
+  applyRules(strong, rule({ errors: err('grammar.punctuation', 2), upgrades: 2 }));
+  expect([strong.lr.band, strong.gra.band]).toEqual([8, 8]);
+  const vocab = profile(7, 7, 6, 7); // a vocabulary error: LR is not "precise"
+  applyRules(vocab, rule({ errors: err('lexis.collocation'), upgrades: 2 }));
+  expect([vocab.lr.band, vocab.gra.band]).toEqual([6, 7]);
+  const weakTask = profile(6, 7, 6, 7); // TA 6: no floor
+  applyRules(weakTask, rule({ errors: [], upgrades: 0 }));
+  expect([weakTask.lr.band, weakTask.gra.band]).toEqual([6, 7]);
+});
+
+it('settleWriting applies the rule layer before the overall: an overview-less report cannot keep its 6', () => {
+  const sample = { ta: criterionScore(6), cc: criterionScore(6), lr: criterionScore(6), gra: criterionScore(6) };
+  const r = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 1 }, { task: 1, rules: rule({ task: 1, words: 170, overviewMissing: true }) });
+  expect(bandsOf(r)).toEqual([5, 5, 6, 6]);
+  expect(r).toMatchObject({ overallRaw: 5.5, overall: 5.5 });
+  expect(r.rules).toHaveLength(2);
+});
+
+it('under-length scripts are scored with at most 2 samples', () => {
+  expect([scorerK(240, 250), scorerK(250, 250)]).toEqual([2, WRITING_K]);
+});
+
+it('hands over the feedback before the scores, with stage progress and per-stage timings', async () => {
+  const order: string[] = [];
+  setFetch(fakeFetch({ '/chat/completions': writingChat() }));
+  const r = await analyzeWriting({
+    text: essay, task: 2, variant: 'academic', prompt, settings: plain(),
+    onStage: (s) => order.push(s), onPartial: (p) => void order.push(`partial:${p.topFixes.length}:${p.errors.length}`),
+  });
+  expect(order[0]).toBe('feedback');
+  expect(order).toContain('partial:3:2');
+  expect(order.at(-1)).toBe('finalizing');
+  expect(r.timings).toMatchObject({ feedbackMs: expect.any(Number), scorerMs: expect.any(Number), calibrationMs: expect.any(Number), totalMs: expect.any(Number) });
 });

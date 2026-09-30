@@ -22,6 +22,13 @@
       "when": 1790765653384,
       "tag": "0002_scoring_gold",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790801581766,
+      "tag": "0003_stage_trgm",
+      "breakpoints": true
     }
   ]
 }

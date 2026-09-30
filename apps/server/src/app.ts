@@ -5,7 +5,7 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { auth, clearBearerCache, sessionMiddleware } from './auth';
 import { env, R2_CONFIGURED } from './env';
-import { MAX_AUDIO_BYTES, storage, verifyLocal } from './storage';
+import { MAX_AUDIO_BYTES, requestOrigin, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
 import { registerRoutes } from './routes';
 
@@ -18,6 +18,8 @@ export function createApp() {
       }
     },
   });
+
+  if (!R2_CONFIGURED) app.use('*', (c, next) => requestOrigin.run(new URL(c.req.url).origin, next)); // dev presigned URLs (storage.ts)
 
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
@@ -46,10 +48,11 @@ export function createApp() {
   // Dev-only: serves localDisk storage's signed URLs when R2 isn't configured (never in production — env.ts enforces R2 there).
   if (!R2_CONFIGURED) {
     const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg', png: 'image/png', jpg: 'image/jpeg' };
-    app.on(['GET', 'PUT', 'OPTIONS'], '/local-storage/*', async (c) => {
+    // /api/local-storage is what presigned URLs use (covered by the web dev proxy); /local-storage stays for URLs issued earlier.
+    app.on(['GET', 'PUT', 'OPTIONS'], ['/api/local-storage/*', '/local-storage/*'], async (c) => {
       const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, PUT', 'Access-Control-Allow-Headers': 'Content-Type' };
       if (c.req.method === 'OPTIONS') return c.body(null, 204, cors);
-      const key = decodeURIComponent(c.req.path.slice('/local-storage/'.length));
+      const key = decodeURIComponent(c.req.path.replace(/^(\/api)?\/local-storage\//, ''));
       const method = c.req.method as 'GET' | 'PUT';
       if (!verifyLocal(method, key, Number(c.req.query('exp')), c.req.query('sig') ?? '')) return c.text('Forbidden', 403, cors);
       if (method === 'PUT') {

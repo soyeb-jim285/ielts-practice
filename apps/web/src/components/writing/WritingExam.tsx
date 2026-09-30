@@ -114,6 +114,8 @@ export function WritingExam({
   const current = prompts.find((p) => p.id === active)!;
   const draft = drafts[current.id]!;
   const multi = prompts.length > 1;
+  const words = countWords(draft.text);
+  const min = minWords(current.part);
   // Manual submit needs a real attempt at every task; the time-up auto-submit still sends whatever is there.
   const tooShort = prompts.some((p) => countWords(drafts[p.id]!.text) < SUBMIT_FLOOR);
   const under = prompts.find((p) => countWords(drafts[p.id]!.text) < minWords(p.part));
@@ -129,6 +131,9 @@ export function WritingExam({
       }
       status={
         <>
+          <span aria-hidden className={clsx('type-num shrink-0 whitespace-nowrap text-sm font-medium', words >= min ? 'text-good-text' : 'text-muted')}>
+            {words} / {min}
+          </span>
           <TimerPill left={left} />
           <Button onClick={() => setConfirm('submit')} loading={busy}>
             Submit
@@ -157,7 +162,7 @@ export function WritingExam({
           aria-labelledby={multi ? `task-${active}` : undefined}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden"
         >
-          <section aria-label="Question" className="shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0">
+          <section aria-label="Question" className={clsx('shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0', !promptOpen && 'max-lg:sticky max-lg:top-0 max-lg:z-10')}>
             <button
               type="button"
               aria-expanded={promptOpen}
@@ -166,7 +171,8 @@ export function WritingExam({
               className="type-subheading flex h-12 w-full items-center gap-2 px-4 text-sm  focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-6 lg:hidden"
             >
               Question
-              <span className="ml-auto flex items-center gap-1 font-normal text-muted">
+              {!promptOpen && <span className="min-w-0 flex-1 truncate font-normal text-muted">{current.title}</span>}
+              <span className="ml-auto flex shrink-0 items-center gap-1 font-normal text-muted">
                 {promptOpen ? 'Hide' : 'Show'}
                 <ChevronDown className={clsx('size-4 transition-transform duration-200', promptOpen && 'rotate-180')} aria-hidden />
               </span>
@@ -181,7 +187,10 @@ export function WritingExam({
               key={current.id}
               className="flex-1"
               value={draft.text}
-              onChange={(text) => update(current.id, { text })}
+              onChange={(text) => {
+                if (!draft.text && text) setPromptOpen(false); // first keystroke: fold the question into a one-line sticky summary
+                update(current.id, { text });
+              }}
               blockPaste={blockPaste}
               minWords={minWords(current.part)}
               label={`Your answer to ${current.part === 1 ? 'Task 1' : 'Task 2'}`}

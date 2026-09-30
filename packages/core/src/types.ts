@@ -1,4 +1,5 @@
-export type Word = { w: string; start: number; end: number; conf?: number }; // seconds
+/** seconds; prolonged: a sound held noticeably long (STT with character timing) */
+export type Word = { w: string; start: number; end: number; conf?: number; prolonged?: boolean };
 
 export type Pause = { start: number; end: number; dur: number; kind: 'short' | 'long'; midClause: boolean; voiced: boolean };
 

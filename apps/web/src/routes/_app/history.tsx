@@ -121,7 +121,7 @@ function HistoryPage() {
                         <span className="type-caption type-num hidden md:block">{duration}</span>
                         <span className={cn('type-band justify-self-end text-lg', a.overall != null && !status ? BAND_TEXT[bandColor(a.overall, target)] : 'text-muted')}>
                           <span className="sr-only">Band </span>
-                          {status || a.overall == null ? <span aria-hidden>-</span> : formatBand(a.overall)}
+                          {status || a.overall == null ? <span aria-hidden>-</span> : a.overall === 0 ? <span className="type-caption">No speech</span> : formatBand(a.overall)}
                         </span>
                         <RowChevron />
                       </Link>

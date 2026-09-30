@@ -1,13 +1,13 @@
 import { P2_PREP_S, SPEAKING_ZONES } from '@ielts/core';
 import type { Prompt } from '@server/routes/prompts';
 import { useNavigate } from '@tanstack/react-router';
-import { Check, ChevronRight, CircleAlert, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronRight, CircleAlert, Info, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { Alert, Badge, Button, Card, Dialog, PageContainer, ProgressBar, ProgressRing, Stat, Textarea } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
-import { useRecorder, type Recording } from '@/hooks/useRecorder';
-import { api, ApiError } from '@/lib/api';
+import { savePending, uploadPending, type Pending } from '@/hooks/pendingRecordings';
+import { useRecorder } from '@/hooks/useRecorder';
 import { formatClock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { CueCard } from './CueCard';
@@ -33,7 +33,16 @@ const INTRO = {
 };
 const P2_MAX_MS = SPEAKING_ZONES[2].max * 1000;
 
-type Upload = { key: number; label: string; status: 'uploading' | 'done' | 'failed'; id?: string; error?: string };
+type Upload = { key: number; label: string; status: 'uploading' | 'done' | 'failed'; id?: string; error?: string; /** A copy is in IndexedDB, so leaving or reloading does not lose it. */ kept: boolean };
+
+const HINT_KEY = 'ielts.micHintSeen';
+const hintSeen = () => {
+  try {
+    return !!localStorage.getItem(HINT_KEY);
+  } catch {
+    return false;
+  }
+};
 
 /**
  * The recording flow for one or more segments (a full test = P1 topics, P2 card, P3 discussion).
@@ -47,6 +56,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   const [phase, setPhase] = useState<'ready' | 'prep' | 'finishing'>('ready');
   const [notes, setNotes] = useState('');
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [earlyOpen, setEarlyOpen] = useState(false);
+  const [hint, setHint] = useState(() => !hintSeen());
   const [exitOpen, setExitOpen] = useState(false);
   const marks = useRef<number[]>([]);
   const stopping = useRef(false);
@@ -59,37 +70,15 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
   const prep = useCountdown(P2_PREP_S, { onEnd: () => void startRecording() });
 
-  // ---- upload: create attempt → PUT audio → submit. A retry resumes from the step that failed. ----
-  const recordings = useRef<Record<number, { s: Segment; r: Recording; m: number[] }>>({});
-  const progress = useRef<Record<number, { id?: string; uploadUrl?: string; uploaded?: boolean }>>({});
+  // ---- upload: create attempt → PUT audio → submit (hard timeouts). A retry resumes from the step that failed. ----
+  const pending = useRef<Record<number, Pending>>({});
+  const kept = useRef<Record<number, boolean>>({});
   const upload = async (key: number) => {
-    const { s, r, m } = recordings.current[key]!;
-    const p = (progress.current[key] ??= {});
     const patch = (u: Partial<Upload>) => setUploads((all) => all.map((x) => (x.key === key ? { ...x, ...u } : x)));
     patch({ status: 'uploading', error: undefined });
     try {
-      if (!p.id) {
-        const created = await api.post<{ id: string; uploadUrl?: string }>('/attempts', {
-          promptId: s.prompt.id,
-          skill: 'speaking',
-          part: s.part,
-          mode: 'practice',
-          sessionId,
-          parentAttemptId,
-          audioContentType: r.mime,
-        });
-        Object.assign(p, { id: created.id, uploadUrl: created.uploadUrl });
-      }
-      if (!p.uploaded) {
-        const put = await fetch(p.uploadUrl!, { method: 'PUT', body: r.blob, headers: { 'content-type': r.mime } }).catch(() => null);
-        if (!put?.ok) throw new Error('Upload failed. Check your connection and retry.');
-        p.uploaded = true;
-      }
-      // 409 = an earlier submit already went through (its response was lost).
-      await api.post(`/attempts/${p.id}/submit`, { durationMs: r.durationMs, energy: r.energy, marks: m }).catch((e) => {
-        if (!(e instanceof ApiError && e.status === 409)) throw e;
-      });
-      patch({ status: 'done', id: p.id });
+      const id = await uploadPending(pending.current[key]!, kept.current[key]);
+      patch({ status: 'done', id });
     } catch (e) {
       patch({ status: 'failed', error: e instanceof Error ? e.message : 'Upload failed' });
     }
@@ -102,8 +91,10 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     stopping.current = true;
     try {
       const r = await rec.stop();
-      recordings.current[segIdx] = { s: seg, r, m: marks.current };
-      setUploads((u) => [...u, { key: segIdx, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, status: 'uploading' }]);
+      const p: Pending = { key: crypto.randomUUID(), promptId: seg.prompt.id, part: seg.part, sessionId, parentAttemptId, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, createdAt: Date.now(), mime: r.mime, blob: r.blob, durationMs: r.durationMs, energy: r.energy, marks: marks.current };
+      pending.current[segIdx] = p;
+      kept.current[segIdx] = await savePending(p); // before anything can fail: the recording survives a failed upload, a reload or a closed tab
+      setUploads((u) => [...u, { key: segIdx, label: p.label, status: 'uploading', kept: kept.current[segIdx]! }]);
       void upload(segIdx);
       if (segIdx + 1 < segments.length) {
         setSegIdx(segIdx + 1);
@@ -119,6 +110,10 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
   const startRecording = async () => {
     prep.stop();
+    try {
+      localStorage.setItem(HINT_KEY, '1');
+    } catch {}
+    setHint(false);
     marks.current = [0];
     await rec.start();
   };
@@ -143,8 +138,9 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     void navigate({ to: '/speaking/result/$attemptId', params: { attemptId: first }, search: sessionId ? { session: sessionId } : {}, replace: true });
   }, [allDone, uploads, navigate, sessionId]);
 
-  // Warn before leaving while a recording exists only in this tab (recording, uploading or failed upload).
-  const unsaved = uploads.some((u) => u.status !== 'done');
+  // Warn before leaving while a recording exists only in this tab (being recorded, or finished but not stored).
+  const notDone = uploads.some((u) => u.status !== 'done');
+  const unsaved = uploads.some((u) => u.status !== 'done' && !u.kept); // only a recording with no IndexedDB copy is lost on leaving
   const busy = recording || unsaved;
   useEffect(() => {
     if (!busy) return;
@@ -174,7 +170,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
         )
       }
       exit={
-        <Button variant="ghost" size="sm" icon={<X />} aria-label="Exit" onClick={() => (recording || phase === 'prep' || segIdx > 0 || unsaved ? setExitOpen(true) : exit())}>
+        <Button variant="ghost" size="sm" icon={<X />} aria-label="Exit" onClick={() => (recording || phase === 'prep' || segIdx > 0 || notDone ? setExitOpen(true) : exit())}>
           <span className="hidden sm:inline">Exit</span>
         </Button>
       }
@@ -182,7 +178,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       {phase === 'finishing' ? (
         <Finishing uploads={uploads} total={segments.length} onRetry={(k) => void upload(k)} />
       ) : (
-        <PageContainer width="narrow" className="flex flex-col gap-8">
+        <PageContainer width="narrow" className="flex min-h-[68dvh] flex-col justify-center gap-8">
           {seg.part === 2 ? (
             <>
               <h1 className="sr-only">Part 2: Long turn</h1>
@@ -201,7 +197,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
           {recording ? (
             <div className="flex w-full flex-col gap-7">
-              <div className="grid items-center gap-x-10 gap-y-6 sm:grid-cols-[auto_minmax(0,1fr)]">
+              <div className="grid items-center gap-x-14 gap-y-6 sm:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col items-start gap-4">
                   <RecordingDot />
                   <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
@@ -210,7 +206,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
                   <Waveform level={rec.level} tick={rec.elapsedMs} active />
                   <div className="flex flex-wrap items-center gap-2">
                     <WpmPill wpm={rec.liveWpm} elapsedMs={rec.elapsedMs} />
-                    {seg.part === 2 && <Badge tone="neutral">Stops at {formatClock(SPEAKING_ZONES[2].max)}</Badge>}
+                    {seg.part === 2 && <Badge tone="neutral" className="text-ink">Stops at {formatClock(SPEAKING_ZONES[2].max)}</Badge>}
                   </div>
                   <SilenceNudge silenceMs={rec.silenceMs} />
                 </div>
@@ -225,7 +221,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-3 self-stretch border-t border-line bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:flex-row sm:justify-start md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="outline" size="lg" onClick={() => void finishPart()}>
+                    <Button variant="outline" size="lg" onClick={() => setEarlyOpen(true)}>
                       Finish part early
                     </Button>
                     <Button size="lg" onClick={nextQuestion} icon={<ChevronRight />}>
@@ -282,12 +278,20 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-5 sm:gap-7">
-              <MicButton state={rec.state} level={rec.level} onStart={() => void startRecording()} onStop={() => void finishPart()} />
-              <div className="min-w-0">
-                <p className="type-subheading">Press to start recording</p>
-                <p className="type-caption mt-1 max-w-[46ch]">{INTRO[seg.part]}</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-5 sm:gap-7">
+                <MicButton state={rec.state} level={rec.level} onStart={() => void startRecording()} onStop={() => void finishPart()} />
+                <div className="min-w-0">
+                  <p className="type-subheading">Press to start recording</p>
+                  <p className="type-caption mt-1 max-w-[46ch]">{INTRO[seg.part]}</p>
+                </div>
               </div>
+              {hint && (
+                <p className="type-caption flex items-center gap-2 text-brand-text">
+                  <Info className="size-4 shrink-0" aria-hidden />
+                  Tap to start, your whole Part {seg.part} is one recording.
+                </p>
+              )}
             </div>
           )}
 
@@ -302,12 +306,34 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       )}
 
       <Dialog
+        open={earlyOpen}
+        onClose={() => setEarlyOpen(false)}
+        title={`Finish with ${qIdx + 1} of ${seg.questions.length} answered?`}
+        description={`Your whole Part ${seg.part} is one recording, so finishing now ends it and skips the last ${seg.questions.length - qIdx - 1} ${seg.questions.length - qIdx - 1 === 1 ? 'question' : 'questions'}.`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEarlyOpen(false)}>
+              Keep going
+            </Button>
+            <Button
+              onClick={() => {
+                setEarlyOpen(false);
+                void finishPart();
+              }}
+            >
+              Finish now
+            </Button>
+          </>
+        }
+      />
+      <Dialog
         open={exitOpen}
         onClose={() => setExitOpen(false)}
         title="Leave this test?"
         description={[
           recording && 'The answer you are recording now will be discarded.',
           unsaved && "Recordings that haven't finished uploading will be lost.",
+          !unsaved && notDone && 'Recordings that have not uploaded stay on this device. Upload them from the Speaking page.',
           'Answers already uploaded are still analysed.',
         ]
           .filter(Boolean)
@@ -390,28 +416,23 @@ function PartMeta({ seg, p1Pos, p1Count, multi, n, total }: { seg: Segment; p1Po
   );
 }
 
-/** True once an upload has been running for `ms` without finishing. */
-function useStalled(active: boolean, ms = 20_000) {
-  const [stalled, setStalled] = useState(false);
-  useEffect(() => {
-    if (!active) return setStalled(false);
-    const t = setTimeout(() => setStalled(true), ms);
-    return () => clearTimeout(t);
-  }, [active, ms]);
-  return stalled;
-}
-
 function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: number; onRetry: (key: number) => void }) {
-  const failed = uploads.some((u) => u.status === 'failed');
-  const stalled = useStalled(!failed && uploads.some((u) => u.status === 'uploading'));
+  const failed = uploads.filter((u) => u.status === 'failed');
   const done = uploads.filter((u) => u.status === 'done').length;
+  const kept = failed.every((u) => u.kept);
   return (
-    <PageContainer width="narrow" className="space-y-7">
+    <PageContainer width="narrow" className="grid min-h-[68dvh] content-center gap-7">
       <div className="space-y-1.5">
-        <h1 className="type-title">{failed ? 'Some answers need another try' : 'Uploading your answers'}</h1>
-        <p className="type-lede">{failed ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
+        <h1 className="type-title">{failed.length ? 'Some answers need another try' : 'Uploading your answers'}</h1>
+        <p className="type-lede">{failed.length ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
       </div>
-      <ProgressBar value={done / total} tone={failed ? 'warn' : 'accent'} label={`${done} of ${total} recordings uploaded`} />
+      <div className="space-y-2">
+        <p className="type-caption type-num" aria-hidden>
+          {failed.length ? `${done} of ${total} uploaded, ${failed.length} failed` : done === total ? `${total} of ${total} uploaded` : `Uploading ${Math.min(done + 1, total)} of ${total}`}
+        </p>
+        {/* ring-line-strong: the default track is too faint against the page (needs 3:1). */}
+        <ProgressBar value={done / total} tone={failed.length ? 'warn' : 'accent'} label={`${done} of ${total} recordings uploaded`} className="h-2 ring-line-strong" />
+      </div>
       <Card padded={false} className="overflow-hidden">
         <ul className="divide-y divide-line" aria-live="polite">
           {uploads.map((u) => (
@@ -425,6 +446,7 @@ function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: numb
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate">{u.label}</p>
+                {u.status === 'uploading' && <p className="text-xs text-muted">Uploading…</p>}
                 {u.error && <p className="text-xs text-bad-text">{u.error}</p>}
               </div>
               {u.status === 'failed' && (
@@ -436,9 +458,17 @@ function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: numb
           ))}
         </ul>
       </Card>
-      {stalled && (
-        <Alert tone="warn" title="Taking longer than usual">
-          A slow connection can do this. Keep this tab open; if nothing changes, reload and record again.
+      {failed.length > 0 && (
+        <Alert
+          tone="bad"
+          title="Upload failed"
+          action={
+            <Button size="sm" icon={<RotateCcw />} onClick={() => failed.forEach((u) => onRetry(u.key))}>
+              Retry upload
+            </Button>
+          }
+        >
+          {kept ? 'Your recording is saved on this device. If it keeps failing, leave and upload it later from the Speaking page, even after a reload.' : 'Keep this tab open until it uploads: this recording is not saved anywhere else.'}
         </Alert>
       )}
     </PageContainer>

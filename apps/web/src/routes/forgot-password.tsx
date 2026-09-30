@@ -41,7 +41,7 @@ function ForgotPassword() {
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required autoFocus />
+        <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required />
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Send reset link
         </Button>

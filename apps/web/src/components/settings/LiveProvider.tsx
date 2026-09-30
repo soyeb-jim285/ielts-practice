@@ -23,7 +23,11 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
           key={o.value}
           value={o.value}
           disabled={o.disabled}
-          className={cn(rowStyles, 'gap-4 py-4 aria-checked:before:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:before:bg-transparent')}
+          className={cn(
+            rowStyles,
+            // The selected wash stays inside the column (inset-x-0), so it never pokes past the edge the other settings rows align to.
+            'gap-4 px-3 py-4 before:inset-x-0 aria-checked:before:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:before:bg-transparent',
+          )}
         >
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">{o.label}</span>

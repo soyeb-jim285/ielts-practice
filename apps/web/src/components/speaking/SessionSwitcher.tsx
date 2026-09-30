@@ -4,7 +4,8 @@ import { LoaderCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatBand } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { attemptQuery, notAssessed, sessionOverall, type AttemptListItem } from '@/lib/result';
+import { attemptQuery, type AttemptListItem } from '@/lib/attempt';
+import { notAssessed, sessionOverall } from '@/lib/result';
 
 /** Full-test part switcher + session overall (criteria weighted by speaking time). */
 export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; currentId: string }) {
