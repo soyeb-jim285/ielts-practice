@@ -19,3 +19,5 @@ __pycache__/
 .eval/
 .claude/
 data/scoring-gold/
+.playwright-mcp/
+apps/web/.tanstack/
