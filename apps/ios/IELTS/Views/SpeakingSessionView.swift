@@ -60,10 +60,7 @@ struct SpeakingSessionView: View {
                 let t: SpeakingTest = try await api.get("/api/speaking/test")
                 items = t.part1 + [t.part2, t.part3]
             case let .part(n):
-                let list: ListOf<Prompt> = try await api.get("/api/prompts", query: ["skill": "speaking", "part": String(n)])
-                guard let p = list.items.filter({ $0.done != true }).randomElement() ?? list.items.randomElement() else {
-                    throw APIError(status: 0, message: "No Part \(n) prompts in the bank yet.")
-                }
+                let p: Prompt = try await api.get("/api/prompts/random", query: ["skill": "speaking", "part": String(n)])
                 items = [p]
             case let .prompt(id, parentId):
                 let p: Prompt = try await api.get("/api/prompts/\(id)")

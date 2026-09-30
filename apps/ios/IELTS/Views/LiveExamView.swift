@@ -30,7 +30,6 @@ final class LiveExam {
     @ObservationIgnored private var sessionId = ""
     @ObservationIgnored private var test: SpeakingTest?
     @ObservationIgnored private var currentPart: Int?
-    @ObservationIgnored private var partQuestions: [Int: [String]] = [:]
     @ObservationIgnored private var recordings: [Int: LiveAudio.PartRecording] = [:]
     @ObservationIgnored private var ending = false
 
@@ -117,7 +116,7 @@ final class LiveExam {
     private func tmp(_ name: String) -> URL { FileManager.default.temporaryDirectory.appendingPathComponent(name) }
 
     private func uploadFile(_ url: URL) async throws -> String {
-        let t: UploadTarget = try await api.send("POST", "/api/live/upload-url", ["sessionId": sessionId])
+        let t: UploadTarget = try await api.send("POST", "/api/live/upload-url", ["sessionId": sessionId, "audioContentType": "audio/mp4"])
         try await api.upload(t.uploadUrl, file: url, contentType: "audio/mp4")
         return t.key
     }
@@ -132,7 +131,6 @@ final class LiveExam {
             while !Task.isCancelled {
                 setPhase(reply.phase)
                 if let card = reply.cueCard { cueCard = card }
-                if let p = currentPart { partQuestions[p, default: []].append(reply.examinerText) }
                 await speak(reply.examinerText, reply.audioUrl)
                 if Task.isCancelled || reply.phase == "done" || reply.phase == "closing" { break }
                 if reply.phase == "p2-prep" {
@@ -196,7 +194,7 @@ final class LiveExam {
 
     private func runRealtime() async {
         do {
-            let s: LiveReply = try await api.send("POST", "/api/live/start", ["provider": "openai-realtime"])
+            let s: LiveReply = try await api.send("POST", "/api/live/start", [String: String]())
             sessionId = s.sessionId ?? ""
             test = s.test
             let token: RealtimeToken = try await api.send("POST", "/api/live/realtime-token", ["sessionId": sessionId])
@@ -211,10 +209,8 @@ final class LiveExam {
             sock.connect(ephemeralKey: token.value, model: token.model ?? "gpt-realtime")
             sock.send(["type": "response.create"]) // examiner opens the test
 
-            let p1 = test?.part1.flatMap(\.questions) ?? []
             let card = test?.part2
             setPhase("p1")
-            partQuestions[1] = p1
             try await Task.sleep(for: .seconds(270))
 
             setPhase("p2-prep")
@@ -225,12 +221,10 @@ final class LiveExam {
             try Task.checkCancellation()
 
             setPhase("p2-talk")
-            partQuestions[2] = card.map { [$0.title] } ?? []
             sock.instruct("Preparation time is over. Ask the candidate to start talking now. Do not interrupt them for two minutes.")
             try await Task.sleep(for: .seconds(125))
 
             setPhase("p3")
-            partQuestions[3] = test?.part3.questions ?? []
             sock.instruct("Time is up. Thank the candidate, then begin Part 3: a discussion of abstract questions related to \(card?.topic ?? card?.title ?? "the Part 2 topic"). Ask one question at a time.")
             try await Task.sleep(for: .seconds(270))
 
@@ -272,8 +266,7 @@ final class LiveExam {
             var parts: [[String: Any]] = []
             for (part, r) in recordings.sorted(by: { $0.key < $1.key }) {
                 let key = try await uploadFile(r.url)
-                parts.append(["part": part, "audioKey": key, "durationMs": r.durationMs,
-                              "energy": Array(r.energy.prefix(20000)), "questions": partQuestions[part] ?? []])
+                parts.append(["part": part, "audioKey": key, "durationMs": r.durationMs, "energy": Array(r.energy.prefix(20000))])
             }
             guard !parts.isEmpty else { stage = .failed("Nothing was recorded, so there's nothing to score."); return }
             let res: FinishResult = try await api.send("POST", "/api/live/finish", ["sessionId": sessionId, "parts": parts] as [String: Any])

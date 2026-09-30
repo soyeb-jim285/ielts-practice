@@ -71,13 +71,7 @@ struct WritingEditorView: View {
 
     private func load() async {
         do {
-            func pick(_ query: [String: String?]) async throws -> Prompt {
-                let list: ListOf<Prompt> = try await api.get("/api/prompts", query: query)
-                guard let p = list.items.filter({ $0.done != true }).randomElement() ?? list.items.randomElement() else {
-                    throw APIError(status: 0, message: "No matching prompts in the bank yet.")
-                }
-                return p
-            }
+            func pick(_ query: [String: String?]) async throws -> Prompt { try await api.get("/api/prompts/random", query: query) }
             switch mode {
             case .full:
                 let t1 = try await pick(["skill": "writing", "part": "1", "variant": "academic"])
