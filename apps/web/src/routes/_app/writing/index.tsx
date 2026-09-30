@@ -1,10 +1,9 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { BarChart3, CircleCheck, Mail, PenLine, Search, Shuffle } from 'lucide-react';
-import { useDeferredValue, useState, type CSSProperties, type ReactNode } from 'react';
+import { useDeferredValue, useState, type ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
-import { EASE, ModeCard } from '@/components/bank/ModeCard';
-import { Alert, Badge, Button, buttonStyles, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
+import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
 import { api, call, client } from '@/lib/api';
 import { formatBand, formatDate, plural } from '@/lib/format';
@@ -21,7 +20,6 @@ const KIND: Record<Kind, { part: 1 | 2; variant?: 'academic' | 'general'; title:
   t1g: { part: 1, variant: 'general', title: 'Task 1 General', blurb: 'Write a letter covering three points', meta: '20 min, 150+ words', icon: <Mail /> },
   t2: { part: 2, title: 'Task 2', blurb: 'Argue a position in an essay', meta: '40 min, 250+ words', icon: <PenLine /> },
 };
-type Start = Kind | 'full-academic' | 'full-general';
 const kindQuery = (k: Kind) => `skill=writing&part=${KIND[k].part}${KIND[k].variant ? `&variant=${KIND[k].variant}` : ''}`;
 
 const PAGE = 15;
@@ -32,13 +30,14 @@ const random = (k: Kind) => api.get<WritingPrompt>(`/prompts/random?${kindQuery(
 
 function WritingHome() {
   const navigate = useNavigate();
-  const [starting, setStarting] = useState<Start | null>(null);
+  const [starting, setStarting] = useState<Kind | 'full' | null>(null);
+  const [fullVariant, setFullVariant] = useState<'academic' | 'general'>('academic');
 
-  const start = async (k: Start) => {
+  const start = async (k: Kind | 'full') => {
     setStarting(k);
     try {
-      if (k === 'full-academic' || k === 'full-general') {
-        const [t1, t2] = await Promise.all([random(k === 'full-academic' ? 't1a' : 't1g'), random('t2')]);
+      if (k === 'full') {
+        const [t1, t2] = await Promise.all([random(fullVariant === 'academic' ? 't1a' : 't1g'), random('t2')]);
         await navigate({ to: '/writing/full', search: { t1: t1.id, t2: t2.id } });
       } else {
         const p = await random(k);
@@ -49,96 +48,61 @@ function WritingHome() {
       setStarting(null);
     }
   };
-  const full = (k: Start) => ({ onClick: () => void start(k), loading: starting === k, disabled: !!starting && starting !== k });
 
   return (
     <PageContainer>
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
       <div className="space-y-12">
-        <section aria-label="Choose a test" className="grid gap-4 lg:grid-cols-2">
-          <ModeCard
-            {...full('full-academic')}
-            kind="Full test, Academic"
-            title="Academic writing"
-            body="Describe a chart, table, process or map, then argue a position in an essay. Both tasks on one clock, marked together into one band."
-            meta="60 min, Task 1 then Task 2"
-            cta={starting === 'full-academic' ? 'Picking prompts...' : 'Start Academic test'}
-            visual={<ChartSketch />}
-          />
-          <ModeCard
-            {...full('full-general')}
-            kind="Full test, General Training"
-            title="General writing"
-            body="Write a letter covering three points, then argue a position in an essay. Both tasks on one clock, marked together into one band."
-            meta="60 min, Task 1 then Task 2"
-            cta={starting === 'full-general' ? 'Picking prompts...' : 'Start General test'}
-            visual={<LetterSketch />}
-          />
-        </section>
+        <section aria-label="Start a task" className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <Card tone="hero" className="flex flex-col p-5 sm:p-7">
+            <h2 className="type-title-sm">Full test</h2>
+            <p className="type-lede mt-2 max-w-[46ch]">Task 1 and Task 2 on one 60-minute clock, as on test day. You manage your own time.</p>
+            <p className="type-caption type-num mt-4">Task 1, 20 min. Task 2, 40 min. Both answers are marked together into one writing band.</p>
+            <div className="mt-auto flex flex-col gap-3 pt-8 sm:flex-row sm:items-center sm:justify-between">
+              <Segmented
+                label="Test type"
+                value={fullVariant}
+                onChange={setFullVariant}
+                className="sm:min-w-56"
+                options={[
+                  { value: 'academic', label: 'Academic' },
+                  { value: 'general', label: 'General' },
+                ]}
+              />
+              <Button size="lg" onClick={() => void start('full')} loading={starting === 'full'} disabled={!!starting && starting !== 'full'}>
+                Start full test
+              </Button>
+            </div>
+          </Card>
 
-        <section aria-labelledby="one-h">
-          <PanelHeader id="one-h" title="Or practise one task" />
-          <ul className={cn(listStyles, 'stagger')}>
-            {(Object.keys(KIND) as Kind[]).map((k) => (
-              <li key={k}>
-                <button type="button" onClick={() => void start(k)} disabled={!!starting} aria-busy={starting === k || undefined} className={cn(rowStyles, 'min-h-[4.75rem] disabled:opacity-50')}>
-                  <RowIcon>{KIND[k].icon}</RowIcon>
-                  <span className="min-w-0 flex-1">
-                    <span className="type-subheading block">{KIND[k].title}</span>
-                    <span className="type-lede block text-sm">{KIND[k].blurb}</span>
-                  </span>
-                  <span className="type-caption type-num hidden sm:block">{KIND[k].meta}</span>
-                  <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 text-sm font-medium text-brand-text">
-                    <Shuffle className="size-4" aria-hidden />
-                    <span className="max-sm:sr-only">{starting === k ? 'Picking...' : 'Random'}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <section aria-labelledby="one-h" className="flex flex-col">
+            <PanelHeader id="one-h" title="Or practise one task" />
+            <ul className={cn(listStyles, 'stagger flex-1')}>
+              {(Object.keys(KIND) as Kind[]).map((k) => (
+                <li key={k}>
+                  <button type="button" onClick={() => void start(k)} disabled={!!starting} aria-busy={starting === k || undefined} className={cn(rowStyles, 'min-h-[4.75rem] disabled:opacity-50')}>
+                    <RowIcon>{KIND[k].icon}</RowIcon>
+                    <span className="min-w-0 flex-1">
+                      <span className="type-subheading block">{KIND[k].title}</span>
+                      <span className="type-lede block text-sm">{KIND[k].blurb}</span>
+                      <span className="type-caption type-num block">{KIND[k].meta}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-text">
+                      <Shuffle className="size-4" aria-hidden />
+                      {starting === k ? 'Picking...' : 'Random'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         </section>
 
         <Recent />
         <Bank />
       </div>
     </PageContainer>
-  );
-}
-
-/** Academic Task 1 is a chart: at rest a bar chart, on hover the bars re-plot to new values (scaleY only, no layout). */
-const CHART = [
-  [0.45, 0.7], [0.62, 0.52], [0.38, 0.86], [0.8, 0.64], [0.55, 0.95], [0.92, 0.58],
-  [0.68, 0.78], [0.5, 0.4], [0.74, 0.9], [0.42, 0.66], [0.86, 0.72], [0.6, 0.98],
-];
-function ChartSketch() {
-  return (
-    <div className="flex h-12 items-end gap-2 border-b border-line" aria-hidden>
-      {CHART.map(([a, b], i) => (
-        <span
-          key={i}
-          className={cn('h-full max-w-6 flex-1 origin-bottom rounded-t-[3px] bg-brand/70 transition-transform duration-300 [transform:scaleY(var(--a))] group-hover/mode:[transform:scaleY(var(--b))] group-focus-visible/mode:[transform:scaleY(var(--b))] motion-reduce:transition-none', EASE)}
-          style={{ '--a': a, '--b': b, transitionDelay: `${i * 40}ms` } as CSSProperties}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** General Task 1 is a letter: greeting, body lines, sign-off. On hover the lines are "written" in order, the same fill as the speaking timeline. */
-const LETTER = [0.28, 0.94, 0.86, 0.72, 0.4];
-function LetterSketch() {
-  return (
-    <div className="flex h-12 flex-col justify-between" aria-hidden>
-      {LETTER.map((w, i) => (
-        <div key={i} className="h-1 overflow-hidden rounded-full bg-line" style={{ width: `${w * 100}%` }}>
-          <div
-            className={cn('h-full origin-left scale-x-0 rounded-full bg-brand transition-transform duration-300 group-hover/mode:scale-x-100 group-focus-visible/mode:scale-x-100 motion-reduce:transition-none', EASE)}
-            style={{ transitionDelay: `${i * 90}ms` }}
-          />
-        </div>
-      ))}
-    </div>
   );
 }
 

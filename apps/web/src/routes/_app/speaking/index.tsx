@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import type { CSSProperties, ReactNode } from 'react';
+import { createFileRoute, Link, type LinkProps } from '@tanstack/react-router';
+import { ArrowRight } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
-import { EASE, ModeCard } from '@/components/bank/ModeCard';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
@@ -33,17 +33,14 @@ function SpeakingHome() {
             body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
             meta="11-14 min, recorded"
             cta="Start full test"
-            visual={<PartsTimeline />}
           />
           <ModeCard
-            tone="brand"
             link={{ to: '/speaking/live' }}
             kind="Live, spoken conversation"
             title="Live examiner"
             body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
             meta="11-14 min, needs a microphone"
             cta="Talk to the examiner"
-            visual={<Waveform />}
           />
         </section>
 
@@ -70,46 +67,22 @@ function SpeakingHome() {
   );
 }
 
-/** The full test's real structure: three parts in order, widths proportional to their length (4.5, 3.5, 4.5 min midpoints).
- *  On hover the parts fill in sequence, the order the test runs in. */
-function PartsTimeline() {
-  const parts = [
-    { n: 1, label: 'Interview', w: 4.5 },
-    { n: 2, label: 'Long turn', w: 3.5 },
-    { n: 3, label: 'Discussion', w: 4.5 },
-  ];
+/** One of the two ways to practise. Static card, identical for both modes; the button is the only interactive part. */
+function ModeCard({ link, kind, title, body, meta, cta }: { link: LinkProps; kind: string; title: string; body: string; meta: string; cta: string }) {
   return (
-    <div className="flex gap-1.5" aria-hidden>
-      {parts.map((p, i) => (
-        <div key={p.n} className="min-w-0" style={{ flex: p.w }}>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className={cn('h-full origin-left scale-x-0 rounded-full bg-brand transition-transform duration-300 group-hover/mode:scale-x-100 group-focus-visible/mode:scale-x-100 motion-reduce:transition-none', EASE)}
-              style={{ transitionDelay: `${i * 120}ms` }}
-            />
-          </div>
-          <p className="type-caption mt-2 truncate">
-            Part {p.n}, {p.label}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Voiceprint for the live mode: still at rest, "speaks" while its card is hovered or focused.
- *  Each bar has its own period and floor, so it reads as speech rather than an equaliser loop. Paused, not removed, so it never snaps. */
-const VOICE = [0.22, 0.38, 0.62, 0.48, 0.8, 0.95, 0.7, 0.42, 0.28, 0.52, 0.86, 0.64, 0.4, 0.72, 0.9, 0.56, 0.34, 0.24, 0.46, 0.68, 0.36, 0.2];
-function Waveform() {
-  return (
-    <div className="flex h-9 items-center gap-[3px]" aria-hidden>
-      {VOICE.map((h, i) => (
-        <span
-          key={i}
-          className="w-[3px] origin-center rounded-full bg-brand/70 [animation:voice_var(--d)_ease-in-out_infinite_alternate_paused] group-hover/mode:[animation-play-state:running] group-focus-visible/mode:[animation-play-state:running] motion-reduce:animate-none"
-          style={{ height: `${h * 100}%`, '--d': `${0.55 + ((i * 7) % 5) * 0.11}s`, '--lo': `${0.35 + ((i * 3) % 4) * 0.12}`, animationDelay: `${-((i * 5) % 9) * 0.07}s` } as CSSProperties}
-        />
-      ))}
+    <div className="flex flex-col gap-6 rounded-lg border border-line bg-card p-6 sm:p-7">
+      <div>
+        <p className="type-caption">{kind}</p>
+        <h2 className="type-title-sm mt-2">{title}</h2>
+        <p className="type-lede mt-2 max-w-[46ch]">{body}</p>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <span className="type-caption type-num">{meta}</span>
+        <Link {...link} className={buttonStyles({ variant: 'outline' })}>
+          {cta}
+          <ArrowRight aria-hidden />
+        </Link>
+      </div>
     </div>
   );
 }

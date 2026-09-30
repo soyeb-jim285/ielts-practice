@@ -422,8 +422,3 @@
   }
 }
 
-/* Live examiner voiceprint (speaking hub): each bar alternates between its own floor (--lo) and full height. Transform-only. */
-@keyframes voice {
-  from { transform: scaleY(var(--lo, 0.4)); }
-  to { transform: scaleY(1); }
-}
