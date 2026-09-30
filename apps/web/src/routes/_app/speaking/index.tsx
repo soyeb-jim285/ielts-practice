@@ -25,19 +25,47 @@ function SpeakingHome() {
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
       <div className="space-y-12">
-        <Card tone="hero" className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between sm:gap-10 sm:p-7">
-          <div className="max-w-[46ch]">
-            <h2 className="type-title-sm">Full practice test</h2>
-            <p className="type-lede mt-2">All three parts in order, like test day. Each part is scored, plus an overall band for the test.</p>
-            <p className="type-caption type-num mt-3">11-14 min</p>
+        <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
+          <Card tone="hero" className="flex flex-col justify-between gap-8 sm:p-7">
+            <div>
+              <p className="type-caption">Practice test, at your own pace</p>
+              <h2 className="type-title-sm mt-2">Full practice test</h2>
+              <p className="type-lede mt-2 max-w-[44ch]">All three parts in order, like test day. You read each question, record your answer, and get every part scored plus an overall band.</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="type-caption type-num">11-14 min, recorded</p>
+              <Link to="/speaking/session" search={{ mode: 'full' }} className={buttonStyles({ size: 'lg', className: 'w-full sm:w-auto sm:px-6' })}>
+                Start full test <ArrowRight aria-hidden />
+              </Link>
+            </div>
+          </Card>
+
+          <div className="relative flex flex-col justify-between gap-8 overflow-hidden rounded-lg bg-foreground p-6 text-background sm:p-7">
+            <div>
+              <p className="type-caption flex items-center gap-2 text-background/75">
+                <span className="relative flex size-2" aria-hidden>
+                  <span className="absolute inline-flex size-full rounded-full bg-[#2dd4bf] opacity-60 motion-safe:animate-ping" />
+                  <span className="relative inline-flex size-2 rounded-full bg-[#2dd4bf]" />
+                </span>
+                Live, spoken conversation
+              </p>
+              <h2 className="type-title-sm mt-2 text-background">Live examiner</h2>
+              <p className="mt-2 max-w-[44ch] text-body leading-relaxed text-background/80">
+                An AI examiner asks the questions aloud, listens, and follows up on what you say, just like the real interview. The whole test is scored when you finish.
+              </p>
+            </div>
+            <Waveform />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="type-caption type-num text-background/75">11-14 min, needs a microphone</p>
+              <Link to="/speaking/live" className={buttonStyles({ size: 'lg', className: 'w-full bg-background text-foreground hover:bg-background/90 sm:w-auto sm:px-6' })}>
+                <AudioLines aria-hidden /> Talk to the examiner
+              </Link>
+            </div>
           </div>
-          <Link to="/speaking/session" search={{ mode: 'full' }} className={buttonStyles({ size: 'lg', className: 'w-full sm:w-auto sm:px-7' })}>
-            Start full test <ArrowRight aria-hidden />
-          </Link>
-        </Card>
+        </section>
 
         <section aria-labelledby="one-h">
-          <PanelHeader id="one-h" title="Or practise one thing" />
+          <PanelHeader id="one-h" title="Or practise one part" />
           <ul className={cn(listStyles, 'stagger')}>
             {PARTS.map((p) => (
               <li key={p.mode}>
@@ -50,21 +78,28 @@ function SpeakingHome() {
                 </Link>
               </li>
             ))}
-            <li>
-              <Link to="/speaking/live" className={cn(rowStyles, 'min-h-[4.75rem]')}>
-                <span className="grid w-9 shrink-0 place-items-start text-muted transition-colors duration-[120ms] group-hover:text-accent-text" aria-hidden>
-                  <AudioLines className="size-6" />
-                </span>
-                <RowText title="Live examiner" desc="An AI examiner asks the questions aloud and follows up on what you say, then scores the whole test. Needs a microphone." />
-                <RowEnd>11-14 min</RowEnd>
-              </Link>
-            </li>
           </ul>
         </section>
 
         <Recent />
       </div>
     </PageContainer>
+  );
+}
+
+/** Decorative voice bars for the live card; static under reduced motion. */
+function Waveform() {
+  const bars = [0.35, 0.7, 0.5, 0.9, 0.45, 0.8, 0.3, 0.6, 0.95, 0.55, 0.4, 0.75, 0.5, 0.85, 0.35, 0.65, 0.45, 0.9, 0.55, 0.3];
+  return (
+    <div className="flex h-10 items-center gap-1" aria-hidden>
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          className="w-1 origin-center rounded-full bg-[#2dd4bf]/80 motion-safe:animate-[wave_1.4s_ease-in-out_infinite]"
+          style={{ height: `${h * 100}%`, animationDelay: `${(i % 7) * -0.18}s` }}
+        />
+      ))}
+    </div>
   );
 }
 
