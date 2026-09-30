@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, AudioLines } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
-import { buttonStyles, Card, PageContainer, PageHeader, Skeleton } from '@/components/ui';
+import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
 import { bandColor, type AttemptListItem } from '@/lib/result';
@@ -26,39 +26,26 @@ function SpeakingHome() {
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
       <div className="space-y-12">
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
-          <Card tone="hero" className="flex flex-col justify-between gap-8 sm:p-7">
-            <div>
-              <p className="type-caption">Practice test, at your own pace</p>
-              <h2 className="type-title-sm mt-2">Full practice test</h2>
-              <p className="type-lede mt-2 max-w-[44ch]">All three parts in order, like test day. You read each question, record your answer, and get every part scored plus an overall band.</p>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="type-caption type-num">11-14 min, recorded</p>
-              <Link to="/speaking/session" search={{ mode: 'full' }} className={buttonStyles({ size: 'lg', className: 'w-full sm:w-auto sm:px-6' })}>
-                Start full test <ArrowRight aria-hidden />
-              </Link>
-            </div>
-          </Card>
-
-          <div className="group/live relative flex flex-col justify-between gap-8 overflow-hidden rounded-lg bg-foreground p-6 text-background transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] focus-within:-translate-y-0.5 hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transform-none sm:p-7">
-            <div>
-              <p className="type-caption flex items-center gap-2 text-background/75">
-                <span className="size-2 rounded-full bg-[#2dd4bf] shadow-[0_0_0_3px_rgb(45_212_191/0.22)]" aria-hidden />
-                Live, spoken conversation
-              </p>
-              <h2 className="type-title-sm mt-2 text-background">Live examiner</h2>
-              <p className="mt-2 max-w-[44ch] text-body leading-relaxed text-background/80">
-                An AI examiner asks the questions aloud, listens, and follows up on what you say, just like the real interview. The whole test is scored when you finish.
-              </p>
-            </div>
-            <Waveform />
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="type-caption type-num text-background/75">11-14 min, needs a microphone</p>
-              <Link to="/speaking/live" className={buttonStyles({ size: 'lg', className: 'w-full bg-background text-foreground hover:bg-background/90 sm:w-auto sm:px-6' })}>
-                <AudioLines aria-hidden /> Talk to the examiner <ArrowRight aria-hidden className="transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover/live:translate-x-0.5 motion-reduce:transition-none" />
-              </Link>
-            </div>
-          </div>
+          <ModeCard
+            to="/speaking/session"
+            search={{ mode: 'full' }}
+            kind="Practice test, at your own pace"
+            title="Full practice test"
+            body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
+            meta="11-14 min, recorded"
+            cta="Start full test"
+            visual={<PartsTimeline />}
+          />
+          <ModeCard
+            tone="brand"
+            to="/speaking/live"
+            kind="Live, spoken conversation"
+            title="Live examiner"
+            body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
+            meta="11-14 min, needs a microphone"
+            cta="Talk to the examiner"
+            visual={<Waveform />}
+          />
         </section>
 
         <section aria-labelledby="one-h">
@@ -84,16 +71,76 @@ function SpeakingHome() {
   );
 }
 
-/** Voiceprint for the live card: still at rest, "speaks" while the card is hovered or focused (the state the motion conveys).
- *  Each bar has its own period and floor, so the motion reads as speech rather than an equaliser loop. Paused, not removed, so it never snaps. */
-const VOICE = [0.22, 0.38, 0.62, 0.48, 0.8, 0.95, 0.7, 0.42, 0.28, 0.52, 0.86, 0.64, 0.4, 0.72, 0.9, 0.56, 0.34, 0.24];
+const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
+
+/** One of the two ways to practise. The whole card is the link; both cards share size, structure and interaction.
+ *  Hover/focus: 2px lift, brand border, tinted shadow, and the card's visual plays (the only motion, so it signals "this is what happens"). */
+function ModeCard({ to, search, tone, kind, title, body, meta, cta, visual }: { to: '/speaking/session' | '/speaking/live'; search?: { mode: 'full' }; tone?: 'brand'; kind: string; title: string; body: string; meta: string; cta: string; visual: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      search={search as never}
+      className={cn(
+        'group/mode flex flex-col gap-6 rounded-lg border p-6 outline-none transition-[translate,box-shadow,border-color] duration-200 sm:p-7',
+        EASE,
+        'hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-[0_10px_28px_-14px_rgb(15_118_110/0.45)] focus-visible:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:focus-visible:translate-y-0',
+        tone === 'brand' ? 'border-brand/20 bg-accent-soft' : 'border-line bg-card',
+      )}
+    >
+      <div>
+        <p className="type-caption">{kind}</p>
+        <h2 className="type-title-sm mt-2">{title}</h2>
+        <p className="type-lede mt-2 max-w-[46ch]">{body}</p>
+      </div>
+      <div className="mt-auto">{visual}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <span className="type-caption type-num">{meta}</span>
+        <span className={buttonStyles({ variant: tone === 'brand' ? 'primary' : 'outline', className: 'pointer-events-none' })}>
+          {cta}
+          <ArrowRight aria-hidden className={cn('transition-transform duration-200 group-hover/mode:translate-x-0.5 motion-reduce:transition-none', EASE)} />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/** The full test's real structure: three parts in order, widths proportional to their length (4.5, 3.5, 4.5 min midpoints).
+ *  On hover the parts fill in sequence, the order the test runs in. */
+function PartsTimeline() {
+  const parts = [
+    { n: 1, label: 'Interview', w: 4.5 },
+    { n: 2, label: 'Long turn', w: 3.5 },
+    { n: 3, label: 'Discussion', w: 4.5 },
+  ];
+  return (
+    <div className="flex gap-1.5" aria-hidden>
+      {parts.map((p, i) => (
+        <div key={p.n} className="min-w-0" style={{ flex: p.w }}>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className={cn('h-full origin-left scale-x-0 rounded-full bg-brand transition-transform duration-300 group-hover/mode:scale-x-100 group-focus-visible/mode:scale-x-100 motion-reduce:transition-none', EASE)}
+              style={{ transitionDelay: `${i * 120}ms` }}
+            />
+          </div>
+          <p className="type-caption mt-2 truncate">
+            Part {p.n}, {p.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Voiceprint for the live mode: still at rest, "speaks" while its card is hovered or focused.
+ *  Each bar has its own period and floor, so it reads as speech rather than an equaliser loop. Paused, not removed, so it never snaps. */
+const VOICE = [0.22, 0.38, 0.62, 0.48, 0.8, 0.95, 0.7, 0.42, 0.28, 0.52, 0.86, 0.64, 0.4, 0.72, 0.9, 0.56, 0.34, 0.24, 0.46, 0.68, 0.36, 0.2];
 function Waveform() {
   return (
-    <div className="flex h-10 items-center gap-[3px]" aria-hidden>
+    <div className="flex h-9 items-center gap-[3px]" aria-hidden>
       {VOICE.map((h, i) => (
         <span
           key={i}
-          className="w-[3px] origin-center rounded-full bg-[#2dd4bf]/85 [animation:voice_var(--d)_ease-in-out_infinite_alternate_paused] group-hover/live:[animation-play-state:running] group-focus-within/live:[animation-play-state:running] motion-reduce:animate-none"
+          className="w-[3px] origin-center rounded-full bg-brand/70 [animation:voice_var(--d)_ease-in-out_infinite_alternate_paused] group-hover/mode:[animation-play-state:running] group-focus-visible/mode:[animation-play-state:running] motion-reduce:animate-none"
           style={{ height: `${h * 100}%`, '--d': `${0.55 + ((i * 7) % 5) * 0.11}s`, '--lo': `${0.35 + ((i * 3) % 4) * 0.12}`, animationDelay: `${-((i * 5) % 9) * 0.07}s` } as CSSProperties}
         />
       ))}
