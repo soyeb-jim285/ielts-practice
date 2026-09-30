@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
+import { EASE, ModeCard } from '@/components/bank/ModeCard';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
@@ -27,8 +27,7 @@ function SpeakingHome() {
       <div className="space-y-12">
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
-            to="/speaking/session"
-            search={{ mode: 'full' }}
+            link={{ to: '/speaking/session', search: { mode: 'full' } }}
             kind="Practice test, at your own pace"
             title="Full practice test"
             body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
@@ -38,7 +37,7 @@ function SpeakingHome() {
           />
           <ModeCard
             tone="brand"
-            to="/speaking/live"
+            link={{ to: '/speaking/live' }}
             kind="Live, spoken conversation"
             title="Live examiner"
             body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
@@ -68,39 +67,6 @@ function SpeakingHome() {
         <Recent />
       </div>
     </PageContainer>
-  );
-}
-
-const EASE = 'ease-[cubic-bezier(0.25,1,0.5,1)]';
-
-/** One of the two ways to practise. The whole card is the link; both cards share size, structure and interaction.
- *  Hover/focus: 2px lift, brand border, tinted shadow, and the card's visual plays (the only motion, so it signals "this is what happens"). */
-function ModeCard({ to, search, tone, kind, title, body, meta, cta, visual }: { to: '/speaking/session' | '/speaking/live'; search?: { mode: 'full' }; tone?: 'brand'; kind: string; title: string; body: string; meta: string; cta: string; visual: ReactNode }) {
-  return (
-    <Link
-      to={to}
-      search={search as never}
-      className={cn(
-        'group/mode flex flex-col gap-6 rounded-lg border p-6 outline-none transition-[translate,box-shadow,border-color] duration-200 sm:p-7',
-        EASE,
-        'hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-[0_10px_28px_-14px_rgb(15_118_110/0.45)] focus-visible:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:focus-visible:translate-y-0',
-        tone === 'brand' ? 'border-brand/20 bg-accent-soft' : 'border-line bg-card',
-      )}
-    >
-      <div>
-        <p className="type-caption">{kind}</p>
-        <h2 className="type-title-sm mt-2">{title}</h2>
-        <p className="type-lede mt-2 max-w-[46ch]">{body}</p>
-      </div>
-      <div className="mt-auto">{visual}</div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-        <span className="type-caption type-num">{meta}</span>
-        <span className={buttonStyles({ variant: tone === 'brand' ? 'primary' : 'outline', className: 'pointer-events-none' })}>
-          {cta}
-          <ArrowRight aria-hidden className={cn('transition-transform duration-200 group-hover/mode:translate-x-0.5 motion-reduce:transition-none', EASE)} />
-        </span>
-      </div>
-    </Link>
   );
 }
 
