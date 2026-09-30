@@ -15,7 +15,7 @@ final class Recorder {
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private(set) var energy: [Int] = []
 
-    static func configureSession() throws {
+    nonisolated static func configureSession() throws {
         let s = AVAudioSession.sharedInstance()
         try s.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try s.setActive(true)
