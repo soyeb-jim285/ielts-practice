@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react';
 // ponytail: fixed threshold; add a calibration step from the mic check if noisy rooms end turns late.
 export const VAD = { threshold: 60 / 255, startMs: 150, endMs: 1200 };
 
+/** Mic check tally of 50 ms frames: speech-level (loud) vs audible-but-low (soft). */
+export type MicTally = { loud: number; soft: number };
+export const MIC_CHECK = { soft: 30 / 255, frames: 20 }; // 20 frames ≈ 1 s
+export const tallyMic = (t: MicTally, level: number): MicTally =>
+  level > VAD.threshold ? { ...t, loud: t.loud + 1 } : level > MIC_CHECK.soft ? { ...t, soft: t.soft + 1 } : t;
+/** 'clear' after ~1 s of speech-level input in total; 'quiet' after ~1 s of low input without that. */
+export const micVerdict = (t: MicTally) => (t.loud >= MIC_CHECK.frames ? 'clear' : t.soft >= MIC_CHECK.frames ? 'quiet' : 'listening');
+
 /**
  * Pure voice-activity detector. Speech starts when the level stays above the threshold for `startMs`;
  * the turn ends after `endMs` below it following speech. `push` returns true exactly once per turn.

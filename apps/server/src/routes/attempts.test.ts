@@ -42,7 +42,7 @@ it('speaking: create → upload URL, submit needs upload, then analyzes', async 
   expect(again.status).toBe(409);
 
   const got = (await (await req(`/api/attempts/${body.id}`, { headers })).json()) as any;
-  expect(got).toMatchObject({ status: 'analyzing', durationMs: 30000, energy: [0, 120, 255], marks: [0, 12000], analysis: null });
+  expect(got).toMatchObject({ status: 'analyzing', durationMs: 30000, energy: [0, 120, 255], marks: [0, 12000], analysis: null, models: null });
   expect(got.audioUrl).toContain(body.audioKey);
   expect(got.prompt.title).toBe(p.title);
 });
@@ -162,7 +162,8 @@ it('topFixesInDeck turns true once the top fixes were added to the deck', async 
   const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
   const { id } = (await (await req('/api/attempts', { headers, body: { promptId: p.id, skill: 'writing', part: 2, text: 'x' } })).json()) as any;
   const topFixes = [1, 2].map((n) => ({ title: `Fix ${n}`, why: 'why', before: 'b', after: 'a' }));
-  await db.insert(analyses).values({ attemptId: id, result: { topFixes }, overall: 6, criteria: {}, models: {} });
+  await db.insert(analyses).values({ attemptId: id, result: { topFixes }, overall: 6, criteria: {}, models: { analysis: 'openai/gpt-6-luna' } });
+  expect(((await (await req(`/api/attempts/${id}`, { headers })).json()) as any).models).toEqual({ analysis: 'openai/gpt-6-luna' });
   const flag = async () => ((await (await req(`/api/attempts/${id}`, { headers })).json()) as any).topFixesInDeck;
   expect(await flag()).toBe(false);
   await req('/api/cards/bulk', { headers, body: { cards: topFixes.map((f) => ({ front: `${f.title}\n\n${f.before}`, back: `${f.after}\n\n${f.why}`, source: 'fix' })) } });

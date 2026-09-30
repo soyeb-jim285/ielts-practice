@@ -54,23 +54,19 @@ function ownKey(s: LiveState, key: string) {
   return key;
 }
 
-/** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3. A TTS failure degrades to captions only (url null) instead of failing the turn. */
+/** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3 (or .wav for PCM-only voices). A TTS failure degrades to captions only (url null) instead of failing the turn. */
 async function voice(s: LiveState, n: number, text: string, settings: Settings): Promise<{ key?: string; url: string | null; voiceError?: string }> {
   const { tts, ttsVoice } = settings.models;
   try {
     const { audio, contentType } = await speak({ model: tts, voice: ttsVoice, text });
-    const key = `live/${s.sessionId}/e${n}.mp3`;
+    const key = `live/${s.sessionId}/e${n}.${contentType === 'audio/wav' ? 'wav' : 'mp3'}`;
     await storage.put(key, audio, contentType);
     return { key, url: await storage.presignGet(key) };
   } catch (e) {
     if (!(e instanceof AiError)) throw e;
     console.error('examiner TTS failed, captions only', e.status, e.message);
-    // 400/404 is a bad model/voice choice; credit/key/outage problems are not the user's to fix.
-    const voiceError =
-      e.status === 400 || e.status === 404
-        ? `Examiner voice model ${tts} (voice ${ttsVoice}) is unavailable – change it in Settings.`
-        : 'The examiner voice is unavailable right now, so questions are shown as captions.';
-    return { url: null, voiceError };
+    if (e.status === 400 || e.status === 404) console.error(`examiner voice model ${tts} (voice ${ttsVoice}) rejected the request`);
+    return { url: null, voiceError: 'The examiner voice is unavailable right now, so questions are shown as captions.' };
   }
 }
 

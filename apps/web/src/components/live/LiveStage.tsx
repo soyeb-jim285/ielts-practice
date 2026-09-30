@@ -115,8 +115,9 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         )}
 
         {ex.voiceError && (
-          <Alert tone="warn" title="Examiner voice unavailable">
-            The test continues with captions. {ex.voiceError}
+          // ponytail: the server's detail (model id, Settings hint) is for logs, not the candidate.
+          <Alert tone="warn" title="The examiner's voice isn't available right now">
+            Questions will appear as text below. The test carries on as normal.
           </Alert>
         )}
 

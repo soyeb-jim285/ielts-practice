@@ -47,7 +47,7 @@ const CreatedAttempt = z
 
 const SubmitAttempt = z
   .object({
-    durationMs: z.number().int().min(0).optional(),
+    durationMs: z.number().int().min(0).optional().openapi({ description: 'Speaking: recording length. Writing: time spent in the editor (counts toward weekly minutes).' }),
     energy: z.array(z.number().int().min(0).max(255)).max(20000).optional().openapi({ description: '50 ms RMS frames, 0-255' }),
     marks: z.array(z.number().int().min(0)).max(200).optional().openapi({ description: 'Question start offsets (ms)' }),
     text: z.string().max(20000).optional(),
@@ -78,6 +78,7 @@ const AttemptSchema = z
     retryable: z.boolean().openapi({ description: 'status failed: false when retrying now cannot help (AI credit/key problem); show "try later" instead of Retry' }),
     createdAt: z.string(),
     analysis: z.unknown().nullable().openapi({ description: 'AnalysisResult (spec §6) once status is done' }),
+    models: z.record(z.string(), z.string()).nullable().openapi({ description: 'OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done' }),
     topFixesInDeck: z.boolean().openapi({ description: "Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them)" }),
     prompt: z
       .object({
@@ -211,7 +212,7 @@ export function register(app: App) {
       const a = await ownAttempt(id, uid);
       const [p, an] = await Promise.all([
         db.query.prompts.findFirst({ where: eq(prompts.id, a.promptId) }),
-        db.query.analyses.findFirst({ where: eq(analyses.attemptId, id), columns: { result: true } }),
+        db.query.analyses.findFirst({ where: eq(analyses.attemptId, id), columns: { result: true, models: true } }),
       ]);
       const fixes = (an?.result as AnalysisResult | undefined)?.topFixes ?? [];
       const [audioUrl, imageUrl, fixesAdded] = await Promise.all([
@@ -241,6 +242,7 @@ export function register(app: App) {
           retryable: a.errorRetryable,
           createdAt: a.createdAt.toISOString(),
           analysis: an?.result ?? null,
+          models: an?.models ?? null,
           topFixesInDeck: fixes.length > 0 && fixesAdded.every(Boolean),
           prompt: {
             id: p!.id,

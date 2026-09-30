@@ -109,8 +109,15 @@ function ResultPage() {
 
 function Done({ a, r, tab, setTab, target }: { a: Attempt; r: AnalysisResult; tab: Tab; setTab: (t: Tab) => void; target: number }) {
   const text = r.text ?? a.text ?? '';
+  // TR/TA ≤ 4 or a major relevance mistake: the answer misses the question, whatever the other criteria say.
+  const offTopic = !r.tooShort && ((r.criteria.ta?.band ?? 9) <= 4 || r.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major'));
   return (
     <div className="space-y-6">
+      {offTopic && (
+        <Alert tone="bad" title="Off topic">
+          Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question — in the exam this caps your score.
+        </Alert>
+      )}
       {r.tooShort && (
         <Alert tone="warn" title="Too short to assess">
           Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.

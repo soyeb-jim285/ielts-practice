@@ -26,8 +26,9 @@ it('maps quotes to char spans and rounds the overall', async () => {
   const [e0, e1] = r.errors;
   expect(essay.slice(e0!.start, e0!.end)).toBe(quote);
   expect(e1).toMatchObject({ id: 'e1', start: -1, end: -1 });
-  expect(r.overallRaw).toBe(6.25);
-  expect(r.overall).toBe(6.5);
+  expect(r.overallRaw).toBe(6.75); // criterion mean 6.25 + the default model's +0.5 calibration
+  expect(r.overall).toBe(7);
+  expect(r.calibration).toBe(0.5);
   expect(r.topFixes).toHaveLength(3);
   expect(r.textMetrics!.words).toBeGreaterThan(20);
   const user = JSON.parse(f.calls[0]!.body.messages[1].content);
@@ -74,4 +75,19 @@ it('keepVerbatimEvidence drops metric facts and paraphrases', () => {
   const crit = { fc: { band: 6, range: [5, 6] as [number, number], descriptor: '', summary: '', evidence: ['"he, he don\u2019t use"', 'durationS 39.4 (under ~60s target)', 'speechRateWpm 187', 'my father \u2026 the computer', 'he never uses it'] } };
   keepVerbatimEvidence(crit, "Also, um, my father, he, he don't use the computer.");
   expect(crit.fc.evidence).toEqual(['"he, he don\u2019t use"', 'my father \u2026 the computer']);
+});
+
+it('calibration applies only to the model it was fitted on, and only from band 5 up', async () => {
+  const quote = 'people has';
+  setFetch(fakeFetch({ '/chat/completions': () => chatReply(writingLlm(quote)) }));
+  const other = settings();
+  other.models = { ...other.models, analysis: 'other/model' };
+  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: other });
+  expect([r.overallRaw, r.overall, r.calibration]).toEqual([6.25, 6.5, undefined]);
+
+  const low = writingLlm(quote);
+  for (const c of Object.values(low.criteria)) Object.assign(c, { band: 4, range: [4, 5] });
+  setFetch(fakeFetch({ '/chat/completions': () => chatReply(low) }));
+  const w = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: settings() });
+  expect([w.overallRaw, w.calibration]).toEqual([4, undefined]);
 });

@@ -31,3 +31,29 @@ it('fillers are not counted as words and break runs', () => {
   expect(m.speechRate).toBeCloseTo(4 / (1.8 / 60));
   expect(m.mlr).toBeCloseTo(4 / 3);
 });
+it('parallel structures are not self-corrections; a paused content-word restart is', () => {
+  const seq = (ws: string[], gapAt = -1) => mk(ws.map((w, i) => [w, i * 0.3 + (i >= gapAt && gapAt >= 0 ? 0.5 : 0), i * 0.3 + 0.25 + (i >= gapAt && gapAt >= 0 ? 0.5 : 0)]));
+  const fluent = seq('the soaring rents and the constant noise of the centre of things, of being'.split(' '));
+  expect(computeSpeechMetrics(fluent, { durationS: 5 }).selfCorrections).toEqual([]);
+  // "people can ... people will": restart after a 550 ms pause
+  expect(computeSpeechMetrics(seq(['people', 'can', 'people', 'will', 'earn'], 2), { durationS: 3 }).selfCorrections.map(s => s.wordIdx)).toEqual([2]);
+  expect(computeSpeechMetrics(seq(['people', 'can', 'people', 'will', 'earn']), { durationS: 3 }).selfCorrections).toEqual([]);
+});
+it('stretched word timestamps expose hidden (filled) pauses', () => {
+  // Whisper dropped an "um" and stretched "many" over it: 1.0 s for a 4-letter word
+  const m = computeSpeechMetrics(mk([['there', 0, 0.3], ['are', 0.3, 0.5], ['many', 0.5, 1.5], ['jobs', 1.5, 1.8]]), { durationS: 2 });
+  expect(m.pauses).toHaveLength(1);
+  expect(m.pauses[0]).toMatchObject({ voiced: true, midClause: true });
+  expect(m.pauses[0]!.dur).toBeCloseTo(1 - 0.28);
+  expect(m.fillers.map(f => f.kind)).toEqual(['voiced']);
+  expect(m.mlr).toBe(2);
+  // a normal-length long word is untouched
+  expect(computeSpeechMetrics(mk([['it', 0, 0.2], ['unfortunately', 0.2, 1.0]]), { durationS: 1 }).pauses).toEqual([]);
+});
+it('lexical profile: mtld, ttr, less-common %, overused', () => {
+  const m = computeSpeechMetrics(mk('I think commuting is exhausting because commuting takes time and commuting costs money commuting'.split(' ').map((w, i) => [w, i * 0.3, i * 0.3 + 0.25])), { durationS: 5 });
+  expect(m.lexical).toMatchObject({ overused: [{ word: 'commuting', count: 4 }] });
+  expect(m.lexical!.lessCommonPct).toBeCloseTo(35.7); // commuting ×4 + exhausting of 14
+  expect(m.lexical!.ttr).toBeCloseTo(0.79);
+  expect(m.lexical!.mtld).toBeGreaterThan(0);
+});

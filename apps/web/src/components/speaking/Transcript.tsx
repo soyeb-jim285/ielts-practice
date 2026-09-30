@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
 import { Chip } from '@/components/ui';
-import { buildTokens, errorGroup, isLongPause, pauseSec, questionHead, type Token, type TranscriptFilter } from '@/lib/result';
+import { buildTokens, errorGroup, isLongPause, isSentenceNote, pauseSec, questionHead, type Token, type TranscriptFilter } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const FILTERS: { value: TranscriptFilter; label: string }[] = [
@@ -42,6 +42,11 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     (filter === 'unclear' && !!t.unclearTier) ||
     ((filter === 'grammar' || filter === 'vocab' || filter === 'other') && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
 
+  // Sentence-wide notes (relevance etc.) would drown word-level marks, so they only show under their own filter.
+  const shown = (e: AnalysisError) => !isSentenceNote(e) || filter === errorGroup(e);
+  const playing = (t: Token) => audio.time >= t.start && audio.time < t.end + 0.05 && 'bg-accent-soft text-ink';
+  const filler = (t: Token) => t.filler && 'text-muted line-through decoration-muted';
+
   const word = (t: Token) => (
     <span
       key={t.i}
@@ -49,9 +54,9 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
       title={t.unclearTier ? `Unclear to speech recognition (${Math.round((t.conf ?? 0) * 100)}% confidence)` : undefined}
       className={clsx(
         'cursor-pointer rounded-[3px] transition-colors duration-100 hover:bg-ink/6',
-        audio.time >= t.start && audio.time < t.end + 0.05 && 'bg-accent-soft text-ink',
-        t.filler && 'text-muted line-through decoration-muted/60',
-        t.unclearTier && !t.errorIds.length && ['underline decoration-dotted decoration-2 underline-offset-4', UNCLEAR[t.unclearTier]],
+        playing(t),
+        filler(t),
+        t.unclearTier && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-dotted decoration-2 underline-offset-4', UNCLEAR[t.unclearTier]],
         !matches(t) && 'opacity-35',
       )}
     >
@@ -91,7 +96,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
           {q.rest && <span className="mt-0.5 block text-xs font-normal">{q.rest}</span>}
         </p>,
       );
-    const e = t.errorIds.map((id) => errors.get(id)!).find((x) => x.start === i);
+    const e = t.errorIds.map((id) => errors.get(id)!).find((x) => x.start === i && shown(x));
     if (e) {
       const span = tokens.slice(i, Math.min(e.end, tokens.length - 1) + 1);
       const last = span.at(-1)!;
@@ -101,15 +106,15 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
             error={e}
             onPlay={() => audio.seek(t.start, last.end + 0.3)}
             className={clsx(
-              'cursor-pointer rounded-[3px] text-left underline decoration-2 underline-offset-4 hover:bg-ink/6',
-              e.severity === 'major' ? 'decoration-bad' : 'decoration-warn',
+              'cursor-pointer rounded-[3px] text-left',
+              isSentenceNote(e) ? 'box-decoration-clone bg-warn-soft px-0.5 hover:bg-warn-soft/70' : ['underline decoration-2 underline-offset-4 hover:bg-ink/6', e.severity === 'major' ? 'decoration-bad' : 'decoration-warn'],
               !matches(t) && 'opacity-35',
             )}
           >
             {span.map((s, k) => (
               <Fragment key={s.i}>
                 {k > 0 && ' '}
-                <span className={clsx(audio.time >= s.start && audio.time < s.end + 0.05 && 'bg-accent-soft')}>{s.w}</span>
+                <span className={clsx(playing(s), filler(s))}>{s.w}</span>
               </Fragment>
             ))}
           </ErrorPopover>{' '}
@@ -136,20 +141,21 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
           </Chip>
         ))}
       </div>
-      <div className="prose-serif max-w-none leading-[2]">{out}</div>
-      <Legend />
+      <div className="prose-serif leading-[2]">{out}</div>
+      <Legend notes={result.errors.some(isSentenceNote)} />
       {unplaced.length > 0 && <Unplaced errors={unplaced} />}
     </div>
   );
 }
 
-function Legend() {
+function Legend({ notes }: { notes: boolean }) {
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
       <li className="flex items-center gap-1.5"><span className="underline decoration-bad decoration-2 underline-offset-4">word</span> major error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-2 underline-offset-4">word</span> minor error</li>
       <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4">word</span> unclear to speech recognition</li>
-      <li className="flex items-center gap-1.5"><span className="line-through">um</span> filler</li>
+      <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>
+      {notes && <li className="flex items-center gap-1.5"><span className="rounded-[3px] bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
       <li>Tap any word to hear it</li>
     </ul>
   );

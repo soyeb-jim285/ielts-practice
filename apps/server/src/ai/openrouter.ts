@@ -204,9 +204,36 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
   return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0 };
 }
 
-export async function speak(o: { model: string; voice: string; text: string }): Promise<{ audio: Uint8Array; contentType: string }> {
-  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: 'mp3' });
-  return { audio: new Uint8Array(await res.arrayBuffer()), contentType: res.headers.get('content-type') ?? 'audio/mpeg' };
+/** 44-byte RIFF header around raw s16le PCM so browsers and AVPlayer can play it. */
+export function pcmToWav(pcm: Uint8Array, rate = 24000, channels = 1) {
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0);
+  h.writeUInt32LE(36 + pcm.length, 4);
+  h.write('WAVEfmt ', 8);
+  h.writeUInt32LE(16, 16);
+  h.writeUInt16LE(1, 20); // PCM
+  h.writeUInt16LE(channels, 22);
+  h.writeUInt32LE(rate, 24);
+  h.writeUInt32LE(rate * channels * 2, 28);
+  h.writeUInt16LE(channels * 2, 32);
+  h.writeUInt16LE(16, 34);
+  h.write('data', 36);
+  h.writeUInt32LE(pcm.length, 40);
+  return new Uint8Array(Buffer.concat([h, pcm]));
+}
+
+/** Gemini TTS only returns raw PCM ("only supports response_format=pcm"); every other speech model gets mp3. */
+const pcmOnly = (model: string) => /^google\/.*tts/.test(model);
+
+/** Returns mp3 (audio/mpeg) or, for PCM-only models, WAV (audio/wav). */
+export async function speak(o: { model: string; voice: string; text: string }): Promise<{ audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' }> {
+  const pcm = pcmOnly(o.model);
+  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' });
+  const audio = new Uint8Array(await res.arrayBuffer());
+  if (!pcm) return { audio, contentType: 'audio/mpeg' };
+  // content-type is e.g. "audio/pcm;rate=24000;channels=1"
+  const param = (k: string, d: number) => Number(res.headers.get('content-type')?.match(new RegExp(`${k}=(\\d+)`))?.[1] ?? d);
+  return { audio: pcmToWav(audio, param('rate', 24000), param('channels', 1)), contentType: 'audio/wav' };
 }
 
 export type ModelInfo = { id: string; name: string; input: string[]; output: string[]; pricing: { prompt: string; completion: string }; voices: string[] };

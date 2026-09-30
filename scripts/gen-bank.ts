@@ -7,7 +7,7 @@ import { chatText } from '../apps/server/src/ai/openrouter';
 import { BANK_KINDS, DEFAULT_BANK_DIR } from '../apps/server/src/seed';
 
 const BATCH = 10;
-const [file, count = '10', model = 'openai/gpt-5-mini'] = process.argv.slice(2);
+const [file, count = '10', model = 'openai/gpt-6-luna'] = process.argv.slice(2);
 const kind = BANK_KINDS.find((k) => file?.startsWith(k.prefix));
 if (!file || !kind) throw new Error(`usage: gen-bank.ts <${BANK_KINDS.map((k) => `${k.prefix}*.json`).join(' | ')}> [count] [model]`);
 

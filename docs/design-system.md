@@ -20,9 +20,9 @@ Tokens are defined in `styles.css` (`:root` for light, `.dark` for dark) and exp
 | Surface | `bg-surface` | cards, popovers, inputs |
 | Second surface | `bg-surface-2` | sidebar, insets inside cards, input wells |
 | Text | `text-ink`, `text-muted` | body text, secondary text (muted passes 4.5:1) |
-| Lines | `border-line`, `border-line-strong` | dividers and borders; the strong one for hover |
+| Lines | `border-line`, `border-line-strong` | `line` for dividers and card edges; `line-strong` (≥3:1) for form-control edges, switch tracks and hover borders |
 | Accent | `bg-accent text-accent-ink`, `hover:bg-accent-hover`, `text-accent-text` (links and text), `bg-accent-soft` | primary actions, current selection |
-| Semantic fills | `bg-good` `bg-warn` `bg-bad` | chart marks, dots, progress |
+| Semantic fills | `bg-good` `bg-warn` `bg-bad`; `text-bad-ink` on a solid `bg-bad` | chart marks, dots, progress; danger buttons |
 | Semantic text | `text-good-text` `text-warn-text` `text-bad-text` | text in these colours (contrast-safe) |
 | Semantic tints | `bg-good-soft` `bg-warn-soft` `bg-bad-soft` | badges, highlights, error underlines' backgrounds |
 | Hover wash | `hover:bg-ink/5` | ghost buttons, list rows |
@@ -34,7 +34,9 @@ Tokens are defined in `styles.css` (`:root` for light, `.dark` for dark) and exp
 
 When you need raw CSS values (SVG strokes, Recharts colours, inline styles), use the variables: `var(--accent)`, `var(--good)`, `var(--warn)`, `var(--bad)`, `var(--muted)`, `var(--line)`, `var(--ink)`, `var(--surface)`.
 
-**Band colours:** good when band ≥ target, warn when it's within 0.5 below, bad otherwise (`bandColor` in `lib/result.ts`). Map the result to the `Tone` type.
+**Chart series** (per criterion) use the non-semantic categorical palette in `components/dashboard/criteria.ts` (indigo, teal, violet, slate) so green/amber/red always mean good/warn/bad.
+
+**Band colours:** good when band ≥ target, warn when it's 0.5–1.0 below, bad when 1.5 or more below (`bandColor` in `lib/result.ts`). Map the result to the `Tone` type.
 
 **Type scale** (fixed rem, no fluid type): page h1 `text-2xl md:text-[1.75rem] font-semibold tracking-tight` (use PageHeader), section h2 `text-lg font-semibold`, card title `text-base font-semibold`, body `text-[0.9375rem]`, meta `text-sm text-muted`, micro `text-xs text-muted`. Numbers get `tabular-nums`. Big band numbers: `text-5xl font-semibold tracking-tight tabular-nums`.
 

@@ -1,3 +1,4 @@
+import { COMMON_WORDS } from './common-words';
 import { LINKERS } from './constants';
 import type { TextMetrics } from './types';
 
@@ -31,6 +32,30 @@ export function mtld(tokens: string[], threshold = 0.72): number {
   return (mtldPass(tokens, threshold) + mtldPass([...tokens].reverse(), threshold)) / 2;
 }
 
+/** Content words (length > 3, not stoplisted) used 4+ times, most frequent first (max 10). */
+export function repeatedWords(tokens: string[]) {
+  const freq = new Map<string, number>();
+  for (const t of tokens) if (t.length > 3 && !STOP.has(t)) freq.set(t, (freq.get(t) ?? 0) + 1);
+  return [...freq]
+    .filter(([, c]) => c >= 4)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word, count]) => ({ word, count }));
+}
+
+let common: Set<string> | undefined;
+/** Spec §5.2 `lexical`: MTLD, type-token ratio, % of words outside the 5,000 most common forms (contractions excluded), overused words. */
+export function lexicalProfile(tokens: string[]) {
+  common ??= new Set(COMMON_WORDS.split(' '));
+  const plain = tokens.filter(t => !t.includes("'"));
+  return {
+    mtld: Math.round(mtld(tokens) * 10) / 10,
+    ttr: tokens.length ? Math.round((new Set(tokens).size / tokens.length) * 100) / 100 : 0,
+    lessCommonPct: plain.length ? Math.round((plain.filter(t => !common!.has(t)).length / plain.length) * 1000) / 10 : 0,
+    overused: repeatedWords(tokens),
+  };
+}
+
 export function computeTextMetrics(text: string): TextMetrics {
   const tokens = tokenize(text), words = countWords(text);
   const sentenceList = (text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? []).map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -48,13 +73,7 @@ export function computeTextMetrics(text: string): TextMetrics {
   // reported separately as linkerOpeningRatio, not as per-word overuse. Mid-sentence "however"/"for example" is normal cohesion.
   const linkers = counted.map(({ word, count, opens }) => ({ word, count, overused: opens >= 3 }));
   const linkerOpeningRatio = sentences ? counted.reduce((n, l) => n + l.opens, 0) / sentences : 0;
-  const freq = new Map<string, number>();
-  for (const t of tokens) if (t.length > 3 && !STOP.has(t)) freq.set(t, (freq.get(t) ?? 0) + 1);
-  const repeated = [...freq]
-    .filter(([, c]) => c >= 4)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([word, count]) => ({ word, count }));
+  const repeated = repeatedWords(tokens);
   return {
     words, sentences, paragraphs,
     avgSentenceLen: sentences ? words / sentences : 0,

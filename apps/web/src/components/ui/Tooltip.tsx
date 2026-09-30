@@ -30,7 +30,7 @@ export function Tooltip({ content, children, side = 'top' }: { content: ReactNod
 export function InfoTip({ children, label = 'More info' }: { children: ReactNode; label?: string }) {
   return (
     <Tooltip content={children}>
-      <button type="button" aria-label={label} className="inline-grid size-5 place-items-center rounded-full text-muted hover:text-ink">
+      <button type="button" aria-label={label} className="hit inline-grid size-5 place-items-center rounded-full text-muted hover:text-ink">
         <Info className="size-3.5" />
       </button>
     </Tooltip>

@@ -9,7 +9,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-accent-ink hover:bg-accent-hover shadow-card',
   secondary: 'bg-surface text-ink border border-line hover:border-line-strong hover:bg-surface-2 shadow-card',
   ghost: 'text-ink hover:bg-ink/5 dark:hover:bg-ink/8',
-  danger: 'bg-bad text-white hover:brightness-95 shadow-card',
+  danger: 'bg-bad text-bad-ink hover:brightness-95 shadow-card',
 };
 const SIZES: Record<ButtonSize, string> = {
   sm: 'hit h-8 px-3 text-sm gap-1.5 [&_svg]:size-4', // 44 px touch target on phones via `hit`

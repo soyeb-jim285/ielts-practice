@@ -75,6 +75,9 @@ export const attemptQuery = (id: string) =>
 /** Re-run a failed analysis (or submit a never-submitted one with its stored data). */
 export const retryAnalysis = (id: string) => api.post<{ status: 'analyzing' }>(`/attempts/${id}/submit`, {});
 
+/** No usable speech: flagged by the pipeline, or overall 0 (the server treats that as not assessed too). */
+export const notAssessed = (r: AnalysisResult) => !!r.noSpeech || r.overall === 0;
+
 // ---- labels & colours ----
 
 export const SPEAKING_CRITERIA: CriterionKey[] = ['fc', 'lr', 'gra', 'p'];
@@ -90,7 +93,7 @@ const LABELS: Record<string, string> = {
 };
 export const criterionLabel = (k: string) => LABELS[k] ?? k;
 
-/** good when band ≥ target, warn when within 0.5 below, bad otherwise. */
+/** good when band ≥ target, warn when 0.5–1.0 below, bad when 1.5+ below. */
 export function bandColor(b: number, target: number): 'good' | 'warn' | 'bad' {
   return b >= target ? 'good' : b > target - 1.5 ? 'warn' : 'bad'; // red only when 1.5+ bands short: 0.5–1 below target is "close", not failure
 }
@@ -148,6 +151,9 @@ export function errorGroup(e: AnalysisError): ErrorGroup {
   return e.category.startsWith('grammar') ? 'grammar' : e.category.startsWith('lexis') ? 'vocab' : 'other';
 }
 
+/** A task/relevance-style note on a whole stretch (8+ words): drawn as a sentence tint, only when its filter is on. */
+export const isSentenceNote = (e: AnalysisError) => errorGroup(e) === 'other' && e.end - e.start >= 7;
+
 /** `s` without a leading `lead` it repeats (cue-card bodies restate the title: "Describe X.\nand explain…"). */
 export const stripLead = (lead: string, s: string) => (lead && s.startsWith(lead) ? s.slice(lead.length).trim() : s);
 
@@ -163,7 +169,10 @@ export const isLongPause = (p: Pause) => Math.round(p.dur * 10) >= LONG_PAUSE_MS
 
 // ---- fluency stats (heuristic band-7 targets) ----
 
-export type Stat = { key: string; label: string; value: string; tone: 'good' | 'warn' | 'bad'; info: string };
+export type Stat = { key: string; label: string; value: string; tone: 'good' | 'warn' | 'bad' | 'na'; info: string };
+
+/** Under ~20 words or 15 s, rates and per-minute counts are noise: show no verdicts. */
+export const tooShortToMeasure = (m: SpeechMetrics) => m.wordCount < 20 || m.durationS < 15;
 
 // lo-is-good thresholds: value ≤ good → good, ≤ warn → warn, else bad. hi-is-good flips it.
 const upTo = (v: number, good: number, warn: number) => (v <= good ? 'good' : v <= warn ? 'warn' : 'bad') as Stat['tone'];
@@ -174,7 +183,7 @@ export function speechStats(m: SpeechMetrics): Stat[] {
   const perMin = (n: number) => n / Math.max(m.durationS / 60, 0.25);
   const rate = m.speechRate;
   const long = m.pauses.filter(isLongPause).length;
-  return [
+  const stats: Stat[] = [
     { key: 'rate', label: 'Speech rate', value: `${Math.round(rate)} wpm`, tone: rate >= 120 && rate <= 170 ? 'good' : rate >= 100 && rate <= 190 ? 'warn' : 'bad', info: 'Words per minute over the whole answer, pauses included. Band 7+ speakers usually sit around 120–170.' },
     { key: 'artic', label: 'Articulation rate', value: `${Math.round(m.articulationRate)} wpm`, tone: atLeast(m.articulationRate, 150, 130), info: 'Words per minute while you are actually speaking (pauses removed). Low values mean slow, effortful delivery.' },
     { key: 'mlr', label: 'Mean length of run', value: `${m.mlr.toFixed(1)} words`, tone: atLeast(m.mlr, 8, 5), info: 'Average number of words between pauses. Longer runs sound more fluent.' },
@@ -186,13 +195,14 @@ export function speechStats(m: SpeechMetrics): Stat[] {
     { key: 'self', label: 'Self-corrections', value: String(m.selfCorrections.length), tone: upTo(perMin(m.selfCorrections.length), 1, 2), info: 'Restarts like "I go— I went". A few are natural; many suggest hesitation.' },
     { key: 'var', label: 'Pace variability', value: `±${Math.round(m.wpmStdDev)} wpm`, tone: upTo(m.wpmStdDev, 20, 35), info: 'Standard deviation of your pace across 10-second windows. Big swings = uneven pace.' },
   ];
+  return tooShortToMeasure(m) ? stats.map((s) => ({ ...s, value: '—', tone: 'na' })) : stats;
 }
 
 // ---- session (full test) ----
 
 /** Session-level criteria and overall, weighted by speaking time (spec §5). Parts without a scored analysis are skipped. */
 export function sessionOverall(parts: { result: AnalysisResult | null | undefined; durationMs: number | null }[]) {
-  const scored = parts.filter((p): p is { result: AnalysisResult; durationMs: number | null } => !!p.result && !p.result.noSpeech && SPEAKING_CRITERIA.every((k) => p.result!.criteria[k]));
+  const scored = parts.filter((p): p is { result: AnalysisResult; durationMs: number | null } => !!p.result && !notAssessed(p.result) && SPEAKING_CRITERIA.every((k) => p.result!.criteria[k]));
   if (!scored.length) return null;
   const weight = (p: (typeof scored)[number]) => Math.max(p.durationMs ?? 0, 1);
   const total = scored.reduce((s, p) => s + weight(p), 0);

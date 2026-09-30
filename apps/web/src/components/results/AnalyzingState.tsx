@@ -16,7 +16,9 @@ export function AnalyzingState({ steps, stepSeconds = 8, title = 'Analysing your
   return (
     <Card className="mx-auto max-w-md" aria-busy>
       <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted">Usually under a minute. You can leave this page — the result will be in your history.</p>
+      <p className="mt-1 text-sm text-muted" aria-live="polite">
+        {t >= 45 ? "Taking longer than usual — you can leave; we'll keep working and the result will be in your history." : 'Usually under a minute. You can leave this page — the result will be in your history.'}
+      </p>
       <ol className="mt-5 space-y-3" aria-live="polite">
         {steps.map((s, i) => (
           <li key={s} className={`flex items-center gap-3 text-[0.9375rem] ${i > active ? 'text-muted' : ''}`} aria-current={i === active ? 'step' : undefined}>

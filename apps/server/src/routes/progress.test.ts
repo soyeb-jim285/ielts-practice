@@ -112,9 +112,10 @@ describe('mistakes + cards', () => {
   });
 });
 
-it('minutesThisWeek counts nominal task time for writing without a duration', async () => {
+it('minutesThisWeek counts measured writing time only, never the 40-minute limit', async () => {
   const { headers, user } = await testUser();
   const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
   await db.insert(attempts).values({ userId: user.id, promptId: w.id, skill: 'writing', part: 2, status: 'done' });
-  expect((await body(await req('/api/progress', { headers }))).minutesThisWeek).toBe(40);
+  await db.insert(attempts).values({ userId: user.id, promptId: w.id, skill: 'writing', part: 2, status: 'done', durationMs: 65_000 });
+  expect((await body(await req('/api/progress', { headers }))).minutesThisWeek).toBe(1);
 });

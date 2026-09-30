@@ -204,6 +204,8 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
 - Speaking errors carry top-level word indices `start`/`end` (re-anchored on the `original` text); writing errors carry char offsets.
 - Attempts expose `retryable` when `failed` (false = AI credit/key problem, retry later). `/api/live/start` accepts `skipTts` (realtime) and returns `audioUrl: null` plus `voiceError` when examiner TTS fails, so the test continues on captions.
 - `/api/progress` returns `lastFailed` so the dashboard can point at an attempt that could not be scored.
+- iOS uses a hand-written `APIClient` with `Models.swift` instead of swift-openapi-generator. CI (`ios.yml`, `models` job) checks those structs against `apps/web/src/openapi.json` with `apps/ios/scripts/check-models.mjs`.
+- Speaking `metrics.lexical` holds MTLD, TTR, less-common % and overused words. Writing results may carry `calibration` when the per-model overall offset was applied; attempts expose the `models` used.
 
 ## 7. Writing
 
@@ -245,7 +247,7 @@ Analysis runs in-process: a fire-and-forget promise tracked by a DB status field
   |---|---|
   | `/` | dashboard |
   | `/speaking` | choose: full test / part / live |
-  | `/speaking/session/:id` | recording flow |
+  | `/speaking/session?mode=p1\|p2\|p3\|full&promptId=&parent=` | recording flow (no stored session; results are reached by attempt ID plus `?session=`) |
   | `/speaking/result/:attemptId` | results |
   | `/writing` | writing home |
   | `/writing/:promptId` | editor |

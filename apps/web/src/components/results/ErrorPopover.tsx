@@ -6,7 +6,8 @@ import { Badge, Button, Popover, toast } from '@/components/ui';
 import { addErrorToDeck, categoryLabel } from '@/lib/result';
 
 /** Original → correction, explanation, and the actions. Also usable inline (Language tab lists). */
-export function ErrorDetails({ error, onPlay, onDone }: { error: AnalysisError; onPlay?: () => void; onDone?: () => void }) {
+/** hideCategory: the container already titles the error with its category (e.g. a Sheet header). */
+export function ErrorDetails({ error, onPlay, onDone, hideCategory }: { error: AnalysisError; onPlay?: () => void; onDone?: () => void; hideCategory?: boolean }) {
   const add = useMutation({
     mutationFn: () => addErrorToDeck(error),
     onSuccess: () => {
@@ -19,7 +20,7 @@ export function ErrorDetails({ error, onPlay, onDone }: { error: AnalysisError; 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={error.severity === 'major' ? 'bad' : 'warn'}>{error.severity}</Badge>
-        <span className="text-xs text-muted">{categoryLabel(error.category)}</span>
+        {!hideCategory && <span className="text-xs text-muted">{categoryLabel(error.category)}</span>}
       </div>
       {(error.original || error.correction) && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">

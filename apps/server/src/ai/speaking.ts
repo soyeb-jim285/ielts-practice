@@ -26,7 +26,9 @@ HOW TO READ THE EVIDENCE:
 - Words flagged as unclear or obvious ASR artefacts are NOT lexical/grammar errors; if relevant, log them as "pronunciation.word".
 - Grammar is judged on sentences as spoken: count how many are error-free and how many are complex (subordinate/relative clauses, conditionals, passives, perfect aspects), and how accurate the complex ones are.
 - Very short samples cannot demonstrate range: with few words, cap LR and GRA where range cannot be shown.
-- Off-topic or evidently memorised/rehearsed chunks do not count as evidence of ability; note them in relevance.
+- Off-topic or evidently memorised/rehearsed chunks do not count as evidence of ability; note them in relevance. An off-topic answer lowers FC through coherence and relevance (fluent but off-topic connected speech is typically FC 4-5), never to 0; LR, GRA and P are still rated on the language produced. Band 0 in speaking is only for no rateable language at all.
+- "lexical" metrics (MTLD and type-token ratio = diversity; lessCommonPct = share of words outside the 5,000 most common spoken forms; overused = repeated content words) support LR range judgements; precision, collocation and paraphrase come from the transcript.
+- "audioDisfluencies" (when present) are filled pauses, repetitions and false starts an audio model heard that the transcript may have deleted: treat them as fluency evidence alongside the metrics.
 
 OUTPUT RULES:
 - errors: "start"/"end" are inclusive word indices from the transcript; "original" is exactly those words. Keep spans tight (the minimal words containing the error). Use "fluency.hesitation" only for a specific breakdown (a false start, abandoned sentence) and "pronunciation.word" only for words the evidence says were unclear.
@@ -46,8 +48,9 @@ Pronunciation (p):
 ${SPEAKING_DESCRIPTORS.p}`;
 
 const PRON_SYSTEM = `You are an IELTS Speaking examiner rating Pronunciation only, from the audio. You receive the audio and its ASR transcript with word start times in seconds.
-- List up to 20 words that were actually mispronounced or hard to understand, with the word's start time from the transcript, the issue ("sound" = wrong phoneme, "stress" = wrong word stress, "intonation" = unnatural pitch pattern, "unclear" = mumbled/unintelligible), and a short, practical tip (e.g. "stress the 2nd syllable: de-VEL-op").
-- Do not list accent features that do not reduce intelligibility.
+- List up to 20 words that were actually pronounced differently from their dictionary form or were hard to understand, with the word's start time from the transcript, the issue ("sound" = wrong phoneme, "stress" = wrong word stress, "intonation" = unnatural pitch pattern, "unclear" = mumbled/unintelligible), "heard" (what was actually said, e.g. "de-ve-LOP"), "expected" (the dictionary form, e.g. "de-VEL-op") and a short, practical tip. Only list a word when heard differs from expected: never list a correctly pronounced word to restate its stress.
+- Do not list accent features that do not reduce intelligibility. Native-like, clear speech lists 0-2 words and scores band 8-9.
+- "disfluencies": start times (s) of every filled pause (um, uh, er, erm) you hear, of every repetition (a word or phrase said twice in a row, e.g. "he... he") and of every false start (a sentence abandoned or restarted), whether or not the transcript shows them.
 - "prosody": 2-3 sentences on rhythm, stress-timing, chunking, intonation and connected speech.
 - "band": the IELTS Pronunciation band (whole number), rated strictly:
 ${SPEAKING_DESCRIPTORS.p}`;
@@ -59,8 +62,9 @@ function indexedTranscript(words: Word[], questions: { text: string; startWord: 
   return words.map((w, i) => `${heads[i] ?? ''}[${i}]${w.w}`).join(' ').trim();
 }
 
-function metricsSummary(m: SpeechMetrics, words: Word[]) {
+function metricsSummary(m: SpeechMetrics, words: Word[], pron?: PronunciationLlm) {
   const nextWord = (t: number) => words.findIndex((w) => w.start >= t - 1e-6);
+  const d = pron?.disfluencies;
   return {
     durationS: r1(m.durationS),
     wordCount: m.wordCount,
@@ -77,20 +81,46 @@ function metricsSummary(m: SpeechMetrics, words: Word[]) {
     selfCorrections: m.selfCorrections.length,
     wpmStdDev: Math.round(m.wpmStdDev),
     longPauseBeforeWord: m.pauses.filter((p) => p.kind === 'long').map((p) => ({ word: nextWord(p.end), s: r1(p.dur), midClause: p.midClause })),
+    lexical: m.lexical && { ...m.lexical, overused: m.lexical.overused.map((o) => `${o.word} ×${o.count}`) },
+    ...(d && {
+      audioDisfluencies: {
+        filledPauses: d.filledPauses.length,
+        filledPausesPerMin: r1(d.filledPauses.length / (Math.max(m.durationS, 1) / 60)),
+        repetitions: d.repetitions.length,
+        falseStarts: d.falseStarts.length,
+      },
+    }),
   };
 }
 
 const toks = (s: string) => s.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}' ]+/gu, ' ').split(/\s+/).filter(Boolean);
 
-/** LLM word spans drift by a word or two: re-anchors an error on the nearest occurrence of its `original` words within ±5 of its start. Null when not found. */
-export function anchorSpan(words: Word[], e: { start: number; original: string }) {
-  const norm = words.map((w) => toks(w.w).join(''));
-  const want = toks(e.original);
+/** LLM word spans drift: re-anchors an error on the occurrence of its `original` words nearest its start (or nearest time `t`, in seconds). Null when not in the transcript. */
+export function anchorSpan(words: Word[], e: { start: number; original: string }, t?: number) {
+  const key = (w: string) => toks(w).join(''); // "well-known" stays one word on both sides
+  const norm = words.map((w) => key(w.w));
+  const want = e.original.split(/\s+/).map(key).filter(Boolean);
+  const dist = (s: number) => (t == null ? Math.abs(s - e.start) : Math.abs(words[s]!.start - t));
   let best = -1;
-  for (let s = Math.max(0, e.start - 5); want.length && s <= Math.min(words.length - want.length, e.start + 5); s++)
-    if (want.every((t, k) => norm[s + k] === t) && (best < 0 || Math.abs(s - e.start) < Math.abs(best - e.start))) best = s;
+  for (let s = 0; want.length && s <= words.length - want.length; s++)
+    if (want.every((w, k) => norm[s + k] === w) && (best < 0 || dist(s) < dist(best))) best = s;
   return best < 0 ? null : { start: best, end: best + want.length - 1 };
 }
+
+const SOUND_EVENT = /^[*[(].*[*\])][.,!?]*$/;
+/** Whisper's usual output for silence or noise. */
+const HALLUCINATION = /\b(thanks for watching|thank you|you)\b/g;
+/** Fewer than 3 real words or under 2 s of speech: silence, noise or a bad mic, not an answer. `words` has sound events already removed. */
+export function isNoSpeech(words: Word[]) {
+  const lexical = toks(words.map((w) => w.w).join(' ').toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}' ]+/gu, ' ').replace(HALLUCINATION, ' '));
+  return lexical.length < 3 || words.reduce((s, w) => s + w.end - w.start, 0) < 2;
+}
+
+/** Drops pronunciation entries whose "heard" is just the dictionary form (e.g. the model restating correct stress). Capitals mark stress, so case only counts for stress issues. */
+const realMispronunciations = <T extends { issue: string; heard: string; expected: string }>(words: T[]) => {
+  const key = (s: string, stress: boolean) => (stress ? s : s.toLowerCase()).replace(/[^\p{L}]/gu, '');
+  return words.filter((w) => key(w.heard, w.issue === 'stress') !== key(w.expected, w.issue === 'stress'));
+};
 
 /** Maps question start marks (ms into the recording) to the first word spoken after each. */
 export function questionBoundaries(questions: string[], words: Word[], marks?: number[] | null) {
@@ -113,15 +143,14 @@ export async function analyzeSpeaking(i: {
 }): Promise<AnalysisResult> {
   const { models } = i.settings;
   const stt = await transcribe({ model: models.stt, audio: i.audio, format: i.format });
-  const words = stt.words;
+  const words = stt.words.filter((w) => !SOUND_EVENT.test(w.w)); // "*Ding*", "[music]", "(coughs)"
   const questions = questionBoundaries(i.questions, words, i.marks);
-  if (!words.length) {
-    return {
-      v: 1, skill: 'speaking', part: i.part, overall: 0, overallRaw: 0, range: [0, 0], criteria: {}, topFixes: [], errors: [], vocabUpgrades: [],
-      rewrite: { text: '', note: 'No speech detected. Check your microphone and speak clearly, then try again.' },
-      words: [], questions, noSpeech: true,
-    };
-  }
+  const noSpeech = (): AnalysisResult => ({
+    v: 1, skill: 'speaking', part: i.part, overall: 0, overallRaw: 0, range: [0, 0], criteria: {}, topFixes: [], errors: [], vocabUpgrades: [],
+    rewrite: { text: '', note: 'No speech detected. Check your microphone and speak clearly, then try again.' },
+    words, questions, noSpeech: true,
+  });
+  if (isNoSpeech(words)) return noSpeech();
 
   const durationS = i.durationMs > 0 ? i.durationMs / 1000 : stt.duration;
   const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs: 50 });
@@ -129,7 +158,7 @@ export async function analyzeSpeaking(i: {
   let pron: PronunciationLlm | undefined;
   if (i.settings.audioPronEnabled) {
     try {
-      pron = await chatJson({
+      const p = await chatJson({
         model: models.audioPron,
         system: PRON_SYSTEM,
         user: [
@@ -139,6 +168,7 @@ export async function analyzeSpeaking(i: {
         schema: PronLlmSchema,
         schemaName: 'pronunciation',
       });
+      pron = { ...p, words: realMispronunciations(p.words) };
     } catch (e) {
       console.error('pronunciation pass failed, continuing without it', e);
     }
@@ -154,7 +184,7 @@ export async function analyzeSpeaking(i: {
       partContext: PART_CONTEXT[i.part],
       questions: i.questions,
       transcript: indexedTranscript(words, questions),
-      metrics: metricsSummary(metrics, words),
+      metrics: metricsSummary(metrics, words, pron),
       unclearWords: metrics.unclear.map((u) => ({ i: u.wordIdx, w: u.w, conf: Math.round(u.conf * 100) / 100 })),
       pronunciationReport: pron ?? 'none (no audio-based pronunciation evidence; be conservative on P)',
     }),
@@ -165,15 +195,16 @@ export async function analyzeSpeaking(i: {
   );
 
   const c = llm.criteria;
+  if (Object.values(c).every((x) => x.band === 0)) return noSpeech(); // the examiner found nothing rateable
   keepVerbatimEvidence(c, words.map((w) => w.w).join(' '));
   const { raw, band } = speakingOverall({ fc: c.fc.band, lr: c.lr.band, gra: c.gra.band, p: c.p.band });
   const range = settleRanges(c, (b) => roundBand((b.fc + b.lr + b.gra + b.p) / 4));
-  const last = words.length - 1;
-  const errors = llm.errors.map((e, k) => {
-    const clampedStart = Math.min(Math.max(0, Math.min(e.start, e.end)), last);
-    const { start, end } = anchorSpan(words, { ...e, start: clampedStart }) ?? { start: clampedStart, end: Math.min(Math.max(clampedStart, e.start, e.end), last) };
-    return { ...e, id: `e${k}`, start, end, time: words[start]!.start };
-  });
+  // Pronunciation errors anchor on the audio report's time for that word; the rest on the nearest occurrence of their words. Unfindable errors are dropped.
+  const pronTime = (o: string) => pron?.words.find((w) => toks(w.word).join(' ') === toks(o).join(' '))?.time;
+  const errors = llm.errors.flatMap((e) => {
+    const span = anchorSpan(words, { ...e, start: Math.min(e.start, e.end) }, e.category === 'pronunciation.word' ? pronTime(e.original) : undefined);
+    return span ? [{ ...e, ...span, time: words[span.start]!.start }] : [];
+  }).map((e, k) => ({ ...e, id: `e${k}` }));
 
   return {
     v: 1, skill: 'speaking', part: i.part, overall: band, overallRaw: raw, range, criteria: c, topFixes: llm.topFixes, errors,

@@ -49,14 +49,14 @@ function WritingHome() {
     <div className="space-y-10">
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
-      <section className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <Card>
+      <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <Card className="flex flex-col">
           <div className="mb-1 flex items-center gap-2 text-sm font-medium text-accent-text">
             <Timer className="size-4" aria-hidden /> Exam conditions
           </div>
           <h2 className="text-lg font-semibold">Full test</h2>
           <p className="mt-1 text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
             <Segmented
               label="Test type"
               size="sm"
@@ -82,17 +82,19 @@ function WritingHome() {
                   onClick={() => void start(k)}
                   disabled={!!starting}
                   aria-busy={starting === k || undefined}
-                  className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors duration-150 first:rounded-t-card last:rounded-b-card hover:bg-ink/[0.03] disabled:opacity-60"
+                  className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 text-left transition-colors duration-150 first:rounded-t-card last:rounded-b-card hover:bg-ink/[0.03] disabled:opacity-60"
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-control bg-surface-2 text-muted [&_svg]:size-5">{KIND[k].icon}</span>
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-48 flex-1">
                     <span className="block text-base font-semibold">{KIND[k].title}</span>
-                    <span className="block text-sm text-muted">
-                      {KIND[k].blurb} · {KIND[k].meta}
-                    </span>
+                    <span className="block text-sm text-muted">{KIND[k].blurb}</span>
+                    <span className="block text-sm whitespace-nowrap text-muted">{KIND[k].meta}</span>
                   </span>
-                  <span className="text-sm font-medium text-accent-text">{starting === k ? 'Picking…' : 'Random'}</span>
-                  <ChevronRight className="size-4 text-muted" aria-hidden />
+                  {/* Wraps under the text on phones; the whole row starts the task. */}
+                  <span className="ml-auto flex items-center gap-1 text-sm font-medium text-accent-text">
+                    {starting === k ? 'Picking…' : 'Random prompt'}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </span>
                 </button>
               </li>
             ))}

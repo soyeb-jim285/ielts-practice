@@ -605,7 +605,8 @@
         "properties": {
           "durationMs": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Speaking: recording length. Writing: time spent in the editor (counts toward weekly minutes)."
           },
           "energy": {
             "type": "array",
@@ -754,6 +755,16 @@
           "analysis": {
             "description": "AnalysisResult (spec §6) once status is done"
           },
+          "models": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done"
+          },
           "topFixesInDeck": {
             "type": "boolean",
             "description": "Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them)"
@@ -782,6 +793,7 @@
           "error",
           "retryable",
           "createdAt",
+          "models",
           "topFixesInDeck",
           "prompt"
         ]

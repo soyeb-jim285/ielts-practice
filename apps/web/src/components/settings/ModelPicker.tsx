@@ -27,21 +27,48 @@ const useModels = (capability: Capability) =>
     staleTime: 60 * 60_000,
   });
 
-/** USD-per-token string → "$0.25" per 1M tokens. OpenRouter uses "-1" for variable pricing. */
-export function perMillion(perToken: string) {
-  const n = Number(perToken) * 1e6;
-  if (!Number.isFinite(n) || n < 0) return 'variable';
-  if (n === 0) return 'free';
-  return `$${n < 10 ? n.toFixed(2) : n.toFixed(0)}`;
-}
-
-export const modelOption = (m: Model): ComboOption => {
-  const [i, o] = [perMillion(m.pricing.prompt), perMillion(m.pricing.completion)];
-  const price = i === 'free' && o === 'free' ? 'Free' : `${i} in · ${o} out per 1M`;
-  return { value: m.id, label: m.name, description: `${m.id} · ${price}` };
+/** Well-known models per capability, listed first under "Recommended" (the default always joins them; ids missing from the catalogue are skipped). */
+export const RECOMMENDED: Record<Capability, string[]> = {
+  text: ['openai/gpt-6-luna', 'google/gemini-3.8-flash', 'anthropic/claude-sonnet-5.5', 'deepseek/deepseek-v4-flash'],
+  stt: ['openai/whisper-large-v3', 'openai/whisper-large-v3-turbo'],
+  tts: ['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts'],
+  'audio-in': ['google/gemini-2.5-flash', 'google/gemini-3.8-flash'],
 };
 
-/** Searchable OpenRouter model combobox (id, name, price per 1M tokens) with "Reset to default". */
+// ponytail: rough token budgets for one scored essay / spoken answer (prompt + rubric + answer in, JSON feedback out); tune from real usage.
+// Speech models price per second or per character, so no per-use estimate for stt/tts.
+const PER_USE: Partial<Record<Capability, { in: number; out: number; unit: string }>> = {
+  text: { in: 8000, out: 3000, unit: 'essay' },
+  'audio-in': { in: 6000, out: 1500, unit: 'answer' },
+};
+
+/** Approximate USD cost of one use from per-token prices: "<1¢", "~3¢", "~$0.12"; undefined when OpenRouter reports variable pricing. */
+export function perUseCost(pricing: Model['pricing'], use: { in: number; out: number }) {
+  const [i, o] = [Number(pricing.prompt), Number(pricing.completion)];
+  if (!(i >= 0 && o >= 0)) return undefined;
+  const usd = i * use.in + o * use.out;
+  return usd === 0 ? 'free' : usd < 0.01 ? '<1¢' : usd < 0.995 ? `~${Math.round(usd * 100)}¢` : `~$${usd.toFixed(2)}`;
+}
+
+export const modelOption = (m: Model, capability: Capability, group?: string): ComboOption => {
+  const use = PER_USE[capability];
+  const cost = use && perUseCost(m.pricing, use);
+  return { value: m.id, label: m.name, description: cost ? `${m.id} · ${cost} per ${use.unit}` : m.id, group };
+};
+
+/**
+ * Recommended first (plus the saved model under "Current" when it isn't one of them, so it opens at the top), then the rest;
+ * `:batch` variants dropped (async batch API, unusable for interactive scoring).
+ */
+export function modelOptions(models: Model[], capability: Capability, defaultValue: string, value = defaultValue): ComboOption[] {
+  const rec = new Set([defaultValue, ...RECOMMENDED[capability]]);
+  const usable = models.filter((m) => !m.id.endsWith(':batch'));
+  const pick = (ids: string[], group: string) => ids.flatMap((id) => usable.filter((m) => m.id === id)).map((m) => modelOption(m, capability, group));
+  const top = [...(rec.has(value) ? [] : pick([value], 'Current')), ...pick([...rec], 'Recommended')];
+  return [...top, ...usable.filter((m) => !rec.has(m.id) && m.id !== value).map((m) => modelOption(m, capability, 'All models'))];
+}
+
+/** Searchable OpenRouter model combobox (Recommended first, approximate cost per use) with "Reset to default". */
 export function ModelPicker({
   label,
   capability,
@@ -59,10 +86,10 @@ export function ModelPicker({
 }) {
   const { data, isPending, isError } = useModels(capability);
   const options = useMemo(() => {
-    const list = (data?.models ?? []).map(modelOption);
+    const list = modelOptions(data?.models ?? [], capability, defaultValue, value);
     // Keep the saved id selectable even when it's missing from the list (loading, error, or delisted).
     return list.some((o) => o.value === value) ? list : [{ value, label: value, description: isPending ? 'Loading models…' : 'Current model' }, ...list];
-  }, [data, value, isPending]);
+  }, [data, value, isPending, capability, defaultValue]);
 
   return (
     <Combobox

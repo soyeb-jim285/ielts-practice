@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { chatReply, fakeFetch, json } from '../test/helpers';
-import { AiError, chatJson, punctuate, setFetch, toStrictSchema, transcribe } from './openrouter';
+import { AiError, chatJson, punctuate, setFetch, speak, toStrictSchema, transcribe } from './openrouter';
 
 const schema = z.object({ band: z.number().int(), range: z.tuple([z.number(), z.number()]) });
 const ask = () => chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x' });
@@ -104,3 +104,27 @@ it('chatJson: sends the reasoning effort when set', async () => {
   await chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x', effort: 'low' });
   expect(f.calls[0]!.body.reasoning).toEqual({ effort: 'low' });
 });
+
+it('speak: PCM-only Gemini TTS is requested as pcm and wrapped in a WAV header; others get mp3', async () => {
+  const pcm = new Uint8Array([1, 0, 2, 0]);
+  const f = fakeFetch({ '/audio/speech': () => new Response(pcm, { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }) });
+  setFetch(f);
+  const r = await speak({ model: 'google/gemini-3.8-flash-tts', voice: 'Charon', text: 'Hi' });
+  expect(f.calls[0]!.body.response_format).toBe('pcm');
+  expect(r.contentType).toBe('audio/wav');
+  const b = Buffer.from(r.audio);
+  expect([b.toString('ascii', 0, 4), b.toString('ascii', 8, 12), b.readUInt32LE(24), b.readUInt32LE(40), b.length]).toEqual(['RIFF', 'WAVE', 24000, 4, 48]);
+
+  const g = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([9]), { headers: { 'Content-Type': 'audio/mpeg' } }) });
+  setFetch(g);
+  expect((await speak({ model: 'deepgram/aura-2', voice: 'aura-2-thalia-en', text: 'Hi' })).contentType).toBe('audio/mpeg');
+  expect(g.calls[0]!.body.response_format).toBe('mp3');
+});
+
+// Live smoke test of the default voice (a fraction of a cent): SMOKE=1 OPENROUTER_API_KEY=… pnpm exec vitest run src/ai/openrouter.test.ts -t smoke
+it.runIf(process.env.SMOKE)('smoke: default TTS model returns playable audio', async () => {
+  const { DEFAULT_SETTINGS } = await import('../settings');
+  setFetch((...a) => fetch(...a));
+  const r = await speak({ model: DEFAULT_SETTINGS.models.tts, voice: DEFAULT_SETTINGS.models.ttsVoice, text: 'Good morning.' });
+  expect(r.audio.length).toBeGreaterThan(1000);
+}, 60_000);

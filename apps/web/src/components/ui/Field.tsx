@@ -3,8 +3,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 export const controlStyles = clsx(
-  'w-full rounded-control border border-line bg-surface px-3 text-[0.9375rem] text-ink shadow-card transition-[border-color,box-shadow] duration-150',
-  'placeholder:text-muted hover:border-line-strong focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none',
+  'w-full rounded-control border border-line-strong bg-surface px-3 text-[0.9375rem] text-ink shadow-card transition-[border-color,box-shadow] duration-150',
+  'placeholder:text-muted hover:border-muted focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none',
   'disabled:bg-surface-2 disabled:opacity-60 aria-invalid:border-bad aria-invalid:focus:ring-bad/20',
 );
 

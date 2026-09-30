@@ -73,6 +73,8 @@ export function WritingExam({
     setBusy(true);
     setError(null);
     const overtime = left < 0;
+    // Editor time, split across the tasks of a full test so weekly minutes don't count it twice.
+    const durationMs = Math.round(((seconds - left) * 1000) / prompts.length);
     try {
       const ids: string[] = [];
       for (const p of prompts) {
@@ -81,7 +83,7 @@ export function WritingExam({
           await api.post<{ id: string }>('/attempts', { promptId: p.id, skill: 'writing', part: p.part, mode, sessionId: sessionId.current, parentAttemptId, text })
         ).id;
         const id = created.current[p.id]!;
-        await api.post(`/attempts/${id}/submit`, { text, overtime, ...(p.part === 2 && plan.trim() ? { plan } : {}) }).catch((e: unknown) => {
+        await api.post(`/attempts/${id}/submit`, { text, overtime, durationMs, ...(p.part === 2 && plan.trim() ? { plan } : {}) }).catch((e: unknown) => {
           if (!(e instanceof ApiError && e.status === 409)) throw e; // 409 = already submitted on an earlier try
         });
         ids.push(id);
@@ -113,6 +115,7 @@ export function WritingExam({
   const multi = prompts.length > 1;
   // Manual submit needs a real attempt at every task; the time-up auto-submit still sends whatever is there.
   const tooShort = prompts.some((p) => countWords(drafts[p.id]!.text) < SUBMIT_FLOOR);
+  const under = prompts.find((p) => countWords(drafts[p.id]!.text) < minWords(p.part));
 
   return (
     <ExamShell
@@ -178,10 +181,10 @@ export function WritingExam({
         description="You can't edit after submitting. Analysis takes about a minute."
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirm(null)}>
+            <Button variant={under ? 'primary' : 'ghost'} onClick={() => setConfirm(null)}>
               Keep writing
             </Button>
-            <Button onClick={() => void submit()} loading={busy} disabled={tooShort}>
+            <Button variant={under ? 'secondary' : 'primary'} onClick={() => void submit()} loading={busy} disabled={tooShort}>
               Submit
             </Button>
           </>
@@ -202,7 +205,16 @@ export function WritingExam({
             );
           })}
         </ul>
-        {tooShort && <p className="mt-3 text-sm text-muted">Write at least a paragraph{multi ? ' for each task' : ''} before submitting.</p>}
+        {tooShort ? (
+          <p className="mt-3 text-sm text-muted">Write at least a paragraph{multi ? ' for each task' : ''} before submitting.</p>
+        ) : (
+          under && (
+            <p className="mt-3 text-sm text-bad-text">
+              Under {minWords(under.part)} words loses {under.part === 1 ? 'Task Achievement' : 'Task Response'} marks
+              {left > 0 && ` — you have ${formatClock(left)} left`}.
+            </p>
+          )
+        )}
       </Dialog>
 
       <Dialog

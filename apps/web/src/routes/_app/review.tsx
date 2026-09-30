@@ -24,20 +24,31 @@ const GRADES = [
 ] as const;
 
 const SOURCE = { mistake: 'From your mistakes', vocab: 'Vocabulary', fix: 'Fix to practise' };
+const PROMPT = {
+  mistake: 'How would you correct this? Say or write it, then reveal the answer.',
+  vocab: 'Recall the meaning and use it in a sentence, then reveal the answer.',
+  fix: 'How would you improve this sentence? Say or write it, then reveal the answer.',
+};
 const days = (n: number) => (n === 1 ? '1 day' : n < 30 ? `${n} days` : `${Math.round(n / 30)} mo`);
 
 function ReviewPage() {
   const { data, isFetching } = useSuspenseQuery(dueQuery);
+  // The session queue: the due batch, plus every card graded Again re-queued at the end (a learning step, like Anki's).
+  const [queue, setQueue] = useState(data.cards);
   const [i, setI] = useState(0);
-  useEffect(() => setI(0), [data]); // a fresh batch starts from the top
+  useEffect(() => {
+    setQueue(data.cards); // a fresh batch starts from the top
+    setI(0);
+  }, [data]);
   const [revealed, setRevealed] = useState(false);
-  const card = data.cards[i];
+  const card = queue[i];
   const grade = useMutation({
     mutationFn: (g: number) => call(client.POST('/api/cards/{id}/review', { params: { path: { id: card!.id } }, body: { grade: g } })),
-    onSuccess: () => {
+    onSuccess: (updated, g) => {
       setRevealed(false);
       setI(i + 1);
-      if (i + 1 >= data.cards.length) void queryClient.invalidateQueries({ queryKey: dueQuery.queryKey });
+      if (g === 1) setQueue((q) => [...q, updated]);
+      else if (i + 1 >= queue.length) void queryClient.invalidateQueries({ queryKey: dueQuery.queryKey });
     },
     onError: (e) => toast(`Couldn't save that grade: ${e.message}`, { tone: 'bad' }),
   });
@@ -57,76 +68,77 @@ function ReviewPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [card, revealed, grade]);
 
-  const left = data.total - i;
-  const next = card ? GRADES.map((g) => days(review({ ...card, due: new Date(card.due) }, g.grade).interval)) : [];
-  const sameNext = new Set(next).size === 1; // e.g. a new card: every grade schedules 1 day, so the labels would only confuse
+  const total = data.total + queue.length - data.cards.length;
+  const next = card ? GRADES.map((g) => (g.grade === 1 ? 'This session' : days(review({ ...card, due: new Date(card.due) }, g.grade).interval))) : [];
   return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader title="Review" description={card ? `${plural(left, 'card')} due today` : undefined} />
-      {!card && isFetching ? (
-        <Skeleton className="h-72 rounded-card" />
-      ) : !card ? (
-        <EmptyState
-          icon={<CircleCheck />}
-          title="All caught up"
-          action={
-            <Link to="/mistakes" className={buttonStyles({ variant: 'secondary' })}>
-              Browse your mistakes
-            </Link>
-          }
-        >
-          Nothing is due right now. Add mistakes and fixes from your results and they'll come back here on a spaced schedule.
-        </EmptyState>
-      ) : (
-        <>
-          <div className="mb-3 h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={data.total} aria-valuenow={i}>
-            <div className="h-full rounded-full bg-accent transition-[width] duration-300 ease-(--ease-out-quart)" style={{ width: `${(i / data.total) * 100}%` }} />
-          </div>
-          <Card className="flex min-h-72 flex-col" padded={false}>
-            <div className="flex items-center gap-2 px-5 pt-4 text-xs text-muted">
-              <Layers className="size-3.5" aria-hidden />
-              {SOURCE[card.source]}
+    <>
+      <PageHeader title="Review" description={card ? `${plural(total - i, 'card')} due today` : undefined} />
+      <div className="max-w-2xl">
+        {!card && isFetching ? (
+          <Skeleton className="h-72 rounded-card" />
+        ) : !card ? (
+          <EmptyState
+            icon={<CircleCheck />}
+            title="All caught up"
+            action={
+              <Link to="/mistakes" className={buttonStyles({ variant: 'secondary' })}>
+                Browse your mistakes
+              </Link>
+            }
+          >
+            Nothing is due right now. Add mistakes and fixes from your results and they'll come back here on a spaced schedule.
+          </EmptyState>
+        ) : (
+          <>
+            <div className="mb-3 h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={i}>
+              <div className="h-full rounded-full bg-accent transition-[width] duration-300 ease-(--ease-out-quart)" style={{ width: `${(i / total) * 100}%` }} />
             </div>
-            <div className="flex flex-1 flex-col justify-center px-5 py-8 text-center sm:px-10">
-              <p className="font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{card.front}</p>
-              <div aria-live="polite">
-                {revealed && (
-                  <p className="mt-6 border-t border-line pt-6 font-serif text-lg leading-relaxed text-pretty whitespace-pre-line text-ink motion-safe:animate-[fade-in_200ms_ease-out]">{card.back}</p>
+            <Card className="flex min-h-72 flex-col" padded={false}>
+              <div className="flex items-center gap-2 px-5 pt-4 text-xs text-muted">
+                <Layers className="size-3.5" aria-hidden />
+                {SOURCE[card.source]}
+              </div>
+              <div className="flex flex-1 flex-col justify-center px-5 py-8 text-center sm:px-10">
+                {!revealed && <p className="mb-4 text-sm text-muted">{PROMPT[card.source]}</p>}
+                <p className="font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{card.front}</p>
+                <div aria-live="polite">
+                  {revealed && (
+                    <p className="mt-6 border-t border-line pt-6 font-serif text-lg leading-relaxed text-pretty whitespace-pre-line text-ink motion-safe:animate-[fade-in_200ms_ease-out]">{card.back}</p>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-line bg-surface-2 p-3 sm:p-4">
+                {!revealed ? (
+                  <Button size="lg" className="w-full" onClick={() => setRevealed(true)}>
+                    Show answer <kbd className="ml-1 hidden rounded bg-accent-ink/15 px-1.5 text-xs font-normal sm:inline">Space</kbd>
+                  </Button>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2" role="group" aria-label="How well did you remember?">
+                    {GRADES.map((g, n) => (
+                      <button
+                        key={g.grade}
+                        type="button"
+                        disabled={grade.isPending}
+                        onClick={() => grade.mutate(g.grade)}
+                        className="flex h-16 flex-col items-center justify-center rounded-control border border-line bg-surface shadow-card transition-colors duration-150 hover:border-line-strong disabled:opacity-50"
+                      >
+                        <span className={clsx('text-sm font-semibold', g.tone)}>{g.label}</span>
+                        <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted">
+                          {next[n]}
+                          <kbd className="hidden rounded bg-ink/8 px-1.5 font-sans sm:inline" aria-hidden>
+                            {g.key}
+                          </kbd>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
-            <div className="border-t border-line bg-surface-2 p-3 sm:p-4">
-              {!revealed ? (
-                <Button size="lg" className="w-full" onClick={() => setRevealed(true)}>
-                  Show answer <kbd className="ml-1 hidden rounded bg-accent-ink/15 px-1.5 text-xs font-normal sm:inline">Space</kbd>
-                </Button>
-              ) : (
-                <div className="grid grid-cols-4 gap-2" role="group" aria-label="How well did you remember?">
-                  {GRADES.map((g, n) => (
-                    <button
-                      key={g.grade}
-                      type="button"
-                      disabled={grade.isPending}
-                      onClick={() => grade.mutate(g.grade)}
-                      className="flex h-16 flex-col items-center justify-center rounded-control border border-line bg-surface shadow-card transition-colors duration-150 hover:border-line-strong disabled:opacity-50"
-                    >
-                      <span className={clsx('text-sm font-semibold', g.tone)}>{g.label}</span>
-                      <span className="text-xs tabular-nums text-muted">
-                        {!sameNext && next[n]}
-                        <span className="hidden sm:inline">
-                          {!sameNext && ' · '}
-                          {g.key}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
-          <p className="mt-3 text-center text-xs text-muted">Grade honestly: cards you find hard come back sooner.</p>
-        </>
-      )}
-    </div>
+            </Card>
+            <p className="mt-3 text-center text-xs text-muted">Grade honestly: cards you find hard come back sooner. Again shows the card once more before you finish.</p>
+          </>
+        )}
+      </div>
+    </>
   );
 }

@@ -16,7 +16,7 @@ beforeEach(async () => {
   analyzed = [];
   setAnalyzer(async (id) => void analyzed.push(id));
   ai = fakeFetch({
-    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/mpeg' } }),
+    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
     '/audio/transcriptions': () => json({ text: 'My name is Sam Lee.', duration: 3, words: [] }),
     '/chat/completions': () => chatReply('Thank you. Now, in this first part, I would like to ask you some questions about yourself. Where is your hometown?'),
   });
@@ -39,7 +39,7 @@ it('start → turn advances intro → p1 and grows the history by 2', async () =
   const { headers } = await testUser();
   const s = await start(headers);
   expect(s).toMatchObject({ phase: 'intro', examinerText: expect.stringContaining('full name') });
-  expect(s.audioUrl).toContain(`live/${s.sessionId}/e0.mp3`);
+  expect(s.audioUrl).toContain(`live/${s.sessionId}/e0.wav`); // default Gemini TTS is PCM-only → WAV
   expect(s.test.part1).toHaveLength(3);
   expect((await state(s.sessionId)).history).toHaveLength(1);
 
@@ -129,7 +129,7 @@ it('a TTS model/voice rejected upstream (4xx) says to change it in Settings, cap
   const { headers } = await testUser();
   const r = await req('/api/live/start', { headers, body: {} });
   expect(r.status).toBe(200);
-  expect((await r.json()) as any).toMatchObject({ audioUrl: null, voiceError: expect.stringMatching(/Examiner voice model .* is unavailable – change it in Settings/) });
+  expect((await r.json()) as any).toMatchObject({ audioUrl: null, voiceError: expect.stringContaining('captions') });
 });
 
 it('TTS failure (402) degrades to captions: start and turn still work with audioUrl null', async () => {

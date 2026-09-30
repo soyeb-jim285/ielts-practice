@@ -21,5 +21,7 @@ if (existsSync(env.WEB_DIST)) {
   app.get('*', (c) => (c.req.path.startsWith('/api') ? c.notFound() : c.html(indexHtml)));
 }
 
-await recoverStale().catch((e) => console.error('recoverStale failed', e));
+const sweep = () => recoverStale().catch((e) => console.error('recoverStale failed', e));
+await sweep();
+setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become stale 10 min after submit
 serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));

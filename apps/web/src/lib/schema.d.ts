@@ -1460,6 +1460,7 @@ export interface components {
             audioContentType?: string;
         };
         SubmitAttempt: {
+            /** @description Speaking: recording length. Writing: time spent in the editor (counts toward weekly minutes). */
             durationMs?: number;
             /** @description 50 ms RMS frames, 0-255 */
             energy?: number[];
@@ -1495,6 +1496,10 @@ export interface components {
             createdAt: string;
             /** @description AnalysisResult (spec §6) once status is done */
             analysis?: unknown;
+            /** @description OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done */
+            models: {
+                [key: string]: string;
+            } | null;
             /** @description Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them) */
             topFixesInDeck: boolean;
             prompt: components["schemas"]["AttemptPrompt"];

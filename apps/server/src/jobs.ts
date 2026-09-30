@@ -1,6 +1,6 @@
 // In-process analysis runner. ponytail: fire-and-forget promises; move to pg-boss if concurrent load demands it.
 import { P1_TEST_QUESTIONS } from '@ielts/core';
-import { eq } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import { db } from './db/client';
 import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema';
 import { liveQuestions, type LiveState } from './ai/examiner';
@@ -37,7 +37,7 @@ async function analyze(attemptId: string): Promise<void> {
       const session = a.mode === 'live' && a.sessionId && part !== 2 ? await db.query.liveSessions.findFirst({ where: eq(liveSessions.id, a.sessionId) }) : undefined;
       const questions =
         part === 2
-          ? [[p.title, p.body].filter((s, k, all) => s && all.indexOf(s) === k).join('\n') + (p.bullets?.length ? `\nYou should say: ${p.bullets.join('; ')}` : '')]
+          ? [[p.title, p.body.startsWith(p.title) ? p.body.slice(p.title.length).trim() : p.body].filter(Boolean).join('\n') + (p.bullets?.length ? `\nYou should say: ${p.bullets.join('; ')}` : '')]
           : ((session && liveQuestions(session.state as LiveState, part)) ??
             (p.followUps?.length ? (a.sessionId && part === 1 ? p.followUps.slice(0, P1_TEST_QUESTIONS) : p.followUps) : [p.body]));
       result = await analyzeSpeaking({
@@ -100,8 +100,11 @@ export function runAnalysis(attemptId: string): Promise<void> {
   return analyzer(attemptId).catch((e) => console.error('runAnalysis', attemptId, e));
 }
 
-/** Call once at boot: the runner is in-process, so every attempt still `analyzing` was orphaned by the restart. Marks them failed so they can be retried.
- *  ponytail: assumes a single server process; with several, limit this to rows older than the longest analysis. */
+/** Spec §4: marks attempts `analyzing` for over 10 min (far beyond the longest analysis, so orphaned by a restart) as failed, so they can be retried.
+ *  Younger rows may still be running in another process. Called at boot and every few minutes. */
 export async function recoverStale(): Promise<void> {
-  await db.update(attempts).set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true }).where(eq(attempts.status, 'analyzing'));
+  await db
+    .update(attempts)
+    .set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true })
+    .where(and(eq(attempts.status, 'analyzing'), lt(attempts.updatedAt, sql`now() - interval '10 minutes'`)));
 }

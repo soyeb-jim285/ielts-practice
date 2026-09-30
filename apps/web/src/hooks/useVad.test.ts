@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createVad, useVad } from './useVad';
+import { createVad, micVerdict, tallyMic, useVad } from './useVad';
 
 /** Feeds 50 ms frames: [level, durationMs] segments. Returns the times a turn ended. */
 function run(segments: [number, number][]) {
@@ -38,5 +38,17 @@ describe('useVad', () => {
     rerender({ level: 0 });
     vi.advanceTimersByTime(1300);
     expect(onTurnEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('micVerdict', () => {
+  const feed = (levels: number[]) => micVerdict(levels.reduce(tallyMic, { loud: 0, soft: 0 }));
+  it('needs about a second of speech-level input, not one spike', () => {
+    expect(feed([0.9, ...Array(30).fill(0.01)])).toBe('listening');
+    expect(feed(Array(20).fill(0.4))).toBe('clear');
+  });
+  it('calls sustained low input quiet until speech-level input adds up', () => {
+    expect(feed(Array(25).fill(0.18))).toBe('quiet');
+    expect(feed([...Array(25).fill(0.18), ...Array(20).fill(0.4)])).toBe('clear');
   });
 });

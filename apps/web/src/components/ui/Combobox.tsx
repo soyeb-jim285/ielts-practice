@@ -3,7 +3,8 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { controlStyles } from './Field';
 
-export type ComboOption = { value: string; label: string; description?: string };
+/** `group`: options sharing a group render under one heading; keep each group's options adjacent. */
+export type ComboOption = { value: string; label: string; description?: string; group?: string };
 
 /** Searchable single-select (e.g. model picker with hundreds of options). ARIA 1.2 combobox pattern. */
 export function Combobox({
@@ -92,7 +93,12 @@ export function Combobox({
             className="absolute inset-x-0 top-full z-[60] mt-1.5 max-h-72 overflow-y-auto rounded-card border border-line bg-surface p-1 shadow-pop"
           >
             {shown.length === 0 && <li className="px-3 py-2.5 text-sm text-muted">{emptyText}</li>}
-            {shown.map((o, i) => (
+            {shown.map((o, i) => [
+              o.group && o.group !== shown[i - 1]?.group && (
+                <li key={`g-${o.group}`} role="presentation" className="px-3 pt-2.5 pb-1 text-xs font-medium text-muted">
+                  {o.group}
+                </li>
+              ),
               <li
                 key={o.value}
                 id={`${id}-${i}`}
@@ -109,8 +115,8 @@ export function Combobox({
                   <span className="block truncate text-ink">{o.label}</span>
                   {o.description && <span className="block truncate text-xs text-muted">{o.description}</span>}
                 </span>
-              </li>
-            ))}
+              </li>,
+            ])}
           </ul>
         )}
       </div>

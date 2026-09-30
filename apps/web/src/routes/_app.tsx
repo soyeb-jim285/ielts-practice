@@ -3,9 +3,13 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ApiError } from '@/lib/api';
 import { meQuery } from '@/lib/query';
 
-/** Authed layout: every page under routes/_app/ requires a session. Exam routes (staticData.exam) render bare in ExamShell; the rest inside AppShell. */
+/**
+ * Authed layout: every page under routes/_app/ requires a session. The session check is a loader (not beforeLoad) so it runs
+ * in parallel with the page's own loaders instead of in front of them; a 401 redirect wins over the page loaders' 401 errors.
+ * Exam routes (staticData.exam) render bare in ExamShell; the rest inside AppShell.
+ */
 export const Route = createFileRoute('/_app')({
-  beforeLoad: async ({ context, location }) => {
+  loader: async ({ context, location }) => {
     try {
       await context.queryClient.ensureQueryData(meQuery);
     } catch (e) {

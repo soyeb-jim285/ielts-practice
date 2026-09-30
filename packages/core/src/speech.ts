@@ -1,4 +1,5 @@
 import { FILLERS, LONG_PAUSE_MS, PAUSE_MS, UNCLEAR_CONF, VOICED_GAP_MS, WPM_HOP_S, WPM_WINDOW_S } from './constants';
+import { lexicalProfile, tokenize } from './text';
 import type { Pause, SpeechMetrics, Word } from './types';
 
 export type { Pause, SpeechMetrics, Word } from './types';
@@ -6,11 +7,24 @@ export type { Pause, SpeechMetrics, Word } from './types';
 const CLAUSE_STARTERS = new Set(['and', 'but', 'so', 'because', 'which', 'that', 'when', 'if', 'or']);
 const SINGLE_FILLERS = new Set(FILLERS.filter(f => !f.includes(' ')));
 const BIGRAM_FILLERS = new Set(FILLERS.filter(f => f.includes(' ')));
+/** Articles, prepositions, conjunctions: "the X and the Y" / "of A, of B" restart on these in ordinary parallel structures, not repairs. */
+const FUNCTION_WORDS = new Set('a an the of in on at to for with by from about into onto over under after before through between and or but nor so as than that if because while when'.split(' '));
+/** Whisper stretches word timestamps over the "um"s and silences it drops, hiding the pause: a word longer than max(STRETCH_MIN_S, 2x expected) holds one. */
+const S_PER_LETTER = 0.07, STRETCH_MIN_S = 0.7;
 
 export function computeSpeechMetrics(
   words: Word[],
   opts: { durationS: number; energy?: number[]; frameMs?: number; voiceThreshold?: number },
 ): SpeechMetrics {
+  // Trim stretched words to their expected length and expose the rest as a gap before them.
+  // ponytail: the hidden gap may really sit after the word; placing it before only shifts which clause edge it touches.
+  const hidden = new Set<number>();
+  words = words.map((w, i) => {
+    const expected = S_PER_LETTER * w.w.replace(/[^a-z]/gi, '').length;
+    if (i === 0 || w.end - w.start <= Math.max(STRETCH_MIN_S, 2 * expected)) return w;
+    hidden.add(i);
+    return { ...w, start: w.end - expected };
+  });
   const durationS = opts.durationS > 0 ? opts.durationS : 1;
   const mins = durationS / 60;
   const n = words.length;
@@ -31,7 +45,9 @@ export function computeSpeechMetrics(
     const gap = gapBefore(i);
     if (gap * 1000 < PAUSE_MS) continue;
     const start = words[i - 1]!.end, end = words[i]!.start;
-    pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced: isVoiced(start, end) });
+    // A hidden gap with no energy data is taken as a filled pause: that is what Whisper deletes and stretches over.
+    const voiced = isVoiced(start, end) || (hidden.has(i) && !opts.energy);
+    pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced });
   }
 
   const fillers: SpeechMetrics['fillers'] = [];
@@ -68,11 +84,13 @@ export function computeSpeechMetrics(
     }
   }
 
-  // Repair pattern "A B … A C": the speaker restarts at A and changes what follows.
+  // Repair pattern "A B … (pause|filler) A C": the speaker stops, restarts at content word A and changes what follows.
   const selfCorrections: SpeechMetrics['selfCorrections'] = [];
   for (let i = 0; i < n; i++) {
+    if (FUNCTION_WORDS.has(norm[i]!)) continue;
     for (let j = i + 2; j <= i + 4 && j < n; j++) {
       if (norm[i] !== norm[j] || norm[i + 1] === norm[j + 1] || !clean(i, i + 2) || !clean(j, j + 1) || (j + 1 < n && isFillerAt[j + 1])) continue;
+      if (gapBefore(j) * 1000 < PAUSE_MS && !isFillerAt[j - 1]) continue;
       selfCorrections.push({ time: words[j]!.start, wordIdx: j });
       i = j - 1; // loop's i++ lands on j
       break;
@@ -116,5 +134,6 @@ export function computeSpeechMetrics(
     unclear,
     wpmSeries,
     wpmStdDev,
+    lexical: lexicalProfile(tokenize(spoken.map(w => w.w).join(' '))),
   };
 }

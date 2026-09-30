@@ -4,7 +4,7 @@ import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Alert, Card, InfoTip } from '@/components/ui';
 import { formatClock } from '@/lib/format';
-import { isLongPause, pauseSec, speechStats, type Stat } from '@/lib/result';
+import { isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const TICK = { fill: 'var(--muted)', fontSize: 12 };
@@ -57,10 +57,10 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
             type="button"
             onClick={() => audio.seek(p.start)}
             aria-label={`${isLongPause(p) ? 'Long pause' : 'Pause'} of ${pauseSec(p)} seconds at ${formatClock(Math.floor(p.start))}${p.midClause ? ', mid-clause' : ''}`}
-            className="group absolute inset-y-0 min-w-3"
+            className="group absolute inset-y-0 min-w-3 after:absolute after:inset-y-0 after:left-1/2 after:w-[max(100%,2.75rem)] after:-translate-x-1/2"
             style={{ left: `${(p.start / d) * 100}%`, width: `${(p.dur / d) * 100}%` }}
           >
-            {/* Full-height (44 px) hit area; the visible mark sits inside it. */}
+            {/* 44 × 44 px hit area (::after); the visible mark sits inside it. */}
             <span className={`absolute inset-x-0 inset-y-1.5 rounded-sm transition-transform group-hover:scale-y-110 ${isLongPause(p) ? 'bg-bad' : 'bg-warn/60'}`} />
           </button>
         ))}
@@ -88,18 +88,26 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
     <Card padded={false} className="overflow-hidden">
       <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => {
-          const ind = INDICATOR[s.tone];
+          const ind = s.tone === 'na' ? null : INDICATOR[s.tone];
           return (
             <div key={s.key} className="bg-surface p-4">
-              <dt className="flex items-center gap-1 text-sm text-muted">
-                {s.label}
-                <InfoTip label={`About ${s.label}`}>{s.info}</InfoTip>
+              {/* The icon is glued to the last word, so a wrapped label keeps it attached. */}
+              <dt className="text-sm text-muted">
+                {s.label.split(' ').slice(0, -1).join(' ')}{' '}
+                <span className="whitespace-nowrap">
+                  {s.label.split(' ').at(-1)}
+                  <span className="ml-1 inline-flex align-middle [&_button]:hit">
+                    <InfoTip label={`About ${s.label}`}>{s.info}</InfoTip>
+                  </span>
+                </span>
               </dt>
               <dd className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{s.value}</dd>
-              <dd className={`mt-1 flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
-                <ind.Icon className="size-3.5" aria-hidden />
-                {ind.text}
-              </dd>
+              {ind && (
+                <dd className={`mt-1 flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
+                  <ind.Icon className="size-3.5" aria-hidden />
+                  {ind.text}
+                </dd>
+              )}
             </div>
           );
         })}
@@ -111,7 +119,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
 /** Fluency tab: pace chart, pause timeline, stat grid. `fc`/`target` explain a low band when the measures look fine. */
 export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMetrics; audio: AudioControls; fc?: Criterion; target: number }) {
   const stats = speechStats(metrics);
-  const heldBack = fc && fc.band < target && stats.every((s) => s.tone !== 'bad');
+  const heldBack = fc && fc.band < target && !tooShortToMeasure(metrics) && stats.every((s) => s.tone !== 'bad');
   return (
     <div className="space-y-8">
       {heldBack && (
@@ -132,7 +140,7 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
       </section>
       <section>
         <h2 className="mb-1 text-lg font-semibold">Fluency measures</h2>
-        <p className="mb-3 text-sm text-muted">Compared with typical band-7 speech. These are guides, not the score.</p>
+        <p className="mb-3 text-sm text-muted">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
         <StatGrid stats={stats} />
       </section>
     </div>

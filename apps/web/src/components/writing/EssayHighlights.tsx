@@ -1,9 +1,9 @@
 import type { AnalysisError } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { ArrowRight } from 'lucide-react';
-import { Fragment, useMemo, useState, type KeyboardEvent } from 'react';
+import { Fragment, useMemo, useState, type ReactNode, type RefObject } from 'react';
 import { ErrorDetails } from '@/components/results';
-import { Badge, Chip, Sheet } from '@/components/ui';
+import { Badge, Chip, Popover, Sheet } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
 import { countWords } from './WritingEditor';
 
@@ -11,6 +11,31 @@ import { countWords } from './WritingEditor';
 const group = (e: AnalysisError) => e.category.split('.')[0]!;
 
 type Segment = { text: string; error?: AnalysisError };
+
+const TASK_TITLE: Record<string, string> = { 'task.relevance': 'Off-topic phrase', 'task.overview': 'Missing overview', 'task.position': 'Unclear position' };
+/** Plain-language sheet title: 'grammar.agreement' → 'Grammar: agreement'. */
+export const errorTitle = (c: string) => TASK_TITLE[c] ?? categoryLabel(c).replace(' · ', ': ');
+
+type TriggerProps = { ref: RefObject<HTMLElement | null>; open: () => void; expanded: boolean };
+/** md+: popover anchored to the phrase; phones: the bottom sheet (`onSheet`). */
+function Mistake({ error, onSheet, children }: { error: AnalysisError; onSheet: (e: AnalysisError) => void; children: (p: TriggerProps) => ReactNode }) {
+  return (
+    <Popover
+      // The popover sits inside the serif essay in the DOM; reset what it would inherit.
+      className="w-[22rem] font-sans whitespace-normal"
+      trigger={(p) =>
+        children({
+          ref: p.ref as RefObject<HTMLElement | null>,
+          expanded: p['aria-expanded'],
+          // ponytail: marks can't be native popover invokers, so we open it by hand; re-clicking an open phrase reopens it.
+          open: () => (matchMedia('(min-width: 48rem)').matches ? document.getElementById(p.popoverTarget)?.showPopover() : onSheet(error)),
+        })
+      }
+    >
+      <ErrorDetails error={error} />
+    </Popover>
+  );
+}
 
 /** Splits the essay at error char spans; overlapping or out-of-range spans are dropped (they still show in the list). */
 export function segmentEssay(text: string, errors: AnalysisError[]): { segments: Segment[]; unplaced: AnalysisError[] } {
@@ -36,52 +61,52 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
   const { segments, unplaced } = useMemo(() => segmentEssay(text, errors), [text, errors]);
   const categories = useMemo(() => [...new Set(errors.map(group))], [errors]);
   const shown = (e: AnalysisError) => !filter || group(e) === filter;
-  const onKey = (e: KeyboardEvent, err: AnalysisError) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setOpen(err);
-    }
-  };
 
   return (
     <div className="space-y-5">
       {categories.length > 1 && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter mistakes">
           <Chip selected={!filter} onClick={() => setFilter(null)}>
-            All · {errors.length}
+            All <span className="tabular-nums opacity-70">{errors.length}</span>
           </Chip>
           {categories.map((c) => (
             <Chip key={c} selected={filter === c} onClick={() => setFilter(filter === c ? null : c)}>
-              {categoryLabel(c)} · {errors.filter((e) => group(e) === c).length}
+              {categoryLabel(c)} <span className="tabular-nums opacity-70">{errors.filter((e) => group(e) === c).length}</span>
             </Chip>
           ))}
         </div>
       )}
 
-      <div className="prose-serif max-w-none whitespace-pre-wrap text-ink">
-        {segments.map((s, i) =>
-          s.error && shown(s.error) ? (
-            // ponytail: <mark role=button> rather than <button> so long spans wrap across lines like the surrounding text.
-            <mark
-              key={i}
-              role="button"
-              tabIndex={0}
-              aria-label={`${s.error.severity} ${categoryLabel(s.error.category)} mistake: ${s.text}`}
-              onClick={() => setOpen(s.error!)}
-              onKeyDown={(e) => onKey(e, s.error!)}
-              className={clsx(
-                'cursor-pointer rounded-[3px] text-ink underline decoration-2 underline-offset-[5px] transition-colors duration-150',
-                s.error.severity === 'minor'
-                  ? 'bg-warn-soft decoration-warn decoration-dotted hover:bg-warn/20'
-                  : // Whole-sentence errors: a pink block over a full line is too heavy, so underline only.
-                    clsx('decoration-bad hover:bg-bad/10', countWords(s.text) <= 8 ? 'bg-bad-soft' : 'bg-transparent'),
-                open?.id === s.error.id && 'ring-2 ring-accent',
+      <div className="prose-serif whitespace-pre-wrap text-ink">
+        {segments.map(({ text: t, error: err }, i) =>
+          err && shown(err) ? (
+            <Mistake key={i} error={err} onSheet={setOpen}>
+              {(p) => (
+                // ponytail: <mark role=button> rather than <button> so long spans wrap across lines like the surrounding text.
+                <mark
+                  ref={p.ref}
+                  role="button"
+                  tabIndex={0}
+                  aria-haspopup="dialog"
+                  aria-expanded={p.expanded}
+                  aria-label={`${err.severity} ${categoryLabel(err.category)} mistake: ${t}`}
+                  onClick={p.open}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), p.open())}
+                  className={clsx(
+                    'cursor-pointer rounded-[3px] text-ink underline decoration-2 underline-offset-[5px] transition-colors duration-150',
+                    err.severity === 'minor'
+                      ? 'bg-warn-soft decoration-warn decoration-dotted hover:bg-warn/20'
+                      : // Whole-sentence errors: a pink block over a full line is too heavy, so underline only.
+                        clsx('decoration-bad hover:bg-bad/10', countWords(t) <= 8 ? 'bg-bad-soft' : 'bg-transparent'),
+                    (p.expanded || open?.id === err.id) && 'ring-2 ring-accent',
+                  )}
+                >
+                  {t}
+                </mark>
               )}
-            >
-              {s.text}
-            </mark>
+            </Mistake>
           ) : (
-            <Fragment key={i}>{s.text}</Fragment>
+            <Fragment key={i}>{t}</Fragment>
           ),
         )}
       </div>
@@ -93,7 +118,7 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0 w-4 border-t-2 border-dotted border-warn" aria-hidden /> Minor
         </span>
-        <span>Tap an underlined phrase for the fix.</span>
+        <span>Select an underlined phrase for the fix.</span>
       </p>
 
       {unplaced.filter(shown).length > 0 && (
@@ -102,20 +127,31 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
           <ul className="space-y-1.5">
             {unplaced.filter(shown).map((e) => (
               <li key={e.id}>
-                <button type="button" onClick={() => setOpen(e)} className="flex w-full items-start gap-3 rounded-control bg-surface-2 px-4 py-3 text-left text-sm transition-colors duration-150 hover:bg-ink/6">
-                  <Badge tone={e.severity === 'major' ? 'bad' : 'warn'}>{categoryLabel(e.category)}</Badge>
-                  <span className="min-w-0 flex-1">
-                    <span className="text-muted line-through">{e.original}</span> <ArrowRight className="inline size-3.5 text-muted" aria-hidden /> {e.correction}
-                  </span>
-                </button>
+                <Mistake error={e} onSheet={setOpen}>
+                  {(p) => (
+                    <button
+                      ref={p.ref as RefObject<HTMLButtonElement | null>}
+                      type="button"
+                      aria-haspopup="dialog"
+                      aria-expanded={p.expanded}
+                      onClick={p.open}
+                      className="flex w-full items-start gap-3 rounded-control bg-surface-2 px-4 py-3 text-left text-sm transition-colors duration-150 hover:bg-ink/6"
+                    >
+                      <Badge tone={e.severity === 'major' ? 'bad' : 'warn'}>{categoryLabel(e.category)}</Badge>
+                      <span className="min-w-0 flex-1">
+                        <span className="text-muted line-through">{e.original}</span> <ArrowRight className="inline size-3.5 text-muted" aria-hidden /> {e.correction}
+                      </span>
+                    </button>
+                  )}
+                </Mistake>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? `${categoryLabel(open.category)} · ${open.severity}` : ''}>
-        {open && <ErrorDetails key={open.id} error={open} />}
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? errorTitle(open.category) : ''}>
+        {open && <ErrorDetails key={open.id} error={open} hideCategory />}
       </Sheet>
     </div>
   );

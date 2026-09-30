@@ -12,7 +12,7 @@ import { Transcript } from '@/components/speaking/Transcript';
 import { buttonStyles, Card, EmptyState, PageHeader, Skeleton, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { attemptQuery, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
+import { attemptQuery, notAssessed, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -77,7 +77,7 @@ function ResultPage() {
             ) : (
               <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} extra={<>{retryLink('secondary', 'sm')}{another}</>} />
             )}
-            {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} />}
+            {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
             <Questions a={a} />
           </div>
         )}
@@ -85,15 +85,15 @@ function ResultPage() {
     );
   }
 
-  if (r.noSpeech) {
+  if (notAssessed(r)) {
     return (
       <div className="space-y-6">
         <PageHeader title={a.prompt.title} description={meta} back={back} />
         {switcher}
         <EmptyState icon={<MicOff />} title="No speech detected" action={retry}>
-          We couldn't hear any words in this recording, so it wasn't scored. Check the right microphone is selected and speak a little closer to it.
+          We couldn't hear enough speech in this recording to score it. Check the right microphone is selected, speak a little closer to it, and keep talking for at least 20 seconds.
         </EmptyState>
-        {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} />}
+        {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
       </div>
     );
   }
@@ -120,7 +120,7 @@ function ResultPage() {
       ]} className="mb-6" />
       {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
         <div className="mb-6">
-          <AudioBar src={a.audioUrl} audioRef={audio.ref} />
+          <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />
         </div>
       )}
       <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1}>

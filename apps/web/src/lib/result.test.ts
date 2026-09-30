@@ -1,10 +1,10 @@
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { describe, expect, it } from 'vitest';
-import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, pauseSec, questionHead, sessionOverall, speechStats } from './result';
+import { bandColor, buildTokens, criterionLabel, errorGroup, isLongPause, isSentenceNote, notAssessed, pauseSec, questionHead, sessionOverall, speechStats } from './result';
 
 const metrics = (over: Partial<SpeechMetrics> = {}): SpeechMetrics => ({
-  durationS: 60, wordCount: 6, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
+  durationS: 60, wordCount: 140, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
   pauses: [], longPauses: 0, midClausePauses: 0, fillers: [], fillersPerMin: 1, repetitions: [], selfCorrections: [], unclear: [],
   wpmSeries: [], wpmStdDev: 10, ...over,
 });
@@ -76,6 +76,9 @@ describe('speechStats', () => {
     expect(bad.find((s) => s.key === 'rate')!.tone).toBe('bad');
     expect(bad.find((s) => s.key === 'mlr')!.tone).toBe('bad');
   });
+  it('gives no verdicts when there is almost no speech', () => {
+    for (const m of [metrics({ wordCount: 5, fillersPerMin: 0 }), metrics({ durationS: 8 })]) expect(speechStats(m).every((s) => s.tone === 'na' && s.value === '—')).toBe(true);
+  });
 });
 
 describe('pauses', () => {
@@ -91,6 +94,10 @@ describe('errorGroup / questionHead', () => {
   it('puts non-grammar/lexis errors under other', () => {
     const e = (category: string) => ({ id: 'e', category, severity: 'minor' as const, start: -1, end: -1, original: '', correction: '', explanation: '' });
     expect(['grammar.tense', 'lexis.collocation', 'task.relevance'].map((c) => errorGroup(e(c)))).toEqual(['grammar', 'vocab', 'other']);
+  });
+  it('treats only long task/other spans as sentence notes', () => {
+    const e = (category: string, end: number) => ({ id: 'e', category, severity: 'major' as const, start: 0, end, original: '', correction: '', explanation: '' });
+    expect([e('task.relevance', 12), e('task.relevance', 2), e('grammar.sentence-structure', 12)].map(isSentenceNote)).toEqual([true, false, false]);
   });
   it('drops a cue-card title the body repeats', () => {
     expect(questionHead('Describe a website.\nDescribe a website.\nand explain why.\nYou should say: what; how')).toEqual({ head: 'Describe a website.', rest: 'and explain why. You should say: what; how' });
@@ -110,5 +117,6 @@ describe('sessionOverall', () => {
     expect(s.criteria).toEqual({ fc: 8, lr: 7, gra: 7, p: 7 }); // 7.5→8, 6.75→7
     expect(s.band).toBe(7.5); // raw 7.25
   });
-  it('returns null when nothing is scored', () => expect(sessionOverall([{ result: result({ noSpeech: true }), durationMs: 1 }])).toBeNull());
+  it('returns null when nothing is scored', () => expect(sessionOverall([{ result: result({ noSpeech: true }), durationMs: 1 }, { result: result({ overall: 0, criteria: { fc: c(0), lr: c(0), gra: c(0), p: c(0) } }), durationMs: 1 }])).toBeNull());
+  it('treats overall 0 as not assessed', () => expect([result(), result({ overall: 0 }), result({ noSpeech: true })].map(notAssessed)).toEqual([false, true, true]));
 });

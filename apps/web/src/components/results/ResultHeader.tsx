@@ -8,7 +8,7 @@ const TONE_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-b
 const VERDICT = { good: 'At or above your target', warn: 'Just below your target', bad: 'Below your target' };
 
 /**
- * Top of a results page: eyebrow meta, prompt title, big overall band with "likely" range, raw mean and target verdict.
+ * Top of a results page: eyebrow meta, prompt title, big overall band with "likely" range (capped at ±1 band) and target verdict.
  * Props: result, title (prompt title), meta (e.g. "Speaking · Part 2 · 3 Oct"), target band, actions (right side), children (under the title, e.g. session switcher).
  */
 export function ResultHeader({ result, title, meta, target, actions, children }: { result: AnalysisResult; title: ReactNode; meta?: ReactNode; target: number; actions?: ReactNode; children?: ReactNode }) {
@@ -26,9 +26,9 @@ export function ResultHeader({ result, title, meta, target, actions, children }:
           <p className={`text-5xl font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>{formatBand(result.overall)}</p>
         </div>
         <div className="space-y-1.5 pb-1.5">
-          <Badge tone="neutral">likely {formatRange(result.range)}</Badge>
-          <p className="text-xs text-muted tabular-nums">
-            raw {result.overallRaw.toFixed(2)} · {VERDICT[tone]} ({formatBand(target)})
+          {result.overall > 0 && <Badge tone="neutral">likely {formatRange([Math.max(result.range[0], result.overall - 1), Math.min(result.range[1], result.overall + 1)])}</Badge>}
+          <p className="text-xs text-muted tabular-nums" title={`Average of the four criteria before IELTS rounding: ${result.overallRaw.toFixed(2)}`}>
+            {VERDICT[tone]} ({formatBand(target)})
           </p>
         </div>
         {actions}

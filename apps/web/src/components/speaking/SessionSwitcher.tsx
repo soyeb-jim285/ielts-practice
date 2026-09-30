@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { LoaderCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatBand } from '@/lib/format';
-import { attemptQuery, sessionOverall, type AttemptListItem } from '@/lib/result';
+import { attemptQuery, notAssessed, sessionOverall, type AttemptListItem } from '@/lib/result';
 
 /** Full-test part switcher + session overall (criteria weighted by speaking time). */
 export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; currentId: string }) {
@@ -43,7 +43,7 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
               {label}
               {d?.status === 'analyzing' ? (
                 <LoaderCircle className="size-3.5 animate-spin" aria-label="analysing" />
-              ) : d?.analysis && !d.analysis.noSpeech ? (
+              ) : d?.analysis && !notAssessed(d.analysis) ? (
                 <span className="opacity-70">{formatBand(d.analysis.overall)}</span>
               ) : null}
             </Link>

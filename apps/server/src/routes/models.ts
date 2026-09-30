@@ -20,7 +20,8 @@ const FILTERS: Record<z.infer<typeof Capability>, (m: ModelInfo) => boolean> = {
   text: (m) => m.output.includes('text'),
   'audio-in': (m) => m.input.includes('audio'),
   stt: (m) => m.output.includes('transcription') || /whisper|transcribe/i.test(m.id),
-  tts: (m) => m.output.includes('audio') || m.output.includes('speech'),
+  // /audio/speech models only; music (lyria) and chat-audio (gpt-audio) models output 'audio' and fail there. A voice is required by Settings.
+  tts: (m) => m.output.includes('speech') && m.voices.length > 0,
 };
 
 export function register(app: App) {

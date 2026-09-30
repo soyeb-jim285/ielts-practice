@@ -90,7 +90,7 @@ export const WRITING_DESCRIPTORS = {
 };
 
 export const BELOW_4 =
-  'Bands 3 and below: meaning is conveyed only in very limited ways — long pauses or isolated words, very basic vocabulary for personal information, few correct sentence forms, frequent breakdowns in communication or intelligibility (speaking), or a response largely unrelated to the task with little control of organisation, vocabulary or grammar (writing). Band 0: did not attempt / wholly memorised or off-topic.';
+  'Bands 3 and below: meaning is conveyed only in very limited ways — long pauses or isolated words, very basic vocabulary for personal information, few correct sentence forms, frequent breakdowns in communication or intelligibility (speaking), or a response largely unrelated to the task with little control of organisation, vocabulary or grammar (writing). Band 0 (writing only): did not attempt, wholly memorised, or totally unrelated to the task. In speaking, off-topic answers are rated under Fluency and Coherence (coherence and relevance), never band 0 for connected speech.';
 
 /** Shared scoring discipline for every rubric prompt. */
 export const EXAMINER_RULES = `SCORING DISCIPLINE (apply to every criterion):

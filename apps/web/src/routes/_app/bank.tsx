@@ -59,7 +59,8 @@ function BankPage() {
 
   const meta = useQuery(metaQuery).data?.groups ?? [];
   const scoped = meta.filter((g) => (!f.skill || g.skill === f.skill) && (!f.part || g.part === f.part));
-  const types = [...new Set(scoped.flatMap((g) => g.types))].sort();
+  // Type options grouped by skill/part, so Task 1 and Task 2 types (or speaking formats) never mix in one flat list.
+  const typeGroups = scoped.filter((g) => g.types.length).map((g) => ({ label: `${pretty(g.skill)} ${partName(g.skill, g.part)}`, types: [...g.types].sort() }));
   const topics = [...new Set(scoped.flatMap((g) => g.topics))].sort();
   const parts = f.skill === 'writing' ? [1, 2] : [1, 2, 3];
 
@@ -109,10 +110,14 @@ function BankPage() {
         <div className="grid grid-cols-2 gap-3 sm:max-w-md">
           <Select label="Type" hideLabel value={f.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}>
             <option value="">All types</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {typeLabel(t)}
-              </option>
+            {typeGroups.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.types.map((t) => (
+                  <option key={t} value={t}>
+                    {typeLabel(t)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </Select>
           <Select label="Topic" hideLabel value={f.topic ?? ''} onChange={(e) => set({ topic: e.target.value || undefined })}>
@@ -155,26 +160,32 @@ function BankPage() {
       ) : (
         <Card padded={false}>
           <ul className="divide-y divide-line">
-            {items.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.9375rem] font-medium text-pretty">{p.title}</p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
-                    <span>
-                      {pretty(p.skill)} · {partName(p.skill, p.part)}
-                      {p.variant ? ` ${pretty(p.variant)}` : ''} · {pretty(p.topic)}
-                    </span>
-                    {p.source === 'cambridge' && <Badge tone="accent">{p.sourceRef ?? 'Cambridge'}</Badge>}
-                    {p.done && (
-                      <Badge tone="good">
-                        <Check aria-hidden /> Done
-                      </Badge>
-                    )}
-                  </p>
-                </div>
-                <PracticeLink prompt={p} />
-              </li>
-            ))}
+            {items.map((p) => {
+              // Speaking Part 1/3 titles are just the topic: show the first question instead, and don't repeat the topic.
+              const question = p.skill === 'speaking' ? p.body.split('\n')[0] : undefined;
+              return (
+                <li key={p.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.9375rem] font-medium text-pretty">{p.title}</p>
+                    {question && question !== p.title && <p className="mt-0.5 truncate text-sm text-ink/80">{question}</p>}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
+                      <span>
+                        {pretty(p.skill)} · {partName(p.skill, p.part)}
+                        {p.variant ? ` ${pretty(p.variant)}` : ''}
+                        {p.topic.toLowerCase() !== p.title.toLowerCase() && ` · ${pretty(p.topic)}`}
+                      </span>
+                      {p.source === 'cambridge' && <Badge tone="accent">{p.sourceRef ?? 'Cambridge'}</Badge>}
+                      {p.done && (
+                        <Badge tone="good">
+                          <Check aria-hidden /> Done
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+                  <PracticeLink prompt={p} />
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}

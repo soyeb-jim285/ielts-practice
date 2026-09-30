@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, useMutation, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { clsx } from 'clsx';
 import { ArrowRight, Check, Plus, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
@@ -79,6 +80,10 @@ function MistakesPage() {
 
 function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean }) {
   const [added, setAdded] = useState(m.inDeck);
+  // Off-topic (task.relevance) spans quote whole answers: clamp them to two lines each. ponytail: length heuristic, not measured overflow.
+  const long = m.original.length + m.correction.length > 200;
+  const [expanded, setExpanded] = useState(false);
+  const clamp = long && !expanded;
   const add = useMutation({
     mutationFn: () => call(client.POST('/api/mistakes/{id}/card', { params: { path: { id: m.id } } })),
     onSuccess: () => {
@@ -98,13 +103,21 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
       <div className="min-w-0">
         {showCategory && <p className="mb-1.5 text-xs font-medium text-muted">{categoryLabel(m.category)}</p>}
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-serif text-[1.0625rem] leading-relaxed">
-          <del className="text-bad-text decoration-bad/60">{m.original}</del>
+          <del className={clsx('text-bad-text decoration-bad/60', clamp && 'line-clamp-2')}>{m.original}</del>
           <ArrowRight className="size-4 shrink-0 translate-y-0.5 self-center text-muted" aria-label="corrected to" />
-          <ins className="font-medium text-good-text no-underline">{m.correction}</ins>
+          <ins className={clsx('font-medium text-good-text no-underline', clamp && 'line-clamp-2')}>{m.correction}</ins>
         </p>
+        {long && (
+          <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="hit mt-1 text-sm font-medium text-accent-text hover:underline">
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
         <p className="mt-2 text-sm text-muted text-pretty">{m.explanation}</p>
-        <Link {...link} className="mt-2 block truncate text-sm text-muted hover:text-ink">
-          <span className="font-medium text-accent-text">{m.promptTitle}</span> · {where} · {formatRelative(m.createdAt)}
+        <Link {...link} className="mt-2 flex flex-wrap gap-x-1 text-sm text-muted hover:text-ink">
+          <span className="max-w-full truncate font-medium text-accent-text sm:max-w-[40ch]">{m.promptTitle}</span>
+          <span>
+            · {where} · {formatRelative(m.createdAt)}
+          </span>
         </Link>
       </div>
       <Button size="sm" variant="ghost" className="-mr-2 max-sm:-mt-1.5 max-sm:px-2" icon={added ? <Check /> : <Plus />} loading={add.isPending} disabled={added} onClick={() => add.mutate()}>

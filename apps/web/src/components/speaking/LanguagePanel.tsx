@@ -4,7 +4,7 @@ import { ArrowRight, ChevronDown, CircleCheck, Play, TriangleAlert } from 'lucid
 import { useMemo } from 'react';
 import { ErrorDetails } from '@/components/results';
 import { Badge, Button, Card, InfoTip } from '@/components/ui';
-import { categoryLabel } from '@/lib/result';
+import { categoryLabel, questionHead } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const ISSUE = { sound: 'Sound', stress: 'Word stress', intonation: 'Intonation', unclear: 'Unclear' };
@@ -109,15 +109,20 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
         <section>
           <h2 className="mb-3 text-lg font-semibold">Did you answer the question?</h2>
           <Card padded={false} className="divide-y divide-line">
-            {result.relevance.map((r) => (
-              <div key={r.questionIdx} className="flex gap-3 px-5 py-4">
-                {r.onTopic ? <CircleCheck className="mt-0.5 size-5 shrink-0 text-good-text" aria-label="On topic" /> : <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn-text" aria-label="Off topic" />}
-                <div className="min-w-0">
-                  <p className="text-[0.9375rem] font-medium">{result.questions?.[r.questionIdx]?.text ?? `Question ${r.questionIdx + 1}`}</p>
-                  <p className="mt-0.5 text-sm text-muted">{r.note}</p>
+            {result.relevance.map((r) => {
+              // Cue-card text is title + body (which restates the title): show the title, then the rest muted.
+              const q = questionHead(result.questions?.[r.questionIdx]?.text ?? `Question ${r.questionIdx + 1}`);
+              return (
+                <div key={r.questionIdx} className="flex gap-3 px-5 py-4">
+                  {r.onTopic ? <CircleCheck className="mt-0.5 size-5 shrink-0 text-good-text" aria-label="On topic" /> : <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn-text" aria-label="Off topic" />}
+                  <div className="min-w-0">
+                    <p className="text-[0.9375rem] font-medium">{q.head}</p>
+                    {q.rest && <p className="mt-0.5 text-xs text-muted">{q.rest}</p>}
+                    <p className="mt-1.5 text-sm text-muted">{r.note}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         </section>
       )}

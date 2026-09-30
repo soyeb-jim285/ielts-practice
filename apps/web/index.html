@@ -15,6 +15,8 @@
         var t = localStorage.getItem('theme');
         if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
       } catch (e) {}
+      // Start the session check now, in parallel with the entry bundle; lib/query.ts meQuery adopts this response.
+      if (!/^\/(login|signup|forgot-password|reset-password)\b/.test(location.pathname)) (window.__me = fetch('/api/me')).catch(function () {});
     </script>
   </head>
   <body>

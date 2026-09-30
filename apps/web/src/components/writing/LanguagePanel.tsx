@@ -78,7 +78,7 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
         <section>
           <h2 className="mb-3 text-lg font-semibold">Mistakes by type</h2>
           <Card>
-            <BarList label="Mistakes by type" rows={byCat.map(([c, n]) => ({ key: c, label: categoryLabel(c), count: n, tone: 'bad' }))} />
+            <BarList label="Mistakes by type" rows={byCat.map(([c, n]) => ({ key: c, label: categoryLabel(c), count: n }))} />
           </Card>
         </section>
       )}
@@ -143,14 +143,14 @@ function VocabList({ items }: { items: VocabUpgrade[] }) {
         <ul className="divide-y divide-line">
           {items.map((v) => (
             <li key={v.original} className="px-5 py-4">
-              <p className="flex flex-wrap items-center gap-2 font-serif text-[1.0625rem]">
+              {/* Same treatment as the speaking Language tab. */}
+              <p className="flex flex-wrap items-center gap-2 text-[0.9375rem]">
                 <span className="text-muted">{v.original}</span>
                 <ArrowRight className="size-4 text-muted" aria-label="try" />
-                {v.better.map((b, i) => (
-                  <span key={b} className="text-good-text">
+                {v.better.map((b) => (
+                  <Badge key={b} tone="accent" className="h-7 text-sm">
                     {b}
-                    {i < v.better.length - 1 && <span className="text-muted">,</span>}
-                  </span>
+                  </Badge>
                 ))}
               </p>
               {v.note && <p className="mt-1 text-sm text-muted">{v.note}</p>}

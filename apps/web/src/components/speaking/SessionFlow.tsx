@@ -1,7 +1,7 @@
 import { P2_PREP_S, SPEAKING_ZONES } from '@ielts/core';
 import type { Prompt } from '@server/routes/prompts';
 import { useNavigate } from '@tanstack/react-router';
-import { Check, ChevronRight, CircleAlert, LoaderCircle, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronRight, CircleAlert, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { Alert, Badge, Button, Dialog, ProgressRing, Textarea } from '@/components/ui';
@@ -12,6 +12,7 @@ import { formatClock } from '@/lib/format';
 import { CueCard } from './CueCard';
 import { SilenceNudge, WpmPill } from './LiveHints';
 import { MicButton } from './MicButton';
+import { MicCheck } from './MicCheck';
 import { MicProblem } from './MicProblem';
 import { TimerRing } from './TimerRing';
 import { Waveform } from './Waveform';
@@ -201,6 +202,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
           {recording ? (
             <div className="flex w-full flex-col items-center gap-5">
+              <RecordingDot />
               <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
               <Waveform level={rec.level} tick={rec.elapsedMs} active />
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -217,7 +219,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               <div className="flex flex-wrap justify-center gap-3">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="ghost" onClick={() => void finishPart()}>
+                    <Button variant="ghost" size="lg" onClick={() => void finishPart()}>
                       Finish part early
                     </Button>
                     <Button size="lg" onClick={nextQuestion} icon={<ChevronRight />}>
@@ -275,6 +277,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
             </div>
           )}
 
+          {segIdx === 0 && !recording && phase === 'ready' && <MicCheckStep />}
+
           {uploads.some((u) => u.status === 'failed') && (
             <Alert tone="warn" title="An earlier answer didn't upload">
               Keep going — you can retry it at the end.
@@ -306,6 +310,40 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
         }
       />
     </ExamShell>
+  );
+}
+
+/** Unmistakable "mic is live" cue: red dot (pulsing unless reduced motion) + label. */
+function RecordingDot() {
+  return (
+    <p className="inline-flex items-center gap-2 text-sm font-medium text-bad-text">
+      <span className="relative flex size-2.5" aria-hidden>
+        <span className="absolute inset-0 animate-ping rounded-full bg-bad opacity-60 motion-reduce:hidden" />
+        <span className="relative size-2.5 rounded-full bg-bad" />
+      </span>
+      Recording
+    </p>
+  );
+}
+
+/** Optional mic check before the first recording, on its own recorder (released when it unmounts). */
+function MicCheckStep() {
+  const mic = useRecorder();
+  if (mic.state === 'idle' || mic.state === 'stopped')
+    return (
+      <Button variant="ghost" size="sm" icon={<Mic />} onClick={() => void mic.start()}>
+        Check your microphone first
+      </Button>
+    );
+  return (
+    <div className="w-full max-w-md space-y-3 rounded-card border border-line bg-surface p-4 text-left">
+      <MicCheck mic={mic} />
+      {mic.state === 'recording' && (
+        <Button variant="ghost" size="sm" onClick={() => void mic.stop().catch(() => {})}>
+          Done
+        </Button>
+      )}
+    </div>
   );
 }
 

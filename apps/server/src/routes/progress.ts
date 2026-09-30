@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { roundBand, WRITING_SECONDS } from '@ielts/core';
+import { roundBand } from '@ielts/core';
 import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -72,8 +72,8 @@ export function register(app: App) {
           .orderBy(desc(attempts.createdAt))
           .limit(30),
         db.selectDistinct({ day }).from(attempts).where(done).orderBy(desc(day)).limit(400),
-        // Writing without a timed duration (API submits) counts the task's nominal time: T1 20 min, T2 40 min.
-        db.select({ ms: sql<string>`coalesce(sum(coalesce(${attempts.durationMs}, case when ${attempts.skill} = 'writing' then (case when ${attempts.part} = 1 then ${sql.raw(String(WRITING_SECONDS.t1 * 1000))} else ${sql.raw(String(WRITING_SECONDS.t2 * 1000))} end) end)), 0)` }).from(attempts).where(and(done, gte(attempts.createdAt, sql`date_trunc('week', now())`))),
+        // Only measured time (recording length, editor time sent with the submit): a missing duration counts 0, not the task's time limit.
+        db.select({ ms: sql<string>`coalesce(sum(${attempts.durationMs}), 0)` }).from(attempts).where(and(done, gte(attempts.createdAt, sql`date_trunc('week', now())`))),
         db.select({ n: count() }).from(attempts).innerJoin(analyses, eq(analyses.attemptId, attempts.id)).where(assessed),
         db
           .select({ category: mistakes.category, count: count() })

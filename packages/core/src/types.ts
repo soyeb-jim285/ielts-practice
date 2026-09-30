@@ -20,6 +20,8 @@ export type SpeechMetrics = {
   unclear: { wordIdx: number; w: string; conf: number; tier: 1 | 2 | 3 }[];
   wpmSeries: { t: number; wpm: number }[];
   wpmStdDev: number;
+  /** Absent on analyses stored before it existed. lessCommonPct: % of words outside the 5,000 most common spoken forms. */
+  lexical?: { mtld: number; ttr: number; lessCommonPct: number; overused: { word: string; count: number }[] };
 };
 
 export type TextMetrics = {

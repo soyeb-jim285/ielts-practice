@@ -8,6 +8,10 @@ import type { AnalysisResult, Criterion } from './types';
 export const WRITING_REWRITE_NOTE = "Study the upgrades, don't memorise — examiners spot and penalise memorised language.";
 const TOO_SHORT = 'Responses of 20 words or fewer are rated at Band 1';
 
+/** Added to the criterion mean from band 5 up, per analysis model. Fitted on 24 Cambridge sample answers x 2 runs (.eval/2/fix-server):
+ *  gpt-6-luna scores LR/GRA low, overall bias -0.46 → +0.00, MAE 0.50 → 0.33. ponytail: one number per model; re-fit when the model or rubric prompt changes. */
+export const WRITING_CALIBRATION: Record<string, number> = { 'openai/gpt-6-luna': 0.5 };
+
 /** How the Academic Task 1 figure reaches the model. */
 type Figure = 'data' | 'image' | 'none';
 
@@ -15,7 +19,8 @@ function system(task: 1 | 2, variant: 'academic' | 'general', figure: Figure) {
   const taskRules =
     task === 2
       ? `TASK 2 (essay, min 250 words). Criterion "ta" = Task Response.
-- Identify the question type (opinion, discussion + opinion, problem/cause-solution, advantages/disadvantages, two-part question) and check EVERY part of the prompt is answered. Answering only part of it = "main parts incompletely addressed" (band 5 feature).
+- Identify the question type (opinion, discussion + opinion, problem/cause-solution, advantages/disadvantages, two-part question) and check EVERY part of the prompt is answered. Leaving a required part out entirely (e.g. problems discussed but no solutions at all) = "main parts incompletely addressed" (band 5 feature).
+- Underdeveloped, repetitive, thinly explained or over-generalised support is a band 6 feature ("some may be insufficiently developed"), never band 5 on its own. A clear position plus extended, relevant main ideas meets band 7 even if some support is over-generalised or not fully explained.
 - A clear position anywhere in the response meets band 7 ("clear and developed position"); a position that emerges only in the conclusion or is slightly inconsistent is a band 6 feature ("conclusions drawn may be unclear"), not band 5. Cap TR at 5 only when no position can be identified or the main parts of the prompt are not addressed. Ideas must be extended and supported with explanation/examples, not listed. Over-generalised support stops at 7.
 - Tangential or misunderstood prompts: TR 4 or below. Memorised, generic "template" paragraphs that could fit any topic are not credited.`
       : variant === 'academic'
@@ -41,6 +46,8 @@ GENERAL RULES:
 - Coherence & Cohesion: judge progression, paragraphing and referencing, not the number of linkers. Mechanical or overused linkers (e.g. Moreover/Furthermore/In addition opening every sentence; the metrics list overused linkers) are the band 5-6 CC feature. No paragraphing caps CC at 5.
 - Lexical Resource: precision and collocation beat rarity. Count spelling and word-formation errors. Repetition of the same words (see metrics) limits range.
 - Grammar: estimate the share of error-free sentences and the accuracy of complex structures; punctuation counts.
+- LR and GRA calibration: judge by the share of error-free sentences and whether varied complex structures / less common vocabulary are attempted, NEVER by the raw error count. A typical 250-word band 7 script still contains 10-15 minor, non-impeding errors (articles, prepositions, plurals, collocation or spelling slips, commas). GRA 7 = at least half the sentences error-free with a variety of complex structures; GRA 6 = a mix of simple and complex forms, errors frequent but rarely reducing communication; GRA 5 needs frequent errors that "cause some difficulty for the reader" or only a limited range of structures. LR 7 = some less common items and collocations used with awareness of style, occasional slips; LR 5 needs a limited, repetitive range or errors that "cause some difficulty for the reader". Rate each criterion from the whole response first; list errors afterwards.
+- Known bias to correct: checked against official Cambridge marks, this rubric's LR and GRA ran about one band too LOW for band 5-7 scripts (e.g. LR/GRA 5 for official band-7 essays with 10-25 minor slips). Before settling on LR or GRA 5, confirm the errors really cause difficulty for the reader or the range is really limited; otherwise award 6 (or 7 when complex structures and less common vocabulary are frequent and mostly accurate).
 - errors: "quote" MUST be copied character-for-character from the essay (same spelling, punctuation, capitalisation, spacing) — the minimal span of 1-8 words containing the error, long enough to be unique. "original" is the erroneous text, "correction" the fixed text. Categories task.overview / task.position / task.relevance are for task-level problems, quoting the relevant sentence.
 - structure.paragraphs: one entry per paragraph of the essay in order; topicSentence is the paragraph's first sentence copied verbatim; ok = the paragraph does its job for its role; note = what to change (or why it works).
 - structure.overview: ${task === 1 && variant === 'academic' ? 'required (present = an overview exists; mainTrends = it states the main trends/differences; noData = it contains no specific figures).' : 'null.'}
@@ -131,10 +138,13 @@ export async function analyzeWriting(i: {
 
   const c = llm.criteria;
   keepVerbatimEvidence(c, i.text);
-  const raw = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
-  const range = settleRanges(c, (b) => roundBand(taskBand(b)));
+  const offset = WRITING_CALIBRATION[model] ?? 0;
+  const calibrate = (mean: number) => (mean >= 5 ? Math.min(9, mean + offset) : mean);
+  const mean = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
+  const raw = calibrate(mean);
+  const range = settleRanges(c, (b) => roundBand(calibrate(taskBand(b))));
   return {
-    v: 1, skill: 'writing', part: i.task, overall: roundBand(raw), overallRaw: raw, range, criteria: c, topFixes: llm.topFixes,
+    v: 1, skill: 'writing', part: i.task, overall: roundBand(raw), overallRaw: raw, range, criteria: c, topFixes: llm.topFixes, ...(raw !== mean && { calibration: raw - mean }),
     errors: locateQuotes(i.text, llm.errors), vocabUpgrades: llm.vocabUpgrades, rewrite: { text: llm.rewrite, note: WRITING_REWRITE_NOTE },
     text: i.text, structure: llm.structure, textMetrics,
   };

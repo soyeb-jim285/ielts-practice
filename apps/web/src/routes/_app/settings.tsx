@@ -38,7 +38,7 @@ function SettingsPage() {
     <div className="pb-8">
       <PageHeader title="Settings" description="Changes save automatically." />
       <div className="space-y-10">
-        <Section title="Goal" description="Scores at or above your target show green; within half a band, amber.">
+        <Section title="Goal" description="Scores at or above your target show green; up to one band below, amber; further below, red.">
           <Row>
             <TargetBandSlider hint="Most universities ask for 6.5–7.0 overall." />
           </Row>
@@ -66,7 +66,7 @@ function SettingsPage() {
               <ChevronDown className="size-4 text-muted transition-transform duration-150 group-open:rotate-180" aria-hidden />
             </summary>
             <div className="divide-y divide-line border-t border-line">
-              <p className="px-5 py-3 text-sm text-muted">Any OpenRouter model works. Prices are per million tokens.</p>
+              <p className="px-5 py-3 text-sm text-muted">Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.</p>
               <Row>
                 <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
               </Row>

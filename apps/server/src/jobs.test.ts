@@ -62,12 +62,16 @@ it('writing: uses stored text; a failing AI marks the attempt failed with a read
   expect(await db.select().from(mistakes).where(eq(mistakes.attemptId, a!.id))).toHaveLength(2);
 });
 
-it('recoverStale (boot) fails every attempt left analyzing, leaves others alone', async () => {
-  const orphan = await speakingAttempt();
-  const done = await speakingAttempt({ status: 'done' });
+it('recoverStale fails attempts analyzing for over 10 min, leaves recent and finished ones alone', async () => {
+  const old = new Date(Date.now() - 11 * 60_000);
+  const orphan = await speakingAttempt({ updatedAt: old });
+  const running = await speakingAttempt();
+  const done = await speakingAttempt({ status: 'done', updatedAt: old });
   await recoverStale();
-  expect(await db.query.attempts.findFirst({ where: eq(attempts.id, orphan.id) })).toMatchObject({ status: 'failed', error: 'Interrupted, retry' });
-  expect(await db.query.attempts.findFirst({ where: eq(attempts.id, done.id) })).toMatchObject({ status: 'done' });
+  const status = async (id: string) => (await db.query.attempts.findFirst({ where: eq(attempts.id, id) }))!;
+  expect(await status(orphan.id)).toMatchObject({ status: 'failed', error: 'Interrupted, retry' });
+  expect((await status(running.id)).status).toBe('analyzing');
+  expect((await status(done.id)).status).toBe('done');
 });
 
 it('live Part 1 is analysed against the examiner lines of the session; full-test P1 against the 4 asked questions', async () => {

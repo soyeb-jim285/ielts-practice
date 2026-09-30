@@ -8,6 +8,8 @@ const data = [
   { id: 'google/gemini-2.5-flash', name: 'Gemini Flash', architecture: arch(['text', 'audio'], ['text']), pricing: { prompt: '0.3', completion: '2' } },
   { id: 'openai/whisper-large-v3', name: 'Whisper', architecture: arch(['audio'], ['text']), pricing: { prompt: '0', completion: '0' } },
   { id: 'google/gemini-3.8-flash-tts', name: 'TTS', architecture: arch(['text'], ['speech']), pricing: { prompt: '0', completion: '0' }, supported_voices: ['Charon', 'Kore'] },
+  { id: 'google/lyria-3-pro-preview', name: 'Lyria', architecture: arch(['text'], ['text', 'audio']), pricing: { prompt: '0', completion: '0' } },
+  { id: 'fish-audio/s1', name: 'Fish', architecture: arch(['text'], ['speech']), pricing: { prompt: '0', completion: '0' }, supported_voices: null },
   { id: 'typesafe/jev-router', name: 'Router', architecture: arch(['text', 'audio'], ['text']), pricing: { prompt: '-1', completion: '-1' } },
 ];
 
@@ -16,8 +18,8 @@ it('lists and filters models by capability, cached', async () => {
   setFetch(f);
   const { headers } = await testUser();
   const ids = async (cap?: string) => ((await (await req(`/api/models${cap ? `?capability=${cap}` : ''}`, { headers })).json()) as any).models.map((m: any) => m.id);
-  expect(await ids()).toHaveLength(4);
-  expect(await ids('text')).toEqual(['openai/gpt-5-mini', 'google/gemini-2.5-flash', 'openai/whisper-large-v3']);
+  expect(await ids()).toHaveLength(6);
+  expect(await ids('text')).toEqual(['openai/gpt-5-mini', 'google/gemini-2.5-flash', 'openai/whisper-large-v3', 'google/lyria-3-pro-preview']);
   expect(await ids('audio-in')).toEqual(['google/gemini-2.5-flash', 'openai/whisper-large-v3']);
   expect(await ids('stt')).toEqual(['openai/whisper-large-v3']);
   expect(await ids('tts')).toEqual(['google/gemini-3.8-flash-tts']);

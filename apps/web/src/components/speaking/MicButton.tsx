@@ -22,7 +22,7 @@ export function MicButton({ state, level, onStart, onStop, disabled }: { state: 
         aria-label={recording ? 'Stop recording' : 'Start recording'}
         className={clsx(
           'relative grid size-20 place-items-center rounded-full shadow-pop transition-[background-color,transform] duration-150 active:scale-95 disabled:opacity-60',
-          recording ? 'bg-bad text-white' : 'bg-accent text-accent-ink hover:bg-accent-hover',
+          recording ? 'bg-bad text-bad-ink' : 'bg-accent text-accent-ink hover:bg-accent-hover',
         )}
       >
         {busy ? <LoaderCircle className="size-8 animate-spin" /> : recording ? <Square className="size-7 fill-current" /> : <Mic className="size-8" />}
