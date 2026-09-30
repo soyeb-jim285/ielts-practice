@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* Self-hosted variable fonts, ~30 KB each (public/fonts; Inter and the serif italic are preloaded in index.html). Built from the upstream
    variable woff2s: `fonttools varLib.instancer <src> opsz=14|20 wght=400:700|400:600`, then `pyftsubset --flavor=woff2
@@ -37,19 +38,21 @@
   --bad-text: #c02626;
   --bad-ink: #ffffff; /* text on a solid --bad fill (danger button) */
 
+  --radius: 0.625rem; /* 10 px = control; card = +4 = 14 px */
+  --hover: color-mix(in oklab, var(--ink) 6%, transparent); /* ghost / menu-item hover wash (shadcn's "accent" role) */
   --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 3px rgb(28 27 25 / 0.05);
   --shadow-pop: 0 4px 12px rgb(28 27 25 / 0.08), 0 16px 40px -8px rgb(28 27 25 / 0.14);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #161514;
-  --surface: #1e1d1b;
-  --surface-2: #262522; /* insets read lighter than the card in dark mode */
+  --bg: #151413;
+  --surface: #1f1e1c; /* lifted off --bg so panels separate without heavy borders */
+  --surface-2: #282724; /* insets read lighter than the card in dark mode */
   --sidebar: #1a1918;
   --ink: #edebe7;
   --muted: #a29c94;
-  --line: #2e2c29;
+  --line: #34322e;
   --line-strong: #6e6962;
 
   --accent: #6d86ee;
@@ -65,7 +68,8 @@
   --bad-text: #ff8787;
   --bad-ink: #2a0b0b;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --hover: color-mix(in oklab, var(--ink) 9%, transparent);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.03);
   --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.35), 0 16px 40px -8px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
@@ -98,14 +102,49 @@
   --color-warn-soft: color-mix(in oklab, var(--warn) 15%, transparent);
   --color-bad-soft: color-mix(in oklab, var(--bad) 12%, transparent);
 
-  --radius-card: 14px;
-  --radius-control: 10px;
+  /* shadcn semantic names → our raw tokens. NB: shadcn's own `accent` / `muted` roles are named `hover` / `surface-2`
+     here because our legacy `accent` (brand indigo) and `muted` (secondary TEXT) utilities are still used across screens. */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-ink);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-destructive: var(--bad);
+  --color-destructive-foreground: var(--bad-ink);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--accent);
+  --color-hover: var(--hover);
+  /* canonical brand names (same values as the legacy `accent-*`); prefer these in new code */
+  --color-brand: var(--accent);
+  --color-brand-hover: var(--accent-hover);
+  --color-brand-ink: var(--accent-ink);
+  --color-brand-text: var(--accent-text);
+  --color-brand-soft: color-mix(in oklab, var(--accent) 12%, transparent);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: var(--radius-xl);
+  --radius-control: var(--radius-lg);
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 @layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--line); /* shadcn components rely on a default border colour */
+  }
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
@@ -132,9 +171,6 @@
   [popover] {
     color: inherit;
   }
-  dialog::backdrop {
-    background: rgb(20 19 18 / 0.4);
-  }
 }
 
 /* Reading passages / essays / transcripts. */
@@ -160,37 +196,6 @@
       translate: -50% -50%;
     }
   }
-}
-
-/* Native <dialog> motion (Dialog / Sheet). */
-dialog[open] {
-  animation: dialog-in 200ms var(--ease-out-quart);
-}
-dialog[open]::backdrop {
-  animation: fade-in 200ms ease-out;
-}
-dialog[data-sheet][open] {
-  animation: sheet-in 260ms var(--ease-out-quart);
-}
-@media (min-width: 768px) {
-  dialog[data-sheet][open] {
-    animation-name: sheet-in-side;
-  }
-}
-@keyframes dialog-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-}
-@keyframes sheet-in {
-  from { transform: translateY(100%); }
-}
-@keyframes sheet-in-side {
-  from { transform: translateX(100%); }
-}
-@keyframes fade-in {
-  from { opacity: 0; }
-}
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

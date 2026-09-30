@@ -22,12 +22,12 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
   const time = prompt.part === 1 ? 20 : 40;
   return (
     <article className="space-y-5">
-      <header className="space-y-1">
+      <header className="space-y-1.5">
         <p className="text-sm font-medium text-muted">
           {taskLabel(prompt)} · about {time} minutes
         </p>
-        {/* Seeded titles are the body's first sentence (cut with "…" past 120 chars); don't print it twice. */}
-        {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && <h2 className="text-lg font-semibold text-balance">{prompt.title}</h2>}
+        {/* Seeded titles are the body's first sentence (cut with "…" past 120 chars); the figure repeats its own title. Don't print either twice. */}
+        {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && chart?.title !== prompt.title && <h2 className="text-lg font-semibold text-balance">{prompt.title}</h2>}
       </header>
       <div className="prose-serif space-y-3 whitespace-pre-line text-ink">{prompt.body}</div>
       {prompt.bullets?.length ? (
@@ -46,7 +46,7 @@ export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
           <img src={prompt.imageUrl} alt={`Figure for: ${prompt.title}`} className="mx-auto h-auto max-w-full" loading="eager" />
         </figure>
       )}
-      <p className="text-sm text-muted">Write at least {minWords(prompt.part)} words.</p>
+      <p className="border-t border-line pt-4 text-sm text-muted">Write at least {minWords(prompt.part)} words.</p>
     </article>
   );
 }

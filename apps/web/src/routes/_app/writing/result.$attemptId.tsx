@@ -43,7 +43,7 @@ function ResultPage() {
         {error.message}
       </Alert>
     );
-  if (!a) return <Skeleton className="h-64 w-full" />;
+  if (!a) return <ResultSkeleton />;
 
   const { result: r, offTopic } = a.status === 'done' && a.analysis ? capOffTopic(a.analysis) : { result: null, offTopic: false };
   const under = !!r && !r.tooShort && !!r.textMetrics && r.textMetrics.words < minWords(a.part);
@@ -64,8 +64,8 @@ function ResultPage() {
 
   return (
     <div>
-      <Link to="/writing" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
-        <ArrowLeft className="size-4" aria-hidden /> Writing
+      <Link to="/writing" className={buttonStyles({ variant: 'ghost', size: 'sm', className: '-ml-3 mb-2 text-muted' })}>
+        <ArrowLeft aria-hidden /> Writing
       </Link>
 
       {r ? (
@@ -87,12 +87,12 @@ function ResultPage() {
       )}
 
       {combined && (
-        <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-surface-2 shadow-none">
+        <Card className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <p className="font-medium">Writing band for this test</p>
+            <h2 className="text-base font-semibold">Writing band for this test</h2>
             <p className="text-sm text-muted">Task 2 counts twice as much as Task 1.</p>
           </div>
-          <p className={`text-3xl font-semibold tracking-tight tabular-nums ${TONE_TEXT[bandColor(combined.band, target)]}`}>{formatBand(combined.band)}</p>
+          <p className={`text-4xl font-semibold tracking-tight tabular-nums ${TONE_TEXT[bandColor(combined.band, target)]}`}>{formatBand(combined.band)}</p>
         </Card>
       )}
 
@@ -111,7 +111,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
   const text = r.text ?? a.text ?? '';
   const ta = a.part === 1 ? 'Task Achievement' : 'Task Response';
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {r.tooShort ? (
         <Alert tone="warn" title="Too short to assess">
           Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.
@@ -133,19 +133,22 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
           </Alert>
         )
       )}
-      <Tabs
-        id="wr"
-        value={tab}
-        onChange={setTab}
-        items={[
-          { value: 'overview', label: 'Overview' },
-          { value: 'essay', label: 'Essay', count: r.errors.length },
-          { value: 'structure', label: 'Structure' },
-          { value: 'language', label: 'Language' },
-          { value: 'improve', label: 'Improve' },
-        ]}
-      />
-      <div role="tabpanel" id="wr-panel" aria-labelledby={`wr-${tab}`} className="pb-8">
+      {/* Stays under the top edge while a long panel scrolls; bleeds to the page gutters so content never shows beside it. */}
+      <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+        <Tabs
+          id="wr"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'overview', label: 'Overview' },
+            { value: 'essay', label: 'Essay', count: r.errors.length },
+            { value: 'structure', label: 'Structure' },
+            { value: 'language', label: 'Language' },
+            { value: 'improve', label: 'Improve' },
+          ]}
+        />
+      </div>
+      <div role="tabpanel" id="wr-panel" aria-labelledby={`wr-${tab}`} className="pt-6 pb-8">
         {tab === 'overview' && (
           <OverviewPanel
             result={r}
@@ -153,7 +156,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
             target={target}
             parentLink={
               a.parentAttemptId && (
-                <Link to="/writing/result/$attemptId" params={{ attemptId: a.parentAttemptId }} search={{}} className="text-accent-text hover:underline">
+                <Link to="/writing/result/$attemptId" params={{ attemptId: a.parentAttemptId }} search={{}} className={buttonStyles({ variant: 'link' })}>
                   View previous attempt
                 </Link>
               )
@@ -162,7 +165,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
         )}
         {tab === 'essay' &&
           (text.trim() ? (
-            <Card className="sm:p-8">
+            <Card className="p-5 sm:p-8">
               <EssayHighlights text={text} errors={r.errors} />
             </Card>
           ) : (
@@ -193,7 +196,7 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
   });
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Link to="/writing/task/$promptId" params={{ promptId: a.promptId }} search={{ parent: a.id }} className={buttonStyles()}>
           <RotateCcw aria-hidden /> Retry this prompt
         </Link>
@@ -207,8 +210,8 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
       {r.rewrite.text ? (
         <section>
           <h2 className="mb-1 text-lg font-semibold">One band higher</h2>
-          <p className="mb-4 max-w-prose text-sm text-muted">{r.rewrite.note || 'Study what changed and why. Don’t memorise it: examiners recognise learned essays.'}</p>
-          <Card className="sm:p-8">
+          <p className="mb-4 max-w-prose text-sm text-muted text-pretty">{r.rewrite.note || 'Study what changed and why. Don’t memorise it: examiners recognise learned essays.'}</p>
+          <Card className="p-5 sm:p-8">
             <DiffView original={text} rewrite={r.rewrite.text} />
           </Card>
         </section>
@@ -230,9 +233,26 @@ function RetryDiff({ parentId, text }: { parentId: string; text: string }) {
     <section>
       <h2 className="mb-1 text-lg font-semibold">Since your last attempt</h2>
       <p className="mb-4 max-w-prose text-sm text-muted">Your previous answer against this one.</p>
-      <Card className="sm:p-8">
+      <Card className="p-5 sm:p-8">
         <DiffView original={before} rewrite={text} cleanLabel="This attempt" />
       </Card>
     </section>
+  );
+}
+
+/** Header, tabs and a couple of panels in the shape of the loaded page. */
+function ResultSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy aria-label="Loading result">
+      <div className="flex items-end justify-between gap-6">
+        <div className="min-w-0 flex-1 space-y-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-8 w-full max-w-lg" />
+        </div>
+        <Skeleton className="h-14 w-24" />
+      </div>
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-72 w-full rounded-card" />
+    </div>
   );
 }

@@ -44,19 +44,19 @@ function ResultPage() {
   const r = a.analysis;
   const switcher = session && <SessionSwitcher sessionId={session} currentId={a.id} />;
   const back = (
-    <Link to="/speaking" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
-      <ArrowLeft className="size-4" aria-hidden /> Speaking
+    <Link to="/speaking" className={buttonStyles({ variant: 'ghost', size: 'sm', className: '-ml-3 text-muted-foreground' })}>
+      <ArrowLeft aria-hidden /> Speaking
     </Link>
   );
-  const retryLink = (variant?: ButtonVariant, size?: 'sm') => (
+  const retryLink = (variant?: ButtonVariant, size?: 'sm', again?: boolean) => (
     <Link to="/speaking/session" search={{ mode: `p${a.part}` as 'p1' | 'p2' | 'p3', promptId: a.promptId, parent: a.id }} className={buttonStyles({ variant, size })}>
       {/* A retry re-records the whole part, so name the part when it has several questions. */}
-      <RotateCcw className="size-4" aria-hidden /> {(a.prompt.followUps?.length ?? 0) > 1 ? `Retry Part ${a.part}` : 'Retry this question'}
+      <RotateCcw aria-hidden /> {again ? 'Record again' : (a.prompt.followUps?.length ?? 0) > 1 ? `Retry Part ${a.part}` : 'Retry this question'}
     </Link>
   );
   const retry = retryLink();
   const another = (
-    <Link to="/speaking" className="px-2 text-sm font-medium text-accent-text hover:underline">
+    <Link to="/speaking" className={buttonStyles({ variant: 'ghost', size: 'sm' })}>
       Practise another part
     </Link>
   );
@@ -74,9 +74,9 @@ function ResultPage() {
           <div className="space-y-6">
             {a.status === 'recording' ? (
               // The audio never arrived, so there is nothing to re-analyse: record it again.
-              <FailedState attemptId={a.id} title="Not submitted" message="This recording never finished uploading, so there is nothing to analyse." action={retryLink(undefined, 'sm')} extra={another} />
+              <FailedState attemptId={a.id} title="Not submitted" message="This recording never finished uploading, so there is nothing to analyse." action={retryLink(undefined, 'sm', true)} extra={another} />
             ) : (
-              <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} extra={<>{retryLink('secondary', 'sm')}{another}</>} />
+              <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} extra={<>{retryLink('secondary', 'sm', true)}{another}</>} />
             )}
             {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
             <Questions a={a} />
@@ -101,7 +101,7 @@ function ResultPage() {
 
   const setTab = (t: Tab) => void navigate({ search: (s) => ({ ...s, tab: t === 'overview' ? undefined : t }), replace: true, resetScroll: false });
   const parentLink = r.comparison && (
-    <Link to="/speaking/result/$attemptId" params={{ attemptId: r.comparison.parentAttemptId }} className="text-sm font-medium text-accent-text hover:underline">
+    <Link to="/speaking/result/$attemptId" params={{ attemptId: r.comparison.parentAttemptId }} className={buttonStyles({ variant: 'link', className: 'hit' })}>
       See last try
     </Link>
   );
@@ -109,31 +109,34 @@ function ResultPage() {
   const off = offTopicAnswers(r);
   return (
     <div>
-      <div className="mb-3">{back}</div>
+      <div className="mb-2">{back}</div>
       <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target}>
         {switcher}
       </ResultHeader>
       {off && (
         <Alert tone="bad" title="Off topic" className="mb-6">
           {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
-          <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="font-medium text-accent-text hover:underline">
+          <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
             See details in Language
           </Link>
         </Alert>
       )}
-      <Tabs id="res" value={tab} onChange={setTab} items={[
-        { value: 'overview', label: 'Overview' },
-        { value: 'transcript', label: 'Transcript', count: r.errors.length },
-        { value: 'fluency', label: 'Fluency' },
-        { value: 'language', label: 'Language' },
-        { value: 'improve', label: 'Improve' },
-      ]} className="mb-6" />
-      {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
-        <div className="mb-6">
-          <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />
-        </div>
-      )}
-      <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1}>
+      {/* One sticky strip: the tabs, plus the player on the tabs that seek into the recording. */}
+      <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-3 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+        <Tabs id="res" value={tab} onChange={setTab} items={[
+          { value: 'overview', label: 'Overview' },
+          { value: 'transcript', label: 'Transcript', count: r.errors.length },
+          { value: 'fluency', label: 'Fluency' },
+          { value: 'language', label: 'Language' },
+          { value: 'improve', label: 'Improve' },
+        ]} />
+        {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
+          <div className="mt-3">
+            <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />
+          </div>
+        )}
+      </div>
+      <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1} className="pt-3 pb-8">
         <Panel tab={tab} a={a} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} />
       </div>
     </div>
@@ -149,7 +152,7 @@ function Panel({ tab, a, target, audio, retry, parentLink }: { tab: Tab; a: Atte
       return <Transcript result={r} audio={audio} />;
     case 'fluency':
       return r.metrics ? (
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense fallback={<Skeleton className="h-72 w-full rounded-card" />}>
           <FluencyPanel metrics={r.metrics} audio={audio} fc={r.criteria.fc} target={target} />
         </Suspense>
       ) : null;
@@ -166,8 +169,8 @@ function Questions({ a }: { a: Attempt }) {
   const qs = a.prompt.followUps?.length ? a.prompt.followUps : [a.prompt.body];
   return (
     <Card>
-      <h2 className="mb-2 text-base font-semibold">Questions</h2>
-      <ol className="list-decimal space-y-1 pl-5 text-[0.9375rem]">
+      <h2 className="mb-3 text-base font-semibold">Questions you were asked</h2>
+      <ol className="list-decimal space-y-1.5 pl-5 text-[0.9375rem]">
         {qs.map((q) => (
           <li key={q}>{q}</li>
         ))}

@@ -2,6 +2,7 @@ import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ChevronRight, History, Mic, PenLine } from 'lucide-react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
+import { RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
 import { Badge, buttonStyles, Card, EmptyState, PageHeader, Segmented, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
@@ -26,9 +27,9 @@ export const Route = createFileRoute('/_app/history')({
 });
 
 const STATUS: Record<Exclude<AttemptItem['status'], 'done'>, { label: string; tone: Tone }> = {
-  recording: { label: 'Not submitted', tone: 'neutral' },
+  recording: { label: 'Not submitted', tone: 'warn' },
   analyzing: { label: 'Scoring…', tone: 'accent' },
-  failed: { label: 'Failed', tone: 'bad' },
+  failed: { label: 'Scoring failed', tone: 'bad' },
 };
 const partLabel = (a: AttemptItem) => (a.skill === 'speaking' ? `Part ${a.part}` : `Task ${a.part}`);
 const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
@@ -53,7 +54,7 @@ function HistoryPage() {
         actions={
           <Segmented
             label="Skill"
-            size="sm"
+            className="max-sm:w-full"
             value={skill ?? 'all'}
             onChange={(v) => navigate({ search: v === 'all' ? {} : { skill: v }, replace: true })}
             options={[
@@ -67,6 +68,7 @@ function HistoryPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={<History />}
+          className="md:py-14"
           title="No attempts yet"
           action={
             <Link to={skill === 'writing' ? '/writing' : '/speaking'} className={buttonStyles()}>
@@ -77,7 +79,7 @@ function HistoryPage() {
           Every answer you record and essay you submit shows up here with its band.
         </EmptyState>
       ) : (
-        <Card padded={false}>
+        <Card padded={false} className="overflow-clip">
           <ul className="divide-y divide-line">
             {items.map((a) => {
               const Icon = a.skill === 'speaking' ? Mic : PenLine;
@@ -85,28 +87,26 @@ function HistoryPage() {
               const flag = FLAG[(a as { flag?: string | null }).flag ?? ''];
               return (
                 <li key={a.id}>
-                  <Link
-                    to={a.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'}
-                    params={{ attemptId: a.id }}
-                    className="flex items-center gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-ink/5 sm:px-5"
-                  >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-muted ring-1 ring-line">
-                      <Icon className="size-4" aria-label={a.skill} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[0.9375rem] font-medium">{a.promptTitle}</span>
-                      <span className="block truncate text-sm text-muted">
-                        {partLabel(a)} · {formatDate(a.createdAt, true)}
-                        {showDuration(a) ? ` · ${formatDuration(a.durationMs!)}` : ''}
-                      </span>
-                    </span>
+                  <Link to={a.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'} params={{ attemptId: a.id }} className={rowStyles}>
+                    <RowIcon>
+                      <Icon aria-label={a.skill} />
+                    </RowIcon>
+                    <RowText
+                      title={a.promptTitle}
+                      meta={
+                        <>
+                          {partLabel(a)} · {formatDate(a.createdAt)}
+                          {showDuration(a) ? ` · ${formatDuration(a.durationMs!)}` : ''}
+                        </>
+                      }
+                    />
                     {status ? (
                       <Badge tone={status.tone}>{status.label}</Badge>
                     ) : (
                       a.overall != null && (
                         <>
                           {flag && <Badge tone="warn">{flag}</Badge>}
-                          <span className={`text-base font-semibold tabular-nums ${BAND_TEXT[bandColor(a.overall, target)]}`}>
+                          <span className={`w-9 text-right text-lg font-semibold tabular-nums ${BAND_TEXT[bandColor(a.overall, target)]}`}>
                             <span className="sr-only">Band </span>
                             {formatBand(a.overall)}
                           </span>

@@ -4,7 +4,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { clsx } from 'clsx';
 import { CircleCheck, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button, buttonStyles, Card, EmptyState, PageHeader, Skeleton, toast } from '@/components/ui';
+import { Button, buttonStyles, Card, EmptyState, PageHeader, ProgressBar, Skeleton, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { queryClient } from '@/lib/query';
@@ -20,7 +20,7 @@ const GRADES = [
   { grade: 1, label: 'Again', key: '1', tone: 'text-bad-text' },
   { grade: 3, label: 'Hard', key: '2', tone: 'text-warn-text' },
   { grade: 4, label: 'Good', key: '3', tone: 'text-good-text' },
-  { grade: 5, label: 'Easy', key: '4', tone: 'text-accent-text' },
+  { grade: 5, label: 'Easy', key: '4', tone: 'text-brand-text' },
 ] as const;
 
 const SOURCE = { mistake: 'From your mistakes', vocab: 'Vocabulary', fix: 'Fix to practise' };
@@ -75,14 +75,15 @@ function ReviewPage() {
   const next = card ? GRADES.map((g) => (g.grade === 1 ? 'This session' : days(review({ ...card, due: new Date(card.due) }, g.grade).interval))) : [];
   return (
     <>
-      <PageHeader title="Review" description={card ? `${plural(total - i, 'card')} due today` : undefined} />
-      <div className="max-w-2xl">
+      <PageHeader title="Review" description={card ? `${plural(total - i, 'card')} left today` : undefined} />
+      <div className="max-w-3xl">
         {!card && isFetching ? (
-          <Skeleton className="h-72 rounded-card" />
+          <Skeleton className="h-[26rem] rounded-card" />
         ) : !card ? (
           <EmptyState
             icon={<CircleCheck />}
             title="All caught up"
+            className="md:py-14"
             action={
               <Link to="/mistakes" className={buttonStyles({ variant: 'secondary' })}>
                 Browse your mistakes
@@ -93,53 +94,48 @@ function ReviewPage() {
           </EmptyState>
         ) : (
           <>
-            <div className="mb-3 h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={i}>
-              <div className="h-full rounded-full bg-accent transition-[width] duration-300 ease-(--ease-out-quart)" style={{ width: `${(i / total) * 100}%` }} />
+            <div className="mb-3 flex items-center gap-3">
+              <ProgressBar value={i / total} label="Session progress" className="h-1.5 flex-1" />
+              <span className="text-sm tabular-nums text-muted" aria-hidden>
+                {i} / {total}
+              </span>
             </div>
-            <Card className="flex min-h-72 flex-col" padded={false}>
-              <div className="flex items-center gap-2 px-5 pt-4 text-xs text-muted">
-                <Layers className="size-3.5" aria-hidden />
+            <Card className="flex min-h-80 flex-col" padded={false}>
+              <div className="flex items-center gap-2 px-5 pt-4 text-sm text-muted">
+                <Layers className="size-4" aria-hidden />
                 {SOURCE[card.source]}
               </div>
-              <div className="flex flex-1 flex-col justify-center px-5 py-8 text-center sm:px-10">
-                {!revealed && <p className="mb-4 text-sm text-muted">{PROMPT[card.source]}</p>}
-                {label && <p className="mb-2 text-sm font-medium text-accent-text">{label}</p>}
-                <p className="font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{front}</p>
+              <div className="flex flex-1 flex-col justify-center px-5 py-8 sm:px-10">
+                {!revealed && <p className="mb-4 max-w-[52ch] text-sm text-muted">{PROMPT[card.source]}</p>}
+                {label && <p className="mb-2 text-sm font-medium text-brand-text">{label}</p>}
+                <p className="max-w-[40ch] font-serif text-xl leading-relaxed text-balance whitespace-pre-line sm:text-2xl">{front}</p>
                 <div aria-live="polite">
-                  {revealed && (
-                    <p className="mt-6 border-t border-line pt-6 font-serif text-lg leading-relaxed text-pretty whitespace-pre-line text-ink motion-safe:animate-[fade-in_200ms_ease-out]">{card.back}</p>
-                  )}
+                  {revealed && <p className="mt-6 max-w-[52ch] border-t border-line pt-6 font-serif text-lg leading-relaxed text-pretty whitespace-pre-line text-ink motion-safe:animate-[fade-in_200ms_ease-out]">{card.back}</p>}
                 </div>
               </div>
               <div className="border-t border-line bg-surface-2 p-3 sm:p-4">
                 {!revealed ? (
                   <Button size="lg" className="w-full" onClick={() => setRevealed(true)}>
-                    Show answer <kbd className="ml-1 hidden rounded bg-accent-ink/15 px-1.5 text-xs font-normal sm:inline">Space</kbd>
+                    Show answer <kbd className="ml-1 hidden rounded border border-current/40 px-1.5 text-xs font-normal sm:inline">Space</kbd>
                   </Button>
                 ) : (
                   <div className="grid grid-cols-4 gap-2" role="group" aria-label="How well did you remember?">
                     {GRADES.map((g, n) => (
-                      <button
-                        key={g.grade}
-                        type="button"
-                        disabled={grade.isPending}
-                        onClick={() => grade.mutate(g.grade)}
-                        className="flex h-16 flex-col items-center justify-center rounded-control border border-line bg-surface shadow-card transition-colors duration-150 hover:border-line-strong disabled:opacity-50"
-                      >
+                      <Button key={g.grade} variant="secondary" disabled={grade.isPending} onClick={() => grade.mutate(g.grade)} className="h-16 min-w-0 flex-col gap-0.5 px-1">
                         <span className={clsx('text-sm font-semibold', g.tone)}>{g.label}</span>
-                        <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted">
+                        <span className="flex items-center gap-1.5 text-xs font-normal tabular-nums text-muted">
                           {next[n]}
                           <kbd className="hidden rounded bg-ink/8 px-1.5 font-sans sm:inline" aria-hidden>
                             {g.key}
                           </kbd>
                         </span>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 )}
               </div>
             </Card>
-            <p className="mt-3 text-center text-xs text-muted">Grade honestly: cards you find hard come back sooner. Again shows the card once more before you finish.</p>
+            <p className="mt-4 max-w-[65ch] text-sm text-muted">Grade honestly: cards you find hard come back sooner. Again shows the card once more before you finish.</p>
           </>
         )}
       </div>

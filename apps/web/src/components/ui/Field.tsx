@@ -1,21 +1,21 @@
-import { clsx } from 'clsx';
 import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { cn } from '@/lib/utils';
+import { Input as ShInput, inputStyles } from './shadcn/input';
+import { Label } from './shadcn/label';
+import { Textarea as ShTextarea } from './shadcn/textarea';
 
-export const controlStyles = clsx(
-  'w-full rounded-control border border-line-strong bg-surface px-3 text-[0.9375rem] text-ink shadow-card transition-[border-color,box-shadow] duration-150',
-  'placeholder:text-muted hover:border-muted focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none',
-  'disabled:bg-surface-2 disabled:opacity-60 aria-invalid:border-bad aria-invalid:focus:ring-bad/20',
-);
+/** Class string for a bare text-like control with a custom layout (same look as Input / Textarea / Select). */
+export const controlStyles = inputStyles;
 
 type FieldProps = { label: ReactNode; hint?: ReactNode; error?: ReactNode; /** Visually hide the label (still announced). */ hideLabel?: boolean };
 
 function Field({ id, label, hint, error, hideLabel, children }: FieldProps & { id: string; children: ReactNode }) {
   return (
     <div>
-      <label htmlFor={id} className={clsx('mb-1.5 block text-sm font-medium text-ink', hideLabel && 'sr-only')}>
+      <Label htmlFor={id} className={cn('mb-1.5 block text-sm leading-normal font-medium text-ink', hideLabel && 'sr-only')}>
         {label}
-      </label>
+      </Label>
       {children}
       {error ? (
         <p id={`${id}-e`} className="mt-1.5 text-sm text-bad-text">
@@ -42,21 +42,14 @@ export function Input({ label, hint, error, hideLabel, className, type = 'text',
   return (
     <Field {...{ id, label, hint, error, hideLabel }}>
       <div className="relative">
-        <input
-          id={id}
-          type={isPw && show ? 'text' : type}
-          aria-invalid={!!error || undefined}
-          aria-describedby={describedBy(id, { label, hint, error })}
-          className={clsx(controlStyles, 'h-11', isPw && 'pr-11', className)}
-          {...rest}
-        />
+        <ShInput id={id} type={isPw && show ? 'text' : type} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={cn(isPw && 'pr-11', className)} {...rest} />
         {isPw && (
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
             aria-label={show ? 'Hide password' : 'Show password'}
             aria-pressed={show}
-            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-control text-muted hover:text-ink"
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
             {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
@@ -70,24 +63,21 @@ export function Textarea({ label, hint, error, hideLabel, className, ...rest }: 
   const id = useId();
   return (
     <Field {...{ id, label, hint, error, hideLabel }}>
-      <textarea
-        id={id}
-        aria-invalid={!!error || undefined}
-        aria-describedby={describedBy(id, { label, hint, error })}
-        className={clsx(controlStyles, 'min-h-24 py-2.5 leading-relaxed', className)}
-        {...rest}
-      />
+      <ShTextarea id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={className} {...rest} />
     </Field>
   );
 }
 
-/** Native select (best on mobile). For long searchable lists use Combobox. */
+/**
+ * Native select: the OS picker is the best UX on phones and keeps the `<option>` children API.
+ * (shadcn's Radix `Select` is vendored in ./shadcn/select for custom-option cases; for long searchable lists use Combobox.)
+ */
 export function Select({ label, hint, error, hideLabel, className, ...rest }: FieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
   const id = useId();
   return (
     <Field {...{ id, label, hint, error, hideLabel }}>
       <div className="relative">
-        <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={clsx(controlStyles, 'h-11 appearance-none pr-9', className)} {...rest} />
+        <select id={id} aria-invalid={!!error || undefined} aria-describedby={describedBy(id, { label, hint, error })} className={cn(inputStyles, 'h-11 appearance-none pr-9', className)} {...rest} />
         <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
       </div>
     </Field>

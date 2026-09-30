@@ -1,7 +1,7 @@
 import { countWords } from '@ielts/core';
 import { clsx } from 'clsx';
 import { useCallback, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
-import { toast } from '@/components/ui';
+import { ProgressBar, toast } from '@/components/ui';
 import { plural } from '@/lib/format';
 
 /** Words as IELTS examiners count them. */
@@ -109,7 +109,7 @@ export function WritingEditor({
   };
 
   return (
-    <div className={clsx('flex min-h-0 flex-col rounded-card border border-line bg-surface shadow-card focus-within:border-line-strong', className)}>
+    <div className={clsx('flex min-h-0 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow duration-150 focus-within:border-brand focus-within:ring-[3px] focus-within:ring-ring/25', className)}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
@@ -121,10 +121,11 @@ export function WritingEditor({
         onDrop={block}
         placeholder="Start writing…"
         aria-describedby={`${id}-count`}
-        className="prose-serif min-h-[18rem] w-full max-w-none flex-1 resize-none bg-transparent px-5 py-4 text-ink outline-none placeholder:text-muted"
+        className="prose-serif min-h-[18rem] w-full max-w-none flex-1 resize-none bg-transparent px-5 py-5 text-ink outline-none placeholder:text-muted sm:px-7"
         {...NO_ASSIST}
       />
-      <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-2.5 text-sm">
+      <ProgressBar label="Progress to the minimum word count" value={words / minWords} tone={under ? 'accent' : 'good'} className="h-1 rounded-none" />
+      <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
         <span
           id={`${id}-count`}
           aria-live="polite"

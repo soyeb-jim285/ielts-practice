@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { BarChart3, ChevronRight, CircleCheck, Mail, PenLine, Search, Timer } from 'lucide-react';
+import { BarChart3, ChevronRight, CircleCheck, Mail, PenLine, Search, Shuffle, Timer } from 'lucide-react';
 import { useDeferredValue, useState, type ReactNode } from 'react';
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
@@ -49,63 +49,66 @@ function WritingHome() {
     <div className="space-y-10">
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
-      <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <Card className="flex flex-col">
-          <div className="mb-1 flex items-center gap-2 text-sm font-medium text-accent-text">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        <Card tone="hero" className="flex flex-col p-5 sm:p-6">
+          <p className="flex items-center gap-2 text-sm font-medium text-brand-text">
             <Timer className="size-4" aria-hidden /> Exam conditions
-          </div>
-          <h2 className="text-lg font-semibold">Full test</h2>
-          <p className="mt-1 text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
-          {/* The suggested split, drawn to scale: Task 2 is worth twice as much, so it gets twice the time. */}
-          <ol className="mt-5 flex gap-1 text-sm" aria-label="Suggested timing">
+          </p>
+          <h2 className="mt-2 text-lg font-semibold">Full test</h2>
+          <p className="mt-1 max-w-prose text-sm text-muted">Task 1 and Task 2 on one 60-minute clock, just like test day. Manage your own time.</p>
+          {/* The suggested split drawn to scale: Task 2 is worth twice as much, so it gets twice the time. */}
+          <ol className="mt-5 flex gap-1.5 text-sm" aria-label="Suggested timing">
             {[
-              ['Task 1', '20 min', 'flex-1 bg-accent-soft'],
-              ['Task 2', '40 min', 'flex-[2] bg-surface-2'],
-            ].map(([t, m, c]) => (
-              <li key={t} className={`min-w-0 rounded-control px-3 py-2 first:rounded-r-sm last:rounded-l-sm ${c}`}>
-                <span className="block font-medium">{t}</span>
-                <span className="block text-xs text-muted">{m}</span>
+              ['Task 1', '20 min', 'flex-1', 'bg-brand/35'],
+              ['Task 2', '40 min', 'flex-[2]', 'bg-brand'],
+            ].map(([t, m, f, c]) => (
+              <li key={t} className={`min-w-0 ${f}`}>
+                <span className={`block h-2 rounded-full ${c}`} aria-hidden />
+                <span className="mt-2 flex items-baseline gap-2">
+                  <span className="font-medium">{t}</span>
+                  <span className="text-muted tabular-nums">{m}</span>
+                </span>
               </li>
             ))}
           </ol>
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
+          <div className="mt-auto flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <Segmented
               label="Test type"
-              size="sm"
               value={fullVariant}
               onChange={setFullVariant}
+              className="sm:min-w-56"
               options={[
                 { value: 'academic', label: 'Academic' },
                 { value: 'general', label: 'General' },
               ]}
             />
-            <Button onClick={() => void start('full')} loading={starting === 'full'} disabled={!!starting}>
+            <Button size="lg" onClick={() => void start('full')} loading={starting === 'full'} disabled={!!starting}>
               Start full test
             </Button>
           </div>
         </Card>
 
-        <Card padded={false}>
-          <ul className="divide-y divide-line">
+        <Card padded={false} className="flex flex-col">
+          <h2 className="px-5 pt-5 pb-2 text-base font-semibold">Or practise one task</h2>
+          <ul className="flex flex-1 flex-col divide-y divide-line border-t border-line">
             {(Object.keys(KIND) as Kind[]).map((k) => (
-              <li key={k}>
+              <li key={k} className="flex flex-1">
                 <button
                   type="button"
                   onClick={() => void start(k)}
                   disabled={!!starting}
                   aria-busy={starting === k || undefined}
-                  className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 text-left transition-colors duration-150 first:rounded-t-card last:rounded-b-card hover:bg-ink/[0.03] disabled:opacity-60"
+                  className="flex min-h-20 w-full items-center gap-4 px-5 py-4 text-left transition-colors duration-150 outline-none hover:bg-hover focus-visible:bg-hover focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-inset disabled:opacity-60"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-control bg-surface-2 text-muted [&_svg]:size-5">{KIND[k].icon}</span>
-                  <span className="min-w-48 flex-1">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-2 text-muted [&_svg]:size-5">{KIND[k].icon}</span>
+                  <span className="min-w-0 flex-1">
                     <span className="block text-base font-semibold">{KIND[k].title}</span>
                     <span className="block text-sm text-muted">{KIND[k].blurb}</span>
-                    <span className="block text-sm whitespace-nowrap text-muted">{KIND[k].meta}</span>
+                    <span className="block text-sm text-muted tabular-nums">{KIND[k].meta}</span>
                   </span>
-                  {/* Wraps under the text on phones; the whole row starts the task. */}
-                  <span className="ml-auto flex items-center gap-1 text-sm font-medium text-accent-text">
-                    {starting === k ? 'Picking…' : 'Random prompt'}
-                    <ChevronRight className="size-4" aria-hidden />
+                  <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-text">
+                    <Shuffle className="size-4" aria-hidden />
+                    {starting === k ? 'Picking…' : 'Random'}
                   </span>
                 </button>
               </li>
@@ -167,21 +170,22 @@ function Bank() {
 
   return (
     <section aria-labelledby="bank-h">
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-4 flex items-baseline justify-between gap-2">
         <h2 id="bank-h" className="text-lg font-semibold">
           Choose a prompt
         </h2>
         {total != null && <p className="text-sm text-muted tabular-nums">{plural(total, 'prompt')}</p>}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <Segmented
           label="Task"
+          className="lg:shrink-0"
           value={kind}
           onChange={changeKind}
           options={(Object.keys(KIND) as Kind[]).map((k) => ({ value: k, label: k === 't2' ? 'Task 2' : k === 't1a' ? 'T1 Academic' : 'T1 General' }))}
         />
-        <div className="grid min-w-[min(100%,34rem)] flex-1 gap-3 sm:grid-cols-[1fr_1fr_1.4fr]">
+        <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-[1fr_1fr_1.4fr]">
           <Select label="Type" hideLabel value={type} onChange={(e) => setType(e.target.value)}>
             <option value="">All types</option>
             {types.map((t) => (
@@ -198,7 +202,7 @@ function Bank() {
               </option>
             ))}
           </Select>
-          <div className="relative">
+          <div className="relative col-span-2 lg:col-span-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted" aria-hidden />
             <Input label="Search prompts" hideLabel type="search" placeholder="Search prompts…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
@@ -232,14 +236,12 @@ function Bank() {
                     to="/writing/task/$promptId"
                     params={{ promptId: p.id }}
                     search={{}}
-                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-150 first:rounded-t-card last:rounded-b-card hover:bg-ink/[0.03]"
+                    className="flex items-center gap-4 px-5 py-4 transition-colors duration-150 hover:bg-hover focus-visible:bg-hover"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-[0.9375rem] font-medium">{p.title}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-                        {p.topic}
-                        <span aria-hidden>·</span>
-                        {typeLabel(p.type)}
+                      <span className="mt-1 block text-sm text-muted">
+                        {p.topic} · {typeLabel(p.type)}
                       </span>
                     </span>
                     {p.done && (

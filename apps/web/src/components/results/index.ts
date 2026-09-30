@@ -1,4 +1,5 @@
 export { AnalyzingState } from './AnalyzingState';
+export { BandBar } from './BandBar';
 export { BandGauge } from './BandGauge';
 export { ComparisonStrip } from './ComparisonStrip';
 export { CriteriaGrid } from './CriteriaGrid';

@@ -1,13 +1,14 @@
 export { Alert } from './Alert';
 export { Badge, Chip, TONE_STYLES, type Tone } from './Badge';
-export { Button, buttonStyles, type ButtonSize, type ButtonVariant } from './Button';
-export { Card } from './Card';
+export { Button, buttonStyles, buttonStyles as buttonVariants, type ButtonSize, type ButtonVariant } from './Button';
+export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './Card';
 export { Combobox, type ComboOption } from './Combobox';
 export { Dialog, Sheet } from './Dialog';
 export { EmptyState } from './EmptyState';
 export { controlStyles, Input, Select, Textarea } from './Field';
 export { PageHeader } from './PageHeader';
 export { Popover, type PopoverTriggerProps } from './Popover';
+export { ProgressBar } from './ProgressBar';
 export { ProgressRing } from './ProgressRing';
 export { Segmented, type SegmentOption } from './Segmented';
 export { PageSkeleton, Skeleton, Spinner } from './Skeleton';
@@ -16,3 +17,8 @@ export { Switch } from './Switch';
 export { Tabs, type TabItem } from './Tabs';
 export { dismissToast, toast, Toaster } from './Toast';
 export { InfoTip, Tooltip } from './Tooltip';
+// New shadcn primitives used as-is (styled via tokens): menus, scrolling, dividers, disclosure.
+export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './shadcn/dropdown-menu';
+export { Separator } from './shadcn/separator';
+export { ScrollArea } from './shadcn/scroll-area';
+export { Collapsible, CollapsibleContent, CollapsibleTrigger } from './shadcn/collapsible';

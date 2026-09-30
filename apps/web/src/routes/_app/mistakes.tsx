@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { ArrowRight, Check, Plus, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
-import { Button, buttonStyles, Card, Chip, EmptyState, PageHeader, toast } from '@/components/ui';
+import { Badge, Button, buttonStyles, Card, Chip, EmptyState, PageHeader, toast } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
 import { formatClock, formatRelative } from '@/lib/format';
 import { categoryLabel } from '@/lib/result';
@@ -41,6 +41,7 @@ function MistakesPage() {
         <PageHeader title="Mistakes" />
         <EmptyState
           icon={<TriangleAlert />}
+          className="md:py-14"
           title="Your error log is empty"
           action={
             <Link to="/writing" className={buttonStyles()}>
@@ -56,17 +57,17 @@ function MistakesPage() {
   return (
     <>
       <PageHeader title="Mistakes" description="Every correction from your results, grouped so patterns stand out." />
-      <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Filter by category">
-        <Chip selected={!category} onClick={() => pick()}>
+      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Filter by category">
+        <Chip className="shrink-0" selected={!category} onClick={() => pick()}>
           All <span className="tabular-nums opacity-70">{all}</span>
         </Chip>
         {groups.map((g) => (
-          <Chip key={g.category} selected={category === g.category} onClick={() => pick(g.category)}>
+          <Chip key={g.category} className="shrink-0" selected={category === g.category} onClick={() => pick(g.category)}>
             {categoryLabel(g.category)} <span className="tabular-nums opacity-70">{g.count}</span>
           </Chip>
         ))}
       </div>
-      <Card padded={false}>
+      <Card padded={false} className="overflow-clip">
         <ul className="divide-y divide-line">
           {items.map((m) => (
             <MistakeItem key={m.id} m={m} showCategory={!category} />
@@ -100,9 +101,9 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
       : ({ to: '/writing/result/$attemptId', params: { attemptId: m.attemptId }, search: { tab: 'essay' } } as const);
 
   return (
-    <li className="grid grid-cols-[1fr_auto] gap-x-3 px-5 py-4 transition-colors duration-150 hover:bg-ink/[0.03]">
+    <li className="grid grid-cols-[1fr_auto] gap-x-3 px-5 py-4">
       <div className="min-w-0">
-        {showCategory && <p className="mb-1.5 text-xs font-medium text-muted">{categoryLabel(m.category)}</p>}
+        {showCategory && <Badge className="mb-2">{categoryLabel(m.category)}</Badge>}
         {!same && (
           // Phones stack the phrases; the arrow always stays in front of the correction.
           <p className="flex flex-col gap-1 font-serif text-[1.0625rem] leading-relaxed sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
@@ -114,13 +115,13 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
           </p>
         )}
         {long && (
-          <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="hit mt-1 text-sm font-medium text-accent-text hover:underline">
+          <Button variant="link" className="mt-1" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
             {expanded ? 'Show less' : 'Show more'}
-          </button>
+          </Button>
         )}
-        <p className={clsx('text-sm text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
-        <Link {...link} className="mt-2 block text-sm text-muted hover:text-ink">
-          <span className="block truncate font-medium text-accent-text">{m.promptTitle}</span>
+        <p className={clsx('max-w-[65ch] text-sm text-pretty', same ? 'text-ink' : 'mt-2 text-muted')}>{m.explanation}</p>
+        <Link {...link} className="mt-2 block rounded-sm text-sm text-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-ring">
+          <span className="block truncate font-medium text-brand-text">{m.promptTitle}</span>
           {[where, formatRelative(m.createdAt)].join(' · ')}
         </Link>
       </div>

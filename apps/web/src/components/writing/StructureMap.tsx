@@ -1,7 +1,7 @@
 import type { WritingStructure } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
-import { Badge, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 
 const ROLE: Record<WritingStructure['paragraphs'][number]['role'], string> = {
   intro: 'Introduction',
@@ -27,7 +27,7 @@ function CheckRow({ title, checks, note }: { title: string; checks: Check[]; not
           </li>
         ))}
       </ul>
-      {note && <p className="mt-2 text-sm text-muted">{note}</p>}
+      {note && <p className="mt-2 max-w-prose text-sm text-muted text-pretty">{note}</p>}
     </li>
   );
 }
@@ -72,40 +72,35 @@ export function StructureMap({ structure }: { structure: WritingStructure }) {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Paragraph map</h2>
-        <ol className="relative space-y-3">
-          {paragraphs.map((p, i) => (
-            <li key={i} className="flex gap-3 sm:gap-4">
-              <div className="flex flex-col items-center">
-                <span
-                  className={clsx(
-                    'grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold tabular-nums',
-                    p.ok ? 'bg-good-soft text-good-text' : 'bg-warn-soft text-warn-text',
-                  )}
-                >
-                  {i + 1}
-                </span>
-                {i < paragraphs.length - 1 && <span className="mt-1 w-px flex-1 bg-line" aria-hidden />}
-              </div>
-              <Card className="min-w-0 flex-1 !p-4">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge tone="accent">{ROLE[p.role]}</Badge>
-                  {p.ok ? (
-                    <Badge tone="good">
-                      <CircleCheck aria-hidden /> Works
-                    </Badge>
-                  ) : (
-                    <Badge tone="warn">
-                      <TriangleAlert aria-hidden /> Needs work
-                    </Badge>
-                  )}
-                </div>
-                {p.topicSentence && <p className="font-serif text-[1.0625rem] leading-relaxed italic">“{p.topicSentence}”</p>}
-                {p.note && <p className="mt-2 text-sm text-muted">{p.note}</p>}
-              </Card>
-            </li>
-          ))}
-        </ol>
-        {!paragraphs.length && <p className="text-sm text-muted">No paragraphs were detected. Separate paragraphs with a blank line.</p>}
+        {paragraphs.length ? (
+          <Card padded={false}>
+            <ol className="divide-y divide-line">
+              {paragraphs.map((p, i) => (
+                <li key={i} className="flex gap-4 px-5 py-4">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-sm font-semibold tabular-nums" aria-hidden>
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="font-semibold">
+                        <span className="sr-only">Paragraph {i + 1}: </span>
+                        {ROLE[p.role]}
+                      </span>
+                      <span className={clsx('inline-flex items-center gap-1.5', p.ok ? 'text-good-text' : 'text-warn-text')}>
+                        {p.ok ? <CircleCheck className="size-4" aria-hidden /> : <TriangleAlert className="size-4" aria-hidden />}
+                        {p.ok ? 'Works' : 'Needs work'}
+                      </span>
+                    </p>
+                    {p.topicSentence && <p className="prose-serif">“{p.topicSentence}”</p>}
+                    {p.note && <p className="max-w-prose text-sm text-muted text-pretty">{p.note}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Card>
+        ) : (
+          <p className="text-sm text-muted">No paragraphs were detected. Separate paragraphs with a blank line.</p>
+        )}
       </section>
     </div>
   );

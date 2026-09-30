@@ -13,8 +13,8 @@ export function LoadMore({ hasMore, loading, onLoad }: { hasMore: boolean; loadi
   }, [hasMore, loading, onLoad]);
   if (!hasMore) return null;
   return (
-    <div ref={ref} className="flex justify-center py-4">
-      <Button variant="ghost" loading={loading} onClick={onLoad}>
+    <div ref={ref} className="flex justify-center py-6">
+      <Button variant="secondary" loading={loading} onClick={onLoad}>
         Load more
       </Button>
     </div>

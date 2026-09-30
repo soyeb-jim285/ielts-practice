@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronRight, CircleAlert, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
-import { Alert, Badge, Button, Dialog, ProgressRing, Textarea } from '@/components/ui';
+import { Alert, Badge, Button, Card, Dialog, ProgressRing, Textarea } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useRecorder, type Recording } from '@/hooks/useRecorder';
 import { api, ApiError } from '@/lib/api';
@@ -166,7 +166,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       status={
         phase !== 'finishing' &&
         segments.length > 1 && (
-          <span className="text-sm text-muted tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums">
             {segIdx + 1}/{segments.length}
           </span>
         )
@@ -181,27 +181,24 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
         <Finishing uploads={uploads} total={segments.length} onRetry={(k) => void upload(k)} />
       ) : (
         <div className="flex flex-col items-center gap-8 text-center">
-          <PartHeading seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} />
-
           {seg.part === 2 ? (
-            <CueCard prompt={seg.prompt} />
+            <>
+              <h1 className="sr-only">Part 2 · Long turn</h1>
+              <CueCard prompt={seg.prompt} />
+            </>
           ) : (
-            <div className="w-full space-y-3">
-              {recording || qIdx > 0 ? (
-                <p className="text-sm text-muted tabular-nums">
-                  Question {qIdx + 1} of {seg.questions.length}
-                </p>
-              ) : null}
-              <p key={qIdx} className="font-serif text-xl leading-snug text-balance md:text-2xl motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
-                {recording || qIdx > 0 ? seg.questions[qIdx] : seg.questions[0]}
-              </p>
+            <div className="w-full space-y-4">
+              <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} question={recording || qIdx > 0 ? `Question ${qIdx + 1} of ${seg.questions.length}` : undefined} />
+              <h1 key={qIdx} className="mx-auto max-w-2xl font-serif text-2xl leading-snug text-balance md:text-[1.75rem] motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
+                {seg.questions[qIdx]}
+              </h1>
             </div>
           )}
 
           <MicProblem state={rec.state} error={rec.error} onRetry={() => void startRecording()} />
 
           {recording ? (
-            <div className="flex w-full flex-col items-center gap-5">
+            <div className="flex w-full flex-col items-center gap-6">
               <RecordingDot />
               <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
               <Waveform level={rec.level} tick={rec.elapsedMs} active />
@@ -212,14 +209,14 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               <SilenceNudge silenceMs={rec.silenceMs} />
               {seg.part === 2 && notes && (
                 <div className="w-full rounded-card bg-surface-2 p-4 text-left">
-                  <p className="text-xs font-medium text-muted">Your notes</p>
+                  <p className="text-xs font-medium text-muted-foreground">Your notes</p>
                   <p className="mt-1 text-sm whitespace-pre-wrap">{notes}</p>
                 </div>
               )}
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex w-full max-w-sm flex-col-reverse gap-3 sm:max-w-none sm:flex-row sm:justify-center">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="ghost" size="lg" onClick={() => void finishPart()}>
+                    <Button variant="secondary" size="lg" onClick={() => void finishPart()}>
                       Finish part early
                     </Button>
                     <Button size="lg" onClick={nextQuestion} icon={<ChevronRight />}>
@@ -227,7 +224,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
                     </Button>
                   </>
                 ) : (
-                  <Button size="lg" onClick={() => void finishPart()} icon={<Check />}>
+                  <Button size="lg" className="w-full sm:w-auto" onClick={() => void finishPart()} icon={<Check />}>
                     {segIdx + 1 < segments.length ? 'Finish and continue' : 'Finish'}
                   </Button>
                 )}
@@ -251,7 +248,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
                 />
               </div>
               {/* Sticky on phones so the cue card and notes never push the CTA below the fold. */}
-              <div className="sticky bottom-0 z-10 -mx-4 self-stretch bg-bg/90 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-6 sm:px-6 md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+              <div className="sticky bottom-0 z-10 -mx-4 self-stretch border-t border-line bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                 <Button size="lg" className="w-full md:w-auto" onClick={() => void startRecording()} loading={rec.state === 'requesting'}>
                   Start speaking now
                 </Button>
@@ -259,7 +256,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
             </>
           ) : seg.part === 2 ? (
             <div className="flex flex-col items-center gap-3">
-              <p className="max-w-md text-[0.9375rem] text-muted">{INTRO[2]}</p>
+              <p className="max-w-md text-[0.9375rem] text-muted-foreground">{INTRO[2]}</p>
               <Button
                 size="lg"
                 onClick={() => {
@@ -271,9 +268,9 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <MicButton state={rec.state} level={rec.level} onStart={() => void startRecording()} onStop={() => void finishPart()} />
-              <p className="max-w-md text-[0.9375rem] text-muted">{INTRO[seg.part]}</p>
+              <p className="max-w-md text-[0.9375rem] text-muted-foreground">{INTRO[seg.part]}</p>
             </div>
           )}
 
@@ -336,63 +333,82 @@ function MicCheckStep() {
       </Button>
     );
   return (
-    <div className="w-full max-w-md space-y-3 rounded-card border border-line bg-surface p-4 text-left">
+    <Card className="w-full max-w-md space-y-3 p-4 text-left">
       <MicCheck mic={mic} />
       {mic.state === 'recording' && (
         <Button variant="ghost" size="sm" onClick={() => void mic.stop().catch(() => {})}>
           Done
         </Button>
       )}
-    </div>
+    </Card>
   );
 }
 
-/** Eyebrow repeats the ExamShell title, so it only shows on phones in a multi-part test (where that title is hidden). */
-function PartHeading({ seg, p1Pos, p1Count, multi }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean }) {
-  if (seg.part === 2 && !multi) return null;
+/** Topic chip (+ part and question position on phones, where the top bar title is hidden in a multi-part test) above each question. */
+function PartMeta({ seg, p1Pos, p1Count, multi, question }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean; question?: string }) {
   return (
-    <div className="space-y-1">
+    <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted-foreground tabular-nums">
       {multi && (
-        <p className="text-sm font-medium text-accent-text sm:hidden">
+        <span className="font-medium text-brand-text sm:hidden">
           Part {seg.part}
-          {seg.part === 1 && p1Count > 1 && ` · topic ${p1Pos} of ${p1Count}`}
-        </p>
+          {seg.part === 1 && p1Count > 1 && ` · ${p1Pos}/${p1Count}`}
+        </span>
       )}
-      {seg.part !== 2 && <h2 className="text-lg font-semibold">{seg.prompt.topic || seg.prompt.title}</h2>}
-    </div>
+      <Badge tone="accent">{seg.prompt.topic || seg.prompt.title}</Badge>
+      {question && <span>{question}</span>}
+    </p>
   );
+}
+
+/** True once an upload has been running for `ms` without finishing. */
+function useStalled(active: boolean, ms = 20_000) {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (!active) return setStalled(false);
+    const t = setTimeout(() => setStalled(true), ms);
+    return () => clearTimeout(t);
+  }, [active, ms]);
+  return stalled;
 }
 
 function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: number; onRetry: (key: number) => void }) {
   const failed = uploads.some((u) => u.status === 'failed');
+  const stalled = useStalled(!failed && uploads.some((u) => u.status === 'uploading'));
   return (
-    <div className="mx-auto max-w-md space-y-5">
-      <div className="text-center">
-        <h2 className="text-lg font-semibold">{failed ? 'Some answers need another try' : 'Uploading your answers'}</h2>
-        <p className="mt-1 text-sm text-muted">{failed ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
+    <div className="mx-auto max-w-md space-y-6">
+      <div className="space-y-1 text-center">
+        <h1 className="text-xl font-semibold">{failed ? 'Some answers need another try' : 'Uploading your answers'}</h1>
+        <p className="text-sm text-muted-foreground">{failed ? 'Your recordings are still here. Retry to send them.' : `Analysis starts as soon as each of the ${total} recordings arrives.`}</p>
       </div>
-      <ul className="divide-y divide-line rounded-card border border-line bg-surface" aria-live="polite">
-        {uploads.map((u) => (
-          <li key={u.key} className="flex items-center gap-3 px-4 py-3 text-left text-sm">
-            {u.status === 'done' ? (
-              <Check className="size-4 text-good-text" aria-label="uploaded" />
-            ) : u.status === 'failed' ? (
-              <CircleAlert className="size-4 text-bad-text" aria-label="failed" />
-            ) : (
-              <LoaderCircle className="size-4 animate-spin text-muted" aria-label="uploading" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate">{u.label}</p>
-              {u.error && <p className="text-xs text-bad-text">{u.error}</p>}
-            </div>
-            {u.status === 'failed' && (
-              <Button size="sm" variant="secondary" icon={<RotateCcw />} onClick={() => onRetry(u.key)}>
-                Retry
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
+      <Card padded={false} className="overflow-hidden">
+        <ul className="divide-y divide-line" aria-live="polite">
+          {uploads.map((u) => (
+            <li key={u.key} className="flex min-h-14 items-center gap-3 px-5 py-3 text-left text-sm">
+              {u.status === 'done' ? (
+                <Check className="size-5 shrink-0 text-good-text" aria-label="uploaded" />
+              ) : u.status === 'failed' ? (
+                <CircleAlert className="size-5 shrink-0 text-bad-text" aria-label="failed" />
+              ) : (
+                <LoaderCircle className="size-5 shrink-0 animate-spin text-muted-foreground" aria-label="uploading" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate">{u.label}</p>
+                {u.error && <p className="text-xs text-bad-text">{u.error}</p>}
+              </div>
+              {u.status === 'failed' && (
+                <Button size="sm" variant="secondary" icon={<RotateCcw />} onClick={() => onRetry(u.key)}>
+                  Retry
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Card>
+      {stalled && (
+        <Alert tone="warn" title="Taking longer than usual">
+          A slow connection can do this. Keep this tab open; if nothing changes, reload and record again.
+        </Alert>
+      )}
     </div>
   );
 }

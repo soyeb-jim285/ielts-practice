@@ -57,7 +57,7 @@ const SPEEDS = [
   { value: '1', label: '1×', 'aria-label': 'Normal speed' },
 ];
 
-/** Sticky player for the recording: play/pause, scrub, time, speed. The <audio> element is shared through `audioRef`. */
+/** Player for the recording: play/pause, scrub, time, speed. The <audio> element is shared through `audioRef`; the page decides whether the bar sticks. */
 export function AudioBar({ src, audioRef, durationS }: { src: string; audioRef: (el: HTMLAudioElement | null) => void; durationS?: number }) {
   const [el, setEl] = useState<HTMLAudioElement | null>(null);
   const [t, setT] = useState(0);
@@ -89,7 +89,7 @@ export function AudioBar({ src, audioRef, durationS }: { src: string; audioRef: 
   const max = Math.max(dur, t, 0.1);
   const pct = (t / max) * 100;
   return (
-    <div className="sticky top-0 z-20 -mx-4 flex items-center gap-2 bg-surface-2 px-4 py-2 sm:mx-0 sm:gap-3 sm:rounded-card sm:px-3">
+    <div className="flex items-center gap-1 rounded-card border border-border bg-card pr-2 pl-1 shadow-card sm:gap-2 sm:pr-3">
       <audio ref={ref} src={src} preload="metadata" className="hidden" />
       <Button size="icon" variant="ghost" aria-label={paused ? 'Play recording' : 'Pause recording'} onClick={() => (paused ? void el?.play().catch(() => {}) : el?.pause())}>
         {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
@@ -103,10 +103,10 @@ export function AudioBar({ src, audioRef, durationS }: { src: string; audioRef: 
         step={0.1}
         value={t}
         onChange={(e) => el && (el.currentTime = Number(e.target.value))}
-        style={{ background: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)` }}
-        className="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card"
+        style={{ backgroundImage: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)` }}
+        className="h-11 min-w-0 flex-1 cursor-pointer appearance-none bg-clip-content py-[1.1875rem] [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-brand [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card"
       />
-      <span className="shrink-0 text-xs text-muted tabular-nums">
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
         {formatClock(Math.floor(t))} / {formatClock(Math.round(max))}
       </span>
       <Segmented

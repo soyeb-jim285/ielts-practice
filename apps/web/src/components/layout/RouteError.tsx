@@ -1,5 +1,6 @@
 import { Link, useRouter, type ErrorComponentProps } from '@tanstack/react-router';
 import { Compass, TriangleAlert } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Button, buttonStyles, EmptyState } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 
@@ -18,40 +19,47 @@ const NOT_FOUND = [
 export const notFoundCopy = (message: string) =>
   NOT_FOUND.find((n) => n.re.test(message)) ?? { title: 'Not found', body: 'This page may have been deleted, or the link is old.' };
 
+/** One recipe for not-found and error pages: icon, title, one sentence, actions. Also used by the root 404. */
+export function ErrorPage({ icon, title, children, action }: { icon: ReactNode; title: string; children: ReactNode; action: ReactNode }) {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-16 md:py-24">
+      <EmptyState bare icon={icon} title={title} action={action}>
+        {children}
+      </EmptyState>
+    </div>
+  );
+}
+
 /** Route error view. As the router default it renders inside the parent layout, so AppShell nav stays. A 404 can't be retried. */
 export function RouteError({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   if (error instanceof ApiError && error.status === 404) {
     const { title, body } = notFoundCopy(error.message);
     return (
-      <div className="mx-auto max-w-lg px-4 py-16">
-        <EmptyState icon={<Compass />} title={title} action={home}>
-          {body}
-        </EmptyState>
-      </div>
+      <ErrorPage icon={<Compass />} title={title} action={home}>
+        {body}
+      </ErrorPage>
     );
   }
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <EmptyState
-        icon={<TriangleAlert />}
-        title="Something went wrong"
-        action={
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button
-              onClick={() => {
-                reset();
-                void router.invalidate();
-              }}
-            >
-              Try again
-            </Button>
-            {home}
-          </div>
-        }
-      >
-        {(error instanceof Error && error.message) || 'An unexpected error occurred.'}
-      </EmptyState>
-    </div>
+    <ErrorPage
+      icon={<TriangleAlert />}
+      title="Something went wrong"
+      action={
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button
+            onClick={() => {
+              reset();
+              void router.invalidate();
+            }}
+          >
+            Try again
+          </Button>
+          {home}
+        </div>
+      }
+    >
+      {(error instanceof Error && error.message) || 'An unexpected error occurred.'}
+    </ErrorPage>
   );
 }

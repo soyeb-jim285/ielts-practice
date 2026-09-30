@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { AuthLayout } from '@/components/layout/AuthLayout';
-import { Alert, Button, Input, toast } from '@/components/ui';
+import { Alert, Button, buttonStyles, Input, toast } from '@/components/ui';
 import { authClient, redirectIfSignedIn, safeRedirect } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
 
@@ -45,7 +45,7 @@ function Login() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="hit font-medium text-accent-text hover:underline">
+          <Link to="/signup" className={buttonStyles({ variant: 'link', className: 'hit' })}>
             Create an account
           </Link>
         </>
@@ -57,9 +57,9 @@ function Login() {
             tone="bad"
             action={
               error.unverified && (
-                <button type="button" className="font-medium text-accent-text hover:underline" onClick={() => resend(error.unverified!)}>
+                <Button variant="link" onClick={() => resend(error.unverified!)}>
                   Resend verification email
-                </button>
+                </Button>
               )
             }
           >
@@ -69,9 +69,11 @@ function Login() {
         <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required autoFocus />
         <div>
           <Input label="Password" name="password" type="password" autoComplete="current-password" required />
-          <Link to="/forgot-password" className="hit mt-2 inline-block text-sm text-muted hover:text-ink hover:underline">
-            Forgot password?
-          </Link>
+          <div className="mt-3 flex justify-end">
+            <Link to="/forgot-password" className={buttonStyles({ variant: 'link', className: 'hit' })}>
+              Forgot password?
+            </Link>
+          </div>
         </div>
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Sign in

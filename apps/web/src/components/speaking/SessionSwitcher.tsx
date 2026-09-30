@@ -22,7 +22,7 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <nav aria-label="Test parts" className="flex flex-wrap gap-1.5">
+      <nav aria-label="Test parts" className="inline-flex flex-wrap gap-1 rounded-lg bg-surface-2 p-1 ring-1 ring-border ring-inset">
         {parts.map((p, i) => {
           const d = details[i]?.data;
           const label = p.part === 1 && p1Total > 1 ? `P1·${++p1}` : `P${p.part}`;
@@ -36,22 +36,23 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
               aria-current={current ? 'page' : undefined}
               title={p.promptTitle}
               className={clsx(
-                'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium tabular-nums transition-colors duration-150',
-                current ? 'border-transparent bg-ink text-bg' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
+                // Same look as Segmented: one raised segment marks the current part.
+                'hit inline-flex h-9 items-center gap-1.5 rounded-[7px] px-3 text-sm font-medium tabular-nums transition-[background-color,color,box-shadow] duration-150 md:h-8',
+                current ? 'bg-card text-ink shadow-card ring-1 ring-border' : 'text-muted-foreground hover:text-ink',
               )}
             >
               {label}
               {d?.status === 'analyzing' ? (
                 <LoaderCircle className="size-3.5 animate-spin" aria-label="analysing" />
               ) : d?.analysis && !notAssessed(d.analysis) ? (
-                <span className="opacity-70">{formatBand(d.analysis.overall)}</span>
+                <span className="text-muted-foreground">{formatBand(d.analysis.overall)}</span>
               ) : null}
             </Link>
           );
         })}
       </nav>
       {summary && (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Test overall <span className="font-semibold text-ink tabular-nums">{formatBand(summary.band)}</span>
           {summary.scored < parts.length && ` · ${summary.scored} of ${parts.length} parts scored`}
         </p>
