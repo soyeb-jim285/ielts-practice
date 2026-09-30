@@ -86,12 +86,17 @@ final class LiveAudio {
         }
     }
 
-    private static func level(_ p: UnsafePointer<Float>, _ from: Int, _ count: Int) -> Double {
+    private static func rms(_ p: UnsafePointer<Float>, _ from: Int, _ count: Int) -> Double {
         guard count > 0 else { return 0 }
         var sum: Float = 0
         for i in from..<(from + count) { sum += p[i] * p[i] }
-        let db = 20 * log10(max(sqrt(sum / Float(count)), 1e-6))
-        return Double(max(0, min(1, (db + 60) / 60)))
+        return Double(sqrt(sum / Float(count)))
+    }
+
+    /// UI/VAD level 0…1 on a -60…0 dBFS scale.
+    private static func level(_ p: UnsafePointer<Float>, _ from: Int, _ count: Int) -> Double {
+        let db = 20 * log10(max(rms(p, from, count), 1e-6))
+        return max(0, min(1, (db + 60) / 60))
     }
 
     private func process(_ buf: AVAudioPCMBuffer) {
@@ -108,7 +113,7 @@ final class LiveAudio {
                 partFrames += AVAudioFramePosition(n)
                 let frame = max(1, Int(buf.format.sampleRate * 0.05)) // 50 ms energy frames
                 var i = 0
-                while i < n { let c = min(frame, n - i); partEnergy.append(Int(Self.level(ch, i, c) * 255)); i += c }
+                while i < n { let c = min(frame, n - i); partEnergy.append(Recorder.energyByte(rms: Self.rms(ch, i, c))); i += c }
             }
         }
         guard let onPCM16, let converter else { return }

@@ -2,6 +2,7 @@ import AVFoundation
 import Observation
 
 /// Practice recorder: AAC 16 kHz mono m4a with metering sampled every 50 ms → 0-255 energy timeline.
+/// Energy uses the web scale (byte = √rms·255) so the server's single voiceThreshold (60) means the same on both platforms.
 @MainActor @Observable
 final class Recorder {
     private(set) var isRecording = false
@@ -14,6 +15,25 @@ final class Recorder {
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private(set) var energy: [Int] = []
+
+    nonisolated static let voice = 60 // matches web VOICE and core computeSpeechMetrics voiceThreshold
+
+    /// dBFS → 0-255 energy byte on the web scale (√rms·255).
+    nonisolated static func energyByte(db: Double) -> Int { energyByte(rms: pow(10, db / 20)) }
+    nonisolated static func energyByte(rms: Double) -> Int { Int(min(255, (sqrt(max(0, rms)) * 255).rounded())) }
+
+    /// Syllable-like energy peaks in the last 10 s → rough words/min. Mirrors web estimateWpm.
+    /// ponytail: a pacing hint, not a measurement.
+    nonisolated static func estimateWpm(_ energy: [Int]) -> Int {
+        let win = Array(energy.suffix(200))
+        guard win.count >= 40 else { return 0 }
+        var peaks = 0, last = -10
+        for i in 1..<(win.count - 1) where win[i] >= voice && win[i] > win[i - 1] && win[i] >= win[i + 1] && i - last >= 3 {
+            peaks += 1
+            last = i
+        }
+        return Int((Double(peaks) / 1.5 * (200 / Double(win.count)) * 6).rounded())
+    }
 
     nonisolated static func configureSession() throws {
         let s = AVAudioSession.sharedInstance()
@@ -52,16 +72,12 @@ final class Recorder {
         let db = Double(r.averagePower(forChannel: 0))
         let l = max(0, min(1, (db + 60) / 60))
         level = l
-        energy.append(Int(l * 255))
+        energy.append(Self.energyByte(db: db))
         elapsed = r.currentTime
         silence = l < 0.3 ? silence + 0.05 : 0
         levels.removeFirst()
         levels.append(l)
-        // ponytail: rough syllable estimate from energy peaks over the last 10 s — a pacing hint only.
-        let recent = energy.suffix(200)
-        var peaks = 0, prev = 0
-        for e in recent { if e >= 110 && prev < 110 { peaks += 1 }; prev = e }
-        liveWpm = Int(Double(peaks) / 1.5 * 6 * (200 / Double(max(recent.count, 1))))
+        liveWpm = Self.estimateWpm(energy)
     }
 
     /// Stops and returns the duration in ms and the energy timeline.
