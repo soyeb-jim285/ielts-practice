@@ -1,0 +1,8 @@
+{
+  "name": "@ielts/core",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "test": "vitest run --passWithNoTests", "typecheck": "tsc --noEmit", "build": "true" }
+}

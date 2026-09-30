@@ -1,0 +1,19 @@
+{
+  "name": "ielts-practice",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.26.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "gen:api": "pnpm -F @ielts/server exec tsx ../../scripts/export-openapi.ts && pnpm -F @ielts/web exec openapi-typescript src/openapi.json -o src/schema.d.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
