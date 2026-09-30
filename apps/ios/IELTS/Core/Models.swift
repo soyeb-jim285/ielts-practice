@@ -1,13 +1,20 @@
 import Foundation
 
 // Hand-written Codable mirror of the server contract (apps/server/src/ai/types.ts, routes/*.ts).
-// ponytail: hand-written instead of swift-openapi-generator; switch when /openapi.json is exported and stable.
+// ponytail: hand-written instead of swift-openapi-generator (an ~all-views rewrite for 25 small types). Structs tagged
+// `// openapi: <schema path>` are checked against apps/web/src/openapi.json in CI (apps/ios/scripts/check-models.mjs).
+
+// openapi: Me.user
 
 struct User: Codable { let id: String; let email: String; let name: String; let emailVerified: Bool }
+
+// openapi: Settings.models
 
 struct ModelChoices: Codable, Equatable {
     var analysis: String, examiner: String, stt: String, tts: String, ttsVoice: String, audioPron: String
 }
+
+// openapi: Settings
 
 struct AppSettings: Codable, Equatable {
     var models: ModelChoices
@@ -17,6 +24,8 @@ struct AppSettings: Codable, Equatable {
     var writingAutoSubmit: Bool
     var blockPaste: Bool
 }
+
+// openapi: Me
 
 struct Me: Codable {
     let user: User
@@ -56,6 +65,8 @@ struct Empty: Decodable {}
 
 // MARK: - Prompts
 
+// openapi: Prompt
+
 struct Prompt: Decodable, Identifiable {
     let id: String
     let skill: String
@@ -81,6 +92,8 @@ struct Prompt: Decodable, Identifiable {
     }
     var chartSpec: ChartSpec? { chart?.value }
 }
+
+// openapi: SpeakingTest
 
 struct SpeakingTest: Decodable { let part1: [Prompt]; let part2: Prompt; let part3: Prompt }
 
@@ -145,7 +158,11 @@ enum ChartSpec: Decodable {
 
 // MARK: - Attempts
 
+// openapi: CreatedAttempt
+
 struct Created: Decodable { let id: String; let uploadUrl: String? }
+
+// openapi: Attempt
 
 struct Attempt: Decodable, Identifiable {
     let id: String
@@ -167,7 +184,11 @@ struct Attempt: Decodable, Identifiable {
     let prompt: Prompt
 
     var finished: Bool { status == "done" || status == "failed" }
+    /// The essay, or the transcript for speaking.
+    var answerText: String? { analysis?.text ?? text ?? analysis?.words.map { $0.map(\.w).joined(separator: " ") } }
 }
+
+// openapi: AttemptListItem
 
 struct AttemptListItem: Decodable, Identifiable {
     let id: String
@@ -179,6 +200,8 @@ struct AttemptListItem: Decodable, Identifiable {
     let overall: Double?
     let createdAt: String
 }
+
+// openapi: AttemptList
 
 struct AttemptPage: Decodable { let items: [AttemptListItem]; let total: Int }
 
@@ -291,10 +314,16 @@ struct AnalysisResult: Decodable {
 
 // MARK: - Progress, cards, models, live
 
+// openapi: Progress
+
 struct ProgressData: Decodable {
+    // openapi: Progress.trend[]
     struct TrendPoint: Decodable { let date: String; let overall: Double; let criteria: [String: Double] }
+    // openapi: Progress.weakest
     struct Weakest: Decodable { let key: String; let avg: Double }
+    // openapi: Progress.topMistakes[]
     struct CategoryCount: Decodable { let category: String; let count: Int }
+    // openapi: Progress.predicted
     struct Predicted: Decodable { let speaking: Double?; let writing: Double? }
     let trend: [TrendPoint]
     let streak: Int
@@ -305,7 +334,11 @@ struct ProgressData: Decodable {
     let predicted: Predicted
 }
 
+// openapi: Card
+
 struct ReviewCard: Decodable, Identifiable { let id: String; let front: String; let back: String }
+
+// openapi: Mistake
 
 struct Mistake: Decodable, Identifiable {
     let id: String
@@ -322,24 +355,35 @@ struct Mistake: Decodable, Identifiable {
     let createdAt: String
 }
 
+// openapi: MistakeLog
+
 struct MistakeLog: Decodable { let groups: [ProgressData.CategoryCount]; let items: [Mistake]; let total: Int }
 
+// openapi: Model
+
 struct ModelInfo: Decodable, Identifiable {
+    // openapi: Model.pricing
     struct Pricing: Decodable { let prompt: String?; let completion: String? }
     let id: String
     let name: String?
     let pricing: Pricing?
 }
 
+// openapi: LiveStarted
+
 struct LiveReply: Decodable {
     let sessionId: String?
     let examinerText: String
     let audioUrl: String?
+    let voiceError: String? // why audioUrl is null (TTS failed): the test continues with captions
     let phase: String
     let prepSeconds: Int?
     let cueCard: Prompt?
     let test: SpeakingTest?
 }
+// openapi: LiveUpload
 struct UploadTarget: Decodable { let key: String; let uploadUrl: String }
+// openapi: RealtimeToken
 struct RealtimeToken: Decodable { let value: String; let model: String? }
+// openapi: LiveFinished
 struct FinishResult: Decodable { let attemptIds: [String] }

@@ -2,9 +2,9 @@ name: iOS
 on:
   push:
     branches: [main]
-    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+    paths: ["apps/ios/**", "apps/web/src/openapi.json", ".github/workflows/ios.yml"]
   pull_request:
-    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+    paths: ["apps/ios/**", "apps/web/src/openapi.json", ".github/workflows/ios.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +12,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  models:
+    # Hand-written Models.swift vs the server contract (CI's check job keeps apps/web/src/openapi.json fresh).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node apps/ios/scripts/check-models.mjs
+
   ios:
     runs-on: macos-15
     timeout-minutes: 40

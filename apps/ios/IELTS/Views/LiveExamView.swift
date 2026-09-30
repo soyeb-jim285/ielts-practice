@@ -12,6 +12,7 @@ final class LiveExam {
     var phase = "intro"
     var phaseStarted = Date()
     var caption = ""
+    var voiceError: String? // examiner TTS failed: captions are forced on and a banner explains why
     var level = 0.0
     var listening = false
     var thinking = false
@@ -131,6 +132,7 @@ final class LiveExam {
             while !Task.isCancelled {
                 setPhase(reply.phase)
                 if let card = reply.cueCard { cueCard = card }
+                voiceError = reply.audioUrl == nil ? reply.voiceError : nil
                 await speak(reply.examinerText, reply.audioUrl)
                 if Task.isCancelled || reply.phase == "done" || reply.phase == "closing" { break }
                 if reply.phase == "p2-prep" {
@@ -281,6 +283,7 @@ struct LiveExamView: View {
     @Environment(APIClient.self) private var api
     @State private var exam: LiveExam?
     @State private var showCaptions = false
+    @State private var showSettings = false
 
     private var realtime: Bool { api.me?.settings.liveProvider == "openai-realtime" && api.me?.realtimeAvailable == true }
 
@@ -375,7 +378,15 @@ struct LiveExamView: View {
             .font(.headline)
             ProgressView(value: exam.level).tint(Color.good).frame(maxWidth: 220)
             if let card = exam.cueCard, exam.phase.hasPrefix("p2") { CueCardView(prompt: card) }
-            if showCaptions && !exam.caption.isEmpty {
+            if let e = exam.voiceError {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Examiner voice unavailable", systemImage: "speaker.slash.fill").font(.subheadline.weight(.semibold)).foregroundStyle(.warn)
+                    Text("The test continues with captions. \(e)").font(.footnote)
+                    Button("Open Settings") { showSettings = true }.font(.footnote.weight(.semibold))
+                }
+                .card(padding: 12)
+            }
+            if (showCaptions || exam.voiceError != nil) && !exam.caption.isEmpty {
                 Text(exam.caption).font(.body).multilineTextAlignment(.center).padding().frame(maxWidth: .infinity).background(.surface, in: RoundedRectangle(cornerRadius: 12))
             }
             Spacer(minLength: 0)
@@ -388,5 +399,9 @@ struct LiveExamView: View {
         }
         .padding()
         .background(.canvas)
+        // A sheet keeps the exam alive (pushing a view would fire onDisappear → teardown); new models apply from the next turn.
+        .sheet(isPresented: $showSettings) {
+            NavigationStack { SettingsView().toolbar { Button("Done") { showSettings = false } } }
+        }
     }
 }

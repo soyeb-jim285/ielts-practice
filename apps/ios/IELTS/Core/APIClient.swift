@@ -122,6 +122,10 @@ final class APIClient {
         return true
     }
 
+    func requestPasswordReset(email: String) async throws {
+        try await raw("POST", "/api/auth/request-password-reset", ["email": email, "redirectTo": baseURL + "/reset-password"])
+    }
+
     private func adopt(_ http: HTTPURLResponse) async throws {
         guard let t = http.value(forHTTPHeaderField: "set-auth-token"), !t.isEmpty else {
             throw APIError(status: 0, message: "The server didn't return a session token. Is it an IELTS Practice server?")

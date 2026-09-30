@@ -46,6 +46,14 @@ struct LoginView: View {
                 } footer: {
                     Text("Passwords need at least 8 characters.")
                 }
+                if !signUp {
+                    Section {
+                        Button("Forgot password?") { Task { await forgot() } }
+                            .disabled(busy)
+                    } footer: {
+                        Text("We'll email you a link to set a new password.")
+                    }
+                }
                 Section {
                     TextField("Server URL", text: $server)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -76,6 +84,23 @@ struct LoginView: View {
             } else {
                 try await api.signIn(email: email, password: password)
             }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Better Auth reset: the emailed link opens the web app's /reset-password on the same server.
+    private func forgot() async {
+        error = nil
+        info = nil
+        let email = email.trimmingCharacters(in: .whitespaces)
+        guard email.contains("@") else { error = "Enter your account email above, then tap Forgot password."; return }
+        busy = true
+        defer { busy = false }
+        api.setBaseURL(server)
+        do {
+            try await api.requestPasswordReset(email: email)
+            info = "Check your email: if an account exists for \(email), a reset link is on its way."
         } catch {
             self.error = error.localizedDescription
         }

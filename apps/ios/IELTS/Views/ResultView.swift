@@ -124,6 +124,7 @@ struct AttemptResultView: View {
     @State private var player = Player()
     @State private var selectedError: AnalysisError?
     @State private var toast: String?
+    @State private var parentText: String?
 
     private var speaking: Bool { attempt.skill == "speaking" }
     private var tabs: [String] { speaking ? ["Overview", "Transcript", "Fluency", "Language", "Improve"] : ["Overview", "Essay", "Structure", "Language", "Improve"] }
@@ -148,6 +149,10 @@ struct AttemptResultView: View {
         .task(id: attempt.audioUrl) {
             guard speaking, let u = attempt.audioUrl, !player.isLoaded, let d = try? await api.download(u) else { return }
             try? player.load(d)
+        }
+        .task(id: attempt.parentAttemptId) {
+            guard let id = attempt.parentAttemptId, let p: Attempt = try? await api.get("/api/attempts/\(id)") else { return }
+            parentText = p.answerText
         }
         .onDisappear { player.stop() }
         .sheet(item: $selectedError) { e in
@@ -293,6 +298,14 @@ struct AttemptResultView: View {
 
     @ViewBuilder
     private func improve(_ r: AnalysisResult) -> some View {
+        if let before = parentText, let now = attempt.answerText {
+            SectionTitle("Since your last attempt")
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) { Chip(text: "removed", color: .bad); Chip(text: "added", color: .good) }
+                Text(diffText(wordDiff(before, now))).font(speaking ? .body : .system(.body, design: .serif)).textSelection(.enabled)
+            }
+            .card()
+        }
         SectionTitle(speaking ? "A band-higher version of your answer" : "A band-higher version of your essay")
         VStack(alignment: .leading, spacing: 10) {
             Text(r.rewrite.text).font(speaking ? .body : .system(.body, design: .serif)).textSelection(.enabled)
@@ -325,6 +338,51 @@ struct AttemptResultView: View {
         try? await Task.sleep(for: .seconds(2))
         toast = nil
     }
+}
+
+enum DiffOp: Equatable { case same, removed, added }
+
+/// Word-level diff (LCS over whitespace tokens), merged into runs. Spec §7: a retry shows a word diff against its parent.
+/// ponytail: O(n·m) table, fine for answers of a few hundred words; Myers diff if essays get much longer.
+func wordDiff(_ old: String, _ new: String) -> [(op: DiffOp, text: String)] {
+    let a = old.split(whereSeparator: \.isWhitespace).map(String.init), b = new.split(whereSeparator: \.isWhitespace).map(String.init)
+    var lcs = Array(repeating: Array(repeating: 0, count: b.count + 1), count: a.count + 1)
+    for i in stride(from: a.count - 1, through: 0, by: -1) {
+        for j in stride(from: b.count - 1, through: 0, by: -1) {
+            lcs[i][j] = a[i] == b[j] ? lcs[i + 1][j + 1] + 1 : max(lcs[i + 1][j], lcs[i][j + 1])
+        }
+    }
+    var out: [(op: DiffOp, text: String)] = []
+    func push(_ op: DiffOp, _ w: String) {
+        if out.last?.op == op { out[out.count - 1].text += " " + w } else { out.append((op, w)) }
+    }
+    var i = 0, j = 0
+    while i < a.count || j < b.count {
+        if i < a.count, j < b.count, a[i] == b[j] { push(.same, a[i]); i += 1; j += 1 }
+        else if i < a.count, j == b.count || lcs[i + 1][j] >= lcs[i][j + 1] { push(.removed, a[i]); i += 1 } // removed first: "has → have"
+        else { push(.added, b[j]); j += 1 }
+    }
+    return out
+}
+
+func diffText(_ parts: [(op: DiffOp, text: String)]) -> AttributedString {
+    var s = AttributedString()
+    for p in parts {
+        if !s.characters.isEmpty { s += AttributedString(" ") }
+        var run = AttributedString(p.text)
+        switch p.op {
+        case .same: break
+        case .removed:
+            run.foregroundColor = Color.bad
+            run.strikethroughStyle = Text.LineStyle(pattern: .solid, color: .bad)
+            run.backgroundColor = Color.bad.opacity(0.12)
+        case .added:
+            run.foregroundColor = Color.good
+            run.backgroundColor = Color.good.opacity(0.12)
+        }
+        s += run
+    }
+    return s
 }
 
 struct FixCard: View {
