@@ -202,6 +202,12 @@ Pipeline:
 6. **UI:** colour-coded chips in the transcript for each type, with a hover or tap label ("false start", "self-correction: he go → he goes"). A disfluency timeline under the audio. A per-type breakdown in the Fluency tab with explanations and the "normal vs affects coherence" guidance. The same on iOS.
 7. **Validation:** a test set of scripted disfluent clips with a known reference annotation. Report recall and precision per type; target ≥ 0.8 recall for fillers, repetitions and false starts.
 
+### 5.2 Speech-to-text provider (required)
+
+- When `ELEVENLABS_API_KEY` is set, the default STT is **ElevenLabs Scribe v2** (`POST https://api.elevenlabs.io/v1/speech-to-text`, `model_id=scribe_v2`, `no_verbatim=false`, `timestamps_granularity=character`, `tag_audio_events=true`, `language_code=en`). Settings shows it as `elevenlabs/scribe_v2`. It is verbatim by design: it keeps fillers, repetitions and learner grammar, and marks abandoned phrases with "…". Bake-off in `.eval/stt-verbatim2/`: fillers 95%, repetitions 100%, false starts 67%, grammar kept 100%, 3.4 s per clip, about $0.0037/min, free plan about 150 min a month.
+- Fallback when the key is missing, or on an ElevenLabs error or quota exhaustion: prompted `openai/whisper-large-v3` via OpenRouter (prompt under `provider.options` for each Whisper host).
+- Audio events (`[clears throat]`, laughter) are dropped from the word list, and "…" and cut-offs feed the §5.1 false-start tagger.
+
 ## 6. Analysis result schema (shared, versioned `v: 1`)
 
 ```ts
