@@ -1,0 +1,53 @@
+name: iOS
+on:
+  push:
+    branches: [main]
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -iv -e beta -e rc | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - run: brew install xcodegen
+      - run: xcodegen generate && mkdir -p build
+      - name: Build (generic iOS Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build -project IELTS.xcodeproj -scheme IELTS -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO | tee build/build.log | grep -E 'error:|warning: unre|BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' build/build.log
+      - name: Zip .app
+        run: cd build/dd/Build/Products/Debug-iphonesimulator && zip -qry "$GITHUB_WORKSPACE/IELTS-simulator-app.zip" IELTS.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IELTS-simulator-app
+          path: IELTS-simulator-app.zip
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available -j | jq -r '
+            [.devices | to_entries[] | select(.key | test("iOS")) | .key as $rt | .value[]
+             | select(.name | startswith("iPhone")) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')
+          echo "Simulator: $UDID"
+          xcodebuild test -project IELTS.xcodeproj -scheme IELTS -destination "id=$UDID" -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO | tee build/test.log | grep -E 'error:|Test Case|TEST|Executed' || true
+          grep -q '\*\* TEST SUCCEEDED \*\*' build/test.log

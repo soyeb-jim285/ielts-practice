@@ -1,0 +1,45 @@
+name: IELTS
+options:
+  bundleIdPrefix: com.soyeb
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  IELTS:
+    type: application
+    platform: iOS
+    sources: [IELTS]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.soyeb.ieltspractice
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: IELTS/Info.plist # merged with the generated keys below
+        INFOPLIST_KEY_CFBundleDisplayName: IELTS Practice
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Record your speaking answers for scoring.
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+  IELTSTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [IELTSTests]
+    dependencies:
+      - target: IELTS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.soyeb.ieltspractice.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  IELTS:
+    build:
+      targets:
+        IELTS: all
+        IELTSTests: [test]
+    test:
+      targets: [IELTSTests]
