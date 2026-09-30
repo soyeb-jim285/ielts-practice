@@ -3,7 +3,6 @@ import { createFileRoute, Link, type LinkProps } from '@tanstack/react-router';
 import { ArrowRight, AudioLines, ListOrdered } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
-import { PendingUploads } from '@/components/speaking/PendingUploads';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
@@ -26,7 +25,6 @@ function SpeakingHome() {
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
       <div className="space-y-12">
-        <PendingUploads />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
             link={{ to: '/speaking/session', search: { mode: 'full' } }}
