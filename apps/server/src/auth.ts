@@ -16,7 +16,7 @@ export const auth = betterAuth({
   trustedOrigins: [env.WEB_ORIGIN, env.BETTER_AUTH_URL],
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: env.NODE_ENV === 'production' && !!env.RESEND_API_KEY,
+    requireEmailVerification: env.NODE_ENV === 'production',
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({ to: user.email, subject: 'Reset your IELTS Practice password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
     },
@@ -32,12 +32,13 @@ export const auth = betterAuth({
   plugins: [bearer()],
 });
 
-export const isCambridgeAllowed = (email: string | undefined | null) =>
-  !!email && env.CAMBRIDGE_ALLOWED_EMAILS.includes(email.toLowerCase());
+/** Cambridge content is licensed to specific owners: allow-listed AND verified email (prevents sign-up spoofing). */
+export const isCambridgeAllowed = (u: { email: string; emailVerified: boolean } | null | undefined) =>
+  !!u && u.emailVerified && env.CAMBRIDGE_ALLOWED_EMAILS.includes(u.email.toLowerCase());
 
 export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const s = await auth.api.getSession({ headers: c.req.raw.headers });
-  c.set('user', s ? { id: s.user.id, email: s.user.email, name: s.user.name } : null);
+  c.set('user', s ? { id: s.user.id, email: s.user.email, name: s.user.name, emailVerified: s.user.emailVerified } : null);
   await next();
 });
 

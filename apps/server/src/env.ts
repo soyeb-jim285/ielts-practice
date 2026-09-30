@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITEST;
+const isTest = !!process.env.VITEST; // only the test runner gets dummy secrets
 // In tests every secret gets a dummy default so the suite runs without a .env.
 const secret = (dummy: string) => (isTest ? z.string().default(dummy) : z.string().min(1));
 
