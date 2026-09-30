@@ -66,23 +66,32 @@ struct FluencyView: View {
         }
     }
 
-    private static let kindColors: [String: Color] = ["filled": .brand, "repetition": .purple, "repair": .pink]
+    private static let kindColors: [String: Color] = [
+        "filled": .brand, "repetition": .purple, "repair": .pink, "false_start": .orange, "partial": .teal, "prolongation": .indigo,
+    ]
 
     @ViewBuilder private func disfluencies(_ events: [Disfluency]) -> some View {
         SectionTitle("Disfluencies")
         VStack(alignment: .leading, spacing: 10) {
             // Per-type breakdown; the type is named, so colour is never the only cue.
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
-                ForEach(Disfluency.kinds, id: \.key) { k in
-                    let n = events.filter { $0.kind == k.key }.count
+            ForEach(Disfluency.kinds.filter { k in k.core || events.contains { $0.kind == k.key } }, id: \.key) { k in
+                let n = events.filter { $0.kind == k.key }.count
+                let perMin = metrics.fluency?.profile?.byKind[k.key]?.perMin ?? Double(n) / minutes
+                let tone: Color = perMin <= k.rate[0] ? .good : perMin <= k.rate[1] ? .warn : .bad
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Circle().fill(Self.kindColors[k.key] ?? .secondary).frame(width: 8, height: 8)
                         Text("\(k.label) \(n)").font(.caption.weight(.semibold))
+                        Spacer()
+                        Circle().fill(tone).frame(width: 8, height: 8)
+                        Text("\(fmt(perMin)) / min").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                    .accessibilityElement(children: .combine)
+                    Text(k.what).font(.caption2).foregroundStyle(.secondary)
+                    Text("Normal: \(k.normal)").font(.caption2).foregroundStyle(.secondary)
+                    Text("Hurts when: \(k.harmful)").font(.caption2).foregroundStyle(.secondary)
                 }
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
             }
             GeometryReader { g in
                 ZStack(alignment: .leading) {
@@ -98,7 +107,7 @@ struct FluencyView: View {
             }
             .frame(height: 24)
             .accessibilityLabel("\(events.count) disfluencies along the recording")
-            Text("Filled pauses (um, uh), repetitions and restarts, from the transcript, the audio energy and the audio model. Tap one to hear it.")
+            Text("Filled pauses, repetitions, restarts, cut-off words and held sounds, from the transcript, the audio energy and the audio model. Tap one to hear it.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .card()

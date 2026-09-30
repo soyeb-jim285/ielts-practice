@@ -72,6 +72,11 @@ for (const m of swift.matchAll(/\/\/ openapi: (\S+)\s*\n\s*struct (\w+)[^{]*\{/g
   }
 }
 
+// Disfluency.kinds must list exactly core's DisfluencyKind union (the server returns every one of them).
+const coreKinds = readFileSync(here('../../../packages/core/src/speech.ts'), 'utf8').match(/type DisfluencyKind = ([^;]+);/)?.[1].match(/'(\w+)'/g)?.map((k) => k.slice(1, -1));
+const swiftKinds = [...(swift.match(/static let kinds[\s\S]*?\n    \]/)?.[0] ?? '').matchAll(/Kind\(key: "(\w+)"/g)].map((m) => m[1]);
+if (!coreKinds || coreKinds.join() !== swiftKinds.join()) errors.push(`Disfluency.kinds [${swiftKinds}] != core DisfluencyKind [${coreKinds}]`);
+
 if (checked === 0) errors.push('no `// openapi:` tagged structs found');
 if (errors.length) {
   console.error(`Models.swift drifted from openapi.json:\n  ${errors.join('\n  ')}`);

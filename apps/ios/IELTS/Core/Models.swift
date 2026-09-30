@@ -228,12 +228,43 @@ struct Repetition: Decodable { let phrase: String; let time: Double; let wordIdx
 struct SelfCorrection: Decodable { let time: Double; let wordIdx: Int }
 struct Unclear: Decodable { let wordIdx: Int; let w: String; let conf: Double; let tier: Int }
 struct WpmPoint: Decodable { let t: Double; let wpm: Double }
-/// Fused disfluency event (core `Disfluency`): kind is filled | repetition | repair; sources say which detectors saw it.
+/// Fused disfluency event (core `Disfluency`): kind is one of `Disfluency.kinds`; sources say which detectors saw it.
 struct Disfluency: Decodable {
-    static let kinds: [(key: String, label: String)] = [("filled", "Filled pauses"), ("repetition", "Repetitions"), ("repair", "Repairs & false starts")]
+    /// Mirrors core DisfluencyKind (scripts/check-models.mjs keeps the keys in sync). `rate` = [good, warn] events per minute; the copy mirrors web GUIDE.
+    struct Kind {
+        let key: String, label: String, what: String, normal: String, harmful: String
+        let rate: [Double]
+        /// Always listed (a zero is good news); cut-offs and held sounds only when present.
+        let core: Bool
+    }
+    static let kinds: [Kind] = [
+        Kind(key: "filled", label: "Filled pauses", what: "\"um\", \"uh\", \"er\" while searching for a word.",
+             normal: "A couple a minute is natural, even for native speakers.",
+             harmful: "More than about 4 a minute, or several in a row, sounds unsure. Pause silently instead.", rate: [2, 4], core: true),
+        Kind(key: "repetition", label: "Repetitions", what: "A word or phrase said twice, like \"I I think\".",
+             normal: "An occasional repeat while you plan the next word is fine.",
+             harmful: "Frequent repeats signal word-searching. Plan the first few words before you start.", rate: [1, 2], core: true),
+        Kind(key: "repair", label: "Self-corrections", what: "You restart and change the wording, like \"he go… he goes\".",
+             normal: "Fixing a real mistake shows self-monitoring; band 7 allows some.",
+             harmful: "Many restarts make the listener lose the idea. Correct only what matters.", rate: [1, 2], core: true),
+        Kind(key: "false_start", label: "False starts", what: "A sentence you abandon and begin again.",
+             normal: "One now and then is normal in unplanned speech.",
+             harmful: "Often abandoning sentences hurts coherence. Start with a short, safe clause.", rate: [1, 2], core: true),
+        Kind(key: "partial", label: "Cut-off words", what: "A word you cut off and restart, like \"sh- she\".",
+             normal: "Occasional cut-offs happen when you change your mind about a word.",
+             harmful: "Many cut-offs suggest reaching for words you are unsure of. Choose a simpler word.", rate: [1, 2], core: false),
+        Kind(key: "prolongation", label: "Held sounds", what: "A sound held while you think, like \"sooo\".",
+             normal: "An occasional stretched word buys thinking time.",
+             harmful: "Frequent stretching slows the answer and sounds hesitant. Try a short pause.", rate: [2, 4], core: false),
+    ]
     let kind: String; let start: Double; let end: Double; let sources: [String]
 }
-struct FluencyDetail: Decodable { let events: [Disfluency] }
+/// Server `disfluencyProfile`: per-type count and rates. Absent on older analyses.
+struct DisfluencyProfile: Decodable {
+    struct Rate: Decodable { let n: Int; let perMin: Double; let per100w: Double }
+    let byKind: [String: Rate]
+}
+struct FluencyDetail: Decodable { let events: [Disfluency]; let profile: DisfluencyProfile? }
 
 struct SpeechMetrics: Decodable {
     let durationS: Double
