@@ -422,8 +422,8 @@
   }
 }
 
-/* Live examiner waveform (speaking hub). Transform-only, so it stays cheap. */
-@keyframes wave {
-  0%, 100% { transform: scaleY(0.45); }
-  50% { transform: scaleY(1); }
+/* Live examiner voiceprint (speaking hub): each bar alternates between its own floor (--lo) and full height. Transform-only. */
+@keyframes voice {
+  from { transform: scaleY(var(--lo, 0.4)); }
+  to { transform: scaleY(1); }
 }

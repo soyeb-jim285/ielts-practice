@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, AudioLines } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
 import { buttonStyles, Card, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -40,13 +40,10 @@ function SpeakingHome() {
             </div>
           </Card>
 
-          <div className="relative flex flex-col justify-between gap-8 overflow-hidden rounded-lg bg-foreground p-6 text-background sm:p-7">
+          <div className="group/live relative flex flex-col justify-between gap-8 overflow-hidden rounded-lg bg-foreground p-6 text-background transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] focus-within:-translate-y-0.5 hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transform-none sm:p-7">
             <div>
               <p className="type-caption flex items-center gap-2 text-background/75">
-                <span className="relative flex size-2" aria-hidden>
-                  <span className="absolute inline-flex size-full rounded-full bg-[#2dd4bf] opacity-60 motion-safe:animate-ping" />
-                  <span className="relative inline-flex size-2 rounded-full bg-[#2dd4bf]" />
-                </span>
+                <span className="size-2 rounded-full bg-[#2dd4bf] shadow-[0_0_0_3px_rgb(45_212_191/0.22)]" aria-hidden />
                 Live, spoken conversation
               </p>
               <h2 className="type-title-sm mt-2 text-background">Live examiner</h2>
@@ -58,7 +55,7 @@ function SpeakingHome() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="type-caption type-num text-background/75">11-14 min, needs a microphone</p>
               <Link to="/speaking/live" className={buttonStyles({ size: 'lg', className: 'w-full bg-background text-foreground hover:bg-background/90 sm:w-auto sm:px-6' })}>
-                <AudioLines aria-hidden /> Talk to the examiner
+                <AudioLines aria-hidden /> Talk to the examiner <ArrowRight aria-hidden className="transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover/live:translate-x-0.5 motion-reduce:transition-none" />
               </Link>
             </div>
           </div>
@@ -87,16 +84,17 @@ function SpeakingHome() {
   );
 }
 
-/** Decorative voice bars for the live card; static under reduced motion. */
+/** Voiceprint for the live card: still at rest, "speaks" while the card is hovered or focused (the state the motion conveys).
+ *  Each bar has its own period and floor, so the motion reads as speech rather than an equaliser loop. Paused, not removed, so it never snaps. */
+const VOICE = [0.22, 0.38, 0.62, 0.48, 0.8, 0.95, 0.7, 0.42, 0.28, 0.52, 0.86, 0.64, 0.4, 0.72, 0.9, 0.56, 0.34, 0.24];
 function Waveform() {
-  const bars = [0.35, 0.7, 0.5, 0.9, 0.45, 0.8, 0.3, 0.6, 0.95, 0.55, 0.4, 0.75, 0.5, 0.85, 0.35, 0.65, 0.45, 0.9, 0.55, 0.3];
   return (
-    <div className="flex h-10 items-center gap-1" aria-hidden>
-      {bars.map((h, i) => (
+    <div className="flex h-10 items-center gap-[3px]" aria-hidden>
+      {VOICE.map((h, i) => (
         <span
           key={i}
-          className="w-1 origin-center rounded-full bg-[#2dd4bf]/80 motion-safe:animate-[wave_1.4s_ease-in-out_infinite]"
-          style={{ height: `${h * 100}%`, animationDelay: `${(i % 7) * -0.18}s` }}
+          className="w-[3px] origin-center rounded-full bg-[#2dd4bf]/85 [animation:voice_var(--d)_ease-in-out_infinite_alternate_paused] group-hover/live:[animation-play-state:running] group-focus-within/live:[animation-play-state:running] motion-reduce:animate-none"
+          style={{ height: `${h * 100}%`, '--d': `${0.55 + ((i * 7) % 5) * 0.11}s`, '--lo': `${0.35 + ((i * 3) % 4) * 0.12}`, animationDelay: `${-((i * 5) % 9) * 0.07}s` } as CSSProperties}
         />
       ))}
     </div>
