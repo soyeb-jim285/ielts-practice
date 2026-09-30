@@ -1,0 +1,60 @@
+import type { Prompt, SpeakingTest } from '@server/routes/prompts';
+import { useQuery } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { MicOff } from 'lucide-react';
+import { useState } from 'react';
+import { ExamShell } from '@/components/layout/ExamShell';
+import { SessionFlow, toSegment, type Segment } from '@/components/speaking/SessionFlow';
+import { Alert, Button, buttonStyles, EmptyState, Skeleton } from '@/components/ui';
+import { api, ApiError } from '@/lib/api';
+
+const MODES = ['full', 'p1', 'p2', 'p3'] as const;
+type Mode = (typeof MODES)[number];
+type Search = { mode: Mode; promptId?: string; parent?: string };
+
+export const Route = createFileRoute('/_app/speaking/session')({
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    mode: MODES.includes(s.mode as Mode) ? (s.mode as Mode) : 'full',
+    promptId: typeof s.promptId === 'string' ? s.promptId : undefined,
+    parent: typeof s.parent === 'string' ? s.parent : undefined,
+  }),
+  staticData: { exam: true },
+  component: SessionPage,
+});
+
+async function loadSegments({ mode, promptId }: Search): Promise<Segment[]> {
+  if (promptId) return [toSegment(await api.get<Prompt>(`/prompts/${promptId}`))];
+  if (mode === 'full') {
+    const t = await api.get<SpeakingTest>('/speaking/test');
+    return [...t.part1, t.part2, t.part3].map(toSegment);
+  }
+  return [toSegment(await api.get<Prompt>(`/prompts/random?skill=speaking&part=${mode.slice(1)}`))];
+}
+
+function SessionPage() {
+  const search = Route.useSearch();
+  // A fresh test each visit, stable while you're on the page.
+  const q = useQuery({ queryKey: ['speaking-session', search.mode, search.promptId ?? null], queryFn: () => loadSegments(search), staleTime: Infinity, gcTime: 0 });
+  const [sessionId] = useState(() => (search.mode === 'full' && !search.promptId ? crypto.randomUUID() : undefined));
+
+  if (q.data) return <SessionFlow segments={q.data} sessionId={sessionId} parentAttemptId={search.parent} />;
+  return (
+    <ExamShell title="Speaking">
+      {q.isPending ? (
+        <div className="flex flex-col items-center gap-4" aria-busy aria-label="Loading questions">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-8 w-full max-w-md" />
+          <Skeleton className="mt-6 size-20 rounded-full" />
+        </div>
+      ) : q.error instanceof ApiError && q.error.status === 404 ? (
+        <EmptyState icon={<MicOff />} title="No questions available yet" action={<Link to="/speaking" className={buttonStyles({ variant: 'secondary' })}>Back to speaking</Link>}>
+          The prompt bank has no speaking prompts for this part. Seed the bank, then try again.
+        </EmptyState>
+      ) : (
+        <Alert tone="bad" title="Couldn't load the questions" action={<Button size="sm" onClick={() => q.refetch()}>Try again</Button>}>
+          {q.error?.message}
+        </Alert>
+      )}
+    </ExamShell>
+  );
+}

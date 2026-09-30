@@ -8,7 +8,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "gen:api": "pnpm -F @ielts/server exec tsx ../../scripts/export-openapi.ts && pnpm -F @ielts/web exec openapi-typescript src/openapi.json -o src/schema.d.ts"
+    "gen:api": "pnpm -F @ielts/server exec tsx ../../scripts/export-openapi.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

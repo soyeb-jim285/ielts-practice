@@ -1,0 +1,1815 @@
+[
+  {
+    "slug": "t1a1-metro-ridership",
+    "topic": "Transport",
+    "type": "line",
+    "body": "The graph below shows the number of passenger journeys made on the metro systems of four cities between 1995 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Annual metro passenger journeys in four cities, 1995–2020",
+      "xLabel": "Year",
+      "yLabel": "Journeys (millions)",
+      "unit": "millions",
+      "categories": [
+        "1995",
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Seoul",
+          "values": [
+            1450,
+            1720,
+            1980,
+            2240,
+            2510,
+            1790
+          ]
+        },
+        {
+          "name": "London",
+          "values": [
+            780,
+            930,
+            970,
+            1110,
+            1350,
+            640
+          ]
+        },
+        {
+          "name": "Madrid",
+          "values": [
+            410,
+            560,
+            690,
+            640,
+            650,
+            390
+          ]
+        },
+        {
+          "name": "Toronto",
+          "values": [
+            210,
+            220,
+            230,
+            250,
+            260,
+            120
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-household-electricity-day",
+    "topic": "Energy",
+    "type": "line",
+    "body": "The graph below shows average hourly electricity consumption in households in one country on a typical day in winter and in summer. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average household electricity use over 24 hours",
+      "xLabel": "Time of day",
+      "yLabel": "Electricity use (kWh)",
+      "unit": "kWh",
+      "categories": [
+        "00:00",
+        "03:00",
+        "06:00",
+        "09:00",
+        "12:00",
+        "15:00",
+        "18:00",
+        "21:00",
+        "24:00"
+      ],
+      "series": [
+        {
+          "name": "Winter weekday",
+          "values": [
+            0.6,
+            0.5,
+            1.1,
+            1.4,
+            0.9,
+            1,
+            2.3,
+            1.9,
+            0.7
+          ]
+        },
+        {
+          "name": "Summer weekday",
+          "values": [
+            0.5,
+            0.4,
+            0.6,
+            0.8,
+            1.2,
+            1.6,
+            1.4,
+            1.1,
+            0.6
+          ]
+        },
+        {
+          "name": "Winter weekend",
+          "values": [
+            0.7,
+            0.5,
+            0.6,
+            1.5,
+            1.7,
+            1.4,
+            2,
+            1.8,
+            0.8
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-international-students",
+    "topic": "Education",
+    "type": "line",
+    "body": "The graph below shows the number of international students enrolled at universities in four countries from 2004 to 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "International university students in four countries, 2004–2022",
+      "xLabel": "Year",
+      "yLabel": "Students (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "2004",
+        "2007",
+        "2010",
+        "2013",
+        "2016",
+        "2019",
+        "2022"
+      ],
+      "series": [
+        {
+          "name": "Australia",
+          "values": [
+            160,
+            210,
+            270,
+            250,
+            310,
+            430,
+            370
+          ]
+        },
+        {
+          "name": "Canada",
+          "values": [
+            70,
+            80,
+            110,
+            150,
+            210,
+            290,
+            390
+          ]
+        },
+        {
+          "name": "Germany",
+          "values": [
+            180,
+            190,
+            200,
+            220,
+            250,
+            290,
+            330
+          ]
+        },
+        {
+          "name": "Japan",
+          "values": [
+            110,
+            120,
+            130,
+            135,
+            150,
+            210,
+            180
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-aquaculture-production",
+    "topic": "Environment",
+    "type": "line",
+    "body": "The graph below shows fish and seafood production from aquaculture (fish farming) in four regions of the world between 1990 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Aquaculture production by region, 1990–2020",
+      "xLabel": "Year",
+      "yLabel": "Production (million tonnes)",
+      "unit": "million tonnes",
+      "categories": [
+        "1990",
+        "1995",
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Asia",
+          "values": [
+            11.8,
+            21.5,
+            29.4,
+            38.6,
+            50.2,
+            63.1,
+            71.9
+          ]
+        },
+        {
+          "name": "Europe",
+          "values": [
+            1.6,
+            1.8,
+            2,
+            2.1,
+            2.5,
+            2.9,
+            3.3
+          ]
+        },
+        {
+          "name": "Americas",
+          "values": [
+            0.5,
+            0.9,
+            1.4,
+            2,
+            2.6,
+            3.3,
+            4.2
+          ]
+        },
+        {
+          "name": "Africa",
+          "values": [
+            0.1,
+            0.1,
+            0.4,
+            0.6,
+            1.3,
+            2,
+            2.3
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-car-ownership",
+    "topic": "Transport",
+    "type": "line",
+    "body": "The graph below shows the number of private cars per 1,000 people in four countries between 1970 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Cars per 1,000 inhabitants, 1970–2020",
+      "xLabel": "Year",
+      "yLabel": "Cars per 1,000 people",
+      "unit": "cars",
+      "categories": [
+        "1970",
+        "1980",
+        "1990",
+        "2000",
+        "2010",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "United States",
+          "values": [
+            430,
+            540,
+            580,
+            480,
+            440,
+            390
+          ]
+        },
+        {
+          "name": "Italy",
+          "values": [
+            190,
+            310,
+            480,
+            570,
+            610,
+            670
+          ]
+        },
+        {
+          "name": "Japan",
+          "values": [
+            85,
+            200,
+            280,
+            390,
+            450,
+            480
+          ]
+        },
+        {
+          "name": "China",
+          "values": [
+            0,
+            1,
+            1,
+            5,
+            60,
+            190
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-renewable-electricity-share",
+    "topic": "Energy",
+    "type": "line",
+    "body": "The graph below shows the percentage of electricity generated from renewable sources in four countries from 2000 to 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Share of electricity from renewable sources, 2000–2022",
+      "xLabel": "Year",
+      "yLabel": "Percentage of total generation",
+      "unit": "%",
+      "categories": [
+        "2000",
+        "2004",
+        "2008",
+        "2012",
+        "2016",
+        "2020",
+        "2022"
+      ],
+      "series": [
+        {
+          "name": "Denmark",
+          "values": [
+            16,
+            26,
+            29,
+            48,
+            61,
+            81,
+            83
+          ]
+        },
+        {
+          "name": "Spain",
+          "values": [
+            16,
+            18,
+            20,
+            30,
+            39,
+            44,
+            42
+          ]
+        },
+        {
+          "name": "India",
+          "values": [
+            14,
+            14,
+            15,
+            16,
+            17,
+            21,
+            22
+          ]
+        },
+        {
+          "name": "Poland",
+          "values": [
+            2,
+            2,
+            4,
+            11,
+            14,
+            18,
+            22
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-smartphone-ownership-age",
+    "topic": "Technology",
+    "type": "line",
+    "body": "The graph below shows the percentage of adults in one country who owned a smartphone, by age group, between 2010 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Smartphone ownership by age group, 2010–2022",
+      "xLabel": "Year",
+      "yLabel": "Percentage of adults",
+      "unit": "%",
+      "categories": [
+        "2010",
+        "2012",
+        "2014",
+        "2016",
+        "2018",
+        "2020",
+        "2022"
+      ],
+      "series": [
+        {
+          "name": "18–29",
+          "values": [
+            49,
+            71,
+            86,
+            92,
+            95,
+            96,
+            97
+          ]
+        },
+        {
+          "name": "30–49",
+          "values": [
+            36,
+            58,
+            74,
+            85,
+            90,
+            93,
+            95
+          ]
+        },
+        {
+          "name": "50–64",
+          "values": [
+            18,
+            30,
+            46,
+            63,
+            74,
+            81,
+            85
+          ]
+        },
+        {
+          "name": "65+",
+          "values": [
+            5,
+            11,
+            18,
+            30,
+            42,
+            55,
+            63
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-beverage-consumption",
+    "topic": "Food and diet",
+    "type": "line",
+    "body": "The graph below shows the average annual consumption of coffee, tea, bottled water and fizzy drinks per person in one European country between 1980 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average annual beverage consumption per person, 1980–2020",
+      "xLabel": "Year",
+      "yLabel": "Litres per person",
+      "unit": "litres",
+      "categories": [
+        "1980",
+        "1990",
+        "2000",
+        "2010",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Coffee",
+          "values": [
+            95,
+            110,
+            120,
+            135,
+            150
+          ]
+        },
+        {
+          "name": "Tea",
+          "values": [
+            180,
+            160,
+            130,
+            110,
+            95
+          ]
+        },
+        {
+          "name": "Bottled water",
+          "values": [
+            15,
+            40,
+            85,
+            120,
+            140
+          ]
+        },
+        {
+          "name": "Fizzy drinks",
+          "values": [
+            60,
+            95,
+            115,
+            100,
+            75
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-youth-unemployment",
+    "topic": "Work and employment",
+    "type": "line",
+    "body": "The graph below shows the unemployment rate among people aged 15 to 24 in four countries between 2006 and 2018. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Youth unemployment rate, 2006–2018",
+      "xLabel": "Year",
+      "yLabel": "Unemployment rate",
+      "unit": "%",
+      "categories": [
+        "2006",
+        "2008",
+        "2010",
+        "2012",
+        "2014",
+        "2016",
+        "2018"
+      ],
+      "series": [
+        {
+          "name": "Greece",
+          "values": [
+            25,
+            22,
+            33,
+            55,
+            52,
+            47,
+            39
+          ]
+        },
+        {
+          "name": "Sweden",
+          "values": [
+            21,
+            20,
+            25,
+            24,
+            23,
+            19,
+            17
+          ]
+        },
+        {
+          "name": "Germany",
+          "values": [
+            14,
+            11,
+            10,
+            8,
+            8,
+            7,
+            6
+          ]
+        },
+        {
+          "name": "Brazil",
+          "values": [
+            18,
+            16,
+            15,
+            14,
+            17,
+            30,
+            27
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-attraction-visitors-monthly",
+    "topic": "Tourism",
+    "type": "line",
+    "body": "The graph below shows the number of visitors to three tourist attractions in a coastal city in each month of 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Monthly visitors to three attractions, 2023",
+      "xLabel": "Month",
+      "yLabel": "Visitors (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "series": [
+        {
+          "name": "Beach park",
+          "values": [
+            8,
+            9,
+            15,
+            24,
+            38,
+            61,
+            85,
+            92,
+            55,
+            27,
+            11,
+            7
+          ]
+        },
+        {
+          "name": "History museum",
+          "values": [
+            32,
+            30,
+            34,
+            36,
+            35,
+            33,
+            30,
+            29,
+            34,
+            38,
+            36,
+            42
+          ]
+        },
+        {
+          "name": "Aquarium",
+          "values": [
+            20,
+            21,
+            27,
+            35,
+            33,
+            40,
+            52,
+            56,
+            34,
+            30,
+            22,
+            31
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-leisure-by-age",
+    "topic": "Leisure",
+    "type": "bar",
+    "body": "The bar chart below shows the average number of hours per week that people in four age groups in one country spent on five leisure activities in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Weekly hours spent on leisure activities by age group, 2022",
+      "xLabel": "Activity",
+      "yLabel": "Hours per week",
+      "unit": "hours",
+      "categories": [
+        "Watching TV",
+        "Sport and exercise",
+        "Socialising",
+        "Reading",
+        "Video games"
+      ],
+      "series": [
+        {
+          "name": "16–24",
+          "values": [
+            6.5,
+            4.8,
+            9.2,
+            1.1,
+            7.4
+          ]
+        },
+        {
+          "name": "25–44",
+          "values": [
+            9.8,
+            3.6,
+            6.1,
+            1.9,
+            3.2
+          ]
+        },
+        {
+          "name": "45–64",
+          "values": [
+            14.2,
+            2.9,
+            5,
+            3.4,
+            1
+          ]
+        },
+        {
+          "name": "65+",
+          "values": [
+            21.5,
+            2.1,
+            6.8,
+            5.7,
+            0.3
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-household-recycling-rates",
+    "topic": "Environment",
+    "type": "bar",
+    "body": "The chart below shows the percentage of household waste that was recycled in five countries in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Household waste recycling rates, 2000–2020",
+      "xLabel": "Country",
+      "yLabel": "Percentage recycled",
+      "unit": "%",
+      "categories": [
+        "Germany",
+        "South Korea",
+        "United Kingdom",
+        "Italy",
+        "Turkey"
+      ],
+      "series": [
+        {
+          "name": "2000",
+          "values": [
+            48,
+            32,
+            11,
+            14,
+            1
+          ]
+        },
+        {
+          "name": "2010",
+          "values": [
+            62,
+            49,
+            38,
+            31,
+            4
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            67,
+            58,
+            44,
+            51,
+            12
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-commuting-modes",
+    "topic": "Transport",
+    "type": "bar",
+    "body": "The chart below shows how workers in one European city travelled to work in 1990, 2005 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Main mode of travel to work, 1990–2020",
+      "xLabel": "Mode of transport",
+      "yLabel": "Percentage of workers",
+      "unit": "%",
+      "categories": [
+        "Car",
+        "Bus",
+        "Train or tram",
+        "Bicycle",
+        "Walking"
+      ],
+      "series": [
+        {
+          "name": "1990",
+          "values": [
+            58,
+            17,
+            9,
+            4,
+            12
+          ]
+        },
+        {
+          "name": "2005",
+          "values": [
+            51,
+            15,
+            14,
+            8,
+            12
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            36,
+            11,
+            21,
+            19,
+            13
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-graduates-by-field",
+    "topic": "Education",
+    "type": "bar",
+    "body": "The chart below shows the number of students who graduated from universities in one country in five fields of study in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "University graduates by field of study, 2000–2020",
+      "xLabel": "Field of study",
+      "yLabel": "Graduates (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "Business",
+        "Engineering",
+        "Computing",
+        "Medicine and health",
+        "Arts and humanities"
+      ],
+      "series": [
+        {
+          "name": "2000",
+          "values": [
+            42,
+            28,
+            9,
+            18,
+            36
+          ]
+        },
+        {
+          "name": "2010",
+          "values": [
+            58,
+            31,
+            21,
+            26,
+            33
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            61,
+            39,
+            47,
+            35,
+            24
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-tourist-daily-spending",
+    "topic": "Tourism",
+    "type": "bar",
+    "body": "The bar chart below shows the average daily amount spent by international tourists from four regions visiting one country, divided into four categories, in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average daily tourist spending by region of origin, 2023",
+      "xLabel": "Spending category",
+      "yLabel": "Amount (US dollars)",
+      "unit": "USD",
+      "categories": [
+        "Accommodation",
+        "Food and drink",
+        "Shopping",
+        "Entertainment"
+      ],
+      "series": [
+        {
+          "name": "North America",
+          "values": [
+            145,
+            70,
+            55,
+            40
+          ]
+        },
+        {
+          "name": "Europe",
+          "values": [
+            110,
+            62,
+            38,
+            35
+          ]
+        },
+        {
+          "name": "East Asia",
+          "values": [
+            120,
+            48,
+            115,
+            22
+          ]
+        },
+        {
+          "name": "Middle East",
+          "values": [
+            180,
+            85,
+            140,
+            30
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-water-use-by-sector",
+    "topic": "Environment",
+    "type": "bar",
+    "body": "The chart below shows the proportion of water used for agriculture, industry and domestic purposes in six regions of the world. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Water withdrawal by sector in six regions",
+      "xLabel": "Region",
+      "yLabel": "Percentage of total water use",
+      "unit": "%",
+      "categories": [
+        "South Asia",
+        "Africa",
+        "Latin America",
+        "North America",
+        "Europe",
+        "Oceania"
+      ],
+      "series": [
+        {
+          "name": "Agriculture",
+          "values": [
+            91,
+            82,
+            70,
+            38,
+            26,
+            60
+          ]
+        },
+        {
+          "name": "Industry",
+          "values": [
+            2,
+            5,
+            13,
+            47,
+            54,
+            15
+          ]
+        },
+        {
+          "name": "Domestic",
+          "values": [
+            7,
+            13,
+            17,
+            15,
+            20,
+            25
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-online-activities-age",
+    "topic": "Technology",
+    "type": "bar",
+    "body": "The chart below shows the percentage of internet users in three age groups in one country who carried out five different online activities in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Online activities by age group, 2023",
+      "xLabel": "Activity",
+      "yLabel": "Percentage of internet users",
+      "unit": "%",
+      "categories": [
+        "Social media",
+        "Online banking",
+        "Video streaming",
+        "Online shopping",
+        "Reading news"
+      ],
+      "series": [
+        {
+          "name": "16–34",
+          "values": [
+            94,
+            72,
+            91,
+            83,
+            58
+          ]
+        },
+        {
+          "name": "35–54",
+          "values": [
+            78,
+            81,
+            69,
+            79,
+            66
+          ]
+        },
+        {
+          "name": "55+",
+          "values": [
+            49,
+            64,
+            38,
+            55,
+            74
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-book-sales-formats",
+    "topic": "Media and culture",
+    "type": "bar",
+    "body": "The chart below shows sales of printed books, e-books and audiobooks in one country between 2015 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Book sales by format, 2015–2023",
+      "xLabel": "Year",
+      "yLabel": "Units sold (millions)",
+      "unit": "millions",
+      "categories": [
+        "2015",
+        "2017",
+        "2019",
+        "2021",
+        "2023"
+      ],
+      "series": [
+        {
+          "name": "Printed books",
+          "values": [
+            190,
+            184,
+            180,
+            197,
+            176
+          ]
+        },
+        {
+          "name": "E-books",
+          "values": [
+            58,
+            54,
+            51,
+            60,
+            53
+          ]
+        },
+        {
+          "name": "Audiobooks",
+          "values": [
+            6,
+            11,
+            19,
+            31,
+            42
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-broadband-access-area",
+    "topic": "Technology",
+    "type": "bar",
+    "body": "The chart below shows the percentage of households with high-speed broadband access in urban, suburban and rural areas of five countries in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "High-speed broadband access by area type, 2022",
+      "xLabel": "Country",
+      "yLabel": "Percentage of households",
+      "unit": "%",
+      "categories": [
+        "Netherlands",
+        "Spain",
+        "Mexico",
+        "Kenya",
+        "Vietnam"
+      ],
+      "series": [
+        {
+          "name": "Urban",
+          "values": [
+            98,
+            95,
+            81,
+            46,
+            88
+          ]
+        },
+        {
+          "name": "Suburban",
+          "values": [
+            97,
+            89,
+            64,
+            22,
+            71
+          ]
+        },
+        {
+          "name": "Rural",
+          "values": [
+            92,
+            71,
+            33,
+            6,
+            49
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-co2-per-person",
+    "topic": "Environment",
+    "type": "bar",
+    "body": "The bar chart below shows carbon dioxide emissions per person in five countries in 1990, 2005 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "CO2 emissions per person, 1990–2020",
+      "xLabel": "Country",
+      "yLabel": "Emissions (tonnes per person)",
+      "unit": "tonnes",
+      "categories": [
+        "Australia",
+        "United Kingdom",
+        "China",
+        "Brazil",
+        "Nigeria"
+      ],
+      "series": [
+        {
+          "name": "1990",
+          "values": [
+            16.1,
+            10.1,
+            2.1,
+            1.5,
+            0.4
+          ]
+        },
+        {
+          "name": "2005",
+          "values": [
+            18.6,
+            9.1,
+            4.5,
+            1.8,
+            0.6
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            15.2,
+            4.9,
+            7.8,
+            2.2,
+            0.6
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-electricity-sources",
+    "topic": "Energy",
+    "type": "pie",
+    "body": "The pie charts below show the sources of electricity generated in one country in 2000 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Sources of electricity generation, 2000 and 2020",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2000",
+          "slices": [
+            {
+              "label": "Coal",
+              "value": 46
+            },
+            {
+              "label": "Natural gas",
+              "value": 21
+            },
+            {
+              "label": "Nuclear",
+              "value": 18
+            },
+            {
+              "label": "Hydroelectric",
+              "value": 12
+            },
+            {
+              "label": "Wind and solar",
+              "value": 1
+            },
+            {
+              "label": "Other",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "2020",
+          "slices": [
+            {
+              "label": "Coal",
+              "value": 17
+            },
+            {
+              "label": "Natural gas",
+              "value": 34
+            },
+            {
+              "label": "Nuclear",
+              "value": 15
+            },
+            {
+              "label": "Hydroelectric",
+              "value": 11
+            },
+            {
+              "label": "Wind and solar",
+              "value": 21
+            },
+            {
+              "label": "Other",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-household-spending",
+    "topic": "Economics",
+    "type": "pie",
+    "body": "The pie charts below show how the average household in one country spent its income in 1980 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Average household expenditure, 1980 and 2020",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "1980",
+          "slices": [
+            {
+              "label": "Food",
+              "value": 29
+            },
+            {
+              "label": "Housing",
+              "value": 18
+            },
+            {
+              "label": "Transport",
+              "value": 13
+            },
+            {
+              "label": "Clothing",
+              "value": 11
+            },
+            {
+              "label": "Leisure",
+              "value": 9
+            },
+            {
+              "label": "Health",
+              "value": 4
+            },
+            {
+              "label": "Other",
+              "value": 16
+            }
+          ]
+        },
+        {
+          "name": "2020",
+          "slices": [
+            {
+              "label": "Food",
+              "value": 14
+            },
+            {
+              "label": "Housing",
+              "value": 31
+            },
+            {
+              "label": "Transport",
+              "value": 15
+            },
+            {
+              "label": "Clothing",
+              "value": 5
+            },
+            {
+              "label": "Leisure",
+              "value": 13
+            },
+            {
+              "label": "Health",
+              "value": 8
+            },
+            {
+              "label": "Other",
+              "value": 14
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-museum-income",
+    "topic": "Media and culture",
+    "type": "pie",
+    "body": "The pie charts below show the sources of income of a national museum in 2005 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Sources of museum income, 2005 and 2022",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2005",
+          "slices": [
+            {
+              "label": "Government grant",
+              "value": 64
+            },
+            {
+              "label": "Ticket sales",
+              "value": 8
+            },
+            {
+              "label": "Shop and café",
+              "value": 10
+            },
+            {
+              "label": "Donations",
+              "value": 12
+            },
+            {
+              "label": "Venue hire",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "name": "2022",
+          "slices": [
+            {
+              "label": "Government grant",
+              "value": 38
+            },
+            {
+              "label": "Ticket sales",
+              "value": 21
+            },
+            {
+              "label": "Shop and café",
+              "value": 17
+            },
+            {
+              "label": "Donations",
+              "value": 15
+            },
+            {
+              "label": "Venue hire",
+              "value": 9
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-adult-learner-reasons",
+    "topic": "Education",
+    "type": "pie",
+    "body": "The pie chart below shows the main reasons given by adults in one country for enrolling in part-time courses in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Main reasons for adult enrolment in part-time courses, 2023",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "All adult learners",
+          "slices": [
+            {
+              "label": "Career progression",
+              "value": 34
+            },
+            {
+              "label": "Change of career",
+              "value": 19
+            },
+            {
+              "label": "Personal interest",
+              "value": 22
+            },
+            {
+              "label": "Required by employer",
+              "value": 13
+            },
+            {
+              "label": "Meeting people",
+              "value": 5
+            },
+            {
+              "label": "Other",
+              "value": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-land-use-regions",
+    "topic": "Environment",
+    "type": "pie",
+    "body": "The pie charts below show how land was used in two regions of a country in 2021. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Land use in two regions, 2021",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Northern region",
+          "slices": [
+            {
+              "label": "Forest",
+              "value": 41
+            },
+            {
+              "label": "Farmland",
+              "value": 28
+            },
+            {
+              "label": "Grassland",
+              "value": 17
+            },
+            {
+              "label": "Urban areas",
+              "value": 4
+            },
+            {
+              "label": "Water",
+              "value": 6
+            },
+            {
+              "label": "Other",
+              "value": 4
+            }
+          ]
+        },
+        {
+          "name": "Southern region",
+          "slices": [
+            {
+              "label": "Forest",
+              "value": 12
+            },
+            {
+              "label": "Farmland",
+              "value": 52
+            },
+            {
+              "label": "Grassland",
+              "value": 9
+            },
+            {
+              "label": "Urban areas",
+              "value": 19
+            },
+            {
+              "label": "Water",
+              "value": 3
+            },
+            {
+              "label": "Other",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-health-indicators",
+    "topic": "Health",
+    "type": "table",
+    "body": "The table below shows life expectancy, the number of doctors per 1,000 people and health spending as a percentage of GDP in five countries in 2021. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Health indicators in five countries, 2021",
+      "columns": [
+        "Country",
+        "Life expectancy (years)",
+        "Doctors per 1,000 people",
+        "Health spending (% of GDP)"
+      ],
+      "rows": [
+        [
+          "Japan",
+          84.5,
+          2.6,
+          10.9
+        ],
+        [
+          "United States",
+          76.4,
+          2.7,
+          17.4
+        ],
+        [
+          "Mexico",
+          70.2,
+          2.5,
+          6.1
+        ],
+        [
+          "Norway",
+          83.2,
+          5.2,
+          7.9
+        ],
+        [
+          "India",
+          67.2,
+          0.7,
+          3.3
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-cinema-attendance-age",
+    "topic": "Media and culture",
+    "type": "table",
+    "body": "The table below shows the percentage of people in different age groups in one country who went to the cinema at least once a month in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Monthly cinema attendance by age group (%)",
+      "columns": [
+        "Age group",
+        "2000",
+        "2010",
+        "2020"
+      ],
+      "rows": [
+        [
+          "15–24",
+          52,
+          47,
+          29
+        ],
+        [
+          "25–34",
+          38,
+          36,
+          21
+        ],
+        [
+          "35–49",
+          24,
+          27,
+          15
+        ],
+        [
+          "50–64",
+          13,
+          18,
+          12
+        ],
+        [
+          "65+",
+          6,
+          11,
+          8
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-mobile-data-prices",
+    "topic": "Technology",
+    "type": "table",
+    "body": "The table below shows the average price of one gigabyte of mobile data in six countries in 2015 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Average price of 1 GB of mobile data (US dollars)",
+      "columns": [
+        "Country",
+        "2015",
+        "2023",
+        "Change (%)"
+      ],
+      "rows": [
+        [
+          "Canada",
+          12.5,
+          5.9,
+          -53
+        ],
+        [
+          "Germany",
+          9.8,
+          2.1,
+          -79
+        ],
+        [
+          "United Kingdom",
+          7.2,
+          0.8,
+          -89
+        ],
+        [
+          "Brazil",
+          6.4,
+          1.1,
+          -83
+        ],
+        [
+          "India",
+          3.9,
+          0.2,
+          -95
+        ],
+        [
+          "South Africa",
+          8.1,
+          2.5,
+          -69
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-city-climate",
+    "topic": "Environment",
+    "type": "table",
+    "body": "The table below gives information about the climate of four cities in different parts of the world. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Climate data for four cities",
+      "columns": [
+        "City",
+        "Average January temperature (°C)",
+        "Average July temperature (°C)",
+        "Annual rainfall (mm)",
+        "Annual sunshine (hours)"
+      ],
+      "rows": [
+        [
+          "Oslo",
+          -3,
+          17,
+          760,
+          1670
+        ],
+        [
+          "Cairo",
+          14,
+          28,
+          25,
+          3450
+        ],
+        [
+          "Singapore",
+          27,
+          28,
+          2340,
+          2020
+        ],
+        [
+          "Buenos Aires",
+          25,
+          11,
+          1210,
+          2520
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a1-public-library-usage",
+    "topic": "Media and culture",
+    "type": "table",
+    "body": "The table below shows the use of public libraries in one city between 2010 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Public library usage in one city, 2010–2022",
+      "columns": [
+        "Year",
+        "Visits (thousands)",
+        "Printed books borrowed (thousands)",
+        "E-book loans (thousands)",
+        "Registered members (thousands)"
+      ],
+      "rows": [
+        [
+          2010,
+          4200,
+          3100,
+          40,
+          310
+        ],
+        [
+          2014,
+          3750,
+          2650,
+          190,
+          295
+        ],
+        [
+          2018,
+          3300,
+          2200,
+          520,
+          300
+        ],
+        [
+          2022,
+          2600,
+          1650,
+          1080,
+          335
+        ]
+      ]
+    }
+  }
+]

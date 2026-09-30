@@ -1,0 +1,3006 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IELTS Practice API",
+    "version": "1.0.0",
+    "description": "Speaking + Writing practice API. Auth: Better Auth at /api/auth/* (cookie for web, `Authorization: Bearer <token>` for iOS — token returned in the `set-auth-token` header on sign-in)."
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Me": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emailVerified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "name",
+              "emailVerified"
+            ]
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "models": {
+                "type": "object",
+                "properties": {
+                  "analysis": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+                  },
+                  "examiner": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+                  },
+                  "stt": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+                  },
+                  "tts": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+                  },
+                  "ttsVoice": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "audioPron": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+                  }
+                },
+                "required": [
+                  "analysis",
+                  "examiner",
+                  "stt",
+                  "tts",
+                  "ttsVoice",
+                  "audioPron"
+                ]
+              },
+              "audioPronEnabled": {
+                "type": "boolean"
+              },
+              "liveProvider": {
+                "type": "string",
+                "enum": [
+                  "turn",
+                  "openai-realtime"
+                ]
+              },
+              "targetBand": {
+                "type": "number",
+                "minimum": 4,
+                "maximum": 9
+              },
+              "writingAutoSubmit": {
+                "type": "boolean"
+              },
+              "blockPaste": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "models",
+              "audioPronEnabled",
+              "liveProvider",
+              "targetBand",
+              "writingAutoSubmit",
+              "blockPaste"
+            ]
+          },
+          "cambridgeAccess": {
+            "type": "boolean"
+          },
+          "realtimeAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "user",
+          "settings",
+          "cambridgeAccess",
+          "realtimeAvailable"
+        ]
+      },
+      "Settings": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "object",
+            "properties": {
+              "analysis": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "examiner": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "stt": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "tts": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "ttsVoice": {
+                "type": "string",
+                "minLength": 1
+              },
+              "audioPron": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              }
+            },
+            "required": [
+              "analysis",
+              "examiner",
+              "stt",
+              "tts",
+              "ttsVoice",
+              "audioPron"
+            ]
+          },
+          "audioPronEnabled": {
+            "type": "boolean"
+          },
+          "liveProvider": {
+            "type": "string",
+            "enum": [
+              "turn",
+              "openai-realtime"
+            ]
+          },
+          "targetBand": {
+            "type": "number",
+            "minimum": 4,
+            "maximum": 9
+          },
+          "writingAutoSubmit": {
+            "type": "boolean"
+          },
+          "blockPaste": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "models",
+          "audioPronEnabled",
+          "liveProvider",
+          "targetBand",
+          "writingAutoSubmit",
+          "blockPaste"
+        ]
+      },
+      "SettingsPatch": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "object",
+            "properties": {
+              "analysis": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "examiner": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "stt": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "tts": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              },
+              "ttsVoice": {
+                "type": "string",
+                "minLength": 1
+              },
+              "audioPron": {
+                "type": "string",
+                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
+              }
+            }
+          },
+          "audioPronEnabled": {
+            "type": "boolean"
+          },
+          "liveProvider": {
+            "type": "string",
+            "enum": [
+              "turn",
+              "openai-realtime"
+            ]
+          },
+          "targetBand": {
+            "type": "number",
+            "minimum": 4,
+            "maximum": 9
+          },
+          "writingAutoSubmit": {
+            "type": "boolean"
+          },
+          "blockPaste": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ModelList": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            }
+          }
+        },
+        "required": [
+          "models"
+        ]
+      },
+      "Model": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "input": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "output": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pricing": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string"
+              },
+              "completion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "prompt",
+              "completion"
+            ],
+            "description": "USD per token, as strings"
+          },
+          "voices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "TTS voices the model supports (empty for non-speech models)"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "input",
+          "output",
+          "pricing",
+          "voices"
+        ]
+      },
+      "PromptPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Prompt"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ]
+      },
+      "Prompt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "number"
+          },
+          "variant": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "academic",
+              "general",
+              null
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "followUps": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "chart": {
+            "description": "ChartSpec (generated Academic Task 1)"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Presigned figure URL (Cambridge Task 1)"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "cambridge"
+            ]
+          },
+          "sourceRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "done": {
+            "type": "boolean",
+            "description": "The user has an attempt on this prompt"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "skill",
+          "part",
+          "variant",
+          "type",
+          "topic",
+          "title",
+          "body",
+          "bullets",
+          "followUps",
+          "imageUrl",
+          "source",
+          "sourceRef",
+          "groupId",
+          "done"
+        ]
+      },
+      "PromptMeta": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "speaking",
+                    "writing"
+                  ]
+                },
+                "part": {
+                  "type": "number"
+                },
+                "topics": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "skill",
+                "part",
+                "topics",
+                "types"
+              ]
+            }
+          }
+        },
+        "required": [
+          "groups"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "SpeakingTest": {
+        "type": "object",
+        "properties": {
+          "part1": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Prompt"
+            }
+          },
+          "part2": {
+            "$ref": "#/components/schemas/Prompt"
+          },
+          "part3": {
+            "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "required": [
+          "part1",
+          "part2",
+          "part3"
+        ]
+      },
+      "CreatedAttempt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "Presigned PUT (speaking). Send the same Content-Type as audioContentType."
+          },
+          "audioKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "CreateAttempt": {
+        "type": "object",
+        "properties": {
+          "promptId": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "live",
+              "exam"
+            ],
+            "default": "practice"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "parentAttemptId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "audioContentType": {
+            "type": "string",
+            "description": "Speaking only: audio/webm | audio/mp4 | audio/m4a | audio/wav (codec params allowed). Default audio/webm."
+          }
+        },
+        "required": [
+          "promptId",
+          "skill",
+          "part"
+        ]
+      },
+      "SubmitAttempt": {
+        "type": "object",
+        "properties": {
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "energy": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "maxItems": 20000,
+            "description": "50 ms RMS frames, 0-255"
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxItems": 200,
+            "description": "Question start offsets (ms)"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "plan": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "overtime": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Attempt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "promptId": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "live",
+              "exam"
+            ]
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parentAttemptId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audioMime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audioUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "energy": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "marks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "durationMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "overtime": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "analyzing",
+              "done",
+              "failed"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "analysis": {
+            "description": "AnalysisResult (spec §6) once status is done"
+          },
+          "topFixesInDeck": {
+            "type": "boolean",
+            "description": "Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them)"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/AttemptPrompt"
+          }
+        },
+        "required": [
+          "id",
+          "promptId",
+          "skill",
+          "part",
+          "mode",
+          "sessionId",
+          "parentAttemptId",
+          "audioMime",
+          "audioUrl",
+          "text",
+          "plan",
+          "energy",
+          "marks",
+          "durationMs",
+          "overtime",
+          "status",
+          "error",
+          "createdAt",
+          "topFixesInDeck",
+          "prompt"
+        ]
+      },
+      "AttemptPrompt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "number"
+          },
+          "variant": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "academic",
+              "general",
+              null
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "followUps": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "chart": {},
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "skill",
+          "part",
+          "variant",
+          "type",
+          "topic",
+          "title",
+          "body",
+          "bullets",
+          "followUps",
+          "imageUrl",
+          "groupId"
+        ]
+      },
+      "AttemptList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptListItem"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ]
+      },
+      "AttemptListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "promptId": {
+            "type": "string"
+          },
+          "promptTitle": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "live",
+              "exam"
+            ]
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "analyzing",
+              "done",
+              "failed"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "overall": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "promptId",
+          "promptTitle",
+          "skill",
+          "part",
+          "mode",
+          "sessionId",
+          "status",
+          "durationMs",
+          "overall",
+          "createdAt"
+        ]
+      },
+      "LiveStarted": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExaminerLine"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sessionId": {
+                "type": "string"
+              },
+              "test": {
+                "type": "object",
+                "properties": {
+                  "part1": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Prompt"
+                    }
+                  },
+                  "part2": {
+                    "$ref": "#/components/schemas/Prompt"
+                  },
+                  "part3": {
+                    "$ref": "#/components/schemas/Prompt"
+                  }
+                },
+                "required": [
+                  "part1",
+                  "part2",
+                  "part3"
+                ]
+              }
+            },
+            "required": [
+              "sessionId",
+              "test"
+            ]
+          }
+        ]
+      },
+      "ExaminerLine": {
+        "type": "object",
+        "properties": {
+          "examinerText": {
+            "type": "string"
+          },
+          "audioUrl": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "intro",
+              "p1",
+              "p2-prep",
+              "p2-talk",
+              "p2-follow",
+              "p3",
+              "closing",
+              "done"
+            ],
+            "description": "Phase of this line; 'done' after the closing line"
+          },
+          "transcript": {
+            "type": "string",
+            "description": "The candidate's transcribed answer"
+          },
+          "prepSeconds": {
+            "type": "number",
+            "description": "p2-prep: seconds of preparation left; POST /turn (skipped) when it ends"
+          },
+          "cueCard": {
+            "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "required": [
+          "examinerText",
+          "audioUrl",
+          "phase"
+        ]
+      },
+      "LiveStart": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "cambridge",
+              "any"
+            ],
+            "default": "any"
+          }
+        }
+      },
+      "LiveUpload": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "uploadUrl"
+        ]
+      },
+      "LiveUploadUrl": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "audioContentType": {
+            "type": "string",
+            "default": "audio/webm"
+          }
+        },
+        "required": [
+          "sessionId"
+        ]
+      },
+      "LiveTurn": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "audioKey": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sessionId"
+        ]
+      },
+      "RealtimeToken": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "Unix seconds"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "expiresAt",
+          "model"
+        ]
+      },
+      "LiveRealtimeToken": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ]
+      },
+      "LiveFinished": {
+        "type": "object",
+        "properties": {
+          "attemptIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "attemptIds"
+        ]
+      },
+      "LiveFinish": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "part": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "enum": [
+                        1
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "enum": [
+                        2
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "enum": [
+                        3
+                      ]
+                    }
+                  ]
+                },
+                "audioKey": {
+                  "type": "string"
+                },
+                "durationMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "energy": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  },
+                  "maxItems": 20000
+                },
+                "marks": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "maxItems": 200,
+                  "description": "Question start offsets (ms) within this part"
+                }
+              },
+              "required": [
+                "part",
+                "audioKey",
+                "durationMs"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "sessionId",
+          "parts"
+        ]
+      },
+      "Progress": {
+        "type": "object",
+        "properties": {
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attemptId": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "speaking",
+                    "writing"
+                  ]
+                },
+                "part": {
+                  "type": "number"
+                },
+                "overall": {
+                  "type": "number"
+                },
+                "criteria": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              },
+              "required": [
+                "attemptId",
+                "date",
+                "skill",
+                "part",
+                "overall",
+                "criteria"
+              ]
+            },
+            "description": "Last 30 analysed attempts, oldest first"
+          },
+          "streak": {
+            "type": "number"
+          },
+          "minutesThisWeek": {
+            "type": "number"
+          },
+          "attempts": {
+            "type": "number",
+            "description": "Analysed attempts"
+          },
+          "weakest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "avg": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "key",
+              "avg"
+            ]
+          },
+          "topMistakes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "category",
+                "count"
+              ]
+            },
+            "description": "Top 5 categories, last 30 days"
+          },
+          "predicted": {
+            "type": "object",
+            "properties": {
+              "speaking": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "writing": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "speaking",
+              "writing"
+            ],
+            "description": "roundBand of the mean of the last 5 overalls per skill (ignores the skill filter)"
+          }
+        },
+        "required": [
+          "trend",
+          "streak",
+          "minutesThisWeek",
+          "attempts",
+          "weakest",
+          "topMistakes",
+          "predicted"
+        ]
+      },
+      "MistakeLog": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "category",
+                "count"
+              ]
+            },
+            "description": "All categories, most frequent first"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mistake"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "groups",
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ]
+      },
+      "Mistake": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "attemptId": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ]
+          },
+          "part": {
+            "type": "number"
+          },
+          "promptTitle": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "original": {
+            "type": "string"
+          },
+          "correction": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "time": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Seconds into the audio (speaking)"
+          },
+          "inDeck": {
+            "type": "boolean",
+            "description": "Already added to the review deck"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "attemptId",
+          "skill",
+          "part",
+          "promptTitle",
+          "category",
+          "original",
+          "correction",
+          "explanation",
+          "time",
+          "inDeck",
+          "createdAt"
+        ]
+      },
+      "Card": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CardInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "ease": {
+                "type": "number"
+              },
+              "interval": {
+                "type": "number",
+                "description": "Days"
+              },
+              "reps": {
+                "type": "number"
+              },
+              "due": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "ease",
+              "interval",
+              "reps",
+              "due",
+              "createdAt"
+            ]
+          }
+        ]
+      },
+      "CardInput": {
+        "type": "object",
+        "properties": {
+          "front": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "back": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "mistake",
+              "vocab",
+              "fix"
+            ]
+          }
+        },
+        "required": [
+          "front",
+          "back",
+          "source"
+        ]
+      },
+      "DueCards": {
+        "type": "object",
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cards",
+          "total"
+        ]
+      },
+      "CardReview": {
+        "type": "object",
+        "properties": {
+          "grade": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          }
+        },
+        "required": [
+          "grade"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Liveness check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Current user, settings and feature access",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get settings",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Effective settings (user overrides merged over defaults)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Update settings (partial; models merge per key)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Effective settings (user overrides merged over defaults)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "OpenRouter models (cached 1 h), optionally filtered by capability",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text",
+                "audio-in",
+                "stt",
+                "tts"
+              ]
+            },
+            "required": false,
+            "name": "capability",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelList"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenRouter unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prompts": {
+      "get": {
+        "tags": [
+          "Prompts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Prompt bank (30 per page) with a per-user done flag",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "speaking",
+                "writing"
+              ]
+            },
+            "required": false,
+            "name": "skill",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "required": false,
+            "name": "part",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "academic",
+                "general"
+              ]
+            },
+            "required": false,
+            "name": "variant",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "topic",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "generated",
+                "cambridge"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prompts/meta": {
+      "get": {
+        "tags": [
+          "Prompts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Distinct topics and types per skill/part (for bank filters)",
+        "responses": {
+          "200": {
+            "description": "Filter values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptMeta"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prompts/random": {
+      "get": {
+        "tags": [
+          "Prompts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A random matching prompt, preferring ones the user has not done",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "speaking",
+                "writing"
+              ]
+            },
+            "required": true,
+            "name": "skill",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "required": false,
+            "name": "part",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "academic",
+                "general"
+              ]
+            },
+            "required": false,
+            "name": "variant",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prompt"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No matching prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prompts/{id}": {
+      "get": {
+        "tags": [
+          "Prompts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Single prompt (figure URL presigned)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prompt"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/speaking/test": {
+      "get": {
+        "tags": [
+          "Speaking"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Random full speaking test: 3 P1 topics × 4 questions, a P2 cue card and its linked P3",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "generated",
+                "cambridge",
+                "any"
+              ],
+              "default": "any"
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakingTest"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bank is empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attempts": {
+      "post": {
+        "tags": [
+          "Attempts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an attempt (speaking: returns a presigned audio upload URL)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAttempt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAttempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Attempts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attempt history, newest first, 20 per page",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "speaking",
+                "writing"
+              ]
+            },
+            "required": false,
+            "name": "skill",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attempts/{id}/submit": {
+      "post": {
+        "tags": [
+          "Attempts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit an attempt for analysis (also re-runs a failed one). Returns immediately; poll GET /api/attempts/{id}.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAttempt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Analysis started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "analyzing"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Upload missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attempts/{id}": {
+      "get": {
+        "tags": [
+          "Attempts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attempt with analysis, presigned audio URL and prompt (poll until status is done|failed)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Attempts"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an attempt (its analysis and mistakes cascade)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/start": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStarted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bank is empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/upload-url": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Presigned PUT for a candidate recording (a turn or a whole part) in this session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveUploadUrl"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveUpload"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/turn": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Turn-based examiner: transcribes the candidate's answer (if any) and returns the examiner's next line",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveTurn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Next examiner line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExaminerLine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad audio key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Test already over",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/realtime-token": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ephemeral OpenAI Realtime client secret carrying the examiner instructions for this session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveRealtimeToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Client secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Realtime not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenAI error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/finish": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Finish a live session: one attempt per recorded part (mode live, shared sessionId), each analysed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveFinish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attempts created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveFinished"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad upload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/progress": {
+      "get": {
+        "tags": [
+          "Progress"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dashboard stats: band trend, streak, minutes, weakest criterion, recurring mistakes, predicted band",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "speaking",
+                "writing"
+              ]
+            },
+            "required": false,
+            "name": "skill",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Progress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mistakes": {
+      "get": {
+        "tags": [
+          "Mistakes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Error log: counts per category + newest mistakes (optionally one category), 30 per page",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mistakes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MistakeLog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mistakes/{id}/card": {
+      "post": {
+        "tags": [
+          "Mistakes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a mistake to the review deck (front: original, back: correction — explanation)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cards": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a card to the review deck",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cards/bulk": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add several cards at once (e.g. all top fixes of a result)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cards": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CardInput"
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": [
+                  "cards"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cards": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Card"
+                      }
+                    }
+                  },
+                  "required": [
+                    "cards"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cards/due": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cards due for review now (oldest due first, max 50) and the total due count",
+        "responses": {
+          "200": {
+            "description": "Due cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DueCards"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cards/{id}/review": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Grade a card (SM-2: 0-2 again, 3 hard, 4 good, 5 easy) and reschedule it",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardReview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rescheduled card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

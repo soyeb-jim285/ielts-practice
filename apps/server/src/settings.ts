@@ -31,8 +31,8 @@ export const DEFAULT_SETTINGS: Settings = {
     analysis: 'openai/gpt-5-mini',
     examiner: 'openai/gpt-5-mini',
     stt: 'openai/whisper-large-v3',
-    tts: 'openai/gpt-4o-mini-tts',
-    ttsVoice: 'alloy',
+    tts: 'google/gemini-3.8-flash-tts',
+    ttsVoice: 'Charon', // must be one of the model's supported_voices (GET /api/models → voices)
     audioPron: 'google/gemini-2.5-flash',
   },
   audioPronEnabled: false,

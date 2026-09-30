@@ -10,3 +10,8 @@ apps/ios/*.xcodeproj
 apps/ios/build/
 DerivedData/
 .impeccable/
+data/cambridge-ocr/
+.dev-logs/
+data/local-storage/
+test-results/
+playwright-report/

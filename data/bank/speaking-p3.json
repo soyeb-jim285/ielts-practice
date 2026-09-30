@@ -1,0 +1,889 @@
+[
+  {
+    "slug": "p3-social-media-influence",
+    "topic": "Social media",
+    "questions": [
+      "Why do you think social media has become so central to people's lives in such a short time?",
+      "Some argue social media brings people closer together, while others say it isolates them. What's your view?",
+      "How has social media changed the way news spreads in society?",
+      "Should governments do more to regulate what appears on social media platforms?",
+      "Do you think young people are more affected by social media than older generations? Why?",
+      "How might social media platforms change over the next twenty years?"
+    ]
+  },
+  {
+    "slug": "p3-artificial-intelligence-jobs",
+    "topic": "Technology",
+    "questions": [
+      "Which kinds of jobs do you think are most likely to be replaced by artificial intelligence?",
+      "Is it the responsibility of companies or governments to retrain workers whose jobs disappear because of automation?",
+      "Do you think machines will ever be able to replace human creativity?",
+      "What are the risks of relying too heavily on technology in decision-making?",
+      "How should schools prepare young people for a future shaped by artificial intelligence?"
+    ]
+  },
+  {
+    "slug": "p3-climate-change-responsibility",
+    "topic": "Environment",
+    "questions": [
+      "Who should bear the greatest responsibility for tackling climate change: individuals, businesses or governments?",
+      "Why do some people remain unconvinced that environmental problems are serious?",
+      "Do you think richer countries should help poorer countries deal with environmental damage?",
+      "How effective are small individual actions, such as recycling, in protecting the environment?",
+      "What kinds of environmental problems do you think will be most serious in the future?"
+    ]
+  },
+  {
+    "slug": "p3-education-exams",
+    "topic": "Education",
+    "questions": [
+      "Do you think exams are a fair way to measure a student's ability?",
+      "What are the drawbacks of an education system that focuses heavily on testing?",
+      "How could schools assess students in ways other than written exams?",
+      "Should universities select students purely on academic results?",
+      "In what ways has the purpose of education changed compared with the past?",
+      "Is it better for students to specialise early or to study a wide range of subjects?"
+    ]
+  },
+  {
+    "slug": "p3-work-life-balance",
+    "topic": "Work",
+    "questions": [
+      "Why do many people today find it difficult to balance work and personal life?",
+      "Should employers be responsible for their staff's wellbeing outside working hours?",
+      "Do you think a four-day working week would be practical in your country?",
+      "How do long working hours affect family life and society in general?",
+      "Are people in some professions more at risk of burnout than others? Why?"
+    ]
+  },
+  {
+    "slug": "p3-globalisation-culture",
+    "topic": "Globalisation",
+    "questions": [
+      "In what ways has globalisation changed the culture of your country?",
+      "Do you think globalisation leads to all countries becoming culturally similar?",
+      "What can be done to protect local traditions in a globalised world?",
+      "Who benefits most from globalisation, and who tends to lose out?",
+      "Do you think international companies have too much influence on national governments?"
+    ]
+  },
+  {
+    "slug": "p3-news-media-trust",
+    "topic": "Media",
+    "questions": [
+      "Why do some people no longer trust traditional news organisations?",
+      "How can ordinary people tell the difference between reliable and unreliable news?",
+      "Should journalists always be neutral, or is it acceptable for them to express opinions?",
+      "What role does the media play in a democratic society?",
+      "Do you think newspapers will still exist in printed form in the future?",
+      "How has the speed of news reporting affected its accuracy?"
+    ]
+  },
+  {
+    "slug": "p3-urbanisation",
+    "topic": "Cities",
+    "questions": [
+      "Why do so many people move from the countryside to cities?",
+      "What problems can rapid urban growth cause?",
+      "How could governments encourage people to stay in rural areas?",
+      "Do you think cities of the future will be better or worse places to live?",
+      "What makes a city pleasant to live in, in your opinion?"
+    ]
+  },
+  {
+    "slug": "p3-ageing-population",
+    "topic": "Ageing",
+    "questions": [
+      "What challenges does an ageing population create for a country?",
+      "Whose responsibility is it to care for elderly people: the family or the state?",
+      "In what ways can older people continue to contribute to society?",
+      "Why do you think people are living longer nowadays?",
+      "Should the retirement age be raised as life expectancy increases?",
+      "How are attitudes towards older people different in different cultures?"
+    ]
+  },
+  {
+    "slug": "p3-changing-family",
+    "topic": "Family",
+    "questions": [
+      "How has the typical family structure changed in your country over the past few decades?",
+      "Why do people nowadays tend to have fewer children than in the past?",
+      "Do you think grandparents play as important a role in family life as they used to?",
+      "What are the advantages and disadvantages of living in an extended family?",
+      "How might families look different in fifty years' time?"
+    ]
+  },
+  {
+    "slug": "p3-consumerism",
+    "topic": "Consumerism",
+    "questions": [
+      "Why do people today buy more things than they actually need?",
+      "How does advertising encourage people to consume more?",
+      "Do you think a consumer society is good for a country's economy in the long term?",
+      "What effect does excessive consumption have on the environment?",
+      "Are there signs that attitudes towards shopping and ownership are changing?"
+    ]
+  },
+  {
+    "slug": "p3-mass-tourism",
+    "topic": "Tourism",
+    "questions": [
+      "What are the benefits of tourism for a local community?",
+      "In what ways can mass tourism damage popular destinations?",
+      "Should the number of tourists visiting famous sites be limited?",
+      "How has the way people travel changed in recent years?",
+      "Do you think tourists have a responsibility to respect local customs? How can they be encouraged to do so?",
+      "Will people travel more or less in the future, in your opinion?"
+    ]
+  },
+  {
+    "slug": "p3-public-health",
+    "topic": "Health",
+    "questions": [
+      "What do you think are the main health problems facing people in your country today?",
+      "Should the government be responsible for making people adopt healthier lifestyles?",
+      "Would taxing unhealthy food be an effective way to improve public health?",
+      "Why do some people ignore health advice even when they know it is good for them?",
+      "How has modern technology affected people's health, both positively and negatively?"
+    ]
+  },
+  {
+    "slug": "p3-scientific-research-funding",
+    "topic": "Science",
+    "questions": [
+      "Which areas of scientific research do you think deserve the most funding?",
+      "Should governments fund research that has no obvious practical use?",
+      "Is it right for private companies to own the results of scientific research?",
+      "Why are fewer young people choosing to study science in some countries?",
+      "What are the ethical limits that should apply to scientific research?"
+    ]
+  },
+  {
+    "slug": "p3-arts-funding",
+    "topic": "Arts",
+    "questions": [
+      "Should governments spend public money on the arts, such as theatres and galleries?",
+      "Why do you think some people consider art to be unimportant?",
+      "How do the arts benefit society as a whole?",
+      "Should museums and galleries be free to the public?",
+      "Do you think art created by computers can be considered real art?"
+    ]
+  },
+  {
+    "slug": "p3-crime-prevention",
+    "topic": "Crime",
+    "questions": [
+      "What do you think are the main causes of crime in modern society?",
+      "Is prison an effective way of reducing crime?",
+      "What can communities do to help prevent crime?",
+      "Do you think young offenders should be treated differently from adults?",
+      "How has technology changed the types of crime that people commit?",
+      "Should the focus of the justice system be on punishment or rehabilitation?"
+    ]
+  },
+  {
+    "slug": "p3-leadership-qualities",
+    "topic": "Leadership",
+    "questions": [
+      "What qualities do you think a good leader needs?",
+      "Are leaders born or can leadership skills be learned?",
+      "Is leading a country different from leading a company? In what ways?",
+      "Why do some leaders lose the trust of the people they lead?",
+      "Should young people be given more opportunities to take on leadership roles?"
+    ]
+  },
+  {
+    "slug": "p3-online-learning",
+    "topic": "Education",
+    "questions": [
+      "What are the advantages of studying online compared with attending classes in person?",
+      "Do you think online courses could ever completely replace traditional universities?",
+      "What kinds of students are most suited to online learning?",
+      "How has technology changed the role of the teacher?",
+      "What problems might arise if education becomes mostly digital?"
+    ]
+  },
+  {
+    "slug": "p3-remote-working",
+    "topic": "Work",
+    "questions": [
+      "Why have more companies allowed employees to work from home in recent years?",
+      "What are the drawbacks of working from home for employees?",
+      "How might the growth of remote work affect city centres?",
+      "Do you think productivity is higher at home or in an office?",
+      "Will the traditional office disappear in the future?"
+    ]
+  },
+  {
+    "slug": "p3-advertising-children",
+    "topic": "Advertising",
+    "questions": [
+      "Why are children considered an easy target for advertisers?",
+      "Should advertising aimed at children be banned?",
+      "How can parents protect their children from the influence of advertising?",
+      "Do you think advertising gives people useful information, or does it mainly manipulate them?",
+      "How has online advertising changed compared with traditional advertising?"
+    ]
+  },
+  {
+    "slug": "p3-public-transport",
+    "topic": "Transport",
+    "questions": [
+      "Why do many people prefer to drive rather than use public transport?",
+      "What could governments do to encourage more people to use public transport?",
+      "Should public transport be free for everyone?",
+      "How does traffic congestion affect life in cities?",
+      "What kinds of transport do you think people will be using in thirty years?"
+    ]
+  },
+  {
+    "slug": "p3-housing-affordability",
+    "topic": "Housing",
+    "questions": [
+      "Why has housing become so expensive in many large cities?",
+      "Is it better to rent a home or to buy one?",
+      "What can governments do to make housing more affordable?",
+      "How does the cost of housing affect young people's life choices?",
+      "Should historic buildings be protected even if the land could be used for new homes?"
+    ]
+  },
+  {
+    "slug": "p3-sport-and-society",
+    "topic": "Sport",
+    "questions": [
+      "Why do you think professional athletes are paid so much?",
+      "What role does sport play in bringing people together?",
+      "Should schools make physical education compulsory for all students?",
+      "Do you think hosting major sporting events like the Olympics benefits a country?",
+      "How has commercialisation changed professional sport?"
+    ]
+  },
+  {
+    "slug": "p3-food-and-culture",
+    "topic": "Food",
+    "questions": [
+      "How have eating habits in your country changed over the last few decades?",
+      "Why is fast food so popular among young people?",
+      "Do you think traditional cooking skills are being lost?",
+      "Should schools teach children how to cook?",
+      "How important is food in expressing a country's culture?",
+      "What might people be eating in the future?"
+    ]
+  },
+  {
+    "slug": "p3-space-exploration",
+    "topic": "Space",
+    "questions": [
+      "Do you think money spent on space exploration could be better spent elsewhere?",
+      "What benefits has space research brought to ordinary people?",
+      "Should private companies be allowed to lead space exploration?",
+      "Do you think humans will ever live on another planet?",
+      "Who should decide how resources in space are used?"
+    ]
+  },
+  {
+    "slug": "p3-language-learning",
+    "topic": "Languages",
+    "questions": [
+      "Why is it important for people to learn foreign languages?",
+      "Is it better to start learning a second language as a young child?",
+      "Do you think English will remain the dominant global language?",
+      "What happens to a culture when its language disappears?",
+      "Will translation technology make language learning unnecessary?"
+    ]
+  },
+  {
+    "slug": "p3-money-and-happiness",
+    "topic": "Money",
+    "questions": [
+      "Do you think having more money makes people happier?",
+      "Why do some people find it hard to save money?",
+      "Should children be taught how to manage money at school?",
+      "How has the move towards cashless payments affected the way people spend?",
+      "Is the gap between rich and poor a serious problem in modern society?"
+    ]
+  },
+  {
+    "slug": "p3-fashion-and-identity",
+    "topic": "Fashion",
+    "questions": [
+      "Why do people care so much about the clothes they wear?",
+      "How does fashion reflect changes in society?",
+      "What impact does the fashion industry have on the environment?",
+      "Do you think people are judged too much by their appearance?",
+      "Should schools require students to wear uniforms?"
+    ]
+  },
+  {
+    "slug": "p3-friendship-modern",
+    "topic": "Friendship",
+    "questions": [
+      "How is friendship different nowadays compared with the past?",
+      "Can online friendships be as meaningful as face-to-face ones?",
+      "Why do people tend to have fewer close friends as they get older?",
+      "What makes a friendship last for a long time?",
+      "Do you think people from different backgrounds can easily become friends?"
+    ]
+  },
+  {
+    "slug": "p3-music-and-society",
+    "topic": "Music",
+    "questions": [
+      "Why do you think music is important in every culture?",
+      "How has technology changed the way people listen to and buy music?",
+      "Should governments support traditional forms of music?",
+      "Do you think music can influence people's behaviour?",
+      "Is it fair that musicians earn so little from streaming services?"
+    ]
+  },
+  {
+    "slug": "p3-reading-habits",
+    "topic": "Reading",
+    "questions": [
+      "Do you think people read less than they used to? Why?",
+      "What are the benefits of reading fiction compared with non-fiction?",
+      "Will printed books eventually be replaced by digital ones?",
+      "How can parents encourage children to read more?",
+      "Are public libraries still necessary in the digital age?"
+    ]
+  },
+  {
+    "slug": "p3-childhood-changes",
+    "topic": "Childhood",
+    "questions": [
+      "How is childhood today different from childhood a generation ago?",
+      "Do children today have too much structured activity and not enough free play?",
+      "At what age should children be given more independence?",
+      "Why do some parents feel under pressure to make their children succeed?",
+      "How does growing up with technology affect children's development?"
+    ]
+  },
+  {
+    "slug": "p3-festivals-traditions",
+    "topic": "Festivals",
+    "questions": [
+      "Why are traditional festivals important to a society?",
+      "Have festivals become too commercial in recent years?",
+      "Do young people value traditional celebrations as much as older people?",
+      "What can be gained from celebrating festivals from other cultures?",
+      "How might traditional festivals change in the future?"
+    ]
+  },
+  {
+    "slug": "p3-animal-rights",
+    "topic": "Animals",
+    "questions": [
+      "Do you think it is acceptable to keep animals in zoos?",
+      "Should animals be used for scientific or medical testing?",
+      "How can endangered species best be protected?",
+      "Why do some people choose to stop eating meat?",
+      "Do humans have a responsibility to protect wildlife, even at an economic cost?"
+    ]
+  },
+  {
+    "slug": "p3-history-and-heritage",
+    "topic": "History",
+    "questions": [
+      "Why is it important for young people to learn about history?",
+      "Should governments spend money preserving old buildings and monuments?",
+      "Can history teach us useful lessons about the present?",
+      "Do you think history textbooks always tell the full story?",
+      "How has technology changed the way people learn about the past?"
+    ]
+  },
+  {
+    "slug": "p3-government-spending",
+    "topic": "Government",
+    "questions": [
+      "What should be the top priority for government spending in your country?",
+      "Should healthcare and education be completely free?",
+      "Why do some people distrust politicians?",
+      "Is it better for decisions to be made at a local or national level?",
+      "Should ordinary citizens have more say in how their taxes are spent?"
+    ]
+  },
+  {
+    "slug": "p3-waste-and-recycling",
+    "topic": "Environment",
+    "questions": [
+      "Why do people in modern societies produce so much waste?",
+      "Whose responsibility is it to reduce packaging: manufacturers or consumers?",
+      "Should recycling be made compulsory by law?",
+      "Do you think a ban on single-use plastics would be effective?",
+      "How might waste management change in the future?"
+    ]
+  },
+  {
+    "slug": "p3-celebrity-culture",
+    "topic": "Media",
+    "questions": [
+      "Why are people so interested in the private lives of celebrities?",
+      "Do celebrities have a responsibility to be good role models?",
+      "Is it fair that some celebrities become famous without any particular talent?",
+      "Should the media respect the privacy of famous people?",
+      "How has social media changed the nature of fame?"
+    ]
+  },
+  {
+    "slug": "p3-volunteering",
+    "topic": "Community",
+    "questions": [
+      "Why do some people choose to volunteer their time without being paid?",
+      "Should voluntary work be compulsory for secondary school students?",
+      "What kinds of organisations depend most on volunteers?",
+      "Do you think people are less community-minded than they used to be?",
+      "Can volunteering help people develop skills that are useful at work?"
+    ]
+  },
+  {
+    "slug": "p3-energy-future",
+    "topic": "Energy",
+    "questions": [
+      "Why have many countries been slow to switch to renewable energy?",
+      "Should nuclear power play a role in reducing carbon emissions?",
+      "What can individuals do to use less energy at home?",
+      "Who should pay for the transition to clean energy?",
+      "How might energy use change in homes of the future?"
+    ]
+  },
+  {
+    "slug": "p3-privacy-surveillance",
+    "topic": "Technology",
+    "questions": [
+      "Do you think people worry enough about their personal data online?",
+      "Is the use of surveillance cameras in public places justified?",
+      "Should technology companies be allowed to sell information about their users?",
+      "How much privacy should people be willing to give up for greater security?",
+      "Will privacy still exist in the future, in your view?"
+    ]
+  },
+  {
+    "slug": "p3-gender-equality-work",
+    "topic": "Work",
+    "questions": [
+      "Why do women remain under-represented in senior positions in many companies?",
+      "Should companies be required to pay men and women equally for the same work?",
+      "Are some jobs still seen as more suitable for one gender? Why?",
+      "How have attitudes towards gender roles changed in your country?",
+      "What can schools do to challenge gender stereotypes?"
+    ]
+  },
+  {
+    "slug": "p3-migration",
+    "topic": "Globalisation",
+    "questions": [
+      "Why do people choose to move to another country to live and work?",
+      "What are the benefits of immigration for the host country?",
+      "What difficulties do immigrants often face when they arrive in a new country?",
+      "How can governments help newcomers integrate into society?",
+      "What effect does emigration have on the countries people leave behind?"
+    ]
+  },
+  {
+    "slug": "p3-architecture-cities",
+    "topic": "Architecture",
+    "questions": [
+      "What makes a building beautiful, in your opinion?",
+      "Should cities keep old buildings or replace them with modern ones?",
+      "How does architecture affect the way people feel in a city?",
+      "Is it more important for buildings to be functional or attractive?",
+      "Should local residents have a say in the design of new buildings?"
+    ]
+  },
+  {
+    "slug": "p3-teachers-role",
+    "topic": "Education",
+    "questions": [
+      "What qualities make someone a good teacher?",
+      "Why is teaching not seen as a high-status profession in some countries?",
+      "Should teachers be paid according to their students' results?",
+      "How has the relationship between teachers and students changed?",
+      "Is discipline in schools more or less of a problem than in the past?"
+    ]
+  },
+  {
+    "slug": "p3-university-value",
+    "topic": "Education",
+    "questions": [
+      "Is a university degree still necessary to get a good job?",
+      "Should university education be free for everyone?",
+      "What are the advantages of vocational training compared with academic study?",
+      "Why do some graduates struggle to find suitable work?",
+      "Should universities focus on research or on teaching?"
+    ]
+  },
+  {
+    "slug": "p3-healthcare-systems",
+    "topic": "Health",
+    "questions": [
+      "Should healthcare be provided free by the state or paid for privately?",
+      "Why are waiting times for medical treatment long in many countries?",
+      "How has technology improved medical care?",
+      "Should doctors be more involved in preventing illness rather than just treating it?",
+      "Is alternative medicine something that should be taken seriously?"
+    ]
+  },
+  {
+    "slug": "p3-mental-health",
+    "topic": "Health",
+    "questions": [
+      "Why do you think mental health problems appear to be increasing?",
+      "Is there still a stigma around discussing mental health in your country?",
+      "What role should employers play in supporting employees' mental health?",
+      "How can schools help students who are under stress?",
+      "Does modern technology make mental health better or worse?"
+    ]
+  },
+  {
+    "slug": "p3-generation-gap",
+    "topic": "Society",
+    "questions": [
+      "What are the main differences between young and old people's values today?",
+      "Why do different generations sometimes find it hard to understand each other?",
+      "What can younger people learn from older people, and vice versa?",
+      "Has technology widened or narrowed the generation gap?",
+      "Do you think young people today have an easier or harder life than their parents did?"
+    ]
+  },
+  {
+    "slug": "p3-competition-cooperation",
+    "topic": "Society",
+    "questions": [
+      "Is competition or cooperation more important for a society's success?",
+      "Should children be taught to be competitive from an early age?",
+      "In what situations can competition be harmful?",
+      "Why do some people work better in teams while others prefer working alone?",
+      "Has modern society become more competitive than in the past?"
+    ]
+  },
+  {
+    "slug": "p3-success-and-ambition",
+    "topic": "Society",
+    "questions": [
+      "How do people in your country usually define success?",
+      "Is financial success the most important kind of success?",
+      "Why are some people more ambitious than others?",
+      "Can ambition ever be a negative quality?",
+      "Does luck play a bigger role in success than hard work?"
+    ]
+  },
+  {
+    "slug": "p3-rules-and-laws",
+    "topic": "Government",
+    "questions": [
+      "Why do societies need rules and laws?",
+      "Are there any laws that you think are unnecessary or outdated?",
+      "Why do some people break rules even when they know the consequences?",
+      "Should the same laws apply in every country?",
+      "How can young people be taught to respect the law?"
+    ]
+  },
+  {
+    "slug": "p3-the-internet-information",
+    "topic": "Technology",
+    "questions": [
+      "Has the internet made people more knowledgeable or simply more distracted?",
+      "Should access to the internet be considered a basic human right?",
+      "How has the internet changed the way people shop and do business?",
+      "What are the dangers of children spending too much time online?",
+      "Who should control the information available on the internet?"
+    ]
+  },
+  {
+    "slug": "p3-smartphones-communication",
+    "topic": "Technology",
+    "questions": [
+      "How have smartphones changed the way people communicate with each other?",
+      "Do you think people are becoming too dependent on their phones?",
+      "Should mobile phones be banned in schools?",
+      "Is face-to-face communication still important in the digital age?",
+      "What new forms of communication might appear in the future?"
+    ]
+  },
+  {
+    "slug": "p3-wildlife-conservation",
+    "topic": "Environment",
+    "questions": [
+      "Why are so many species becoming endangered?",
+      "Is it worth spending large amounts of money to save a single species?",
+      "How does the destruction of natural habitats affect people as well as animals?",
+      "Can tourism help protect wildlife, or does it cause more harm?",
+      "Should local communities be involved in conservation projects?"
+    ]
+  },
+  {
+    "slug": "p3-water-scarcity",
+    "topic": "Environment",
+    "questions": [
+      "Why is clean water becoming a scarce resource in many parts of the world?",
+      "Should water be treated as a commodity with a market price?",
+      "What can households do to reduce their water consumption?",
+      "How might shortages of water lead to conflict between countries?",
+      "What technologies could help solve water shortages in the future?"
+    ]
+  },
+  {
+    "slug": "p3-business-ethics",
+    "topic": "Business",
+    "questions": [
+      "Should businesses have responsibilities beyond making a profit?",
+      "Why do some companies behave unethically?",
+      "Do consumers care whether the products they buy are made ethically?",
+      "Should large corporations pay more tax?",
+      "How can governments make sure businesses act responsibly?"
+    ]
+  },
+  {
+    "slug": "p3-small-businesses",
+    "topic": "Business",
+    "questions": [
+      "Why do many small businesses fail within their first few years?",
+      "What are the advantages of shopping at local independent shops?",
+      "How have online retailers affected high streets and town centres?",
+      "What personal qualities do you need to run your own business?",
+      "Should governments give financial support to people starting businesses?"
+    ]
+  },
+  {
+    "slug": "p3-international-aid",
+    "topic": "Globalisation",
+    "questions": [
+      "Should wealthy countries give financial aid to poorer countries?",
+      "Is financial aid the best way to help developing countries, or are there better ways?",
+      "Why is aid sometimes not effective?",
+      "How do international organisations help during natural disasters?",
+      "Do countries have a moral duty to help people in other parts of the world?"
+    ]
+  },
+  {
+    "slug": "p3-museums",
+    "topic": "Arts",
+    "questions": [
+      "What role do museums play in modern society?",
+      "Why do some people find museums boring?",
+      "How could museums attract more young visitors?",
+      "Should objects taken from other countries in the past be returned?",
+      "Will virtual museums replace real ones in the future?"
+    ]
+  },
+  {
+    "slug": "p3-cinema-and-film",
+    "topic": "Arts",
+    "questions": [
+      "Why are films from some countries more popular internationally than others?",
+      "Do you think films can shape the way people think about social issues?",
+      "Is watching films at home replacing going to the cinema?",
+      "Should governments support their national film industry?",
+      "Is violence in films harmful to viewers?"
+    ]
+  },
+  {
+    "slug": "p3-gaming",
+    "topic": "Technology",
+    "questions": [
+      "Why have video games become so popular with people of all ages?",
+      "Can video games have educational value?",
+      "Should there be limits on how much time children spend playing games?",
+      "Do you think professional gaming should be considered a real sport?",
+      "How might games change as technology develops?"
+    ]
+  },
+  {
+    "slug": "p3-parenting",
+    "topic": "Family",
+    "questions": [
+      "What do you think are the most important qualities of a good parent?",
+      "Are parents today stricter or more lenient than in the past?",
+      "Should both parents share childcare responsibilities equally?",
+      "How much should the state be involved in the way children are raised?",
+      "Where do children learn most of their values: from parents, school or friends?"
+    ]
+  },
+  {
+    "slug": "p3-marriage-trends",
+    "topic": "Family",
+    "questions": [
+      "Why are people getting married later in life than in the past?",
+      "Do you think marriage is still important in modern society?",
+      "How have attitudes towards divorce changed?",
+      "What factors contribute to a successful long-term relationship?",
+      "Should couples live together before they get married?"
+    ]
+  },
+  {
+    "slug": "p3-rural-life",
+    "topic": "Society",
+    "questions": [
+      "What are the advantages of growing up in the countryside?",
+      "Why are rural areas in many countries losing population?",
+      "Should governments invest more in rural infrastructure?",
+      "How has technology changed life in villages and small towns?",
+      "Do you think farming will remain an important occupation in the future?"
+    ]
+  },
+  {
+    "slug": "p3-food-security",
+    "topic": "Food",
+    "questions": [
+      "Why do some countries struggle to produce enough food for their population?",
+      "Should people be encouraged to eat less meat for environmental reasons?",
+      "What are the benefits and risks of genetically modified food?",
+      "How much food is wasted in your country, and why?",
+      "Is it better to buy locally grown food or imported food?"
+    ]
+  },
+  {
+    "slug": "p3-obesity",
+    "topic": "Health",
+    "questions": [
+      "Why is obesity becoming more common in many countries?",
+      "Should food companies be held responsible for unhealthy diets?",
+      "What role should schools play in tackling childhood obesity?",
+      "Are sugar taxes a fair way to change people's eating habits?",
+      "How do modern lifestyles make it harder to stay fit?"
+    ]
+  },
+  {
+    "slug": "p3-science-education",
+    "topic": "Science",
+    "questions": [
+      "Why do some students find science subjects difficult?",
+      "How could science be made more interesting for young people?",
+      "Should everyone have a basic understanding of science, even if they don't work in that field?",
+      "Why do some people distrust scientists?",
+      "What scientific development do you think will have the greatest impact in the next few decades?"
+    ]
+  },
+  {
+    "slug": "p3-medical-ethics",
+    "topic": "Science",
+    "questions": [
+      "Should there be limits on what medical science is allowed to do?",
+      "Do you think genetic engineering of humans could ever be acceptable?",
+      "Who should decide which patients receive expensive treatments?",
+      "Should people be encouraged to donate their organs after death?",
+      "How might medical advances change the average human lifespan?"
+    ]
+  },
+  {
+    "slug": "p3-policing-and-safety",
+    "topic": "Crime",
+    "questions": [
+      "Do you think there should be more police on the streets?",
+      "How can the police build trust with local communities?",
+      "Should police officers carry guns?",
+      "Are cities more dangerous than rural areas? Why?",
+      "How has technology helped the police solve crimes?"
+    ]
+  },
+  {
+    "slug": "p3-cybercrime",
+    "topic": "Crime",
+    "questions": [
+      "Why has cybercrime increased so rapidly in recent years?",
+      "Who is most vulnerable to online fraud?",
+      "Should companies be punished if they fail to protect customers' data?",
+      "How can ordinary people protect themselves online?",
+      "Is it possible to prevent cybercrime completely?"
+    ]
+  },
+  {
+    "slug": "p3-political-participation",
+    "topic": "Leadership",
+    "questions": [
+      "Why do many young people not vote in elections?",
+      "Should voting be compulsory?",
+      "What is the best way for citizens to influence government decisions?",
+      "Do you think the voting age should be lowered?",
+      "How has social media changed politics?"
+    ]
+  },
+  {
+    "slug": "p3-role-models",
+    "topic": "Leadership",
+    "questions": [
+      "Who do young people in your country tend to look up to?",
+      "Is it better for role models to be ordinary people or famous individuals?",
+      "Can historical figures still be relevant role models today?",
+      "How important is it for children to have role models in their families?",
+      "Do sports stars have a greater influence on young people than politicians?"
+    ]
+  },
+  {
+    "slug": "p3-hobbies-leisure",
+    "topic": "Leisure",
+    "questions": [
+      "How have the ways people spend their free time changed?",
+      "Why do some people find it hard to relax?",
+      "Are expensive hobbies better than free ones?",
+      "Should employers encourage staff to have interests outside work?",
+      "Do people today have more or less leisure time than in the past?"
+    ]
+  },
+  {
+    "slug": "p3-green-spaces",
+    "topic": "Cities",
+    "questions": [
+      "Why are parks and green spaces important in cities?",
+      "Should developers be required to include green spaces in new housing projects?",
+      "How does access to nature affect people's wellbeing?",
+      "Is it more important to build homes or to protect green land?",
+      "How could cities be made greener in the future?"
+    ]
+  },
+  {
+    "slug": "p3-noise-and-pollution",
+    "topic": "Cities",
+    "questions": [
+      "What are the main sources of pollution in cities?",
+      "How does air pollution affect people's daily lives?",
+      "Should cars be banned from city centres?",
+      "Is noise pollution taken seriously enough?",
+      "Who should pay the costs of cleaning up pollution?"
+    ]
+  },
+  {
+    "slug": "p3-luxury-and-status",
+    "topic": "Consumerism",
+    "questions": [
+      "Why do people buy expensive branded goods?",
+      "Do possessions really show a person's social status?",
+      "Is it wrong to spend a lot of money on luxury items?",
+      "How do brands create loyalty among customers?",
+      "Are young people more concerned with status than older people?"
+    ]
+  },
+  {
+    "slug": "p3-sustainable-tourism",
+    "topic": "Tourism",
+    "questions": [
+      "What does it mean for tourism to be sustainable?",
+      "Should tourists pay extra taxes to help protect the places they visit?",
+      "Is it better to travel independently or with a tour group?",
+      "How can tourism help preserve traditional culture?",
+      "Do you think virtual travel could ever replace real travel?"
+    ]
+  },
+  {
+    "slug": "p3-public-art",
+    "topic": "Arts",
+    "questions": [
+      "Should public money be spent on sculptures and murals in cities?",
+      "What is the difference between graffiti and street art?",
+      "Can public art improve a neighbourhood?",
+      "Who should decide what art is displayed in public places?",
+      "Why do people have such different opinions about modern art?"
+    ]
+  },
+  {
+    "slug": "p3-lifelong-learning",
+    "topic": "Education",
+    "questions": [
+      "Why is it important for adults to keep learning throughout their lives?",
+      "What prevents many adults from returning to education?",
+      "Should employers pay for their staff's further training?",
+      "Is it ever too late to learn a new skill?",
+      "How has the internet made learning easier for adults?"
+    ]
+  }
+]

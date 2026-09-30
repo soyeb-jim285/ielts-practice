@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+.git
+.github
+.env
+.env.*
+apps/ios
+apps/web/e2e
+data/cambridge
+data/cambridge-vlm
+docs
+**/*.log
+data/cambridge-ocr
+data/local-storage

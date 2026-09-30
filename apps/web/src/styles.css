@@ -1,0 +1,172 @@
+@import 'tailwindcss';
+
+/* Dark mode = .dark on <html> (set from localStorage/system before paint, see index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Raw tokens (spec §9). Components use the Tailwind names in @theme below. ---------- */
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f1ed; /* sidebar, inset panels, input wells */
+  --ink: #1c1b19;
+  --muted: #6b6660; /* 5.3:1 on --bg */
+  --line: #e8e4de;
+  --line-strong: #d6d0c7;
+
+  --accent: #3b5bdb;
+  --accent-hover: #3250c7;
+  --accent-ink: #ffffff; /* text on accent */
+  --accent-text: #3451c9; /* accent used as text/links */
+
+  --good: #2f9e44;
+  --warn: #e8890c;
+  --bad: #e03131;
+  /* Text-safe versions of the semantic colours (≥4.5:1 on surface / soft bg). */
+  --good-text: #237a34;
+  --warn-text: #9a5a06;
+  --bad-text: #c02626;
+
+  --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 3px rgb(28 27 25 / 0.05);
+  --shadow-pop: 0 4px 12px rgb(28 27 25 / 0.08), 0 16px 40px -8px rgb(28 27 25 / 0.14);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #161514;
+  --surface: #1e1d1b;
+  --surface-2: #1a1918;
+  --ink: #edebe7;
+  --muted: #a29c94;
+  --line: #2e2c29;
+  --line-strong: #3d3a36;
+
+  --accent: #6d86ee;
+  --accent-hover: #8198f2;
+  --accent-ink: #0f1330;
+  --accent-text: #93a6f5;
+
+  --good: #51cf66;
+  --warn: #ffa94d;
+  --bad: #ff6b6b;
+  --good-text: #69db7c;
+  --warn-text: #ffb870;
+  --bad-text: #ff8787;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.35), 0 16px 40px -8px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: color-mix(in oklab, var(--accent) 12%, transparent);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-good-text: var(--good-text);
+  --color-warn-text: var(--warn-text);
+  --color-bad-text: var(--bad-text);
+  --color-good-soft: color-mix(in oklab, var(--good) 13%, transparent);
+  --color-warn-soft: color-mix(in oklab, var(--warn) 15%, transparent);
+  --color-bad-soft: color-mix(in oklab, var(--bad) 12%, transparent);
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 25%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  [popover] {
+    color: inherit;
+  }
+  dialog::backdrop {
+    background: rgb(20 19 18 / 0.4);
+  }
+}
+
+/* Reading passages / essays / transcripts. */
+@utility prose-serif {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  max-width: 68ch;
+}
+
+/* Native <dialog> motion (Dialog / Sheet). */
+dialog[open] {
+  animation: dialog-in 200ms var(--ease-out-quart);
+}
+dialog[open]::backdrop {
+  animation: fade-in 200ms ease-out;
+}
+dialog[data-sheet][open] {
+  animation: sheet-in 260ms var(--ease-out-quart);
+}
+@media (min-width: 768px) {
+  dialog[data-sheet][open] {
+    animation-name: sheet-in-side;
+  }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+}
+@keyframes sheet-in-side {
+  from { transform: translateX(100%); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  *::backdrop {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

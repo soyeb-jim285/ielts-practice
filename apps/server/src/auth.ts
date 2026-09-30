@@ -1,12 +1,14 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
+import { eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
 import { sendEmail } from './email';
+import { storage } from './storage';
 import type { AppEnv } from './types';
 
 export const auth = betterAuth({
@@ -28,7 +30,17 @@ export const auth = betterAuth({
       await sendEmail({ to: user.email, subject: 'Verify your email', html: `<p>Welcome to IELTS Practice!</p><p><a href="${url}">Verify your email</a></p>` });
     },
   },
-  user: { deleteUser: { enabled: true } },
+  user: {
+    deleteUser: {
+      enabled: true,
+      // The DB cascades attempts and sessions; voice recordings in R2 must go too.
+      beforeDelete: async (u) => {
+        const sessions = await db.select({ id: schema.liveSessions.id }).from(schema.liveSessions).where(eq(schema.liveSessions.userId, u.id));
+        await storage.deletePrefix(`audio/${u.id}/`);
+        for (const { id } of sessions) await storage.deletePrefix(`live/${id}/`);
+      },
+    },
+  },
   plugins: [bearer()],
 });
 

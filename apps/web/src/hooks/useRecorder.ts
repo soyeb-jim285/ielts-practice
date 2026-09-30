@@ -1,0 +1,134 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+export type RecorderState = 'idle' | 'requesting' | 'denied' | 'unsupported' | 'recording' | 'stopped';
+export type Recording = { blob: Blob; mime: string; durationMs: number; energy: number[] };
+
+const FRAME_MS = 50;
+const VOICE = 60; // byte threshold for "speaking"; matches core computeSpeechMetrics voiceThreshold
+// ponytail: fixed gain maps typical speech RMS (0.05–0.2) to ~60–115; expose a calibration setting if quiet mics read as silence.
+const GAIN = 255;
+
+/** First supported of opus/webm, mp4 (Safari), plain webm; '' lets the browser choose. */
+export function pickMime(): string {
+  const MR = globalThis.MediaRecorder;
+  if (!MR?.isTypeSupported) return '';
+  return ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => MR.isTypeSupported(t)) ?? '';
+}
+
+/** Syllable-like energy peaks in the last 10 s → rough words/min. ponytail: a pacing hint, not a measurement. */
+export function estimateWpm(energy: number[]): number {
+  const win = energy.slice(-200);
+  if (win.length < 40) return 0;
+  let peaks = 0;
+  let last = -10;
+  for (let i = 1; i < win.length - 1; i++) {
+    const e = win[i]!;
+    if (e >= VOICE && e > win[i - 1]! && e >= win[i + 1]! && i - last >= 3) {
+      peaks++;
+      last = i;
+    }
+  }
+  return Math.round((peaks / 1.5) * (200 / win.length) * 6);
+}
+
+const MESSAGES = {
+  denied: "Microphone blocked — allow it in the browser's site settings and retry",
+  noDevice: 'No microphone found — connect one (or check your system sound settings) and retry',
+  unsupported: "This browser can't record audio. Try a recent Chrome, Edge, Firefox or Safari.",
+};
+
+/**
+ * Microphone recorder with a 50 ms RMS energy timeline (bytes 0–255), live level, pace and silence.
+ * Nothing leaves the browser: callers upload the blob returned by stop().
+ */
+export function useRecorder() {
+  const [state, setState] = useState<RecorderState>('idle');
+  const [error, setError] = useState<string>();
+  const [live, setLive] = useState({ level: 0, elapsedMs: 0, liveWpm: 0, silenceMs: 0 });
+  const r = useRef<{ stream?: MediaStream; rec?: MediaRecorder; ctx?: AudioContext; timer?: ReturnType<typeof setInterval>; chunks: Blob[]; energy: number[]; t0: number; mime: string }>({
+    chunks: [],
+    energy: [],
+    t0: 0,
+    mime: '',
+  });
+
+  const teardown = useCallback(() => {
+    const c = r.current;
+    clearInterval(c.timer);
+    c.stream?.getTracks().forEach((t) => t.stop());
+    void c.ctx?.close().catch(() => {});
+    c.stream = c.ctx = c.timer = undefined;
+  }, []);
+  useEffect(() => teardown, [teardown]);
+
+  const start = useCallback(async () => {
+    setError(undefined);
+    if (!navigator.mediaDevices?.getUserMedia || !globalThis.MediaRecorder) {
+      setState('unsupported');
+      setError(MESSAGES.unsupported);
+      return;
+    }
+    setState('requesting');
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      const name = (e as DOMException)?.name;
+      const noDevice = name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'NotReadableError';
+      setState(noDevice ? 'unsupported' : 'denied');
+      setError(noDevice ? MESSAGES.noDevice : MESSAGES.denied);
+      return;
+    }
+    const c = r.current;
+    c.stream = stream;
+    c.mime = pickMime();
+    c.chunks = [];
+    c.energy = [];
+    const rec = new MediaRecorder(stream, c.mime ? { mimeType: c.mime } : undefined);
+    rec.ondataavailable = (e) => e.data.size && c.chunks.push(e.data);
+    c.rec = rec;
+
+    const ctx = new AudioContext();
+    c.ctx = ctx;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const buf = new Float32Array(analyser.fftSize);
+    let silentFrames = 0;
+
+    rec.start(1000);
+    c.t0 = performance.now();
+    c.timer = setInterval(() => {
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += v * v;
+      const byte = Math.min(255, Math.round(Math.sqrt(Math.sqrt(sum / buf.length)) * GAIN));
+      c.energy.push(byte);
+      silentFrames = byte < VOICE ? silentFrames + 1 : 0;
+      setLive({ level: byte / 255, elapsedMs: performance.now() - c.t0, liveWpm: estimateWpm(c.energy), silenceMs: silentFrames * FRAME_MS });
+    }, FRAME_MS);
+    setState('recording');
+  }, []);
+
+  const stop = useCallback(
+    () =>
+      new Promise<Recording>((resolve, reject) => {
+        const c = r.current;
+        const rec = c.rec;
+        if (!rec || rec.state === 'inactive') return reject(new Error('Not recording'));
+        const durationMs = Math.round(performance.now() - c.t0);
+        clearInterval(c.timer);
+        rec.onstop = () => {
+          const mime = rec.mimeType || c.mime || 'audio/webm';
+          teardown();
+          setState('stopped');
+          setLive((l) => ({ ...l, level: 0, silenceMs: 0 }));
+          resolve({ blob: new Blob(c.chunks, { type: mime }), mime, durationMs, energy: c.energy.slice(0, 20000) });
+        };
+        rec.stop();
+      }),
+    [teardown],
+  );
+
+  return { state, error, start, stop, ...live };
+}
