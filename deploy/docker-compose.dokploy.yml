@@ -1,0 +1,56 @@
+# Production stack for Dokploy (Compose service). Set the variables in Dokploy's Environment tab (they become .env here),
+# and add the domain in Dokploy's Domains tab → service "app", port 8787. No host ports are published: Traefik routes to "app".
+# Memory caps keep this app from squeezing other projects on the same VPS.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ielts
+    volumes:
+      - ielts-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+    mem_limit: 512m
+    networks: [internal]
+
+  # API + web (same origin). Migrates and seeds the prompt bank on start (docker/entrypoint.sh).
+  app:
+    image: ghcr.io/soyeb-jim285/ielts-practice:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    networks: [internal, dokploy-network]
+
+  # Nightly pg_dump → R2 under backups/ (uses the R2_* variables).
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
+    volumes:
+      - ../docker/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache aws-cli >/dev/null && exec /backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 256m
+    networks: [internal]
+
+networks:
+  internal:
+  dokploy-network:
+    external: true
+
+volumes:
+  ielts-pgdata:
