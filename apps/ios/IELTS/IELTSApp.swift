@@ -55,14 +55,14 @@ extension View {
     func appRoutes() -> some View {
         navigationDestination(for: Route.self) { route in
             switch route {
-            case let .speaking(mode): SignInGate(reason: "Sign in to start a speaking test.") { SpeakingSessionView(mode: mode) }
-            case .live: SignInGate(reason: "Sign in to talk to the live examiner.") { LiveExamView() }
-            case let .writing(mode): SignInGate(reason: "Sign in to start a writing task.") { WritingEditorView(mode: mode) }
-            case let .result(ids): SignInGate(reason: "Sign in to see your results.") { ResultView(ids: ids) }
+            case let .speaking(mode): SignInGate(icon: "mic", title: "Sign in to take a test", reason: "Sign in to take a test and save your results.") { SpeakingSessionView(mode: mode) }
+            case .live: SignInGate(icon: "bubble.left.and.bubble.right", title: "Sign in to talk to the examiner", reason: "Sign in to take a test and save your results.") { LiveExamView() }
+            case let .writing(mode): SignInGate(icon: "pencil.line", title: "Sign in to take a test", reason: "Sign in to take a test and save your results.") { WritingEditorView(mode: mode) }
+            case let .result(ids): SignInGate(icon: "chart.bar", title: "Your results", reason: "Sign in to see your results and the mistakes behind them.") { ResultView(ids: ids) }
             case let .bank(skill): BankView(skill: skill)
-            case let .history(skill): SignInGate(reason: "Sign in to see your past attempts.") { HistoryView(skill: skill ?? "") }
-            case let .mistakes(category): SignInGate(reason: "Sign in to see your mistakes.") { MistakesView(category: category) }
-            case .review: SignInGate(reason: "Sign in to review your flashcards.") { ReviewView() }
+            case let .history(skill): SignInGate(icon: "clock.arrow.circlepath", title: "Your history", reason: "Sign in to see every attempt and its band.") { HistoryView(skill: skill ?? "") }
+            case let .mistakes(category): SignInGate(icon: "exclamationmark.triangle", title: "Your mistake log", reason: "Sign in to see the errors you repeat, grouped by type.") { MistakesView(category: category) }
+            case .review: SignInGate(icon: "rectangle.on.rectangle.angled", title: "Your review deck", reason: "Sign in to turn your corrections into flashcards.") { ReviewView() }
             }
         }
     }
@@ -123,7 +123,7 @@ struct MainTabs: View {
                 .tabItem { Label("Speaking", systemImage: "mic") }.tag(1)
             NavigationStack { WritingHomeView().appRoutes() }
                 .tabItem { Label("Writing", systemImage: "pencil.line") }.tag(2)
-            NavigationStack { SignInGate(reason: "Sign in to review your flashcards.") { ReviewView() }.appRoutes() }
+            NavigationStack { SignInGate(icon: "rectangle.on.rectangle.angled", title: "Your review deck", reason: "Sign in to turn your corrections into flashcards.") { ReviewView() }.appRoutes() }
                 .tabItem { Label("Review", systemImage: "rectangle.on.rectangle.angled") }.tag(3)
             NavigationStack { SettingsTab().appRoutes() }
                 .tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)

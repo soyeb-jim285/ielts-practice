@@ -1,6 +1,7 @@
 package com.soyeb.ieltspractice.ui.screens.shell
 
 import androidx.annotation.DrawableRes
+import com.soyeb.ieltspractice.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -63,6 +64,7 @@ import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.ControlShape
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
+import com.soyeb.ieltspractice.ui.theme.SecondaryButton
 import com.soyeb.ieltspractice.ui.theme.SectionTitle
 import com.soyeb.ieltspractice.ui.theme.ext
 
@@ -191,15 +193,30 @@ fun FilterMenu(label: String, options: List<Pair<String, String>>, selected: Str
     }
 }
 
-/** Shown in place of personal content for a guest: what signing in unlocks, and the way in. Signing in swaps the real content in. */
+/** Friendly "this needs an account" state, not an error: icon, title, one line, Create account (primary) over Sign in (secondary). */
 @Composable
-fun ColumnScope.SignInGate(nav: AppNav, reason: String, signedIn: Boolean, content: @Composable ColumnScope.() -> Unit) {
-    if (signedIn) { content(); return }
-    AppCard {
-        SectionTitle("Sign in to continue")
-        Text(reason, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
-        PrimaryButton("Sign in or create account", { nav.openLogin(reason) }, Modifier.fillMaxWidth())
+fun SignInPrompt(nav: AppNav, reason: String, title: String = "Sign in to continue", @DrawableRes icon: Int = R.drawable.ic_settings, modifier: Modifier = Modifier) {
+    val e = MaterialTheme.ext
+    Column(modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box(Modifier.size(64.dp).background(e.brandSoft, RoundedCornerShape(16.dp)), Alignment.Center) {
+            Icon(painterResource(icon), null, Modifier.size(28.dp), tint = e.brand)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge, color = e.ink, textAlign = TextAlign.Center)
+            Text(reason, style = MaterialTheme.typography.bodyLarge, color = e.muted, textAlign = TextAlign.Center)
+        }
+        Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            PrimaryButton("Create account", { nav.openLogin(reason, signUp = true) }, Modifier.fillMaxWidth())
+            SecondaryButton("Sign in", { nav.openLogin(reason) }, Modifier.fillMaxWidth())
+        }
     }
+}
+
+/** Shown in place of personal content for a guest. Signing in swaps the real content in. */
+@Composable
+fun ColumnScope.SignInGate(nav: AppNav, reason: String, signedIn: Boolean, title: String = "Sign in to continue", @DrawableRes icon: Int = R.drawable.ic_settings, content: @Composable ColumnScope.() -> Unit) {
+    if (signedIn) { content(); return }
+    SignInPrompt(nav, reason, title, icon)
 }
 
 /** A short message pill over the bottom of the screen (an ink fill, so it reads on both themes). */

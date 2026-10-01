@@ -39,7 +39,7 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
     private var pending: (() -> Unit)? = null
 
     /** Guests can browse; taking a test or opening personal data needs an account. Runs [action] now if signed in, otherwise opens Login first and runs it after sign-in. */
-    fun requireSignIn(reason: String? = null, action: () -> Unit) { if (api.isSignedIn) action() else openLogin(reason, false, action) }
+    fun requireSignIn(reason: String? = "Sign in to take a test and save your results.", action: () -> Unit) { if (api.isSignedIn) action() else openLogin(reason, false, action) }
 
     fun openLogin(reason: String? = null, signUp: Boolean = false, then: (() -> Unit)? = null) {
         loginReason = reason; loginSignUp = signUp; pending = then

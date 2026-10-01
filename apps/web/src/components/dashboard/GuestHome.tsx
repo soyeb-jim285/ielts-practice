@@ -28,14 +28,14 @@ export function GuestHome() {
         title="Practise IELTS Speaking and Writing"
         description="Timed practice with a band for every criterion, and each mistake marked exactly where you made it."
         actions={
-          <>
-            <Link to="/login" className={buttonStyles({ variant: 'outline' })}>
-              Sign in
-            </Link>
-            <Link to="/signup" className={buttonStyles()}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row-reverse">
+            <Link to="/signup" className={buttonStyles({ size: 'lg', className: 'h-11 sm:h-10' })}>
               Create account
             </Link>
-          </>
+            <Link to="/login" className={buttonStyles({ variant: 'outline', size: 'lg', className: 'h-11 sm:h-10' })}>
+              Sign in
+            </Link>
+          </div>
         }
       />
 

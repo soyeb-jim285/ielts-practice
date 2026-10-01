@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ChevronsUpDown, Ellipsis, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, UserPlus, type LucideIcon } from 'lucide-react';
+import { ChevronsUpDown, Ellipsis, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -78,28 +78,26 @@ function useBackTo() {
   return href === '/' ? undefined : href;
 }
 
-/** Sidebar footer for a guest: sign in or create an account. */
+/** Sidebar footer for a guest: one primary (Create account) over a secondary (Sign in); the icon rail keeps a single sign-in button. */
 function GuestMenu() {
   const redirect = useBackTo();
+  const { state } = useSidebar();
+  if (state === 'collapsed')
+    return (
+      <Link to="/login" search={{ redirect }} aria-label="Sign in" className={buttonStyles({ variant: 'outline', size: 'icon', className: 'mx-auto' })}>
+        <LogIn />
+      </Link>
+    );
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip="Sign in" className={rowClass}>
-          <Link to="/login" search={{ redirect }}>
-            <LogIn />
-            <span>Sign in</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip="Create account" className={rowClass}>
-          <Link to="/signup" search={{ redirect }}>
-            <UserPlus />
-            <span>Create account</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <div className="space-y-2 pt-1">
+      <p className="px-1 text-caption text-muted">Browsing as a guest</p>
+      <Link to="/signup" search={{ redirect }} className={buttonStyles({ variant: 'secondary', className: 'w-full' })}>
+        Create account
+      </Link>
+      <Link to="/login" search={{ redirect }} className={buttonStyles({ variant: 'ghost', className: 'w-full' })}>
+        Sign in
+      </Link>
+    </div>
   );
 }
 
@@ -167,6 +165,7 @@ function SidebarTop() {
 }
 
 function AppSidebar() {
+  const signedIn = !!useMe().data;
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-3 pb-1">
@@ -189,9 +188,11 @@ function AppSidebar() {
         </nav>
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
-        <SidebarMenu>
-          <SideLink item={SETTINGS} />
-        </SidebarMenu>
+        {signedIn && (
+          <SidebarMenu>
+            <SideLink item={SETTINGS} />
+          </SidebarMenu>
+        )}
         <UserMenu />
       </SidebarFooter>
       <SidebarRail />
@@ -262,7 +263,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email ?? 'Browsing as a guest'}>
         <nav aria-label="More" className="-mx-2 space-y-0.5">
-          {MORE.map((n) => {
+          {(me ? MORE : [BANK]).map((n) => { // a guest's only page under More is the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
             const Icon = n.icon;
             return (
               <Link
@@ -283,12 +284,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             Sign out
           </Button>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            <Link to="/login" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles()}>
-              Sign in
-            </Link>
-            <Link to="/signup" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ variant: 'outline' })}>
+          <div className="space-y-3">
+            <p className="text-sm text-muted">Sign in to take a test and save your results.</p>
+            <Link to="/signup" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ size: 'lg', className: 'h-11 w-full' })}>
               Create account
+            </Link>
+            <Link to="/login" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ variant: 'outline', size: 'lg', className: 'h-11 w-full' })}>
+              Sign in
             </Link>
           </div>
         )}

@@ -99,9 +99,9 @@ fun SettingsScreen(nav: AppNav) {
 private fun GuestSettings(nav: AppNav) {
     AppCard {
         SectionTitle("Account")
-        Text("Sign in to keep your results, history and settings in one place.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
-        PrimaryButton("Sign in", { nav.openLogin("Sign in to see your settings.") }, Modifier.fillMaxWidth())
-        SecondaryButton("Create account", { nav.openLogin("Create an account to save your practice.", signUp = true) }, Modifier.fillMaxWidth())
+        Text("Sign in to save your results, history and settings.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
+        PrimaryButton("Create account", { nav.openLogin("Create an account to save your practice.", signUp = true) }, Modifier.fillMaxWidth())
+        SecondaryButton("Sign in", { nav.openLogin("Sign in to see your settings.") }, Modifier.fillMaxWidth())
     }
     AppCard {
         SectionTitle("More")

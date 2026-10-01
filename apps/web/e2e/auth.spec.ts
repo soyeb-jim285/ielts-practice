@@ -33,7 +33,7 @@ test.describe('guest browsing', () => {
     await page.goto('/speaking');
     await page.getByRole('link', { name: /Start full test/ }).click();
     await expect(page).toHaveURL(/\/login\?redirect=/);
-    await expect(page.getByText('Sign in to continue where you left off.')).toBeVisible();
+    await expect(page.getByText('Sign in to take a test and save your results.')).toBeVisible();
 
     await page.getByRole('link', { name: 'Create an account' }).click();
     await expect(page).toHaveURL(/\/signup\?redirect=/);

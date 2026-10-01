@@ -52,7 +52,7 @@ function Login() {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle={redirect ? 'Sign in to continue where you left off.' : 'Sign in to continue your practice.'}
+      subtitle={redirect ? 'Sign in to take a test and save your results.' : 'Sign in to continue your practice.'}
       footer={
         <>
           New here?{' '}

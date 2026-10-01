@@ -69,7 +69,7 @@ fun HistoryScreen(route: History, nav: AppNav) {
     val api = LocalApp.current.api
     val token by api.token.collectAsState()
     ScreenScaffold("History", onBack = nav::back, scroll = false) {
-        SignInGate(nav, "Sign in to see your past attempts.", token != null) { HistoryList(route, nav) }
+        SignInGate(nav, "Sign in to see every attempt and its band.", token != null, "Your history", R.drawable.ic_history) { HistoryList(route, nav) }
     }
 }
 

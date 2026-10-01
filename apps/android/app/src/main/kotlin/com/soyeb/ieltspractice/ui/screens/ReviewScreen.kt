@@ -70,7 +70,7 @@ fun ReviewScreen(nav: AppNav) {
     val token by api.token.collectAsState()
     val ready by api.ready.collectAsState()
     ScreenScaffold("Review", large = true) {
-        if (ready) SignInGate(nav, "Sign in to review the corrections you saved.", token != null) { ReviewBody(nav) }
+        if (ready) SignInGate(nav, "Sign in to turn your corrections into flashcards.", token != null, "Your review deck", R.drawable.ic_review) { ReviewBody(nav) }
     }
 }
 

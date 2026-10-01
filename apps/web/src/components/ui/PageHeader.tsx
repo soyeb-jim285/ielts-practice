@@ -32,7 +32,7 @@ export function PageHeader({
           <Heading className={compact ? 'type-title-sm' : 'type-title'}>{title}</Heading>
           {description && <p className="type-lede mt-2 max-w-[60ch]">{description}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full">{actions}</div>}
       </div>
     </header>
   );

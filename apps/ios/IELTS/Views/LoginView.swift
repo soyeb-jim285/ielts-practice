@@ -46,7 +46,7 @@ struct LoginView: View {
             .background(Color.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { finish() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Not now") { finish() } }
             }
         }
         .sheet(isPresented: $showForgot) {

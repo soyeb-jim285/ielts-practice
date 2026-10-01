@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
+import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.CategoryCount
 import com.soyeb.ieltspractice.core.Empty
 import com.soyeb.ieltspractice.core.Mistake
@@ -76,7 +77,7 @@ fun MistakesScreen(route: Mistakes, nav: AppNav) {
     val api = LocalApp.current.api
     val token by api.token.collectAsState()
     ScreenScaffold("Mistakes", onBack = nav::back, scroll = false) {
-        SignInGate(nav, "Sign in to see the mistakes from your results.", token != null) { MistakeLogList(route, nav) }
+        SignInGate(nav, "Sign in to see the errors you repeat, grouped by type.", token != null, "Your mistake log", R.drawable.ic_alert) { MistakeLogList(route, nav) }
     }
 }
 
