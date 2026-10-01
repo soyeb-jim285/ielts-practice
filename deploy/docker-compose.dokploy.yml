@@ -1,5 +1,6 @@
-# Production stack for Dokploy (Compose service). Set the variables in Dokploy's Environment tab (they become .env here),
-# and add the domain in Dokploy's Domains tab → service "app", port 8787. No host ports are published: Traefik routes to "app".
+# Production stack for Dokploy (Compose service). Set the variables in Dokploy's Environment tab (they become .env here).
+# Exposed through the VPS's Cloudflare Tunnel (cloudflared on dokploy-network), like the other sites there:
+# public hostname ielts.soyebjim.me → http://ielts-app:8787. No host ports are published.
 # Memory caps keep this app from squeezing other projects on the same VPS.
 services:
   db:
@@ -29,7 +30,10 @@ services:
       db:
         condition: service_healthy
     mem_limit: 512m
-    networks: [internal, dokploy-network]
+    networks:
+      internal:
+      dokploy-network:
+        aliases: [ielts-app] # unique name the tunnel targets; "app" alone could clash with other stacks
 
   # Nightly pg_dump → R2 under backups/ (uses the R2_* variables).
   backup:
