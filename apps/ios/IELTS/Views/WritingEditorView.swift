@@ -73,8 +73,8 @@ struct WritingEditorView: View {
         do {
             func pick(_ query: [String: String?]) async throws -> Prompt { try await api.get("/api/prompts/random", query: query) }
             switch mode {
-            case .full:
-                let t1 = try await pick(["skill": "writing", "part": "1", "variant": "academic"])
+            case let .full(variant):
+                let t1 = try await pick(["skill": "writing", "part": "1", "variant": variant])
                 let t2 = try await pick(["skill": "writing", "part": "2"])
                 prompts = [t1, t2]
             case let .task1(variant):

@@ -4,11 +4,24 @@ import SwiftUI
 struct IELTSApp: App {
     @State private var api = APIClient()
 
+    init() {
+        // Serif large and inline titles (New York), matching the web's Newsreader headings.
+        func serif(_ style: UIFont.TextStyle, _ weight: UIFont.Weight) -> UIFont {
+            let base = UIFont.preferredFont(forTextStyle: style)
+            let d = base.fontDescriptor.withDesign(.serif)?.addingAttributes([.traits: [UIFontDescriptor.TraitKey.weight: weight]]) ?? base.fontDescriptor
+            return UIFont(descriptor: d, size: base.pointSize)
+        }
+        let nav = UINavigationBar.appearance()
+        nav.largeTitleTextAttributes = [.font: serif(.largeTitle, .semibold)]
+        nav.titleTextAttributes = [.font: serif(.headline, .semibold)]
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(api)
                 .tint(.brand)
+                .fontDesign(.default)
         }
     }
 }
@@ -20,7 +33,7 @@ enum SpeakingMode: Hashable {
 }
 
 enum WritingMode: Hashable {
-    case full
+    case full(variant: String) // academic | general
     case task1(variant: String) // academic | general
     case task2
     case prompt(id: String, parent: String?)
@@ -32,7 +45,7 @@ enum Route: Hashable {
     case writing(WritingMode)
     case result([String])
     case bank(skill: String)
-    case history
+    case history(skill: String?)
     case mistakes(category: String?)
 }
 
@@ -45,7 +58,7 @@ extension View {
             case let .writing(mode): WritingEditorView(mode: mode)
             case let .result(ids): ResultView(ids: ids)
             case let .bank(skill): BankView(skill: skill)
-            case .history: HistoryView()
+            case let .history(skill): HistoryView(skill: skill ?? "")
             case let .mistakes(category): MistakesView(category: category)
             }
         }

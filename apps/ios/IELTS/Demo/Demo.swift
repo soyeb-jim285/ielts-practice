@@ -16,7 +16,7 @@ enum Demo {
     @MainActor static var initialPath: [Route] {
         switch screen {
         case "bank": [.bank(skill: "speaking")]
-        case "history": [.history]
+        case "history": [.history(skill: nil)]
         case "mistakes": [.mistakes(category: nil)]
         case "result-speaking": [.result(["as1"])]
         case "result-writing": [.result(["aw1"])]
@@ -24,6 +24,7 @@ enum Demo {
         case "session-p1": [.speaking(.part(1))]
         case "editor": [.writing(.task2)]
         case "editor-t1": [.writing(.task1(variant: "academic"))]
+        case "editor-full": [.writing(.full(variant: "academic"))]
         case "live": [.live]
         default: []
         }

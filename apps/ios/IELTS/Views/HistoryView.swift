@@ -3,7 +3,8 @@ import SwiftUI
 /// Every attempt, newest first, 30 per page (GET /api/attempts).
 struct HistoryView: View {
     @Environment(APIClient.self) private var api
-    @State private var skill = "" // "" = all
+    @State private var skill: String // "" = all
+    init(skill: String = "") { _skill = State(initialValue: skill) }
     @State private var items: [AttemptListItem] = []
     @State private var total = 0
     @State private var page = 1

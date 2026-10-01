@@ -4,7 +4,7 @@ struct WritingHomeView: View {
     var body: some View {
         List {
             Section {
-                row(.writing(.full), "Full test", "Task 1 + Task 2 · 60 minutes", "doc.text")
+                row(.writing(.full(variant: "academic")), "Full test", "Task 1 + Task 2 · 60 minutes", "doc.text")
             }
             Section("Single task") {
                 row(.writing(.task1(variant: "academic")), "Task 1 · Academic", "Describe a chart, table, process or map · 20 min", "chart.bar.xaxis")

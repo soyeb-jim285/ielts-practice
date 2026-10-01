@@ -45,15 +45,20 @@ jobs:
           xcrun simctl privacy "$UDID" grant microphone "$BID" || true
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           mkdir -p shots
-          SCREENS="login home speaking writing review settings bank history mistakes session session-p1 editor editor-t1 live
-            result-speaking:Overview result-speaking:Transcript result-speaking:Fluency result-speaking:Language result-speaking:Improve
-            result-writing:Overview result-writing:Essay result-writing:Structure result-writing:Language result-writing:Improve"
+          # name[:tab][@anchor]; anchor (bottom|center) starts scroll views there to capture long screens in parts.
+          SCREENS="login home home@bottom speaking speaking@bottom writing writing@bottom review settings settings@bottom
+            bank history mistakes mistakes@bottom session session-p1 editor editor-t1 editor-full live
+            result-speaking:Overview result-speaking:Overview@bottom result-speaking:Transcript result-speaking:Fluency result-speaking:Fluency@bottom
+            result-speaking:Language result-speaking:Language@bottom result-speaking:Improve
+            result-writing:Overview result-writing:Overview@bottom result-writing:Essay result-writing:Structure
+            result-writing:Language result-writing:Language@bottom result-writing:Improve"
           for mode in light dark; do
             xcrun simctl ui "$UDID" appearance "$mode"
             for s in $SCREENS; do
+              anchor=""; case "$s" in *@*) anchor=${s#*@}; s=${s%@*};; esac
               screen=${s%%:*}; tab=${s#*:}; [ "$tab" = "$s" ] && tab=""
-              name="$mode-$screen${tab:+-$tab}"
-              xcrun simctl launch --terminate-running-process "$UDID" "$BID" -demo -screen "$screen" ${tab:+-tab "$tab"} > /dev/null
+              name="$mode-$screen${tab:+-$tab}${anchor:+@$anchor}"
+              xcrun simctl launch --terminate-running-process "$UDID" "$BID" -demo -screen "$screen" ${tab:+-tab "$tab"} ${anchor:+-anchor "$anchor"} > /dev/null
               sleep 4
               xcrun simctl io "$UDID" screenshot "shots/$name.png" > /dev/null 2>&1 && echo "ok $name"
             done

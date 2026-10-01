@@ -208,7 +208,7 @@ struct DashboardView: View {
 
     private var recentCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            titled("Recent attempts", .history)
+            titled("Recent attempts", .history(skill: nil))
             ForEach(recent) { a in
                 NavigationLink(value: Route.result([a.id])) { AttemptRow(a: a, target: target) }
             }
