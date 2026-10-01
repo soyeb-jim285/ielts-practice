@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 object ShellDate {
     fun parse(s: String): Instant? = runCatching { OffsetDateTime.parse(s).toInstant() }.getOrNull()
 
-    private val short = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.UK)
+    private val short = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH) // fixed locale: en-GB renders "Sept" on newer JDKs
 
     /** "30 Sep 2026". */
     fun date(s: String, zone: ZoneId = ZoneId.systemDefault()): String =

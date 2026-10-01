@@ -9,7 +9,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The Gemini Live wire format (docs/live-examiner.md) and the OpenAI error filter. Mirrors apps/ios/IELTSTests/GeminiLiveTests.swift. */
+/** The Gemini Live wire format (docs/live-examiner.md) . Mirrors apps/ios/IELTSTests/GeminiLiveTests.swift. */
 class GeminiLiveTest {
     private fun obj(s: String) = Json.parseToJsonElement(s).jsonObject
 
@@ -62,12 +62,6 @@ class GeminiLiveTest {
         )
         assertEquals(emptyList<GeminiLive.Event>(), GeminiLive.parse(obj("""{"sessionResumptionUpdate":{"newHandle":"h3","resumable":false}}""")))
         assertEquals(emptyList<GeminiLive.Event>(), GeminiLive.parse(JsonObject(emptyMap())))
-    }
-
-    @Test fun cancelErrorsAreExpectedButOthersAreNot() {
-        assertTrue(isExpectedRealtimeError("Cancellation failed: no active response found"))
-        assertTrue(isExpectedRealtimeError("Error committing input audio buffer: buffer is empty"))
-        assertTrue(!isExpectedRealtimeError("The server had an error while processing your request"))
     }
 
     @Test fun phaseLabelsMatchTheWeb() {

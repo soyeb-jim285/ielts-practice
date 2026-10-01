@@ -18,19 +18,26 @@ import kotlinx.serialization.json.doubleOrNull
 @Serializable data class AppSettings(
     val models: ModelChoices,
     val audioPronEnabled: Boolean,
-    val liveProvider: String, // "turn" | "openai-realtime" | "gemini-live"
+    val liveProvider: String, // "turn" | "gpt-live" | "gemini-live" (an old "openai-realtime" reads as "gpt-live", see [provider])
     val targetBand: Double,
     val writingAutoSubmit: Boolean,
     val blockPaste: Boolean,
-)
+) {
+    /** The live examiner choice, with the pre-GPT-Live value migrated. */
+    val provider: String get() = if (liveProvider == "openai-realtime") "gpt-live" else liveProvider
+}
 
 @Serializable data class Me(
     val user: User,
     val settings: AppSettings,
     val cambridgeAccess: Boolean = false,
+    val gptLiveAvailable: Boolean? = null,
+    /** Deprecated alias the server still sends for app versions from before GPT-Live. */
     val realtimeAvailable: Boolean = false,
     val geminiLiveAvailable: Boolean = false,
-)
+) {
+    val gptLive: Boolean get() = gptLiveAvailable ?: realtimeAvailable
+}
 
 /** An empty `{}` body (writes that return nothing useful). */
 @Serializable class Empty
@@ -340,5 +347,4 @@ object DisfluencyKinds {
     val test: SpeakingTest? = null,
 )
 @Serializable data class UploadTarget(val key: String, val uploadUrl: String)
-@Serializable data class RealtimeToken(val value: String, val model: String? = null)
 @Serializable data class FinishResult(val attemptIds: List<String>)

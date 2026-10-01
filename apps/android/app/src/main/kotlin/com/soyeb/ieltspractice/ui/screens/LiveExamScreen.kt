@@ -83,7 +83,7 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 // Mirrors: iOS Views/LiveExamView.swift, web routes/_app/speaking/live.tsx, components/live/{PreScreen,LiveStage}.tsx, live/*
-// The live examiner: pre-screen (mic check, how it runs, examiner style), then the stage. All three examiners (turn-based, OpenAI Realtime,
+// The live examiner: pre-screen (mic check, how it runs, examiner style), then the stage. All three examiners (turn-based, GPT-Live,
 // Gemini Live) share it; the state machine is live/LiveExam.kt.
 
 private class Step(val part: Int, val time: String, val text: String)
@@ -108,10 +108,10 @@ fun LiveExamScreen(nav: AppNav) {
     var confirmEnd by remember { mutableStateOf(false) }
     var captions by remember { mutableStateOf(false) }
 
-    val provider = me?.settings?.liveProvider ?: "turn"
-    // The examiner that runs: the chosen Realtime provider when the server offers it, else turn-based.
+    val provider = me?.settings?.provider ?: "turn"
+    // The examiner that runs: the chosen duplex provider when the server offers it, else turn-based.
     val examiner = when {
-        provider == "openai-realtime" && me?.realtimeAvailable == true -> Examiner.OpenAI
+        provider == "gpt-live" && me?.gptLive == true -> Examiner.GptLive
         provider == "gemini-live" && me?.geminiLiveAvailable == true -> Examiner.Gemini
         else -> Examiner.Turn
     }
@@ -245,7 +245,7 @@ private fun PreScreen(exam: LiveExam, examiner: Examiner, fallback: Boolean, onC
         // Same labels as Settings, Live examiner.
         val style = when (examiner) {
             Examiner.Turn -> "Examiner waits for you to finish"
-            Examiner.OpenAI -> "Natural conversation (OpenAI)"
+            Examiner.GptLive -> "Natural conversation (GPT-Live)"
             Examiner.Gemini -> "Natural conversation (Gemini)"
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

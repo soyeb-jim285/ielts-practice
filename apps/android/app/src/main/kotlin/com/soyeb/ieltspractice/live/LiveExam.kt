@@ -19,7 +19,6 @@ import com.soyeb.ieltspractice.core.DemoConfig
 import com.soyeb.ieltspractice.core.FinishResult
 import com.soyeb.ieltspractice.core.LiveReply
 import com.soyeb.ieltspractice.core.Prompt
-import com.soyeb.ieltspractice.core.RealtimeToken
 import com.soyeb.ieltspractice.core.SpeakingTest
 import com.soyeb.ieltspractice.core.UploadTarget
 import kotlinx.coroutines.CancellationException
@@ -42,7 +41,7 @@ import java.io.File
 import java.util.UUID
 
 /** Which examiner runs (iOS `Examiner`). */
-enum class Examiner { Turn, OpenAI, Gemini }
+enum class Examiner { Turn, GptLive, Gemini }
 
 sealed interface LiveStage {
     data object Ready : LiveStage
@@ -62,12 +61,9 @@ fun phaseLabel(phase: String) = when (phase) {
     else -> "End of the test"
 }
 
-/** Errors the Realtime provider raises when a cancel finds nothing to cancel: expected, not shown. */
-fun isExpectedRealtimeError(message: String) = Regex("cancel|no active response|empty", RegexOption.IGNORE_CASE).containsMatchIn(message)
-
 /**
  * Live examiner session (iOS LiveExam, web src/live). Turn-based: the server drives phases via /api/live/turn (examiner TTS, candidate
- * turns ended by VAD). Realtime: OpenAI Realtime or Gemini Live over WebSocket with client-timed part changes. All record one m4a per
+ * turns ended by VAD). Duplex: GPT-Live (through our WebSocket relay) or Gemini Live with client-timed part changes. All record one m4a per
  * part and finish with /api/live/finish. A ViewModel, so rotating the phone does not end the test.
  */
 class LiveExam(private val app: AppContainer, private val cacheDir: File, private val demo: DemoConfig?) : ViewModel() {
@@ -88,7 +84,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
     var micChecking by mutableStateOf(false); private set
     var micHeard by mutableStateOf(false); private set // enough speech-level input during the check to say "we can hear you"
     var micError by mutableStateOf<String?>(null); private set
-    var fellBack by mutableStateOf(false); private set // the Realtime provider couldn't connect, so the turn-based examiner runs instead
+    var fellBack by mutableStateOf(false); private set // the duplex provider couldn't connect, so the turn-based examiner runs instead
     var notes by mutableStateOf("")
 
     val mic = MicRecorder()
@@ -108,9 +104,10 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
     private var micLoudSeconds = 0.0
     private var vadOn = false // turn-based turns end on silence; the Part 2 long turn never does
     private var talkTimeUp = false
-    private var answeredFlag = false // the candidate finished an answer (Realtime)
-    private var heardFlag = false // Gemini: the candidate spoke since the last cue or answer
-    private var freshTurn = true // Gemini: the next examiner output starts a new turn
+    private var answeredFlag = false // the candidate finished an answer (duplex)
+    private var heardFlag = false // duplex: the candidate spoke since the last cue or answer
+    private var lastOutMs = 0L // GPT-Live has no turn boundaries: a 2.5 s gap in the examiner's output starts a new turn
+    private var freshTurn = true // duplex: the next examiner output starts a new turn
 
     val hasRecordings get() = recordings.isNotEmpty() || currentPart != null
 
@@ -293,7 +290,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         }
     }
 
-    // MARK: Realtime (OpenAI Realtime, Gemini Live)
+    // MARK: Duplex (GPT-Live, Gemini Live)
 
     private suspend fun runDuplex(kind: Examiner) {
         try {
@@ -318,20 +315,20 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             enterPhase("p2-prep")
             cueCard = test?.part2
             sock.hear(false, false)
-            cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.")
+            cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.", "part2")
             delay(8000)
             countdown(60)
 
             enterPhase("p2-talk")
             sock.hear(false, true)
-            cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.")
+            cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.", "talk")
             val timeUp = waitTalk(125.0)
 
             enterPhase("p2-follow")
             cue(
-                if (timeUp) "The two minutes are up. Say \"Thank you. That's the end of your time.\" and ask the rounding-off question."
+                text = if (timeUp) "The two minutes are up. Say \"Thank you. That's the end of your time.\" and ask the rounding-off question."
                 else "The candidate has finished their talk. Say \"Thank you.\" and ask the rounding-off question.",
-                heard = true,
+                key = if (timeUp) "follow-timeup" else "follow", heard = true,
             )
             sock.hear(true, false)
             waitAnswered(45_000)
@@ -340,7 +337,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             delay(270_000)
 
             enterPhase("closing")
-            cue("The test is over. Say the closing line now and nothing more.")
+            cue("The test is over. Say the closing line now and nothing more.", "closing")
             delay(8000)
         } catch (e: CancellationException) {
             if (!ending) throw e
@@ -364,16 +361,19 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
                 sock.close()
                 throw e
             }
-            sock.cue("Begin the test.") // the examiner opens with the introduction
+            sock.cue("Begin the test.", "begin") // the examiner opens with the introduction
             return sock
         }
-        val token: RealtimeToken = api.send("POST", "/api/live/realtime-token", buildJsonObject { put("sessionId", sessionId) })
-        val sock = RealtimeSocket()
-        sock.onEvent = { type, event -> handleRealtime(type, event) }
-        sock.onClose = { err -> if (err != null) scope.launch { connectionLost() } }
+        val sock = GPTLiveSocket()
+        sock.onEvent = { ev -> scope.launch { handleGptLive(ev) } }
+        sock.onLost = { scope.launch { connectionLost() } }
         a.onPcm16 = { pcm -> sock.appendAudio(pcm) }
-        sock.connect(token.value, token.model ?: "gpt-realtime-2.1")
-        sock.send(buildJsonObject { put("type", "response.create") }) // the examiner opens with the introduction
+        try {
+            sock.connect(api.baseUrl, api.token.value.orEmpty(), sessionId) // sends the "begin" cue once session.started arrives
+        } catch (e: Exception) {
+            sock.close()
+            throw e
+        }
         return sock
     }
 
@@ -382,11 +382,11 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
     }
 
     /** Cuts the examiner off locally (the provider interrupts its own generation) and gives it an instruction. */
-    private fun cue(text: String, heard: Boolean = false) {
+    private fun cue(text: String, key: String, heard: Boolean = false) {
         audio?.stopPlayback()
         heardFlag = false
         freshTurn = true
-        socket?.cue(text, heard)
+        socket?.cue(text, key, heard)
     }
 
     /** The Part 2 long turn: ends at the time limit or on "I'm done", never on a pause. True if the time ran out. */
@@ -411,34 +411,31 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         while (!answeredFlag && SystemClock.elapsedRealtime() < end) delay(250)
     }
 
-    /** OpenAI Realtime events (called on the socket's thread: audio goes straight to the player, state hops to the main thread). */
-    private fun handleRealtime(type: String, event: JsonObject) {
-        when (type) {
-            "response.output_audio.delta", "response.audio.delta" -> {
-                val b = (event["delta"] as? JsonPrimitive)?.content?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() }
-                if (b != null) audio?.playPcm16(b)
-            }
-            "response.created" -> scope.launch { caption = "" }
-            "response.output_audio_transcript.delta", "response.audio_transcript.delta" -> {
-                val t = (event["delta"] as? JsonPrimitive)?.content
-                if (t != null) scope.launch { caption += t }
-            }
-            "input_audio_buffer.speech_stopped" -> scope.launch { answeredFlag = true }
-            "error" -> {
-                // Cancelling when nothing is playing is expected. ponytail: the provider's detail is for logs, not the candidate.
-                val msg = ((event["error"] as? JsonObject)?.get("message") as? JsonPrimitive)?.content.orEmpty()
-                if (!isExpectedRealtimeError(msg)) {
-                    scope.launch { caption = "The examiner had trouble responding. Wait a moment, or end the test to score what you have recorded." }
-                }
-            }
+    /** GPT-Live (through the relay): audio and captions stream without turn boundaries; the examiner's words after the candidate spoke are the reply to an answer. */
+    private fun handleGptLive(ev: GPTLive.Event) {
+        when (ev) {
+            is GPTLive.Event.Audio -> { gptLiveOutput(); audio?.playPcm16(ev.pcm) }
+            is GPTLive.Event.OutText -> { gptLiveOutput(); caption += ev.text }
+            is GPTLive.Event.InText -> heardFlag = true
+            // ponytail: the provider's detail is for the server logs, not the candidate.
+            is GPTLive.Event.Error -> caption = "The examiner had trouble responding. Wait a moment, or end the test to score what you have recorded."
+            is GPTLive.Event.Closed -> connectionLost()
+            GPTLive.Event.Started -> {}
         }
+    }
+
+    private fun gptLiveOutput() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastOutMs > 2500) freshTurn = true
+        lastOutMs = now
+        examinerTurn()
     }
 
     /** Gemini Live: examiner audio and captions arrive per turn; a new turn after the candidate spoke is the examiner replying to an answer. */
     private fun handleGemini(ev: GeminiLive.Event) {
         when (ev) {
-            is GeminiLive.Event.Audio -> { geminiTurn(); audio?.playPcm16(ev.pcm) }
-            is GeminiLive.Event.OutText -> { geminiTurn(); caption += ev.text }
+            is GeminiLive.Event.Audio -> { examinerTurn(); audio?.playPcm16(ev.pcm) }
+            is GeminiLive.Event.OutText -> { examinerTurn(); caption += ev.text }
             is GeminiLive.Event.InText -> heardFlag = true
             GeminiLive.Event.Interrupted -> { audio?.stopPlayback(); freshTurn = true }
             GeminiLive.Event.TurnComplete -> freshTurn = true
@@ -446,7 +443,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         }
     }
 
-    private fun geminiTurn() {
+    private fun examinerTurn() {
         if (!freshTurn) return
         freshTurn = false
         caption = ""

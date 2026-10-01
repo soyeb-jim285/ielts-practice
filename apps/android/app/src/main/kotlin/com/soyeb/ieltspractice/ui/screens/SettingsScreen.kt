@@ -90,7 +90,7 @@ fun SettingsScreen(nav: AppNav) {
             !ready -> {}
             token == null -> GuestSettings(nav)
             me == null -> LoadContent(rememberLoad { api.loadMe() }) {}
-            else -> SettingsBody(me!!.settings, me!!.realtimeAvailable, me!!.geminiLiveAvailable, me!!.user.email, nav)
+            else -> SettingsBody(me!!.settings, me!!.gptLive, me!!.geminiLiveAvailable, me!!.user.email, nav)
         }
     }
 }
@@ -110,7 +110,7 @@ private fun GuestSettings(nav: AppNav) {
 }
 
 @Composable
-private fun SettingsBody(initial: AppSettings, realtimeOk: Boolean, geminiOk: Boolean, email: String, nav: AppNav) {
+private fun SettingsBody(initial: AppSettings, gptLiveOk: Boolean, geminiOk: Boolean, email: String, nav: AppNav) {
     val e = MaterialTheme.ext
     val container = LocalApp.current
     val api = container.api
@@ -183,11 +183,11 @@ private fun SettingsBody(initial: AppSettings, realtimeOk: Boolean, geminiOk: Bo
         Text("How the live speaking test talks to you.", style = MaterialTheme.typography.bodySmall, color = e.muted)
         val natural = "Talk back and forth as in the real test. You can interrupt each other."
         Column {
-            ProviderRow("turn", "Examiner waits for you to finish", "The examiner asks a question, then listens until you pause.", s.liveProvider) { update(s.copy(liveProvider = "turn")) }
+            ProviderRow("turn", "Examiner waits for you to finish", "The examiner asks a question, then listens until you pause.", s.provider) { update(s.copy(liveProvider = "turn")) }
             RowDivider()
-            ProviderRow("openai-realtime", "Natural conversation (OpenAI)", if (realtimeOk) natural else "Not available right now.", s.liveProvider, realtimeOk) { update(s.copy(liveProvider = "openai-realtime")) }
+            ProviderRow("gpt-live", "Natural conversation (GPT-Live)", if (gptLiveOk) natural else "Not available right now.", s.provider, gptLiveOk) { update(s.copy(liveProvider = "gpt-live")) }
             RowDivider()
-            ProviderRow("gemini-live", "Natural conversation (Gemini)", if (geminiOk) natural else "Not available right now.", s.liveProvider, geminiOk) { update(s.copy(liveProvider = "gemini-live")) }
+            ProviderRow("gemini-live", "Natural conversation (Gemini)", if (geminiOk) natural else "Not available right now.", s.provider, geminiOk) { update(s.copy(liveProvider = "gemini-live")) }
         }
     }
 

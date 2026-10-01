@@ -22,17 +22,19 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
-// Realtime examiner transports (ports of iOS Audio/RealtimeSocket.swift and GeminiLiveSocket.swift; the wire formats are in
-// docs/live-examiner.md). Both are plain OkHttp WebSockets: the server mints a short-lived credential, the app connects directly.
+// Duplex examiner transports (ports of iOS Audio/GPTLiveSocket.swift and GeminiLiveSocket.swift; the wire formats are in
+// docs/live-examiner.md). Plain OkHttp WebSockets. GPT-Live goes through OUR server's relay with the user's bearer token; Gemini Live
+// connects directly with a short-lived token from /api/live/gemini-token.
 
 @Serializable data class GeminiToken(val value: String, val model: String? = null)
 
-/** What the live exam needs from a Realtime provider (OpenAI Realtime or Gemini Live). */
+/** What the live exam needs from a duplex provider (GPT-Live through our relay, or Gemini Live). */
 interface DuplexSocket {
     /** PCM16 mono mic audio at the rate the exam captures at. */
     fun appendAudio(pcm: ByteArray)
-    /** Interrupt the examiner and give it an instruction. [heard]: it should take in the candidate's audio since the last `hear(false, fresh = true)`. */
-    fun cue(text: String, heard: Boolean = false)
+    /** Interrupt the examiner and give it an instruction. [key] names the script moment (GPT-Live: the server owns the wording and ignores [text]).
+     *  [heard]: it should take in the candidate's audio since the last `hear(false, fresh = true)`. */
+    fun cue(text: String, key: String, heard: Boolean = false)
     /** false: the examiner must stay silent (preparation, long turn); [fresh] marks where the long turn starts. */
     fun hear(on: Boolean, fresh: Boolean)
     fun close()
@@ -50,73 +52,107 @@ private fun JsonObject.obj(k: String) = this[k] as? JsonObject
 private fun JsonObject.str(k: String) = (this[k] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
 private fun JsonObject.flag(k: String) = (this[k] as? JsonPrimitive)?.let { runCatching { it.boolean }.getOrNull() } == true
 
-// MARK: OpenAI Realtime
+// MARK: GPT-Live (through our relay)
 
 /**
- * OpenAI Realtime over WebSocket (GA event names). The minted client secret is the Bearer token on wss://api.openai.com/v1/realtime;
- * the server put the instructions and turn detection in it.
+ * GPT-Live relay wire format (docs/live-examiner.md, "Native relay"; port of iOS `GPTLive`). Pure builders and a parser, so they are
+ * unit-tested without a network. Audio is PCM16 mono little-endian at 24 kHz in both directions.
  */
-class RealtimeSocket : DuplexSocket {
-    /** Called on a background thread with (event type, full event). */
-    var onEvent: ((String, JsonObject) -> Unit)? = null
-    /** Called on a background thread when the socket fails or the server closes it. */
-    var onClose: ((Throwable?) -> Unit)? = null
-    @Volatile private var ws: WebSocket? = null
-    @Volatile private var closed = false
+object GPTLive {
+    const val RATE = 24_000
 
-    fun connect(ephemeralKey: String, model: String) {
-        val req = Request.Builder().url("wss://api.openai.com/v1/realtime?model=$model")
-            .header("Authorization", "Bearer $ephemeralKey").build()
-        ws = wsClient.newWebSocket(req, object : WebSocketListener() {
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                val o = parseObject(text) ?: return
-                o.str("type")?.let { onEvent?.invoke(it, o) }
-            }
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { if (!closed) onClose?.invoke(t) }
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { if (!closed) onClose?.invoke(null) }
-        })
+    /** wss://<server>/api/live/gpt-live/ws?sessionId=...; the bearer token goes in the Authorization header. */
+    fun url(base: String, sessionId: String): String =
+        "ws" + base.removePrefix("http").trimEnd('/') + "/api/live/gpt-live/ws?sessionId=" + java.net.URLEncoder.encode(sessionId, "UTF-8") // http(s) -> ws(s)
+
+    fun audio(pcm: ByteArray): JsonObject = buildJsonObject { put("type", "session.input_audio.append"); put("audio", java.util.Base64.getEncoder().encodeToString(pcm)) }
+    fun mute(on: Boolean): JsonObject = buildJsonObject { put("type", if (on) "session.input_audio.mute" else "session.input_audio.unmute") }
+    /** begin | part2 | talk | follow | follow-timeup | closing. The server owns the wording. */
+    fun cue(key: String): JsonObject = buildJsonObject { put("type", "app.cue"); put("cue", key) }
+    val close: JsonObject = buildJsonObject { put("type", "session.close") }
+
+    sealed interface Event {
+        data object Started : Event
+        class Audio(val pcm: ByteArray) : Event // PCM16 24 kHz
+        data class InText(val text: String) : Event
+        data class OutText(val text: String) : Event
+        data class Closed(val reason: String) : Event
+        data class Error(val message: String) : Event
     }
 
-    fun send(event: JsonObject) { ws?.send(event.toString()) }
+    /** One relay message -> an event (null: nothing the app acts on). */
+    fun parse(m: JsonObject): Event? = when (m.str("type")) {
+        "session.started" -> Event.Started
+        "session.output_audio.delta" -> (m.str("audio") ?: m.str("delta"))
+            ?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() }?.let { Event.Audio(it) }
+        "session.input_transcript.delta" -> m.str("delta")?.let { Event.InText(it) }
+        "session.output_transcript.delta" -> m.str("delta")?.let { Event.OutText(it) }
+        "session.closed" -> Event.Closed(m.str("reason").orEmpty())
+        "error" -> Event.Error(m.obj("error")?.str("message").orEmpty())
+        else -> null
+    }
+}
 
-    override fun appendAudio(pcm: ByteArray) {
-        send(buildJsonObject { put("type", "input_audio_buffer.append"); put("audio", java.util.Base64.getEncoder().encodeToString(pcm)) })
+/** GPT-Live over OUR relay: the OpenAI key, model, voice and instructions stay on the server. OkHttp WebSocket with the bearer header. */
+class GPTLiveSocket : DuplexSocket {
+    /** Called on a background thread. */
+    var onEvent: ((GPTLive.Event) -> Unit)? = null
+    /** Called on a background thread when the socket drops without being asked to close. */
+    var onLost: (() -> Unit)? = null
+
+    private val lock = Any()
+    private var ws: WebSocket? = null
+    private var started = false
+    private var closed = false
+    private var startup: CompletableDeferred<Unit>? = null
+
+    /** Resolves when the relay reports session.started; throws if the socket fails first (401/400/404/429 arrive as plain HTTP) or nothing happens in 15 s. */
+    suspend fun connect(base: String, token: String, sessionId: String) {
+        val d = CompletableDeferred<Unit>()
+        val req = Request.Builder().url(GPTLive.url(base, sessionId)).header("Authorization", "Bearer $token").build()
+        synchronized(lock) { startup = d; ws = wsClient.newWebSocket(req, listener()) }
+        try {
+            withTimeout(15_000) { d.await() }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            throw ApiError(0, "The GPT-Live examiner did not answer.")
+        }
+        send(GPTLive.cue("begin")) // the examiner opens with the introduction
     }
 
-    /** Cancels what the examiner is saying, gives it a system instruction and asks it to speak. The caller stops local playback. */
-    override fun cue(text: String, heard: Boolean) {
-        if (heard) send(buildJsonObject { put("type", "input_audio_buffer.commit") }) // the long turn becomes one user message
-        send(buildJsonObject { put("type", "response.cancel") })
-        send(buildJsonObject {
-            put("type", "conversation.item.create")
-            putJsonObject("item") {
-                put("type", "message"); put("role", "system")
-                putJsonArray("content") { add(buildJsonObject { put("type", "input_text"); put("text", text) }) }
-            }
-        })
-        send(buildJsonObject { put("type", "response.create") })
-    }
-
-    override fun hear(on: Boolean, fresh: Boolean) {
-        send(buildJsonObject {
-            put("type", "session.update")
-            putJsonObject("session") {
-                put("type", "realtime")
-                putJsonObject("audio") {
-                    putJsonObject("input") {
-                        if (on) putJsonObject("turn_detection") { put("type", "semantic_vad"); put("eagerness", "low") }
-                        else put("turn_detection", JsonNull)
-                    }
-                }
-            }
-        })
-        if (fresh) send(buildJsonObject { put("type", "input_audio_buffer.clear") })
-    }
+    override fun appendAudio(pcm: ByteArray) { if (synchronized(lock) { started }) send(GPTLive.audio(pcm)) }
+    override fun cue(text: String, key: String, heard: Boolean) { send(GPTLive.cue(key)) }
+    /** GPT-Live is muted only for the preparation minute: it hears the long turn and is told to stay silent. */
+    override fun hear(on: Boolean, fresh: Boolean) { send(GPTLive.mute(!on && !fresh)) }
 
     override fun close() {
-        closed = true
-        ws?.close(1000, null)
-        ws = null
+        val w = synchronized(lock) { closed = true; started = false; ws.also { ws = null } } ?: return
+        w.send(GPTLive.close.toString())
+        w.close(1000, null) // OkHttp flushes the queued message before the close frame
+    }
+
+    private fun send(m: JsonObject) { synchronized(lock) { ws }?.send(m.toString()) }
+
+    private fun listener() = object : WebSocketListener() {
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            if (synchronized(lock) { ws !== webSocket }) return
+            val ev = parseObject(text)?.let(GPTLive::parse) ?: return
+            if (ev == GPTLive.Event.Started) {
+                val d = synchronized(lock) { started = true; startup.also { startup = null } }
+                d?.complete(Unit)
+            }
+            onEvent?.invoke(ev)
+        }
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { dropped(webSocket, response?.code?.let { ApiError(it, "The GPT-Live examiner is not available ($it).") } ?: t) }
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { dropped(webSocket, ApiError(0, "The connection closed.")) }
+    }
+
+    private fun dropped(w: WebSocket, error: Throwable) {
+        val (pending, wasClosed) = synchronized(lock) {
+            if (ws !== w) return
+            started = false
+            Pair(startup.also { startup = null }, closed)
+        }
+        if (pending != null) pending.completeExceptionally(error) else if (!wasClosed) onLost?.invoke()
     }
 }
 
@@ -242,7 +278,7 @@ class GeminiLiveSocket : DuplexSocket {
 
     override fun appendAudio(pcm: ByteArray) { if (synchronized(lock) { ready && hearing }) send(GeminiLive.audio(pcm)) }
 
-    override fun cue(text: String, heard: Boolean) {
+    override fun cue(text: String, key: String, heard: Boolean) {
         if (synchronized(lock) { ready }) send(GeminiLive.cue(text)) else synchronized(lock) { queuedCue = text }
     }
 

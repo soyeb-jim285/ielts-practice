@@ -31,8 +31,8 @@ class WritingLogicTest {
         assertEquals(1200, examSeconds(listOf(prompt(1)))); assertEquals(2400, examSeconds(listOf(prompt(2))))
         assertEquals("Task 1 Academic", taskLabel(prompt(1, "academic"))); assertEquals("Task 1 General", taskLabel(prompt(1, "general")))
         assertEquals("Task 2", taskLabel(prompt(2)))
-        // a wall-clock deadline: 10 s in, 1190 s left; rounds up; negative once overtime
-        assertEquals(1190, secondsLeft(1200, 1_000, 11_000)); assertEquals(1190, secondsLeft(1200, 1_000, 10_001))
+        // a wall-clock deadline: 10 s in, 1190 s left; a part-second rounds up; negative once overtime
+        assertEquals(1190, secondsLeft(1200, 1_000, 11_000)); assertEquals(1191, secondsLeft(1200, 1_000, 10_001))
         assertEquals(0, secondsLeft(1200, 0, 1_200_000)); assertEquals(-5, secondsLeft(1200, 0, 1_205_000))
     }
 
@@ -119,7 +119,7 @@ class WritingLogicTest {
 
     @Test fun everyWritingFixtureDrawsFromAKnownChartKind() {
         val fixtures = DemoFixtures.parse(File("../../ios/IELTS/Demo/fixtures.json").readText())
-        val prompts = fixtures.filterKeys { Regex("^/api/prompts/[a-z0-9]+$").matches(it) }.values.map { AppJson.decodeFromString(Prompt.serializer(), it) }.filter { it.skill == "writing" }
+        val prompts = fixtures.filterKeys { it != "/api/prompts/meta" && Regex("^/api/prompts/[a-z0-9]+$").matches(it) }.values.map { AppJson.decodeFromString(Prompt.serializer(), it) }.filter { it.skill == "writing" }
         assertTrue(prompts.size >= 8, "expected the writing prompt fixtures, found ${prompts.map { it.id }}")
         val kinds = prompts.mapNotNull { it.chartSpec?.kind }.toSet()
         assertEquals(setOf("line", "bar", "pie", "table", "process", "map"), kinds)

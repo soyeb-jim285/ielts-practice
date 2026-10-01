@@ -102,7 +102,7 @@ Every screen already exists as a placeholder, so you almost always **replace the
 `audio/Recorder` writes `.m4a` (AAC, mono) into `PendingStore.audioFile(id)`; ask for RECORD_AUDIO first. When recording stops,
 `pending.add(PendingRecording(...))` then `pending.start(rec, api)`: the store creates the attempt, PUTs the audio and submits,
 saving progress after each step so a retry resumes. Watch `pending.states` (`Uploading | Failed | Done`). `audio/AudioPlayer` wraps ExoPlayer
-(release it when the screen leaves). The live examiner (OpenAI Realtime / Gemini Live) is for the Live agent; the AI itself always goes through the server.
+(release it when the screen leaves). The live examiner (GPT-Live through our WebSocket relay, Gemini Live, or turn-based) lives in `live/`; the AI itself always goes through the server.
 
 ## Demo mode and screenshots
 
