@@ -27,6 +27,29 @@ const w1a = p({ id: 'w1a', skill: 'writing', part: 1, variant: 'academic', type:
 const w1g = p({ id: 'w1g', skill: 'writing', part: 1, variant: 'general', type: 'letter-complaint', topic: 'Housing', title: 'Noisy neighbours',
   body: 'You live in a rented flat and your neighbours are very noisy at night. Write a letter to your landlord. In your letter:', bullets: ['describe the problem', 'explain how it affects you', 'say what you would like the landlord to do'] });
 
+// Writing task 1 figures of every kind (the Android chart renderer is screenshot-tested against these) and every writing prompt by id (`/api/prompts/{id}`).
+const fig = (o) => p({ skill: 'writing', part: 1, variant: 'academic', topic: 'Society', ...o });
+const w1b = fig({ id: 'w1b', type: 'bar', title: 'University enrolment',
+  body: 'The chart below shows the number of students enrolled in three subjects at one university in 2010, 2015 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.',
+  chart: { kind: 'bar', title: 'Students enrolled by subject (thousands)', xLabel: 'Year', yLabel: 'Students', unit: 'thousands', categories: ['2010', '2015', '2020'],
+    series: [{ name: 'Engineering', values: [12, 15, 21] }, { name: 'Medicine', values: [9, 10, 11] }, { name: 'Law', values: [7, 6, 5] }] } });
+const w1p = fig({ id: 'w1p', type: 'pie', topic: 'Energy', title: 'Household energy sources',
+  body: 'The pie charts below show the main sources of household energy in one country in 1990 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.',
+  chart: { kind: 'pie', title: 'Household energy by source (%)', unit: '%', pies: [
+    { name: '1990', slices: [{ label: 'Coal', value: 42 }, { label: 'Gas', value: 28 }, { label: 'Oil', value: 20 }, { label: 'Renewables', value: 6 }, { label: 'Other', value: 4 }] },
+    { name: '2020', slices: [{ label: 'Coal', value: 15 }, { label: 'Gas', value: 35 }, { label: 'Oil', value: 12 }, { label: 'Renewables', value: 31 }, { label: 'Other', value: 7 }] }] } });
+const w1t = fig({ id: 'w1t', type: 'table', topic: 'Travel', title: 'International visitors',
+  body: 'The table below shows the number of international visitors to three countries in 2005 and 2020, and the average length of stay. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.',
+  chart: { kind: 'table', title: 'International visitors (millions) and average stay (nights)', columns: ['Country', '2005', '2020', 'Average stay'],
+    rows: [['Portugal', 11.2, 24.6, '6.1'], ['New Zealand', 2.4, 3.9, '16.4'], ['Singapore', 7.1, 19.1, '3.4']] } });
+const w1pr = fig({ id: 'w1pr', type: 'process', topic: 'Environment', title: 'Rainwater harvesting',
+  body: 'The diagram below shows how rainwater is collected and made safe to drink in a small community. Summarise the information by selecting and reporting the main features.',
+  chart: { kind: 'process', title: 'How rainwater is collected and treated', steps: ['Rain falls on the roof and runs into the gutters', 'Water passes through a coarse filter that traps leaves', 'It collects in a large underground tank', 'A pump moves it through sand and charcoal filters', 'The water is treated with chlorine', 'Clean water is stored in a tower for the village'] } });
+const w1m = fig({ id: 'w1m', type: 'map', topic: 'Housing', title: 'Village development',
+  body: 'The maps below show a village in 2000 and today. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.',
+  chart: { kind: 'map', title: 'Millbrook village', before: { label: '2000', features: ['A farm in the north-east', 'A single road through the centre', 'A small primary school by the river', 'Woodland to the west'] },
+    after: { label: 'Today', features: ['The farm is now a housing estate', 'A bypass road runs along the south', 'The school is larger, with a sports field', 'A supermarket and car park replace the woodland'] } } });
+
 // --- speaking attempt (Part 2) ---
 const transcript = 'I would like to talk about um a book called Sapiens which I read uh two years ago when I was at university . It is about the history of humans and how we I mean how our species became so powerful . Before reading it I I thought history was just dates and wars but the book showed me that ideas like money and nations are stories we all agree to believe . That really changed the way I think because now I um question things that people say are natural . For example when someone says this is how it has always been I ask myself is it really or is it just a story . So I think it made me more curious and more open minded .';
 let t = 0.4;
@@ -203,6 +226,7 @@ const fx = {
   '/api/models?capability=tts': { models: [{ id: 'google/gemini-3.8-flash-tts', name: 'Google: Gemini 3.8 Flash TTS', voices: ['Charon', 'Puck', 'Kore'], pricing: { prompt: '0', completion: '0' } }] },
   '/api/live/start': { sessionId: 'live-demo', examinerText: 'Good morning. My name is Daniel and I will be your examiner today. Can you tell me your full name, please?', audioUrl: null, voiceError: null, phase: 'p1', prepSeconds: null, cueCard: null, test: { part1: [sp1], part2: sp2, part3: sp3 } },
 };
+for (const x of [w2, w1a, w1g, w1b, w1p, w1t, w1pr, w1m]) fx[`/api/prompts/${x.id}`] = x; // the editor and the prompt bank open a task by id
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(fx));
 console.log(`wrote ${Object.keys(fx).length} fixtures (${(JSON.stringify(fx).length / 1024).toFixed(0)} KB) → ${out}`);
