@@ -35,6 +35,17 @@ val screenCatalog: List<ScreenSpec> = listOf(
     ScreenSpec("editor", WritingEditor("task2")),
     ScreenSpec("editor-t1", WritingEditor("task1", "academic")),
     ScreenSpec("editor-full", WritingEditor("full", "academic")),
+    // Writing area: hub, exam states (the editor reads `tab` in demo mode: Typing, Plan, Warning = 5 min, Final = 1 min, Overtime, Submit/Short = confirm, Exit, Paste, Error) and one Task 1 figure per chart kind.
+    ScreenSpec("writing-scrolled", WritingTab, variants = listOf("Scrolled")),
+    ScreenSpec("editor-states", WritingEditor("task2"), variants = listOf("Typing", "Plan", "Warning", "Final", "Overtime", "Submit", "Short", "Exit", "Paste", "Error")),
+    ScreenSpec("editor-t1-scrolled", WritingEditor("task1", "academic"), variants = listOf("Scrolled")),
+    ScreenSpec("editor-full-states", WritingEditor("full", "academic"), variants = listOf("Typing", "Submit")),
+    ScreenSpec("editor-letter", WritingEditor("task1", "general")),
+    ScreenSpec("chart-bar", WritingEditor("prompt", "academic", "w1b")),
+    ScreenSpec("chart-pie", WritingEditor("prompt", "academic", "w1p"), variants = listOf("Top", "Scrolled")),
+    ScreenSpec("chart-table", WritingEditor("prompt", "academic", "w1t")),
+    ScreenSpec("chart-process", WritingEditor("prompt", "academic", "w1pr"), variants = listOf("Top", "Scrolled")),
+    ScreenSpec("chart-map", WritingEditor("prompt", "academic", "w1m"), variants = listOf("Top", "Scrolled")),
     ScreenSpec("live", LiveExam),
 )
 
