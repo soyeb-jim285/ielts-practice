@@ -55,3 +55,11 @@ jobs:
             ghcr.io/soyeb-jim285/ielts-practice:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Redeploy on Dokploy only once the new image exists (Dokploy's own on-push deploy would race the build).
+      # Set the repo secret DOKPLOY_DEPLOY_WEBHOOK to the compose service's webhook URL (Dokploy → Deployments).
+      - name: Deploy (Dokploy webhook)
+        env:
+          HOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "DOKPLOY_DEPLOY_WEBHOOK not set, skipping deploy"; exit 0; fi
+          curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' -d '{}' > /dev/null && echo "deploy triggered"

@@ -21,6 +21,7 @@ services:
   # API + web (same origin). Migrates and seeds the prompt bank on start (docker/entrypoint.sh).
   app:
     image: ghcr.io/soyeb-jim285/ielts-practice:latest
+    pull_policy: always # every deploy fetches the newest :latest
     restart: unless-stopped
     env_file: .env
     environment:
