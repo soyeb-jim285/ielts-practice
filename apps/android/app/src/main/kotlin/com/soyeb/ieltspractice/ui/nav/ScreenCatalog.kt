@@ -13,13 +13,16 @@ package com.soyeb.ieltspractice.ui.nav
 data class ScreenSpec(val name: String, val start: Any = HomeTab, val variants: List<String> = emptyList())
 
 val screenCatalog: List<ScreenSpec> = listOf(
-    ScreenSpec("login", Login),
-    ScreenSpec("home", HomeTab),
+    // Shell area. Sub-screens of login: Signup, Verify (emailed code), Forgot (email), Reset (code + new password). A "+end" suffix opens scrolled to the bottom.
+    ScreenSpec("login", Login, listOf("SignIn", "Signup", "Verify", "Forgot", "Reset")),
+    ScreenSpec("guest", HomeTab, listOf("Top", "Lower+end")),
+    ScreenSpec("home", HomeTab, listOf("Top", "Lower+end")),
     ScreenSpec("speaking", SpeakingTab),
     ScreenSpec("writing", WritingTab),
-    ScreenSpec("review", ReviewTab),
-    ScreenSpec("settings", SettingsTab),
+    ScreenSpec("review", ReviewTab, listOf("Question", "Revealed")),
+    ScreenSpec("settings", SettingsTab, listOf("Top", "Models+end", "Picker")),
     ScreenSpec("bank", Bank("speaking")),
+    ScreenSpec("bank-all", Bank("")),
     ScreenSpec("history", History()),
     ScreenSpec("mistakes", Mistakes()),
     // iOS result sub-tabs (Overview, Transcript, Fluency, Language, Improve; writing: Overview, Essay, Structure, Language, Improve):

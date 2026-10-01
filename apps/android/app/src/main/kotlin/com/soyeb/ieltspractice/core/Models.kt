@@ -18,7 +18,7 @@ import kotlinx.serialization.json.doubleOrNull
 @Serializable data class AppSettings(
     val models: ModelChoices,
     val audioPronEnabled: Boolean,
-    val liveProvider: String, // "turn" | "openai-realtime"
+    val liveProvider: String, // "turn" | "openai-realtime" | "gemini-live"
     val targetBand: Double,
     val writingAutoSubmit: Boolean,
     val blockPaste: Boolean,
@@ -29,6 +29,7 @@ import kotlinx.serialization.json.doubleOrNull
     val settings: AppSettings,
     val cambridgeAccess: Boolean = false,
     val realtimeAvailable: Boolean = false,
+    val geminiLiveAvailable: Boolean = false,
 )
 
 /** An empty `{}` body (writes that return nothing useful). */

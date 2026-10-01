@@ -33,7 +33,7 @@ class AppContainer(context: Context, val demo: DemoConfig? = null) {
             ApiClient(
                 baseUrl = "https://demo.ielts.local", store = MemoryTokenStore(),
                 interceptor = DemoInterceptor(DemoFixtures.load(app)),
-                initialToken = if (demo.screen == "login") null else "demo", // iOS: `-screen login` shows the signed-out state
+                initialToken = if (demo.screen == "login" || demo.screen == "guest") null else "demo", // iOS: `-screen login` / `guest` show the signed-out state
                 scope = scope,
             )
         }

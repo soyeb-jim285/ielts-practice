@@ -31,6 +31,26 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
         restoreState = true
     }
 
-    /** Guests can browse; taking a test or opening personal data needs an account. Runs [action] now if signed in, otherwise opens Login first. */
-    fun requireSignIn(action: () -> Unit) { if (api.isSignedIn) action() else go(Login) }
+    /** What Login shows: why the guest was sent there, and whether it opens on "Create account". Read by LoginScreen. */
+    var loginReason: String? = null
+        private set
+    var loginSignUp: Boolean = false
+        private set
+    private var pending: (() -> Unit)? = null
+
+    /** Guests can browse; taking a test or opening personal data needs an account. Runs [action] now if signed in, otherwise opens Login first and runs it after sign-in. */
+    fun requireSignIn(reason: String? = null, action: () -> Unit) { if (api.isSignedIn) action() else openLogin(reason, false, action) }
+
+    fun openLogin(reason: String? = null, signUp: Boolean = false, then: (() -> Unit)? = null) {
+        loginReason = reason; loginSignUp = signUp; pending = then
+        go(Login)
+    }
+
+    /** Called by LoginScreen: leaves it, and continues the pending action when the user signed in. */
+    fun loginFinished(signedIn: Boolean) {
+        val action = pending
+        pending = null
+        back()
+        if (signedIn) action?.invoke()
+    }
 }

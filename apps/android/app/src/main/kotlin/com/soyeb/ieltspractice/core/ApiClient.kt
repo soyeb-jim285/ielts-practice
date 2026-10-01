@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/** A failed request. [status] is 0 for client-side failures (offline, bad response). [message] is safe to show the user. */
-class ApiError(val status: Int, override val message: String) : Exception(message)
+/** A failed request. [status] is 0 for client-side failures (offline, bad response). [message] is safe to show the user. [code] is Better Auth's error code (INVALID_OTP, ...). */
+class ApiError(val status: Int, override val message: String, val code: String? = null) : Exception(message)
 
 class ApiResponse(val status: Int, val body: String, val headers: Headers)
 
@@ -80,6 +80,10 @@ class ApiClient(
     val token: StateFlow<String?> = _token.asStateFlow()
     val isSignedIn: Boolean get() = _token.value != null
 
+    /** False until the stored token has been read at launch, so the UI doesn't flash the guest state for a signed-in user. */
+    private val _ready = MutableStateFlow(initialToken != null)
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
+
     private val _me = MutableStateFlow<Me?>(null)
     val me: StateFlow<Me?> = _me.asStateFlow()
 
@@ -89,6 +93,7 @@ class ApiClient(
     /** Load the stored token and the account (call once at launch). A guest simply stays signed out. */
     suspend fun restoreSession() {
         if (_token.value == null) _token.value = store.load()
+        _ready.value = true
         if (_token.value != null && _me.value == null) runCatching { loadMe() }
     }
 
@@ -108,7 +113,7 @@ class ApiClient(
             val err = runCatching { AppJson.parseToJsonElement(text) as? JsonObject }.getOrNull()
             fun field(k: String) = (err?.get(k) as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
             if (status == 401 && _token.value != null && !path.startsWith("/api/auth/")) signOutLocal()
-            throw ApiError(status, field("error") ?: field("message") ?: httpReason(status))
+            throw ApiError(status, field("error") ?: field("message") ?: httpReason(status), field("code"))
         }
         return ApiResponse(status, text, headers)
     }
@@ -223,6 +228,20 @@ class ApiClient(
         raw("POST", "/api/auth/request-password-reset", buildJsonObject { put("email", email); put("redirectTo", "$baseUrl/reset-password") })
     }
 
+    /** Emails a 6-digit code (Better Auth emailOTP): [type] is "email-verification" or "forget-password". The answer is the same whether or not the address has an account. */
+    suspend fun sendOtp(email: String, type: String) {
+        raw("POST", "/api/auth/email-otp/send-verification-otp", buildJsonObject { put("email", email); put("type", type) })
+    }
+
+    /** Verifies the address with the emailed code and signs the user in. */
+    suspend fun verifyEmail(email: String, otp: String) {
+        adopt(raw("POST", "/api/auth/email-otp/verify-email", buildJsonObject { put("email", email); put("otp", otp) }))
+    }
+
+    suspend fun resetPassword(email: String, otp: String, password: String) {
+        raw("POST", "/api/auth/email-otp/reset-password", buildJsonObject { put("email", email); put("otp", otp); put("password", password) })
+    }
+
     private suspend fun adopt(r: ApiResponse) {
         val t = r.headers["set-auth-token"]
         if (t.isNullOrEmpty()) throw ApiError(0, "Sign-in didn't complete. Please try again.")
@@ -238,8 +257,9 @@ class ApiClient(
         signOutLocal()
     }
 
-    suspend fun deleteAccount() {
-        raw("POST", "/api/auth/delete-user")
+    /** Deleting needs the account password (Better Auth delete-user), like the web dialog. */
+    suspend fun deleteAccount(password: String? = null) {
+        raw("POST", "/api/auth/delete-user", password?.let { buildJsonObject { put("password", it) } })
         signOutLocal()
     }
 

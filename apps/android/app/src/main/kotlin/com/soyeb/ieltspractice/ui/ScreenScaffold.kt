@@ -19,11 +19,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.ui.theme.ext
+import kotlinx.coroutines.flow.first
 
 /**
  * The frame every screen uses: a top app bar on the app canvas, 16dp side gutters, 12dp between blocks.
@@ -62,9 +66,12 @@ fun ScreenScaffold(
             else TopAppBar(titleText, navigationIcon = back, actions = actions, colors = colors, scrollBehavior = behavior)
         },
     ) { pad ->
+        val scrollState = rememberScrollState()
+        // Screenshots: a demo `tab` ending in "+end" opens scrolled to the bottom, so long screens can be captured in parts (iOS `-anchor bottom`).
+        if (LocalDemo.current?.tab?.endsWith("+end") == true) LaunchedEffect(Unit) { snapshotFlow { scrollState.maxValue }.first { it > 0 }.let { scrollState.scrollTo(it) } }
         Column(
             Modifier.fillMaxSize().padding(pad)
-                .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                .then(if (scroll) Modifier.verticalScroll(scrollState) else Modifier)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
