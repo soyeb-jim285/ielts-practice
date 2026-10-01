@@ -40,8 +40,9 @@ class ScreenshotTest(private val case: ScreenCase) {
         rule.setContent { IeltsApp(container, demo) }
         // Demo requests answer synchronously from fixtures but complete on an IO thread: wait until none are in flight, then let
         // the UI settle. Repeat, since a loaded screen can start follow-up requests.
-        repeat(3) {
+        repeat(4) {
             rule.waitForIdle()
+            Thread.sleep(80) // let a request that follows another one start before the counter is read
             // Soft wait: a slow CI worker must not lose the shot (the capture shows whatever state was reached).
             try { rule.waitUntil(30_000) { container.api.inflight.get() == 0 } } catch (e: ComposeTimeoutException) { println("capture ${case.fileName}: inflight=${container.api.inflight.get()} after 30s") }
         }

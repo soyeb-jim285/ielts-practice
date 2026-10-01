@@ -146,7 +146,7 @@ private fun Cartesian(spec: ChartSpec) {
             val grid = e.muted.copy(alpha = 0.22f)
             val axis = e.muted.copy(alpha = 0.55f)
             val tickLayouts = ticks.map { measurer.measure(AnnotatedString(tickFormat.format(it)), label) }
-            val left = (tickLayouts.maxOf { it.size.width } + 6.dp.toPx()) + (if (yTitle.isNotEmpty()) 22.dp.toPx() else 6.dp.toPx())
+            val left = (tickLayouts.maxOf { it.size.width } + 6.dp.toPx()) + (if (yTitle.isNotEmpty()) 28.dp.toPx() else 6.dp.toPx())
             val right = 12.dp.toPx()
             val top = 8.dp.toPx()
             val pw = max(0f, size.width - left - right)
@@ -182,7 +182,7 @@ private fun Cartesian(spec: ChartSpec) {
             }
             if (yTitle.isNotEmpty()) {
                 val l = measurer.measure(AnnotatedString(yTitle), label, maxLines = 1, overflow = TextOverflow.Ellipsis, constraints = Constraints(maxWidth = max(1, ph.toInt())))
-                val cx = 8.dp.toPx() + l.size.height / 2f
+                val cx = 2.dp.toPx() + l.size.height / 2f
                 rotate(-90f, Offset(cx, top + ph / 2)) { drawText(l, topLeft = Offset(cx - l.size.width / 2f, top + ph / 2 - l.size.height / 2f)) }
             }
             val bw = band * 0.8f / max(1, spec.series.size)
