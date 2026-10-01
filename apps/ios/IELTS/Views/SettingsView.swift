@@ -20,7 +20,6 @@ private struct TtsModel: Decodable {
 struct SettingsView: View {
     @Environment(APIClient.self) private var api
     @State private var s: AppSettings?
-    @State private var server = ""
     @State private var targetDraft = 7.0
     @State private var voices: [String: [String]] = [:]
     @State private var error: String?
@@ -52,16 +51,6 @@ struct SettingsView: View {
             } header: {
                 Text("Danger zone")
             }
-            Section {
-                TextField("Server URL", text: $server)
-                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .onSubmit { saveServer() }
-                if server != api.baseURL { Button("Use this server") { saveServer() } }
-            } header: {
-                Text("Server")
-            } footer: {
-                Text("Changing the server signs you out. Changes to the settings above save automatically.")
-            }
         }
         .canvasList()
         .demoScroll()
@@ -69,7 +58,6 @@ struct SettingsView: View {
         .onAppear {
             s = api.me?.settings
             targetDraft = s?.targetBand ?? 7
-            server = api.baseURL
         }
         .task {
             if let list: ListOf<TtsModel> = try? await api.get("/api/models", query: ["capability": "tts"]) {
@@ -88,12 +76,6 @@ struct SettingsView: View {
             s?.models.ttsVoice = first
         }
         .sheet(isPresented: $showDelete) { DeleteAccountSheet() }
-    }
-
-    private func saveServer() {
-        guard server != api.baseURL else { return }
-        api.signOutLocal()
-        api.setBaseURL(server)
     }
 
     private var binding: Binding<AppSettings> {

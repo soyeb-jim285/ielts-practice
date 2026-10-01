@@ -7,7 +7,6 @@ struct LoginView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
-    @State private var server = ""
     @State private var busy = false
     @State private var issue: Issue?
     @State private var info: String?
@@ -32,7 +31,6 @@ struct LoginView: View {
             .background(Color.canvas)
             .navigationBarTitleDisplayMode(.inline)
         }
-        .onAppear { server = api.baseURL }
         .sheet(isPresented: $showForgot) { ForgotPasswordSheet(email: email.trimmingCharacters(in: .whitespaces)) }
     }
 
@@ -93,7 +91,6 @@ struct LoginView: View {
             if !signUp {
                 Section {
                     Button("Forgot password?") {
-                        api.setBaseURL(server)
                         showForgot = true
                     }
                     .frame(minHeight: 44, alignment: .leading)
@@ -102,15 +99,6 @@ struct LoginView: View {
             Section {
                 Button(signUp ? "Already have an account? Sign in" : "New here? Create an account") { switchMode() }
                     .frame(minHeight: 44, alignment: .leading)
-            }
-            Section {
-                TextField("Server URL", text: $server)
-                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .onSubmit { api.setBaseURL(server) }
-            } header: {
-                Text("Server")
-            } footer: {
-                Text("Self-hosting? Point the app at your server, e.g. https://ielts.example.com.")
             }
         }
         .canvasList()
@@ -170,7 +158,6 @@ struct LoginView: View {
         issue = nil
         info = nil
         defer { busy = false }
-        api.setBaseURL(server)
         let address = email.trimmingCharacters(in: .whitespaces)
         do {
             if signUp {

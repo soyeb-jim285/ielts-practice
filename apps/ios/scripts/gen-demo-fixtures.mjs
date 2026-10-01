@@ -167,7 +167,7 @@ const cards = [
   { id: 'c3', front: 'really changed', back: 'transformed / reshaped — stronger verbs for band 7+.' },
 ];
 
-const models = (ids) => ({ items: ids.map(([id, name, pr, co]) => ({ id, name, pricing: { prompt: String(pr), completion: String(co) } })) });
+const models = (ids) => ({ models: ids.map(([id, name, pr, co]) => ({ id, name, pricing: { prompt: String(pr), completion: String(co) } })) });
 const textModels = models([['openai/gpt-6-luna', 'OpenAI: GPT-6 Luna', 1e-7, 5e-7], ['deepseek/deepseek-v4.1-flash', 'DeepSeek: V4.1 Flash', 1.5e-7, 6e-7], ['google/gemini-3.8-flash', 'Google: Gemini 3.8 Flash', 2.5e-7, 1e-6]]);
 
 const fx = {
@@ -200,7 +200,7 @@ const fx = {
   '/api/prompts?page=1&skill=speaking': { items: [sp1, sp2, sp3], total: 3, page: 1, pageSize: 30 },
   '/api/prompts?page=1&skill=writing': { items: [w2, w1a, w1g], total: 3, page: 1, pageSize: 30 },
   '/api/prompts/meta': { groups: [{ skill: 'speaking', part: 1, topics: ['Hometown', 'Music'], types: ['p1-topic'] }, { skill: 'speaking', part: 2, topics: ['Books'], types: ['cue-card'] }, { skill: 'speaking', part: 3, topics: ['Reading'], types: ['discussion'] }, { skill: 'writing', part: 1, topics: ['Energy', 'Housing'], types: ['line', 'letter-complaint'] }, { skill: 'writing', part: 2, topics: ['Technology'], types: ['opinion'] }] },
-  '/api/models?capability=tts': { items: [{ id: 'google/gemini-3.8-flash-tts', name: 'Google: Gemini 3.8 Flash TTS', voices: ['Charon', 'Puck', 'Kore'], pricing: { prompt: '0', completion: '0' } }] },
+  '/api/models?capability=tts': { models: [{ id: 'google/gemini-3.8-flash-tts', name: 'Google: Gemini 3.8 Flash TTS', voices: ['Charon', 'Puck', 'Kore'], pricing: { prompt: '0', completion: '0' } }] },
   '/api/live/start': { sessionId: 'live-demo', examinerText: 'Good morning. My name is Daniel and I will be your examiner today. Can you tell me your full name, please?', audioUrl: null, voiceError: null, phase: 'p1', prepSeconds: null, cueCard: null, test: { part1: [sp1], part2: sp2, part3: sp3 } },
 };
 mkdirSync(dirname(out), { recursive: true });

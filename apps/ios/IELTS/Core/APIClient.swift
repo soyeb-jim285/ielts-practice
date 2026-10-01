@@ -12,9 +12,10 @@ struct APIError: LocalizedError {
 /// `set-auth-token` header on sign-in, lives in the Keychain and is sent as `Authorization: Bearer`.
 @MainActor @Observable
 final class APIClient {
-    static let defaultServer = "http://localhost:8787"
+    /// The production server. Fixed in the app; there is no user-facing server setting.
+    static let server = "https://ielts.soyebjim.me"
 
-    private(set) var baseURL: String
+    let baseURL: String
     private(set) var token: String?
     var me: Me?
     var isSignedIn: Bool { token != nil }
@@ -30,19 +31,8 @@ final class APIClient {
     }()
 
     init() {
-        baseURL = UserDefaults.standard.string(forKey: "serverURL") ?? Self.defaultServer
-        token = Keychain.get()
-        if Demo.on {
-            baseURL = "https://demo.ielts.local"
-            token = Demo.screen == "login" ? nil : "demo"
-        }
-    }
-
-    func setBaseURL(_ url: String) {
-        var u = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        while u.hasSuffix("/") { u.removeLast() }
-        baseURL = u.isEmpty ? Self.defaultServer : u
-        UserDefaults.standard.set(baseURL, forKey: "serverURL")
+        baseURL = Demo.on ? "https://demo.ielts.local" : Self.server
+        token = Demo.on ? (Demo.screen == "login" ? nil : "demo") : Keychain.get()
     }
 
     // MARK: Requests
@@ -67,7 +57,7 @@ final class APIClient {
 
     @discardableResult
     func raw(_ method: String, _ path: String, _ body: Any? = nil) async throws -> (Data, HTTPURLResponse) {
-        guard let url = URL(string: baseURL + path) else { throw APIError(status: 0, message: "Invalid server URL. Fix it in Settings.") }
+        guard let url = URL(string: baseURL + path) else { throw APIError(status: 0, message: "Invalid request URL.") }
         var req = URLRequest(url: url)
         req.httpMethod = method
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
@@ -83,7 +73,7 @@ final class APIClient {
         } catch let e as URLError where e.code == .cancelled {
             throw CancellationError()
         } catch {
-            throw APIError(status: 0, message: "Can't reach the server at \(baseURL). Check your connection or the server URL in Settings.")
+            throw APIError(status: 0, message: "Can't reach IELTS Practice. Check your internet connection and try again.")
         }
         guard let http = resp as? HTTPURLResponse else { throw APIError(status: 0, message: "No response from the server.") }
         guard (200..<300).contains(http.statusCode) else {
@@ -133,7 +123,7 @@ final class APIClient {
 
     private func adopt(_ http: HTTPURLResponse) async throws {
         guard let t = http.value(forHTTPHeaderField: "set-auth-token"), !t.isEmpty else {
-            throw APIError(status: 0, message: "The server didn't return a session token. Is it an IELTS Practice server?")
+            throw APIError(status: 0, message: "Sign-in didn't complete. Please try again.")
         }
         token = t
         Keychain.set(t)
