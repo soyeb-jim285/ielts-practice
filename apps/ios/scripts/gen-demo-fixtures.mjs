@@ -51,7 +51,7 @@ const w1m = fig({ id: 'w1m', type: 'map', topic: 'Housing', title: 'Village deve
     after: { label: 'Today', features: ['The farm is now a housing estate', 'A bypass road runs along the south', 'The school is larger, with a sports field', 'A supermarket and car park replace the woodland'] } } });
 
 // --- speaking attempt (Part 2) ---
-const transcript = 'I would like to talk about um a book called Sapiens which I read uh two years ago when I was at university . It is about the history of humans and how we I mean how our species became so powerful . Before reading it I I thought history was just dates and wars but the book showed me that ideas like money and nations are stories we all agree to believe . That really changed the way I think because now I um question things that people say are natural . For example when someone says this is how it has always been I ask myself is it really or is it just a story . So I think it made me more curious and more open minded .';
+const transcript = 'I would like to talk about um a book called Sapiens which I read uh two years ago when I was at university . It is about the history of humans and how we I mean how our species became so powerful . Before reading it I I thought history was just dates and wars but the book showed me that ideas like money and nations are stories we all agree to believe . That really changed the way I think because now I um question things that people say are natural . For example when someone says this is how it has always been I ask myself is it really or is it just a story . So I think it made me more curious about history and about the stories behind it , and more open minded .';
 let t = 0.4;
 const words = [];
 for (const tok of transcript.split(' ')) {
@@ -117,9 +117,9 @@ const essay = `In recent years, more companies have allowed staff to work from h
 
 On the one hand, working from home saves employees a great deal of time. Without a daily commute, workers can start earlier and have more energy for their tasks. Employers also benefit because they can reduce the cost of office space and hire talented people who lives far from the city.
 
-On the other hand, critics point out that teamwork can suffer. When colleagues never meet, it is harder to share ideas informally, and new staff may feel isolated. Furthermore, some employees find it difficult to concentrate at home because of noise or family responsibilities.
+On the other hand, critics point out that teamwork can suffer. When colleagues never meet, it is harder to share ideas informally, and new staff may feel isolated. Furthermore, some employees find it difficult to work at home because of noise or family responsibilities.
 
-However, I believe these problems can be solved. Companies can organise regular meetings in the office and use online tools to keep teams connected. Managers should also judge staff by results rather than by the hours they are seen at a desk.
+However, I believe these problems can be solved. Companies can organise regular meetings in the office and use online tools to keep teams working together. Managers should also judge staff by results rather than by the hours they work at a desk.
 
 In conclusion, although remote work has some disadvantages for collaboration, its benefits for both workers and businesses are significant, and with good management it is the better option.`;
 const idx = (s) => { const i = essay.indexOf(s); return [i, i + s.length]; };
@@ -157,7 +157,7 @@ const writingAnalysis = {
   },
   textMetrics: { words: essay.split(/\s+/).length, sentences: 15, paragraphs: 5, avgSentenceLen: 17.6, mtld: 78.4, ttr: 0.58,
     linkers: [{ word: 'however', count: 1, overused: false }, { word: 'furthermore', count: 1, overused: false }, { word: 'on the other hand', count: 1, overused: false }, { word: 'also', count: 2, overused: false }],
-    repeated: [{ word: 'work', count: 6 }, { word: 'staff', count: 3 }] },
+    repeated: [{ word: 'work', count: 7, forms: ['work', 'working'] }] },
   tooShort: false,
   comparison: { parentAttemptId: 'aw0', parentOverall: 6.5, deltas: { ta: 0.5, cc: 0, lr: 0.5, gra: 0 } },
 };

@@ -2,6 +2,7 @@ package com.soyeb.ieltspractice.core
 
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -171,11 +172,52 @@ private val stop = ("that this with have from they their there them then than th
     "which while about after before because also some such more most many much very only just into over other each both same does " +
     "doing done your yours make made like well even here itself ours whom upon among within without again further once").split(" ").toSet()
 
-/** Content words (length > 3, not a function word) used 4+ times, most frequent first (max 10). */
+private val irregular = mapOf("better" to "good", "best" to "good", "children" to "child", "people" to "person", "women" to "woman", "went" to "go", "gone" to "go")
+
+/** Conservative stemmer used only to group word forms (port of `stem` in packages/core/src/text.ts; the key is not always a real word). */
+fun stem(word: String): String {
+    var w = word.removeSuffix("'s")
+    irregular[w]?.let { return it }
+    if (w.length < 3) return w
+    if (w.length >= 5 && (w.endsWith("ies") || w.endsWith("ied"))) w = w.dropLast(3) + "y"
+    else if (listOf("ses", "xes", "zes", "ches", "shes").any { w.endsWith(it) }) w = w.dropLast(2)
+    else if (w.length >= 5 && w.endsWith("s") && listOf("ss", "us", "is").none { w.endsWith(it) }) w = w.dropLast(1)
+    fun strip(n: Int) {
+        val base = w.dropLast(n)
+        if (base.none { it in "aeiouy" }) return
+        val c = base.last()
+        w = if (base.length > 1 && base[base.length - 2] == c && c !in "aeiouyldszf") base.dropLast(1) else base
+    }
+    if (w.length >= 5 && w.endsWith("ing")) strip(3)
+    else if (w.endsWith("ed") && (w.length >= 5 || (w.length == 4 && !w.endsWith("eed")))) strip(2)
+    return if (w.length >= 3 && w.endsWith("e")) w.dropLast(1) else w
+}
+
+/**
+ * Content words (length > 3, not a function word; 3-letter forms join an existing group) whose forms together are used at least
+ * max(3, ceil(2% of all words)) times, grouped by stem. Most frequent first (max 10).
+ */
 fun repeatedWords(tokens: List<String>): List<Repeated> {
-    val freq = LinkedHashMap<String, Int>()
-    for (t in tokens) if (t.length > 3 && t !in stop) freq[t] = (freq[t] ?: 0) + 1
-    return freq.entries.filter { it.value >= 4 }.sortedByDescending { it.value }.take(10).map { Repeated(it.key, it.value) }
+    val groups = LinkedHashMap<String, LinkedHashMap<String, Int>>()
+    fun add(t: String, join: Boolean) {
+        val key = stem(t)
+        val g = groups[key] ?: if (join) return else LinkedHashMap<String, Int>().also { groups[key] = it }
+        val surface = t.removeSuffix("'s")
+        g[surface] = (g[surface] ?: 0) + 1
+    }
+    for (t in tokens) if (t.length > 3 && t !in stop) add(t, false)
+    for (t in tokens) if (t.length == 3) add(t, true)
+    val need = max(3, ceil(tokens.size * 0.02).toInt())
+    return groups.values.map { g ->
+        val forms = g.entries.sortedByDescending { it.value }
+        Repeated(forms[0].key, forms.sumOf { it.value }, forms.map { it.key })
+    }.filter { it.count >= need }.sortedByDescending { it.count }.take(10)
+}
+
+/** Does this transcript or essay word (any case, punctuation, possessive) belong to the repeated word? (core `formMatcher`) */
+fun formMatcher(r: Repeated): (String) -> Boolean {
+    val forms = (r.forms ?: listOf(r.word)).toSet()
+    return { w -> (tokenize(w).firstOrNull() ?: "").removeSuffix("'s") in forms }
 }
 
 // MARK: Word diff (retry vs parent, rewrite vs answer)

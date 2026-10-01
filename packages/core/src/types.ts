@@ -24,8 +24,11 @@ export type SpeechMetrics = {
   wpmSeries: { t: number; wpm: number }[];
   wpmStdDev: number;
   /** Absent on analyses stored before it existed. lessCommonPct: % of words outside the 5,000 most common spoken forms. */
-  lexical?: { mtld: number; ttr: number; lessCommonPct: number; overused: { word: string; count: number }[] };
+  lexical?: { mtld: number; ttr: number; lessCommonPct: number; overused: RepeatedWord[] };
 };
+
+/** A content word used often; `forms` are all surface forms grouped under it (absent on older analyses). */
+export type RepeatedWord = { word: string; count: number; forms?: string[] };
 
 export type TextMetrics = {
   words: number;
@@ -37,7 +40,7 @@ export type TextMetrics = {
   linkers: { word: string; count: number; overused: boolean }[];
   /** Share of sentences that open with a linker (>0.4 over 5+ sentences reads as templated). */
   linkerOpeningRatio: number;
-  repeated: { word: string; count: number }[];
+  repeated: RepeatedWord[];
 };
 
 export type CardState = { ease: number; interval: number; reps: number; due: Date };

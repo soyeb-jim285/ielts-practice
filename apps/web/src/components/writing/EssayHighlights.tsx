@@ -1,7 +1,9 @@
+import type { RepeatedWord } from '@ielts/core';
 import type { AnalysisError } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { ArrowRight, MapPinOff } from 'lucide-react';
-import { Fragment, useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { highlightWords, LeanPill } from '@/components/LeanPill';
 import { ErrorDetails } from '@/components/results';
 import { Badge, Card, Chip, Popover, Sheet } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
@@ -67,10 +69,14 @@ function revealMistake(id: string) {
  * The submitted essay with every located mistake underlined; tap one for the correction.
  * From `lg` a sticky margin list sits beside the essay (every mistake with its fix, click to jump to it); on phones it follows the essay.
  */
-export function EssayHighlights({ text, errors }: { text: string; errors: AnalysisError[] }) {
+export function EssayHighlights({ text, errors, lean, onClear }: { text: string; errors: AnalysisError[]; lean?: RepeatedWord | null; onClear?: () => void }) {
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<AnalysisError | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  const essay = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (lean) essay.current?.querySelector('[data-lean]')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [lean]);
   const { segments, unplaced } = useMemo(() => segmentEssay(text, errors), [text, errors]);
   const categories = useMemo(() => [...new Set(errors.map(group))], [errors]);
   const shown = (e: AnalysisError) => !filter || group(e) === filter;
@@ -92,6 +98,8 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
         </div>
       )}
 
+      {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
+
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card padded={false} className="px-5 py-6 sm:px-10 sm:py-9">
           <p className="type-caption mb-6 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -103,7 +111,7 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
             </span>
             <span>Select an underlined phrase for the fix.</span>
           </p>
-          <div className="type-reading whitespace-pre-wrap text-ink">
+          <div ref={essay} className="type-reading whitespace-pre-wrap text-ink">
             {segments.map(({ text: t, error: err }, i) =>
               err && shown(err) ? (
                 <Mistake key={i} error={err} onSheet={setOpen}>
@@ -128,12 +136,12 @@ export function EssayHighlights({ text, errors }: { text: string; errors: Analys
                         (p.expanded || open?.id === err.id || hover === err.id) && 'ring-2 ring-brand',
                       )}
                     >
-                      {t}
+                      {highlightWords(t, lean)}
                     </mark>
                   )}
                 </Mistake>
               ) : (
-                <Fragment key={i}>{t}</Fragment>
+                <Fragment key={i}>{highlightWords(t, lean)}</Fragment>
               ),
             )}
           </div>

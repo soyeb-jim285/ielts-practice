@@ -1,6 +1,8 @@
+import { formMatcher, type RepeatedWord } from '@ielts/core';
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { LEAN_CLASS, LeanPill } from '@/components/LeanPill';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
 import { Card, Chip } from '@/components/ui';
 import { buildTokens, errorGroup, errorType, isLongPause, isSentenceNote, pauseSec, questionHead, type DisfluencyMark, type Token, type TranscriptFilter } from '@/lib/result';
@@ -24,7 +26,7 @@ const NOW = ['bg-brand-soft', 'text-ink'];
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Interactive transcript: click a word to hear it, open errors, filter by issue, follow playback. */
-export function Transcript({ result, audio }: { result: AnalysisResult; audio: AudioControls }) {
+export function Transcript({ result, audio, lean, onClear }: { result: AnalysisResult; audio: AudioControls; lean?: RepeatedWord | null; onClear?: () => void }) {
   const [filter, setFilter] = useState<TranscriptFilter>('all');
   const tokens = useMemo(() => buildTokens(result), [result]);
   const errors = useMemo(() => new Map(result.errors.map((e) => [e.id, e])), [result.errors]);
@@ -33,6 +35,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   const timeline = useMemo(() => timelineMarkers(result), [result]);
   const root = useRef<HTMLDivElement>(null);
   const { focus } = audio;
+  const isLean = useMemo(() => (lean ? formMatcher(lean) : () => false), [lean]);
   const marker = timeline.markers.find((m) => m.id === focus);
 
   const counts: Record<TranscriptFilter, number> = {
@@ -80,11 +83,13 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     <span
       key={t.i}
       data-w={t.i}
+      data-lean={isLean(t.w) || undefined}
       onClick={() => audio.seek(t.start)}
       title={t.unclearTier ? `Unclear to speech recognition (${Math.round((t.conf ?? 0) * 100)}% confidence)` : undefined}
       className={clsx(
         'cursor-pointer rounded-sm transition-colors duration-100 hover:bg-hover',
         filler(t),
+        isLean(t.w) && LEAN_CLASS,
         t.unclearTier && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-2 underline-offset-4', TYPE_STYLE.pronunciation.underline],
         !matches(t) && 'opacity-35',
       )}
@@ -169,7 +174,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
             {span.map((s, k) => (
               <Fragment key={s.i}>
                 {k > 0 && ' '}
-                <span data-w={s.i} className={filler(s) || undefined}>{s.w}</span>
+                <span data-w={s.i} data-lean={isLean(s.w) || undefined} className={clsx(filler(s), isLean(s.w) && LEAN_CLASS) || undefined}>{s.w}</span>
               </Fragment>
             ))}
           </ErrorPopover>{' '}
@@ -189,12 +194,18 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
 
   return out;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- word/chips/pause are rebuilt from exactly these
-  }, [tokens, filter, errors, heads, audio.seek]);
+  }, [tokens, filter, errors, heads, audio.seek, isLean]);
+
+  // Bring the first highlighted use into view when a word is picked.
+  useEffect(() => {
+    if (lean) root.current?.querySelector('[data-lean]')?.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }, [lean]);
 
   // Phones: filters, transcript, legend. lg+: the 68ch transcript on the left, filters and legend sticky on the right.
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-x-10">
       <div className="order-3 space-y-5 lg:col-start-1 lg:row-start-1">
+        {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
         {marker && <MarkerDetail marker={marker} audio={audio} />}
         <Card className="p-5 sm:p-8">
           <div ref={root} className="type-reading leading-[2]">{out}</div>

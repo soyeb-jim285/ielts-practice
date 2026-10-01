@@ -140,6 +140,8 @@ struct TranscriptView: View {
     let timeline: Timeline
     /// The mistake picked on the chart or the audio bar (TimelineMarker.id).
     @Binding var focus: String?
+    /// Every use of this word (any of its forms) gets a neutral tint.
+    var lean: TextMetrics.Repeated? = nil
     let onSelect: (AnalysisError) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -149,11 +151,12 @@ struct TranscriptView: View {
     /// Index of the word playing now (-1 for none). Updated by TrClock only when the word changes, so the 10 Hz clock does not rebuild the transcript.
     @State private var now = -1
 
-    init(result: AnalysisResult, player: Player, timeline: Timeline, focus: Binding<String?>, onSelect: @escaping (AnalysisError) -> Void) {
+    init(result: AnalysisResult, player: Player, timeline: Timeline, focus: Binding<String?>, lean: TextMetrics.Repeated? = nil, onSelect: @escaping (AnalysisError) -> Void) {
         self.result = result
         self.player = player
         self.timeline = timeline
         _focus = focus
+        self.lean = lean
         self.onSelect = onSelect
         _model = State(initialValue: TrModel(result, timeline))
     }
@@ -178,7 +181,8 @@ struct TranscriptView: View {
                     if !model.unplaced.isEmpty { alsoNoted }
                 }
                 .onChange(of: focus) { scrollToFocus(proxy) }
-                .task { try? await Task.sleep(for: .milliseconds(200)); scrollToFocus(proxy) }
+                .onChange(of: lean) { scrollToLean(proxy) }
+                .task { try? await Task.sleep(for: .milliseconds(200)); scrollToFocus(proxy); scrollToLean(proxy) }
             }
         }
     }
@@ -186,6 +190,14 @@ struct TranscriptView: View {
     /// Bring a mistake picked elsewhere into view; no animation with Reduce Motion.
     private func scrollToFocus(_ proxy: ScrollViewProxy) {
         guard let i = focusWord else { return }
+        if reduceMotion { proxy.scrollTo("w\(i)", anchor: .center) } else { withAnimation { proxy.scrollTo("w\(i)", anchor: .center) } }
+    }
+
+    /// Bring the first highlighted use of the leaned-on word into view.
+    private func scrollToLean(_ proxy: ScrollViewProxy) {
+        guard let lean else { return }
+        let match = resFormMatcher(lean)
+        guard let i = model.tokens.firstIndex(where: { match($0.word.w) }) else { return }
         if reduceMotion { proxy.scrollTo("w\(i)", anchor: .center) } else { withAnimation { proxy.scrollTo("w\(i)", anchor: .center) } }
     }
 
@@ -282,7 +294,8 @@ struct TranscriptView: View {
         let underlineColor: Color? = sentence ? nil : (type?.color ?? (err != nil ? Color.muted : nil))
         let isNow = t.id == now
         let picked = t.id == focusWord
-        let background: Color = isNow ? Color.brandSoft : sentence ? Color.warn.opacity(0.14) : Color.clear
+        let leaned = lean.map { resFormMatcher($0)(t.word.w) } ?? false
+        let background: Color = isNow ? Color.brandSoft : leaned ? resLeanTint : sentence ? Color.warn.opacity(0.14) : Color.clear
         let dim = !(filter == .all || matches(t))
         return HStack(alignment: .firstTextBaseline, spacing: 2) {
             ForEach(Array(t.marks.enumerated()), id: \.offset) { _, m in markChip(m) }

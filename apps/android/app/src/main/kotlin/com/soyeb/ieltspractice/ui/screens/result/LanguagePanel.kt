@@ -59,6 +59,8 @@ import com.soyeb.ieltspractice.core.categoryLabel
 import com.soyeb.ieltspractice.core.fmt
 import com.soyeb.ieltspractice.core.mtld
 import com.soyeb.ieltspractice.core.questionHead
+import com.soyeb.ieltspractice.core.Repeated
+import com.soyeb.ieltspractice.core.formMatcher
 import com.soyeb.ieltspractice.core.repeatedWords
 import com.soyeb.ieltspractice.core.tokenize
 import com.soyeb.ieltspractice.ui.theme.AppCard
@@ -87,16 +89,19 @@ private fun playAction(player: ResultPlayer, e: AnalysisError): (() -> Unit)? {
 }
 
 @Composable
-fun LanguagePanel(result: AnalysisResult, player: ResultPlayer, scrollToRelevance: Boolean = false, onScrolled: () -> Unit = {}) {
+fun LanguagePanel(
+    result: AnalysisResult, player: ResultPlayer, scrollToRelevance: Boolean = false, onScrolled: () -> Unit = {},
+    lean: Repeated? = null, onLean: (Repeated?) -> Unit = {},
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (result.skill == "speaking") SpeakingLanguage(result, player, scrollToRelevance, onScrolled) else WritingLanguage(result)
+        if (result.skill == "speaking") SpeakingLanguage(result, player, scrollToRelevance, onScrolled, lean, onLean) else WritingLanguage(result, lean, onLean)
     }
 }
 
 // MARK: Speaking
 
 @Composable
-private fun SpeakingLanguage(r: AnalysisResult, player: ResultPlayer, scrollToRelevance: Boolean, onScrolled: () -> Unit) {
+private fun SpeakingLanguage(r: AnalysisResult, player: ResultPlayer, scrollToRelevance: Boolean, onScrolled: () -> Unit, lean: Repeated?, onLean: (Repeated?) -> Unit) {
     val e = MaterialTheme.ext
     val groups = groups(r)
     SectionTitle("Mistakes by type")
@@ -113,7 +118,7 @@ private fun SpeakingLanguage(r: AnalysisResult, player: ResultPlayer, scrollToRe
     }
     val ups = upgrades(r)
     if (ups.isNotEmpty()) { SectionTitle("Vocabulary upgrades"); ups.forEach { VocabRow(it) } }
-    SpeakingLexical(r)
+    SpeakingLexical(r, lean, onLean)
     Relevance(r, scrollToRelevance, onScrolled)
     Pronunciation(r, player)
 }
@@ -148,7 +153,7 @@ private fun ErrorGroup(category: String, errors: List<AnalysisError>, maxCount: 
 
 /** Lexical range and the words leaned on, from the transcript. */
 @Composable
-private fun SpeakingLexical(r: AnalysisResult) {
+private fun SpeakingLexical(r: AnalysisResult, lean: Repeated?, onLean: (Repeated?) -> Unit) {
     val e = MaterialTheme.ext
     val tokens = remember(r) { tokenize(r.words.orEmpty().joinToString(" ") { it.w }) }
     val m = mtld(tokens)
@@ -177,10 +182,16 @@ private fun SpeakingLexical(r: AnalysisResult) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Words you leaned on", style = MaterialTheme.typography.titleMedium, color = e.ink)
             if (repeated.isEmpty()) Text("No content word stood out as overused.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-            else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                repeated.forEach { Chip("${it.word} ×${it.count}") }
-            }
+            else LeanChips(repeated, "Select a word to highlight every use in your transcript.", lean, onLean)
         }
+    }
+}
+
+@Composable
+private fun LeanChips(rows: List<Repeated>, hint: String, lean: Repeated?, onLean: (Repeated?) -> Unit) {
+    Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.ext.muted)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        rows.forEach { r -> LeanChip(r, lean?.word == r.word) { onLean(if (lean?.word == r.word) null else r) } }
     }
 }
 
@@ -282,7 +293,7 @@ private fun Pronunciation(r: AnalysisResult, player: ResultPlayer) {
 // MARK: Writing
 
 @Composable
-private fun WritingLanguage(r: AnalysisResult) {
+private fun WritingLanguage(r: AnalysisResult, lean: Repeated?, onLean: (Repeated?) -> Unit) {
     val e = MaterialTheme.ext
     r.textMetrics?.let { Glance(it) }
     val groups = groups(r)
@@ -303,7 +314,7 @@ private fun WritingLanguage(r: AnalysisResult) {
     r.textMetrics?.takeIf { it.linkers.isNotEmpty() }?.let { Linking(it) }
     r.textMetrics?.takeIf { it.repeated.isNotEmpty() }?.let { m ->
         SectionTitle("Repeated words")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { m.repeated.forEach { Chip("${it.word} ×${it.count}") } }
+        LeanChips(m.repeated, "Select a word to highlight every use in your essay.", lean, onLean)
     }
     val ups = upgrades(r)
     if (ups.isNotEmpty()) { SectionTitle("Vocabulary upgrades"); ups.forEach { VocabRow(it) } }
@@ -391,19 +402,25 @@ private fun Linking(m: TextMetrics) {
 
 /** Essay with inline error highlights (char spans are UTF-16 offsets, matching JS string indices). */
 @Composable
-fun EssayPanel(result: AnalysisResult, text: String, onSelect: (AnalysisError) -> Unit) {
+fun EssayPanel(result: AnalysisResult, text: String, lean: Repeated? = null, onSelect: (AnalysisError) -> Unit) {
     val e = MaterialTheme.ext
     var filter by remember { mutableStateOf<String?>(null) }
     fun group(x: AnalysisError) = x.category.substringBefore('.')
     val gs = result.errors.groupBy(::group).toList().sortedWith(compareByDescending<Pair<String, List<AnalysisError>>> { it.second.size }.thenBy { it.first })
     val visible = if (filter == null) result.errors else result.errors.filter { group(it) == filter }
     fun located(x: AnalysisError) = x.start >= 0 && x.end > x.start && x.end <= text.length
-    val body = remember(text, visible, e.isDark) {
+    val tint = leanTint()
+    val body = remember(text, visible, e.isDark, lean) {
         AnnotatedString.Builder(text).apply {
             for (x in visible.filter(::located)) {
                 val c = if (x.severity == "major") e.bad else e.warn
                 addStyle(SpanStyle(background = c.copy(alpha = 0.16f), textDecoration = TextDecoration.Underline), x.start, x.end)
                 addLink(LinkAnnotation.Clickable("err-${x.id}", TextLinkStyles(SpanStyle(color = e.ink))) { onSelect(x) }, x.start, x.end)
+            }
+            // Every use of the leaned-on word, drawn over the error tint (the error underline stays).
+            if (lean != null) {
+                val match = formMatcher(lean)
+                for (m in Regex("[A-Za-z]+(?:'[A-Za-z]+)?").findAll(text)) if (match(m.value)) addStyle(SpanStyle(background = tint), m.range.first, m.range.last + 1)
             }
         }.toAnnotatedString()
     }

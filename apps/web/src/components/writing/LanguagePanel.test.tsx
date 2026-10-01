@@ -1,6 +1,6 @@
 import type { AnalysisResult } from '@server/ai/types';
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LanguagePanel } from './LanguagePanel';
 
 afterEach(cleanup);
@@ -35,5 +35,15 @@ describe('LanguagePanel', () => {
   it('stays quiet about openings below 40%', () => {
     render(<LanguagePanel r={result({ linkerOpeningRatio: 0.2 })} />);
     expect(screen.queryByText(/sentences start with a linking word/)).toBeNull();
+  });
+  it('repeated words are toggles that pick the word with its forms', () => {
+    const w = { word: 'work', count: 6, forms: ['work', 'working'] };
+    const onLean = vi.fn();
+    const { rerender } = render(<LanguagePanel r={result({ repeated: [w] })} lean={null} onLean={onLean} />);
+    fireEvent.click(screen.getByRole('button', { name: /work/ }));
+    expect(onLean).toHaveBeenLastCalledWith(w);
+    rerender(<LanguagePanel r={result({ repeated: [w] })} lean={w} onLean={onLean} />);
+    fireEvent.click(screen.getByRole('button', { name: /work/ }));
+    expect(onLean).toHaveBeenLastCalledWith(null);
   });
 });

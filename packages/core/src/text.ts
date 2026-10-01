@@ -1,6 +1,6 @@
 import { COMMON_WORDS } from './common-words';
 import { LINKERS } from './constants';
-import type { TextMetrics } from './types';
+import type { RepeatedWord, TextMetrics } from './types';
 
 // ponytail: fixed stoplist of common function words (length > 3) for the "repeated words" check
 const STOP = new Set(
@@ -32,16 +32,71 @@ export function mtld(tokens: string[], threshold = 0.72): number {
   return (mtldPass(tokens, threshold) + mtldPass([...tokens].reverse(), threshold)) / 2;
 }
 
-/** Content words (length > 3, not stoplisted) used 4+ times, most frequent first (max 10). */
-export function repeatedWords(tokens: string[]) {
-  const freq = new Map<string, number>();
-  for (const t of tokens) if (t.length > 3 && !STOP.has(t)) freq.set(t, (freq.get(t) ?? 0) + 1);
-  return [...freq]
-    .filter(([, c]) => c >= 4)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([word, count]) => ({ word, count }));
+// Small irregular map (key = the stem its forms group under).
+const IRREGULAR: Record<string, string> = { better: 'good', best: 'good', children: 'child', people: 'person', women: 'woman', went: 'go', gone: 'go' };
+const VOWEL = /[aeiouy]/;
+
+/**
+ * Conservative English stemmer used only to GROUP word forms (the key is not always a real word: use/uses/used/using all
+ * key to "us"). Rules: possessive 's; plural -ies→y, -es after s/x/z/ch/sh, -s (5+ letters, never -ss/-us/-is);
+ * -ied→y, -ed, -ing (5+ letters, stem must keep a vowel; doubled final consonant undone except l/s/z/f/d: running→run,
+ * but falling→fall); then a trailing -e is dropped so e-words meet their suffixed forms (change/changing/changed).
+ * Words of 1-2 letters are untouched, so "is"/"as" never merge; "news" stays apart from "new".
+ * ponytail: heuristic, no irregular verbs beyond IRREGULAR; "hope"/"hopping" can false-merge. Swap in a real lemmatiser if that bites.
+ */
+export function stem(word: string): string {
+  let w = word.replace(/'s$/, '');
+  const irr = IRREGULAR[w];
+  if (irr) return irr;
+  if (w.length < 3) return w;
+  if (/(ies|ied)$/.test(w) && w.length >= 5) w = w.slice(0, -3) + 'y';
+  else if (/(s|x|z|ch|sh)es$/.test(w)) w = w.slice(0, -2);
+  else if (w.length >= 5 && /s$/.test(w) && !/(ss|us|is)$/.test(w)) w = w.slice(0, -1);
+  const strip = (n: number) => {
+    const base = w.slice(0, -n);
+    if (!VOWEL.test(base)) return;
+    w = /([^aeiouyldszf])\1$/.test(base) ? base.slice(0, -1) : base;
+  };
+  if (w.length >= 5 && w.endsWith('ing')) strip(3);
+  else if (w.endsWith('ed') && (w.length >= 5 || (w.length === 4 && !w.endsWith('eed')))) strip(2);
+  return w.length >= 3 && w.endsWith('e') ? w.slice(0, -1) : w;
 }
+
+/**
+ * Content words (length > 3, not stoplisted; 3-letter forms join an existing group) whose forms together are used at least
+ * max(3, ceil(2% of all words)) times: 3 for answers up to 150 words, 7 for a 350-word essay. Forms are grouped by stem
+ * (work/works/working/worked); `word` is the most frequent surface form. Most frequent first, max 10.
+ */
+export function repeatedWords(tokens: string[]): { word: string; count: number; forms: string[] }[] {
+  const groups = new Map<string, Map<string, number>>();
+  const add = (t: string, join: boolean) => {
+    const surface = t.replace(/'s$/, ''), key = stem(t);
+    let g = groups.get(key);
+    if (!g && join) return;
+    if (!g) groups.set(key, (g = new Map()));
+    g.set(surface, (g.get(surface) ?? 0) + 1);
+  };
+  for (const t of tokens) if (t.length > 3 && !STOP.has(t)) add(t, false);
+  for (const t of tokens) if (t.length === 3) add(t, true);
+  const min = Math.max(3, Math.ceil(tokens.length * 0.02));
+  return [...groups.values()]
+    .map((g) => {
+      const forms = [...g].sort((a, b) => b[1] - a[1]);
+      return { word: forms[0]![0], count: forms.reduce((n, f) => n + f[1], 0), forms: forms.map((f) => f[0]) };
+    })
+    .filter((r) => r.count >= min)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+/** Grader-prompt label: "work ×6 (work, works, working)"; the forms are listed only when there are several. */
+export const repeatedLabel = (r: RepeatedWord) => `${r.word} ×${r.count}${r.forms && r.forms.length > 1 ? ` (${r.forms.join(', ')})` : ''}`;
+
+/** Does this transcript/essay word (any case, punctuation, possessive) belong to the repeated word? Used to highlight every use. */
+export const formMatcher = (r: { word: string; forms?: string[] }) => {
+  const forms = new Set(r.forms ?? [r.word]);
+  return (w: string) => forms.has((tokenize(w)[0] ?? '').replace(/'s$/, ''));
+};
 
 let common: Set<string> | undefined;
 /** Spec §5.2 `lexical`: MTLD, type-token ratio, % of words outside the 5,000 most common forms (contractions excluded), overused words. */

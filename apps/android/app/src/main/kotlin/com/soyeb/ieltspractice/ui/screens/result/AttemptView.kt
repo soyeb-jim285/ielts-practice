@@ -74,6 +74,7 @@ import com.soyeb.ieltspractice.core.Crit
 import com.soyeb.ieltspractice.core.Criterion
 import com.soyeb.ieltspractice.core.Empty
 import com.soyeb.ieltspractice.core.Fix
+import com.soyeb.ieltspractice.core.Repeated
 import com.soyeb.ieltspractice.core.Timeline
 import com.soyeb.ieltspractice.core.answeredRelevance
 import com.soyeb.ieltspractice.core.bandRange
@@ -86,10 +87,12 @@ import com.soyeb.ieltspractice.core.minWords
 import com.soyeb.ieltspractice.core.notAssessed
 import com.soyeb.ieltspractice.core.offTopic
 import com.soyeb.ieltspractice.core.pronUnsupported
+import com.soyeb.ieltspractice.core.repeatedWords
 import com.soyeb.ieltspractice.core.resScore
 import com.soyeb.ieltspractice.core.ResScore
 import com.soyeb.ieltspractice.core.sentenceCase
 import com.soyeb.ieltspractice.core.taskLabel
+import com.soyeb.ieltspractice.core.tokenize
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
@@ -114,13 +117,13 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-/** Demo screenshots: the `tab` extra is "Fluency", "Fluency-2" (scrolled two screens down) or "Transcript-Sheet" (error sheet open). */
-private class DemoView(val tab: String, val scrollPages: Int, val sheet: Boolean) {
+/** Demo screenshots: the `tab` extra is "Fluency", "Fluency-2" (scrolled two screens down), "Transcript-Sheet" (error sheet open) or "Transcript-Lean" (top repeated word highlighted). */
+private class DemoView(val tab: String, val scrollPages: Int, val sheet: Boolean, val lean: Boolean) {
     companion object {
         fun parse(raw: String?): DemoView? {
             if (raw == null) return null
             val parts = raw.split('-')
-            return DemoView(parts[0], parts.drop(1).firstNotNullOfOrNull { it.toIntOrNull() } ?: 0, parts.drop(1).any { it == "Sheet" })
+            return DemoView(parts[0], parts.drop(1).firstNotNullOfOrNull { it.toIntOrNull() } ?: 0, parts.drop(1).any { it == "Sheet" }, parts.drop(1).any { it == "Lean" })
         }
     }
 }
@@ -146,6 +149,13 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
     val result = attempt.analysis
     val timeline = remember(result) { result?.let { Timeline.of(it) } ?: Timeline.Empty }
     var focus by remember { mutableStateOf<String?>(null) }
+    // The "Words you leaned on" entry whose every use is highlighted in the transcript or essay.
+    var lean by remember {
+        mutableStateOf(
+            if (demoView?.lean != true || result == null) null
+            else if (speaking) repeatedWords(tokenize(result.words.orEmpty().joinToString(" ") { it.w })).firstOrNull() else result.textMetrics?.repeated?.firstOrNull(),
+        )
+    }
     var selectedError by remember { mutableStateOf(if (demoView?.sheet == true) result?.errors?.firstOrNull() else null) }
     var toast by remember { mutableStateOf<String?>(null) }
     var parentText by remember { mutableStateOf<String?>(null) }
@@ -202,7 +212,7 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
                         stickyHeader { Box(Modifier.fillMaxWidth().background(e.bg).padding(vertical = 4.dp)) { TabStrip(tabs, current) { tab = it } } }
                         item {
                             Panel(
-                                current, result, attempt, speaking, target, timeline, player, focus, { focus = it }, parentText, addedFixes,
+                                current, result, attempt, speaking, target, timeline, player, focus, { focus = it }, lean, { w -> lean = w; if (w != null) tab = if (speaking) "Transcript" else "Essay" }, parentText, addedFixes,
                                 scrollToRelevance, { scrollToRelevance = false }, ::openRelevance, nav, retryLabel, ::retryRoute, { selectedError = it },
                                 onAddFixes = { fixes ->
                                     scope.launch {
@@ -345,7 +355,7 @@ private fun TabStrip(tabs: List<String>, current: String, onSelect: (String) -> 
 @Composable
 private fun Panel(
     tab: String, r: AnalysisResult, attempt: Attempt, speaking: Boolean, target: Double, timeline: Timeline, player: ResultPlayer,
-    focus: String?, onFocus: (String?) -> Unit, parentText: String?, addedFixes: Boolean, scrollToRelevance: Boolean, onScrolled: () -> Unit,
+    focus: String?, onFocus: (String?) -> Unit, lean: Repeated?, onLean: (Repeated?) -> Unit, parentText: String?, addedFixes: Boolean, scrollToRelevance: Boolean, onScrolled: () -> Unit,
     openRelevance: () -> Unit, nav: AppNav, retryLabel: (Boolean) -> String, retryRoute: () -> Any, onSelect: (AnalysisError) -> Unit,
     onAddFixes: (List<Fix>) -> Unit,
 ) {
@@ -353,17 +363,22 @@ private fun Panel(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         when (tab) {
             "Transcript" -> {
-                TranscriptPanel(r, player, timeline, focus, onSelect)
+                lean?.let { LeanPill(it) { onLean(null) } }
+                TranscriptPanel(r, player, timeline, focus, lean, onSelect)
                 if (player.failed) Text("Couldn't load the recording, so words can't be played.", style = MaterialTheme.typography.bodySmall, color = e.muted)
             }
             "Fluency" -> r.metrics?.let { FluencyPanel(it, player, timeline, r.errors, focus, onFocus, r.criteria["fc"], target) }
                 ?: ResUnavailable("No fluency data", "This analysis has no speech measurements.")
             "Essay" -> {
                 val text = r.text ?: attempt.text ?: ""
-                if (text.isBlank()) ResUnavailable("No essay text", "Nothing was written for this task.") else EssayPanel(r, text, onSelect)
+                if (text.isBlank()) ResUnavailable("No essay text", "Nothing was written for this task.")
+                else {
+                    lean?.let { LeanPill(it) { onLean(null) } }
+                    EssayPanel(r, text, lean, onSelect)
+                }
             }
             "Structure" -> r.structure?.let { StructurePanel(it) } ?: ResUnavailable("No structure analysis", "The answer was too short to map its paragraphs.")
-            "Language" -> LanguagePanel(r, player, scrollToRelevance, onScrolled)
+            "Language" -> LanguagePanel(r, player, scrollToRelevance, onScrolled, lean, onLean)
             "Improve" -> Improve(r, attempt, speaking, parentText, addedFixes, nav, retryLabel, retryRoute, onAddFixes)
             else -> Overview(r, attempt, speaking, target, openRelevance, nav)
         }

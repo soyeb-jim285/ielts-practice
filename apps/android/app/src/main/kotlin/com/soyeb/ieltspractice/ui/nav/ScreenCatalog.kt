@@ -28,10 +28,10 @@ val screenCatalog: List<ScreenSpec> = listOf(
     // iOS result sub-tabs (Overview, Transcript, Fluency, Language, Improve; writing: Overview, Essay, Structure, Language, Improve):
     // Result sub-tabs; "-N" scrolls N screens down, "-Sheet" opens the mistake sheet (read in ui/screens/result/AttemptView.kt).
     ScreenSpec("result-speaking", AttemptResult.of("as1"), listOf(
-        "Overview", "Overview-1", "Overview-2", "Transcript", "Transcript-1", "Transcript-Sheet", "Fluency", "Fluency-1", "Fluency-2", "Fluency-3",
+        "Overview", "Overview-1", "Overview-2", "Transcript", "Transcript-1", "Transcript-Sheet", "Transcript-Lean", "Fluency", "Fluency-1", "Fluency-2", "Fluency-3",
         "Language", "Language-1", "Language-2", "Improve",
     )),
-    ScreenSpec("result-writing", AttemptResult.of("aw1"), listOf("Overview", "Overview-1", "Essay", "Essay-Sheet", "Structure", "Language", "Language-1", "Improve", "Improve-1")),
+    ScreenSpec("result-writing", AttemptResult.of("aw1"), listOf("Overview", "Overview-1", "Essay", "Essay-Sheet", "Essay-Lean", "Structure", "Language", "Language-1", "Improve", "Improve-1")),
     ScreenSpec("result-session", AttemptResult.of("as1", "as2")),
     ScreenSpec("result-analysing", AttemptResult.of("as3")),
     ScreenSpec("result-failed", AttemptResult.of("as4")),

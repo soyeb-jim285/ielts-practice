@@ -1,16 +1,17 @@
-import { computeTextMetrics } from '@ielts/core';
+import { computeTextMetrics, type RepeatedWord } from '@ielts/core';
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { ArrowRight, ChevronDown, CircleCheck, Play, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import { ErrorDetails } from '@/components/results';
 import { Badge, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip, ProgressBar } from '@/components/ui';
+import { LeanChip } from '@/components/LeanPill';
 import { answeredRelevance, categoryLabel, questionHead } from '@/lib/result';
 import type { AudioControls } from './AudioBar';
 
 const ISSUE = { sound: 'Sound', stress: 'Word stress', intonation: 'Intonation', unclear: 'Unclear' };
 
 /** Language tab: errors by category, vocabulary upgrades, lexical diversity, relevance, pronunciation hints. */
-export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio: AudioControls }) {
+export function LanguagePanel({ result, audio, lean, onLean }: { result: AnalysisResult; audio: AudioControls; lean?: RepeatedWord | null; onLean?: (w: RepeatedWord | null) => void }) {
   const words = result.words ?? [];
   const text = useMemo(() => computeTextMetrics(words.map((w) => w.w).join(' ')), [words]);
   const groups = useMemo(() => {
@@ -97,9 +98,7 @@ export function LanguagePanel({ result, audio }: { result: AnalysisResult; audio
               <ul className="mt-3 flex flex-wrap gap-2">
                 {text.repeated.slice(0, 10).map((r) => (
                   <li key={r.word}>
-                    <Badge tone="neutral" className="type-num h-7 font-serif text-body">
-                      {r.word} <span className="font-sans text-xs">x{r.count}</span>
-                    </Badge>
+                    <LeanChip r={r} lean={lean} onLean={onLean} />
                   </li>
                 ))}
               </ul>

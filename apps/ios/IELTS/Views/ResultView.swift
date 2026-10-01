@@ -188,19 +188,104 @@ private let resStop: Set<String> = Set(("that this with have from they their the
     + "which while about after before because also some such more most many much very only just into over other each both same does "
     + "doing done your yours make made like well even here itself ours whom upon among within without again further once").split(separator: " ").map(String.init))
 
-/// Content words (length > 3, not a function word) used 4+ times, most frequent first (max 10).
-func resRepeatedWords(_ tokens: [String]) -> [(word: String, count: Int)] {
-    var freq: [String: Int] = [:]
-    var order: [String] = []
-    for t in tokens where t.count > 3 && !resStop.contains(t) {
-        if freq[t] == nil { order.append(t) }
-        freq[t, default: 0] += 1
+private let resIrregular = ["better": "good", "best": "good", "children": "child", "people": "person", "women": "woman", "went": "go", "gone": "go"]
+
+/// Conservative stemmer used only to group word forms (port of `stem` in packages/core/src/text.ts; the key is not always a real word).
+func resStem(_ word: String) -> String {
+    var w = word.hasSuffix("'s") ? String(word.dropLast(2)) : word
+    if let i = resIrregular[w] { return i }
+    if w.count < 3 { return w }
+    if w.count >= 5, w.hasSuffix("ies") || w.hasSuffix("ied") { w = String(w.dropLast(3)) + "y" }
+    else if ["ses", "xes", "zes", "ches", "shes"].contains { w.hasSuffix($0) } { w = String(w.dropLast(2)) }
+    else if w.count >= 5, w.hasSuffix("s"), !["ss", "us", "is"].contains { w.hasSuffix($0) } { w = String(w.dropLast()) }
+    func strip(_ n: Int) {
+        let base = String(w.dropLast(n))
+        guard base.contains(where: { "aeiouy".contains($0) }) else { return }
+        if let c = base.last, base.dropLast().last == c, !"aeiouyldszf".contains(c) { w = String(base.dropLast()) } else { w = base }
     }
-    let rows = order.compactMap { w -> (word: String, count: Int)? in
-        let c = freq[w] ?? 0
-        return c >= 4 ? (w, c) : nil
+    if w.count >= 5, w.hasSuffix("ing") { strip(3) }
+    else if w.hasSuffix("ed"), w.count >= 5 || (w.count == 4 && !w.hasSuffix("eed")) { strip(2) }
+    return w.count >= 3 && w.hasSuffix("e") ? String(w.dropLast()) : w
+}
+
+/// Content words (length > 3, not a function word; 3-letter forms join an existing group) whose forms together are used at least
+/// max(3, ceil(2% of all words)) times, grouped by stem. Most frequent first (max 10).
+func resRepeatedWords(_ tokens: [String]) -> [TextMetrics.Repeated] {
+    var keys: [String] = []
+    var groups: [String: [(surface: String, count: Int)]] = [:]
+    func add(_ t: String, join: Bool) {
+        let surface = t.hasSuffix("'s") ? String(t.dropLast(2)) : t, key = resStem(t)
+        if groups[key] == nil {
+            if join { return }
+            keys.append(key)
+            groups[key] = []
+        }
+        if let i = groups[key]!.firstIndex(where: { $0.surface == surface }) { groups[key]![i].count += 1 } else { groups[key]!.append((surface, 1)) }
     }
-    return Array(rows.enumerated().sorted { a, b in a.element.count != b.element.count ? a.element.count > b.element.count : a.offset < b.offset }.prefix(10).map { $0.element })
+    for t in tokens where t.count > 3 && !resStop.contains(t) { add(t, join: false) }
+    for t in tokens where t.count == 3 { add(t, join: true) }
+    let minCount = max(3, Int((Double(tokens.count) * 0.02).rounded(.up)))
+    let rows = keys.compactMap { k -> TextMetrics.Repeated? in
+        let forms = groups[k]!.enumerated().sorted { $0.element.count != $1.element.count ? $0.element.count > $1.element.count : $0.offset < $1.offset }.map(\.element)
+        let total = forms.reduce(0) { $0 + $1.count }
+        return total >= minCount ? TextMetrics.Repeated(word: forms[0].surface, count: total, forms: forms.map(\.surface)) : nil
+    }
+    return Array(rows.enumerated().sorted { $0.element.count != $1.element.count ? $0.element.count > $1.element.count : $0.offset < $1.offset }.prefix(10).map(\.element))
+}
+
+/// Does this transcript or essay word (any case, punctuation, possessive) belong to the repeated word? (core `formMatcher`)
+func resFormMatcher(_ r: TextMetrics.Repeated) -> (String) -> Bool {
+    let forms = Set(r.forms ?? [r.word])
+    return { w in
+        guard let t = resTokenize(w).first else { return false }
+        return forms.contains(t.hasSuffix("'s") ? String(t.dropLast(2)) : t)
+    }
+}
+
+/// Neutral tint for "every use of the word you leaned on": distinct from the error underlines and the teal "playing now".
+let resLeanTint = Color.ink.opacity(0.15)
+
+/// A "Words you leaned on" chip: a toggle that highlights every use of the word in the transcript or essay.
+struct ResLeanChip: View {
+    let r: TextMetrics.Repeated
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("\(r.word) ×\(r.count)")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .foregroundStyle(on ? Color.ink : Color.muted)
+                .background(on ? resLeanTint : Color.surface2, in: Capsule())
+                .overlay(Capsule().strokeBorder(on ? Color.ink.opacity(0.4) : Color.clear, lineWidth: 1))
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(r.word), used \(r.count) times" + ((r.forms?.count ?? 0) > 1 ? ", as \(r.forms!.joined(separator: ", "))" : ""))
+        .accessibilityHint(on ? "Clears the highlight" : "Highlights every use in the text")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// "Highlighting: work ×6" above the text, with a clear button.
+struct ResLeanPill: View {
+    let lean: TextMetrics.Repeated
+    let onClear: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Highlighting: ").font(.subheadline) + Text(lean.word).font(.subheadline.weight(.semibold)) + Text(" ×\(lean.count)").font(.subheadline.monospacedDigit())
+            Spacer(minLength: 0)
+            Button(action: onClear) { Image(systemName: "xmark.circle.fill").foregroundStyle(.muted).frame(width: 44, height: 44) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear highlight")
+        }
+        .padding(.leading, 14)
+        .frame(minHeight: 44)
+        .background(resLeanTint.opacity(0.7), in: Capsule())
+    }
 }
 
 // MARK: - Small shared views
@@ -545,7 +630,8 @@ struct AttemptResultView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .largeTitle) private var bandSize: CGFloat = 60
-    @State private var tab = Demo.arg("tab") ?? "Overview"
+    // Demo screenshots: "Transcript+Lean" opens that tab with the top repeated word highlighted.
+    @State private var tab = (Demo.arg("tab") ?? "Overview").replacingOccurrences(of: "+Lean", with: "")
     @State private var player = Player()
     @State private var selectedError: AnalysisError?
     @State private var toast: String?
@@ -556,6 +642,12 @@ struct AttemptResultView: View {
     @State private var scrollToRelevance = false
     /// The mistake picked on the chart, the audio bar or the transcript (TimelineMarker.id).
     @State private var focus: String?
+    /// The "Words you leaned on" entry whose every use is highlighted in the transcript or essay.
+    @State private var lean: TextMetrics.Repeated?
+    private var demoLean: TextMetrics.Repeated? {
+        guard Demo.on, Demo.arg("tab")?.hasSuffix("+Lean") == true, let r = attempt.analysis else { return nil }
+        return speaking ? resRepeatedWords(resTokenize((r.words ?? []).map(\.w).joined(separator: " "))).first : r.textMetrics?.repeated.first
+    }
 
     private var timeline: Timeline { attempt.analysis.map { Timeline($0) } ?? .empty }
 
@@ -602,6 +694,7 @@ struct AttemptResultView: View {
             guard let id = attempt.parentAttemptId, let p: Attempt = try? await api.get("/api/attempts/\(id)") else { return }
             parentText = p.answerText
         }
+        .onAppear { if lean == nil { lean = demoLean } }
         .onDisappear { player.stop() }
         .sheet(item: $selectedError) { e in
             ErrorSheet(error: e, onPlay: sheetPlay(e))
@@ -843,9 +936,10 @@ struct AttemptResultView: View {
 
     @ViewBuilder private func panel(_ r: AnalysisResult) -> some View {
         VStack(alignment: .leading, spacing: 16) {
+            if let lean, current == "Transcript" || current == "Essay" { ResLeanPill(lean: lean) { self.lean = nil } }
             switch current {
             case "Transcript":
-                TranscriptView(result: r, player: player, timeline: timeline, focus: $focus) { selectedError = $0 }
+                TranscriptView(result: r, player: player, timeline: timeline, focus: $focus, lean: lean) { selectedError = $0 }
                 if audioFailed { Text("Couldn't load the recording, so words can't be played.").font(.caption).foregroundStyle(.muted) }
             case "Fluency":
                 if let m = r.metrics {
@@ -858,7 +952,7 @@ struct AttemptResultView: View {
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     ContentUnavailableView("No essay text", systemImage: "doc.text", description: Text("Nothing was written for this task."))
                 } else {
-                    EssayView(result: r, text: text) { selectedError = $0 }
+                    EssayView(result: r, text: text, lean: lean) { selectedError = $0 }
                 }
             case "Structure":
                 if let s = r.structure {
@@ -866,7 +960,10 @@ struct AttemptResultView: View {
                 } else {
                     ContentUnavailableView("No structure analysis", systemImage: "doc.text", description: Text("The answer was too short to map its paragraphs."))
                 }
-            case "Language": LanguageView(result: r, player: player)
+            case "Language": LanguageView(result: r, player: player, lean: lean) { w in
+                lean = w
+                if w != nil { tab = speaking ? "Transcript" : "Essay" }
+            }
             case "Improve": improve(r)
             default: overview(r)
             }
@@ -1480,6 +1577,7 @@ struct ErrorRow: View {
 struct EssayView: View {
     let result: AnalysisResult
     let text: String
+    var lean: TextMetrics.Repeated? = nil
     let onSelect: (AnalysisError) -> Void
     @State private var filter: String?
 
@@ -1544,6 +1642,13 @@ struct EssayView: View {
             s[r].backgroundColor = c.opacity(0.16)
             s[r].underlineStyle = Text.LineStyle(pattern: .solid, color: c)
             s[r].link = URL(string: "err://\(e.id)")
+        }
+        // Every use of the leaned-on word, drawn over the error tint (the error underline stays).
+        if let lean, let re = try? NSRegularExpression(pattern: "[A-Za-z]+(?:'[A-Za-z]+)?") {
+            let match = resFormMatcher(lean), ns = text as NSString
+            for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) where match(ns.substring(with: m.range)) {
+                if let r = Range(m.range, in: s) { s[r].backgroundColor = resLeanTint }
+            }
         }
         return s
     }
@@ -1623,6 +1728,8 @@ struct StructureView: View {
 struct LanguageView: View {
     let result: AnalysisResult
     let player: Player
+    var lean: TextMetrics.Repeated? = nil
+    var onLean: (TextMetrics.Repeated?) -> Void = { _ in }
 
     private var speaking: Bool { result.skill == "speaking" }
 
@@ -1698,13 +1805,18 @@ struct LanguageView: View {
                 if repeated.isEmpty {
                     Text("No content word stood out as overused.").font(.footnote).foregroundStyle(.muted)
                 } else {
-                    FlowLayout(spacing: 6, lineSpacing: 6) {
-                        ForEach(Array(repeated.enumerated()), id: \.offset) { _, r in Chip(text: "\(r.word) ×\(r.count)", color: .muted) }
-                    }
+                    leanChips(repeated, hint: "Select a word to highlight every use in your transcript.")
                 }
             }
         }
         .card()
+    }
+
+    @ViewBuilder private func leanChips(_ rows: [TextMetrics.Repeated], hint: String) -> some View {
+        Text(hint).font(.footnote).foregroundStyle(.muted)
+        FlowLayout(spacing: 6, lineSpacing: 0) {
+            ForEach(rows, id: \.word) { r in ResLeanChip(r: r, on: lean?.word == r.word) { onLean(lean?.word == r.word ? nil : r) } }
+        }
     }
 
     @ViewBuilder private var relevance: some View {
@@ -1832,9 +1944,7 @@ struct LanguageView: View {
         if let m = result.textMetrics, !m.linkers.isEmpty { linking(m) }
         if let m = result.textMetrics, !m.repeated.isEmpty {
             SectionTitle("Repeated words")
-            FlowLayout(spacing: 6, lineSpacing: 6) {
-                ForEach(m.repeated, id: \.word) { w in Chip(text: "\(w.word) ×\(w.count)", color: .muted) }
-            }
+            leanChips(m.repeated, hint: "Select a word to highlight every use in your essay.")
         }
         if !upgrades.isEmpty { vocabulary }
     }

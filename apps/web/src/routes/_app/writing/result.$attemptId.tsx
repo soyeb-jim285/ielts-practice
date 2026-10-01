@@ -1,4 +1,4 @@
-import { writingOverall } from '@ielts/core';
+import { writingOverall, type RepeatedWord } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
@@ -126,6 +126,7 @@ function ResultPage() {
 
 function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: AnalysisResult; offTopic: boolean; under: boolean; tab: Tab; setTab: (t: Tab) => void; target: number }) {
   const text = r.text ?? a.text ?? '';
+  const [lean, setLean] = useState<RepeatedWord | null>(null);
   const ta = a.part === 1 ? 'Task Achievement' : 'Task Response';
   // One alert for everything wrong with the essay itself; it lives in Overview so the band breakdown is the first thing on the page.
   const alert = r.tooShort ? (
@@ -195,7 +196,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
         )}
         {tab === 'essay' &&
           (text.trim() ? (
-            <EssayHighlights text={text} errors={r.errors} />
+            <EssayHighlights text={text} errors={r.errors} lean={lean} onClear={() => setLean(null)} />
           ) : (
             <EmptyState icon={<FileText />} title="No essay text">
               Nothing was written for this task.
@@ -209,7 +210,7 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
               The answer was too short to map its paragraphs.
             </EmptyState>
           ))}
-        {tab === 'language' && <LanguagePanel r={r} />}
+        {tab === 'language' && <LanguagePanel r={r} lean={lean} onLean={(w) => (setLean(w), w && text.trim() && setTab('essay'))} />}
         {tab === 'improve' && <Improve a={a} r={r} text={text} />}
       </div>
     </div>

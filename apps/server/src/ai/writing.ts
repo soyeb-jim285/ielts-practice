@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { computeTextMetrics, countWords, MIN_WORDS, promptOverlap, roundBand, taskBand, textFlags, type TextFlag } from '@ielts/core';
+import { repeatedLabel, computeTextMetrics, countWords, MIN_WORDS, promptOverlap, roundBand, taskBand, textFlags, type TextFlag } from '@ielts/core';
 import type { Settings } from '../settings';
 import { asCalibration, calibrationFor, calibrationKey, type Calibration } from './calibration';
 import { bandDescriptor, EXAMINER_RULES, fmt, WRITING_DESCRIPTORS } from './descriptors';
@@ -294,7 +294,7 @@ export async function feedbackWriting(i: WritingInput, figure: Figure) {
       sentences: textMetrics.sentences,
       avgSentenceLen: Math.round(textMetrics.avgSentenceLen),
       overusedLinkers: textMetrics.linkers.filter((l) => l.overused).map((l) => `${l.word} ×${l.count}`),
-      repeatedWords: textMetrics.repeated.map((r) => `${r.word} ×${r.count}`),
+      repeatedWords: textMetrics.repeated.map(repeatedLabel),
     },
     plan,
   });

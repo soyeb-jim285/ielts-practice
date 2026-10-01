@@ -60,6 +60,21 @@ class ResultLogicTest {
         assertEquals(5.0, mtld(listOf("a", "b", "c", "d", "e")))
     }
 
+    @Test fun stemmerGroupsFormsWithoutFalseMerges() {
+        fun same(vararg w: String) = assertEquals(1, w.map(::stem).toSet().size, w.joinToString())
+        same("work", "works", "working", "worked")
+        same("studies", "study", "studied", "studying")
+        same("use", "used", "uses", "using")
+        same("change", "changes", "changing", "changed")
+        same("people", "people's")
+        assertTrue(stem("news") != stem("new"))
+        for (w in listOf("is", "as", "class", "focus", "this", "analysis", "need", "thing")) assertEquals(w, stem(w))
+        // 150 words: 3 uses of any form flag; 350 words need 7.
+        val filler = (1..147).map { "q" + (it / 26).toString().map { c -> 'a' + (c - '0') } .joinToString("") + ('a' + it % 26) + "z" }
+        assertEquals(listOf("work", "works", "working"), repeatedWords(listOf("work", "works", "working") + filler).single().forms)
+        assertTrue(repeatedWords(List(6) { "studies" } + (1..344).map { "p" + it.toString().map { c -> 'a' + (c - '0') }.joinToString("") + "z" }).isEmpty())
+    }
+
     @Test fun offTopicWritingIsCappedOneBandAboveTaskResponse() {
         val r = attempt("aw1").analysis!!
         val plain = resScore(r)

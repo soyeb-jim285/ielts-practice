@@ -290,7 +290,8 @@ struct SpeechMetrics: Decodable {
 
 struct TextMetrics: Decodable {
     struct Linker: Decodable { let word: String; let count: Int; let overused: Bool }
-    struct Repeated: Decodable { let word: String; let count: Int }
+    /// `forms` (every surface form grouped under `word`) is absent on analyses stored before grouping existed.
+    struct Repeated: Decodable, Equatable { let word: String; let count: Int; var forms: [String]? = nil }
     let words: Int
     let sentences: Int
     let paragraphs: Int

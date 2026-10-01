@@ -1,6 +1,7 @@
 // Neutral anchored scorer prompt (docs/scoring-research.md §2.2, §2.3, §7.2): identical for every model, no per-model nudges.
 // Every rule is from the official descriptors / key assessment criteria, or symmetric procedure. Per-model bias is corrected by
 // the calibration record (calibration.ts), which is keyed on promptHash(): any edit here invalidates the fitted records.
+import { repeatedLabel, type RepeatedWord } from '@ielts/core';
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -142,7 +143,7 @@ export function scorerUser(i: {
   min: number;
   words: number;
   copied: number;
-  metrics: { paragraphs: number; sentences: number; avgSentenceLen: number; linkers: { word: string; count: number; overused: boolean }[]; repeated: { word: string; count: number }[] };
+  metrics: { paragraphs: number; sentences: number; avgSentenceLen: number; linkers: { word: string; count: number; overused: boolean }[]; repeated: RepeatedWord[] };
   essay: string;
 }) {
   const { title, body, bullets, chart } = i.prompt;
@@ -160,7 +161,7 @@ export function scorerUser(i: {
     SENTENCES: i.metrics.sentences,
     AVG: Math.round(i.metrics.avgSentenceLen),
     LINKERS: list(i.metrics.linkers.filter((l) => l.overused).map((l) => `${l.word} ×${l.count}`)),
-    REPEATED: list(i.metrics.repeated.map((r) => `${r.word} ×${r.count}`)),
+    REPEATED: list(i.metrics.repeated.map(repeatedLabel)),
     CRITERIA: i.keys.map((k) => fill(CRITERION_TEMPLATE, { ID: k, NAME: NAME(k, i.family), LADDER: fmt(ladder(k, i.family)) })).join('\n'),
     BELOW_4,
     ESSAY: i.essay,

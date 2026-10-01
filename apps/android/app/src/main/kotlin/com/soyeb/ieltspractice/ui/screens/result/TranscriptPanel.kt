@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.sp
 import com.soyeb.ieltspractice.core.AnalysisError
 import com.soyeb.ieltspractice.core.AnalysisResult
 import com.soyeb.ieltspractice.core.DisfluencyKinds
+import com.soyeb.ieltspractice.core.Repeated
+import com.soyeb.ieltspractice.core.formMatcher
 import com.soyeb.ieltspractice.core.MarkerType
 import com.soyeb.ieltspractice.core.Pause
 import com.soyeb.ieltspractice.core.Timeline
@@ -142,11 +144,13 @@ private class TrModel(r: AnalysisResult, timeline: Timeline) {
 }
 
 @Composable
-fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Timeline, focus: String?, onSelect: (AnalysisError) -> Unit) {
+fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Timeline, focus: String?, lean: Repeated? = null, onSelect: (AnalysisError) -> Unit) {
     val e = MaterialTheme.ext
     val model = remember(result, timeline) { TrModel(result, timeline) }
     var filter by remember { mutableStateOf(TrFilter.All) }
     var markDetail by remember { mutableStateOf<String?>(null) }
+    val leaned = remember(lean) { lean?.let(::formMatcher) }
+    val firstLean = remember(lean, model) { leaned?.let { m -> model.tokens.indexOfFirst { m(it.word.w) } } ?: -1 }
     val colors = MarkerType.entries.map { it to it.color() }.toMap()
     // Index of the word playing now (-1 for none). Derived, so the 10 Hz clock only recomposes the two words that change.
     val now = remember(player, model) {
@@ -179,7 +183,7 @@ fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Time
                     }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (i in s.range) WordView(model.tokens[i], filter, now, focusWord, colors, player, onSelect) { d -> markDetail = if (markDetail == d) null else d }
+                    for (i in s.range) WordView(model.tokens[i], filter, now, focusWord, colors, player, leaned, i == firstLean, onSelect) { d -> markDetail = if (markDetail == d) null else d }
                 }
             }
         }
@@ -272,6 +276,7 @@ private fun Underlined(text: String, dashes: FloatArray?, color: Color, modifier
 @Composable
 private fun WordView(
     t: TrToken, filter: TrFilter, now: State<Int>, focusWord: Int?, colors: Map<MarkerType, Color>, player: ResultPlayer,
+    leaned: ((String) -> Boolean)?, scrollToLean: Boolean,
     onSelect: (AnalysisError) -> Unit, onMark: (String) -> Unit,
 ) {
     val e = MaterialTheme.ext
@@ -291,12 +296,12 @@ private fun WordView(
         TrFilter.Fluency -> t.filler || t.marks.isNotEmpty() || t.errors.any { group(it) == TrFilter.Fluency }
         TrFilter.Grammar, TrFilter.Vocab -> t.errors.any { group(it) == filter }
     }
-    val background = if (isNow) e.brandSoft else if (sentence) e.warn.copy(alpha = 0.14f) else Color.Transparent
+    val background = if (isNow) e.brandSoft else if (leaned?.invoke(t.word.w) == true) leanTint() else if (sentence) e.warn.copy(alpha = 0.14f) else Color.Transparent
     val shape = RoundedCornerShape(4.dp)
     var bring: Modifier = Modifier
-    if (picked) {
+    if (picked || scrollToLean) {
         val r = remember { BringIntoViewRequester() }
-        LaunchedEffect(focusWord) { r.bringIntoView() }
+        LaunchedEffect(focusWord, leaned) { r.bringIntoView() }
         bring = Modifier.bringIntoViewRequester(r)
     }
     val dashes = type?.underlineDashes()

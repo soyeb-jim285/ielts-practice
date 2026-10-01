@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PAUSE_MS, roundBand, speakingOverall, tagDisfluencies, UNCLEAR_CONF,
+  cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PAUSE_MS, repeatedLabel, roundBand, speakingOverall, tagDisfluencies, UNCLEAR_CONF,
   type FluencyFeatures, type SpeechMetrics, type Word,
 } from '@ielts/core';
 import type { Settings } from '../settings';
@@ -105,7 +105,7 @@ function metricsSummary(m: SpeechMetrics, words: Word[], f: FluencyFeatures, fus
     disfluencies: { filledPauses: n('filled'), filledPausesPerMin: r1(f.filledPausesPerMin), repetitions: n('repetition'), repairs: n('repair') + n('false_start'), repairsPer100Words: r1(f.repairsPer100w), cutOffWords: n('partial'), heldSounds: n('prolongation') },
     wpmStdDev: Math.round(m.wpmStdDev),
     longPauseBeforeWord: m.pauses.filter((p) => p.kind === 'long').map((p) => ({ word: nextWord(p.end), s: r1(p.dur), midClause: p.midClause })),
-    lexical: m.lexical && { ...m.lexical, overused: m.lexical.overused.map((o) => `${o.word} ×${o.count}`) },
+    lexical: m.lexical && { ...m.lexical, overused: m.lexical.overused.map(repeatedLabel) },
   };
 }
 

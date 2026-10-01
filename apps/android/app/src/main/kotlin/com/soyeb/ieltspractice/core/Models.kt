@@ -207,7 +207,8 @@ import kotlinx.serialization.json.doubleOrNull
 )
 
 @Serializable data class Linker(val word: String, val count: Int, val overused: Boolean)
-@Serializable data class Repeated(val word: String, val count: Int)
+/** `forms`: every surface form grouped under `word`; absent on analyses stored before grouping existed. */
+@Serializable data class Repeated(val word: String, val count: Int, val forms: List<String>? = null)
 @Serializable data class TextMetrics(
     val words: Int,
     val sentences: Int,

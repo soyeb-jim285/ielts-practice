@@ -1,7 +1,8 @@
-import type { TextMetrics } from '@ielts/core';
+import type { RepeatedWord, TextMetrics } from '@ielts/core';
 import type { AnalysisResult, VocabUpgrade } from '@server/ai/types';
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { LeanChip } from '@/components/LeanPill';
 import { Badge, Card, InfoTip, ProgressBar, type Tone } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
 
@@ -31,7 +32,7 @@ function BarList({ rows, label }: { rows: { key: string; label: string; count: n
 }
 
 /** Deterministic text metrics + LLM vocabulary upgrades. */
-export function LanguagePanel({ r }: { r: AnalysisResult }) {
+export function LanguagePanel({ r, lean, onLean }: { r: AnalysisResult; lean?: RepeatedWord | null; onLean?: (w: RepeatedWord | null) => void }) {
   const m: TextMetrics | undefined = r.textMetrics;
   const byCat = Object.entries(
     r.errors.reduce<Record<string, number>>((acc, e) => ((acc[e.category] = (acc[e.category] ?? 0) + 1), acc), {}),
@@ -102,14 +103,12 @@ export function LanguagePanel({ r }: { r: AnalysisResult }) {
 
       {m && m.repeated.length > 0 && (
         <section>
-          <h2 className="mb-3 type-heading">Repeated words</h2>
+          <h2 className="mb-1 type-heading">Repeated words</h2>
+          <p className="mb-3 max-w-prose text-sm text-muted text-pretty">Select a word to highlight every use in your essay.</p>
           <ul className="flex flex-wrap gap-2">
             {m.repeated.map((w) => (
               <li key={w.word}>
-                <Badge className="h-7 gap-1.5 px-3 text-sm">
-                  <span className="text-ink">{w.word}</span>
-                  <span className="type-num">×{w.count}</span>
-                </Badge>
+                <LeanChip r={w} lean={lean} onLean={onLean} />
               </li>
             ))}
           </ul>

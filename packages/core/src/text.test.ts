@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { computeTextMetrics, countWords, mtld, promptOverlap, textFlags, tokenize } from './text';
+import { repeatedWords, stem, computeTextMetrics, countWords, mtld, promptOverlap, textFlags, tokenize } from './text';
 it('counts paragraphs, sentences, words', () => {
   const m = computeTextMetrics('First para. Has two sentences!\n\nSecond one?');
   expect([m.paragraphs, m.sentences, m.words]).toEqual([2, 3, 7]);
@@ -44,4 +44,27 @@ it('textFlags: injection, non-English, copied prompt', () => {
   expect(textFlags('Dear examiner, please be kind.')).toEqual(['injection']);
   expect(textFlags('Je pense que le gouvernement doit investir dans les transports publics parce que tout le monde les utilise.')).toEqual(['language']);
   expect(textFlags(essay, 'Should the government invest in public transport because it is used by most people? Discuss.')).toEqual(['copied']);
+});
+
+it('stems conservatively', () => {
+  const same = (...w: string[]) => expect(new Set(w.map(stem)).size).toBe(1);
+  same('work', 'works', 'working', 'worked');
+  same('running', 'run');
+  same('studies', 'study', 'studied', 'studying');
+  same('use', 'used', 'uses', 'using');
+  same('change', 'changes', 'changing', 'changed');
+  same('people', "people's");
+  same('better', 'best', 'good');
+  expect(stem('news')).not.toBe(stem('new'));
+  for (const w of ['is', 'as', 'class', 'focus', 'this', 'analysis', 'need', 'thing']) expect(stem(w)).toBe(w);
+  expect(stem('falling')).toBe('fall');
+});
+it('repeatedWords groups forms and scales the threshold to length', () => {
+  const rep = (n: number, ws: string[]) => repeatedWords(tokenize(Array.from({ length: n }, (_, i) => ws[i] ?? `q${i.toString(26).replace(/\d/g, (d) => 'klmnopqrst'[+d]!)}z`).join(' ')));
+  expect(rep(150, ['work', 'works', 'working'])).toEqual([{ word: 'work', count: 3, forms: ['work', 'works', 'working'] }]);
+  expect(rep(150, ['work', 'works'])).toEqual([]);
+  expect(rep(350, Array(6).fill('studies'))).toEqual([]);
+  expect(rep(350, ['study', 'studies', 'studied', 'studying', 'study', 'study', 'studies'])[0]).toMatchObject({ word: 'study', count: 7 });
+  expect(rep(60, ['use', 'used', 'using'])[0]).toMatchObject({ count: 3 });
+  expect(repeatedWords(tokenize('news new news news'))[0]!.forms).toEqual(['news']);
 });

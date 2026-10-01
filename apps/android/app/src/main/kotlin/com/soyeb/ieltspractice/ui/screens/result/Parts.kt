@@ -65,6 +65,7 @@ import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.core.AnalysisError
 import com.soyeb.ieltspractice.core.DiffOp
 import com.soyeb.ieltspractice.core.Fix
+import com.soyeb.ieltspractice.core.Repeated
 import com.soyeb.ieltspractice.core.VocabUpgrade
 import com.soyeb.ieltspractice.core.categoryLabel
 import com.soyeb.ieltspractice.core.errorTitle
@@ -381,3 +382,42 @@ fun RowsCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 
 @Composable
 fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = MaterialTheme.ext.line)
+
+/** Neutral tint for "every use of the word you leaned on": distinct from the error underlines and the teal "playing now". */
+@Composable
+fun leanTint(): Color = MaterialTheme.ext.ink.copy(alpha = 0.15f)
+
+/** A "Words you leaned on" chip: a toggle that highlights every use of the word in the transcript or essay. */
+@Composable
+fun LeanChip(r: Repeated, on: Boolean, onClick: () -> Unit) {
+    val e = MaterialTheme.ext
+    val forms = r.forms?.takeIf { it.size > 1 }?.joinToString(", ")
+    Surface(
+        onClick, Modifier.minimumInteractiveComponentSize().semantics {
+            this.selected = on
+            contentDescription = "${r.word}, used ${r.count} times" + (forms?.let { ", as $it" } ?: "") + if (on) ". Clears the highlight" else ". Highlights every use in the text"
+        },
+        shape = CircleShape, color = if (on) leanTint() else e.surface2, contentColor = if (on) e.ink else e.muted,
+        border = if (on) BorderStroke(1.dp, e.ink.copy(alpha = 0.4f)) else null,
+    ) {
+        Text("${r.word} ×${r.count}", Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** "Highlighting: work ×6" above the text, with a clear button. */
+@Composable
+fun LeanPill(lean: Repeated, onClear: () -> Unit) {
+    val e = MaterialTheme.ext
+    Row(
+        Modifier.clip(CircleShape).background(leanTint().copy(alpha = 0.1f)).padding(start = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            buildAnnotatedString { append("Highlighting: "); withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(lean.word) }; append(" ×${lean.count}") },
+            style = MaterialTheme.typography.bodyMedium, color = e.ink,
+        )
+        Box(Modifier.size(48.dp).clickable(role = Role.Button, onClickLabel = "Clear highlight", onClick = onClear), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Close, null, Modifier.size(18.dp), tint = e.muted)
+        }
+    }
+}

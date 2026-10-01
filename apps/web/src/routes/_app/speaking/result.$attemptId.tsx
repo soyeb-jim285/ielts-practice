@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import type { RepeatedWord } from '@ielts/core';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -43,6 +44,7 @@ function ResultPage() {
   const { data: a } = useQuery(attemptQuery(attemptId));
   const { data: me } = useMe();
   const audio = useAudio();
+  const [lean, setLean] = useState<RepeatedWord | null>(null);
   const timeline = useMemo(() => (a?.analysis?.words ? timelineMarkers(a.analysis) : undefined), [a?.analysis]);
   const warm = a?.status === 'analyzing' || (a?.status === 'done' && !!a.analysis?.metrics);
   useEffect(() => {
@@ -120,6 +122,11 @@ function ResultPage() {
   }
 
   const setTab = (t: Tab) => void navigate({ search: (s) => ({ ...s, tab: t === 'overview' ? undefined : t }), replace: true, resetScroll: false });
+  // Picking a word on Language jumps to the transcript with every use highlighted.
+  const onLean = (w: RepeatedWord | null) => {
+    setLean(w);
+    if (w) setTab('transcript');
+  };
   const parentLink = r.comparison && (
     <Link to="/speaking/result/$attemptId" params={{ attemptId: r.comparison.parentAttemptId }} className={buttonStyles({ variant: 'link', className: 'hit' })}>
       See last try
@@ -162,13 +169,13 @@ function ResultPage() {
         )}
       </StickyTabs>
       <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1} className="pt-5 pb-8">
-        <Panel tab={tab} a={a} timeline={timeline} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} />
+        <Panel tab={tab} a={a} timeline={timeline} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} lean={lean} onLean={onLean} />
       </div>
     </PageContainer>
   );
 }
 
-function Panel({ tab, a, timeline, target, audio, retry, parentLink, off }: { tab: Tab; a: Attempt; timeline?: Timeline; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
+function Panel({ tab, a, timeline, target, audio, retry, parentLink, off, lean, onLean }: { lean: RepeatedWord | null; onLean: (w: RepeatedWord | null) => void; tab: Tab; a: Attempt; timeline?: Timeline; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
   const r = a.analysis!;
   switch (tab) {
     case 'overview':
@@ -191,7 +198,7 @@ function Panel({ tab, a, timeline, target, audio, retry, parentLink, off }: { ta
         />
       );
     case 'transcript':
-      return <Transcript result={r} audio={audio} />;
+      return <Transcript result={r} audio={audio} lean={lean} onClear={() => onLean(null)} />;
     case 'fluency':
       return r.metrics && timeline ? (
         <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
@@ -199,7 +206,7 @@ function Panel({ tab, a, timeline, target, audio, retry, parentLink, off }: { ta
         </Suspense>
       ) : null;
     case 'language':
-      return <LanguagePanel result={r} audio={audio} />;
+      return <LanguagePanel result={r} audio={audio} lean={lean} onLean={onLean} />;
     case 'improve':
       return <ImprovePanel result={r} retry={retry} />;
   }
