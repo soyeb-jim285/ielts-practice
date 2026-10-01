@@ -182,7 +182,7 @@ fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Time
                         if (s.rest.isNotEmpty()) Text(s.rest, style = MaterialTheme.typography.bodySmall, color = e.muted)
                     }
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
                     for (i in s.range) WordView(model.tokens[i], filter, now, focusWord, colors, player, leaned, i == firstLean, onSelect) { d -> markDetail = if (markDetail == d) null else d }
                 }
             }
@@ -205,7 +205,7 @@ private fun playAction(player: ResultPlayer, e: AnalysisError): (() -> Unit)? {
 }
 
 /** Small tag text (no overline tracking). */
-private val chipText @Composable get() = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp)
+private val chipText @Composable get() = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp, lineHeight = 14.sp)
 
 // MARK: Legend
 
@@ -341,7 +341,7 @@ private fun MarkChip(m: TrMark, filter: TrFilter, onMark: (String) -> Unit, play
         shape = CircleShape, color = e.surface2,
         border = BorderStroke(1.5.dp, if (filter == TrFilter.Fluency) e.muted else Color.Transparent),
     ) {
-        Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.padding(horizontal = 6.dp, vertical = 1.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             MarkerGlyph(MarkerType.Fluency, 7.dp)
             Text(m.short, style = chipText, color = e.muted)
         }
@@ -359,7 +359,7 @@ private fun PauseChip(p: Pause, filter: TrFilter, player: ResultPlayer) {
             .then(if (filter == TrFilter.Pauses) Modifier.border(1.dp, color, CircleShape) else Modifier)
             .clickable(role = Role.Button) { player.seek(max(0.0, p.start - 0.3)) }
             .semantics { contentDescription = "${if (long) "Long pause" else "Pause"}, ${pauseSec(p)} seconds" }
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 6.dp, vertical = 1.dp),
         style = chipText.copy(fontFeatureSettings = "tnum"), color = color,
     )
 }

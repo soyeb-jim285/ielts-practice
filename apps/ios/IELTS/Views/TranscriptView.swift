@@ -264,7 +264,7 @@ struct TranscriptView: View {
                 }
                 .accessibilityAddTraits(.isHeader)
             }
-            FlowLayout(spacing: 4, lineSpacing: 10) {
+            FlowLayout(spacing: 4, lineSpacing: 4) {
                 ForEach(model.tokens[s.range]) { wordView($0) }
             }
         }
@@ -297,7 +297,7 @@ struct TranscriptView: View {
         let leaned = lean.map { resFormMatcher($0)(t.word.w) } ?? false
         let background: Color = isNow ? Color.brandSoft : leaned ? resLeanTint : sentence ? Color.warn.opacity(0.14) : Color.clear
         let dim = !(filter == .all || matches(t))
-        return HStack(alignment: .firstTextBaseline, spacing: 2) {
+        return HStack(alignment: .center, spacing: 2) {
             ForEach(Array(t.marks.enumerated()), id: \.offset) { _, m in markChip(m) }
             Text(t.word.w)
                 .font(.system(.body, design: .serif))

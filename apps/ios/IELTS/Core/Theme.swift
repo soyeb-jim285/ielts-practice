@@ -165,26 +165,34 @@ struct FlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let r = arrange(bounds.width, subviews)
         for (i, p) in r.points.enumerated() {
-            subviews[i].place(at: CGPoint(x: bounds.minX + p.x, y: bounds.minY + p.y), proposal: .unspecified)
+            // Centre each item on its line so inline chips sit level with the words.
+            let h = subviews[i].sizeThatFits(.unspecified).height
+            subviews[i].place(at: CGPoint(x: bounds.minX + p.x, y: bounds.minY + p.y + (r.lineHeights[i] - h) / 2), proposal: .unspecified)
         }
     }
 
-    private func arrange(_ maxWidth: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], width: CGFloat, height: CGFloat) {
+    private func arrange(_ maxWidth: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], lineHeights: [CGFloat], width: CGFloat, height: CGFloat) {
         var points: [CGPoint] = []
+        var lines: [[Int]] = [[]], heights: [CGFloat] = [0]
         var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, width: CGFloat = 0
-        for s in subviews {
+        for (i, s) in subviews.enumerated() {
             let size = s.sizeThatFits(.unspecified)
             if x > 0 && x + size.width > maxWidth {
                 x = 0
                 y += rowHeight + lineSpacing
                 rowHeight = 0
+                lines.append([]); heights.append(0)
             }
+            lines[lines.count - 1].append(i)
+            heights[heights.count - 1] = max(heights[heights.count - 1], size.height)
             points.append(CGPoint(x: x, y: y))
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
             width = max(width, x - spacing)
         }
-        return (points, width, y + rowHeight)
+        var lineHeights = [CGFloat](repeating: 0, count: points.count)
+        for (l, idx) in lines.enumerated() { for i in idx { lineHeights[i] = heights[l] } }
+        return (points, lineHeights, width, y + rowHeight)
     }
 }
 
