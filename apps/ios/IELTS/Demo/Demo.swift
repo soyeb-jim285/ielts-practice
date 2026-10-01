@@ -10,9 +10,11 @@ enum Demo {
         return args[i + 1]
     }
     static var screen: String? { on ? arg("screen") : nil }
+    /// Signed-out states: `login`, and every `guest-*` screen (guest-home, guest-speaking, guest-writing, guest-review, guest-settings, guest-session, guest-signin-sheet).
+    static var isGuest: Bool { screen == "login" || screen?.hasPrefix("guest") == true }
 
     /// `-screen` → which tab opens, and what is pushed onto the Home stack.
-    static var initialTab: Int { ["speaking": 1, "writing": 2, "review": 3, "settings": 4][screen ?? ""] ?? 0 }
+    static var initialTab: Int { ["speaking": 1, "writing": 2, "review": 3, "settings": 4, "guest-speaking": 1, "guest-writing": 2, "guest-review": 3, "guest-settings": 4][screen ?? ""] ?? 0 }
     @MainActor static var initialPath: [Route] {
         switch screen {
         case "bank": [.bank(skill: "speaking")]
@@ -24,7 +26,7 @@ enum Demo {
         case "result-analysing": [.result(["as3"])]
         case "result-failed": [.result(["as4"])]
         case "result-nospeech": [.result(["as5"])]
-        case "session": [.speaking(.part(2))]
+        case "session", "guest-session": [.speaking(.part(2))]
         case "session-p1": [.speaking(.part(1))]
         case "editor": [.writing(.task2)]
         case "editor-t1": [.writing(.task1(variant: "academic"))]

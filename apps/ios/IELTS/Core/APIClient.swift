@@ -43,7 +43,7 @@ final class APIClient {
 
     init() {
         baseURL = Demo.on ? "https://demo.ielts.local" : Self.server
-        token = Demo.on ? (Demo.screen == "login" || Demo.screen == "guest" ? nil : "demo") : Keychain.get()
+        token = Demo.on ? (Demo.isGuest ? nil : "demo") : Keychain.get()
     }
 
     // MARK: Requests

@@ -112,7 +112,7 @@ struct MainTabs: View {
             }
         }
         .sheet(item: Binding(get: { api.signInRequest }, set: { api.signInRequest = $0 })) { LoginView(reason: $0.reason, signUp: $0.signUp) }
-        .onAppear { if Demo.screen == "login" { api.requestSignIn("Sign in to start a speaking test.") } }
+        .onAppear { if Demo.screen == "login" || Demo.screen == "guest-signin-sheet" { api.requestSignIn("Sign in to start a speaking test.") } }
     }
 
     private var tabs: some View {

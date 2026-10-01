@@ -16,7 +16,7 @@ adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi s
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false > /dev/null
 
 # screen[:tab]
-SCREENS="login guest home speaking speaking-pending writing review settings bank history mistakes
+SCREENS="login guest-home guest-speaking guest-writing guest-review guest-settings guest-signin-sheet home speaking speaking-pending writing review settings bank history mistakes
   session-p1 session session-prep session-recording session-saving editor editor-t1 editor-full live
   result-speaking:Overview result-speaking:Transcript result-speaking:Fluency result-speaking:Language result-speaking:Improve
   result-writing:Overview result-writing:Essay result-writing:Structure result-writing:Language result-writing:Improve

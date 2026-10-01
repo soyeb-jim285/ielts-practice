@@ -15,7 +15,13 @@ data class ScreenSpec(val name: String, val start: Any = HomeTab, val variants: 
 val screenCatalog: List<ScreenSpec> = listOf(
     // Shell area. Sub-screens of login: Signup, Verify (emailed code), Forgot (email), Reset (code + new password). A "+end" suffix opens scrolled to the bottom.
     ScreenSpec("login", Login, listOf("SignIn", "Signup", "Verify", "Forgot", "Reset")),
-    ScreenSpec("guest", HomeTab, listOf("Top", "Lower+end")),
+    // Signed-out states (names match the iOS `-screen` values).
+    ScreenSpec("guest-home", HomeTab, listOf("Top", "Lower+end")),
+    ScreenSpec("guest-speaking", SpeakingTab),
+    ScreenSpec("guest-writing", WritingTab),
+    ScreenSpec("guest-review", ReviewTab),
+    ScreenSpec("guest-settings", SettingsTab),
+    ScreenSpec("guest-signin-sheet", Login),
     ScreenSpec("home", HomeTab, listOf("Top", "Lower+end")),
     ScreenSpec("speaking", SpeakingTab),
     ScreenSpec("writing", WritingTab),
