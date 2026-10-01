@@ -22,6 +22,8 @@ WORKDIR /app
 COPY --from=build /app/apps/server apps/server
 COPY --from=build /repo/apps/web/dist apps/web/dist
 COPY scripts/seed-bank.ts scripts/
+# The script uses top-level await: mark it ESM (the repo root package.json, which says so, isn't in the image).
+RUN echo '{"type":"module"}' > scripts/package.json
 COPY data/bank data/bank
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENV NODE_ENV=production PORT=8787 WEB_DIST=/app/apps/web/dist MIGRATIONS_DIR=/app/apps/server/drizzle
