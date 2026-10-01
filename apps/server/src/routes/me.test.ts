@@ -15,7 +15,8 @@ it('returns user, settings and access flags', async () => {
   expect(me.user).toMatchObject({ id: user.id, email: user.email });
   expect(me.settings).toEqual(DEFAULT_SETTINGS);
   expect(me.cambridgeAccess).toBe(false);
-  expect(typeof me.realtimeAvailable).toBe('boolean');
+  expect(typeof me.gptLiveAvailable).toBe('boolean');
+  expect(me.realtimeAvailable).toBe(me.gptLiveAvailable); // deprecated alias
   expect(typeof me.geminiLiveAvailable).toBe('boolean');
 });
 

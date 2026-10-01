@@ -10,6 +10,8 @@ import { setFetch } from '../ai/openrouter';
 import type { LiveState } from '../ai/examiner';
 import { storage } from '../storage';
 import { clearSpeechCache } from './live';
+import { endRun, setUpstream } from '../ai/gpt-live';
+import { fakeSocket } from '../test/fakeSocket';
 
 let ai: ReturnType<typeof fakeFetch>;
 let analyzed: string[];
@@ -98,30 +100,62 @@ it('p1 end gives the cue card with 60 s prep, then the scripted long-turn start'
   expect(talk).toMatchObject({ phase: 'p2-talk', examinerText: expect.stringContaining('Can you start speaking now, please?') });
 });
 
-it('realtime-token: 400 without a key, else mints a client secret', async () => {
-  const { headers } = await testUser();
+it('gpt-live/session: 400 without a key, else creates the WebRTC session with the server-owned config and attaches a sideband', async () => {
+  const { headers, user } = await testUser();
   const s = await start(headers);
-  expect((await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(400);
+  const body = { sessionId: s.sessionId, sdp: 'v=0 offer' };
+  expect((await req('/api/live/gpt-live/session', { headers, body })).status).toBe(400);
 
   env.OPENAI_API_KEY = 'sk-test';
-  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_123', expires_at: 1756310470 }) });
+  const openai = fakeFetch({ '/v1/live/sessions': () => json({ session: { id: 'live_123' }, transport: { type: 'webrtc', sdp: 'v=0 answer' } }, 201) });
   const real = globalThis.fetch;
   globalThis.fetch = openai;
+  const attached: string[] = [];
+  setUpstream((url) => (attached.push(url), fakeSocket()));
   try {
-    const r = await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId } });
-    expect(await r.json()).toEqual({ value: 'ek_123', expiresAt: 1756310470, model: 'gpt-realtime-2.1' });
+    const r = await req('/api/live/gpt-live/session', { headers, body });
+    expect(await r.json()).toEqual({ sdp: 'v=0 answer', sessionId: 'live_123' });
+    expect((await req('/api/live/gpt-live/session', { headers, body: { ...body, sessionId: 'nope' } })).status).toBe(404);
+  } finally {
+    globalThis.fetch = real;
+    await endRun(s.sessionId, user.id);
+  }
+  const sent = openai.calls[0]!.body;
+  expect(sent.transport).toEqual({ type: 'webrtc', sdp: 'v=0 offer' });
+  expect(sent.session).toMatchObject({ model: 'gpt-live-1', audio: { output: { voice: 'vesper' } } });
+  expect(sent.session.delegation).toBeUndefined();
+  expect(sent.session.instructions).toContain('Never delegate');
+  expect(sent.session.instructions).not.toContain('Describe a book you enjoyed'); // topics arrive with the cues
+  expect(attached).toEqual(['wss://api.openai.com/v1/live/sessions/live_123/attach']);
+});
+
+it('gpt-live/cue: the server sends the instruction through the sideband, else hands the text back', async () => {
+  const { headers, user } = await testUser();
+  const s = await start(headers);
+  const cue = (cue: string) => req('/api/live/gpt-live/cue', { headers, body: { sessionId: s.sessionId, cue } });
+  const before = (await (await cue('part2')).json()) as any;
+  expect(before.sent).toBe(false);
+  expect(before.content).toContain('Describe a book you enjoyed');
+
+  env.OPENAI_API_KEY = 'sk-test';
+  const sock = fakeSocket();
+  setUpstream(() => sock);
+  const real = globalThis.fetch;
+  globalThis.fetch = fakeFetch({ '/v1/live/sessions': () => json({ session: { id: 'live_1' }, transport: { sdp: 'a' } }, 201) });
+  try {
+    await req('/api/live/gpt-live/session', { headers, body: { sessionId: s.sessionId, sdp: 'o' } });
+    sock.emit('open');
+    expect(((await (await cue('part2')).json()) as any).sent).toBe(true);
+    expect(sock.sent.map((m) => JSON.parse(m))).toEqual([expect.objectContaining({ type: 'session.instructions.append', delegation_id: null, content: before.content })]);
+    expect((await cue('nope')).status).toBe(400);
+    // transcripts from the sideband are saved when the run ends (also by /finish)
+    sock.emit('message', JSON.stringify({ type: 'session.output_transcript.delta', delta: 'Thank you.' }));
   } finally {
     globalThis.fetch = real;
   }
-  const sent = openai.calls[0]!.body;
-  expect(sent).toMatchObject({ expires_after: { anchor: 'created_at', seconds: 120 } });
-  expect(sent.session).toMatchObject({
-    type: 'realtime',
-    model: 'gpt-realtime-2.1',
-    reasoning: { effort: 'low' },
-    audio: { input: { turn_detection: { type: 'semantic_vad', eagerness: 'low' } }, output: { voice: 'marin' } },
-  });
-  expect(sent.session.instructions).toContain('Describe a book you enjoyed');
+  await endRun(s.sessionId, user.id);
+  const st = await state(s.sessionId);
+  expect(st.history.map((h) => [h.role, h.phase, h.text])).toEqual([['examiner', 'p2-prep', 'Thank you.']]);
 });
 
 it('gemini-token: 400 without a key, else mints a locked ephemeral token', async () => {

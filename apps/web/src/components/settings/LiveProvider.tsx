@@ -8,7 +8,7 @@ export type Provider = Settings['liveProvider'];
 /** The names Settings and the pre-test screen both use. */
 export const PROVIDER_LABEL: Record<Provider, string> = {
   turn: 'Examiner waits for you to finish',
-  'openai-realtime': 'Natural conversation (OpenAI)',
+  'gpt-live': 'Natural conversation (GPT-Live)',
   'gemini-live': 'Natural conversation (Gemini)',
 };
 
@@ -17,7 +17,7 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
   const natural = 'Talk back and forth as in the real test. You can interrupt each other.';
   const options = [
     { value: 'turn' as const, description: 'The examiner asks a question, then listens until you pause.' },
-    { value: 'openai-realtime' as const, description: available['openai-realtime'] ? natural : 'Not available right now.', disabled: !available['openai-realtime'] },
+    { value: 'gpt-live' as const, description: available['gpt-live'] ? natural : 'Not available right now.', disabled: !available['gpt-live'] },
     { value: 'gemini-live' as const, description: available['gemini-live'] ? natural : 'Not available right now.', disabled: !available['gemini-live'] },
   ];
   return (

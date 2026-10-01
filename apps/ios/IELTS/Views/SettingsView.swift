@@ -116,7 +116,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var settingsSections: some View {
         let b = binding
-        let realtimeOK = api.me?.realtimeAvailable == true
+        let gptLiveOK = api.me?.gptLiveAvailable == true
         let geminiOK = api.me?.geminiLiveAvailable == true
         let natural = "Talk back and forth as in the real test. You can interrupt each other."
         Section {
@@ -157,9 +157,9 @@ struct SettingsView: View {
             providerRow("turn", "Examiner waits for you to finish", "The examiner asks a question, then listens until you pause.", current: b.wrappedValue.liveProvider) {
                 s?.liveProvider = "turn"
             }
-            providerRow("openai-realtime", "Natural conversation (OpenAI)", realtimeOK ? natural : "Not available right now.",
-                        current: b.wrappedValue.liveProvider, enabled: realtimeOK) {
-                s?.liveProvider = "openai-realtime"
+            providerRow("gpt-live", "Natural conversation (GPT-Live)", gptLiveOK ? natural : "Not available right now.",
+                        current: b.wrappedValue.liveProvider, enabled: gptLiveOK) {
+                s?.liveProvider = "gpt-live"
             }
             providerRow("gemini-live", "Natural conversation (Gemini)", geminiOK ? natural : "Not available right now.",
                         current: b.wrappedValue.liveProvider, enabled: geminiOK) {

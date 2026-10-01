@@ -3,8 +3,8 @@ import Observation
 import SwiftUI
 
 /// Live examiner session. Turn-based: server drives phases via /api/live/turn (examiner TTS ↔ candidate turns ended by VAD).
-/// Realtime: OpenAI Realtime or Gemini Live over WebSocket with client-timed part changes. All record one m4a per part → /api/live/finish.
-enum Examiner { case turn, openai, gemini }
+/// Duplex: GPT-Live (through our WebSocket relay) or Gemini Live, with client-timed part changes. All record one m4a per part → /api/live/finish.
+enum Examiner { case turn, gptLive, gemini }
 
 @MainActor @Observable
 final class LiveExam {
@@ -26,7 +26,7 @@ final class LiveExam {
     var micChecking = false
     var micHeard = false // enough speech-level input during the mic check to say "we can hear you"
     var micError: String?
-    var fellBack = false // the Realtime provider couldn't connect, so the turn-based examiner runs instead
+    var fellBack = false // the duplex provider couldn't connect, so the turn-based examiner runs instead
     var testStarted = Date()
 
     @ObservationIgnored private let api: APIClient
@@ -44,9 +44,10 @@ final class LiveExam {
     @ObservationIgnored private var micLoudSeconds = 0.0
     @ObservationIgnored private var vadOn = false // turn-based turns end on silence; the Part 2 long turn never does
     @ObservationIgnored private var talkTimeUp = false
-    @ObservationIgnored private var answeredFlag = false // the candidate finished an answer (Realtime)
-    @ObservationIgnored private var heardFlag = false // Gemini: the candidate spoke since the last cue or answer
-    @ObservationIgnored private var freshTurn = true // Gemini: the next examiner output starts a new turn
+    @ObservationIgnored private var answeredFlag = false // the candidate finished an answer (duplex)
+    @ObservationIgnored private var heardFlag = false // duplex: the candidate spoke since the last cue or answer
+    @ObservationIgnored private var lastOut = Date.distantPast // GPT-Live has no turn boundaries: a 2.5 s gap in the examiner's output starts a new turn
+    @ObservationIgnored private var freshTurn = true // duplex: the next examiner output starts a new turn
 
     init(api: APIClient) { self.api = api }
 
@@ -229,7 +230,7 @@ final class LiveExam {
         }
     }
 
-    // MARK: Realtime (OpenAI Realtime, Gemini Live)
+    // MARK: Duplex (GPT-Live, Gemini Live)
 
     private func runDuplex(_ kind: Examiner) async {
         do {
@@ -255,19 +256,19 @@ final class LiveExam {
             setPhase("p2-prep")
             cueCard = card
             sock.hear(false, fresh: false)
-            cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.")
+            cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.", key: "part2")
             try await Task.sleep(for: .seconds(8))
             await countdown(60)
             try Task.checkCancellation()
 
             setPhase("p2-talk")
             sock.hear(false, fresh: true)
-            cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.")
+            cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.", key: "talk")
             let timeUp = await waitTalk(125)
 
             setPhase("p2-follow")
             cue(timeUp ? "The two minutes are up. Say \"Thank you. That's the end of your time.\" and ask the rounding-off question."
-                       : "The candidate has finished their talk. Say \"Thank you.\" and ask the rounding-off question.", heard: true)
+                       : "The candidate has finished their talk. Say \"Thank you.\" and ask the rounding-off question.", key: timeUp ? "follow-timeup" : "follow", heard: true)
             sock.hear(true, fresh: false)
             try await waitAnswered(45)
 
@@ -275,7 +276,7 @@ final class LiveExam {
             try await Task.sleep(for: .seconds(270))
 
             setPhase("closing")
-            cue("The test is over. Say the closing line now and nothing more.")
+            cue("The test is over. Say the closing line now and nothing more.", key: "closing")
             try await Task.sleep(for: .seconds(8))
         } catch {
             if !ending && !(error is CancellationError) { stage = .failed(error.localizedDescription); return }
@@ -297,20 +298,20 @@ final class LiveExam {
                 sock.close()
                 throw error
             }
-            sock.cue("Begin the test.", heard: false) // the examiner opens with the introduction
+            sock.cue("Begin the test.", key: "begin", heard: false) // the examiner opens with the introduction
             return sock
         }
-        let token: RealtimeToken = try await api.send("POST", "/api/live/realtime-token", ["sessionId": sessionId])
-        let sock = RealtimeSocket()
-        sock.onEvent = { [weak self] type, event in self?.handle(type, event) }
-        sock.onClose = { [weak self] err in
-            guard err != nil else { return }
-            Task { @MainActor in self?.connectionLost() }
-        }
-        audio.setPCMRate(24000)
+        let sock = GPTLiveSocket()
+        sock.onEvent = { [weak self] ev in self?.handleGPTLive(ev) }
+        sock.onLost = { [weak self] in Task { @MainActor in self?.connectionLost() } }
+        audio.setPCMRate(GPTLive.rate)
         audio.onPCM16 = { [weak sock] pcm in sock?.appendAudio(pcm) }
-        sock.connect(ephemeralKey: token.value, model: token.model ?? "gpt-realtime-2.1")
-        sock.send(["type": "response.create"]) // the examiner opens with the introduction
+        do {
+            try await sock.connect(base: api.baseURL, token: api.token ?? "", sessionId: sessionId) // sends the "begin" cue once session.started arrives
+        } catch {
+            sock.close()
+            throw error
+        }
         return sock
     }
 
@@ -319,11 +320,11 @@ final class LiveExam {
     }
 
     /// Cuts the examiner off locally (the provider interrupts its own generation) and gives it an instruction.
-    private func cue(_ text: String, heard: Bool = false) {
+    private func cue(_ text: String, key: String, heard: Bool = false) {
         audio.stopPlayback()
         heardFlag = false
         freshTurn = true
-        socket?.cue(text, heard: heard)
+        socket?.cue(text, key: key, heard: heard)
     }
 
     /// The Part 2 long turn: ends at the time limit or on "I'm done", never on a pause. True if the time ran out.
@@ -345,25 +346,32 @@ final class LiveExam {
         while !answeredFlag && Date() < end { try await Task.sleep(for: .milliseconds(250)) }
     }
 
-    nonisolated private func handle(_ type: String, _ event: [String: Any]) {
-        switch type {
-        case "response.output_audio.delta", "response.audio.delta":
-            if let b64 = event["delta"] as? String, let d = Data(base64Encoded: b64) {
-                Task { @MainActor in self.audio.playPCM16(d) }
+    /// GPT-Live (through the relay): audio and captions stream without turn boundaries; the examiner's words after the candidate spoke are the reply to an answer.
+    nonisolated private func handleGPTLive(_ ev: GPTLive.Event) {
+        Task { @MainActor in
+            switch ev {
+            case let .audio(d):
+                self.gptLiveOutput()
+                self.audio.playPCM16(d)
+            case let .outText(t):
+                self.gptLiveOutput()
+                self.caption += t
+            case .inText:
+                self.heardFlag = true
+            case .error:
+                // ponytail: the provider's detail is for the server logs, not the candidate.
+                self.caption = "The examiner had trouble responding. Wait a moment, or end the test to score what you have recorded."
+            case .closed:
+                self.connectionLost()
+            case .started: break
             }
-        case "response.created":
-            Task { @MainActor in self.caption = "" }
-        case "response.output_audio_transcript.delta", "response.audio_transcript.delta":
-            if let t = event["delta"] as? String { Task { @MainActor in self.caption += t } }
-        case "input_audio_buffer.speech_stopped":
-            Task { @MainActor in self.answeredFlag = true }
-        case "error":
-            // Cancelling when nothing is playing is expected. ponytail: the provider's detail is for logs, not the candidate.
-            let msg = ((event["error"] as? [String: Any])?["message"] as? String) ?? ""
-            if msg.range(of: "cancel|no active response|empty", options: [.regularExpression, .caseInsensitive]) != nil { break }
-            Task { @MainActor in self.caption = "The examiner had trouble responding. Wait a moment, or end the test to score what you have recorded." }
-        default: break
         }
+    }
+
+    private func gptLiveOutput() {
+        if Date().timeIntervalSince(lastOut) > 2.5 { freshTurn = true }
+        lastOut = Date()
+        examinerTurn()
     }
 
     /// Gemini Live: examiner audio and captions arrive per turn; a new turn after the candidate spoke is the examiner replying to an answer.
@@ -371,10 +379,10 @@ final class LiveExam {
         Task { @MainActor in
             switch ev {
             case let .audio(d):
-                self.geminiTurn()
+                self.examinerTurn()
                 self.audio.playPCM16(d)
             case let .outText(t):
-                self.geminiTurn()
+                self.examinerTurn()
                 self.caption += t
             case .inText:
                 self.heardFlag = true
@@ -388,7 +396,7 @@ final class LiveExam {
         }
     }
 
-    private func geminiTurn() {
+    private func examinerTurn() {
         guard freshTurn else { return }
         freshTurn = false
         caption = ""
@@ -440,9 +448,9 @@ struct LiveExamView: View {
     ]
 
     private var provider: String { api.me?.settings.liveProvider ?? "turn" }
-    /// The examiner that runs: the chosen Realtime provider when the server offers it, else turn-based.
+    /// The examiner that runs: the chosen duplex provider when the server offers it, else turn-based.
     private var examiner: Examiner {
-        if provider == "openai-realtime", api.me?.realtimeAvailable == true { return .openai }
+        if provider == "gpt-live", api.me?.gptLiveAvailable == true { return .gptLive }
         if provider == "gemini-live", api.me?.geminiLiveAvailable == true { return .gemini }
         return .turn
     }
@@ -450,7 +458,7 @@ struct LiveExamView: View {
     private var styleLabel: String {
         switch examiner {
         case .turn: return "Examiner waits for you to finish"
-        case .openai: return "Natural conversation (OpenAI)"
+        case .gptLive: return "Natural conversation (GPT-Live)"
         case .gemini: return "Natural conversation (Gemini)"
         }
     }

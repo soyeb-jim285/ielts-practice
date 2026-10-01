@@ -5,12 +5,12 @@ import { PreScreen } from '@/components/live/PreScreen';
 import { toast } from '@/components/ui';
 import { useMe } from '@/lib/query';
 import { useGeminiExaminer } from '@/live/gemini';
-import { useRealtimeExaminer } from '@/live/realtime';
+import { useGptLiveExaminer } from '@/live/gptLive';
 import { useTurnExaminer, type LiveExaminer } from '@/live/turn';
 
 export const Route = createFileRoute('/_app/speaking/live')({ staticData: { exam: true }, component: LivePage });
 
-type Style = 'turn' | 'openai-realtime' | 'gemini-live';
+type Style = 'turn' | 'gpt-live' | 'gemini-live';
 type Run = { style: Style; fallback: boolean; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable: () => void };
 
 function LivePage() {
@@ -27,19 +27,19 @@ function LivePage() {
     [navigate],
   );
   const wanted = me?.settings.liveProvider ?? 'turn';
-  const offered = wanted === 'openai-realtime' ? !!me?.realtimeAvailable : wanted === 'gemini-live' ? !!me?.geminiLiveAvailable : false;
+  const offered = wanted === 'gpt-live' ? !!me?.gptLiveAvailable : wanted === 'gemini-live' ? !!me?.geminiLiveAvailable : false;
   const style: Style = offered && !failed ? wanted : 'turn';
   const run = { style, fallback: wanted !== 'turn' && style === 'turn', onFinished, onUnavailable: () => setFailed(true) };
   // Separate components so each provider's hook is always called unconditionally.
-  return style === 'openai-realtime' ? <RealtimeLive {...run} /> : style === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
+  return style === 'gpt-live' ? <GptLive {...run} /> : style === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
 }
 
 function TurnLive(p: Run) {
   return <Live ex={useTurnExaminer(p.onFinished)} {...p} />;
 }
 
-function RealtimeLive(p: Run) {
-  return <Live ex={useRealtimeExaminer(p.onFinished, p.onUnavailable)} {...p} />;
+function GptLive(p: Run) {
+  return <Live ex={useGptLiveExaminer(p.onFinished, p.onUnavailable)} {...p} />;
 }
 
 function GeminiLive(p: Run) {

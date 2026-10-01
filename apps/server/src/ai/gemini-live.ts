@@ -17,7 +17,7 @@ export function geminiSetup(model: string, t: SpeakingTest): Json {
       responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } },
     },
-    systemInstruction: { parts: [{ text: realtimeInstructions(t, 'gemini-live') }] },
+    systemInstruction: { parts: [{ text: realtimeInstructions(t) }] },
     realtimeInputConfig: {
       // Low sensitivity + ~1 s of silence: candidates pause to think, and the examiner must not jump in. Barge-in stays on.
       automaticActivityDetection: { startOfSpeechSensitivity: 'START_SENSITIVITY_LOW', endOfSpeechSensitivity: 'END_SENSITIVITY_LOW', prefixPaddingMs: 100, silenceDurationMs: 1000 },

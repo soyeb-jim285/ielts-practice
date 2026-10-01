@@ -9,7 +9,7 @@ const REFILL_MS = 20_000;
 // ponytail: per-process memory; move to Postgres/Redis if the server ever runs more than one instance.
 const buckets = new Map<string, { t: number; at: number }>();
 
-/** Per-user token bucket for routes that spend AI credit (STT/LLM/TTS/Realtime). Use after requireUser. */
+/** Per-user token bucket for routes that spend AI credit (STT/LLM/TTS/live sessions). Use after requireUser. */
 export const aiLimit = createMiddleware<AppEnv>(async (c, next) => {
   const id = currentUser(c).id;
   const now = Date.now();

@@ -96,7 +96,7 @@ await api.get<T>('/prompts?skill=writing');     // path is relative to /api ('/a
 // Both throw ApiError { status, message } on non-2xx (message = server `{error}`).
 
 import { queryClient, meQuery, useMe } from '@/lib/query';
-const { data: me } = useMe();                     // user + settings + cambridgeAccess + realtimeAvailable + geminiLiveAvailable
+const { data: me } = useMe();                     // user + settings + cambridgeAccess + gptLiveAvailable + geminiLiveAvailable
 // After changing settings: queryClient.invalidateQueries({ queryKey: ['me'] })
 // Query defaults: staleTime 30s, no refetch on focus, no retry on 4xx.
 

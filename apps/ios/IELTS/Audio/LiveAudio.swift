@@ -1,7 +1,7 @@
 import AVFoundation
 
 /// Live-mode audio on one AVAudioEngine: mic level, per-turn and per-part m4a files, a PCM16 mono stream
-/// for the Realtime providers (24 kHz for OpenAI, 16 kHz for Gemini Live), and PCM16 24 kHz playback of the examiner's voice.
+/// for the duplex providers (24 kHz for GPT-Live, 16 kHz for Gemini Live), and PCM16 24 kHz playback of the examiner's voice.
 /// ponytail: half-duplex — the mic is ignored while the examiner speaks (no echo cancellation, no barge-in).
 /// Enable inputNode voice processing if barge-in is ever needed.
 final class LiveAudio {
@@ -9,7 +9,7 @@ final class LiveAudio {
 
     /// Called on the audio thread with (level 0…1, seconds covered).
     var onLevel: ((Double, Double) -> Void)?
-    /// Called on the audio thread with PCM16 mono little-endian audio at the rate set by setPCMRate (Realtime input).
+    /// Called on the audio thread with PCM16 mono little-endian audio at the rate set by setPCMRate (duplex input).
     var onPCM16: ((Data) -> Void)?
 
     private let engine = AVAudioEngine()
@@ -47,7 +47,7 @@ final class LiveAudio {
         running = true
     }
 
-    /// Sample rate of the PCM16 stream passed to onPCM16: 24 kHz (default, OpenAI Realtime) or 16 kHz (Gemini Live). Safe while running.
+    /// Sample rate of the PCM16 stream passed to onPCM16: 24 kHz (default, GPT-Live) or 16 kHz (Gemini Live). Safe while running.
     func setPCMRate(_ rate: Double) {
         guard let fmt = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: rate, channels: 1, interleaved: true) else { return }
         let input = engine.inputNode.outputFormat(forBus: 0)

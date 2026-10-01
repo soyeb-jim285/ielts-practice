@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import { createApp } from './app';
 import { env } from './env';
 import { recoverStale } from './jobs';
+import { attachLiveRelay } from './routes/live-ws';
 
 const app = createApp();
+const injectWebSocket = attachLiveRelay(app); // native GPT-Live relay; before the SPA catch-all below
 
 if (existsSync(env.WEB_DIST)) {
   const indexHtml = readFileSync(join(env.WEB_DIST, 'index.html'), 'utf8');
@@ -25,4 +27,5 @@ if (existsSync(env.WEB_DIST)) {
 const sweep = () => recoverStale().catch((e) => console.error('recoverStale failed', e));
 await sweep();
 setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become stale 10 min after submit
-serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
+const server = serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
+injectWebSocket(server);

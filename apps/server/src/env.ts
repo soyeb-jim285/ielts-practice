@@ -16,9 +16,10 @@ const Env = z.object({
   OPENROUTER_API_KEY: secret('test-openrouter'),
   // Optional: ElevenLabs Scribe v2 speech-to-text (spec §5.2). Unset: Whisper via OpenRouter is the default stt.
   ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
-  // Optional: live examiner over OpenAI Realtime (client secrets minted server-side) and Gemini Live (ephemeral tokens). Unset: that option is hidden.
+  // Optional: live examiner over OpenAI GPT-Live (sessions created server-side with this key) and Gemini Live (ephemeral tokens). Unset: that option is hidden.
   OPENAI_API_KEY: z.string().optional().transform((v) => v || undefined),
-  OPENAI_REALTIME_MODEL: z.string().default('gpt-realtime-2.1'), // gpt-realtime-2.1-mini is ~3x cheaper
+  OPENAI_LIVE_MODEL: z.string().default('gpt-live-1'), // $0.05/min, billed per second
+  OPENAI_LIVE_VOICE: z.string().default('vesper'), // British, natural, masculine
   GEMINI_API_KEY: z.string().optional().transform((v) => v || undefined),
   GEMINI_LIVE_MODEL: z.string().default('gemini-3.8-live'),
   // Optional outside production: without them, dev falls back to local-disk storage (storage.ts).

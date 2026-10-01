@@ -1,4 +1,4 @@
-// Live examiner: the test script, pure phase-timing rules and the prompts for the turn-based and Realtime examiners.
+// Live examiner: the test script, pure phase-timing rules and the prompts for the turn-based, Gemini Live and GPT-Live examiners.
 import type { SpeakingTest } from '../routes/prompts';
 
 export type Phase = 'intro' | 'p1' | 'p2-prep' | 'p2-talk' | 'p2-follow' | 'p3' | 'closing' | 'done';
@@ -34,12 +34,12 @@ export const LINES = {
 export const p1Questions = (t: SpeakingTest) =>
   t.part1.flatMap((p) => (p.followUps?.length ? p.followUps : [p.body]).map((q) => ({ topic: p.topic, q }))).slice(0, P1_MAX_QUESTIONS);
 /** The questions a live part's recording was marked against: the examiner's lines in that part (one client mark each).
- *  Realtime sessions keep no server history, so Part 1 falls back to the scripted list; null = use the prompt's questions. */
+ *  Duplex sessions without a server transcript, so Part 1 falls back to the scripted list; null = use the prompt's questions. */
 export function liveQuestions(s: LiveState, part: 1 | 3): string[] | null {
   const lines = s.history.filter((h) => h.role === 'examiner' && h.phase === (part === 1 ? 'p1' : 'p3')).map((h) => h.text);
   return lines.length ? lines : part === 1 ? p1Questions(s.test).map((x) => x.q) : null;
 }
-const p3Questions = (t: SpeakingTest) => (t.part3.followUps?.length ? t.part3.followUps : [t.part3.body]);
+export const p3Questions = (t: SpeakingTest) => (t.part3.followUps?.length ? t.part3.followUps : [t.part3.body]);
 const answered = (s: LiveState, phase: Phase) => s.history.some((h) => h.role === 'candidate' && h.phase === phase);
 
 export function newState(sessionId: string, test: SpeakingTest, now: number): LiveState {
@@ -77,7 +77,7 @@ export function nextPhase(s: LiveState, now: number): Phase {
   }
 }
 
-const cueCard = (t: SpeakingTest) =>
+export const cueCard = (t: SpeakingTest) =>
   [t.part2.title, t.part2.body].filter((x, i, all) => x && all.indexOf(x) === i).join('\n') + (t.part2.bullets?.length ? `\nYou should say:\n${t.part2.bullets.map((b) => `- ${b}`).join('\n')}` : '');
 
 /** Fixed examiner wording for the scripted moments (s.phase is the new phase), or null when the LLM should speak. */
@@ -133,7 +133,7 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
   };
 }
 
-const PERSONA = `You are a certified IELTS Speaking examiner conducting a real, face-to-face IELTS Speaking test in the official three-part format (11-14 minutes).
+export const PERSONA = `You are a certified IELTS Speaking examiner conducting a real, face-to-face IELTS Speaking test in the official three-part format (11-14 minutes).
 Manner: friendly but neutral, calm and professional, exactly like a real examiner. Speak natural British English at a normal conversational pace: do not slow down, over-articulate or simplify your language. Short, clear sentences. Neutral acknowledgements only ("Thank you.", "All right.", "OK.").
 Never give feedback, praise, corrections, scores, band estimates, hints, tips or opinions during the test. Never comment on how well the candidate speaks or on what they said, never summarise or repeat their answers back, never teach, and never say things like "Great", "Good answer", "Interesting", "Excellent" or "Well done".
 If the candidate asks you to repeat a question, repeat it once in the same words. If they ask what a word means, in Parts 1 and 2 simply repeat the question; in Part 3 you may rephrase it. If they ask for feedback, their score or help, politely say you can't discuss that during the test and carry on. If they go off-topic, politely steer them back to the question.
@@ -149,23 +149,17 @@ Current stage: ${d.stage}.
 Your next line: ${d.say}`;
 };
 
-export type LiveProviderId = 'openai-realtime' | 'gemini-live';
 /** Every app cue sent to Gemini starts with this: it has no mid-session system role, so cues travel as user text and the instructions say how to treat them. */
 export const CUE_PREFIX = '[APP CUE] ';
 
-/** Instructions for a Realtime session (OpenAI or Gemini Live) that runs the whole test. The client times the parts and nudges the model with cues. */
-export function realtimeInstructions(t: SpeakingTest, provider: LiveProviderId = 'openai-realtime'): string {
-  const gemini = provider === 'gemini-live';
+/** Instructions for a Gemini Live session that runs the whole test. The client times the parts and nudges the model with cues. */
+export function realtimeInstructions(t: SpeakingTest): string {
   const p1 = t.part1.map((p) => `Topic "${p.topic}":\n${(p.followUps?.length ? p.followUps : [p.body]).map((q) => `- ${q}`).join('\n')}`).join('\n');
   const q = t.part2.followUps?.[0];
   const rounding = q ? `ask exactly this rounding-off question: "${q}"` : 'ask one short, simple rounding-off question linked to the topic (for example "Do you often …?")';
   return `${PERSONA}
 Ask one question at a time, then stop and listen. Keep every turn brief: a sentence or two plus the question. Never ask two questions at once. Give the candidate time to think; do not fill pauses.
-${
-  gemini
-    ? `Messages that begin with "${CUE_PREFIX.trim()}" come from the test application, not from the candidate. Follow them immediately, even in the middle of a sentence, and never read them aloud, answer them or mention them. You only start speaking when you receive the first cue, "${CUE_PREFIX}Begin the test."`
-    : 'System messages from the app tell you when to move to the next part; always follow them immediately, even mid-part.'
-}
+Messages that begin with "${CUE_PREFIX.trim()}" come from the test application, not from the candidate. Follow them immediately, even in the middle of a sentence, and never read them aloud, answer them or mention them. You only start speaking when you receive the first cue, "${CUE_PREFIX}Begin the test."
 The app keeps the time: Parts 1 and 3 each last about 4-5 minutes, and you never move on to the next part until you are told to.
 
 Follow this script exactly:
@@ -174,8 +168,57 @@ Follow this script exactly:
 ${p1}
 3. Part 2 (long turn): when told to move to Part 2, say "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
-Then stay completely silent for the one-minute preparation${gemini ? ', whatever you hear' : ''}. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks${gemini ? ': you cannot hear them during the long turn' : ''}. When told the candidate has finished, say "Thank you." and ${rounding}${gemini ? '' : ', linked to what you heard in their talk when that is natural'}. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
+Then stay completely silent for the one-minute preparation, whatever you hear. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks: you cannot hear them during the long turn. When told the candidate has finished, say "Thank you." and ${rounding}. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
 4. Part 3 (two-way discussion): say "We've been talking about ${t.part2.title.replace(/^describe\s+/i, '')}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these questions in order, one at a time. The questions are more abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up before the next question, for example "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?". Aim for five or six exchanges in all:
 ${p3Questions(t).map((x) => `- ${x}`).join('\n')}
 5. When told the test is over, say "${LINES.closing}" and nothing more.`;
+}
+
+// ---- GPT-Live (OpenAI): a short conversation prompt, with the per-part detail pushed by session.instructions.append at each transition.
+// Each append must stay under 500 tokens (OpenAI limit). Docs: developers.openai.com/api/docs/guides/live-prompting, live-conversations.
+
+/** The script moments a client can ask for. The server owns the wording: clients only name the cue. */
+export const GPT_LIVE_CUES = ['begin', 'part2', 'talk', 'follow', 'follow-timeup', 'closing'] as const;
+export type GptLiveCue = (typeof GPT_LIVE_CUES)[number];
+/** The phase a cue starts (transcript turns are tagged with it, and /finish marks Part 1 and 3 against the examiner's lines in it). */
+export const CUE_PHASE: Record<GptLiveCue, Phase> = { begin: 'intro', part2: 'p2-prep', talk: 'p2-talk', follow: 'p2-follow', 'follow-timeup': 'p2-follow', closing: 'closing' };
+
+/** Session instructions for GPT-Live: persona, rules and the three policies from the live prompting guide. No topics yet: those arrive with each cue. */
+export const gptLiveInstructions = (): string => `${PERSONA}
+
+You are in a live voice conversation, so keep every turn to one or two short sentences plus the question.
+Backchannel policy: none. Do not say "mm-hmm", "right", "I see", "great" or "interesting" while the candidate talks. Say nothing until they have finished, apart from "Thank you." or "All right." between questions.
+Interruption policy: if the candidate speaks while you are talking, stop at once and listen. If they did not answer, ask the question again once, in the same words. Coughs, noise and thinking pauses are not answers: keep waiting.
+No guessing: if you did not catch an answer, ask the candidate to say it again. Never invent words they did not say.
+You have no tools, no backend and nothing to look up. Never delegate, never say you will check something.
+The app sends you instructions for each part of the test as the test goes on. Follow the latest one at once, even mid-sentence, and never read them aloud or mention them. Until the first one arrives, say nothing.`;
+
+/** The instruction for one script moment (see GPT_LIVE_CUES). */
+export function gptLiveCue(cue: GptLiveCue, t: SpeakingTest): string {
+  const topic = t.part2.title.replace(/^describe\s+/i, '');
+  switch (cue) {
+    case 'begin': {
+      const p1 = t.part1.map((p) => `"${p.topic}": ${(p.followUps?.length ? p.followUps : [p.body]).join(' | ')}`).join('\n');
+      return `Begin the test now. Say exactly: "${LINES.intro}" Then listen to the name.
+Then Part 1. Say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." For each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and ask its questions in this order, one at a time. Expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Do not move to Part 2 until told.
+${p1}`;
+    }
+    case 'part2':
+      return `Part 1 is over. Finish or drop your current question and do not ask another. Now Part 2. Say exactly: "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
+${cueCard(t)}
+Then stay completely silent during their one-minute preparation, whatever you hear. Speak again only when told.`;
+    case 'talk':
+      return `Preparation is over. Say exactly: "${LINES.talk}" Then say nothing at all while the candidate gives their long turn, up to two minutes: no "mm", no encouragement, no questions, even when they pause. Speak again only when told.`;
+    case 'follow':
+    case 'follow-timeup': {
+      const q = t.part2.followUps?.[0];
+      const lead = cue === 'follow-timeup' ? `Thank you. That's the end of your time.` : 'Thank you.';
+      const rounding = q ? `exactly this rounding-off question: "${q}"` : 'one short, simple rounding-off question linked to what they said (for example "Do you often …?")';
+      const qs = p3Questions(t);
+      return `The long turn is over. Say "${lead}" and ask ${rounding}. Listen to the short answer, then start Part 3: say "We've been talking about ${topic}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.topic}." and ask these questions in order, one at a time. They are abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up first ("Why do you think that is?", "Can you give me an example?"). About five or six exchanges in all:
+${qs.map((x) => `- ${x}`).join('\n')}`;
+    }
+    case 'closing':
+      return `The test is over. Stop whatever you are saying. Say exactly: "${LINES.closing}" and nothing more.`;
+  }
 }

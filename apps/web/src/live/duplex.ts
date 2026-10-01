@@ -1,4 +1,4 @@
-// Live examiner over a duplex voice model (OpenAI Realtime or Gemini Live). The model runs the script; client timers drive the part changes
+// Live examiner over a duplex voice model (OpenAI GPT-Live or Gemini Live). The model runs the script; client timers drive the part changes
 // with cues, and local per-part recordings go to /live/finish like the turn-based examiner. A Duplex is the provider-specific transport.
 import type { Prompt } from '@server/routes/prompts';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +8,8 @@ import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveStarted, t
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
 const CUE_TIMEOUT_MS = 45_000; // a cue whose examiner line never starts or ends must not stall the test
+
+export type CueKey = 'part2' | 'talk' | 'follow' | 'follow-timeup' | 'closing';
 
 /** What a transport reports back. */
 export type Handlers = {
@@ -24,9 +26,9 @@ export type Handlers = {
 export type Duplex = {
   /** Opens the mic and the connection and starts the test (the examiner opens with the introduction). Rejects if it can't connect. */
   connect(h: Handlers, sessionId: string): Promise<void>;
-  /** Interrupt the examiner and give it an instruction. `heard`: it should take in the candidate's audio since the last listen(false, true). */
-  cue(text: string, heard?: boolean): void;
-  /** false: the examiner must stay silent (preparation, long turn); `fresh` marks where the long turn starts. */
+  /** Interrupt the examiner and give it an instruction. `key` names the script moment (GPT-Live: the server owns the wording and ignores `text`). */
+  cue(text: string, heard?: boolean, key?: CueKey): void;
+  /** false: the examiner must not hear the candidate (preparation); `fresh` marks where the long turn starts (Gemini stops streaming, GPT-Live hears it and stays silent by instruction). */
   listen(on: boolean, fresh?: boolean): void;
   close(): void;
 };
@@ -68,10 +70,10 @@ export function useDuplexExaminer(
     c.wait = null;
     c.after();
   };
-  const cue = (text: string, after?: () => void, heard = false) => {
+  const cue = (key: CueKey, text: string, after?: () => void, heard = false) => {
     const c = r.current;
     clearTimeout(c.waitTimer);
-    c.x?.cue(text, heard);
+    c.x?.cue(text, heard, key);
     c.wait = after ? 'cued' : null;
     c.after = after ?? (() => {});
     if (after) c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
@@ -117,18 +119,19 @@ export function useDuplexExaminer(
         await parts.stop();
         setCueCard(c.cueCard);
         c.x?.listen(false);
-        cue('Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.', prep.start);
+        cue('part2', 'Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.', prep.start);
         break;
       case 'p2-talk':
         prep.stop();
         void parts.start(2);
         c.x?.listen(false, true);
-        cue('The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.', talk.start);
+        cue('talk', 'The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.', talk.start);
         break;
       case 'p2-follow':
         talk.stop();
         await parts.stop();
         cue(
+          timeUp ? 'follow-timeup' : 'follow',
           timeUp
             ? `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`
             : 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
@@ -143,7 +146,7 @@ export function useDuplexExaminer(
         break;
       case 'closing':
         await parts.stop();
-        cue('The test is over. Say the closing line now and nothing more.', () => void finish());
+        cue('closing', 'The test is over. Say the closing line now and nothing more.', () => void finish());
         break;
     }
   }

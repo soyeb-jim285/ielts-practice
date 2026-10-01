@@ -58,6 +58,7 @@ it('directions use the real test wording and never ask for feedback', () => {
   expect(direction(at('p3')).fallback).toMatch(/^We've been talking about a book.*Do people read less now\?$/);
   expect(EXAMINER_SYSTEM(at('p1'))).toMatch(/Never give feedback/);
   const rt = realtimeInstructions(test);
+  expect(rt).toContain('Never give feedback');
   expect(rt).toContain("Now, I'm going to give you a topic");
   expect(rt).toContain('c question 4?');
   expect(rt).toContain('- why you liked it');

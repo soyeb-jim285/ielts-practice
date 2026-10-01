@@ -9,7 +9,8 @@ const MeSchema = z
     user: z.object({ id: z.string(), email: z.string(), name: z.string(), emailVerified: z.boolean() }),
     settings: SettingsSchema,
     cambridgeAccess: z.boolean(),
-    realtimeAvailable: z.boolean(),
+    gptLiveAvailable: z.boolean(),
+    realtimeAvailable: z.boolean().openapi({ deprecated: true, description: 'Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)' }),
     geminiLiveAvailable: z.boolean(),
   })
   .openapi('Me');
@@ -32,6 +33,7 @@ export function register(app: App) {
           user,
           settings: await getSettings(user.id),
           cambridgeAccess: isCambridgeAllowed(user),
+          gptLiveAvailable: !!env.OPENAI_API_KEY,
           realtimeAvailable: !!env.OPENAI_API_KEY,
           geminiLiveAvailable: !!env.GEMINI_API_KEY,
         },

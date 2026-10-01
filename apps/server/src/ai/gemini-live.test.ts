@@ -24,7 +24,7 @@ it('setup: locked model, AUDIO, voice, instructions, transcriptions, compression
   expect(s.realtimeInputConfig.automaticActivityDetection).toMatchObject({ endOfSpeechSensitivity: 'END_SENSITIVITY_LOW', silenceDurationMs: 1000 });
   expect(s).toMatchObject({ inputAudioTranscription: {}, outputAudioTranscription: {}, contextWindowCompression: { slidingWindow: {} } });
   expect(s.sessionResumption).toBeUndefined();
-  expect(s.systemInstruction.parts[0].text).toBe(realtimeInstructions(test, 'gemini-live'));
+  expect(s.systemInstruction.parts[0].text).toBe(realtimeInstructions(test));
 });
 
 it('token request: one use, a 20 minute window, mask covers the instructions but not sessionResumption', () => {
@@ -35,18 +35,13 @@ it('token request: one use, a 20 minute window, mask covers the instructions but
   expect(mask.some((m) => m.startsWith('sessionResumption'))).toBe(false);
 });
 
-it('instructions: same script for both providers; cue wording differs; no feedback, Part 3 follow-ups, natural pace', () => {
-  const o = realtimeInstructions(test);
-  const g = realtimeInstructions(test, 'gemini-live');
-  for (const t of [o, g]) {
-    expect(t).toMatch(/Never give feedback/);
-    expect(t).toContain('normal conversational pace');
-    expect(t).toContain('"Why do you think that is?"');
-    expect(t).toContain('Do you read often?');
-    expect(t).toContain("Now, I'm going to give you a topic");
-    expect(t).toContain('stay completely silent for the one-minute preparation');
-  }
-  expect(o).toContain('System messages from the app');
+it('instructions: no feedback, Part 3 follow-ups, natural pace, cue convention', () => {
+  const g = realtimeInstructions(test);
+  expect(g).toMatch(/Never give feedback/);
+  expect(g).toContain('normal conversational pace');
+  expect(g).toContain('"Why do you think that is?"');
+  expect(g).toContain('Do you read often?');
+  expect(g).toContain("Now, I'm going to give you a topic");
+  expect(g).toContain('stay completely silent for the one-minute preparation');
   expect(g).toContain(`"${CUE_PREFIX}Begin the test."`);
-  expect(g).not.toContain('System messages from the app');
 });

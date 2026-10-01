@@ -20,7 +20,8 @@ const PROTECTED: [string, string][] = [
   ['GET', '/api/speaking/test'],
   ['POST', '/api/live/start'],
   ['POST', '/api/live/turn'],
-  ['POST', '/api/live/realtime-token'],
+  ['POST', '/api/live/gpt-live/session'],
+  ['POST', '/api/live/gpt-live/cue'],
   ['POST', '/api/live/finish'],
 ];
 

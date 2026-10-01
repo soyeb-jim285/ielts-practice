@@ -86,7 +86,7 @@
                 "type": "string",
                 "enum": [
                   "turn",
-                  "openai-realtime",
+                  "gpt-live",
                   "gemini-live"
                 ]
               },
@@ -114,8 +114,13 @@
           "cambridgeAccess": {
             "type": "boolean"
           },
-          "realtimeAvailable": {
+          "gptLiveAvailable": {
             "type": "boolean"
+          },
+          "realtimeAvailable": {
+            "type": "boolean",
+            "deprecated": true,
+            "description": "Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)"
           },
           "geminiLiveAvailable": {
             "type": "boolean"
@@ -125,6 +130,7 @@
           "user",
           "settings",
           "cambridgeAccess",
+          "gptLiveAvailable",
           "realtimeAvailable",
           "geminiLiveAvailable"
         ]
@@ -176,7 +182,7 @@
             "type": "string",
             "enum": [
               "turn",
-              "openai-realtime",
+              "gpt-live",
               "gemini-live"
             ]
           },
@@ -240,7 +246,7 @@
             "type": "string",
             "enum": [
               "turn",
-              "openai-realtime",
+              "gpt-live",
               "gemini-live"
             ]
           },
@@ -1159,7 +1165,7 @@
           "skipTts": {
             "type": "boolean",
             "default": false,
-            "description": "Realtime sessions speak for themselves: create the session without examiner TTS (audioUrl null)"
+            "description": "Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)"
           }
         }
       },
@@ -1210,35 +1216,76 @@
           "sessionId"
         ]
       },
-      "RealtimeToken": {
+      "GptLiveSession": {
         "type": "object",
         "properties": {
-          "value": {
+          "sdp": {
             "type": "string"
           },
-          "expiresAt": {
-            "type": "number",
-            "description": "Unix seconds"
-          },
-          "model": {
-            "type": "string"
+          "sessionId": {
+            "type": "string",
+            "description": "OpenAI's live session id"
           }
         },
         "required": [
-          "value",
-          "expiresAt",
-          "model"
+          "sdp",
+          "sessionId"
         ]
       },
-      "LiveRealtimeToken": {
+      "LiveGptSession": {
         "type": "object",
         "properties": {
           "sessionId": {
             "type": "string"
+          },
+          "sdp": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50000,
+            "description": "The browser's SDP offer (data channel \"oai-events\" created before the offer)"
           }
         },
         "required": [
-          "sessionId"
+          "sessionId",
+          "sdp"
+        ]
+      },
+      "GptLiveCueResult": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sent",
+          "content"
+        ]
+      },
+      "LiveGptCue": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "cue": {
+            "type": "string",
+            "enum": [
+              "begin",
+              "part2",
+              "talk",
+              "follow",
+              "follow-timeup",
+              "closing"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "cue"
         ]
       },
       "GeminiToken": {
@@ -2755,7 +2802,7 @@
         }
       }
     },
-    "/api/live/realtime-token": {
+    "/api/live/gpt-live/session": {
       "post": {
         "tags": [
           "Live"
@@ -2765,30 +2812,30 @@
             "bearer": []
           }
         ],
-        "summary": "Ephemeral OpenAI Realtime client secret carrying the examiner instructions for this session",
+        "summary": "GPT-Live over WebRTC: exchanges the browser's SDP offer for the answer. The server creates the session (model, voice and examiner instructions are ours) and attaches a sideband that records the transcript",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LiveRealtimeToken"
+                "$ref": "#/components/schemas/LiveGptSession"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Client secret",
+            "description": "SDP answer",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RealtimeToken"
+                  "$ref": "#/components/schemas/GptLiveSession"
                 }
               }
             }
           },
           "400": {
-            "description": "Realtime not configured",
+            "description": "GPT-Live not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -2819,6 +2866,61 @@
           },
           "502": {
             "description": "OpenAI error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/gpt-live/cue": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Script control for a GPT-Live session: the server appends the instruction for this moment (session.instructions.append) through its sideband. If it could not, `content` is the instruction for the client to append on its data channel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveGptCue"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cue handled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GptLiveCueResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
             "content": {
               "application/json": {
                 "schema": {

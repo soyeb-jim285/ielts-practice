@@ -911,7 +911,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/live/realtime-token": {
+    "/api/live/gpt-live/session": {
         parameters: {
             query?: never;
             header?: never;
@@ -920,7 +920,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Ephemeral OpenAI Realtime client secret carrying the examiner instructions for this session */
+        /** GPT-Live over WebRTC: exchanges the browser's SDP offer for the answer. The server creates the session (model, voice and examiner instructions are ours) and attaches a sideband that records the transcript */
         post: {
             parameters: {
                 query?: never;
@@ -930,20 +930,20 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["LiveRealtimeToken"];
+                    "application/json": components["schemas"]["LiveGptSession"];
                 };
             };
             responses: {
-                /** @description Client secret */
+                /** @description SDP answer */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RealtimeToken"];
+                        "application/json": components["schemas"]["GptLiveSession"];
                     };
                 };
-                /** @description Realtime not configured */
+                /** @description GPT-Live not configured */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -972,6 +972,64 @@ export interface paths {
                 };
                 /** @description OpenAI error */
                 502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/gpt-live/cue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Script control for a GPT-Live session: the server appends the instruction for this moment (session.instructions.append) through its sideband. If it could not, `content` is the instruction for the client to append on its data channel */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveGptCue"];
+                };
+            };
+            responses: {
+                /** @description Cue handled */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GptLiveCueResult"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1456,12 +1514,17 @@ export interface components {
                 };
                 audioPronEnabled: boolean;
                 /** @enum {string} */
-                liveProvider: "turn" | "openai-realtime" | "gemini-live";
+                liveProvider: "turn" | "gpt-live" | "gemini-live";
                 targetBand: number;
                 writingAutoSubmit: boolean;
                 blockPaste: boolean;
             };
             cambridgeAccess: boolean;
+            gptLiveAvailable: boolean;
+            /**
+             * @deprecated
+             * @description Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)
+             */
             realtimeAvailable: boolean;
             geminiLiveAvailable: boolean;
         };
@@ -1476,7 +1539,7 @@ export interface components {
             };
             audioPronEnabled: boolean;
             /** @enum {string} */
-            liveProvider: "turn" | "openai-realtime" | "gemini-live";
+            liveProvider: "turn" | "gpt-live" | "gemini-live";
             targetBand: number;
             writingAutoSubmit: boolean;
             blockPaste: boolean;
@@ -1492,7 +1555,7 @@ export interface components {
             };
             audioPronEnabled?: boolean;
             /** @enum {string} */
-            liveProvider?: "turn" | "openai-realtime" | "gemini-live";
+            liveProvider?: "turn" | "gpt-live" | "gemini-live";
             targetBand?: number;
             writingAutoSubmit?: boolean;
             blockPaste?: boolean;
@@ -1714,7 +1777,7 @@ export interface components {
              */
             source: "generated" | "cambridge" | "any";
             /**
-             * @description Realtime sessions speak for themselves: create the session without examiner TTS (audioUrl null)
+             * @description Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)
              * @default false
              */
             skipTts: boolean;
@@ -1733,14 +1796,24 @@ export interface components {
             audioKey?: string;
             skipped?: boolean;
         };
-        RealtimeToken: {
-            value: string;
-            /** @description Unix seconds */
-            expiresAt: number;
-            model: string;
-        };
-        LiveRealtimeToken: {
+        GptLiveSession: {
+            sdp: string;
+            /** @description OpenAI's live session id */
             sessionId: string;
+        };
+        LiveGptSession: {
+            sessionId: string;
+            /** @description The browser's SDP offer (data channel "oai-events" created before the offer) */
+            sdp: string;
+        };
+        GptLiveCueResult: {
+            sent: boolean;
+            content: string;
+        };
+        LiveGptCue: {
+            sessionId: string;
+            /** @enum {string} */
+            cue: "begin" | "part2" | "talk" | "follow" | "follow-timeup" | "closing";
         };
         GeminiToken: {
             value: string;

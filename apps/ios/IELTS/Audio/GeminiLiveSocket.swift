@@ -107,7 +107,7 @@ final class GeminiLiveSocket: DuplexSocket {
 
     func appendAudio(_ pcm: Data) { if lock.withLock({ ready && hearing }) { send(GeminiLive.audio(pcm)) } }
 
-    func cue(_ text: String, heard: Bool) {
+    func cue(_ text: String, key: String, heard: Bool) {
         if lock.withLock({ ready }) { send(GeminiLive.cue(text)) } else { lock.withLock { queuedCue = text } }
     }
 

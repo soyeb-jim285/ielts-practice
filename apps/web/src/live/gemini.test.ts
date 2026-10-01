@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { GeminiDuplex } from './gemini';
-import { onRealtimeEvent } from './realtime';
 import { toBase64 } from './pcm';
 
 const handlers = () => {
@@ -81,13 +80,4 @@ it('a cue cuts the examiner off and is queued while the socket is down', () => {
   d.cue('Move to Part 2.');
   expect(player.flushed).toBe(1);
   expect(d.queued).toBe('Move to Part 2.');
-});
-
-it('OpenAI events map to the same handlers', () => {
-  const { log, h } = handlers();
-  for (const type of ['response.created', 'output_audio_buffer.started', 'input_audio_buffer.speech_stopped', 'output_audio_buffer.stopped']) onRealtimeEvent({ type }, h);
-  onRealtimeEvent({ type: 'response.output_audio_transcript.delta', delta: 'Hi' }, h);
-  expect(log).toEqual(['caption:=', 'speaking:true', 'answered', 'speaking:false', 'caption:+Hi']);
-  onRealtimeEvent({ type: 'output_audio_buffer.cleared' }, h);
-  expect(log.at(-1)).toBe('speaking:false');
 });

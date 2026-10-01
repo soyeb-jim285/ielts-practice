@@ -19,7 +19,7 @@ struct ModelChoices: Codable, Equatable {
 struct AppSettings: Codable, Equatable {
     var models: ModelChoices
     var audioPronEnabled: Bool
-    var liveProvider: String // "turn" | "openai-realtime" | "gemini-live"
+    var liveProvider: String // "turn" | "gpt-live" | "gemini-live"
     var targetBand: Double
     var writingAutoSubmit: Bool
     var blockPaste: Bool
@@ -31,7 +31,7 @@ struct Me: Codable {
     let user: User
     var settings: AppSettings
     let cambridgeAccess: Bool
-    let realtimeAvailable: Bool
+    let gptLiveAvailable: Bool
     let geminiLiveAvailable: Bool
 }
 
@@ -423,8 +423,6 @@ struct LiveReply: Decodable {
 }
 // openapi: LiveUpload
 struct UploadTarget: Decodable { let key: String; let uploadUrl: String }
-// openapi: RealtimeToken
-struct RealtimeToken: Decodable { let value: String; let model: String? }
 // openapi: GeminiToken
 struct GeminiToken: Decodable { let value: String; let model: String? }
 // openapi: LiveFinished

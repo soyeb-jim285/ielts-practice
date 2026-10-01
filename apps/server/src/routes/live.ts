@@ -1,8 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { createHash } from 'node:crypto';
-import { EXAMINER_SYSTEM, direction, newState, nextPhase, PREP_MS, realtimeInstructions, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
+import { EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
+import { activeRun, attachSideband, createWebrtcSession, endRun } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { currentUser, requireUser } from '../auth';
@@ -16,8 +16,6 @@ import { storage, uploadError } from '../storage';
 import type { App } from '../types';
 import { pickSpeakingTest, PromptSchema } from './prompts';
 
-// Low eagerness: the examiner waits for the candidate to finish instead of jumping into a thinking pause.
-const TURN_DETECTION = { type: 'semantic_vad', eagerness: 'low' } as const;
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
 const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav' };
 
@@ -106,7 +104,7 @@ export function register(app: App) {
         z
           .object({
             source: z.enum(['generated', 'cambridge', 'any']).default('any'),
-            skipTts: z.boolean().default(false).openapi({ description: 'Realtime sessions speak for themselves: create the session without examiner TTS (audioUrl null)' }),
+            skipTts: z.boolean().default(false).openapi({ description: 'Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)' }),
           })
           .openapi('LiveStart'),
       ),
@@ -235,48 +233,51 @@ export function register(app: App) {
     createRoute({
       ...paid,
       method: 'post',
-      path: '/api/live/realtime-token',
-      summary: 'Ephemeral OpenAI Realtime client secret carrying the examiner instructions for this session',
-      request: body(SessionRef.openapi('LiveRealtimeToken')),
+      path: '/api/live/gpt-live/session',
+      summary: "GPT-Live over WebRTC: exchanges the browser's SDP offer for the answer. The server creates the session (model, voice and examiner instructions are ours) and attaches a sideband that records the transcript",
+      request: body(SessionRef.extend({ sdp: z.string().min(1).max(50_000).openapi({ description: "The browser's SDP offer (data channel \"oai-events\" created before the offer)" }) }).openapi('LiveGptSession')),
       responses: {
-        200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('RealtimeToken'), 'Client secret'),
-        400: json(ErrorSchema, 'Realtime not configured'),
+        200: json(z.object({ sdp: z.string(), sessionId: z.string().openapi({ description: "OpenAI's live session id" }) }).openapi('GptLiveSession'), 'SDP answer'),
+        400: json(ErrorSchema, 'GPT-Live not configured'),
         404: json(ErrorSchema, 'Not found'),
         ...tooMany,
         502: json(ErrorSchema, 'OpenAI error'),
       },
     }),
     async (c) => {
-      if (!env.OPENAI_API_KEY) return c.json({ error: 'OpenAI Realtime is not configured on this server' }, 400);
+      if (!env.OPENAI_API_KEY) return c.json({ error: 'GPT-Live is not configured on this server' }, 400);
       const user = currentUser(c);
-      const s = await loadSession(c.req.valid('json').sessionId, user.id);
-      const model = env.OPENAI_REALTIME_MODEL;
-      // The secret only has to be valid until the client posts its SDP offer (the session then runs on), so it expires quickly.
-      const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Safety-Identifier': createHash('sha256').update(user.id).digest('hex'),
-        },
-        body: JSON.stringify({
-          expires_after: { anchor: 'created_at', seconds: 120 },
-          session: {
-            type: 'realtime',
-            model,
-            instructions: realtimeInstructions(s.test),
-            reasoning: { effort: 'low' }, // gpt-realtime-2.x reasons before it speaks: low keeps replies quick and the script on track
-            audio: { input: { turn_detection: TURN_DETECTION }, output: { voice: 'marin' } },
-          },
-        }),
-        signal: AbortSignal.timeout(20_000),
-      }).catch(() => null);
-      if (!res?.ok) {
-        console.error('realtime client_secrets', res?.status, (await res?.text().catch(() => ''))?.slice(0, 500));
-        return c.json({ error: 'Could not start a realtime session. Please retry or use the turn-based examiner.' }, 502);
+      const b = c.req.valid('json');
+      const s = await loadSession(b.sessionId, user.id);
+      const r = await createWebrtcSession(b.sdp, user.id);
+      if (!('id' in r)) {
+        console.error('gpt-live create session', r.status, r.detail);
+        return c.json({ error: 'Could not start a GPT-Live session. Please retry or use the turn-based examiner.' }, 502);
       }
-      const d = (await res.json()) as { value: string; expires_at: number };
-      return c.json({ value: d.value, expiresAt: d.expires_at, model }, 200);
+      attachSideband({ userId: user.id, sessionId: s.sessionId, test: s.test, liveId: r.id });
+      return c.json({ sdp: r.sdp, sessionId: r.id }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/gpt-live/cue',
+      summary: 'Script control for a GPT-Live session: the server appends the instruction for this moment (session.instructions.append) through its sideband. If it could not, `content` is the instruction for the client to append on its data channel',
+      request: body(SessionRef.extend({ cue: z.enum(GPT_LIVE_CUES) }).openapi('LiveGptCue')),
+      responses: {
+        200: json(z.object({ sent: z.boolean(), content: z.string() }).openapi('GptLiveCueResult'), 'Cue handled'),
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+      },
+    }),
+    async (c) => {
+      const user = currentUser(c);
+      const b = c.req.valid('json');
+      const s = await loadSession(b.sessionId, user.id);
+      const sent = activeRun(s.sessionId, user.id)?.cue(b.cue) ?? false;
+      return c.json({ sent, content: gptLiveCue(b.cue, s.test) }, 200);
     },
   );
 
@@ -342,6 +343,7 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       const b = c.req.valid('json');
+      await endRun(b.sessionId, user.id); // a GPT-Live session still open ends here, and its transcript is saved before we read the state
       const s = await loadSession(b.sessionId, user.id);
       if (new Set(b.parts.map((p) => p.part)).size !== b.parts.length) return c.json({ error: 'Each part may be sent once' }, 400);
       for (const p of b.parts) {

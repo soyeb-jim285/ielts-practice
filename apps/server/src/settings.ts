@@ -16,7 +16,7 @@ export const SettingsSchema = z.object({
     audioPron: ModelId,
   }),
   audioPronEnabled: z.boolean(),
-  liveProvider: z.enum(['turn', 'openai-realtime', 'gemini-live']),
+  liveProvider: z.enum(['turn', 'gpt-live', 'gemini-live']),
   targetBand: z.number().min(4).max(9).multipleOf(0.5),
   writingAutoSubmit: z.boolean(),
   blockPaste: z.boolean(),
@@ -44,7 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export function mergeSettings(patch: SettingsPatch | Record<string, unknown> | undefined): Settings {
-  const p = (patch ?? {}) as SettingsPatch;
+  const p = { ...(patch ?? {}) } as SettingsPatch;
+  // The OpenAI provider used to be "openai-realtime" (gpt-realtime); stored values and old clients map to GPT-Live.
+  if ((p.liveProvider as string) === 'openai-realtime') p.liveProvider = 'gpt-live';
   return { ...DEFAULT_SETTINGS, ...p, models: { ...DEFAULT_SETTINGS.models, ...(p.models ?? {}) } };
 }
 
