@@ -5,65 +5,51 @@ import { digitsOnly, OtpInput } from './OtpInput';
 
 afterEach(cleanup);
 
-function Harness({ initial = '' }: { initial?: string }) {
+function Harness({ initial = '', error }: { initial?: string; error?: string }) {
   const [v, setV] = useState(initial);
   return (
     <>
-      <OtpInput value={v} onChange={setV} />
+      <OtpInput value={v} onChange={setV} error={error} />
       <output data-testid="v">{v}</output>
     </>
   );
 }
-const box = (n: number) => screen.getByLabelText(`Digit ${n} of 6`) as HTMLInputElement;
+const input = () => screen.getByLabelText('Verification code') as HTMLInputElement;
 const value = () => screen.getByTestId('v').textContent;
+const slots = () => document.querySelectorAll('[data-slot="input-otp-slot"]');
 
-describe('OtpInput', () => {
-  it('has 6 boxes and only the first asks for the one-time-code autofill', () => {
+describe('OtpInput (shadcn InputOTP)', () => {
+  it('renders 6 boxes over one input that asks for the one-time-code autofill', () => {
     render(<Harness />);
-    expect(screen.getAllByLabelText(/Digit \d of 6/)).toHaveLength(6);
-    expect(box(1).autocomplete).toBe('one-time-code');
-    expect(box(2).autocomplete).toBe('off');
-    expect(screen.getByRole('group', { name: 'Verification code' })).toBeTruthy();
+    expect(slots()).toHaveLength(6);
+    expect(input().autocomplete).toBe('one-time-code');
+    expect(input().inputMode).toBe('numeric');
   });
 
-  it('typing fills a box and moves focus to the next', () => {
+  it('typing fills the boxes in order, digits only', () => {
     render(<Harness />);
-    fireEvent.change(box(1), { target: { value: '4' } });
-    expect(value()).toBe('4');
-    expect(document.activeElement).toBe(box(2));
-    fireEvent.change(box(2), { target: { value: 'x' } }); // non-digits are ignored
-    expect(value()).toBe('4');
+    fireEvent.change(input(), { target: { value: '12' } });
+    expect(value()).toBe('12');
+    expect(slots()[0]?.textContent).toBe('1');
+    expect(slots()[1]?.textContent).toBe('2');
+    fireEvent.change(input(), { target: { value: '12x' } }); // rejected by the digits pattern
+    expect(value()).toBe('12');
   });
 
-  it('a paste spreads across the boxes, ignoring spaces and extra digits', () => {
+  it('a full code (autofill) fills all six boxes', () => {
     render(<Harness />);
-    fireEvent.paste(box(1), { clipboardData: { getData: () => ' 123 456 789' } });
-    expect(value()).toBe('123456');
-    expect(box(6).value).toBe('6');
-    expect(document.activeElement).toBe(box(6));
-  });
-
-  it('autofill that drops the whole code into one box is spread too', () => {
-    render(<Harness />);
-    fireEvent.change(box(1), { target: { value: '654321' } });
+    fireEvent.change(input(), { target: { value: '654321' } });
     expect(value()).toBe('654321');
+    expect(slots()[5]?.textContent).toBe('1');
   });
 
-  it('Backspace on an empty box clears the previous digit and steps back', () => {
-    render(<Harness initial="12" />);
-    box(3).focus();
-    fireEvent.keyDown(box(3), { key: 'Backspace' });
-    expect(value()).toBe('1');
-    expect(document.activeElement).toBe(box(2));
+  it('shows an error under the boxes and marks the input invalid', () => {
+    render(<Harness error="That code is wrong or expired." />);
+    expect(screen.getByText('That code is wrong or expired.')).toBeTruthy();
+    expect(input().getAttribute('aria-invalid')).toBe('true');
   });
 
-  it('shows an error under the boxes', () => {
-    render(<OtpInput value="" onChange={() => {}} error="That code isn’t right." />);
-    expect(screen.getByText('That code isn’t right.')).toBeTruthy();
-    expect(box(1).getAttribute('aria-invalid')).toBe('true');
+  it('digitsOnly strips spaces and extra digits', () => {
+    expect(digitsOnly(' 123 456 789')).toBe('123456');
   });
-});
-
-it('digitsOnly keeps digits and caps the length', () => {
-  expect(digitsOnly('12-34 56 78')).toBe('123456');
 });
