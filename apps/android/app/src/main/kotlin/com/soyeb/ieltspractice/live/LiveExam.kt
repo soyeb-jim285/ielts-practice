@@ -66,7 +66,7 @@ fun phaseLabel(phase: String) = when (phase) {
 fun isExpectedRealtimeError(message: String) = Regex("cancel|no active response|empty", RegexOption.IGNORE_CASE).containsMatchIn(message)
 
 /**
- * Live examiner session (iOS LiveExam, web live/*). Turn-based: the server drives phases via /api/live/turn (examiner TTS, candidate
+ * Live examiner session (iOS LiveExam, web src/live). Turn-based: the server drives phases via /api/live/turn (examiner TTS, candidate
  * turns ended by VAD). Realtime: OpenAI Realtime or Gemini Live over WebSocket with client-timed part changes. All record one m4a per
  * part and finish with /api/live/finish. A ViewModel, so rotating the phone does not end the test.
  */
