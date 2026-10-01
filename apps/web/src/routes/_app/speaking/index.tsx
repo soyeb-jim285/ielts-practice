@@ -22,12 +22,15 @@ const PARTS = [
 const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
 
 /** Shared with the session switcher's cache. */
-const useRecentAttempts = () => useQuery({ queryKey: ['attempts', 'speaking', 1], queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1') });
+const useRecentAttempts = () => {
+  const signedIn = !!useMe().data; // guests have no attempts
+  return useQuery({ enabled: signedIn, queryKey: ['attempts', 'speaking', 1], queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1') });
+};
 
 function SpeakingHome() {
   // No attempts yet: the first action is a single part, so that list leads (order-first) and the full modes follow.
   const list = useRecentAttempts();
-  const fresh = list.isSuccess && list.data.items.length === 0;
+  const fresh = !useMe().data || (list.isSuccess && list.data.items.length === 0);
   return (
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
@@ -137,7 +140,7 @@ function Recent() {
   const target = me?.settings.targetBand ?? 7;
   const list = useRecentAttempts();
   const items = (list.data?.items ?? []).slice(0, 5);
-  if (!list.isPending && !list.isError && items.length === 0) return null;
+  if (!me || (!list.isPending && !list.isError && items.length === 0)) return null;
   return (
     <section aria-labelledby="recent">
       <PanelHeader

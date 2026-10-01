@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, MailCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Button, buttonStyles } from '@/components/ui';
 import { Logo } from './Logo';
 
 /** Signed-out pages: a left-aligned form column near the top of the viewport, plus (from lg) one real sample of the feedback on a quiet panel. */
@@ -9,7 +8,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <main id="main" className="flex flex-col px-5 pt-8 pb-12 sm:px-10 lg:px-16 lg:pt-10">
-        <Link to="/login" aria-label="IELTS Practice" className="-m-1 inline-flex w-fit rounded-md p-1">
+        <Link to="/" aria-label="IELTS Practice, home" className="-m-1 inline-flex w-fit rounded-md p-1">
           <Logo />
         </Link>
         {/* my-auto centres the form in the space under the logo; the bottom padding lifts it to the optical centre. */}
@@ -45,27 +44,5 @@ function FeedbackSample() {
         <p className="type-caption max-w-[46ch]">Subject and verb must agree: the subject is &ldquo;people&rdquo;, which is plural.</p>
       </figcaption>
     </figure>
-  );
-}
-
-/** "We sent you a link" state for sign-up / password reset. */
-export function CheckEmail({ email, onResend }: { email: string; onResend?: () => void }) {
-  return (
-    <div className="space-y-6">
-      <MailCheck className="size-6 text-accent-text" aria-hidden />
-      <p className="type-body">
-        We sent a link to <span className="font-medium">{email}</span>. Open it on this device to continue. It can take a minute; check spam if it doesn’t show up.
-      </p>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        {onResend && (
-          <Button variant="outline" onClick={onResend}>
-            Resend email
-          </Button>
-        )}
-        <Link to="/login" className={buttonStyles({ variant: 'link', className: 'hit' })}>
-          Back to sign in
-        </Link>
-      </div>
-    </div>
   );
 }

@@ -179,7 +179,7 @@ struct WritingHomeView: View {
     // MARK: Data
 
     private func loadRecent() async {
-        guard let page: AttemptPage = try? await api.get("/api/attempts", query: ["skill": "writing", "page": "1"]) else { return }
+        guard api.isSignedIn, let page: AttemptPage = try? await api.get("/api/attempts", query: ["skill": "writing", "page": "1"]) else { return }
         let ok = page.items.filter { $0.status == "done" || $0.status == "analyzing" }
         recent = Array(ok.prefix(3))
     }

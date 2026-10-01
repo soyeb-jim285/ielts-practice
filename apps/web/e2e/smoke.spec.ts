@@ -6,6 +6,7 @@ test('sign up, set a target band, browse the bank', async ({ page }) => {
   await page.getByLabel('Name').fill('Smoke Tester');
   await page.getByLabel('Email').fill(`smoke+${Date.now()}@example.com`);
   await page.getByLabel('Password', { exact: true }).fill('correct-horse-battery');
+  await page.getByLabel('Confirm password').fill('correct-horse-battery');
   await page.getByRole('button', { name: 'Create account' }).click();
 
   await expect(page).toHaveURL(/\/$/);

@@ -280,6 +280,7 @@ struct SpeakingHomeView: View {
     }
 
     private func loadRecent() async {
+        guard api.isSignedIn else { recent = []; return } // guests have no results
         do {
             let page: AttemptPage = try await api.get("/api/attempts", query: ["skill": "speaking", "page": "1"])
             recent = page.items

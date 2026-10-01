@@ -66,7 +66,7 @@ const pretty = (s: string) => (s.charAt(0).toUpperCase() + s.slice(1)).replace(/
 function BankPage() {
   const f = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { cambridgeAccess } = useMe().data!;
+  const cambridgeAccess = useMe().data?.cambridgeAccess ?? false; // guests never see Cambridge
   const set = (patch: Filters) => navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   // Debounced search box → ?q=

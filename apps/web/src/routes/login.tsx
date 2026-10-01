@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { AuthLayout } from '@/components/layout/AuthLayout';
-import { Alert, Button, buttonStyles, Input, toast } from '@/components/ui';
+import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode';
+import { Alert, Button, buttonStyles, Input } from '@/components/ui';
 import { authClient, redirectIfSignedIn, safeRedirect } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
 
@@ -15,7 +16,8 @@ function Login() {
   const { redirect } = Route.useSearch();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ message: string; unverified?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [verify, setVerify] = useState<string | null>(null); // address that still needs its code
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,46 +28,42 @@ function Login() {
     const { error } = await authClient.signIn.email({ email, password: String(f.get('password')) });
     setBusy(false);
     if (error) {
-      if (error.code === 'EMAIL_NOT_VERIFIED') return setError({ message: 'Please verify your email first. Check your inbox for the link.', unverified: email });
-      return setError({ message: error.status === 401 ? 'That email and password don’t match.' : error.message || 'Could not sign in. Try again.' });
+      if (error.code === 'EMAIL_NOT_VERIFIED') {
+        await authClient.emailOtp.send({ email, type: 'email-verification' });
+        return setVerify(email);
+      }
+      return setError(error.status === 401 ? 'That email and password don’t match.' : error.message || 'Could not sign in. Try again.');
     }
+    done();
+  }
+
+  function done() {
     queryClient.removeQueries({ queryKey: ['me'] });
     router.history.push(safeRedirect(redirect));
   }
 
-  async function resend(email: string) {
-    const { error } = await authClient.sendVerificationEmail({ email, callbackURL: `${location.origin}/` });
-    toast(error ? 'Could not send the email. Try again shortly.' : `Verification link sent to ${email}`, { tone: error ? 'bad' : 'good' });
-  }
+  if (verify)
+    return (
+      <AuthLayout title="Verify your email" subtitle="One step left before you can sign in.">
+        <VerifyEmailCode email={verify} onVerified={done} />
+      </AuthLayout>
+    );
 
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Sign in to continue your practice."
+      subtitle={redirect ? 'Sign in to continue where you left off.' : 'Sign in to continue your practice.'}
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className={buttonStyles({ variant: 'link', className: 'hit' })}>
+          <Link to="/signup" search={{ redirect }} className={buttonStyles({ variant: 'link', className: 'hit' })}>
             Create an account
           </Link>
         </>
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        {error && (
-          <Alert
-            tone="bad"
-            action={
-              error.unverified && (
-                <Button variant="link" onClick={() => resend(error.unverified!)}>
-                  Resend verification email
-                </Button>
-              )
-            }
-          >
-            {error.message}
-          </Alert>
-        )}
+        {error && <Alert tone="bad">{error}</Alert>}
         <Input label="Email" name="email" type="email" autoComplete="email" inputMode="email" required />
         <div>
           <Input label="Password" name="password" type="password" autoComplete="current-password" required />

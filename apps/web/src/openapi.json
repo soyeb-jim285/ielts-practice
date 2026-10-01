@@ -86,7 +86,8 @@
                 "type": "string",
                 "enum": [
                   "turn",
-                  "openai-realtime"
+                  "openai-realtime",
+                  "gemini-live"
                 ]
               },
               "targetBand": {
@@ -115,13 +116,17 @@
           },
           "realtimeAvailable": {
             "type": "boolean"
+          },
+          "geminiLiveAvailable": {
+            "type": "boolean"
           }
         },
         "required": [
           "user",
           "settings",
           "cambridgeAccess",
-          "realtimeAvailable"
+          "realtimeAvailable",
+          "geminiLiveAvailable"
         ]
       },
       "Settings": {
@@ -171,7 +176,8 @@
             "type": "string",
             "enum": [
               "turn",
-              "openai-realtime"
+              "openai-realtime",
+              "gemini-live"
             ]
           },
           "targetBand": {
@@ -234,7 +240,8 @@
             "type": "string",
             "enum": [
               "turn",
-              "openai-realtime"
+              "openai-realtime",
+              "gemini-live"
             ]
           },
           "targetBand": {
@@ -1234,6 +1241,37 @@
           "sessionId"
         ]
       },
+      "GeminiToken": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "Unix seconds"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "expiresAt",
+          "model"
+        ]
+      },
+      "LiveGeminiToken": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ]
+      },
       "LiveFinished": {
         "type": "object",
         "properties": {
@@ -1866,7 +1904,8 @@
         "security": [
           {
             "bearer": []
-          }
+          },
+          {}
         ],
         "summary": "Prompt bank (30 per page) with a per-user done flag",
         "parameters": [
@@ -1976,7 +2015,8 @@
         "security": [
           {
             "bearer": []
-          }
+          },
+          {}
         ],
         "summary": "Distinct topics and types per skill/part (for bank filters)",
         "responses": {
@@ -2001,7 +2041,8 @@
         "security": [
           {
             "bearer": []
-          }
+          },
+          {}
         ],
         "summary": "A random matching prompt, preferring ones the user has not done",
         "parameters": [
@@ -2081,7 +2122,8 @@
         "security": [
           {
             "bearer": []
-          }
+          },
+          {}
         ],
         "summary": "Single prompt (figure URL presigned)",
         "parameters": [
@@ -2777,6 +2819,81 @@
           },
           "502": {
             "description": "OpenAI error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/gemini-token": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ephemeral Gemini Live token locked to the examiner setup (model, voice, instructions, VAD) for this session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveGeminiToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ephemeral token: pass as access_token to BidiGenerateContentConstrained",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeminiToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Gemini Live not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Gemini error",
             "content": {
               "application/json": {
                 "schema": {

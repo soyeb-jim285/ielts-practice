@@ -46,7 +46,7 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           mkdir -p shots
           # name[:tab][@anchor]; anchor (bottom|center) starts scroll views there to capture long screens in parts.
-          SCREENS="login home home@bottom speaking speaking@bottom writing writing@bottom review settings settings@bottom
+          SCREENS="login guest home home@bottom speaking speaking@bottom writing writing@bottom review settings settings@bottom
             bank history mistakes mistakes@bottom session session-p1 editor editor-t1 editor-full live
             result-speaking:Overview result-speaking:Overview@bottom result-speaking:Transcript result-speaking:Fluency result-speaking:Fluency@bottom
             result-speaking:Language result-speaking:Language@bottom result-speaking:Improve

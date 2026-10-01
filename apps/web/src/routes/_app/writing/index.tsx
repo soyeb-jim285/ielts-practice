@@ -108,8 +108,10 @@ function WritingHome() {
 
 /** The last few writing attempts with their band, so a returning learner can reopen feedback or see progress at a glance. Hidden until there is one. */
 function Recent() {
-  const target = useMe().data?.settings.targetBand ?? 7;
+  const me = useMe().data;
+  const target = me?.settings.targetBand ?? 7;
   const { data } = useQuery({
+    enabled: !!me, // guests have no attempts
     queryKey: ['writing-recent'],
     queryFn: () => call(client.GET('/api/attempts', { params: { query: { page: 1, skill: 'writing' } } })),
   });

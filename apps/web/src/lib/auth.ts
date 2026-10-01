@@ -24,11 +24,24 @@ export const authClient = {
   signIn: { email: (b: { email: string; password: string }) => post('/sign-in/email', b) },
   signUp: { email: (b: { name: string; email: string; password: string; callbackURL: string }) => post('/sign-up/email', b) },
   signOut: () => post('/sign-out'),
-  sendVerificationEmail: (b: { email: string; callbackURL: string }) => post('/send-verification-email', b),
-  requestPasswordReset: (b: { email: string; redirectTo: string }) => post('/request-password-reset', b),
   resetPassword: (b: { newPassword: string; token: string }) => post('/reset-password', b),
+  /** 6-digit email codes (Better Auth emailOTP). `send` answers success for unknown addresses too. */
+  emailOtp: {
+    send: (b: { email: string; type: 'email-verification' | 'forget-password' }) => post('/email-otp/send-verification-otp', b),
+    verifyEmail: (b: { email: string; otp: string }) => post('/email-otp/verify-email', b),
+    resetPassword: (b: { email: string; otp: string; password: string }) => post('/email-otp/reset-password', b),
+  },
   deleteUser: (b: { password: string }) => post('/delete-user', b),
 };
+
+/** Reader-friendly text for a failed code check or send. */
+export function otpError(e: AuthError) {
+  if (e.code === 'INVALID_OTP') return 'That code isn’t right. Check it and try again.';
+  if (e.code === 'OTP_EXPIRED') return 'That code has expired. Request a new one.';
+  if (e.code === 'TOO_MANY_ATTEMPTS') return 'Too many wrong tries. Request a new code.';
+  if (e.status === 429) return 'Too many requests. Wait a minute, then try again.';
+  return e.message || 'Something went wrong. Try again.';
+}
 
 /** Only same-app paths: blocks open redirects like `//evil.com`. */
 export const safeRedirect = (to: unknown) => (typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : '/');

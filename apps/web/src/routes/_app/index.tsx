@@ -7,11 +7,12 @@ import CriteriaTrend from '@/components/dashboard/Charts';
 import { listStyles, panelFooterStyles, PanelHeader, RowChevron, RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
 import { speakingSession, StartWritingButton, useStartWriting } from '@/components/bank/PracticeLink';
 import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/components/dashboard/criteria';
+import { GuestHome } from '@/components/dashboard/GuestHome';
 import { Onboarding } from '@/components/dashboard/Onboarding';
 import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatMinutes, plural } from '@/lib/format';
-import { useMe } from '@/lib/query';
+import { meQuery, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
 
@@ -20,9 +21,16 @@ const progressQuery = queryOptions({ queryKey: ['progress'], queryFn: () => call
 const dueCountQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => call(client.GET('/api/cards/due')), staleTime: 0 });
 
 export const Route = createFileRoute('/_app/')({
-  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(progressQuery), context.queryClient.ensureQueryData(dueCountQuery)]),
-  component: Dashboard,
+  // Guests (no session) get a static intro and load nothing personal.
+  loader: async ({ context }) => {
+    if (await context.queryClient.ensureQueryData(meQuery)) await Promise.all([context.queryClient.ensureQueryData(progressQuery), context.queryClient.ensureQueryData(dueCountQuery)]);
+  },
+  component: Home,
 });
+
+function Home() {
+  return useMe().data ? <Dashboard /> : <GuestHome />;
+}
 
 const greeting = () => {
   const h = new Date().getHours();

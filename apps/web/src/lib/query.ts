@@ -25,9 +25,10 @@ function takeInlineMe() {
 
 export const meQuery = queryOptions({
   queryKey: ['me'],
-  queryFn: () => call<Schemas['Me']>(takeInlineMe() ?? client.GET('/api/me')),
+  // A guest is a normal state, not an error: 401 resolves to null.
+  queryFn: () => call<Schemas['Me'] | null>(takeInlineMe() ?? client.GET('/api/me')).catch((e) => (e instanceof ApiError && e.status === 401 ? null : Promise.reject(e))),
   staleTime: 5 * 60_000,
 });
 
-/** Current user + settings. Always resolved inside the authed `_app` layout (its loader awaits it). */
+/** Current user + settings, or null for a guest. Resolved by the `_app` layout loader. Pages behind `requireSignIn` can rely on it being set (`data!`). */
 export const useMe = () => useQuery(meQuery);

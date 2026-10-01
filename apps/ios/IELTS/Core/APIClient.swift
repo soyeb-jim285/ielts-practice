@@ -5,7 +5,15 @@ import Security
 struct APIError: LocalizedError {
     let status: Int
     let message: String
+    var code: String? = nil // Better Auth error code, e.g. INVALID_OTP
     var errorDescription: String? { message }
+}
+
+/// Guest tried something that needs an account: the sign-in sheet is shown with `reason` above the form.
+struct SignInRequest: Identifiable {
+    let id = UUID()
+    let reason: String
+    var signUp = false
 }
 
 /// Typed client for the IELTS Practice API. Auth is Better Auth's bearer plugin: the token comes back in the
@@ -19,6 +27,9 @@ final class APIClient {
     private(set) var token: String?
     var me: Me?
     var isSignedIn: Bool { token != nil }
+    /// Non-nil while the sign-in sheet should be up (see `requestSignIn`).
+    var signInRequest: SignInRequest?
+    private(set) var signingIn = false
 
     @ObservationIgnored private let session: URLSession = {
         let c = URLSessionConfiguration.default
@@ -32,7 +43,7 @@ final class APIClient {
 
     init() {
         baseURL = Demo.on ? "https://demo.ielts.local" : Self.server
-        token = Demo.on ? (Demo.screen == "login" ? nil : "demo") : Keychain.get()
+        token = Demo.on ? (Demo.screen == "login" || Demo.screen == "guest" ? nil : "demo") : Keychain.get()
     }
 
     // MARK: Requests
@@ -77,10 +88,10 @@ final class APIClient {
         }
         guard let http = resp as? HTTPURLResponse else { throw APIError(status: 0, message: "No response from the server.") }
         guard (200..<300).contains(http.statusCode) else {
-            struct ErrBody: Decodable { let error: String?; let message: String? }
+            struct ErrBody: Decodable { let error: String?; let message: String?; let code: String? }
             let b = try? JSONDecoder().decode(ErrBody.self, from: data)
             if http.statusCode == 401 && token != nil && !path.hasPrefix("/api/auth/") { signOutLocal() }
-            throw APIError(status: http.statusCode, message: b?.error ?? b?.message ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode).capitalized)
+            throw APIError(status: http.statusCode, message: b?.error ?? b?.message ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode).capitalized, code: b?.code)
         }
         return (data, http)
     }
@@ -117,8 +128,26 @@ final class APIClient {
         return true
     }
 
-    func requestPasswordReset(email: String) async throws {
-        try await raw("POST", "/api/auth/request-password-reset", ["email": email, "redirectTo": baseURL + "/reset-password"])
+    /// Guests browse freely; call this when they start something personal. The sheet signs them in or up (the pending screen or action is simply
+    /// the one they were on, which swaps in once `isSignedIn` turns true).
+    func requestSignIn(_ reason: String, signUp: Bool = false) {
+        guard !isSignedIn, signInRequest == nil else { return }
+        signInRequest = SignInRequest(reason: reason, signUp: signUp)
+    }
+
+    /// Emails a 6-digit code (Better Auth emailOTP). The answer is the same whether or not the address has an account.
+    func sendOTP(email: String, type: String) async throws {
+        try await raw("POST", "/api/auth/email-otp/send-verification-otp", ["email": email, "type": type])
+    }
+
+    /// Verifies the address with the emailed code and signs the user in.
+    func verifyEmail(email: String, otp: String) async throws {
+        let (_, http) = try await raw("POST", "/api/auth/email-otp/verify-email", ["email": email, "otp": otp])
+        try await adopt(http)
+    }
+
+    func resetPassword(email: String, otp: String, password: String) async throws {
+        try await raw("POST", "/api/auth/email-otp/reset-password", ["email": email, "otp": otp, "password": password])
     }
 
     private func adopt(_ http: HTTPURLResponse) async throws {
@@ -127,7 +156,12 @@ final class APIClient {
         }
         token = t
         Keychain.set(t)
-        try await loadMe()
+        signingIn = true // keeps the tabs (and the sign-in sheet) on screen until /api/me arrives
+        defer { signingIn = false }
+        do { try await loadMe() } catch {
+            signOutLocal()
+            throw error
+        }
     }
 
     func loadMe() async throws { me = try await send("GET", "/api/me") }
@@ -171,6 +205,20 @@ final class APIClient {
 
     func addCard(front: String, back: String, source: String) async throws {
         let _: Empty = try await send("POST", "/api/cards", ["front": front, "back": back, "source": source])
+    }
+}
+
+/// Wording for the 6-digit code flow (web lib/auth.ts otpError).
+enum AuthText {
+    /// Digits only, at most six: what a code field keeps from typing, paste or the keyboard's one-time-code suggestion.
+    static func otpDigits(_ s: String) -> String { String(s.filter(\.isASCII).filter(\.isNumber).prefix(6)) }
+
+    static func otpError(_ e: APIError) -> String {
+        if e.code == "INVALID_OTP" { return "That code isn't right. Check it and try again." }
+        if e.code == "OTP_EXPIRED" { return "That code has expired. Request a new one." }
+        if e.code == "TOO_MANY_ATTEMPTS" { return "Too many wrong tries. Request a new code." }
+        if e.status == 429 { return "Too many requests. Wait a minute, then try again." }
+        return e.message.isEmpty ? "Something went wrong. Try again." : e.message
     }
 }
 

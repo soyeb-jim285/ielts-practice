@@ -52,8 +52,15 @@ describe('prompt gating (Review Focus #5)', () => {
     expect((await body(await req('/api/prompts?source=cambridge', { headers }))).items).toHaveLength(1);
   });
 
-  it('requires auth', async () => {
-    expect((await req('/api/prompts')).status).toBe(401);
+  it('guests browse the generated bank; Cambridge stays hidden', async () => {
+    expect((await body(await req('/api/prompts'))).total).toBe(2);
+    expect((await req(`/api/prompts/${restrictedId}`)).status).toBe(404);
+    expect((await body(await req('/api/prompts?source=cambridge'))).items).toEqual([]);
+    expect((await body(await req('/api/prompts/meta'))).groups[0].topics.sort()).toEqual(['Work', 'hometown']);
+    for (let i = 0; i < 5; i++) expect((await body(await req('/api/prompts/random?skill=speaking'))).id).not.toBe(restrictedId);
+    const [first] = (await body(await req('/api/prompts'))).items;
+    expect(first.done).toBe(false);
+    expect((await body(await req(`/api/prompts/${first.id}`))).id).toBe(first.id);
   });
 });
 

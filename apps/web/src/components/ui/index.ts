@@ -9,6 +9,7 @@ export { IconTile } from './IconTile';
 export { Kbd } from './Kbd';
 export { StickyTabs } from './StickyTabs';
 export { controlStyles, Input, Select, Textarea } from './Field';
+export { digitsOnly, OtpInput } from './OtpInput';
 export { PageContainer, WIDTH } from './PageContainer';
 export { PageHeader } from './PageHeader';
 export { CountUp } from './CountUp';

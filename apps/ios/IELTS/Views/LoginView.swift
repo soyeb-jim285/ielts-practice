@@ -1,37 +1,65 @@
 import SwiftUI
 
-/// Sign in and create account (web routes login and signup), with verification resend and a separate password reset sheet.
+/// Sign-in sheet (web routes login and signup): sign in or create an account, then the emailed 6-digit code when the address needs verifying.
+/// Shown over the tabs when a guest starts something personal; `reason` says what they were doing.
 struct LoginView: View {
     @Environment(APIClient.self) private var api
-    @State private var signUp = false
+    @Environment(\.dismiss) private var dismiss
+    let reason: String?
+    @State private var signUp: Bool
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var confirm = ""
     @State private var busy = false
     @State private var issue: Issue?
     @State private var info: String?
-    @State private var sentTo: String? // sign-up needs email verification: "Check your email"
+    @State private var verifying: String? // address that still needs its code
     @State private var showForgot = false
 
     private struct Issue {
         var message: String
-        var unverified: String? // the email to resend verification to
         var exists = false // sign-up with an address that already has an account
     }
 
+    init(reason: String? = nil, signUp: Bool = false) {
+        self.reason = reason
+        _signUp = State(initialValue: signUp)
+    }
+
+    private var mismatch: Bool { signUp && !confirm.isEmpty && confirm != password }
+
     private var canSubmit: Bool {
-        !busy && !email.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && (!signUp || (!name.trimmingCharacters(in: .whitespaces).isEmpty && password.count >= 8))
+        !busy && !email.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty
+            && (!signUp || (!name.trimmingCharacters(in: .whitespaces).isEmpty && password.count >= 8 && confirm == password))
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let sentTo { checkEmail(sentTo) } else { form }
+                if let verifying {
+                    VerifyEmailView(email: verifying) { finish() }
+                } else {
+                    form
+                }
             }
             .background(Color.canvas)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { finish() } }
+            }
         }
-        .sheet(isPresented: $showForgot) { ForgotPasswordSheet(email: email.trimmingCharacters(in: .whitespaces)) }
+        .sheet(isPresented: $showForgot) {
+            ForgotPasswordSheet(email: email.trimmingCharacters(in: .whitespaces)) {
+                info = "Password updated. Sign in with your new password."
+                password = ""
+            }
+        }
+    }
+
+    private func finish() {
+        api.signInRequest = nil
+        dismiss()
     }
 
     // MARK: Form
@@ -53,7 +81,7 @@ struct LoginView: View {
                         .font(.display(.largeTitle, weight: .bold))
                         .foregroundStyle(.ink)
                         .accessibilityAddTraits(.isHeader)
-                    Text(signUp ? "Timed Speaking and Writing practice with honest band feedback." : "Sign in to continue your practice.")
+                    Text(reason ?? (signUp ? "Timed Speaking and Writing practice with honest band feedback." : "Sign in to continue your practice."))
                         .foregroundStyle(.muted)
                 }
                 .padding(.vertical, 8)
@@ -68,12 +96,18 @@ struct LoginView: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .onChange(of: email) { if issue?.exists == true { issue = nil } }
                 SecureField("Password", text: $password).textContentType(signUp ? .newPassword : .password)
+                if signUp { SecureField("Confirm password", text: $confirm).textContentType(.newPassword) }
             } footer: {
                 if signUp {
-                    if password.count >= 8 {
-                        Label("8 characters or more", systemImage: "checkmark.circle.fill").foregroundStyle(.goodText)
-                    } else {
-                        Text("At least 8 characters.")
+                    VStack(alignment: .leading, spacing: 4) {
+                        if password.count >= 8 {
+                            Label("8 characters or more", systemImage: "checkmark.circle.fill").foregroundStyle(.goodText)
+                        } else {
+                            Text("At least 8 characters.")
+                        }
+                        if mismatch {
+                            Label("The two passwords don't match.", systemImage: "exclamationmark.circle.fill").foregroundStyle(.bad)
+                        }
                     }
                 }
             }
@@ -81,7 +115,6 @@ struct LoginView: View {
             if let issue {
                 Section {
                     ErrorLine(message: issue.message)
-                    if let e = issue.unverified { Button("Resend verification email") { Task { await resend(e) } } }
                     if issue.exists { Button("Sign in instead") { switchMode() } }
                 }
             }
@@ -90,10 +123,8 @@ struct LoginView: View {
             }
             if !signUp {
                 Section {
-                    Button("Forgot password?") {
-                        showForgot = true
-                    }
-                    .frame(minHeight: 44, alignment: .leading)
+                    Button("Forgot password?") { showForgot = true }
+                        .frame(minHeight: 44, alignment: .leading)
                 }
             }
             Section {
@@ -120,37 +151,13 @@ struct LoginView: View {
         }
     }
 
-    // MARK: Check your email (after sign-up)
-
-    private func checkEmail(_ address: String) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Image(systemName: "envelope.badge").font(.largeTitle).foregroundStyle(.brand).accessibilityHidden(true)
-                Text("Check your email").font(.display(.largeTitle, weight: .bold)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
-                Text("One step left: verify your address.").foregroundStyle(.muted)
-                Text("We sent a link to \(address). Open it on this device to continue. It can take a minute; check spam if it doesn't show up.")
-                if let info { Label(info, systemImage: "checkmark.circle.fill").foregroundStyle(.goodText) }
-                if let issue { ErrorLine(message: issue.message) }
-                Button("Resend email") { Task { await resend(address) } }.secondaryButton().controlSize(.large)
-                Button("Back to sign in") {
-                    sentTo = nil
-                    info = nil
-                    issue = nil
-                }
-                .frame(minHeight: 44)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-        }
-        .demoScroll()
-    }
-
     // MARK: Actions
 
     private func switchMode() {
         signUp.toggle()
         issue = nil
         info = nil
+        confirm = ""
     }
 
     private func submit() async {
@@ -162,118 +169,273 @@ struct LoginView: View {
         do {
             if signUp {
                 let signedIn = try await api.signUp(name: name.trimmingCharacters(in: .whitespaces), email: address, password: password)
-                if !signedIn { sentTo = address }
+                if signedIn { finish() } else { verifying = address } // the server emailed a code
             } else {
                 try await api.signIn(email: address, password: password)
+                finish()
             }
         } catch is CancellationError {
         } catch let e as APIError {
-            issue = describe(e, address)
+            if !signUp, e.code == "EMAIL_NOT_VERIFIED" || e.status == 403 {
+                try? await api.sendOTP(email: address, type: "email-verification")
+                verifying = address
+            } else {
+                issue = describe(e)
+            }
         } catch {
             issue = Issue(message: signUp ? "Could not create the account." : "Could not sign in. Try again.")
         }
     }
 
-    /// Web login/signup error copy; connection and server-URL problems keep the client's own wording (status 0).
-    private func describe(_ e: APIError, _ address: String) -> Issue {
+    /// Web login/signup error copy; connection and server problems keep the client's own wording (status 0).
+    private func describe(_ e: APIError) -> Issue {
         if signUp {
             if e.status == 422 || e.message.localizedCaseInsensitiveContains("already exists") {
                 return Issue(message: "An account with this email already exists.", exists: true)
             }
             return Issue(message: e.message.isEmpty ? "Could not create the account." : e.message)
         }
-        if e.status == 403 || e.message.localizedCaseInsensitiveContains("not verified") {
-            return Issue(message: "Please verify your email first. Check your inbox for the link.", unverified: address)
-        }
         if e.status == 401 { return Issue(message: "That email and password don't match.") }
         return Issue(message: e.message.isEmpty ? "Could not sign in. Try again." : e.message)
     }
+}
 
-    private func resend(_ address: String) async {
+/// "Enter the code we emailed you": a correct code verifies the address and signs the user in.
+private struct VerifyEmailView: View {
+    @Environment(APIClient.self) private var api
+    let email: String
+    let onVerified: () -> Void
+    @State private var code = ""
+    @State private var busy = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    Image(systemName: "envelope.badge").font(.largeTitle).foregroundStyle(.brand).accessibilityHidden(true)
+                    Text("Verify your email").font(.display(.largeTitle, weight: .bold)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+                    Text("We sent a 6-digit code to \(email). It expires in 10 minutes; check spam if it doesn't show up.").foregroundStyle(.muted)
+                }
+                .padding(.vertical, 8)
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+
+            Section {
+                CodeField(code: $code)
+                if let error { ErrorLine(message: error) }
+            }
+            Section { ResendCodeButton { try await api.sendOTP(email: email, type: "email-verification") } }
+        }
+        .canvasList()
+        .demoScroll()
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                Task { await verify() }
+            } label: {
+                Group {
+                    if busy { ProgressView() } else { Text("Verify email") }
+                }
+                .frame(maxWidth: .infinity, minHeight: 28)
+            }
+            .primaryButton()
+            .controlSize(.large)
+            .disabled(busy || code.count < 6)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private func verify() async {
+        busy = true
+        error = nil
+        defer { busy = false }
         do {
-            try await api.raw("POST", "/api/auth/send-verification-email", ["email": address, "callbackURL": api.baseURL + "/"])
-            info = signUp || sentTo != nil ? "Sent again" : "Verification link sent to \(address)"
-            issue = nil
+            try await api.verifyEmail(email: email, otp: code)
+            onVerified()
         } catch is CancellationError {
+        } catch let e as APIError {
+            error = AuthText.otpError(e)
         } catch {
-            issue = Issue(message: "Could not send the email. Try again shortly.")
+            self.error = "Something went wrong. Try again."
         }
     }
 }
 
-/// Password reset (web forgot-password): "Reset your password", then "Check your email". The emailed link opens the web app's reset page.
+/// Six-digit code entry: numeric keypad, the keyboard offers the code from the email (one-time-code), digits only.
+private struct CodeField: View {
+    @Binding var code: String
+    var body: some View {
+        TextField("6-digit code", text: $code)
+            .textContentType(.oneTimeCode)
+            .keyboardType(.numberPad)
+            .font(.system(.title2, design: .monospaced).weight(.medium))
+            .multilineTextAlignment(.center)
+            .frame(minHeight: 44)
+            .onChange(of: code) { _, new in
+                let digits = AuthText.otpDigits(new)
+                if digits != new { code = digits }
+            }
+            .accessibilityLabel("6-digit code")
+    }
+}
+
+/// "Resend code" with a 30 s cooldown that starts now (a code was just sent); the server sends at most one email per address every 30 s.
+private struct ResendCodeButton: View {
+    let send: () async throws -> Void
+    @State private var wait = 30
+    @State private var failed = false
+
+    var body: some View {
+        Button(wait > 0 ? "Resend code in \(wait)s" : "Resend code") {
+            wait = 30
+            Task {
+                do { try await send(); failed = false } catch is CancellationError {} catch { failed = true }
+            }
+        }
+        .disabled(wait > 0)
+        .frame(minHeight: 44, alignment: .leading)
+        .task(id: wait) {
+            guard wait > 0 else { return }
+            try? await Task.sleep(for: .seconds(1))
+            if !Task.isCancelled { wait -= 1 }
+        }
+        if failed { ErrorLine(message: "Could not send the code. Try again shortly.") }
+    }
+}
+
+/// Password reset (web forgot-password): the address, then the emailed 6-digit code with the new password. The answer never says whether the address has an account.
 private struct ForgotPasswordSheet: View {
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
+    let onDone: () -> Void
     @State private var email: String
+    @State private var sentTo: String?
+    @State private var code = ""
+    @State private var password = ""
+    @State private var confirm = ""
     @State private var busy = false
     @State private var error: String?
-    @State private var sentTo: String?
 
-    init(email: String) { _email = State(initialValue: email) }
+    init(email: String, onDone: @escaping () -> Void) {
+        _email = State(initialValue: email)
+        self.onDone = onDone
+    }
+
+    private var mismatch: Bool { !confirm.isEmpty && confirm != password }
+    private var canReset: Bool { !busy && code.count == 6 && password.count >= 8 && confirm == password }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let sentTo {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Image(systemName: "envelope.badge").font(.largeTitle).foregroundStyle(.brand).accessibilityHidden(true)
-                        Text("If an account exists for that address, a reset link is on its way.").foregroundStyle(.muted)
-                        Text("We sent a link to \(sentTo). Open it on this device to continue. It can take a minute; check spam if it doesn't show up.")
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                } else {
-                    Form {
-                        Section {
-                            TextField("Email", text: $email)
-                                .textContentType(.emailAddress).keyboardType(.emailAddress)
-                                .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        } footer: {
-                            Text("Enter your account email and we'll send you a link.")
-                        }
-                        if let error { Section { ErrorLine(message: error) } }
-                    }
-                    .canvasList()
-                    .safeAreaInset(edge: .bottom) {
-                        Button {
-                            Task { await send() }
-                        } label: {
-                            Group {
-                                if busy { ProgressView() } else { Text("Send reset link") }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 28)
-                        }
-                        .primaryButton()
-                        .controlSize(.large)
-                        .disabled(busy || !email.contains("@"))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-                }
+                if let sentTo { codeForm(sentTo) } else { emailForm }
             }
             .background(Color.canvas)
-            .navigationTitle(sentTo == nil ? "Reset your password" : "Check your email")
+            .navigationTitle(sentTo == nil ? "Reset your password" : "Enter your code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(sentTo == nil ? "Cancel" : "Done") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
     }
 
-    private func send() async {
+    private var emailForm: some View {
+        Form {
+            Section {
+                TextField("Email", text: $email)
+                    .textContentType(.emailAddress).keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+            } footer: {
+                Text("Enter your account email and we'll send you a 6-digit code.")
+            }
+            if let error { Section { ErrorLine(message: error) } }
+        }
+        .canvasList()
+        .safeAreaInset(edge: .bottom) { bottomButton("Send code", enabled: !busy && email.contains("@")) { await sendCode() } }
+    }
+
+    private func codeForm(_ address: String) -> some View {
+        Form {
+            Section {
+                CodeField(code: $code)
+            } header: {
+                Text("If an account exists for \(address), we sent it a 6-digit code. It expires in 10 minutes.").textCase(nil)
+            }
+            Section {
+                SecureField("New password", text: $password).textContentType(.newPassword)
+                SecureField("Confirm password", text: $confirm).textContentType(.newPassword)
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if password.count >= 8 {
+                        Label("8 characters or more", systemImage: "checkmark.circle.fill").foregroundStyle(.goodText)
+                    } else {
+                        Text("At least 8 characters.")
+                    }
+                    if mismatch { Label("The two passwords don't match.", systemImage: "exclamationmark.circle.fill").foregroundStyle(.bad) }
+                }
+            }
+            if let error { Section { ErrorLine(message: error) } }
+            Section {
+                ResendCodeButton { try await api.sendOTP(email: address, type: "forget-password") }
+                Button("Use a different email") {
+                    sentTo = nil
+                    code = ""
+                    error = nil
+                }
+                .frame(minHeight: 44, alignment: .leading)
+            }
+        }
+        .canvasList()
+        .safeAreaInset(edge: .bottom) { bottomButton("Update password", enabled: canReset) { await reset(address) } }
+    }
+
+    private func bottomButton(_ title: String, enabled: Bool, action: @escaping () async -> Void) -> some View {
+        Button {
+            Task { await action() }
+        } label: {
+            Group {
+                if busy { ProgressView() } else { Text(title) }
+            }
+            .frame(maxWidth: .infinity, minHeight: 28)
+        }
+        .primaryButton()
+        .controlSize(.large)
+        .disabled(!enabled)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private func sendCode() async {
         busy = true
         error = nil
         defer { busy = false }
         let address = email.trimmingCharacters(in: .whitespaces)
         do {
-            try await api.requestPasswordReset(email: address)
+            try await api.sendOTP(email: address, type: "forget-password")
             sentTo = address
         } catch is CancellationError {
+        } catch let e as APIError {
+            error = AuthText.otpError(e)
         } catch {
-            self.error = "Could not send the reset email. Try again."
+            self.error = "Could not send the code. Try again."
+        }
+    }
+
+    private func reset(_ address: String) async {
+        busy = true
+        error = nil
+        defer { busy = false }
+        do {
+            try await api.resetPassword(email: address, otp: code, password: password)
+            onDone()
+            dismiss()
+        } catch is CancellationError {
+        } catch let e as APIError {
+            error = AuthText.otpError(e)
+        } catch {
+            self.error = "Could not reset the password. Try again."
         }
     }
 }

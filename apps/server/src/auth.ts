@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer } from 'better-auth/plugins';
+import { bearer, emailOTP } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
@@ -28,6 +28,31 @@ export function webLink(url: string, request?: Request) {
   return u.toString();
 }
 
+const OTP_MINUTES = 10;
+const OTP_MAIL = {
+  'email-verification': { subject: 'Your IELTS Practice verification code', lead: 'Welcome to IELTS Practice! Enter this code to verify your email:' },
+  'forget-password': { subject: 'Your IELTS Practice password reset code', lead: 'Enter this code to reset your password:' },
+} as const;
+// ponytail: per-process; one OTP email per address+purpose every 30 s. The code is reused while valid (resendStrategy), so a skipped resend loses nothing.
+const OTP_COOLDOWN_MS = 30_000;
+const otpSentAt = new Map<string, number>();
+
+/** Sends the 6-digit code. Callers get the same response whether or not the address has an account (Better Auth only calls this for real users). */
+export async function sendOtpEmail({ email, otp, type }: { email: string; otp: string; type: string }) {
+  const mail = OTP_MAIL[type as keyof typeof OTP_MAIL];
+  if (!mail) return; // sign-in codes are not offered: passwords only
+  const key = `${type}:${email}`;
+  const now = Date.now();
+  if (now - (otpSentAt.get(key) ?? 0) < OTP_COOLDOWN_MS) return;
+  if (otpSentAt.size > 5000) otpSentAt.clear();
+  otpSentAt.set(key, now);
+  await sendEmail({
+    to: email,
+    subject: mail.subject,
+    html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
+  });
+}
+
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
@@ -35,22 +60,19 @@ export const auth = betterAuth({
   trustedOrigins: ORIGINS,
   // Web: session + user come from a signed cookie for 5 min instead of two DB lookups per request.
   session: { cookieCache: { enabled: true, maxAge: 300 } },
+  // Behind the Cloudflare Tunnel the client address is cf-connecting-ip; Better Auth's built-in limiter (on in production) keys on it.
+  advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] } },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: env.NODE_ENV === 'production',
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url: api }, request) => {
       const url = webLink(api, request);
       await sendEmail({ to: user.email, subject: 'Reset your IELTS Practice password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
     },
   },
-  emailVerification: {
-    sendOnSignUp: !IS_TEST,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url: api }, request) => {
-      const url = webLink(api, request);
-      await sendEmail({ to: user.email, subject: 'Verify your email', html: `<p>Welcome to IELTS Practice!</p><p><a href="${url}">Verify your email</a></p>` });
-    },
-  },
+  // Verification uses the OTP plugin's code (see below). Links already emailed still verify through GET /api/auth/verify-email.
+  emailVerification: { sendOnSignUp: !IS_TEST, autoSignInAfterVerification: true },
   user: {
     deleteUser: {
       enabled: true,
@@ -62,7 +84,20 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [bearer()],
+  plugins: [
+    bearer(),
+    // Codes for email verification (replaces the link) and password reset. Better Auth rate-limits these endpoints to 3 per minute per IP (production).
+    emailOTP({
+      sendVerificationOTP: sendOtpEmail,
+      overrideDefaultEmailVerification: true,
+      otpLength: 6,
+      expiresIn: OTP_MINUTES * 60,
+      allowedAttempts: 5, // wrong guesses before the code is burned: 5 in 1,000,000
+      storeOTP: 'encrypted',
+      resendStrategy: 'reuse',
+      disableSignUp: true, // no passwordless sign-up/sign-in; generic success for unknown addresses
+    }),
+  ],
 });
 
 /** Cambridge content is licensed to specific owners: allow-listed AND verified email (prevents sign-up spoofing). */

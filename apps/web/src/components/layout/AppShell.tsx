@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ChevronsUpDown, Ellipsis, History, House, Layers, LibraryBig, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { ChevronsUpDown, Ellipsis, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, UserPlus, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
+import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
   Sidebar,
   SidebarContent,
@@ -48,7 +48,7 @@ function useSignOut() {
   const navigate = useNavigate();
   return async () => {
     await signOut();
-    await navigate({ to: '/login' });
+    await navigate({ to: '/' }); // back to the guest dashboard
   };
 }
 
@@ -72,11 +72,43 @@ function SideLink({ item }: { item: NavItem }) {
   );
 }
 
+/** Where sign-in / sign-up send the visitor back to: the page they are on (nothing to carry from the dashboard). */
+function useBackTo() {
+  const href = useRouterState({ select: (s) => s.location.href });
+  return href === '/' ? undefined : href;
+}
+
+/** Sidebar footer for a guest: sign in or create an account. */
+function GuestMenu() {
+  const redirect = useBackTo();
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip="Sign in" className={rowClass}>
+          <Link to="/login" search={{ redirect }}>
+            <LogIn />
+            <span>Sign in</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip="Create account" className={rowClass}>
+          <Link to="/signup" search={{ redirect }}>
+            <UserPlus />
+            <span>Create account</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 /** Account control in the sidebar footer: square initial and the name (the email lives in the menu, so nothing truncates). */
 function UserMenu() {
   const { data: me } = useMe();
   const doSignOut = useSignOut();
-  const name = me?.user.name || me?.user.email || '';
+  if (!me) return <GuestMenu />;
+  const name = me.user.name || me.user.email;
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -93,8 +125,8 @@ function UserMenu() {
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end" sideOffset={8} className="min-w-56">
             <DropdownMenuLabel className="space-y-0.5 font-normal">
-              <span className="block truncate text-sm font-medium text-ink">{me?.user.name}</span>
-              <span className="block truncate text-xs text-muted">{me?.user.email}</span>
+              <span className="block truncate text-sm font-medium text-ink">{me.user.name}</span>
+              <span className="block truncate text-xs text-muted">{me.user.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             {import.meta.env.DEV && (
@@ -186,6 +218,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const doSignOut = useSignOut();
+  const backTo = useBackTo();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // On a page that lives under More, the tab takes that page's icon and name so the bar still says where you are.
   const here = MORE.find((n) => isCurrent(pathname, n.to));
@@ -227,7 +260,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
       </nav>
 
-      <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email}>
+      <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email ?? 'Browsing as a guest'}>
         <nav aria-label="More" className="-mx-2 space-y-0.5">
           {MORE.map((n) => {
             const Icon = n.icon;
@@ -245,9 +278,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <Separator className="my-4" />
-        <Button variant="ghost" icon={<LogOut />} onClick={doSignOut}>
-          Sign out
-        </Button>
+        {me ? (
+          <Button variant="ghost" icon={<LogOut />} onClick={doSignOut}>
+            Sign out
+          </Button>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            <Link to="/login" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles()}>
+              Sign in
+            </Link>
+            <Link to="/signup" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ variant: 'outline' })}>
+              Create account
+            </Link>
+          </div>
+        )}
       </Sheet>
     </SidebarProvider>
   );

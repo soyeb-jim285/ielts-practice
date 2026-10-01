@@ -17,6 +17,8 @@ const Source = z.enum(['generated', 'cambridge']);
 const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 const authed = { tags: ['Prompts'], security: [{ bearer: [] }], middleware: [requireUser] };
+/** Readable by guests: restricted (Cambridge) prompts are filtered out unless the signed-in user is allow-listed, and `done` is false. */
+const open = { tags: ['Prompts'], security: [{ bearer: [] }, {}] as Record<string, string[]>[] }; // {} = optional
 
 export const PromptSchema = z
   .object({
@@ -56,9 +58,9 @@ const ListQuery = RandomQuery.extend({
 });
 
 // Correlated subqueries use a literal "prompts" qualifier: drizzle renders columns unqualified in single-table selects.
-const doneExpr = (userId: string) =>
-  sql<boolean>`exists(select 1 from ${attempts} a where a.prompt_id = "prompts".id and a.user_id = ${userId})`;
-const selectWithDone = (userId: string) => db.select({ ...getTableColumns(prompts), done: doneExpr(userId) }).from(prompts);
+const doneExpr = (userId: string | null) =>
+  userId ? sql<boolean>`exists(select 1 from ${attempts} a where a.prompt_id = "prompts".id and a.user_id = ${userId})` : sql<boolean>`false`;
+const selectWithDone = (userId: string | null) => db.select({ ...getTableColumns(prompts), done: doneExpr(userId) }).from(prompts);
 type Row = Awaited<ReturnType<ReturnType<typeof selectWithDone>['execute']>>[number];
 
 async function toPrompt({ imageKey, restricted: _r, createdAt: _c, ...p }: Row): Promise<Prompt> {
@@ -66,7 +68,7 @@ async function toPrompt({ imageKey, restricted: _r, createdAt: _c, ...p }: Row):
 }
 
 const like = (q: string) => `%${q.replace(/[%_\\]/g, '\\$&')}%`;
-const filters = (user: SessionUser, f: Partial<z.infer<typeof ListQuery>>) =>
+const filters = (user: SessionUser | null, f: Partial<z.infer<typeof ListQuery>>) =>
   and(
     visiblePromptWhere(user),
     f.skill ? eq(prompts.skill, f.skill) : undefined,
@@ -79,8 +81,8 @@ const filters = (user: SessionUser, f: Partial<z.infer<typeof ListQuery>>) =>
   );
 
 /** Random visible prompts, undone first. */
-const pick = (user: SessionUser, where: SQL | undefined, limit: number) =>
-  selectWithDone(user.id).where(and(visiblePromptWhere(user), where)).orderBy(doneExpr(user.id), sql`random()`).limit(limit);
+const pick = (user: SessionUser | null, where: SQL | undefined, limit: number) =>
+  selectWithDone(user?.id ?? null).where(and(visiblePromptWhere(user), where)).orderBy(doneExpr(user?.id ?? null), sql`random()`).limit(limit);
 
 /** A full speaking test: 3 random P1 topics (P1_TEST_QUESTIONS each), a P2 cue card and its linked P3 set. Null when the bank has no card. */
 export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any'): Promise<SpeakingTest | null> {
@@ -103,7 +105,7 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
 export function register(app: App) {
   app.openapi(
     createRoute({
-      ...authed,
+      ...open,
       method: 'get',
       path: '/api/prompts',
       summary: 'Prompt bank (30 per page) with a per-user done flag',
@@ -111,11 +113,11 @@ export function register(app: App) {
       responses: { 200: json(z.object({ items: z.array(PromptSchema), total: z.number(), page: z.number(), pageSize: z.number() }).openapi('PromptPage'), 'Prompts') },
     }),
     async (c) => {
-      const user = currentUser(c);
+      const user = c.get('user');
       const q = c.req.valid('query');
       const where = filters(user, q);
       const [rows, [{ total } = { total: 0 }]] = await Promise.all([
-        selectWithDone(user.id).where(where).orderBy(asc(prompts.skill), asc(prompts.part), asc(prompts.topic), asc(prompts.title)).limit(PAGE_SIZE).offset((q.page - 1) * PAGE_SIZE),
+        selectWithDone(user?.id ?? null).where(where).orderBy(asc(prompts.skill), asc(prompts.part), asc(prompts.topic), asc(prompts.title)).limit(PAGE_SIZE).offset((q.page - 1) * PAGE_SIZE),
         db.select({ total: count() }).from(prompts).where(where),
       ]);
       return c.json({ items: await Promise.all(rows.map(toPrompt)), total, page: q.page, pageSize: PAGE_SIZE }, 200);
@@ -124,10 +126,10 @@ export function register(app: App) {
 
   app.openapi(
     createRoute({
-      ...authed,
+      ...open,
       method: 'get',
       path: '/api/prompts/meta',
-      middleware: [requireUser, etag()],
+      middleware: [etag()],
       summary: 'Distinct topics and types per skill/part (for bank filters)',
       responses: {
         200: json(z.object({ groups: z.array(z.object({ skill: Skill, part: z.number(), topics: z.array(z.string()), types: z.array(z.string()) })) }).openapi('PromptMeta'), 'Filter values'),
@@ -142,7 +144,7 @@ export function register(app: App) {
           types: sql<string[]>`array_agg(distinct ${prompts.type} order by ${prompts.type})`,
         })
         .from(prompts)
-        .where(visiblePromptWhere(currentUser(c)))
+        .where(visiblePromptWhere(c.get('user')))
         .groupBy(prompts.skill, prompts.part)
         .orderBy(prompts.skill, prompts.part);
       // Changes only on seed. private: the set differs per user (restricted Cambridge prompts); ETag revalidation is free after max-age.
@@ -154,7 +156,7 @@ export function register(app: App) {
 
   app.openapi(
     createRoute({
-      ...authed,
+      ...open,
       method: 'get',
       path: '/api/prompts/random',
       summary: 'A random matching prompt, preferring ones the user has not done',
@@ -162,7 +164,7 @@ export function register(app: App) {
       responses: { 200: json(PromptSchema, 'Prompt'), 404: json(ErrorSchema, 'No matching prompt') },
     }),
     async (c) => {
-      const user = currentUser(c);
+      const user = c.get('user');
       const [row] = await pick(user, filters(user, c.req.valid('query')), 1);
       return row ? c.json(await toPrompt(row), 200) : c.json({ error: 'No matching prompt' }, 404);
     },
@@ -170,7 +172,7 @@ export function register(app: App) {
 
   app.openapi(
     createRoute({
-      ...authed,
+      ...open,
       method: 'get',
       path: '/api/prompts/{id}',
       summary: 'Single prompt (figure URL presigned)',
@@ -178,8 +180,8 @@ export function register(app: App) {
       responses: { 200: json(PromptSchema, 'Prompt'), 404: json(ErrorSchema, 'Not found') },
     }),
     async (c) => {
-      const user = currentUser(c);
-      const [row] = await selectWithDone(user.id).where(and(eq(prompts.id, c.req.valid('param').id), visiblePromptWhere(user)));
+      const user = c.get('user');
+      const [row] = await selectWithDone(user?.id ?? null).where(and(eq(prompts.id, c.req.valid('param').id), visiblePromptWhere(user)));
       return row ? c.json(await toPrompt(row), 200) : c.json({ error: 'Prompt not found' }, 404);
     },
   );
