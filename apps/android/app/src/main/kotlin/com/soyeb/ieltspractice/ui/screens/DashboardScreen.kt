@@ -215,7 +215,7 @@ private fun Onboarding(nav: AppNav, target: Double) {
 
 /** The 4 to 9 target slider in half-band steps (shared with Settings). */
 @Composable
-fun TargetSlider(value: Double, onChange: (Double) -> Unit, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+fun TargetSlider(value: Double, onChange: (Double) -> Unit, modifier: Modifier = Modifier, onFinished: () -> Unit) {
     val e = MaterialTheme.ext
     Slider(
         value.toFloat(), { onChange(it.toDouble()) }, modifier.semantics { contentDescription = "Target band"; stateDescription = fmt(value) },

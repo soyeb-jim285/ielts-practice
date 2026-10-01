@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -220,7 +221,7 @@ fun BigNumber(text: String, modifier: Modifier = Modifier) =
 @Composable
 fun GroupHeader(text: String, modifier: Modifier = Modifier) {
     Text(
-        text, modifier.fillMaxWidth().padding(start = 4.dp, bottom = 6.dp).semantics { androidx.compose.ui.semantics.heading() },
+        text, modifier.fillMaxWidth().padding(start = 4.dp, bottom = 6.dp).semantics { heading() },
         style = MaterialTheme.typography.labelLarge, color = MaterialTheme.ext.muted,
     )
 }

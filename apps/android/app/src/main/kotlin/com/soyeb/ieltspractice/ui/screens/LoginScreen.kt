@@ -65,17 +65,17 @@ fun LoginScreen(nav: AppNav) {
     val e = MaterialTheme.ext
     val api = LocalApp.current.api
     val scope = rememberCoroutineScope()
+    val demoSub = demoTab(LocalDemo.current) // screenshots open on a sub-screen
     var mode by remember {
         mutableStateOf(
-            when (demoTab(LocalDemo.current)) { // screenshots open on a sub-screen
+            when (demoSub) {
                 "Signup" -> Mode.SignUp; "Verify" -> Mode.Verify; "Forgot" -> Mode.ForgotEmail; "Reset" -> Mode.ForgotCode
                 else -> if (nav.loginSignUp) Mode.SignUp else Mode.SignIn
             },
         )
     }
-    val demoSub = demoTab(LocalDemo.current) in listOf("Verify", "Forgot", "Reset")
     var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(if (demoSub) "maya@example.com" else "") }
+    var email by remember { mutableStateOf(if (demoSub in listOf("Verify", "Forgot", "Reset")) "maya@example.com" else "") }
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }

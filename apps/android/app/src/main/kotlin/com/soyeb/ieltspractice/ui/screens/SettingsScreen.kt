@@ -119,7 +119,8 @@ private fun SettingsBody(initial: AppSettings, realtimeOk: Boolean, geminiOk: Bo
     var draft by remember { mutableStateOf(initial.targetBand) }
     var voices by remember { mutableStateOf(emptyMap<String, List<String>>()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var customise by remember { mutableStateOf(demoTab(LocalDemo.current) == "Models") }
+    val demoModels = demoTab(LocalDemo.current) == "Models"
+    var customise by remember { mutableStateOf(demoModels) }
     var picking by remember { mutableStateOf<Pair<String, String>?>(null) } // capability to model-row title
     var showDelete by remember { mutableStateOf(false) }
 
