@@ -10,6 +10,8 @@ private struct BankPrompt: Decodable, Identifiable {
     let body: String
     let source: String?
     let sourceRef: String?
+    let bullets: [String]?
+    let followUps: [String]?
     let done: Bool?
 }
 
@@ -212,7 +214,10 @@ struct BankView: View {
 
     private func row(_ p: BankPrompt) -> some View {
         // Speaking Part 1 and 3 titles are just the topic: show the first question under it; writing shows the task type.
-        let question: String? = p.skill == "speaking" ? p.body.split(separator: "\n").first.map(String.init) : p.type.map(bankTypeLabel)
+        // Part 2: first cue-card point ("You should say:" alone says nothing); others: the opening line or follow-up.
+        let question: String? = p.skill == "speaking"
+            ? (p.part == 2 ? p.bullets?.first.map { "Say \($0)" } : p.followUps?.first ?? p.body.split(separator: "\n").first.map(String.init))
+            : p.type.map(bankTypeLabel)
         return VStack(alignment: .leading, spacing: 4) {
             Text(p.title).font(.body).foregroundStyle(.ink).lineLimit(2)
             HStack(spacing: 8) {

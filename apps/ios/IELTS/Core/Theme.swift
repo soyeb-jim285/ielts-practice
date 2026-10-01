@@ -95,7 +95,9 @@ func categoryLabel(_ c: String) -> String {
     let parts = c.split(separator: ".", maxSplits: 1).map(String.init)
     guard let g = parts.first else { return c }
     let name = groups[g.lowercased()] ?? (g.prefix(1).uppercased() + g.dropFirst())
-    return parts.count > 1 ? "\(name): \(parts[1].lowercased())" : name
+    // "verb-tense" reads "verb tense"; "run-on" keeps its hyphen.
+    let sub = parts.count > 1 ? parts[1].lowercased() : ""
+    return sub.isEmpty ? name : "\(name): \(sub == "run-on" ? sub : sub.replacingOccurrences(of: "-", with: " "))"
 }
 
 func newSessionId() -> String { UUID().uuidString.lowercased() }
