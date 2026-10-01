@@ -7,6 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -335,6 +338,8 @@ private fun WordView(
 @Composable
 private fun MarkChip(m: TrMark, filter: TrFilter, onMark: (String) -> Unit, player: ResultPlayer) {
     val e = MaterialTheme.ext
+    // Surface(onClick) pads itself to a 48dp touch target, which inflated every line holding a tag.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
     Surface(
         { onMark(m.detail); player.seek(max(0.0, m.time - 0.3)) },
         Modifier.alpha(if (filter == TrFilter.All || filter == TrFilter.Fluency) 1f else 0.35f).semantics { contentDescription = m.detail },
@@ -345,6 +350,7 @@ private fun MarkChip(m: TrMark, filter: TrFilter, onMark: (String) -> Unit, play
             MarkerGlyph(MarkerType.Fluency, 7.dp)
             Text(m.short, style = chipText, color = e.muted)
         }
+    }
     }
 }
 
