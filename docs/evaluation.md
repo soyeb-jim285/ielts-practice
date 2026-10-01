@@ -446,3 +446,83 @@ The gate fails on test MAE (0.48 against 0.45) and on the >= 7 bias confidence i
 - Live Part 1 attempts title from the first topic only; a multi-topic title or per-question topics needs a server change. The speech-to-text default model depends on an env var and is still hard-coded in `ModelPicker.tsx` (`DEFAULT_MODELS`); the server should expose real defaults.
 - Dashboard minutes already round up on the server; seconds are not exposed.
 - Unreviewed or unwalked: review deck with cards due, full-test flow, live examiner session, history/settings/signup screens, iOS runtime (not built), Realtime WebRTC and `/api/live/finish`.
+
+
+## Iteration 7 (final evaluation)
+
+Evaluation only: no source changes. All AI calls went through OpenRouter (Luna is the grader), total spend about $0.10 because the harness splits were cache hits. Evidence and screenshots are in the gitignored `.eval/7/`.
+
+### Scores
+
+| Dimension | Score | Summary |
+|---|---|---|
+| Performance | 8.4 | Routes are code-split, recharts is lazy, and the preview build paints in 90-180 ms. Every API endpoint measured has a p50 of 2-4 ms, with index-backed queries and no N+1. Held below 9 by real writing analysis at 29.7 s (scoring stage dominates) and an eager shell of about 150 KB gz JS plus 23 KB gz CSS. The test user had almost no data, so `/api/progress` is likely understated; the speaking attempt was seeded. |
+| Ease of use | 8.2 | A first-time candidate always has one obvious next step. Walked on mobile (390x844) with a real signup, a Part 1 recording through real analysis, and a 286-word Task 2. Desktop was checked on dashboard, speaking hub, bank, live pre-screen and empty states only. Main weaknesses are on result screens: the speaking result is internally inconsistent, the tab strip overflows at 390 px, and there are zero-count and jargon tabs. Not exercised: review deck with cards, mistakes and history with data, bank filters, model picker. |
+| UI/UX visual quality | 8 | Premium and consistent: Newsreader/Hanken pairing, one teal accent, hairline structure, no horizontal overflow on any capture at 390 or 1440 in light and dark, well-tuned dark mode, legible charts. Held below 9 by mobile tap targets under 44 px and minor layout and chrome polish. About 14 of roughly 50 captures were viewed in detail; the rest were checked programmatically. |
+| Features vs spec | 8.4 | Almost every spec feature works end to end on the live stack, with no broken or stubbed core flow. Writing scored in about 30 s, speaking in about 27 s, and the turn-based live examiner spoke with real TTS. Off-topic cap and Cambridge gating behave as specified. Gaps: vocabulary upgrades cannot be added to the review deck (web or iOS), live captions off by default, Cambridge-allowlisted path and the P2 2:00 cut-in not exercised end to end. iOS was read, not built. |
+| Scoring accuracy | 7.5 | Best so far, just short of the harness release gate. Under-scores band 7-8 work, hard-floors weak essays (up to 1 band low and unstable between runs), and the calibration is still unvalidated. |
+
+### Key evidence
+
+**Performance**
+- Build 1.46 s. Eager entry 283 KB raw / 91.3 KB gz plus modulepreloads (ui-core 22.4 KB gz, useRouter 7.7 KB gz): about 135-150 KB gz JS, one 23.3 KB gz CSS file, about 70 chunks. FluencyPanel (recharts) is 105.8 KB gz and loads only on the speaking result page.
+- Preview build (1280x800): /login FCP 176 ms, dashboard LCP 488 ms, bank 172 ms, writing editor 112 ms, writing result 476 ms, speaking result 468 ms. CLS 0.000 everywhere. LCP of about 470 ms on result and dashboard pages is the API fetch plus a content swap.
+- API p50 over 10 calls: `/api/me` 2 ms, `/api/prompts` 4 ms, `/api/prompts/meta` 3 ms, `/api/progress` 4 ms, `/api/attempts` 2 ms, `/api/mistakes` 3 ms; max 7 ms.
+- Indexes cover prompts, attempts, mistakes, cards and sessions; trigram gin on prompt title and body. Assets are immutable-cached, HTML is no-cache, API responses are compressed.
+- Real writing attempt: submit 3 ms, partial feedback at 0.5-11 s, scoring stage about 18.6 s, done at 29.7 s.
+
+**Ease of use**
+- Signup to dashboard in one step with one primary CTA. Speaking Part 1 takes about 8 taps to submit. Silent recording gives a clear "No speech detected" state with a retry CTA.
+- Writing: live word counter, collapsible plan, confirm dialog with word count, three fixes with before/after diff. Empty states (review, mistakes, history) each have a reason and one CTA.
+- Problems: off-topic speaking got a 7.0 headline and "At or above your 7.0 target" next to a "5 of 5 off topic" banner, while writing caps to 4.0. Result title shows one topic that does not match the questions asked. Tab strip clips "Improve" at 390 px. Mobile 5th bottom tab changes contextually. Speaking "Text 0" and a zero-event Fluency tab are noise. The dashboard shows an orphaned target-band caption before any scores exist. Live examiner style is not visible above the fold on mobile.
+
+**UI/UX visual quality**
+- No scrollWidth overflow on any capture. Spot-checked contrast adequate (off-topic alert, warn amber bar, dark-mode teal); the contrast script was not run.
+- Tap targets at 390 px: inputs 350x36, submit 350x40, theme segments 40x36, switches 40x24, editor Exit 34x32, play button 36x36, speed chips 36 px tall, pause markers 12 px wide.
+
+**Features vs spec**
+- All spec endpoints exist, plus `/prompts/meta`, `/prompts/random`, `/attempts/{id}/status`, `/live/upload-url`, `/cards/bulk`, `/mistakes/{id}/card`. Bank counts match spec section 8; Cambridge rows return total 0 / 404 for non-allowlisted users.
+- Writing: feedback then scoring then done in 30 s; off-topic essay capped (TA 1, overall 2) with a "Rewrite on this topic" button; retry yields comparison deltas; 2-word submission gets Band 1 with no LLM call.
+- Speaking: halting WAV analysed in 27 s with STT words, disfluency events, audio-LLM pronunciation and relevance flag; transcript, fluency, language and improve tabs render. Silent recording makes no LLM call.
+- Live: start, turn and finish all work with real TTS audio, phases intro, p1, p2-prep; finish creates a live attempt scored 6.5. Realtime token returns an `ek_` key.
+- SRS, mistakes and progress endpoints work. Editor anti-assist settings and paste blocking verified on web, and by code reading on iOS.
+
+**Scoring accuracy**
+- Harness TEST split (42 scripts, luna, cached): QWK 0.85 [0.77, 0.91], LWK 0.64, exact 32%, within 0.5 80%, within 1 98%, MAE 0.45 [0.34, 0.56], max 1.50, SMD -0.17, SD ratio 1.08, mean pred 5.96 vs official 6.15.
+- Bias by band group: band 5 and below +0.14 (n=11), 5.5-6.5 -0.04 (n=14), 7 and above -0.47 (n=16, CI [-0.65, -0.29]). By band: 4 +0.25, 5 +0.05, 6 -0.05, 7 -0.42, 8 -0.63. Per-family SMD: t2 -0.28, t1a -0.05, t1g 0.03.
+- Versus iteration 4 shipped default: QWK 0.76 to 0.85, MAE 0.50 to 0.45, within 0.5 81% to 80%, SMD -0.25 to -0.17, band 7+ bias -0.62 to -0.47.
+- Gate verdict: not fully met (2 to 3 gates short). QWK, MAE (exactly on the threshold), SD ratio and coverage pass; band 7+ bias CI fails the 0.35 bound; t2 SMD fails the 0.10 limit.
+- Probes (cached): ceiling 28/48 pass (was 19/48), floor 3/3, floor-degraded 3/3, copied 4/4, error chains 12/12, floor-copy 4/4, off-topic 4/4, short 4/4, no-overview 1/1. Band 9 model answers average -0.74.
+- Independent 12-essay run through `analyzeWriting` with defaults: MAE 0.42, max error 1.0, bias -0.33, 8/12 within 0.5, cost $0.086. Run-to-run: 8/12 identical or within 0.25; weak essays unstable (cam-9-4-w2, official 4: raw 3.75 vs 2.75).
+- Speaking sanity: fluent TTS sample overall 8 (fc 9), halting sample overall 4 with 6 of 6 fillers detected at the right times and planted errors mapped to correct timestamps. Immediate repetitions ("I, I read") were not surfaced as events.
+- Caveat: the gold set already uses all of Cambridge books 1-19, so no fully unseen sample exists.
+
+### Known open issues
+
+Major
+- Speaking result: fully off-topic attempt gets a 7.0 headline and a target-met verdict, inconsistent with the writing cap (`apps/web/src/routes/_app/speaking/result.$attemptId.tsx`).
+- Speaking result title shows one topic that does not match the questions asked (same file).
+- Result tab strip overflows at 390 px with no scroll hint (`apps/web/src/components/results`).
+- Shared primitives (Button, Input, Select, SegmentedControl, Switch) are 36-40 px on phones, below the 44 px target; fix once in the primitives.
+- Session Exit, audio play and speed controls, and 12 px pause markers are too small to tap reliably.
+- Strong essays deflated: band 7 bias -0.42, band 8 -0.63, 20 of 48 ceiling probes fail (`apps/server/src/ai/calibration.ts`, `prompts.ts`).
+- Weak scripts scored too low and unstable between runs, up to a full band (`writing.ts` densityCap and applyRules, `calibration.ts`).
+
+Minor
+- Default calibration map unvalidated; t2 SMD -0.28 fails; gate margins on within 0.5 and MAE are zero at n=42.
+- Task 1 TA underrated on high-band reports (cam-2-3-w1 and cam-5-4-w1, official 7, TA 5).
+- Speaking: immediate repetitions not emitted; fc 9 possible for synthetic or rushed uniform speech.
+- `docs/scoring-validation.md` still quotes iteration-4 numbers and an old prompt hash.
+- Stale esbuild error for `packages/core/src/calibration.ts:280` in the server startup log (from a mid-edit reload; server healthy).
+
+### Trend across iterations
+
+| Dimension | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|
+| Performance | 6.5 | 8 | 8 | 7.5 | 7.6 | 8.6 | 8.4 |
+| Ease of use | 6.5 | 7 | 7.5 | 7 | 7.3 | 7.4 | 8.2 |
+| UI/UX visual quality | 7 | 7 | 7.5 | 7.3 | 7.4 | 7.2 | 8 |
+| Features vs spec | 7 | 7 | 8.5 | 7 | 7.6 | 8.3 | 8.4 |
+| Scoring accuracy | 5 | 5 | 6 | 5.5 | 7 | 6.5 | 7.5 |
+
+Scores are the pre-fix evaluator scores of each iteration. Rubrics tightened in iteration 4 (spec sections 5.1 and 5.2 and a held-out harness were added), which explains the dip there. Scoring accuracy is now measured on the 42-script harness TEST split rather than ad hoc samples, so iterations 6 and 7 are the most comparable pair (QWK 0.83 to 0.85, MAE 0.48 to 0.45, band 7+ bias -0.35 to -0.47).
