@@ -1,7 +1,19 @@
 import Foundation
 
-/// OpenAI Realtime over WebSocket (GA event names). The server mints the ephemeral key with the examiner instructions.
-final class RealtimeSocket {
+/// What the live exam needs from a Realtime provider (OpenAI Realtime or Gemini Live).
+protocol DuplexSocket: AnyObject {
+    /// PCM16 mono mic audio at the rate LiveAudio.setPCMRate was given.
+    func appendAudio(_ pcm: Data)
+    /// Interrupt the examiner and give it an instruction. `heard`: it should take in the candidate's audio since the last hear(false, fresh: true).
+    func cue(_ text: String, heard: Bool)
+    /// false: the examiner must stay silent (preparation, long turn); `fresh` marks where the long turn starts.
+    func hear(_ on: Bool, fresh: Bool)
+    func close()
+}
+
+/// OpenAI Realtime over WebSocket (GA event names). The server mints the ephemeral client secret with the examiner instructions and turn detection.
+/// A client secret works as the Bearer token on wss://api.openai.com/v1/realtime (browsers pass it as a subprotocol instead; a native client can set headers).
+final class RealtimeSocket: DuplexSocket {
     /// Called on a background queue with (event type, full event JSON).
     var onEvent: ((String, [String: Any]) -> Void)?
     var onClose: ((Error?) -> Void)?
@@ -25,11 +37,19 @@ final class RealtimeSocket {
 
     func appendAudio(_ pcm16: Data) { send(["type": "input_audio_buffer.append", "audio": pcm16.base64EncodedString()]) }
 
-    /// Out-of-band instruction to the examiner, then ask it to speak.
-    func instruct(_ text: String) {
+    /// Cancels what the examiner is saying, gives it a system instruction and asks it to speak. The caller stops local playback.
+    func cue(_ text: String, heard: Bool) {
+        if heard { send(["type": "input_audio_buffer.commit"]) } // the long turn becomes one user message the examiner can answer
+        send(["type": "response.cancel"])
         let item: [String: Any] = ["type": "message", "role": "system", "content": [["type": "input_text", "text": text]]]
         send(["type": "conversation.item.create", "item": item])
         send(["type": "response.create"])
+    }
+
+    func hear(_ on: Bool, fresh: Bool) {
+        let detection: Any = on ? ["type": "semantic_vad", "eagerness": "low"] : NSNull()
+        send(["type": "session.update", "session": ["type": "realtime", "audio": ["input": ["turn_detection": detection]]] as [String: Any]])
+        if fresh { send(["type": "input_audio_buffer.clear"]) }
     }
 
     func close() {

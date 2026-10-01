@@ -3,7 +3,9 @@ import Observation
 import SwiftUI
 
 /// Live examiner session. Turn-based: server drives phases via /api/live/turn (examiner TTS ↔ candidate turns ended by VAD).
-/// Realtime: OpenAI Realtime over WebSocket with client-timed part changes. Both record one m4a per part → /api/live/finish.
+/// Realtime: OpenAI Realtime or Gemini Live over WebSocket with client-timed part changes. All record one m4a per part → /api/live/finish.
+enum Examiner { case turn, openai, gemini }
+
 @MainActor @Observable
 final class LiveExam {
     enum Stage: Equatable { case ready, running, uploading, finished([String]), failed(String) }
@@ -24,12 +26,13 @@ final class LiveExam {
     var micChecking = false
     var micHeard = false // enough speech-level input during the mic check to say "we can hear you"
     var micError: String?
+    var fellBack = false // the Realtime provider couldn't connect, so the turn-based examiner runs instead
     var testStarted = Date()
 
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let audio = LiveAudio()
     @ObservationIgnored private let player = Player()
-    @ObservationIgnored private var socket: RealtimeSocket?
+    @ObservationIgnored private var socket: DuplexSocket?
     @ObservationIgnored private var run: Task<Void, Never>?
     @ObservationIgnored private var vad = VAD()
     @ObservationIgnored private var turnEnded: CheckedContinuation<Void, Never>?
@@ -39,6 +42,11 @@ final class LiveExam {
     @ObservationIgnored private var recordings: [Int: LiveAudio.PartRecording] = [:]
     @ObservationIgnored private var ending = false
     @ObservationIgnored private var micLoudSeconds = 0.0
+    @ObservationIgnored private var vadOn = false // turn-based turns end on silence; the Part 2 long turn never does
+    @ObservationIgnored private var talkTimeUp = false
+    @ObservationIgnored private var answeredFlag = false // the candidate finished an answer (Realtime)
+    @ObservationIgnored private var heardFlag = false // Gemini: the candidate spoke since the last cue or answer
+    @ObservationIgnored private var freshTurn = true // Gemini: the next examiner output starts a new turn
 
     init(api: APIClient) { self.api = api }
 
@@ -81,11 +89,11 @@ final class LiveExam {
         }
     }
 
-    func start(realtime: Bool) {
+    func start(_ kind: Examiner) {
         guard audio.running else { micDenied = true; return }
         testStarted = Date()
         stage = .running
-        run = Task { if realtime { await runRealtime() } else { await runTurnBased() } }
+        run = Task { if kind == .turn { await runTurnBased() } else { await runDuplex(kind) } }
     }
 
     /// "I'm done" — end the candidate's turn now.
@@ -121,7 +129,7 @@ final class LiveExam {
             micHeard = micLoudSeconds >= 0.6
         }
         examinerTalking = player.isPlaying || audio.examinerSpeaking
-        if listening && vad.feed(level: l, dt: dt) { endTurn() }
+        if listening && vadOn && vad.feed(level: l, dt: dt) { endTurn() }
     }
 
     private func setPhase(_ p: String) {
@@ -199,11 +207,13 @@ final class LiveExam {
         try audio.beginTurn(url)
         vad = VAD()
         vad.endAfter = endAfter
+        vadOn = true
         listening = true
         let limit = Task { try? await Task.sleep(for: .seconds(maxSeconds)); self.endTurn() }
         await withCheckedContinuation { turnEnded = $0 }
         limit.cancel()
         listening = false
+        vadOn = false
         let heard = vad.heardSpeech
         guard let file = audio.endTurn(), heard, !Task.isCancelled else { return nil }
         return try await uploadFile(file)
@@ -219,24 +229,24 @@ final class LiveExam {
         }
     }
 
-    // MARK: Realtime
+    // MARK: Realtime (OpenAI Realtime, Gemini Live)
 
-    private func runRealtime() async {
+    private func runDuplex(_ kind: Examiner) async {
         do {
-            let s: LiveReply = try await api.send("POST", "/api/live/start", [String: String]())
+            let s: LiveReply = try await api.send("POST", "/api/live/start", ["skipTts": true] as [String: Any])
             sessionId = s.sessionId ?? ""
             test = s.test
-            let token: RealtimeToken = try await api.send("POST", "/api/live/realtime-token", ["sessionId": sessionId])
-            let sock = RealtimeSocket()
-            socket = sock
-            sock.onEvent = { [weak self] type, event in self?.handle(type, event) }
-            sock.onClose = { [weak self] err in
-                guard let err else { return }
-                Task { @MainActor in if self?.stage == .running && self?.ending == false { self?.caption = "The connection to the examiner was lost. End the test to score what you have recorded." } }
+            do {
+                socket = try await connectDuplex(kind)
+            } catch {
+                if ending || error is CancellationError { throw error }
+                // The provider couldn't connect (token, network, key): the turn-based examiner runs the same test.
+                fellBack = true
+                audio.onPCM16 = nil
+                await runTurnBased()
+                return
             }
-            audio.onPCM16 = { [weak sock] pcm in sock?.appendAudio(pcm) }
-            sock.connect(ephemeralKey: token.value, model: token.model ?? "gpt-realtime")
-            sock.send(["type": "response.create"]) // examiner opens the test
+            guard let sock = socket else { return }
 
             let card = test?.part2
             setPhase("p1")
@@ -244,26 +254,95 @@ final class LiveExam {
 
             setPhase("p2-prep")
             cueCard = card
-            sock.instruct("Move to Part 2 now. Read the candidate this cue card and tell them they have one minute to prepare, then stay silent: \(card.map { "\($0.title). You should say: \(($0.bullets ?? []).joined(separator: "; "))" } ?? "describe a memorable experience")")
+            sock.hear(false, fresh: false)
+            cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.")
             try await Task.sleep(for: .seconds(8))
             await countdown(60)
             try Task.checkCancellation()
 
             setPhase("p2-talk")
-            sock.instruct("Preparation time is over. Ask the candidate to start talking now. Do not interrupt them for two minutes.")
-            try await Task.sleep(for: .seconds(125))
+            sock.hear(false, fresh: true)
+            cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.")
+            let timeUp = await waitTalk(125)
 
-            setPhase("p3")
-            sock.instruct("Time is up. Thank the candidate, then begin Part 3: a discussion of abstract questions related to \(card?.topic ?? card?.title ?? "the Part 2 topic"). Ask one question at a time.")
+            setPhase("p2-follow")
+            cue(timeUp ? "The two minutes are up. Say \"Thank you. That's the end of your time.\" and ask the rounding-off question."
+                       : "The candidate has finished their talk. Say \"Thank you.\" and ask the rounding-off question.", heard: true)
+            sock.hear(true, fresh: false)
+            try await waitAnswered(45)
+
+            setPhase("p3") // the examiner moves from the rounding-off answer into Part 3 by itself
             try await Task.sleep(for: .seconds(270))
 
             setPhase("closing")
-            sock.instruct("Close the test now: say \"Thank you, that is the end of the speaking test.\"")
-            try await Task.sleep(for: .seconds(6))
+            cue("The test is over. Say the closing line now and nothing more.")
+            try await Task.sleep(for: .seconds(8))
         } catch {
             if !ending && !(error is CancellationError) { stage = .failed(error.localizedDescription); return }
         }
         await finish()
+    }
+
+    private func connectDuplex(_ kind: Examiner) async throws -> DuplexSocket {
+        if kind == .gemini {
+            let token: GeminiToken = try await api.send("POST", "/api/live/gemini-token", ["sessionId": sessionId])
+            let sock = GeminiLiveSocket()
+            sock.onEvent = { [weak self] ev in self?.handleGemini(ev) }
+            sock.onLost = { [weak self] in Task { @MainActor in self?.connectionLost() } }
+            audio.setPCMRate(16000)
+            audio.onPCM16 = { [weak sock] pcm in sock?.appendAudio(pcm) }
+            do {
+                try await sock.connect(token: token.value, model: token.model ?? "gemini-3.8-live")
+            } catch {
+                sock.close()
+                throw error
+            }
+            sock.cue("Begin the test.", heard: false) // the examiner opens with the introduction
+            return sock
+        }
+        let token: RealtimeToken = try await api.send("POST", "/api/live/realtime-token", ["sessionId": sessionId])
+        let sock = RealtimeSocket()
+        sock.onEvent = { [weak self] type, event in self?.handle(type, event) }
+        sock.onClose = { [weak self] err in
+            guard err != nil else { return }
+            Task { @MainActor in self?.connectionLost() }
+        }
+        audio.setPCMRate(24000)
+        audio.onPCM16 = { [weak sock] pcm in sock?.appendAudio(pcm) }
+        sock.connect(ephemeralKey: token.value, model: token.model ?? "gpt-realtime-2.1")
+        sock.send(["type": "response.create"]) // the examiner opens with the introduction
+        return sock
+    }
+
+    private func connectionLost() {
+        if stage == .running && !ending { caption = "The connection to the examiner was lost. End the test to score what you have recorded." }
+    }
+
+    /// Cuts the examiner off locally (the provider interrupts its own generation) and gives it an instruction.
+    private func cue(_ text: String, heard: Bool = false) {
+        audio.stopPlayback()
+        heardFlag = false
+        freshTurn = true
+        socket?.cue(text, heard: heard)
+    }
+
+    /// The Part 2 long turn: ends at the time limit or on "I'm done", never on a pause. True if the time ran out.
+    private func waitTalk(_ seconds: Double) async -> Bool {
+        if Task.isCancelled { return false }
+        talkTimeUp = false
+        listening = true
+        let limit = Task { if (try? await Task.sleep(for: .seconds(seconds))) != nil { self.talkTimeUp = true; self.endTurn() } }
+        await withCheckedContinuation { turnEnded = $0 }
+        limit.cancel()
+        listening = false
+        return talkTimeUp
+    }
+
+    /// Waits for the candidate to finish answering the rounding-off question (or the timeout).
+    private func waitAnswered(_ timeout: Double) async throws {
+        answeredFlag = false
+        let end = Date().addingTimeInterval(timeout)
+        while !answeredFlag && Date() < end { try await Task.sleep(for: .milliseconds(250)) }
     }
 
     nonisolated private func handle(_ type: String, _ event: [String: Any]) {
@@ -276,11 +355,44 @@ final class LiveExam {
             Task { @MainActor in self.caption = "" }
         case "response.output_audio_transcript.delta", "response.audio_transcript.delta":
             if let t = event["delta"] as? String { Task { @MainActor in self.caption += t } }
+        case "input_audio_buffer.speech_stopped":
+            Task { @MainActor in self.answeredFlag = true }
         case "error":
-            // ponytail: the provider's detail is for logs, not the candidate.
+            // Cancelling when nothing is playing is expected. ponytail: the provider's detail is for logs, not the candidate.
+            let msg = ((event["error"] as? [String: Any])?["message"] as? String) ?? ""
+            if msg.range(of: "cancel|no active response|empty", options: [.regularExpression, .caseInsensitive]) != nil { break }
             Task { @MainActor in self.caption = "The examiner had trouble responding. Wait a moment, or end the test to score what you have recorded." }
         default: break
         }
+    }
+
+    /// Gemini Live: examiner audio and captions arrive per turn; a new turn after the candidate spoke is the examiner replying to an answer.
+    nonisolated private func handleGemini(_ ev: GeminiLive.Event) {
+        Task { @MainActor in
+            switch ev {
+            case let .audio(d):
+                self.geminiTurn()
+                self.audio.playPCM16(d)
+            case let .outText(t):
+                self.geminiTurn()
+                self.caption += t
+            case .inText:
+                self.heardFlag = true
+            case .interrupted:
+                self.audio.stopPlayback()
+                self.freshTurn = true
+            case .turnComplete:
+                self.freshTurn = true
+            default: break
+            }
+        }
+    }
+
+    private func geminiTurn() {
+        guard freshTurn else { return }
+        freshTurn = false
+        caption = ""
+        if heardFlag { heardFlag = false; answeredFlag = true }
     }
 
     // MARK: Finish
@@ -327,10 +439,23 @@ struct LiveExamView: View {
         Step(part: 3, time: "4-5 min", text: "A discussion of broader ideas linked to Part 2."),
     ]
 
-    private var wantsRealtime: Bool { api.me?.settings.liveProvider == "openai-realtime" }
-    private var realtime: Bool { wantsRealtime && api.me?.realtimeAvailable == true }
+    private var provider: String { api.me?.settings.liveProvider ?? "turn" }
+    /// The examiner that runs: the chosen Realtime provider when the server offers it, else turn-based.
+    private var examiner: Examiner {
+        if provider == "openai-realtime", api.me?.realtimeAvailable == true { return .openai }
+        if provider == "gemini-live", api.me?.geminiLiveAvailable == true { return .gemini }
+        return .turn
+    }
+    /// Same labels as Settings, Live examiner.
+    private var styleLabel: String {
+        switch examiner {
+        case .turn: return "Examiner waits for you to finish"
+        case .openai: return "Natural conversation (OpenAI)"
+        case .gemini: return "Natural conversation (Gemini)"
+        }
+    }
     /// Natural conversation is selected but the server can't offer it: the turn-based examiner runs instead.
-    private var fallback: Bool { wantsRealtime && !realtime }
+    private var fallback: Bool { provider != "turn" && examiner == .turn }
 
     var body: some View {
         Group {
@@ -440,8 +565,7 @@ struct LiveExamView: View {
                     }
                     .card(padding: 0)
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        // Same labels as Settings, Live examiner.
-                        Text("Examiner style: \(realtime ? "Natural conversation" : "Examiner waits for you to finish").")
+                        Text("Examiner style: \(styleLabel).")
                             .foregroundStyle(.muted)
                         Button("Change") { showSettings = true }
                             .frame(minHeight: 44)
@@ -465,7 +589,7 @@ struct LiveExamView: View {
                     Text("Allow microphone access, then press again to begin.").font(.footnote).foregroundStyle(.muted)
                 }
                 Button {
-                    if exam.micReady { exam.start(realtime: realtime) } else { Task { await exam.prepare() } }
+                    if exam.micReady { exam.start(examiner) } else { Task { await exam.prepare() } }
                 } label: {
                     Text(exam.micReady ? "Start test" : "Check microphone and start").frame(maxWidth: .infinity, minHeight: 28)
                 }
@@ -538,6 +662,9 @@ struct LiveExamView: View {
                 .card(padding: 24)
                 .accessibilityElement(children: .combine)
 
+                if exam.fellBack {
+                    notice("Natural conversation couldn't connect", "Your examiner will wait for you to finish each answer instead. It runs the same test.")
+                }
                 if exam.voiceError != nil {
                     // ponytail: the server's detail (model id, Settings hint) is for logs, not the candidate.
                     notice("The examiner's voice isn't available right now", "Questions will appear as text below. The test carries on as normal.")

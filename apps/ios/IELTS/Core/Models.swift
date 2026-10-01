@@ -19,7 +19,7 @@ struct ModelChoices: Codable, Equatable {
 struct AppSettings: Codable, Equatable {
     var models: ModelChoices
     var audioPronEnabled: Bool
-    var liveProvider: String // "turn" | "openai-realtime"
+    var liveProvider: String // "turn" | "openai-realtime" | "gemini-live"
     var targetBand: Double
     var writingAutoSubmit: Bool
     var blockPaste: Bool
@@ -32,6 +32,7 @@ struct Me: Codable {
     var settings: AppSettings
     let cambridgeAccess: Bool
     let realtimeAvailable: Bool
+    let geminiLiveAvailable: Bool
 }
 
 /// Decodes to nil instead of failing the parent when the payload has an unexpected shape.
@@ -424,5 +425,7 @@ struct LiveReply: Decodable {
 struct UploadTarget: Decodable { let key: String; let uploadUrl: String }
 // openapi: RealtimeToken
 struct RealtimeToken: Decodable { let value: String; let model: String? }
+// openapi: GeminiToken
+struct GeminiToken: Decodable { let value: String; let model: String? }
 // openapi: LiveFinished
 struct FinishResult: Decodable { let attemptIds: [String] }

@@ -117,6 +117,8 @@ struct SettingsView: View {
     private var settingsSections: some View {
         let b = binding
         let realtimeOK = api.me?.realtimeAvailable == true
+        let geminiOK = api.me?.geminiLiveAvailable == true
+        let natural = "Talk back and forth as in the real test. You can interrupt each other."
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -155,10 +157,13 @@ struct SettingsView: View {
             providerRow("turn", "Examiner waits for you to finish", "The examiner asks a question, then listens until you pause.", current: b.wrappedValue.liveProvider) {
                 s?.liveProvider = "turn"
             }
-            providerRow("openai-realtime", "Natural conversation",
-                        realtimeOK ? "Talk back and forth as in the real test. You can interrupt each other." : "Not available right now.",
+            providerRow("openai-realtime", "Natural conversation (OpenAI)", realtimeOK ? natural : "Not available right now.",
                         current: b.wrappedValue.liveProvider, enabled: realtimeOK) {
                 s?.liveProvider = "openai-realtime"
+            }
+            providerRow("gemini-live", "Natural conversation (Gemini)", geminiOK ? natural : "Not available right now.",
+                        current: b.wrappedValue.liveProvider, enabled: geminiOK) {
+                s?.liveProvider = "gemini-live"
             }
         } header: {
             Text("Live examiner")

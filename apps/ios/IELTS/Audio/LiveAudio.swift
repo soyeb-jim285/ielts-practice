@@ -1,7 +1,7 @@
 import AVFoundation
 
-/// Live-mode audio on one AVAudioEngine: mic level, per-turn and per-part m4a files, a PCM16 24 kHz stream
-/// for OpenAI Realtime, and PCM16 playback of the examiner's voice.
+/// Live-mode audio on one AVAudioEngine: mic level, per-turn and per-part m4a files, a PCM16 mono stream
+/// for the Realtime providers (24 kHz for OpenAI, 16 kHz for Gemini Live), and PCM16 24 kHz playback of the examiner's voice.
 /// ponytail: half-duplex — the mic is ignored while the examiner speaks (no echo cancellation, no barge-in).
 /// Enable inputNode voice processing if barge-in is ever needed.
 final class LiveAudio {
@@ -9,12 +9,12 @@ final class LiveAudio {
 
     /// Called on the audio thread with (level 0…1, seconds covered).
     var onLevel: ((Double, Double) -> Void)?
-    /// Called on the audio thread with PCM16 mono 24 kHz little-endian audio (Realtime input).
+    /// Called on the audio thread with PCM16 mono little-endian audio at the rate set by setPCMRate (Realtime input).
     var onPCM16: ((Data) -> Void)?
 
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
-    private let pcm16 = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 24000, channels: 1, interleaved: true)!
+    private var pcm16 = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 24000, channels: 1, interleaved: true)!
     private let playFormat = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
     private var converter: AVAudioConverter?
     private let lock = NSLock()
@@ -41,10 +41,20 @@ final class LiveAudio {
         guard format.sampleRate > 0, format.channelCount > 0 else { throw APIError(status: 0, message: "No microphone input available.") }
         engine.attach(playerNode)
         engine.connect(playerNode, to: engine.mainMixerNode, format: playFormat)
-        converter = AVAudioConverter(from: format, to: pcm16)
+        lock.withLock { converter = AVAudioConverter(from: format, to: pcm16) }
         input.installTap(onBus: 0, bufferSize: 2400, format: format) { [weak self] buf, _ in self?.process(buf) }
         try engine.start()
         running = true
+    }
+
+    /// Sample rate of the PCM16 stream passed to onPCM16: 24 kHz (default, OpenAI Realtime) or 16 kHz (Gemini Live). Safe while running.
+    func setPCMRate(_ rate: Double) {
+        guard let fmt = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: rate, channels: 1, interleaved: true) else { return }
+        let input = engine.inputNode.outputFormat(forBus: 0)
+        lock.withLock {
+            pcm16 = fmt
+            converter = AVAudioConverter(from: input, to: fmt)
+        }
     }
 
     func stop() {
@@ -116,9 +126,10 @@ final class LiveAudio {
                 while i < n { let c = min(frame, n - i); partEnergy.append(Recorder.energyByte(rms: Self.rms(ch, i, c))); i += c }
             }
         }
-        guard let onPCM16, let converter else { return }
-        let cap = AVAudioFrameCount(Double(n) * pcm16.sampleRate / buf.format.sampleRate) + 32
-        guard let out = AVAudioPCMBuffer(pcmFormat: pcm16, frameCapacity: cap) else { return }
+        let (conv, outFormat) = lock.withLock { (self.converter, self.pcm16) }
+        guard let onPCM16, let converter = conv else { return }
+        let cap = AVAudioFrameCount(Double(n) * outFormat.sampleRate / buf.format.sampleRate) + 32
+        guard let out = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: cap) else { return }
         var fed = false
         var err: NSError?
         converter.convert(to: out, error: &err) { _, status in

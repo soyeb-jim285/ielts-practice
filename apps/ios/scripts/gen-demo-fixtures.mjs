@@ -13,7 +13,7 @@ const settings = {
   models: { analysis: 'openai/gpt-6-luna', examiner: 'openai/gpt-6-luna', stt: 'elevenlabs/scribe_v2', tts: 'google/gemini-3.8-flash-tts', ttsVoice: 'Charon', audioPron: 'google/gemini-2.5-flash' },
   audioPronEnabled: true, liveProvider: 'turn', targetBand: 7, writingAutoSubmit: true, blockPaste: true,
 };
-const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true }, settings, cambridgeAccess: false, realtimeAvailable: true };
+const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true }, settings, cambridgeAccess: false, realtimeAvailable: true, geminiLiveAvailable: true };
 
 const p = (o) => ({ variant: null, type: null, topic: null, bullets: null, followUps: null, chart: null, imageUrl: null, groupId: null, done: false, source: 'generated', ...o });
 const sp1 = p({ id: 'sp1', skill: 'speaking', part: 1, topic: 'Hometown', title: 'Your hometown', body: 'Let\'s talk about where you grew up.', followUps: ['Where is your hometown?', 'What do you like most about it?', 'Has it changed much since you were a child?', 'Would you like to live there in the future?'] });
