@@ -87,12 +87,19 @@ export function buildTokens(r: AnalysisResult): Token[] {
   return tokens;
 }
 
-export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'other' | 'pauses' | 'fillers' | 'repeats' | 'unclear';
-export type ErrorGroup = 'grammar' | 'vocab' | 'other';
+export type TranscriptFilter = 'all' | 'grammar' | 'vocab' | 'pronunciation' | 'fluency' | 'other' | 'pauses';
+export type ErrorGroup = 'grammar' | 'vocab' | 'pronunciation' | 'fluency' | 'other';
 
-/** Transcript filter for an error: task, cohesion, fluency and pronunciation notes all go under "other". */
+/** The four timeline types an error category belongs to, by prefix; task and cohesion notes are about the whole answer, so null. */
+export function errorType(category: string): 'grammar' | 'vocabulary' | 'pronunciation' | 'fluency' | null {
+  const g = category.split('.')[0];
+  return g === 'grammar' ? 'grammar' : g === 'lexis' || g === 'vocabulary' ? 'vocabulary' : g === 'pronunciation' || g === 'fluency' ? g : null;
+}
+
+/** Transcript filter for an error: the four types, else "other" (task, cohesion). */
 export function errorGroup(e: AnalysisError): ErrorGroup {
-  return e.category.startsWith('grammar') ? 'grammar' : e.category.startsWith('lexis') ? 'vocab' : 'other';
+  const t = errorType(e.category);
+  return t === 'vocabulary' ? 'vocab' : (t ?? 'other');
 }
 
 /** A task/relevance-style note on a whole stretch (8+ words): drawn as a sentence tint, only when its filter is on. */

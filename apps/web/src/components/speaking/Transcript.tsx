@@ -1,23 +1,27 @@
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { clsx } from 'clsx';
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
-import { Card, Chip, TONE_STYLES } from '@/components/ui';
-import { buildTokens, DISFLUENCY, errorGroup, isLongPause, isSentenceNote, pauseSec, questionHead, type DisfluencyMark, type Token, type TranscriptFilter } from '@/lib/result';
+import { Card, Chip } from '@/components/ui';
+import { buildTokens, errorGroup, errorType, isLongPause, isSentenceNote, pauseSec, questionHead, type DisfluencyMark, type Token, type TranscriptFilter } from '@/lib/result';
+import { timelineMarkers, wordAt, type MarkerType } from '@/lib/timeline';
 import type { AudioControls } from './AudioBar';
+import { MarkerDetail, MarkerShape, TYPE_STYLE } from './timeline';
 
 const FILTERS: { value: TranscriptFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'grammar', label: 'Grammar' },
   { value: 'vocab', label: 'Vocabulary' },
+  { value: 'pronunciation', label: 'Pronunciation' },
+  { value: 'fluency', label: 'Fluency' },
   { value: 'other', label: 'Task & other' },
   { value: 'pauses', label: 'Pauses' },
-  { value: 'fillers', label: 'Fillers' },
-  { value: 'repeats', label: 'Repeats & repairs' },
-  { value: 'unclear', label: 'Unclear' },
 ];
+const FILTER_TYPE: Partial<Record<TranscriptFilter, MarkerType>> = { grammar: 'grammar', vocab: 'vocabulary', pronunciation: 'pronunciation', fluency: 'fluency' };
 
-const UNCLEAR = { 1: 'decoration-warn/70', 2: 'decoration-warn', 3: 'decoration-bad' };
+// Karaoke: the playing word gets this teal tint (set on the DOM directly, so a 10 Hz clock never re-renders the words).
+const NOW = ['bg-brand-soft', 'text-ink'];
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Interactive transcript: click a word to hear it, open errors, filter by issue, follow playback. */
 export function Transcript({ result, audio }: { result: AnalysisResult; audio: AudioControls }) {
@@ -26,40 +30,62 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   const errors = useMemo(() => new Map(result.errors.map((e) => [e.id, e])), [result.errors]);
   const heads = useMemo(() => new Map((result.questions ?? []).flatMap((q, n) => (q.startWord >= 0 ? [[q.startWord, { n: n + 1, ...questionHead(q.text) }] as const] : []))), [result.questions]);
   const unplaced = result.errors.filter((e) => e.start < 0 || e.start >= tokens.length);
+  const timeline = useMemo(() => timelineMarkers(result), [result]);
+  const root = useRef<HTMLDivElement>(null);
+  const { focus } = audio;
+  const marker = timeline.markers.find((m) => m.id === focus);
 
   const counts: Record<TranscriptFilter, number> = {
     all: 0,
-    grammar: result.errors.filter((e) => errorGroup(e) === 'grammar').length,
-    vocab: result.errors.filter((e) => errorGroup(e) === 'vocab').length,
+    grammar: 0,
+    vocab: 0,
+    pronunciation: 0,
+    fluency: 0,
     other: result.errors.filter((e) => errorGroup(e) === 'other').length,
     pauses: result.metrics?.pauses.length ?? 0,
-    fillers: tokens.filter((t) => t.filler).length,
-    repeats: tokens.reduce((n, t) => n + (t.disfluency?.length ?? 0), 0),
-    unclear: tokens.filter((t) => t.unclearTier).length,
   };
+  for (const m of timeline.markers) counts[m.type === 'vocabulary' ? 'vocab' : m.type]++;
+  const hasFillers = tokens.some((t) => t.filler);
+  const hasMarks = tokens.some((t) => t.disfluency);
+  const hasUnclear = tokens.some((t) => t.unclearTier);
 
   const matches = (t: Token) =>
     filter === 'all' ||
-    (filter === 'fillers' && t.filler) ||
-    (filter === 'repeats' && !!t.disfluency) ||
-    (filter === 'unclear' && !!t.unclearTier) ||
-    ((filter === 'grammar' || filter === 'vocab' || filter === 'other') && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
+    (filter === 'pronunciation' && !!t.unclearTier) ||
+    (filter === 'fluency' && (!!t.filler || !!t.disfluency)) ||
+    (filter !== 'pauses' && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
+
+  // Karaoke highlight: toggle classes on the playing word's element.
+  const now = useRef<Element | null>(null);
+  useEffect(() => {
+    const i = wordAt(tokens, audio.time);
+    const el = i >= 0 && audio.time < tokens[i]!.end + 0.05 ? (root.current?.querySelector(`[data-w="${i}"]`) ?? null) : null;
+    if (el === now.current) return;
+    now.current?.classList.remove(...NOW);
+    el?.classList.add(...NOW);
+    now.current = el;
+  }, [audio.time, tokens]);
+
+  // A mistake picked elsewhere (chart, audio bar): bring its word into view.
+  useEffect(() => {
+    const m = timeline.markers.find((x) => x.id === focus);
+    if (m) root.current?.querySelector(`[data-w="${Math.max(wordAt(tokens, m.t), 0)}"]`)?.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }, [focus, timeline, tokens]);
 
   // Sentence-wide notes (relevance etc.) would drown word-level marks, so they only show under their own filter.
   const shown = (e: AnalysisError) => !isSentenceNote(e) || filter === errorGroup(e);
-  const playing = (t: Token) => audio.time >= t.start && audio.time < t.end + 0.05 && 'bg-brand-soft text-ink';
   const filler = (t: Token) => t.filler && 'text-muted line-through decoration-muted';
 
   const word = (t: Token) => (
     <span
       key={t.i}
+      data-w={t.i}
       onClick={() => audio.seek(t.start)}
       title={t.unclearTier ? `Unclear to speech recognition (${Math.round((t.conf ?? 0) * 100)}% confidence)` : undefined}
       className={clsx(
         'cursor-pointer rounded-sm transition-colors duration-100 hover:bg-hover',
-        playing(t),
         filler(t),
-        t.unclearTier && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-dotted decoration-2 underline-offset-4', UNCLEAR[t.unclearTier]],
+        t.unclearTier && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-2 underline-offset-4', TYPE_STYLE.pronunciation.underline],
         !matches(t) && 'opacity-35',
       )}
     >
@@ -77,12 +103,12 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
         aria-label={d.detail}
         onClick={() => audio.seek(d.time)}
         className={clsx(
-          'mr-1 inline-flex h-5 cursor-pointer items-center rounded-sm px-1.5 align-middle font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap',
-          TONE_STYLES[DISFLUENCY[d.kind].tone],
-          filter !== 'all' && filter !== 'repeats' && 'opacity-35',
-          filter === 'repeats' && 'ring-2',
+          'mr-1 inline-flex h-5 cursor-pointer items-center gap-1 rounded-sm bg-surface-2 px-1.5 align-middle font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap text-muted',
+          filter !== 'all' && filter !== 'fluency' && 'opacity-35',
+          filter === 'fluency' && 'ring-1 ring-chart-3',
         )}
       >
+        <MarkerShape type="fluency" size={8} />
         {d.short}
       </button>
     ));
@@ -109,6 +135,8 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
   };
 
   // Group words into error spans (first error starting at a word wins; overlaps show in the Language tab).
+  // Memoised: the playback clock ticks 10×/s, and the words must not re-render with it.
+  const out = useMemo(() => {
   const out: ReactNode[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]!;
@@ -134,14 +162,14 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
             onPlay={() => audio.seek(t.start, last.end + 0.3)}
             className={clsx(
               'cursor-pointer rounded-sm text-left',
-              isSentenceNote(e) ? 'box-decoration-clone bg-warn-soft px-0.5 hover:bg-warn-soft/70' : ['underline decoration-2 underline-offset-4 hover:bg-hover', e.severity === 'major' ? 'decoration-bad' : 'decoration-warn'],
+              isSentenceNote(e) ? 'box-decoration-clone bg-warn-soft px-0.5 hover:bg-warn-soft/70' : ['underline decoration-2 underline-offset-4 hover:bg-hover', TYPE_STYLE[errorType(e.category) ?? 'fluency'].underline, !errorType(e.category) && 'decoration-muted'],
               !matches(t) && 'opacity-35',
             )}
           >
             {span.map((s, k) => (
               <Fragment key={s.i}>
                 {k > 0 && ' '}
-                <span className={clsx(playing(s), filler(s))}>{s.w}</span>
+                <span data-w={s.i} className={filler(s) || undefined}>{s.w}</span>
               </Fragment>
             ))}
           </ErrorPopover>{' '}
@@ -159,12 +187,19 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
     );
   }
 
+  return out;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- word/chips/pause are rebuilt from exactly these
+  }, [tokens, filter, errors, heads, audio.seek]);
+
   // Phones: filters, transcript, legend. lg+: the 68ch transcript on the left, filters and legend sticky on the right.
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-x-10">
-      <Card className="order-3 p-5 sm:p-8 lg:col-start-1 lg:row-start-1">
-        <div className="type-reading leading-[2]">{out}</div>
-      </Card>
+      <div className="order-3 space-y-5 lg:col-start-1 lg:row-start-1">
+        {marker && <MarkerDetail marker={marker} audio={audio} />}
+        <Card className="p-5 sm:p-8">
+          <div ref={root} className="type-reading leading-[2]">{out}</div>
+        </Card>
+      </div>
       <aside className="contents lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block lg:space-y-5">
         {/* Phones: one scrolling row; the right edge fades and the end padding lets the last chip scroll fully clear of the fade. */}
         <div role="toolbar" aria-label="Show" className="order-1 -mx-4 flex snap-x scroll-pl-4 gap-2 overflow-x-auto pr-12 pb-1 pl-4 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 sm:[mask-image:none] *:snap-start">
@@ -175,7 +210,7 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
             </Chip>
           ))}
         </div>
-        <Legend notes={result.errors.some(isSentenceNote)} fillers={counts.fillers > 0} marks={counts.repeats > 0} unclear={counts.unclear > 0} />
+        <Legend notes={result.errors.some(isSentenceNote)} fillers={hasFillers} marks={hasMarks} unclear={hasUnclear} />
       </aside>
       {unplaced.length > 0 && <Unplaced errors={unplaced} />}
     </div>
@@ -184,25 +219,20 @@ export function Transcript({ result, audio }: { result: AnalysisResult; audio: A
 
 /** What the marks mean, above the transcript; only the marks that appear in it. */
 function Legend({ notes, fillers, marks, unclear }: { notes: boolean; fillers: boolean; marks: boolean; unclear: boolean }) {
+  const shown: Record<MarkerType, boolean> = { grammar: true, vocabulary: true, pronunciation: unclear, fluency: fillers || marks };
   return (
     <ul className="type-caption order-2 flex flex-wrap gap-x-5 gap-y-2 lg:flex-col">
-      <li className="flex items-center gap-1.5"><span className="underline decoration-bad decoration-2 underline-offset-4">word</span> major error</li>
-      <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-2 underline-offset-4">word</span> minor error</li>
-      {unclear && <li className="flex items-center gap-1.5"><span className="underline decoration-warn decoration-dotted decoration-2 underline-offset-4">word</span> unclear to speech recognition</li>}
-      {fillers && <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>}
-      {marks && (
-        <li className="flex flex-wrap items-center gap-1.5">
-          {(['repetition', 'repair', 'false_start'] as const).map((k) => (
-            <span key={k} className={clsx('rounded-sm px-1.5 py-0.5 text-xs leading-none font-medium', TONE_STYLES[DISFLUENCY[k].tone])}>
-              {DISFLUENCY[k].short}
-            </span>
-          ))}
-          tap or hover for detail
+      {(Object.keys(TYPE_STYLE) as MarkerType[]).filter((k) => shown[k]).map((k) => (
+        <li key={k} className="flex items-center gap-1.5">
+          <MarkerShape type={k} size={9} />
+          <span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE[k].underline)}>word</span> {TYPE_STYLE[k].label.toLowerCase()}
         </li>
-      )}
+      ))}
+      {fillers && <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>}
+      {marks && <li>Tap a grey tag for the detail</li>}
       <li className="flex items-center gap-1.5"><span className="rounded-sm bg-bad-soft px-1 text-xs font-medium whitespace-nowrap text-bad-text">pause 1.3s</span> long pause; short ones show under Pauses</li>
       {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
-      <li>Tap any word to hear it</li>
+      <li className="flex items-center gap-1.5"><span className="rounded-sm bg-brand-soft px-1 text-ink">word</span> playing now; tap any word to hear it</li>
     </ul>
   );
 }

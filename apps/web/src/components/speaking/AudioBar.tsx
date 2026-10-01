@@ -2,13 +2,24 @@ import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Segmented } from '@/components/ui';
 import { formatClock } from '@/lib/format';
+import type { Marker, Timeline } from '@/lib/timeline';
+import { markerLabel, MarkerShape } from './timeline';
 
-export type AudioControls = { time: number; seek: (t: number, until?: number) => void; ready: boolean };
+export type AudioControls = {
+  time: number;
+  seek: (t: number, until?: number) => void;
+  ready: boolean;
+  /** The picked mistake (shared by the chart, audio bar and transcript), and the ways to pick or clear it. */
+  focus: string | null;
+  pick: (m: Marker) => void;
+  clear: () => void;
+};
 
 /** Shared audio element state: current time (0.1 s steps, rAF while playing) and seek-and-play with an optional stop point. */
 export function useAudio() {
   const [el, setEl] = useState<HTMLAudioElement | null>(null);
   const [time, setTime] = useState(0);
+  const [focus, setFocus] = useState<string | null>(null);
   const stopAt = useRef<number | null>(null);
 
   useEffect(() => {
@@ -49,7 +60,14 @@ export function useAudio() {
     [el],
   );
 
-  return { ref: setEl, controls: { time, seek, ready: !!el } satisfies AudioControls };
+  // A mistake is heard from half a second before it (seek already backs off 0.3 s).
+  const pick = useCallback((m: Marker) => {
+    seek(m.t - 0.2);
+    setFocus(m.id);
+  }, [seek]);
+  const clear = useCallback(() => setFocus(null), []);
+
+  return { ref: setEl, controls: { time, seek, ready: !!el, focus, pick, clear } satisfies AudioControls };
 }
 
 const SPEEDS = [
@@ -58,7 +76,7 @@ const SPEEDS = [
 ];
 
 /** Player for the recording: play/pause, scrub, time, speed. The <audio> element is shared through `audioRef`; the page decides whether the bar sticks. */
-export function AudioBar({ src, audioRef, durationS }: { src: string; audioRef: (el: HTMLAudioElement | null) => void; durationS?: number }) {
+export function AudioBar({ src, audioRef, durationS, timeline, onPick }: { src: string; audioRef: (el: HTMLAudioElement | null) => void; durationS?: number; timeline?: Timeline; onPick?: (m: Marker) => void }) {
   const [el, setEl] = useState<HTMLAudioElement | null>(null);
   const [t, setT] = useState(0);
   const [paused, setPaused] = useState(true);
@@ -94,18 +112,37 @@ export function AudioBar({ src, audioRef, durationS }: { src: string; audioRef: 
       <Button size="icon" variant="ghost" aria-label={paused ? 'Play recording' : 'Pause recording'} onClick={() => (paused ? void el?.play().catch(() => {}) : el?.pause())}>
         {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
       </Button>
-      <input
-        type="range"
-        aria-label="Position in recording"
-        aria-valuetext={`${formatClock(Math.floor(t))} of ${formatClock(Math.round(max))}`}
-        min={0}
-        max={max}
-        step={0.1}
-        value={t}
-        onChange={(e) => el && (el.currentTime = Number(e.target.value))}
-        style={{ backgroundImage: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)` }}
-        className="h-11 min-w-0 flex-1 cursor-pointer appearance-none bg-clip-content py-[1.1875rem] [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-brand [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card"
-      />
+      <div className="relative min-w-0 flex-1">
+        <input
+          type="range"
+          aria-label="Position in recording"
+          aria-valuetext={`${formatClock(Math.floor(t))} of ${formatClock(Math.round(max))}`}
+          min={0}
+          max={max}
+          step={0.1}
+          value={t}
+          onChange={(e) => el && (el.currentTime = Number(e.target.value))}
+          style={{ backgroundImage: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)` }}
+          className="h-11 w-full cursor-pointer appearance-none bg-clip-content py-[1.1875rem] [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-brand [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card"
+        />
+        {/* Question dividers cut the track; mistake marks sit just above it (same shapes and colours as the chart). */}
+        {timeline?.questions.slice(1).map((q) => (
+          <span key={q.idx} aria-hidden className="pointer-events-none absolute top-1/2 h-1.5 w-0.5 -translate-y-1/2 bg-card" style={{ left: `${(q.start / max) * 100}%` }} />
+        ))}
+        {timeline?.markers.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            aria-label={markerLabel(m)}
+            title={markerLabel(m)}
+            onClick={() => onPick?.(m)}
+            className="absolute top-0 flex h-5 w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
+            style={{ left: `${Math.min(100, (m.t / max) * 100)}%` }}
+          >
+            <MarkerShape type={m.type} size={9} />
+          </button>
+        ))}
+      </div>
       <span className="type-num shrink-0 text-xs text-muted">
         {formatClock(Math.floor(t))} / {formatClock(Math.round(max))}
       </span>

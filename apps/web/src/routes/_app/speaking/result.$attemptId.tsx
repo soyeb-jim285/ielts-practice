@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -14,6 +14,7 @@ import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
+import { timelineMarkers, type Timeline } from '@/lib/timeline';
 import { notAssessed, offTopicAnswers, sentenceCase, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
@@ -42,6 +43,7 @@ function ResultPage() {
   const { data: a } = useQuery(attemptQuery(attemptId));
   const { data: me } = useMe();
   const audio = useAudio();
+  const timeline = useMemo(() => (a?.analysis?.words ? timelineMarkers(a.analysis) : undefined), [a?.analysis]);
   const warm = a?.status === 'analyzing' || (a?.status === 'done' && !!a.analysis?.metrics);
   useEffect(() => {
     if (warm) void loadFluency();
@@ -155,18 +157,18 @@ function ResultPage() {
         ]} />
         {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
           <div className="mt-3 pb-3">
-            <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />
+            <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} timeline={timeline} onPick={audio.controls.pick} />
           </div>
         )}
       </StickyTabs>
       <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1} className="pt-5 pb-8">
-        <Panel tab={tab} a={a} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} />
+        <Panel tab={tab} a={a} timeline={timeline} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} />
       </div>
     </PageContainer>
   );
 }
 
-function Panel({ tab, a, target, audio, retry, parentLink, off }: { tab: Tab; a: Attempt; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
+function Panel({ tab, a, timeline, target, audio, retry, parentLink, off }: { tab: Tab; a: Attempt; timeline?: Timeline; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
   const r = a.analysis!;
   switch (tab) {
     case 'overview':
@@ -191,9 +193,9 @@ function Panel({ tab, a, target, audio, retry, parentLink, off }: { tab: Tab; a:
     case 'transcript':
       return <Transcript result={r} audio={audio} />;
     case 'fluency':
-      return r.metrics ? (
+      return r.metrics && timeline ? (
         <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
-          <FluencyPanel metrics={r.metrics} audio={audio} fc={r.criteria.fc} target={target} />
+          <FluencyPanel metrics={r.metrics} timeline={timeline} audio={audio} fc={r.criteria.fc} target={target} />
         </Suspense>
       ) : null;
     case 'language':

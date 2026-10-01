@@ -1,27 +1,40 @@
 import { WPM_WINDOW_S, type SpeechMetrics } from '@ielts/core';
 import type { Criterion } from '@server/ai/types';
 import { ChevronDown, CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Alert, buttonStyles, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip } from '@/components/ui';
+import { useState } from 'react';
+import { Area, AreaChart, CartesianGrid, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Alert, buttonStyles, Card, Chip, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip } from '@/components/ui';
 import { formatClock, plural } from '@/lib/format';
 import { DISFLUENCY, disfluencyEvents, disfluencyTypes, isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
+import { MARKER_TYPES, wpmAt, type Marker, type MarkerType, type Timeline } from '@/lib/timeline';
 import type { AudioControls } from './AudioBar';
+import { markerLabel, MarkerDetail, MarkerShape, ShapeEl, TYPE_STYLE } from './timeline';
 
 const TICK = { fill: 'var(--muted)', fontSize: 12 };
 
-/** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the typical band-7 zone shaded. */
-export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeries']; durationS: number }) {
+/** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the typical band-7 zone shaded. Mistakes sit on the line (shape and colour per type), questions are bands, long pauses are shaded, and the teal line follows the audio. */
+export function WpmChart({ series, durationS, timeline, audio }: { series: SpeechMetrics['wpmSeries']; durationS: number; timeline: Timeline; audio: AudioControls }) {
+  const [off, setOff] = useState<Set<MarkerType>>(new Set());
+  const [tip, setTip] = useState<{ m: Marker; x: number; y: number } | null>(null);
   if (series.length < 2) return <p className="text-sm text-muted">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
   const max = Math.max(200, ...series.map((p) => p.wpm));
+  const top = Math.ceil(max / 40) * 40;
+  const counts = Object.fromEntries(MARKER_TYPES.map((t) => [t, timeline.markers.filter((m) => m.type === t).length])) as Record<MarkerType, number>;
+  const multi = timeline.questions.length > 1;
+  const marker = timeline.markers.find((m) => m.id === audio.focus);
+  const toggle = (t: MarkerType) => setOff((o) => { const n = new Set(o); if (!n.delete(t)) n.add(t); return n; });
   return (
     <figure>
-      <div className="h-56 w-full sm:h-64" role="img" aria-label={`Words per minute over time, from ${Math.round(Math.min(...series.map((p) => p.wpm)))} to ${Math.round(Math.max(...series.map((p) => p.wpm)))}`}>
+      <div className="relative h-56 w-full sm:h-64" role="img" aria-label={`Words per minute over time, from ${Math.round(Math.min(...series.map((p) => p.wpm)))} to ${Math.round(Math.max(...series.map((p) => p.wpm)))}`}>
         <ResponsiveContainer>
-          <AreaChart data={series.map((p) => ({ ...p, x: p.t + WPM_WINDOW_S / 2 }))} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          <AreaChart data={series.map((p) => ({ ...p, x: p.t + WPM_WINDOW_S / 2 }))} margin={{ top: 16, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
             <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'Typical band 7', position: 'insideTopRight', fill: 'var(--muted)', fontSize: 12 }} />
+            {multi && timeline.questions.map((q) => q.idx % 2 === 1 && <ReferenceArea key={`b${q.idx}`} x1={q.start} x2={q.end} fill="var(--ink)" fillOpacity={0.04} stroke="none" />)}
+            {timeline.pauses.map((p) => <ReferenceArea key={`p${p.start}`} x1={p.start} x2={p.end} fill="var(--chart-3)" fillOpacity={0.25} stroke="none" />)}
+            {multi && timeline.questions.map((q) => <ReferenceLine key={`l${q.idx}`} x={q.start} stroke="var(--line-strong)" strokeDasharray="3 3" label={{ value: `Q${q.idx + 1}`, position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12 }} />)}
             <XAxis dataKey="x" type="number" domain={[0, Math.max(durationS, 1)]} tickFormatter={(t: number) => formatClock(t)} tick={TICK} tickLine={false} axisLine={{ stroke: 'var(--line)' }} />
-            <YAxis domain={[0, Math.ceil(max / 40) * 40]} tick={TICK} tickLine={false} axisLine={false} width={48} />
+            <YAxis domain={[0, top]} tick={TICK} tickLine={false} axisLine={false} width={48} />
             <Tooltip
               cursor={{ stroke: 'var(--line-strong, var(--muted))' }}
               content={({ active, payload }) =>
@@ -35,11 +48,62 @@ export function WpmChart({ series, durationS }: { series: SpeechMetrics['wpmSeri
                 ) : null
               }
             />
-            <Area type="monotone" dataKey="wpm" stroke="var(--accent)" strokeWidth={2} fill="none" activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
+            <Area type="linear" dataKey="wpm" stroke="var(--ink)" strokeOpacity={0.55} strokeWidth={2} fill="none" activeDot={false} isAnimationActive={false} />
+            {timeline.markers.filter((m) => !off.has(m.type) && m.t <= durationS).map((m) => (
+              <ReferenceDot
+                key={m.id}
+                x={m.t}
+                y={wpmAt(series, WPM_WINDOW_S, m.t)}
+                ifOverflow="visible"
+                shape={({ cx = 0, cy = 0 }) => (
+                  <g
+                    role="button"
+                    tabIndex={0}
+                    aria-label={markerLabel(m)}
+                    aria-pressed={audio.focus === m.id}
+                    className="cursor-pointer outline-none [&:focus-visible>circle]:stroke-brand"
+                    onClick={() => audio.pick(m)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), audio.pick(m))}
+                    onMouseEnter={() => setTip({ m, x: cx, y: cy })}
+                    onMouseLeave={() => setTip(null)}
+                    onFocus={() => setTip({ m, x: cx, y: cy })}
+                    onBlur={() => setTip(null)}
+                  >
+                    <circle cx={cx} cy={cy} r={16} fill="transparent" stroke={audio.focus === m.id ? 'var(--ink)' : 'none'} strokeWidth={1.5} /> {/* 32 px hit area; ring when picked or focused */}
+                    <g fill={TYPE_STYLE[m.type].color} stroke="var(--surface)" strokeWidth={1.5}>
+                      <ShapeEl type={m.type} x={cx} y={cy} r={5} />
+                    </g>
+                  </g>
+                )}
+              />
+            ))}
+            <ReferenceLine x={Math.min(audio.time, durationS)} stroke="var(--accent)" strokeWidth={2} ifOverflow="visible" />
           </AreaChart>
         </ResponsiveContainer>
+        {tip && (
+          <div role="tooltip" className="pointer-events-none absolute z-10 max-w-60 -translate-x-1/2 -translate-y-full rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-pop" style={{ left: Math.min(Math.max(tip.x, 100), 9999), top: tip.y - 14 }}>
+            <p className="type-caption type-num">{TYPE_STYLE[tip.m.type].label}, {formatClock(Math.floor(tip.m.t))}</p>
+            <p>{tip.m.label}</p>
+          </div>
+        )}
       </div>
-      <figcaption className="type-caption mt-2 text-xs">Words per minute in 10-second windows, every 5 seconds. Shaded: roughly where band-7 speakers sit.</figcaption>
+      <figcaption className="type-caption mt-2 text-xs">
+        Words per minute in 10-second windows, every 5 seconds. Shaded green: roughly where band-7 speakers sit.
+      </figcaption>
+      <ul className="mt-3 flex flex-wrap items-center gap-2" aria-label="Show mistake types">
+        {MARKER_TYPES.filter((t) => counts[t] > 0).map((t) => (
+          <li key={t}>
+            <Chip selected={!off.has(t)} onClick={() => toggle(t)}>
+              <MarkerShape type={t} />
+              {TYPE_STYLE[t].label}
+              <span className="tabular-nums opacity-70">{counts[t]}</span>
+            </Chip>
+          </li>
+        ))}
+        {timeline.pauses.length > 0 && <li className="type-caption flex items-center gap-1.5 px-1"><span className="h-3 w-4 rounded-xs bg-chart-3/25" />Long pause</li>}
+        <li className="type-caption flex items-center gap-1.5 px-1"><span className="h-3 w-0.5 bg-brand" />Playing now</li>
+      </ul>
+      {marker && <div className="mt-4"><MarkerDetail marker={marker} audio={audio} /></div>}
     </figure>
   );
 }
@@ -231,7 +295,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
 }
 
 /** Fluency tab: pace chart, pause timeline, measures, then the fillers and restarts. `fc`/`target` explain a low band when the measures look fine. */
-export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMetrics; audio: AudioControls; fc?: Criterion; target: number }) {
+export function FluencyPanel({ metrics, timeline, audio, fc, target }: { metrics: SpeechMetrics; timeline: Timeline; audio: AudioControls; fc?: Criterion; target: number }) {
   const stats = speechStats(metrics);
   const heldBack = fc && fc.band < target && !tooShortToMeasure(metrics) && stats.every((s) => s.tone !== 'bad');
   return (
@@ -244,7 +308,7 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
       <section>
         <h2 className="type-heading mb-4">Pace</h2>
         <Card>
-          <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} />
+          <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} timeline={timeline} audio={audio} />
         </Card>
       </section>
       <section>
