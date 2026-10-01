@@ -119,14 +119,14 @@ final class GPTLiveSocket: DuplexSocket {
                 }
                 if let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let ev = GPTLive.parse(obj) {
                     if ev == .started {
-                        let finish = self.lock.withLock { () -> ((Error?) -> Void)? in started = true; defer { onStart = nil }; return onStart }
+                        let finish = self.lock.withLock { () -> ((Error?) -> Void)? in self.started = true; defer { self.onStart = nil }; return self.onStart }
                         finish?(nil)
                     }
                     self.onEvent?(ev)
                 }
                 self.receive(t)
             case let .failure(error):
-                let (finish, closed) = self.lock.withLock { () -> (((Error?) -> Void)?, Bool) in started = false; defer { onStart = nil }; return (onStart, self.closed) }
+                let (finish, closed) = self.lock.withLock { () -> (((Error?) -> Void)?, Bool) in self.started = false; defer { self.onStart = nil }; return (self.onStart, self.closed) }
                 if let finish { finish(error) } else if !closed { self.onLost?() }
             }
         }
