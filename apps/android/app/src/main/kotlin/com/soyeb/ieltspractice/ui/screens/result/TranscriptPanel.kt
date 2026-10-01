@@ -159,7 +159,7 @@ fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Time
     val focusWord = focus?.let { id -> timeline.markers.firstOrNull { it.id == id } }?.let { max(wordIndexAt(model.words, it.t), 0) }
 
     if (model.tokens.isEmpty() && model.unplaced.isEmpty()) {
-        Unavailable("No transcript", "No transcript is available for this answer.")
+        ResUnavailable("No transcript", "No transcript is available for this answer.")
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -293,7 +293,7 @@ private fun WordView(
     }
     val background = if (isNow) e.brandSoft else if (sentence) e.warn.copy(alpha = 0.14f) else Color.Transparent
     val shape = RoundedCornerShape(4.dp)
-    var bring = Modifier
+    var bring: Modifier = Modifier
     if (picked) {
         val r = remember { BringIntoViewRequester() }
         LaunchedEffect(focusWord) { r.bringIntoView() }

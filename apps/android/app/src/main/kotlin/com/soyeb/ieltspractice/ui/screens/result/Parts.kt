@@ -361,7 +361,7 @@ fun ChipScroller(content: @Composable () -> Unit) {
 
 /** Empty-state block: title, description, optional action (iOS ContentUnavailableView). */
 @Composable
-fun Unavailable(title: String, description: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
+fun ResUnavailable(title: String, description: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
     val e = MaterialTheme.ext
     Column(modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = e.ink)

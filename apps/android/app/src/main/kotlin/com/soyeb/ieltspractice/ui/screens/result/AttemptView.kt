@@ -192,9 +192,9 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
                 item { Header(attempt, result, speaking, target, showPrompt, { showPrompt = !showPrompt }, ::openRelevance) }
                 if (extras != null) item { extras() }
                 when (attempt.status) {
-                    "done" -> if (result == null) item { Unavailable("No analysis", "This answer has no analysis yet.") }
+                    "done" -> if (result == null) item { ResUnavailable("No analysis", "This answer has no analysis yet.") }
                     else if (notAssessed(result)) item {
-                        Unavailable(
+                        ResUnavailable(
                             "No speech detected",
                             "We couldn't hear enough speech in this recording to score it. Check the right microphone is selected, speak a little closer to it, and keep talking for at least 20 seconds.",
                         ) { PrimaryButton(retryLabel(false), { nav.go(retryRoute()) }) }
@@ -357,12 +357,12 @@ private fun Panel(
                 if (player.failed) Text("Couldn't load the recording, so words can't be played.", style = MaterialTheme.typography.bodySmall, color = e.muted)
             }
             "Fluency" -> r.metrics?.let { FluencyPanel(it, player, timeline, r.errors, focus, onFocus, r.criteria["fc"], target) }
-                ?: Unavailable("No fluency data", "This analysis has no speech measurements.")
+                ?: ResUnavailable("No fluency data", "This analysis has no speech measurements.")
             "Essay" -> {
                 val text = r.text ?: attempt.text ?: ""
-                if (text.isBlank()) Unavailable("No essay text", "Nothing was written for this task.") else EssayPanel(r, text, onSelect)
+                if (text.isBlank()) ResUnavailable("No essay text", "Nothing was written for this task.") else EssayPanel(r, text, onSelect)
             }
-            "Structure" -> r.structure?.let { StructurePanel(it) } ?: Unavailable("No structure analysis", "The answer was too short to map its paragraphs.")
+            "Structure" -> r.structure?.let { StructurePanel(it) } ?: ResUnavailable("No structure analysis", "The answer was too short to map its paragraphs.")
             "Language" -> LanguagePanel(r, player, scrollToRelevance, onScrolled)
             "Improve" -> Improve(r, attempt, speaking, parentText, addedFixes, nav, retryLabel, retryRoute, onAddFixes)
             else -> Overview(r, attempt, speaking, target, openRelevance, nav)
@@ -536,7 +536,7 @@ private fun Improve(
             ResDiffCard(parentText, now, "This attempt", serif = !speaking)
         }
         if (r.rewrite.text.isEmpty()) {
-            if (!speaking) Unavailable("No rewrite for this answer", "Write a full-length answer to get a band-higher version to compare against.")
+            if (!speaking) ResUnavailable("No rewrite for this answer", "Write a full-length answer to get a band-higher version to compare against.")
         } else if (speaking) {
             SectionTitle("Your answer, one band higher")
             AppCard { SelectionContainer { Text(r.rewrite.text, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = AppText.reading.fontFamily, lineHeight = 26.sp), color = e.ink) } }

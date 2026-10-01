@@ -55,7 +55,7 @@ import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.Login
 import com.soyeb.ieltspractice.ui.screens.result.AttemptResultView
 import com.soyeb.ieltspractice.ui.screens.result.Busy
-import com.soyeb.ieltspractice.ui.screens.result.Unavailable
+import com.soyeb.ieltspractice.ui.screens.result.ResUnavailable
 import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
@@ -86,7 +86,7 @@ fun ResultScreen(route: AttemptResult, nav: AppNav) {
     ScreenScaffold("Results", onBack = nav::back, scroll = false) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (token == null) {
-                Unavailable("Sign in to continue", "Sign in to see your results.") { PrimaryButton("Sign in or create account", { nav.go(Login) }) }
+                ResUnavailable("Sign in to continue", "Sign in to see your results.") { PrimaryButton("Sign in or create account", { nav.go(Login) }) }
             } else {
                 ResultContainer(route.idList, nav)
             }
@@ -148,7 +148,7 @@ private fun ResultContainer(ids: List<String>, nav: AppNav) {
     val index = selected.coerceIn(0, (ids.size - 1).coerceAtLeast(0))
 
     when {
-        ids.isEmpty() -> Unavailable("Nothing to score", "No answers were recorded.")
+        ids.isEmpty() -> ResUnavailable("Nothing to score", "No answers were recorded.")
         error != null && fetched[ordered[index]] == null -> Column(Modifier.fillMaxWidth().padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ErrorLine(error ?: "")
             PrimaryButton("Try again", { poll++ })
