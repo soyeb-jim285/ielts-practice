@@ -35,6 +35,16 @@ val screenCatalog: List<ScreenSpec> = listOf(
     ScreenSpec("result-nospeech", AttemptResult.of("as5")),
     ScreenSpec("session", SpeakingSession("part", 2)),
     ScreenSpec("session-p1", SpeakingSession("part", 1)),
+    // Speaking area: the hub (pending uploads, scrolled), every state of the practice session, and the live examiner pre-screen and stage.
+    // The screens read the screen name in demo mode (`LocalDemo.current?.screen`), so each state is its own row.
+    ScreenSpec("speaking-pending", SpeakingTab),
+    ScreenSpec("speaking-scrolled", SpeakingTab),
+    ScreenSpec("session-prep", SpeakingSession("part", 2)),
+    ScreenSpec("session-recording", SpeakingSession("part", 2)),
+    ScreenSpec("session-recording-p1", SpeakingSession("part", 1)),
+    ScreenSpec("session-mic", SpeakingSession("part", 1)),
+    ScreenSpec("session-saving", SpeakingSession("full")),
+    ScreenSpec("session-empty", SpeakingSession("prompt", 0, "missing")),
     ScreenSpec("editor", WritingEditor("task2")),
     ScreenSpec("editor-t1", WritingEditor("task1", "academic")),
     ScreenSpec("editor-full", WritingEditor("full", "academic")),
@@ -50,6 +60,11 @@ val screenCatalog: List<ScreenSpec> = listOf(
     ScreenSpec("chart-process", WritingEditor("prompt", "academic", "w1pr"), variants = listOf("Top", "Scrolled")),
     ScreenSpec("chart-map", WritingEditor("prompt", "academic", "w1m"), variants = listOf("Top", "Scrolled")),
     ScreenSpec("live", LiveExam),
+    ScreenSpec("live-heard", LiveExam),
+    ScreenSpec("live-intro", LiveExam),
+    ScreenSpec("live-prep", LiveExam),
+    ScreenSpec("live-talk", LiveExam),
+    ScreenSpec("live-failed", LiveExam),
 )
 
 /** Where `--es screen <name>` opens; unknown or missing names open Home. */
