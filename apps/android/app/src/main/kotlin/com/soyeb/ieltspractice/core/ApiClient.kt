@@ -1,0 +1,293 @@
+package com.soyeb.ieltspractice.core
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.serializer
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.CookieJar
+import okhttp3.Headers
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.File
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+/** A failed request. [status] is 0 for client-side failures (offline, bad response). [message] is safe to show the user. */
+class ApiError(val status: Int, override val message: String) : Exception(message)
+
+class ApiResponse(val status: Int, val body: String, val headers: Headers)
+
+private val JSON_MEDIA = "application/json".toMediaType()
+
+/**
+ * Typed client for the IELTS Practice API (port of iOS APIClient.swift). Auth is Better Auth's bearer plugin: the token comes
+ * back in the `set-auth-token` header on sign-in, lives in [TokenStore] and is sent as `Authorization: Bearer`.
+ *
+ * Reads: `api.get<Progress>("/api/progress")`, `api.getList<Prompt>("/api/prompts")` (accepts a bare list or `{items|cards|models|data}`).
+ * Writes: `api.send<Created>("POST", "/api/attempts", buildJsonObject { put("promptId", id) })`.
+ * Observe [token] / [me] / [isSignedIn] from Compose with `collectAsState()`.
+ *
+ * [interceptor] is how demo mode answers from fixtures (see Demo.kt); [initialToken] pre-signs-in the demo.
+ */
+class ApiClient(
+    val baseUrl: String = SERVER,
+    private val store: TokenStore,
+    interceptor: Interceptor? = null,
+    initialToken: String? = null,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) {
+    companion object {
+        /** The production server. Fixed in the app; there is no user-facing server setting (matches iOS). */
+        const val SERVER = "https://ielts.soyebjim.me"
+    }
+
+    private val http = OkHttpClient.Builder()
+        .cookieJar(CookieJar.NO_COOKIES) // bearer only: cookies would trigger Better Auth's browser origin checks
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .apply { interceptor?.let { addInterceptor(it) } }
+        .build()
+
+    private val _token = MutableStateFlow(initialToken)
+    val token: StateFlow<String?> = _token.asStateFlow()
+    val isSignedIn: Boolean get() = _token.value != null
+
+    private val _me = MutableStateFlow<Me?>(null)
+    val me: StateFlow<Me?> = _me.asStateFlow()
+
+    /** Requests in flight. Screenshot tests wait for 0 before capturing. */
+    val inflight = AtomicInteger(0)
+
+    /** Load the stored token and the account (call once at launch). A guest simply stays signed out. */
+    suspend fun restoreSession() {
+        if (_token.value == null) _token.value = store.load()
+        if (_token.value != null && _me.value == null) runCatching { loadMe() }
+    }
+
+    // MARK: Requests
+
+    suspend fun raw(method: String, path: String, body: JsonElement? = null): ApiResponse {
+        val payload = when {
+            body != null -> AppJson.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON_MEDIA)
+            method == "GET" || method == "HEAD" || method == "DELETE" -> null
+            else -> "{}".toRequestBody(JSON_MEDIA)
+        }
+        val req = Request.Builder().url(baseUrl + path).method(method, payload)
+            .apply { _token.value?.let { header("Authorization", "Bearer $it") } }
+            .build()
+        val (status, text, headers) = execute(req, "Can't reach IELTS Practice. Check your internet connection and try again.")
+        if (status !in 200..299) {
+            val err = runCatching { AppJson.parseToJsonElement(text) as? JsonObject }.getOrNull()
+            fun field(k: String) = (err?.get(k) as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
+            if (status == 401 && _token.value != null && !path.startsWith("/api/auth/")) signOutLocal()
+            throw ApiError(status, field("error") ?: field("message") ?: httpReason(status))
+        }
+        return ApiResponse(status, text, headers)
+    }
+
+    suspend fun <T> request(method: String, path: String, body: JsonElement?, serializer: KSerializer<T>): T {
+        val text = raw(method, path, body).body
+        return try {
+            AppJson.decodeFromString(serializer, text)
+        } catch (e: SerializationException) {
+            throw ApiError(0, "Unexpected response from the server ($path).")
+        } catch (e: IllegalArgumentException) {
+            throw ApiError(0, "Unexpected response from the server ($path).")
+        }
+    }
+
+    suspend inline fun <reified T> send(method: String, path: String, body: JsonElement? = null): T =
+        request(method, path, body, serializer<T>())
+
+    suspend inline fun <reified T> get(path: String, query: Map<String, String?> = emptyMap()): T =
+        request("GET", path + queryString(query), null, serializer<T>())
+
+    /** A list endpoint: accepts a bare array or `{items|cards|models|data: [...]}`. */
+    suspend inline fun <reified T> getList(path: String, query: Map<String, String?> = emptyMap()): List<T> {
+        val text = raw("GET", path + queryString(query)).body
+        return decodeListOrThrow(serializer<T>(), text, path)
+    }
+
+    @PublishedApi internal fun <T> decodeListOrThrow(s: KSerializer<T>, text: String, path: String): List<T> = try {
+        AppJson.decodeList(s, text)
+    } catch (e: SerializationException) {
+        throw ApiError(0, "Unexpected response from the server ($path).")
+    } catch (e: IllegalArgumentException) {
+        throw ApiError(0, "Unexpected response from the server ($path).")
+    }
+
+    /** `?a=1&b=2` with keys sorted (so demo fixtures can match them) and null values dropped. */
+    fun queryString(query: Map<String, String?>): String {
+        val b = okhttp3.HttpUrl.Builder().scheme("https").host("x")
+        query.entries.sortedBy { it.key }.forEach { (k, v) -> if (v != null) b.addQueryParameter(k, v) }
+        return b.build().encodedQuery?.let { "?$it" }.orEmpty()
+    }
+
+    /** PUT a file to a presigned URL (no bearer token: it is a signed storage URL). */
+    suspend fun upload(url: String, file: File, contentType: String) {
+        val req = Request.Builder().url(url).put(file.asRequestBody(contentType.toMediaType())).build()
+        val (status, _, _) = execute(req, "Audio upload failed. Check your connection and retry.")
+        if (status !in 200..299) throw ApiError(status, "Audio upload failed. Check your connection and retry.")
+    }
+
+    suspend fun download(url: String): ByteArray {
+        inflight.incrementAndGet()
+        try {
+            return withContext(Dispatchers.IO) {
+                try {
+                    http.newCall(Request.Builder().url(url).build()).await().use { it.body?.bytes() ?: ByteArray(0) }
+                } catch (e: IOException) {
+                    throw ApiError(0, "Couldn't download the audio.")
+                }
+            }
+        } finally {
+            inflight.decrementAndGet()
+        }
+    }
+
+    // The counter moves on the caller's thread (not inside withContext) so a test that just ran its composition sees it at once.
+    private suspend fun execute(req: Request, offline: String): Triple<Int, String, Headers> {
+        inflight.incrementAndGet()
+        try {
+            return withContext(Dispatchers.IO) {
+                try {
+                    http.newCall(req).await().use { Triple(it.code, it.body?.string().orEmpty(), it.headers) }
+                } catch (e: IOException) {
+                    throw ApiError(0, offline)
+                }
+            }
+        } finally {
+            inflight.decrementAndGet()
+        }
+    }
+
+    private fun httpReason(status: Int) = when (status) {
+        400 -> "Bad request"
+        401 -> "Please sign in"
+        403 -> "Not allowed"
+        404 -> "Not found"
+        409 -> "Conflict"
+        429 -> "Too many requests. Try again in a moment."
+        in 500..599 -> "The server had a problem. Try again."
+        else -> "Request failed ($status)"
+    }
+
+    // MARK: Auth
+
+    suspend fun signIn(email: String, password: String) {
+        val r = raw("POST", "/api/auth/sign-in/email", buildJsonObject { put("email", email); put("password", password) })
+        adopt(r)
+    }
+
+    /** Returns false when the server requires email verification before signing in. */
+    suspend fun signUp(name: String, email: String, password: String): Boolean {
+        val r = raw("POST", "/api/auth/sign-up/email", buildJsonObject { put("name", name); put("email", email); put("password", password) })
+        if (r.headers["set-auth-token"].isNullOrEmpty()) return false
+        adopt(r)
+        return true
+    }
+
+    suspend fun resendVerification(email: String) {
+        raw("POST", "/api/auth/send-verification-email", buildJsonObject { put("email", email); put("callbackURL", "$baseUrl/") })
+    }
+
+    suspend fun requestPasswordReset(email: String) {
+        raw("POST", "/api/auth/request-password-reset", buildJsonObject { put("email", email); put("redirectTo", "$baseUrl/reset-password") })
+    }
+
+    private suspend fun adopt(r: ApiResponse) {
+        val t = r.headers["set-auth-token"]
+        if (t.isNullOrEmpty()) throw ApiError(0, "Sign-in didn't complete. Please try again.")
+        _token.value = t
+        store.save(t)
+        loadMe()
+    }
+
+    suspend fun loadMe() { _me.value = get<Me>("/api/me") }
+
+    suspend fun signOut() {
+        runCatching { raw("POST", "/api/auth/sign-out") }
+        signOutLocal()
+    }
+
+    suspend fun deleteAccount() {
+        raw("POST", "/api/auth/delete-user")
+        signOutLocal()
+    }
+
+    fun signOutLocal() {
+        _token.value = null
+        _me.value = null
+        scope.launch { store.clear() }
+    }
+
+    // MARK: Shared flows
+
+    suspend fun saveSettings(s: AppSettings) {
+        val saved: AppSettings = send("PUT", "/api/settings", AppJson.encodeToJsonElement(AppSettings.serializer(), s))
+        _me.value = _me.value?.copy(settings = saved)
+    }
+
+    /** Create a speaking attempt, upload the m4a and start analysis. Returns the attempt id. */
+    suspend fun submitSpeaking(
+        prompt: Prompt, mode: String = "practice", sessionId: String, parentAttemptId: String?, file: File,
+        durationMs: Int, energy: List<Int>, marks: List<Int>,
+    ): String {
+        val created: Created = send("POST", "/api/attempts", buildJsonObject {
+            put("promptId", prompt.id); put("skill", "speaking"); put("part", prompt.part); put("mode", mode)
+            put("sessionId", sessionId); put("audioContentType", "audio/mp4")
+            parentAttemptId?.let { put("parentAttemptId", it) }
+        })
+        val url = created.uploadUrl ?: throw ApiError(0, "The server didn't return an upload URL.")
+        upload(url, file, "audio/mp4")
+        raw("POST", "/api/attempts/${created.id}/submit", submitBody(durationMs, energy, marks))
+        return created.id
+    }
+
+    suspend fun addCard(front: String, back: String, source: String) {
+        raw("POST", "/api/cards", buildJsonObject { put("front", front); put("back", back); put("source", source) })
+    }
+}
+
+/** The body of `POST /api/attempts/{id}/submit` (energy and marks are capped like the server expects). */
+fun submitBody(durationMs: Int, energy: List<Int>, marks: List<Int>): JsonObject = buildJsonObject {
+    put("durationMs", durationMs)
+    putJsonArray("energy") { energy.take(20000).forEach { add(JsonPrimitive(it)) } }
+    putJsonArray("marks") { marks.take(200).forEach { add(JsonPrimitive(it)) } }
+}
+
+private suspend fun Call.await(): Response = suspendCancellableCoroutine { c ->
+    c.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) { if (c.isActive) c.resumeWithException(e) }
+        override fun onResponse(call: Call, response: Response) { c.resume(response) { response.close() } }
+    })
+}

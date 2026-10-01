@@ -1,0 +1,10 @@
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+# Roborazzi output (CI uploads it as the `android-screens` artifact)
+screenshots/
+# Copied from apps/ios/IELTS/Demo/fixtures.json at build time
+app/build/

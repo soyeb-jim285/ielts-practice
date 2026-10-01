@@ -1,0 +1,5 @@
+<resources>
+    <!-- Window background before Compose draws (Ocean Teal bg token). -->
+    <color name="window_bg">#F7F9FB</color>
+    <color name="ic_launcher_background">#0F766E</color>
+</resources>
