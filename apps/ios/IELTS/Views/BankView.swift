@@ -191,6 +191,7 @@ struct BankView: View {
         .canvasList()
         .demoScroll()
         .navigationTitle("Prompt bank")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Search titles and questions")
         .task { await loadMeta() }
         .task(id: "\(skill)|\(partKey)|\(type)|\(topic)|\(source)|\(trimmedQuery)") {

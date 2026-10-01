@@ -40,6 +40,7 @@ for (const tok of transcript.split(' ')) {
 }
 const dur = +(t + 0.6).toFixed(1);
 const at = (w) => words.find((x) => x.w === w).start;
+const widx = (w) => words.findIndex((x) => x.w === w);
 const pauses = [[3.1, 3.9, 'between'], [12.6, 13.9, 'within'], [27.2, 28.0, 'between'], [44.5, 45.9, 'within']]
   .map(([s, e, k]) => ({ start: s, end: e, dur: +(e - s).toFixed(2), kind: k, midClause: k === 'within', voiced: false }));
 const fillers = words.filter((w) => w.w === 'um' || w.w === 'uh').map((w) => ({ word: w.w, time: w.start, kind: 'filled' }));
@@ -59,9 +60,9 @@ const speakingAnalysis = {
     { title: 'Stress the key word in each idea', why: 'Flat stress makes long answers harder to follow.', before: 'that really changed the way I think', after: 'that REALLY changed the way I THINK' },
   ],
   errors: [
-    { id: 'e1', category: 'grammar.verb-tense', severity: 'minor', start: 0, end: 0, original: 'Before reading it I thought history was', correction: 'Before reading it, I had thought history was', explanation: 'Use the past perfect for a belief that came before another past event.', time: at('Before') },
-    { id: 'e2', category: 'vocabulary.collocation', severity: 'minor', start: 0, end: 0, original: 'so powerful', correction: 'so dominant', explanation: '"Dominant" is more precise for a species controlling the planet.', time: at('powerful') },
-    { id: 'e3', category: 'grammar.run-on', severity: 'major', start: 0, end: 0, original: 'I ask myself is it really or is it just a story', correction: 'I ask myself whether it really is, or whether it is just a story', explanation: 'Use "whether" for an embedded question and keep statement word order.', time: at('ask') },
+    { id: 'e1', category: 'grammar.verb-tense', severity: 'minor', start: widx('Before'), end: widx('Before') + 2, original: 'Before reading it I thought history was', correction: 'Before reading it, I had thought history was', explanation: 'Use the past perfect for a belief that came before another past event.', time: at('Before') },
+    { id: 'e2', category: 'vocabulary.collocation', severity: 'minor', start: widx('powerful'), end: widx('powerful') + 1, original: 'so powerful', correction: 'so dominant', explanation: '"Dominant" is more precise for a species controlling the planet.', time: at('powerful') },
+    { id: 'e3', category: 'grammar.run-on', severity: 'major', start: widx('ask'), end: widx('ask') + 2, original: 'I ask myself is it really or is it just a story', correction: 'I ask myself whether it really is, or whether it is just a story', explanation: 'Use "whether" for an embedded question and keep statement word order.', time: at('ask') },
   ],
   vocabUpgrades: [{ original: 'really changed', better: ['transformed', 'reshaped'], note: 'Stronger verbs show range.' }, { original: 'open minded', better: ['receptive to new ideas'], note: 'A less common phrase for band 7+.' }],
   rewrite: { text: 'I\'d like to talk about Sapiens, a book I read two years ago at university. It traces the history of humankind and explains how our species became so dominant…', note: 'Same ideas, fewer restarts, stronger verbs.' },
@@ -82,7 +83,7 @@ const speakingAnalysis = {
       profile: { byKind: { filled: { n: fillers.length, perMin: +((fillers.length / dur) * 60).toFixed(1), per100w: +((fillers.length / words.length) * 100).toFixed(1) }, repetition: { n: 1, perMin: 0.5, per100w: 0.8 }, repair: { n: 1, perMin: 0.5, per100w: 0.8 }, false_start: { n: 0, perMin: 0, per100w: 0 } } },
     },
   },
-  questions: [{ text: sp2.title, startWord: 0 }],
+  questions: [{ text: sp2.title, startWord: 0 }, { text: 'Do you think people read enough history?', startWord: Math.floor(words.length * 0.6) }],
   pronunciation: { unclear: [], llm: { words: [{ word: 'Sapiens', time: at('Sapiens'), issue: 'Stress on the wrong syllable.', tip: 'SAY-pee-enz, stress the first syllable.' }, { word: 'species', time: at('species'), issue: 'Final /z/ dropped.', tip: 'End with a buzzing /z/: SPEE-sheez.' }], prosody: 'Clear overall; intonation flattens in the middle third.', band: 6 } },
   relevance: [{ questionIdx: 0, onTopic: true, note: 'Covers all four cue-card points.' }],
   noSpeech: false,

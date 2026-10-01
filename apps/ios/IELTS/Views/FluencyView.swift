@@ -71,6 +71,9 @@ private func fluIndicator(_ t: FluTone) -> (icon: String, text: String, color: C
 struct FluencyView: View {
     let metrics: SpeechMetrics
     let player: Player
+    var timeline = Timeline.empty
+    var errors: [AnalysisError] = []
+    @Binding var focus: String?
     var fc: Criterion? = nil
     var target: Double = 7
 
@@ -106,39 +109,11 @@ struct FluencyView: View {
     // MARK: Pace
 
     @ViewBuilder private var paceCard: some View {
-        let series = metrics.wpmSeries
-        VStack(alignment: .leading, spacing: 8) {
-            if series.count < 2 {
-                Text("This answer is too short for a pace chart (it needs at least 15 seconds).").font(.callout).foregroundStyle(.muted)
-            } else {
-                let lo = Int((series.map(\.wpm).min() ?? 0).rounded())
-                let hi = Int((series.map(\.wpm).max() ?? 0).rounded())
-                let top = (max(200, series.map(\.wpm).max() ?? 200) / 40).rounded(.up) * 40
-                Chart {
-                    // The typical band-7 zone, then the pace line (windows are plotted at their midpoint).
-                    RectangleMark(xStart: .value("Time", 0.0), xEnd: .value("Time", max(metrics.durationS, 1)),
-                                  yStart: .value("WPM", 120.0), yEnd: .value("WPM", 160.0))
-                        .foregroundStyle(Color.good.opacity(0.14))
-                    ForEach(series, id: \.t) { p in
-                        AreaMark(x: .value("Time", p.t + 5), y: .value("WPM", p.wpm))
-                            .foregroundStyle(Color.brand.opacity(0.12))
-                            .interpolationMethod(.monotone)
-                        LineMark(x: .value("Time", p.t + 5), y: .value("WPM", p.wpm))
-                            .foregroundStyle(Color.brand)
-                            .interpolationMethod(.monotone)
-                    }
-                }
-                .chartYScale(domain: 0...top)
-                .chartXScale(domain: 0...max(metrics.durationS, 1))
-                .chartXAxisLabel("seconds")
-                .chartYAxisLabel("words / min")
-                .frame(height: 200)
-                .accessibilityLabel("Words per minute over time, from \(lo) to \(hi)")
-                Text("Words per minute in 10-second windows, every 5 seconds. Shaded green: roughly where band-7 speakers sit.")
-                    .font(.caption).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true)
-            }
+        if metrics.wpmSeries.count < 2 {
+            Text("This answer is too short for a pace chart (it needs at least 15 seconds).").font(.callout).foregroundStyle(.muted).card()
+        } else {
+            FluPace(metrics: metrics, timeline: timeline, errors: errors, player: player, focus: $focus)
         }
-        .card()
     }
 
     // MARK: Pauses
@@ -349,5 +324,210 @@ private struct FluStatCell: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(14)
         .accessibilityElement(children: .contain)
+    }
+}
+
+// MARK: - Pace chart with the speaking timeline (web: WpmChart in FluencyPanel.tsx)
+
+/// Pace over time with the typical band-7 zone. Mistakes sit on the line (shape and colour per type), questions are bands,
+/// long pauses are shaded, and the teal line follows the audio. Without a recording the playhead is hidden and tapping just selects.
+private struct FluPace: View {
+    let metrics: SpeechMetrics
+    let timeline: Timeline
+    let errors: [AnalysisError]
+    let player: Player
+    @Binding var focus: String?
+    @State private var hidden: Set<MarkerType> = []
+
+    private var series: [WpmPoint] { metrics.wpmSeries }
+    private var duration: Double { max(metrics.durationS, 1) }
+    private var top: Double { (max(200, series.map(\.wpm).max() ?? 200) / 40).rounded(.up) * 40 }
+    private var multi: Bool { timeline.questions.count > 1 }
+    private var shown: [TimelineMarker] { timeline.markers.filter { !hidden.contains($0.type) && $0.t <= duration } }
+    private var picked: TimelineMarker? { timeline.markers.first { $0.id == focus } }
+
+    private func y(_ m: TimelineMarker) -> Double { wpmAt(series, m.t) }
+
+    var body: some View {
+        let lo = Int((series.map(\.wpm).min() ?? 0).rounded())
+        let hi = Int((series.map(\.wpm).max() ?? 0).rounded())
+        VStack(alignment: .leading, spacing: 10) {
+            chart
+                .frame(height: 220)
+                .accessibilityLabel("Words per minute over time, from \(lo) to \(hi)")
+            Text("Words per minute in 10-second windows, every 5 seconds. Shaded green: roughly where band-7 speakers sit.")
+                .font(.caption).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true)
+            legend
+            if let picked { detail(picked) }
+            if !shown.isEmpty { list }
+        }
+        .card()
+    }
+
+    private var chart: some View {
+        Chart {
+            RectangleMark(xStart: .value("Start", 0.0), xEnd: .value("End", duration), yStart: .value("Min", 120.0), yEnd: .value("Max", 160.0))
+                .foregroundStyle(Color.good.opacity(0.14))
+            if multi {
+                ForEach(timeline.questions.filter { $0.idx % 2 == 1 }, id: \.idx) { q in
+                    RectangleMark(xStart: .value("Start", q.start), xEnd: .value("End", q.end), yStart: .value("Min", 0.0), yEnd: .value("Max", top))
+                        .foregroundStyle(Color.ink.opacity(0.05))
+                }
+            }
+            ForEach(timeline.pauses, id: \.start) { p in
+                RectangleMark(xStart: .value("Start", p.start), xEnd: .value("End", p.end), yStart: .value("Min", 0.0), yEnd: .value("Max", top))
+                    .foregroundStyle(Color.muted.opacity(0.25))
+            }
+            if multi {
+                ForEach(timeline.questions, id: \.idx) { q in
+                    RuleMark(x: .value("Question", q.start))
+                        .foregroundStyle(Color.muted.opacity(0.6))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .annotation(position: .top, alignment: .leading, spacing: 0) {
+                            Text("Q\(q.idx + 1)").font(.caption2).foregroundStyle(.muted)
+                        }
+                }
+            }
+            ForEach(series, id: \.t) { p in
+                LineMark(x: .value("Time", p.t + 5), y: .value("WPM", p.wpm))
+                    .foregroundStyle(Color.ink.opacity(0.55))
+                    .interpolationMethod(.linear)
+            }
+            ForEach(shown) { m in
+                PointMark(x: .value("Time", m.t), y: .value("WPM", y(m)))
+                    .symbol {
+                        ZStack {
+                            if m.id == focus { Circle().strokeBorder(Color.ink, lineWidth: 1.5).frame(width: 20, height: 20) }
+                            MarkerShape(type: m.type).fill(m.type.color).overlay(MarkerShape(type: m.type).stroke(Color.surface, lineWidth: 1)).frame(width: 11, height: 11)
+                        }
+                    }
+            }
+            if player.isLoaded {
+                RuleMark(x: .value("Playing", min(player.currentTime, duration)))
+                    .foregroundStyle(Color.brand)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+            }
+        }
+        .chartYScale(domain: 0...top)
+        .chartXScale(domain: 0...duration)
+        .chartXAxisLabel("seconds")
+        .chartYAxisLabel("words / min")
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle().fill(Color.clear).contentShape(Rectangle())
+                    .gesture(SpatialTapGesture().onEnded { v in pick(near: v.location, proxy, geo) })
+            }
+        }
+    }
+
+    /// The nearest dot within 28 pt of the tap, if any.
+    private func pick(near point: CGPoint, _ proxy: ChartProxy, _ geo: GeometryProxy) {
+        guard let frame = proxy.plotFrame else { return }
+        let origin = geo[frame].origin
+        var best: TimelineMarker?
+        var bestDist: CGFloat = 28
+        for m in shown {
+            guard let px = proxy.position(forX: m.t), let py = proxy.position(forY: y(m)) else { continue }
+            let d = hypot(origin.x + px - point.x, origin.y + py - point.y)
+            if d <= bestDist { bestDist = d; best = m }
+        }
+        if let best { select(best) }
+    }
+
+    private func select(_ m: TimelineMarker) {
+        focus = m.id
+        if player.isLoaded { player.seek(to: max(0, m.t - 0.5)) }
+    }
+
+    // MARK: Legend, detail, list
+
+    private var legend: some View {
+        FlowLayout(spacing: 8, lineSpacing: 4) {
+            ForEach(MarkerType.allCases.filter { timeline.count($0) > 0 }) { t in
+                let on = !hidden.contains(t)
+                Button {
+                    if on { hidden.insert(t) } else { hidden.remove(t) }
+                } label: {
+                    HStack(spacing: 6) {
+                        MarkerGlyph(type: t)
+                        Text(t.label)
+                        Text("\(timeline.count(t))").monospacedDigit().opacity(0.7)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(on ? Color.surface2 : Color.clear, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.line))
+                    .opacity(on ? 1 : 0.55)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(t.label), \(timeline.count(t)) mistakes")
+                .accessibilityValue(on ? "Shown" : "Hidden")
+                .accessibilityHint("Shows or hides these on the chart")
+            }
+            if !timeline.pauses.isEmpty {
+                legendSwatch(Color.muted.opacity(0.25), "Long pause")
+            }
+            if player.isLoaded { legendSwatch(Color.brand, "Playing now") }
+        }
+    }
+
+    private func legendSwatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 12, height: 10)
+            Text(label).font(.caption).foregroundStyle(.muted)
+        }
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func detail(_ m: TimelineMarker) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                MarkerGlyph(type: m.type)
+                Text(m.type.label).font(.subheadline.weight(.medium))
+                Text(clock(Int(m.t))).font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                Spacer()
+                Button { focus = nil } label: {
+                    Image(systemName: "xmark").frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).foregroundStyle(.muted).accessibilityLabel("Close")
+            }
+            if let e = errors.first(where: { $0.id == m.errorId }) {
+                ErrorDetailsView(error: e, onPlay: player.isLoaded ? { player.seek(to: max(0, m.t - 0.3)) } : nil, hideCategory: true)
+            } else {
+                Text(m.label).font(.callout).foregroundStyle(.ink)
+            }
+        }
+        .padding(12)
+        .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Every dot as a list: the VoiceOver route into the chart, and a precise way to pick one.
+    private var list: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(shown) { m in
+                    Button { select(m) } label: {
+                        HStack(spacing: 8) {
+                            MarkerGlyph(type: m.type)
+                            Text(clock(Int(m.t))).font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                            Text(m.label).font(.footnote).foregroundStyle(.ink).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(m.type.label) mistake at \(clock(Int(m.t))): \(m.label)")
+                    .accessibilityAddTraits(m.id == focus ? .isSelected : [])
+                }
+            }
+        } label: {
+            Text("All \(shown.count) marked \(shown.count == 1 ? "moment" : "moments")").font(.subheadline).foregroundStyle(.ink)
+        }
     }
 }

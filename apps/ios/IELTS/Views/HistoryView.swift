@@ -148,6 +148,7 @@ struct HistoryView: View {
             }
         }
         .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load(reset: true) }
         .task(id: skill) { await load(reset: true) }
     }

@@ -63,14 +63,7 @@ func resClipWords(_ s: String, _ max: Int) -> String {
 func resCriterionLabel(_ k: String) -> String { k == "ta" ? "Task Achievement/Response" : Crit.label(k) }
 
 /// "grammar.article" gives "Grammar: article" (web categoryLabel).
-func resCategoryLabel(_ c: String) -> String {
-    let groups = ["grammar": "Grammar", "lexis": "Vocabulary", "cohesion": "Cohesion", "task": "Task", "pronunciation": "Pronunciation", "fluency": "Fluency"]
-    let parts = c.split(separator: ".", maxSplits: 1).map(String.init)
-    let g = parts.first ?? ""
-    let name = groups[g] ?? g
-    guard parts.count > 1 else { return name }
-    return "\(name): \(parts[1].replacingOccurrences(of: "-", with: " "))"
-}
+func resCategoryLabel(_ c: String) -> String { categoryLabel(c) }
 
 func resErrorTitle(_ c: String) -> String {
     let task = ["task.relevance": "Off-topic phrase", "task.overview": "Missing overview", "task.position": "Unclear position"]
@@ -331,6 +324,13 @@ struct ResultView: View {
     @State private var poll = 0
     @State private var error: String?
 
+    /// Parts in part order (web sorts the same way), once every part has loaded; the given order until then.
+    private var ordered: [String] {
+        let parts = ids.map { fetched[$0]?.attempt.part }
+        guard parts.allSatisfy({ $0 != nil }) else { return ids }
+        return ids.enumerated().sorted { (parts[$0.offset] ?? 0, $0.offset) < (parts[$1.offset] ?? 0, $1.offset) }.map(\.element)
+    }
+
     private var index: Int { min(max(selected, 0), max(ids.count - 1, 0)) }
     private var target: Double { api.me?.settings.targetBand ?? 7 }
 
@@ -338,7 +338,7 @@ struct ResultView: View {
         Group {
             if ids.isEmpty {
                 ContentUnavailableView("Nothing to score", systemImage: "waveform.slash", description: Text("No answers were recorded."))
-            } else if let error, fetched[ids[index]] == nil {
+            } else if let error, fetched[ordered[index]] == nil {
                 ContentUnavailableView {
                     Label("Couldn't load this result", systemImage: "wifi.exclamationmark")
                 } description: {
@@ -346,7 +346,7 @@ struct ResultView: View {
                 } actions: {
                     Button("Try again") { poll += 1 }.primaryButton()
                 }
-            } else if let f = fetched[ids[index]] {
+            } else if let f = fetched[ordered[index]] {
                 AttemptResultView(attempt: f.attempt, stage: f.stage, retryable: f.retryable, extras: sessionExtras) { Task { await retry(f.attempt.id) } }
                     .id(f.attempt.id)
             } else {
@@ -422,10 +422,10 @@ struct ResultView: View {
     }
 
     private var switcherItems: [ResSwitcher.Item] {
-        let loaded = ids.map { fetched[$0]?.attempt }
+        let loaded = ordered.map { fetched[$0]?.attempt }
         let p1Total = loaded.compactMap { $0 }.filter { $0.skill == "speaking" && $0.part == 1 }.count
         var p1 = 0
-        return ids.enumerated().map { i, id in
+        return ordered.enumerated().map { i, id in
             var label = "Part \(i + 1)"
             var band: Double?
             var busy = true
@@ -544,7 +544,6 @@ struct AttemptResultView: View {
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .largeTitle) private var bandSize: CGFloat = 60
     @State private var tab = Demo.arg("tab") ?? "Overview"
     @State private var player = Player()
@@ -555,6 +554,10 @@ struct AttemptResultView: View {
     @State private var addedFixes = false
     @State private var showPrompt = false
     @State private var scrollToRelevance = false
+    /// The mistake picked on the chart, the audio bar or the transcript (TimelineMarker.id).
+    @State private var focus: String?
+
+    private var timeline: Timeline { attempt.analysis.map { Timeline($0) } ?? .empty }
 
     private var speaking: Bool { attempt.skill == "speaking" }
     private var tabs: [String] { speaking ? ["Overview", "Transcript", "Fluency", "Language", "Improve"] : ["Overview", "Essay", "Structure", "Language", "Improve"] }
@@ -589,7 +592,7 @@ struct AttemptResultView: View {
         }
         .background(.canvas)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if showAudio { ResAudioBar(player: player).padding(.horizontal, 16).padding(.bottom, 8) }
+            if showAudio { ResAudioBar(player: player, timeline: timeline, focus: $focus).padding(.horizontal, 16).padding(.bottom, 8) }
         }
         .task(id: attempt.audioUrl) {
             guard speaking, let u = attempt.audioUrl, !player.isLoaded else { return }
@@ -790,19 +793,7 @@ struct AttemptResultView: View {
     @ViewBuilder private var questionsCard: some View {
         let p = attempt.prompt
         if attempt.part == 2 {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Cue card").font(.caption).foregroundStyle(.muted)
-                Text(p.title).font(.display(.title3))
-                let detail = resStripLead(p.title, p.body)
-                if !detail.isEmpty { Text(detail).font(.body).foregroundStyle(.muted) }
-                if let bullets = p.bullets, !bullets.isEmpty {
-                    Text("You should say").font(.subheadline.weight(.medium)).padding(.top, 4)
-                    ForEach(bullets, id: \.self) { b in
-                        Label { Text(b).font(.system(.callout, design: .serif)) } icon: { Image(systemName: "circle.fill").font(.system(size: 5)).foregroundStyle(.muted) }
-                    }
-                }
-            }
-            .card()
+            CueCardView(prompt: p)
         } else {
             let qs = (p.followUps ?? []).isEmpty ? [p.body] : (p.followUps ?? [])
             VStack(alignment: .leading, spacing: 8) {
@@ -821,6 +812,7 @@ struct AttemptResultView: View {
         ViewThatFits(in: .horizontal) {
             tabRow
             ScrollView(.horizontal, showsIndicators: false) { tabRow }
+                .contentMargins(.horizontal, 4, for: .scrollContent)
         }
         .padding(4)
         .glassBar(Capsule())
@@ -832,11 +824,11 @@ struct AttemptResultView: View {
             ForEach(tabs, id: \.self) { t in
                 let on = current == t
                 Button { tab = t } label: {
-                    // "Text" on phones (as on the web) so all five tabs fit on a 393 pt screen without scrolling.
-                    Text(t == "Transcript" && sizeClass == .compact ? "Text" : t)
+                    // Tight padding so all five labels fit a 393 pt screen; the strip scrolls (with margins) if they ever do not.
+                    Text(t)
                         .font(.footnote.weight(.semibold))
                         .lineLimit(1).fixedSize()
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 5)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(on ? Color.onBrand : Color.ink)
                         .background(on ? Color.brand : Color.clear, in: Capsule())
@@ -853,11 +845,11 @@ struct AttemptResultView: View {
         VStack(alignment: .leading, spacing: 16) {
             switch current {
             case "Transcript":
-                TranscriptView(result: r, player: player) { selectedError = $0 }
+                TranscriptView(result: r, player: player, timeline: timeline, focus: $focus) { selectedError = $0 }
                 if audioFailed { Text("Couldn't load the recording, so words can't be played.").font(.caption).foregroundStyle(.muted) }
             case "Fluency":
                 if let m = r.metrics {
-                    FluencyView(metrics: m, player: player, fc: r.criteria["fc"], target: target)
+                    FluencyView(metrics: m, player: player, timeline: timeline, errors: r.errors, focus: $focus, fc: r.criteria["fc"], target: target)
                 } else {
                     ContentUnavailableView("No fluency data", systemImage: "waveform.slash", description: Text("This analysis has no speech measurements."))
                 }
@@ -1022,6 +1014,8 @@ struct AttemptResultView: View {
 
 struct ResAudioBar: View {
     let player: Player
+    var timeline = Timeline.empty
+    @Binding var focus: String?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -1030,13 +1024,51 @@ struct ResAudioBar: View {
             }
             .buttonStyle(.plain).foregroundStyle(.brand)
             .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
-            Slider(value: Binding(get: { player.currentTime }, set: { player.seek(to: $0, play: player.isPlaying) }), in: 0...max(player.duration, 0.1))
-                .accessibilityLabel("Playback position")
+            scrubber
             Text("\(clock(Int(player.currentTime))) / \(clock(Int(player.duration)))")
                 .font(.caption.monospacedDigit()).foregroundStyle(.muted)
         }
         .padding(.horizontal, 12).padding(.vertical, 2)
         .glassBar(Capsule(), interactive: true)
+    }
+
+    /// Track with a thin tick per mistake (type colour) above it and a divider per question. Tap a tick to hear it; drag to scrub.
+    private var scrubber: some View {
+        GeometryReader { g in
+            let w = g.size.width
+            let d = max(player.duration, 0.1)
+            let x = { (t: Double) -> CGFloat in w * CGFloat(min(max(t / d, 0), 1)) }
+            ZStack(alignment: .topLeading) {
+                ForEach(timeline.questions.dropFirst(), id: \.idx) { q in
+                    Rectangle().fill(Color.muted.opacity(0.7)).frame(width: 1, height: 28).offset(x: x(q.start))
+                }
+                Capsule().fill(Color.surface2).frame(width: w, height: 4).offset(y: 20)
+                Capsule().fill(Color.ink.opacity(0.4)).frame(width: x(player.currentTime), height: 4).offset(y: 20)
+                ForEach(timeline.markers) { m in
+                    Capsule().fill(m.type.color).frame(width: 3, height: m.id == focus ? 12 : 9).offset(x: x(m.t) - 1.5, y: 1)
+                }
+                Circle().fill(Color.brand).frame(width: 14, height: 14).offset(x: x(player.currentTime) - 7, y: 15)
+            }
+            .frame(width: w, height: g.size.height, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { v in
+                if abs(v.translation.width) > 4 { player.seek(to: Double(v.location.x / max(w, 1)) * d, play: player.isPlaying) }
+            }.onEnded { v in
+                guard abs(v.translation.width) <= 4 else { return }
+                // A tap in the tick band picks the nearest mistake within 14 pt; anywhere else seeks there.
+                if v.location.y < 16, let m = timeline.markers.min(by: { abs(x($0.t) - v.location.x) < abs(x($1.t) - v.location.x) }), abs(x(m.t) - v.location.x) <= 14 {
+                    focus = m.id
+                    player.seek(to: max(0, m.t - 0.5), play: true)
+                } else {
+                    player.seek(to: Double(v.location.x / max(w, 1)) * d, play: player.isPlaying)
+                }
+            })
+        }
+        .frame(height: 44)
+        .accessibilityRepresentation {
+            Slider(value: Binding(get: { player.currentTime }, set: { player.seek(to: $0, play: player.isPlaying) }), in: 0...max(player.duration, 0.1))
+                .accessibilityLabel("Playback position")
+        }
     }
 }
 
@@ -1743,7 +1775,7 @@ struct LanguageView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 8) {
                                 Text(w.word).font(.body.weight(.medium))
-                                Chip(text: Self.issues[w.issue] ?? w.issue.capitalized, color: .muted)
+                                Chip(text: Self.issueLabel(w.issue), color: .muted)
                             }
                             Text(w.tip).font(.footnote).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true)
                         }
@@ -1766,6 +1798,14 @@ struct LanguageView: View {
     }
 
     private static let issues = ["sound": "Sound", "stress": "Word stress", "intonation": "Intonation", "unclear": "Unclear"]
+
+    /// The web's short labels, else the model's sentence in sentence case without its trailing period.
+    private static func issueLabel(_ raw: String) -> String {
+        if let known = issues[raw.lowercased()] { return known }
+        var t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while t.hasSuffix(".") { t.removeLast() }
+        return t.prefix(1).uppercased() + t.dropFirst().lowercased()
+    }
 
     // MARK: Writing
 

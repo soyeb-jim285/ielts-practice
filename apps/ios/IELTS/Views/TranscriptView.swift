@@ -4,7 +4,7 @@ import SwiftUI
 // tap an underlined error for its explanation, typed tags for fillers/repeats/restarts, pause chips, and "Also noted".
 
 private enum TrFilter: String, CaseIterable, Identifiable {
-    case all, grammar, vocab, other, pauses, fillers, repeats, unclear
+    case all, grammar, vocab, pronunciation, fluency, other, pauses
 
     var id: String { rawValue }
 
@@ -13,18 +13,33 @@ private enum TrFilter: String, CaseIterable, Identifiable {
         case .all: return "All"
         case .grammar: return "Grammar"
         case .vocab: return "Vocabulary"
+        case .pronunciation: return "Pronunciation"
+        case .fluency: return "Fluency"
         case .other: return "Task & other"
         case .pauses: return "Pauses"
-        case .fillers: return "Fillers"
-        case .repeats: return "Repeats & repairs"
-        case .unclear: return "Unclear"
+        }
+    }
+
+    var type: MarkerType? {
+        switch self {
+        case .grammar: return .grammar
+        case .vocab: return .vocabulary
+        case .pronunciation: return .pronunciation
+        case .fluency: return .fluency
+        default: return nil
         }
     }
 }
 
-/// Transcript filter for an error: task, cohesion, fluency and pronunciation notes all go under "other".
+/// Transcript filter for an error: its timeline type, else "other" (task, cohesion).
 private func trGroup(_ e: AnalysisError) -> TrFilter {
-    e.category.hasPrefix("grammar") ? .grammar : e.category.hasPrefix("lexis") ? .vocab : .other
+    switch MarkerType.of(category: e.category) {
+    case .grammar: return .grammar
+    case .vocabulary: return .vocab
+    case .pronunciation: return .pronunciation
+    case .fluency: return .fluency
+    case nil: return .other
+    }
 }
 
 /// A task or relevance note on a whole stretch (8+ words): drawn as a sentence tint, only when its filter is on.
@@ -62,10 +77,13 @@ private struct TrModel {
     let unplaced: [AnalysisError]
     let counts: [TrFilter: Int]
     let hasSentenceNotes: Bool
+    /// Word start times, for finding the word at a time.
+    let words: [Word]
 
-    private static let short = ["filled": "filler", "repetition": "repeat", "repair": "repair", "false_start": "false start", "partial": "cut-off", "prolongation": "held sound"]
+    private static let short = Timeline.disfluencyShort
 
-    init(_ r: AnalysisResult) {
+    init(_ r: AnalysisResult, _ timeline: Timeline) {
+        words = r.words ?? []
         var tokens = (r.words ?? []).enumerated().map { TrToken(id: $0.offset, word: $0.element) }
         for e in r.errors where e.start >= 0 && e.start < tokens.count {
             for i in e.start...min(max(e.start, e.end), tokens.count - 1) { tokens[i].errors.append(e) }
@@ -94,11 +112,9 @@ private struct TrModel {
         hasSentenceNotes = r.errors.contains(where: trIsSentenceNote)
 
         var counts: [TrFilter: Int] = [:]
-        for e in r.errors { counts[trGroup(e), default: 0] += 1 }
+        for f in TrFilter.allCases { if let t = f.type { counts[f] = timeline.count(t) } }
+        counts[.other] = r.errors.filter { trGroup($0) == .other }.count
         counts[.pauses] = r.metrics?.pauses.count ?? 0
-        counts[.fillers] = tokens.filter(\.filler).count
-        counts[.repeats] = tokens.reduce(0) { $0 + $1.marks.count }
-        counts[.unclear] = tokens.filter { $0.unclearTier != nil }.count
         self.counts = counts
 
         // One section per question, headed "Q1. ..."; without question boundaries, one headless block.
@@ -121,29 +137,56 @@ private struct TrModel {
 struct TranscriptView: View {
     let result: AnalysisResult
     let player: Player
+    let timeline: Timeline
+    /// The mistake picked on the chart or the audio bar (TimelineMarker.id).
+    @Binding var focus: String?
     let onSelect: (AnalysisError) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var filter: TrFilter = .all
     @State private var model: TrModel
     @State private var markDetail: String?
+    /// Index of the word playing now (-1 for none). Updated by TrClock only when the word changes, so the 10 Hz clock does not rebuild the transcript.
+    @State private var now = -1
 
-    init(result: AnalysisResult, player: Player, onSelect: @escaping (AnalysisError) -> Void) {
+    init(result: AnalysisResult, player: Player, timeline: Timeline, focus: Binding<String?>, onSelect: @escaping (AnalysisError) -> Void) {
         self.result = result
         self.player = player
+        self.timeline = timeline
+        _focus = focus
         self.onSelect = onSelect
-        _model = State(initialValue: TrModel(result))
+        _model = State(initialValue: TrModel(result, timeline))
+    }
+
+    /// Word index of the focused mistake.
+    private var focusWord: Int? {
+        guard let id = focus, let m = timeline.markers.first(where: { $0.id == id }) else { return nil }
+        return max(wordIndexAt(model.words, m.t), 0)
     }
 
     var body: some View {
         if model.tokens.isEmpty && model.unplaced.isEmpty {
             ContentUnavailableView("No transcript", systemImage: "text.alignleft", description: Text("No transcript is available for this answer."))
         } else {
-            filterBar
-            legend
-            if let markDetail { ResAlert(tone: .info, message: markDetail) }
-            ForEach(model.sections) { s in section(s) }
-            if !model.unplaced.isEmpty { alsoNoted }
+            ScrollViewReader { proxy in
+                VStack(alignment: .leading, spacing: 16) {
+                    TrClock(player: player, words: model.words, now: $now)
+                    filterBar
+                    legend
+                    if let markDetail { ResAlert(tone: .info, message: markDetail) }
+                    ForEach(model.sections) { s in section(s) }
+                    if !model.unplaced.isEmpty { alsoNoted }
+                }
+                .onChange(of: focus) { scrollToFocus(proxy) }
+                .task { try? await Task.sleep(for: .milliseconds(200)); scrollToFocus(proxy) }
+            }
         }
+    }
+
+    /// Bring a mistake picked elsewhere into view; no animation with Reduce Motion.
+    private func scrollToFocus(_ proxy: ScrollViewProxy) {
+        guard let i = focusWord else { return }
+        if reduceMotion { proxy.scrollTo("w\(i)", anchor: .center) } else { withAnimation { proxy.scrollTo("w\(i)", anchor: .center) } }
     }
 
     // MARK: Filters and legend
@@ -162,15 +205,18 @@ struct TranscriptView: View {
     /// What the marks mean; only the marks that appear in this transcript.
     private var legend: some View {
         FlowLayout(spacing: 16, lineSpacing: 6) {
-            legendItem("major error") { Text("word").underline(true, pattern: .solid, color: Color.bad) }
-            legendItem("minor error") { Text("word").underline(true, pattern: .solid, color: Color.warn) }
-            if (model.counts[.unclear] ?? 0) > 0 {
-                legendItem("unclear to speech recognition") { Text("word").underline(true, pattern: .dot, color: Color.warn) }
+            ForEach(MarkerType.allCases.filter { timeline.count($0) > 0 || $0 == .grammar || $0 == .vocabulary }) { t in
+                legendItem(t.label.lowercased()) {
+                    HStack(spacing: 4) {
+                        MarkerGlyph(type: t, size: 9)
+                        Text("word").underline(true, pattern: t.underline, color: t.color)
+                    }
+                }
             }
-            if (model.counts[.fillers] ?? 0) > 0 {
+            if model.tokens.contains(where: \.filler) {
                 legendItem("filler") { Text("um").strikethrough(true, color: Color.muted).foregroundStyle(Color.muted) }
             }
-            if (model.counts[.repeats] ?? 0) > 0 {
+            if model.tokens.contains(where: { !$0.marks.isEmpty }) {
                 legendItem("tap a tag for the detail") { Text("repeat").font(.caption2.weight(.medium)).padding(.horizontal, 6).padding(.vertical, 2).background(Color.surface2, in: Capsule()) }
             }
             legendItem("long pause; short ones show under Pauses") {
@@ -180,7 +226,9 @@ struct TranscriptView: View {
             if model.hasSentenceNotes {
                 legendItem("task note (select Task & other)") { Text("…").padding(.horizontal, 4).background(Color.warn.opacity(0.14), in: RoundedRectangle(cornerRadius: 4)) }
             }
-            if player.isLoaded { Text("Tap any word to hear it").font(.caption).foregroundStyle(.muted) }
+            if player.isLoaded {
+                legendItem("playing now; tap any word to hear it") { Text("word").padding(.horizontal, 3).background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 3)).foregroundStyle(Color.ink) }
+            }
         }
     }
 
@@ -217,33 +265,35 @@ struct TranscriptView: View {
     private func matches(_ t: TrToken) -> Bool {
         switch filter {
         case .all: return true
-        case .fillers: return t.filler
-        case .repeats: return !t.marks.isEmpty
-        case .unclear: return t.unclearTier != nil
         case .pauses: return false // words dim; the pause chips light up
-        case .grammar, .vocab, .other: return t.errors.contains { trGroup($0) == filter }
+        case .other: return t.errors.contains { trGroup($0) == .other }
+        case .pronunciation: return t.unclearTier != nil || t.errors.contains { trGroup($0) == .pronunciation }
+        case .fluency: return t.filler || !t.marks.isEmpty || t.errors.contains { trGroup($0) == .fluency }
+        case .grammar, .vocab: return t.errors.contains { trGroup($0) == filter }
         }
     }
 
     private func wordView(_ t: TrToken) -> some View {
         let err = t.errors.first(where: shown)
         let sentence = err.map(trIsSentenceNote) ?? false
-        let errColor: Color? = err.map { $0.severity == "major" ? Color.bad : Color.warn }
-        var unclear: Color?
-        if let tier = t.unclearTier, !t.filler, err == nil { unclear = tier >= 3 ? Color.bad : Color.warn }
-        let active = player.isPlaying && player.currentTime >= t.word.start && player.currentTime < t.word.end + 0.05
-        let background: Color = active ? Color.brand.opacity(0.25) : sentence ? Color.warn.opacity(0.14) : (errColor?.opacity(0.12) ?? Color.clear)
-        let underlineColor: Color? = sentence ? nil : (errColor ?? unclear)
+        // Underline in the mistake's type colour and pattern; task notes and other categories stay neutral.
+        var type = err.flatMap { MarkerType.of(category: $0.category) }
+        if err == nil, t.unclearTier != nil, !t.filler { type = .pronunciation }
+        let underlineColor: Color? = sentence ? nil : (type?.color ?? (err != nil ? Color.muted : nil))
+        let isNow = t.id == now
+        let picked = t.id == focusWord
+        let background: Color = isNow ? Color.brandSoft : sentence ? Color.warn.opacity(0.14) : Color.clear
         let dim = !(filter == .all || matches(t))
         return HStack(alignment: .firstTextBaseline, spacing: 2) {
             ForEach(Array(t.marks.enumerated()), id: \.offset) { _, m in markChip(m) }
             Text(t.word.w)
                 .font(.system(.body, design: .serif))
                 .strikethrough(t.filler, color: Color.muted)
-                .underline(underlineColor != nil, pattern: errColor == nil ? .dot : .solid, color: underlineColor)
+                .underline(underlineColor != nil, pattern: type?.underline ?? .solid, color: underlineColor)
                 .foregroundStyle(t.filler ? Color.muted : Color.ink)
                 .padding(.horizontal, 2)
                 .background(background, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(picked ? Color.ink : Color.clear, lineWidth: 1.5))
                 .opacity(dim ? 0.35 : 1)
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -252,6 +302,7 @@ struct TranscriptView: View {
                 .accessibilityLabel(wordLabel(t, err))
                 .accessibilityHint(err != nil ? "Opens the explanation" : (player.isLoaded ? "Plays from this word" : ""))
                 .accessibilityAddTraits(.isButton)
+                .id("w\(t.id)")
             if let p = t.pauseAfter, resIsLongPause(p) || filter == .pauses { pauseChip(p) }
         }
     }
@@ -266,13 +317,13 @@ struct TranscriptView: View {
             markDetail = markDetail == m.detail ? nil : m.detail
             player.seek(to: max(0, m.time - 0.3))
         } label: {
-            Text(m.short)
+            HStack(spacing: 3) { MarkerGlyph(type: .fluency, size: 7); Text(m.short) }
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.muted)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Color.surface2, in: Capsule())
-                .overlay(Capsule().strokeBorder(filter == .repeats ? Color.brand : Color.clear, lineWidth: 1.5))
-                .opacity(filter == .all || filter == .repeats ? 1 : 0.35)
+                .overlay(Capsule().strokeBorder(filter == .fluency ? MarkerType.fluency.color : Color.clear, lineWidth: 1.5))
+                .opacity(filter == .all || filter == .fluency ? 1 : 0.35)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(m.detail)
@@ -311,5 +362,21 @@ struct TranscriptView: View {
     private func playAction(_ e: AnalysisError) -> (() -> Void)? {
         guard player.isLoaded, let t = e.time else { return nil }
         return { player.seek(to: max(0, t - 0.3)) }
+    }
+}
+
+/// Zero-size view that alone watches the 10 Hz playback clock and reports the playing word when it changes.
+private struct TrClock: View {
+    let player: Player
+    let words: [Word]
+    @Binding var now: Int
+
+    var body: some View {
+        let t = player.currentTime
+        let i = player.isLoaded && player.isPlaying ? wordIndexAt(words, t) : -1
+        let playing = i >= 0 && t < words[i].end + 0.05 ? i : -1
+        Color.clear.frame(width: 0, height: 0)
+            .onChange(of: playing) { _, v in now = v }
+            .accessibilityHidden(true)
     }
 }

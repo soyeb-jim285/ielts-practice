@@ -1,13 +1,7 @@
 import SwiftUI
 
 /// "grammar.article" -> "Grammar: article" (web lib/result.ts categoryLabel).
-func shellCategoryLabel(_ c: String) -> String {
-    let names = ["grammar": "Grammar", "lexis": "Vocabulary", "cohesion": "Cohesion", "task": "Task", "pronunciation": "Pronunciation", "fluency": "Fluency"]
-    let parts = c.split(separator: ".", maxSplits: 1).map(String.init)
-    guard let g = parts.first else { return c }
-    let name = names[g] ?? g
-    return parts.count > 1 ? "\(name): \(parts[1].replacingOccurrences(of: "-", with: " "))" : name
-}
+func shellCategoryLabel(_ c: String) -> String { categoryLabel(c) }
 
 /// Error log: every correction from results, grouped by attempt, filterable by category, 30 per page (GET /api/mistakes).
 struct MistakesView: View {
@@ -85,6 +79,7 @@ struct MistakesView: View {
         .animation(.default, value: toast)
         .background(Color.canvas)
         .navigationTitle("Mistakes")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load(reset: true) }
         .task(id: category) { await load(reset: true) }
     }

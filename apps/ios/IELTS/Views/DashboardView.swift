@@ -427,13 +427,19 @@ struct DashboardView: View {
             Divider()
             practiseRow("Review deck", reviewMeta, "rectangle.on.rectangle.angled", .review, badge: (due?.dueTotal ?? 0) > 0 ? "\(due?.dueTotal ?? 0) due" : nil)
             Divider().padding(.bottom, 4)
-            HStack(spacing: 16) {
-                footerLink("Prompt bank", "books.vertical", .bank(skill: ""))
-                footerLink("Past attempts", "clock.arrow.circlepath", .history(skill: nil))
-                footerLink("Mistakes", "exclamationmark.triangle", .mistakes(category: nil))
+            // One row when it fits without wrapping; a vertical list on narrow or large-text screens.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { footerLinks }
+                VStack(alignment: .leading, spacing: 0) { footerLinks }
             }
         }
         .card()
+    }
+
+    @ViewBuilder private var footerLinks: some View {
+        footerLink("Prompt bank", "books.vertical", .bank(skill: ""))
+        footerLink("Past attempts", "clock.arrow.circlepath", .history(skill: nil))
+        footerLink("Mistakes", "exclamationmark.triangle", .mistakes(category: nil))
     }
 
     private var reviewMeta: String {
@@ -463,7 +469,7 @@ struct DashboardView: View {
 
     private func footerLink(_ title: String, _ icon: String, _ route: Route) -> some View {
         NavigationLink(value: route) {
-            Label(title, systemImage: icon).font(.subheadline.weight(.medium)).foregroundStyle(.brand).frame(minHeight: 44)
+            Label(title, systemImage: icon).font(.subheadline.weight(.medium)).foregroundStyle(.brand).lineLimit(1).fixedSize(horizontal: true, vertical: false).frame(minHeight: 44)
         }
         .buttonStyle(.plain)
     }

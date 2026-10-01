@@ -64,8 +64,13 @@ extension View {
     func canvasList() -> some View { scrollContentBackground(.hidden).background(Color.canvas) }
 
     /// Demo screenshots: `-anchor bottom|center` starts scroll views there so long screens can be captured in parts.
-    func demoScroll() -> some View {
-        defaultScrollAnchor(Demo.arg("anchor").flatMap { ["bottom": UnitPoint.bottom, "center": UnitPoint.center][$0] })
+    @ViewBuilder func demoScroll() -> some View {
+        // No modifier at all without `-anchor`: an always-present (even nil) anchor can leave a large title overlapping the first rows.
+        if let anchor = Demo.arg("anchor").flatMap({ ["bottom": UnitPoint.bottom, "center": UnitPoint.center][$0] }) {
+            defaultScrollAnchor(anchor)
+        } else {
+            self
+        }
     }
 }
 
@@ -84,8 +89,13 @@ func clock(_ seconds: Int) -> String { String(format: "%@%d:%02d", seconds < 0 ?
 
 func fmt(_ x: Double, _ digits: Int = 1) -> String { String(format: "%.\(digits)f", x) }
 
+/// "grammar.article" gives "Grammar: article", "grammar.run-on" gives "Grammar: run-on" (web categoryLabel; the sub-type stays lowercase).
 func categoryLabel(_ c: String) -> String {
-    c.split(separator: ".").last.map { $0.replacingOccurrences(of: "-", with: " ").capitalized } ?? c
+    let groups = ["grammar": "Grammar", "lexis": "Vocabulary", "vocabulary": "Vocabulary", "cohesion": "Cohesion", "task": "Task", "pronunciation": "Pronunciation", "fluency": "Fluency"]
+    let parts = c.split(separator: ".", maxSplits: 1).map(String.init)
+    guard let g = parts.first else { return c }
+    let name = groups[g.lowercased()] ?? (g.prefix(1).uppercased() + g.dropFirst())
+    return parts.count > 1 ? "\(name): \(parts[1].lowercased())" : name
 }
 
 func newSessionId() -> String { UUID().uuidString.lowercased() }
