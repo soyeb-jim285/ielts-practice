@@ -372,7 +372,7 @@ function MicCheckStep() {
   if (mic.state === 'idle' || mic.state === 'stopped')
     return (
       <div>
-        <Button variant="ghost" size="sm" icon={<Mic />} onClick={() => void mic.start()}>
+        <Button variant="secondary" icon={<Mic />} onClick={() => void mic.start()}>
           Check your microphone first
         </Button>
       </div>
@@ -381,8 +381,8 @@ function MicCheckStep() {
     <Card className="w-full max-w-md space-y-3 p-4 text-left">
       <MicCheck mic={mic} />
       {mic.state === 'recording' && (
-        <Button variant="ghost" size="sm" onClick={() => void mic.stop().catch(() => {})}>
-          Done
+        <Button variant="secondary" size="sm" onClick={() => void mic.stop().catch(() => {})}>
+          Looks good
         </Button>
       )}
     </Card>

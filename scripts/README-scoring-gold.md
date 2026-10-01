@@ -66,3 +66,17 @@ official bands:
 (`skipAnchor`), so the calibration fit reaches the bands the calibration pool lacks (3.5-4 and 8-8.5). Anchors never enter the
 test or probe splits. Fit of 2026-10-01 (promptHash `c2c869d31a9fcf39`, n = 86): slope 1.17, intercept -0.32, CV QWK 0.80, MAE 0.51,
 within 0.5 of 71%; gate failed (MAE, band >= 7 bias CI), so the record is stored inactive and `DEFAULT_MAPS` carries the same map.
+
+## Iteration 6: knot map, feedback facts, extremes
+
+- The fit is no longer a two-parameter line. `pnpm eval:scoring --split calib --with-anchors --with-ceilings --fit` fits `fitKnotMap` (packages/core):
+  least squares of the official band on the raw scorer mean `m` and the feedback call's **grammar errors per 100 words** `gd` (task-level and vocabulary errors
+  are left out), written as a line in `z = m + w (gd - gd0)` with its own slope below z 4.5 and above z 7.5 (knots at 4.5 and 7.5). It prints a paste-ready
+  `DEFAULT_MAPS` entry and the leave-one-prompt-out panel of the whole pipeline (map + rule layer). No `scoring_calibrations` record is written any more.
+- The feedback call runs for every scored script (`--no-feedback` skips it). Its facts (errors, overview, off-topic paragraphs) are cached under
+  `.eval/scoring-cache/<model>/feedback-<FEEDBACK_HASH>/`; the scoring cache (promptHash) is untouched, so changing the feedback prompt costs only the feedback calls.
+  The grammar count varies about 2 per 100 words between runs of the feedback call (r = 0.84), which is why the overall caps use one high threshold only.
+- `--with-ceilings` adds the 6 calibration-split examiner model answers (Cambridge 18), labelled 8.5 (their probe expectation `minBand 8.5`, not the nominal 9).
+- `scripts/gold-calib-floor.ts` upserts 6 authored low-end scripts (nominal band 3-3.5, role `calib`, ids `calibx-floor-*`, split `calibration`, prompts of calibration groups).
+  Run it after `gold-import.ts` (`--prune` leaves `calibx-*` alone). They are never in test or probe runs; the nominal labels are the author's, not examiner marks.
+- `gold-import.ts` marks `cam-5-5-w2` (191 words, stops mid-sentence) as `expect.truncated`: scored, listed on its own line, left out of the panel and the fit.

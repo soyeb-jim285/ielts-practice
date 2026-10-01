@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { computeTextMetrics, countWords, MIN_WORDS, promptOverlap, roundBand, taskBand, textFlags, type TextFlag } from '@ielts/core';
 import type { Settings } from '../settings';
 import { asCalibration, calibrationFor, calibrationKey, type Calibration } from './calibration';
@@ -42,6 +43,7 @@ ${taskRules}
 GENERAL RULES:
 - Word count: the app shows the count to the candidate; never log it as an error. Words copied from the prompt are not the candidate's language.
 - errors: "quote" MUST be copied character-for-character from the essay (same spelling, punctuation, capitalisation, spacing) — the minimal span of 1-8 words containing the error, long enough to be unique. "original" is the erroneous text, "correction" the fixed text. Categories task.overview / task.position / task.relevance are for task-level problems, quoting the relevant sentence; task.relevance "major" = the response, or a whole part of it, does not address the prompt as set.
+- offTopicParagraphs: list a paragraph only when its content is about something other than the prompt's topic (a personal hobby in an essay on health policy, a description of something the figure does not show). A weak argument, an example, a digression that still serves the question, or a misplaced paragraph is not off topic.
 - structure.paragraphs: one entry per paragraph of the essay in order; topicSentence is the paragraph's first sentence copied verbatim; ok = the paragraph does its job for its role; note = what to change (or why it works).
 - structure.overview: ${task === 1 && variant === 'academic' ? 'required (present = an overview exists; mainTrends = it states the main trends/differences; noData = it contains no specific figures).' : 'null.'}
 - structure.position: ${task === 2 ? 'required (clear = a position can be identified anywhere in the essay; consistent = never contradicted; note says where it is stated and whether stating it in the introduction would help).' : 'null.'}
@@ -60,6 +62,9 @@ ${fmt(WRITING_DESCRIPTORS.lr)}
 Grammatical Range and Accuracy (gra):
 ${fmt(WRITING_DESCRIPTORS.gra)}`;
 }
+
+/** Hash of the feedback prompts: the eval harness caches feedback facts under it. */
+export const FEEDBACK_HASH = createHash('sha256').update(JSON.stringify([feedbackSystem(2, 'academic', 'none'), feedbackSystem(1, 'academic', 'data'), feedbackSystem(1, 'general', 'none')])).digest('hex').slice(0, 12);
 
 /** Maps each quote to a char span, searching forward from the previous match; -1 when not found. */
 export function locateQuotes<T extends { quote: string }>(text: string, errors: T[]) {
@@ -125,6 +130,10 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
     }) as Promise<Partial<Sample>>;
   const calls = Array.from({ length: k }, (_, n) => (mode === 'joint' ? [() => call(n, sampleOrder(n))] : WRITING_KEYS.map((c) => () => call(n, [c])))).flat();
   const parts = await scoringSamples(calls, o.early && mode === 'joint' ? agree : undefined);
+  // Production only (`early`): three samples that still disagree by 2+ bands on a criterion are a noisy read (the same script moved a full band between runs),
+  // so two more are drawn. The harness keeps K samples: its cache and the fitted map are for K = 3.
+  if (o.early && mode === 'joint' && parts.length >= k && jagged(parts as Sample[]))
+    parts.push(...(await scoringSamples([k, k + 1].map((n) => () => call(n, sampleOrder(n))))));
   return { samples: mergeSamples(parts, o.early && parts.length >= 2 ? parts.length : k), used: parts.length, served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
 }
 
@@ -135,6 +144,9 @@ const agree = (ok: Partial<Sample>[]) => {
   const d = WRITING_KEYS.map((k) => Math.abs(a![k].band - b![k].band));
   return Math.max(...d) <= 1 && Math.abs(mean(WRITING_KEYS.map((k) => a![k].band)) - mean(WRITING_KEYS.map((k) => b![k].band))) <= 0.5;
 };
+
+/** Some criterion's samples span 2+ bands (the IELTS second-marking trigger for jagged profiles). */
+const jagged = (ok: Sample[]) => WRITING_KEYS.some((k) => { const b = ok.map((x) => x[k]?.band).filter((v) => v != null); return Math.max(...b) - Math.min(...b) >= 2; });
 
 /** Per-criterion partial outputs → whole samples (a failed call leaves its criterion with fewer samples; those are reused round-robin). */
 function mergeSamples(parts: Partial<Sample>[], k: number): Sample[] {
@@ -147,14 +159,26 @@ function mergeSamples(parts: Partial<Sample>[], k: number): Sample[] {
 const DESCRIPTORS = (task: 1 | 2) => ({ ta: task === 1 ? WRITING_DESCRIPTORS.ta1 : WRITING_DESCRIPTORS.tr2, cc: WRITING_DESCRIPTORS.cc, lr: WRITING_DESCRIPTORS.lr, gra: WRITING_DESCRIPTORS.gra });
 const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
 
-/** What the rule layer knows about the script. `errors`, `sentences` and `overviewMissing` come from the feedback call and are absent when only scoring ran (eval harness). */
-export type RuleInput = { task: 1 | 2; variant: 'academic' | 'general'; words: number; text: string; errors?: { category: string }[]; sentences?: number; overviewMissing?: boolean; upgrades?: number };
+/** Grammar errors per 100 words flagged by the feedback call: the density feature of the calibration map and the overall caps. Task-level and vocabulary errors are left out:
+ *  on 98 calibration scripts it separates bands far better than all errors (short Task 1 scripts collect task errors at any band). */
+export const grammarDensity = (f: FeedbackFacts, words: number) => (words > 0 ? (f.errors.filter((e) => e.category.startsWith('grammar.')).length * 100) / words : 0);
+/** Overall ceiling by grammar density: over 14 errors per 100 words was band 3.5 or below on every calibration script, in two separate runs of the feedback call.
+ *  One tier only: the count itself varies about 2 per 100 words between runs (r = 0.84), so lower thresholds (10, 12) flipped on official band-6 scripts. */
+export const densityCap = (gd: number) => (gd > 14 ? 4 : 9);
+
+/** What the rule layer knows about the script. `facts` come from the feedback call and are absent when only scoring ran (`--no-feedback` harness). */
+export type RuleInput = { task: 1 | 2; variant: 'academic' | 'general'; words: number; text: string; facts?: FeedbackFacts };
+
+/** The feedback model's "no overview" call is unreliable alone (it flagged official band-9 model answers), so it needs a second witness: no summing-up phrase in the text. */
+const OVERVIEW_MARKER = /\b(overall|in general|generally|in summary|to sum up|to summari[sz]e|as (can|could) be seen|it (is|can be) (clear|evident|obvious|seen)|the (most striking|main (trend|feature|difference)))\b/i;
+const overviewMissing = (f: FeedbackFacts, text: string) => (f.overview?.present === false || f.errors.some((e) => e.category === 'task.overview' && e.severity === 'major')) && !OVERVIEW_MARKER.test(text);
 
 /** Criterion-level rules after pooling (docs/scoring-research §2.1 step 6), each a cap or floor with its reason written into the criterion's summary:
  *  - under the word minimum: TA ≤ 6 (≤ 5 below 90% of it); below 80% of it CC, LR and GRA are capped at TA + 1 (a short response cannot show range or control,
  *    and the scorer rated those criteria on the language alone); cut off mid-sentence as well: CC, LR and GRA each one band lower;
- *  - Task 1 Academic without an overview (feedback call) and TA already ≤ 6: TA and CC ≤ 5;
- *  - over 12 flagged errors per 100 words, or sentence-structure errors in over half the sentences: GRA ≤ 4;
+ *  - Task 1 Academic without an overview (feedback call, and no summing-up phrase in the text) and TA already ≤ 6: TA ≤ 5;
+ *  - over 12 grammar errors per 100 words, or sentence-structure errors in over half the sentences: GRA ≤ 4;
+ *  - a paragraph the feedback call finds off the prompt's topic: TA ≤ 7;
  *  - under 1 error per 100 words, none in vocabulary and few basic words flagged, with TA and CC at 7+: LR and GRA ≥ 8 (the scorer under-reaches the top).
  *  Returns the reasons that fired. */
 export function applyRules(c: Record<WritingKey, LlmCriterion>, r: RuleInput): string[] {
@@ -177,46 +201,116 @@ export function applyRules(c: Record<WritingKey, LlmCriterion>, r: RuleInput): s
   }
   // The feedback model's "no overview" call is unreliable on its own (it flagged 7 of 11 official Academic Task 1 scripts of band 5-8 on TEST), so it only
   // bites when the scorer already doubts Task Achievement (TA 6 or less).
-  if (r.overviewMissing && c.ta.band <= 6) for (const k of ['ta', 'cc'] as const) cap(k, 5, 'There is no overview of the main trends or differences, which a Task 1 Academic report needs for band 6 and above.');
-  if (r.errors && r.words > 0) {
-    const per100 = (r.errors.length * 100) / r.words;
-    const structural = r.errors.filter((e) => e.category === 'grammar.sentence-structure').length;
-    if (per100 > 12 || (r.sentences && structural / r.sentences > 0.5)) cap('gra', 4, 'Errors are frequent and many sentences are malformed.');
-    else if (per100 < 1 && !r.errors.some((e) => e.category.startsWith('lexis.')) && (r.upgrades ?? 0) <= 3 && r.words >= min && c.ta.band >= 7 && c.cc.band >= 7)
+  const f = r.facts;
+  if (f && r.task === 1 && r.variant === 'academic' && overviewMissing(f, r.text) && c.ta.band <= 6) cap('ta', 5, 'There is no overview of the main trends or differences, which a Task 1 Academic report needs for band 6 and above.');
+  if (f && f.offTopic > 0) cap('ta', 7, 'A paragraph is about something other than the question asked, which keeps Task Response / Achievement below band 8.');
+  if (f && r.words > 0) {
+    const per100 = (f.errors.length * 100) / r.words;
+    const structural = f.errors.filter((e) => e.category === 'grammar.sentence-structure').length;
+    if (grammarDensity(f, r.words) > 12 || (f.sentences && structural / f.sentences > 0.5)) cap('gra', 4, 'Errors are frequent and many sentences are malformed.');
+    else if (per100 < 1 && !f.errors.some((e) => e.category.startsWith('lexis.')) && f.upgrades <= 3 && r.words >= min && c.ta.band >= 7 && c.cc.band >= 7)
       for (const k of ['lr', 'gra'] as const) c[k].band < 8 && set(k, 8, 'Very few slips and precise vocabulary: this meets band 8.');
   }
   return notes;
 }
 
 /** Steps 3-7 (§2.1), pure: criterion means → raw m → calibrated ŷ → whole criterion bands averaging to ŷ → rule layer → conformal range. */
-export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Calibration, 'map' | 'q'>, o: { task: 1 | 2; offTopic?: boolean; text?: string; rules?: RuleInput }) {
+export function settleWriting(s: Pick<Scored, 'samples' | 'flags'>, cal: Pick<Calibration, 'map' | 'q'>, o: { task: 1 | 2; text?: string; rules?: RuleInput }) {
   const means = WRITING_KEYS.map((c) => mean(s.samples.map((x) => x[c].band)));
   const m = mean(means);
   // Rule layer after calibration: an off-topic script (mean TA < 4.5) or one that tried to instruct the scorer gets no upward correction.
   // The calibrated estimate is snapped to the half-band grid before it is split into whole criterion bands: apportioning the continuous
   // estimate gives quarter-band averages, and the IELTS rounding rule (.25 up) would then lift every estimate in [x.125, x.25) and [x.625, x.75) by half a band.
-  const y = roundBand(means[0]! < 4.5 || s.flags.includes('injection') ? Math.min(m, cal.map(m)) : cal.map(m));
+  const f = o.rules?.facts, gd = f && o.rules!.words > 0 ? grammarDensity(f, o.rules!.words) : undefined;
+  const y = roundBand(means[0]! < 4.5 || s.flags.includes('injection') ? Math.min(m, cal.map(m, gd)) : cal.map(m, gd));
   const asCriterion = (x: CriterionScore): LlmCriterion => ({ band: x.band, range: [x.band, x.band], descriptor: x.descriptor, evidence: x.evidence, summary: x.summary });
   const bands = DESCRIPTORS(o.task);
   // Top band: the scorer under-reads Task Response / Achievement on polished scripts (TA 6-7 beside 8-9 on the other three, on 15 of 48 model answers), and a
   // script good enough for 8.5+ has a flat profile, so criteria keep only half of their distance from the mean there (the overall is unchanged).
   const c = poolCriteria(s.samples.map((x) => Object.fromEntries(WRITING_KEYS.map((k) => [k, asCriterion(x[k])])) as Record<WritingKey, LlmCriterion>), () => y, (key, band) => bandDescriptor(bands[key], band), y >= 8.5 ? 0.5 : 1);
   if (o.text) keepVerbatimEvidence(c, o.text);
+  // Where the overall would land without the feedback call's facts (word-count rules and the scorer's own TA cap only): the feedback-derived rules are the
+  // noisy part, so the range spans that estimate too when they moved the overall by a band or more.
+  let without: number | undefined;
+  if (o.rules?.facts) {
+    const c0 = structuredClone(c);
+    applyRules(c0, { ...o.rules, facts: undefined });
+    without = Math.min(roundBand(taskBand({ ta: c0.ta.band, cc: c0.cc.band, lr: c0.lr.band, gra: c0.gra.band })), c0.ta.band <= 4 ? c0.ta.band + 1 : 9);
+  }
   const rules = o.rules ? applyRules(c, o.rules) : [];
   const raw = taskBand({ ta: c.ta.band, cc: c.cc.band, lr: c.lr.band, gra: c.gra.band });
   // Off topic (TA ≤ 4 or a major task.relevance error): the overall is capped at TA + 1, same rule as the web's capOffTopic.
-  const cap = c.ta.band <= 4 || o.offTopic ? c.ta.band + 1 : 9;
+  const offTopic = !!f?.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
+  const dCap = gd == null ? 9 : densityCap(gd);
+  if (dCap < 9) rules.push(`overall: ${gd!.toFixed(0)} grammar errors per 100 words, so no more than band ${dCap}`);
+  const cap = Math.min(c.ta.band <= 4 || offTopic ? c.ta.band + 1 : 9, dCap);
   const overall = Math.min(roundBand(raw), cap);
   // Wider when a flag is set or a criterion's samples span 2+ bands (the IELTS second-marking trigger for jagged profiles).
   const spread = Object.fromEntries(WRITING_KEYS.map((k) => { const b = s.samples.map((x) => x[k].band); return [k, Math.max(...b) - Math.min(...b)]; })) as Record<WritingKey, number>;
   // Task Response / Achievement is the least stable criterion (samples 2+ bands apart on it missed the official band by 1.5 on cam-5-5-w2 and cam-7-1-w1): widen by a full band then.
   const q = cal.q + (spread.ta >= 2 ? 1 : s.flags.length || Object.values(spread).some((d) => d >= 2) ? 0.5 : 0);
   const range = settleRanges(c, overall, q);
-  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: [Math.min(range[0], cap), Math.min(range[1], cap)] as [number, number], q, rules, spread };
+  const span: [number, number] = [Math.min(range[0], cap), Math.min(range[1], cap)];
+  // (the same script scored a band apart between runs when the overview flag flipped)
+  if (without != null && Math.abs(without - overall) >= 1) [span[0], span[1]] = [Math.min(span[0], without), Math.max(span[1], without)];
+  return { criteria: c, m, overall, overallRaw: Math.min(raw, cap), range: span, q, rules, spread };
 }
 
 /** Scoring samples for a script: short scripts (under the word minimum) are capped by the rule layer anyway, so two samples are enough. */
 export const scorerK = (words: number, min: number) => (words < min ? Math.min(2, WRITING_K) : WRITING_K);
+
+/** What the rule layer and the calibration use from the feedback call. Small and serialisable: the eval harness caches it per script. */
+export type FeedbackFacts = {
+  errors: { category: string; severity: string }[];
+  sentences: number;
+  upgrades: number;
+  /** paragraphs the feedback call says are not about the prompt */
+  offTopic: number;
+  overview: { present: boolean; mainTrends: boolean } | null;
+  paragraphs: { role: string; ok: boolean }[];
+};
+export const feedbackFacts = (fb: Awaited<ReturnType<typeof feedbackWriting>>['fb'], errors: { category: string; severity: string }[], sentences: number): FeedbackFacts => ({
+  errors: errors.map((e) => ({ category: e.category, severity: e.severity })),
+  sentences,
+  upgrades: fb.vocabUpgrades.length,
+  offTopic: fb.offTopicParagraphs.length,
+  overview: fb.structure.overview ? { present: fb.structure.overview.present, mainTrends: fb.structure.overview.mainTrends } : null,
+  paragraphs: fb.structure.paragraphs.map((p) => ({ role: p.role, ok: p.ok })),
+});
+
+/** The feedback call (errors with located quotes, structure, fixes, upgrades, rewrite) and the word-count facts it is given. Shared by analyzeWriting and the eval harness. */
+export async function feedbackWriting(i: WritingInput, figure: Figure) {
+  const textMetrics = computeTextMetrics(i.text);
+  const min = i.task === 1 ? MIN_WORDS.t1 : MIN_WORDS.t2;
+  const plan = i.plan?.trim() || undefined;
+  const user = JSON.stringify({
+    task: i.task,
+    variant: i.task === 1 ? i.variant : undefined,
+    prompt: { title: i.prompt.title, body: i.prompt.body, bullets: i.prompt.bullets ?? undefined, chartData: i.prompt.chart ?? undefined },
+    wordCount: textMetrics.words,
+    minimumWords: min,
+    metrics: {
+      paragraphs: textMetrics.paragraphs,
+      sentences: textMetrics.sentences,
+      avgSentenceLen: Math.round(textMetrics.avgSentenceLen),
+      overusedLinkers: textMetrics.linkers.filter((l) => l.overused).map((l) => `${l.word} ×${l.count}`),
+      repeatedWords: textMetrics.repeated.map((r) => `${r.word} ×${r.count}`),
+    },
+    plan,
+  });
+  const fb = await retryOnce(() =>
+    chatJson({
+      model: i.settings.models.analysis,
+      system: feedbackSystem(i.task, i.variant, figure),
+      user: withImage(figure === 'image' ? i.prompt.image : null, `${user}\n\n<candidate_response>\n${i.text}\n</candidate_response>`),
+      schema: plan ? WritingPlanFeedbackSchema : WritingFeedbackSchema,
+      schemaName: 'writing_analysis',
+      temperature: 0.2,
+      effort: 'low',
+    }),
+  );
+  return { fb, errors: locateQuotes(i.text, fb.errors) };
+}
 
 /** `onStage` / `onPartial` let the caller show progress: the feedback is handed over as soon as it is ready, while the scorer (the slow part) runs on. */
 export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; onScored?: (s: Scored) => void; onStage?: (s: AnalysisStage) => void; onPartial?: (p: AnalysisPartial) => void | Promise<void> }): Promise<AnalysisResult> {
@@ -234,41 +328,16 @@ export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; on
   }
 
   const figure = await figureFor(i);
-  const plan = i.plan?.trim() || undefined;
-  const feedbackUser = JSON.stringify({
-    task: i.task,
-    variant: i.task === 1 ? i.variant : undefined,
-    prompt: { title: i.prompt.title, body: i.prompt.body, bullets: i.prompt.bullets ?? undefined, chartData: i.prompt.chart ?? undefined },
-    wordCount: textMetrics.words,
-    minimumWords: min,
-    metrics: {
-      paragraphs: textMetrics.paragraphs,
-      sentences: textMetrics.sentences,
-      avgSentenceLen: Math.round(textMetrics.avgSentenceLen),
-      overusedLinkers: textMetrics.linkers.filter((l) => l.overused).map((l) => `${l.word} ×${l.count}`),
-      repeatedWords: textMetrics.repeated.map((r) => `${r.word} ×${r.count}`),
-    },
-    plan,
-  });
-  const feedback = () =>
-    chatJson({
-      model: i.settings.models.analysis,
-      system: feedbackSystem(i.task, i.variant, figure),
-      user: withImage(figure === 'image' ? i.prompt.image : null, `${feedbackUser}\n\n<candidate_response>\n${i.text}\n</candidate_response>`),
-      schema: plan ? WritingPlanFeedbackSchema : WritingFeedbackSchema,
-      schemaName: 'writing_analysis',
-      temperature: 0.2,
-      effort: 'low',
-    });
   const t0 = Date.now(), timings: Record<string, number> = {};
   let scoring = true;
   i.onStage?.('feedback');
-  const fbP = retryOnce(feedback).then(async (fb) => {
+  // The scorer and the feedback call run in parallel (wall time = the slower one, not their sum): the feedback's error density only enters after scoring,
+  // in the rule layer and the calibration map, never in the scorer's prompt.
+  const fbP = feedbackWriting(i, figure).then(async (r) => {
     timings.feedbackMs = Date.now() - t0;
-    const located = locateQuotes(i.text, fb.errors);
     if (scoring) i.onStage?.('scoring');
-    await i.onPartial?.({ skill: 'writing', part: i.task, text: i.text, textMetrics, structure: fb.structure, errors: located, topFixes: fb.topFixes, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE } });
-    return { fb, errors: located };
+    await i.onPartial?.({ skill: 'writing', part: i.task, text: i.text, textMetrics, structure: r.fb.structure, errors: r.errors, topFixes: r.fb.topFixes, vocabUpgrades: r.fb.vocabUpgrades, rewrite: { text: r.fb.rewrite, note: WRITING_REWRITE_NOTE } });
+    return r;
   });
   const scoredP = scoreWriting(i, { figure, k: scorerK(own, min), early: true, skipAnchor: i.skipAnchor }).then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
   const [{ fb, errors }, scored] = await Promise.all([fbP, scoredP]);
@@ -280,11 +349,9 @@ export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; on
   // A record fitted in one output mode does not carry over to the other (json_object fallback, §2.3).
   const mode = cal.record?.cv && (cal.record.cv as { mode?: string }).mode;
   const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key, undefined, i.settings.models.analysis) : cal;
-  const offTopic = errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
-  const overviewMissing = i.task === 1 && i.variant === 'academic' && (fb.structure.overview?.present === false || errors.some((e) => e.category === 'task.overview' && e.severity === 'major'));
   const r = settleWriting(scored, applied, {
-    task: i.task, offTopic, text: i.text,
-    rules: { task: i.task, variant: i.variant, words: own, text: i.text, errors, sentences: textMetrics.sentences, overviewMissing, upgrades: fb.vocabUpgrades.length },
+    task: i.task, text: i.text,
+    rules: { task: i.task, variant: i.variant, words: own, text: i.text, facts: feedbackFacts(fb, errors, textMetrics.sentences) },
   });
   timings.calibrationMs = Date.now() - t1;
   timings.totalMs = Date.now() - t0;

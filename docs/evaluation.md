@@ -406,3 +406,43 @@ The gate fails on test MAE (0.48 against 0.45) and on the >= 7 bias confidence i
 - The status endpoint has no `partial`, so the web refetches the full attempt on stage change. `metrics.fluency` is not typed in OpenAPI, so the iOS `profile` decode is not schema-checked.
 - Hierarchy on the fluency tab is only partly improved (section headings are the same size). Streaming TTS for the live examiner is not done. The Scribe prolongation threshold and disfluency tagger are validated only on scripted fixtures.
 - Unreviewed screens: full-test session, live examiner and review/history at 1440, most 390 px dark screens. The AI models section of Settings was only glimpsed.
+
+## Iteration 6
+
+### Scores
+
+| Dimension | Score | Summary |
+|---|---|---|
+| performance | 8.6 | Every API call measured runs at 1-5 ms p50. Production build: FCP 136-360 ms, LCP 320-710 ms, 0 CLS, about 136 KB gzip eager JS. Weak spots: AI pipeline wall time (26 s), a 60 KB gzip shared overlay chunk loaded on nearly every signed-in route, the 105 KB recharts chunk on the speaking result page, a few non-indexed query paths that are fine at 1k rows. |
+| Ease of use (first-time candidate, 390x844 and 1440x900) | 7.4 | Core flows are clear with few clicks; under-250-words confirm, actionable "no speech" state, early writing feedback while the band is checked. Remaining trust and clarity issues: the writing result said an off-topic essay was capped and also not capped; Pronunciation 8.0 beside Fluency 4.0 reads as broken; tall mobile result hero; unclear 'Pace: listening'; title cut mid-word; disabled live Start button. Not walked: review deck with cards due, full-test flows, live examiner session. |
+| UI/UX visual quality | 7.2 | Coherent Ocean Teal system in light and dark, no horizontal scroll, no page errors. Fixed from iteration 5: mistakes empty state, pause chips, speaking off-topic note, live start button. Remaining: tall mobile hero, clipped mobile tabs and chips, writing off-topic banner above the tabs, flat dashboard charts, low-contrast disabled states. About 12 of 88 screenshots were read. |
+| features | 8.3 | Nearly every spec feature works end to end (writing T2 with plan and retry, speaking with disfluency analysis, turn-based live examiner with TTS, Realtime token, SRS and mistakes loop, progress, bank gating, editor rules). Gaps: writing editor route differs from the spec, speaking session report shows one overall number, thin writing error recall, 1-band stub essays drag the dashboard. Unverified: live/finish, Realtime WebRTC, iOS runtime, disfluency recall. |
+| SCORING ACCURACY | 6.5 | Usable and unbiased overall, better at the top than iteration 5, but misses the release gate and is noisy run to run. Harness test split (luna, n=42): MAE 0.48, QWK 0.83, SMD -0.07, 86% within 0.5, band >= 7 bias -0.35 CI [-0.69, -0.06]. Own 18-script full-pipeline run: MAE 0.53, bias -0.08, max error 2.0. Probes: ceiling 35/48, floor 1/3, prompt-copy 4/4, error-density chains 12/12, no-overview 1/1. |
+
+### Key evidence
+
+- Spend was held under the $3 budget by reusing the scoring cache; openai/gpt-6-sol was tested and rejected (13 essays: Sol QWK 0.85, MAE 0.58, band 7+ bias -0.75; Luna QWK 0.89, MAE 0.54, bias -0.25, at 15-20x lower cost). Luna stays the grader.
+- A facts-first two-stage grader was worse (test QWK 0.68), but errors per 100 words alone correlates -0.66 with the gold band, so density is used as a calibration feature only.
+- Performance: the eager graph is about 136 KB gzip; API p50 1-5 ms; the status endpoint payload is 60 B and the web polls it instead of the full attempt. Writing wall time 26 s (feedback about 13 s, scoring about 13 s before the parallelisation fix below).
+- Scoring: one run-to-run swing (cam-5-2-w1, official 8, scored 6.0 then 7.0) traced to the feedback call's "no overview" flag, not to scorer temperature. cam-5-5-w2 is a truncated source excerpt (191 words) and is now excluded from MAE and the fit.
+- Speaking: fluent sample 8, halting sample 4.5, ordering correct, error timestamps match word times. Articulation rate was wrong (262 and 356 wpm), pronunciation sat 2 bands above fluency on halting speech, and 'like' / 'you know' fillers were missed.
+
+### What was fixed
+
+- Scoring: the default map is now a 4-knot map on raw mean plus grammar-error density (knots 3.5, 4.5, 7.5, 8.5), fitted on the calibration split plus calibration-only anchors, ceilings and 6 authored floors, so it can reach 8.5-9. Grammar density caps GRA at 4 above 12 per 100 words and the overall at 4 above 14. The copied-prompt rule now caps LR and GRA as well as TR. TA is capped at 7 when the feedback call lists an off-topic paragraph. Scorer and feedback calls run in parallel, so wall time is the slower of the two. Server-side test result after the fix: MAE 0.45, QWK 0.85, band >= 7 bias -0.47 CI [-0.65, -0.29], band <= 5 bias +0.14, floor probes 3/3; band 8 bias is still -0.63 (n=4).
+- Speaking: articulation rate uses first-to-last word span minus pauses and fillers (260 wpm clamp, with a test); pronunciation is capped at FC + 1 when FC <= 4; 'like' and 'you know' are detected context-aware; the web flags pronunciation more than 2 bands above fluency as "Audio check only, low confidence" with a widened range.
+- Web writing result: the cap sentence no longer contradicts the banner; the off-topic and short-essay alerts live inside the Overview tab; the mobile hero is collapsed with a clipped title and a Show prompt toggle; criterion rows use a 240px / 1fr grid.
+- Web speaking result: all five tabs fit at 390 px (Transcript is "Text" on phones), filter chips scroll with a fade, the title is "Part 1: Reading" with a question count, the mobile hero is about 140 px, pauses under 1 s are hidden inline, and only the three worst fluency measures get text badges. The hub shows "Start with one part" first for users with no attempts.
+- Shell: the live pre-screen requests the mic on entry and Start is never disabled; the review empty state distinguishes "No cards yet" from "All caught up" using the new `deck` field on `/api/cards/due`; the model reset label shows the display name; the dashboard minutes use `formatMinutes` ("<1 min"); the dashboard chart shows per-criterion bars under 3 attempts and direct-labelled lines after; the auth layout is centred; the mobile tab bar shows the current More page.
+
+### Verification
+
+`pnpm typecheck` clean, `TEST_DB=verify pnpm test` passes (core 59, web 82, server 125 with 1 skipped), `pnpm build` passes, `pnpm gen:api` regenerated `openapi.json` and `schema.d.ts`, Playwright e2e 6/6 (desktop and mobile).
+
+### Remaining gaps
+
+- Accuracy still does not clear the full gate: band 8 is biased low (-0.63, n=4, regression to the mean), mid-range Task 1 scripts are over-scored by 0.5-1.0, and the same essay can still swing a band between runs through the feedback call's overview flag. Weighted knots, isotonic fits and extra knots traded top-end bias against MAE.
+- Pronunciation is only tempered client-side plus a server cap at FC + 1; articulation rate on the TTS samples (215-258 wpm) is the fast synthetic speech itself.
+- Live Part 1 attempts title from the first topic only; a multi-topic title or per-question topics needs a server change. The speech-to-text default model depends on an env var and is still hard-coded in `ModelPicker.tsx` (`DEFAULT_MODELS`); the server should expose real defaults.
+- Dashboard minutes already round up on the server; seconds are not exposed.
+- Unreviewed or unwalked: review deck with cards due, full-test flow, live examiner session, history/settings/signup screens, iOS runtime (not built), Realtime WebRTC and `/api/live/finish`.

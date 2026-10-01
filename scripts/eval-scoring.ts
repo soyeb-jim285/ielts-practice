@@ -1,35 +1,38 @@
 // Writing scoring harness (docs/scoring-research.md §4.5). Scores the private gold set with the production scorer, caches every raw
 // scoring sample, prints the agreement panel, per-band error 3..9 and probe checks, and with --fit writes the per-model calibration record.
 //
-//   pnpm eval:scoring --model <id> --split calib|test|probe [--fit] [--activate] [--k 3] [--ablate per-criterion]
-//                     [--feedback] [--with-anchors] [--limit N] [--ids a,b] [--conc 16] [--yes]
+//   pnpm eval:scoring --model <id> --split calib|test|probe [--fit] [--k 3] [--ablate per-criterion]
+//                     [--no-feedback] [--with-anchors] [--limit N] [--ids a,b] [--conc 16] [--yes]
 //
-// --fit (calib split): leave-one-group-out fitCalibration on the raw means, CV panel on out-of-fold predictions, record written to
-//   scoring_calibrations (active only with --activate and a passing gate). Other splits apply the key's active record, else identity.
-// --feedback also runs the feedback call (the production path), so a major task.relevance error can cap the overall; off by default to save
-//   cost: scoring alone decides the calibration, and the TA ≤ 4 cap still applies.
+// --fit (calib split): leave-one-group-out fit of the knot map (raw mean + grammar error density from the feedback facts), CV panel of the whole pipeline on
+//   out-of-fold predictions, paste-ready DEFAULT_MAPS entry. Other splits apply the key's active record, else the shipped DEFAULT_MAPS entry.
+// The production path also runs the feedback call (errors, structure): its facts (error density, overview, off-task paragraphs) feed the rule layer and
+//   the calibration map. They are cached per script under .eval/scoring-cache/<model>/feedback-<FEEDBACK_HASH>/ and fetched for every scored script
+//   that has none; --no-feedback skips them (scoring-only panel, word-count rules only).
 // --with-anchors (calib split): also scores the anchor scripts, each with itself left out of the benchmarks (leave-one-out), so the fit reaches the
 //   bands the calibration pool lacks (3.5-4 and 8-8.5). Anchors never enter the test or probe splits.
+// --with-ceilings (calib split): also scores the calibration-split examiner model answers, labelled 8.5 (their probe expectation); the authored low-end
+//   calibration scripts (scripts/gold-calib-floor.ts, role calib) are always included. Truncated scripts (expect.truncated) are scored but left out of the panel.
 // Raw outputs are cached in .eval/scoring-cache/<model>/<promptHash>-<effort>-k<K>-<mode>/<id>-<sha8>.json (gitignored): a rerun only pays
 // for new scripts or a changed prompt. Script text never leaves the DB / .eval.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 // Relative imports: bare specifiers do not resolve from scripts/ (no root node_modules for workspace packages).
-import { agreement, BAND_GROUPS, fitCalibration, pairedBootstrap, type Agreement } from '../packages/core/src/index';
-import { db, sql } from '../apps/server/src/db/client';
-import { scoringCalibrations, type scoringScripts } from '../apps/server/src/db/schema';
+import { agreement, BAND_GROUPS, computeTextMetrics, fitKnotMap, pairedBootstrap, type Agreement } from '../packages/core/src/index';
+import { sql } from '../apps/server/src/db/client';
+import type { scoringScripts } from '../apps/server/src/db/schema';
 import { asCalibration, calibrationKey, getCalibration, type Calibration } from '../apps/server/src/ai/calibration';
 import { listModels, setFetch } from '../apps/server/src/ai/openrouter';
 import { loadAnchors, promptHash, WRITING_KEYS, type ScoringMode } from '../apps/server/src/ai/prompts';
-import { analyzeWriting, ownWords, scoreWriting, settleWriting, TOO_SHORT_WORDS, WRITING_EFFORT, WRITING_K, type RuleInput, type Scored, type WritingInput } from '../apps/server/src/ai/writing';
+import { feedbackFacts, feedbackWriting, FEEDBACK_HASH, type FeedbackFacts, grammarDensity, ownWords, scoreWriting, settleWriting, TOO_SHORT_WORDS, WRITING_EFFORT, WRITING_K, type RuleInput, type Scored, type WritingInput } from '../apps/server/src/ai/writing';
 import { DEFAULT_SETTINGS } from '../apps/server/src/settings';
 import { storage } from '../apps/server/src/storage';
 
 const { values: a } = parseArgs({
   options: {
     model: { type: 'string', default: DEFAULT_SETTINGS.models.analysis }, split: { type: 'string', default: 'calib' }, k: { type: 'string', default: '3' },
-    fit: { type: 'boolean' }, 'with-anchors': { type: 'boolean' }, activate: { type: 'boolean' }, fitted: { type: 'boolean' }, ablate: { type: 'string' }, feedback: { type: 'boolean' },
+    fit: { type: 'boolean' }, 'with-anchors': { type: 'boolean' }, 'with-ceilings': { type: 'boolean' }, ablate: { type: 'string' }, 'no-feedback': { type: 'boolean' }, 
     limit: { type: 'string' }, ids: { type: 'string' }, conc: { type: 'string', default: '16' }, yes: { type: 'boolean' },
   },
 });
@@ -38,14 +41,15 @@ const K = Number(a.k), model = a.model!, split = a.split === 'calibration' ? 'ca
 if (/qwen/i.test(model)) { console.error('SKIPPED: Qwen was dropped by the user (too slow). Do not retry it; finish with openai/gpt-6-luna and deepseek/deepseek-v4.1-flash only.'); process.exit(0); }
 if (!['calib', 'test', 'probe'].includes(split)) throw new Error('--split calib|test|probe');
 if (a.ablate && a.ablate !== 'per-criterion') throw new Error('--ablate per-criterion');
-if (a.feedback && (a.ablate || K !== WRITING_K)) throw new Error('--feedback runs the production path: joint mode, K = WRITING_K');
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const settings = { ...DEFAULT_SETTINGS, models: { ...DEFAULT_SETTINGS.models, analysis: model } };
 
 // ---------- scripts ----------
 type Row = typeof scoringScripts.$inferSelect;
 let rows = (await sql<Row[]>`select id, skill, task_family as "taskFamily", role, split, band, group_id as "groupId", prompt, text, note, expect, sha256
-  from scoring_scripts where skill = 'writing' and ${split === 'probe' ? sql`role = 'probe' and split <> 'anchor'` : sql`((role = ${split} and split = ${split === 'calib' ? 'calibration' : 'test'}) ${a['with-anchors'] && split === 'calib' ? sql`or role = 'anchor'` : sql``})`} order by id`).slice();
+  from scoring_scripts where skill = 'writing' and ${split === 'probe' ? sql`role = 'probe' and split <> 'anchor'` : sql`((role = ${split} and split = ${split === 'calib' ? 'calibration' : 'test'}) ${a['with-anchors'] && split === 'calib' ? sql`or role = 'anchor'` : sql``} ${a['with-ceilings'] && split === 'calib' ? sql`or (role = 'probe' and split = 'calibration' and expect->>'kind' = 'ceiling')` : sql``})`} order by id`).slice();
+// Calibration-split examiner model answers stand in for the top of the scale: expected >= 8.5 (probe expectation), so the fit labels them 8.5, not the nominal 9.
+rows = rows.map((r) => (r.role === 'probe' && split === 'calib' ? { ...r, band: 8.5 } : r));
 if (a.ids) rows = rows.filter((r) => a.ids!.split(',').includes(r.id));
 if (a.limit) rows = rows.slice(0, Number(a.limit));
 if (rows.some((r) => (r.role === 'anchor' || r.split === 'anchor') && !(a['with-anchors'] && r.role === 'anchor'))) throw new Error('refusing to score an anchor');
@@ -72,8 +76,8 @@ setFetch(async (url, init) => {
   try { cost += (JSON.parse(Buffer.from(body).toString()) as { usage?: { cost?: number } }).usage?.cost ?? 0; } catch { /* not JSON: cost unknown */ }
   return new Response(body, res);
 });
-type Cached = Scored & { id: string; offTopic?: boolean; ms: number; tooShort?: boolean; rules?: Pick<RuleInput, 'errors' | 'sentences' | 'overviewMissing' | 'upgrades'> };
-const dirOf = (mode: ScoringMode) => `${ROOT}.eval/scoring-cache/${model.replace(/\W/g, '_')}/${promptHash(anchors, mode)}-${WRITING_EFFORT}-k${K}-${mode}${a.feedback ? '-fb' : ''}`;
+type Cached = Scored & { id: string; ms: number; tooShort?: boolean; facts?: FeedbackFacts };
+const dirOf = (mode: ScoringMode) => `${ROOT}.eval/scoring-cache/${model.replace(/\W/g, '_')}/${promptHash(anchors, mode)}-${WRITING_EFFORT}-k${K}-${mode}`;
 const fileOf = (mode: ScoringMode, r: Row) => `${dirOf(mode)}/${r.id}-${r.sha256.slice(0, 8)}.json`;
 const read = (f: string): Cached | undefined => (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : undefined);
 
@@ -82,7 +86,7 @@ async function scoreAll(mode: ScoringMode): Promise<Map<string, Cached>> {
   const out = new Map<string, Cached>(), todo = rows.filter((r) => { const c = read(fileOf(mode, r)); if (c) out.set(r.id, c); return !c; });
   if (todo.length) {
     const m = (await listModels()).find((x) => x.id === model);
-    const calls = (mode === 'joint' ? K : 4 * K) + (a.feedback ? 1 : 0);
+    const calls = mode === 'joint' ? K : 4 * K;
     // ponytail: rough per-call token guess (6k in / 1.5k out, anchors included); the real spend is printed at the end.
     const est = m ? todo.length * calls * (6000 * Number(m.pricing.prompt) + 1500 * Number(m.pricing.completion)) : NaN;
     console.error(`${mode}: ${todo.length} to score (${out.size} cached), ~${calls} calls each, estimated $${est.toFixed(2)}`);
@@ -94,15 +98,11 @@ async function scoreAll(mode: ScoringMode): Promise<Map<string, Cached>> {
       for (let attempt = 0; ; attempt++) {
         try {
           const t0 = Date.now(), inp = await input(r);
-          let scored!: Scored, offTopic: boolean | undefined, tooShort: true | undefined, rules: Cached['rules'];
+          let scored!: Scored, tooShort: true | undefined;
           // Production rule: 20 own words or fewer is Band 1 with no AI call (analyzeWriting); cached as empty samples.
           if (ownWords(inp) <= TOO_SHORT_WORDS) [scored, tooShort] = [{ samples: [], served: [], flags: [], words: 0, copied: 0, figure: 'none', family: 't2', promptHash: '', key: '' }, true];
-          else if (a.feedback && mode === 'joint') {
-            const res = await analyzeWriting({ ...inp, skipAnchor: r.role === 'anchor' ? r.id : undefined, onScored: (s) => (scored = s) });
-            offTopic = res.errors.some((e) => e.category === 'task.relevance' && e.severity === 'major');
-            rules = { errors: res.errors, sentences: res.textMetrics?.sentences, upgrades: res.vocabUpgrades.length, overviewMissing: inp.task === 1 && inp.variant === 'academic' && (res.structure?.overview?.present === false || res.errors.some((e) => e.category === 'task.overview' && e.severity === 'major')) };
-          } else scored = await scoreWriting(inp, { mode, k: K, skipAnchor: r.role === 'anchor' ? r.id : undefined });
-          const c: Cached = { id: r.id, ...scored, offTopic, tooShort, rules, ms: Date.now() - t0 };
+          else scored = await scoreWriting(inp, { mode, k: K, skipAnchor: r.role === 'anchor' ? r.id : undefined });
+          const c: Cached = { id: r.id, ...scored, tooShort, ms: Date.now() - t0 };
           writeFileSync(fileOf(mode, r), JSON.stringify(c));
           out.set(r.id, c);
           console.error(`  ${r.id} m=${tooShort ? 'band 1 (too short)' : (WRITING_KEYS.reduce((s, k) => s + c.samples.reduce((t, x) => t + x[k].band, 0) / c.samples.length, 0) / 4).toFixed(2)} official=${r.band ?? '-'} ${c.ms} ms`);
@@ -115,6 +115,31 @@ async function scoreAll(mode: ScoringMode): Promise<Map<string, Cached>> {
     }
   }));
   return out;
+}
+
+// ---------- feedback facts (cached per script) ----------
+const fbDir = `${ROOT}.eval/scoring-cache/${model.replace(/\W/g, '_')}/feedback-${FEEDBACK_HASH}`;
+async function feedbackAll(scored: Map<string, Cached>) {
+  mkdirSync(fbDir, { recursive: true });
+  const queue = rows.filter((r) => { const c = scored.get(r.id); return c && !c.tooShort && !a['no-feedback']; });
+  await Promise.all(Array.from({ length: Number(a.conc) }, async () => {
+    for (let r; (r = queue.shift()); ) {
+      const f = `${fbDir}/${r.id}-${r.sha256.slice(0, 8)}.json`, c = scored.get(r.id)!;
+      if (existsSync(f)) { c.facts = JSON.parse(readFileSync(f, 'utf8')); continue; }
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const inp = await input(r), { fb, errors } = await feedbackWriting(inp, c.figure);
+          c.facts = feedbackFacts(fb, errors, computeTextMetrics(inp.text).sentences);
+          writeFileSync(f, JSON.stringify(c.facts));
+          console.error(`  feedback ${r.id}: ${c.facts.errors.length} errors`);
+          break;
+        } catch (e) {
+          if (attempt >= 2) { console.error(`  FEEDBACK FAILED ${r.id}`, (e as Error).message); break; }
+          await new Promise((res) => setTimeout(res, 5000));
+        }
+      }
+    }
+  }));
 }
 
 // ---------- panel ----------
@@ -147,16 +172,17 @@ const result: Record<string, unknown> = { model, split, k: K, effort: WRITING_EF
 const preds: Record<string, number[]> = {};
 for (const mode of modes) {
   const scored = await scoreAll(mode);
+  await feedbackAll(scored);
   const done = rows.filter((r) => scored.has(r.id));
   const key = calibrationKey(model, promptHash(anchors, mode), WRITING_EFFORT, K);
   const settle = (r: Row, cal: Pick<Calibration, 'map' | 'q'>) => {
     const s = scored.get(r.id)!, one = { band: 1, range: [1, 1] as [number, number], descriptor: '', evidence: [], summary: '' };
     if (s.tooShort) return { criteria: { ta: one, cc: one, lr: one, gra: one }, m: 1, overall: 1, overallRaw: 1, range: [1, 1] as [number, number], q: 0, rules: [] as string[], spread: { ta: 0, cc: 0, lr: 0, gra: 0 } };
     const task = r.taskFamily === 't2' ? 2 : 1;
-    // Rules that need the feedback call (errors, overview) only fire on --feedback runs; the word-count rules always do.
-    return settleWriting(s, cal, { task, offTopic: s.offTopic, rules: { task, variant: r.taskFamily === 't1g' ? 'general' : 'academic', words: s.words - s.copied, text: r.text ?? '', ...s.rules } });
+    // Rules that need the feedback facts (errors, overview, paragraphs) fire only when the feedback call ran; the word-count rules always do.
+    return settleWriting(s, cal, { task, text: r.text ?? '', rules: { task, variant: r.taskFamily === 't1g' ? 'general' : 'academic', words: s.words - s.copied, text: r.text ?? '', facts: s.facts } });
   };
-  const labelled = done.filter((r) => r.band != null && split !== 'probe');
+  const labelled = done.filter((r) => r.band != null && split !== 'probe' && !r.expect?.truncated);
   const human = labelled.map((r) => r.band!), groups = labelled.map((r) => r.groupId);
   const served = [...scored.values()].flatMap((s) => s.served);
   const modesServed = [...new Set(served.map((s) => s.mode))], providers = [...new Set(served.map((s) => s.provider))];
@@ -164,32 +190,28 @@ for (const mode of modes) {
   console.log(`${done.length}/${rows.length} scored; served by ${providers.join(', ')}; output mode ${modesServed.join(', ')}`);
 
   // --fitted: apply the stored record even when its gate failed (inactive), to report what the map would do on test / probes.
-  let cal = asCalibration(key, a.fitted ? (await sql<Calibration['record'][]>`select slope, intercept, m_lo as "mLo", m_hi as "mHi", q90 from scoring_calibrations where key = ${key}`)[0] : await getCalibration(key), model);
+  let cal = asCalibration(key, await getCalibration(key), model);
   let out = done.map((r) => settle(r, cal));
   if (a.fit && split === 'calib' && labelled.length) {
+    if (a['no-feedback']) throw new Error('--fit needs the feedback facts (the map uses grammar error density)');
     const raw = labelled.map((r) => settle(r, asCalibration(key)).m);
-    const fit = fitCalibration(raw, human, groups);
+    const gd = labelled.map((r) => { const s = scored.get(r.id)!; if (!s.facts) throw new Error(`no feedback facts for ${r.id}`); return grammarDensity(s.facts, s.words - s.copied); });
+    const fit = fitKnotMap(raw, gd, human, groups);
     const oof = labelled.map((r, i) => settle(r, { map: () => fit.oof[i]!, q: fit.q90 }));
     const g = agreement(oof.map((o) => o.overallRaw), human, groups, { ranges: oof.map((o) => o.range) });
-    panel(`CV (leave-one-prompt-out), ${fit.form} slope ${f2(fit.slope)} intercept ${f2(fit.intercept)} m ${f2(fit.mLo)}..${f2(fit.mHi)} q90 ${fit.q90} q95 ${fit.q95}`, g);
+    panel(`CV (leave-one-prompt-out) of the knot map: w ${f2(fit.w)} per grammar error per 100 words, gd0 ${f2(fit.gd0)}, ${fit.knots.length} knots (4.5 and 7.5), q90 ${fit.q90} q95 ${fit.q95}`, g);
     const verdict = gate(g);
     console.log(`\nGate: ${verdict.pass ? 'PASS' : `FAIL (${verdict.fails.join('; ')})`}`);
-    const provider = providers.filter(Boolean).join(',') || null;
-    const rec = {
-      key, skill: 'writing' as const, modelId: model, promptHash: promptHash(anchors, mode), effort: WRITING_EFFORT, k: K, provider,
-      form: fit.form, slope: fit.slope, intercept: fit.intercept, mLo: fit.mLo, mHi: fit.mHi, lambda: fit.lambda, q90: fit.q90, q95: fit.q95,
-      cv: { n: g.n, qwk: g.qwk, lwk: g.lwk, mae: g.mae, smd: g.smd, sdRatio: g.sdRatio, exact: g.exact, within05: g.adjacent, within1: g.within1, pearson: g.pearson,
-        biasByGroup: g.biasByGroup, coverage90: g.coverage?.rate, ci: g.ci, mode: modesServed.length === 1 ? modesServed[0] : modesServed, gate: verdict },
-      scriptIds: labelled.map((r) => r.id), active: !!a.activate && verdict.pass,
-    };
-    await db.insert(scoringCalibrations).values(rec).onConflictDoUpdate({ target: scoringCalibrations.key, set: { ...rec, createdAt: new Date() } });
-    console.log(`Record ${key.slice(0, 12)} written, active=${rec.active}${a.activate && !verdict.pass ? ' (gate failed)' : ''}`);
-    cal = asCalibration(key, rec);
-    out = done.map((r, i) => (labelled.includes(r) ? oof[labelled.indexOf(r)]! : settle(r, cal)));
-    result[mode] = { record: rec, cv: g };
+    console.log(`\nPaste into DEFAULT_MAPS (apps/server/src/ai/calibration.ts), promptHash ${promptHash(anchors, mode)}, n=${fit.n}:\n  '${model}': { w: ${f2(fit.w)}, gd0: ${f2(fit.gd0)}, knots: ${JSON.stringify(fit.knots)} },`);
+    // ponytail: no scoring_calibrations record is written: the DB record holds a linear map only, and the knot map ships as DEFAULT_MAPS until its gate passes.
+    cal = asCalibration(key, undefined, model);
+    out = done.map((r) => (labelled.includes(r) ? oof[labelled.indexOf(r)]! : settle(r, cal)));
+    result[mode] = { fit: { w: fit.w, gd0: fit.gd0, knots: fit.knots, q90: fit.q90, n: fit.n, gate: verdict }, cv: g };
   } else if (labelled.length) {
     const g = agreement(labelled.map((r) => out[done.indexOf(r)]!.overallRaw), human, groups, { ranges: labelled.map((r) => out[done.indexOf(r)]!.range) });
-    panel(cal.calibrated ? `Calibrated with active record (q90 ${cal.q})` : a.fitted ? 'Fitted record, not active' : 'Shipped default: no active record, fixed default map (DEFAULT_MAPS) and q = 1, labelled unvalidated', g);
+    panel(cal.calibrated ? `Calibrated with active record (q90 ${cal.q})` : 'Shipped default: no active record, knot map (DEFAULT_MAPS) and q = 1, labelled unvalidated', g);
+    const trunc = done.filter((r) => r.expect?.truncated && r.band != null);
+    if (trunc.length) console.log(`truncated scripts (stop mid-sentence in the book, left out of the panel): ${trunc.map((r) => `${r.id} official ${r.band} -> ${out[done.indexOf(r)]!.overall}`).join('; ')}`);
     for (const [name, keep] of [['reconstructed prompts', (r: Row) => !!r.prompt?.reconstructed], ['Task 1 without figure', (r: Row) => scored.get(r.id)!.figure === 'none' && r.taskFamily === 't1a']] as const) {
       const sub = labelled.filter(keep);
       if (sub.length) console.log(`${name}: n=${sub.length}, MAE ${f2(sub.reduce((s, r) => s + Math.abs(out[done.indexOf(r)]!.overall - r.band!), 0) / sub.length)} (reported separately; included above)`);

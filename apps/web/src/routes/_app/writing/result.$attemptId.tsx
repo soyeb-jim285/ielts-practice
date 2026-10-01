@@ -2,6 +2,7 @@ import { writingOverall } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
 import { ArrowLeft, BookmarkPlus, FileText, RotateCcw } from 'lucide-react';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { Alert, Badge, Button, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, toast } from '@/components/ui';
@@ -9,6 +10,7 @@ import { DiffView } from '@/components/writing/DiffView';
 import { EssayHighlights } from '@/components/writing/EssayHighlights';
 import { LanguagePanel } from '@/components/writing/LanguagePanel';
 import { capOffTopic } from '@/components/writing/offTopic';
+import { PromptTitle, PromptToggle } from '@/components/writing/PromptTitle';
 import { StructureMap } from '@/components/writing/StructureMap';
 import { formatBand, formatDate, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
@@ -37,6 +39,7 @@ function ResultPage() {
   const { data: a, error, refetch } = useQuery(attemptQuery(attemptId));
   const { data: other } = useQuery({ ...attemptQuery(pair ?? ''), enabled: !!pair });
   const target = useMe().data?.settings.targetBand ?? 7;
+  const [showPrompt, setShowPrompt] = useState(false);
 
   if (error)
     return (
@@ -73,14 +76,28 @@ function ResultPage() {
   return (
     <PageContainer>
       {r ? (
-        <ResultHeader result={r} title={a.prompt.title} meta={meta} target={target} back={back}>
-          <div className="flex flex-wrap items-center gap-2">
-            {switcher}
-            {offTopic && <Badge>Capped: off topic</Badge>}
-            {/* Under-length answers get the word count in the alert below instead. */}
-            {r.textMetrics && !under && !r.tooShort && <Badge>{plural(r.textMetrics.words, 'word')}</Badge>}
-            {a.overtime && <Badge tone="warn">Overtime</Badge>}
-          </div>
+        <ResultHeader
+          result={r}
+          title={<PromptTitle title={a.prompt.title} open={showPrompt} />}
+          meta={
+            <>
+              {meta}
+              <PromptToggle title={a.prompt.title} open={showPrompt} onToggle={() => setShowPrompt((o) => !o)} />
+            </>
+          }
+          target={target}
+          back={back}
+          flags={
+            <>
+              {/* On phones the overview banner says it; the chip row stays on one line. */}
+              {offTopic && <Badge tone="bad" className="max-sm:hidden">Capped: off topic</Badge>}
+              {/* Under-length answers get the word count in the alert instead. */}
+              {r.textMetrics && !under && !r.tooShort && <Badge>{plural(r.textMetrics.words, 'word')}</Badge>}
+              {a.overtime && <Badge tone="warn">Overtime</Badge>}
+            </>
+          }
+        >
+          {switcher}
         </ResultHeader>
       ) : (
         <PageHeader title={a.prompt.title} description={meta} actions={switcher} back={back} />
@@ -110,39 +127,40 @@ function ResultPage() {
 function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: AnalysisResult; offTopic: boolean; under: boolean; tab: Tab; setTab: (t: Tab) => void; target: number }) {
   const text = r.text ?? a.text ?? '';
   const ta = a.part === 1 ? 'Task Achievement' : 'Task Response';
+  // One alert for everything wrong with the essay itself; it lives in Overview so the band breakdown is the first thing on the page.
+  const alert = r.tooShort ? (
+    <Alert tone="warn" title="Too short to assess">
+      Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.
+    </Alert>
+  ) : (
+    (offTopic || under) && (
+      <Alert
+        tone={offTopic ? 'bad' : 'warn'}
+        title={offTopic ? 'Off topic' : `Under ${minWords(a.part)} words`}
+        className={offTopic ? 'bg-bad-soft/50' : undefined}
+        action={
+          offTopic && (
+            <Link to="/writing/task/$promptId" params={{ promptId: a.promptId }} search={{ parent: a.id }} className={buttonStyles({ size: 'sm' })}>
+              <RotateCcw aria-hidden /> Rewrite on this topic
+            </Link>
+          )
+        }
+      >
+        {offTopic && (
+          <p>
+            Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question, so your overall band can’t go above {formatBand(r.criteria.ta!.band + 1)}: one band over your {ta} score.
+          </p>
+        )}
+        {under && (
+          <p>
+            You wrote {r.textMetrics!.words} of the {minWords(a.part)} words required, which lowers {ta}.
+          </p>
+        )}
+      </Alert>
+    )
+  );
   return (
     <div className="space-y-4">
-      {r.tooShort ? (
-        <Alert tone="warn" title="Too short to assess">
-          Responses of 20 words or fewer are rated Band 1 on every criterion. Aim for at least {minWords(a.part)} words.
-        </Alert>
-      ) : (
-        (offTopic || under) && (
-          // One alert for everything wrong with the essay itself, so the band breakdown stays near the top.
-          <Alert
-            tone={offTopic ? 'bad' : 'warn'}
-            title={offTopic ? 'Off topic' : `Under ${minWords(a.part)} words`}
-            action={
-              offTopic && (
-                <Link to="/writing/task/$promptId" params={{ promptId: a.promptId }} search={{ parent: a.id }} className={buttonStyles({ size: 'sm' })}>
-                  <RotateCcw aria-hidden /> Rewrite on this topic
-                </Link>
-              )
-            }
-          >
-            {offTopic && (
-              <p>
-                Your {a.part === 1 ? 'answer' : 'essay'} doesn’t answer this question, so your overall band can’t go above {formatBand(r.criteria.ta!.band + 1)}: one band over your {ta} score.
-              </p>
-            )}
-            {under && (
-              <p>
-                You wrote {r.textMetrics!.words} of the {minWords(a.part)} words required, which lowers {ta}.
-              </p>
-            )}
-          </Alert>
-        )
-      )}
       {/* Stays under the top edge while a long panel scrolls. */}
       <StickyTabs>
         <Tabs
@@ -164,6 +182,8 @@ function Done({ a, r, offTopic, under, tab, setTab, target }: { a: Attempt; r: A
             result={r}
             order={WRITING_CRITERIA}
             target={target}
+            alert={alert}
+            capNote={offTopic ? `the ${a.part === 1 ? 'answer' : 'essay'} is off topic` : undefined}
             parentLink={
               a.parentAttemptId && (
                 <Link to="/writing/result/$attemptId" params={{ attemptId: a.parentAttemptId }} search={{}} className={buttonStyles({ variant: 'link' })}>

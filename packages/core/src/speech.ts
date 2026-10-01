@@ -10,7 +10,13 @@ const SINGLE_FILLERS = new Set(FILLERS.filter(f => !f.includes(' ')));
 const BIGRAM_FILLERS = new Set(FILLERS.filter(f => f.includes(' ')));
 /** Articles, prepositions, conjunctions: "the X and the Y" / "of A, of B" restart on these in ordinary parallel structures, not repairs. */
 const FUNCTION_WORDS = new Set('a an the of in on at to for with by from about into onto over under after before through between and or but nor so as than that if because while when'.split(' '));
+/** Words before "like" that make it the verb or a comparison ("I like it", "would like"), and what follows it as an object. */
+const LIKE_VERB_BEFORE = new Set("i we you they he she who people to would do don't dont did does doesn't really".split(' '));
+const LIKE_OBJECT_AFTER = new Set('it them him her me us to'.split(' '));
+/** "do you know, …" is a question, not the discourse marker. */
+const QUESTION_BEFORE = new Set("do did if as that what how when don't dont".split(' '));
 /** Whisper stretches word timestamps over the "um"s and silences it drops, hiding the pause: a word longer than max(STRETCH_MIN_S, 2x expected) holds one. */
+const MAX_ARTICULATION_WPM = 260;
 const S_PER_LETTER = 0.07, STRETCH_MIN_S = 0.7;
 
 export function computeSpeechMetrics(
@@ -50,19 +56,23 @@ export function computeSpeechMetrics(
     pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced });
   }
 
-  // "like" and "you know" are ordinary words far more often than fillers ("I like football"), so the transcript alone counts them only between two pauses;
-  // the text LLM and the audio model can still tag them (fuseDisfluencies).
+  // "like" and "you know" are ordinary words far more often than fillers ("I like football"), so the transcript counts them only when it shows them set off:
+  // commas on both sides ("about, like, a boy"), pauses on both sides, or (like only) a pause before it that is not the verb ("I like it", "to like", "would like").
   const weak = (i: number, len: number) => gapBefore(i) * 1000 < PAUSE_MS || gapBefore(i + len) * 1000 < PAUSE_MS;
+  const comma = (i: number) => i >= 0 && i < n && /,$/.test(words[i]!.w);
   const fillers: SpeechMetrics['fillers'] = [];
   const isFillerAt = new Array<boolean>(n).fill(false);
+  const isLike = (i: number) =>
+    (comma(i - 1) && comma(i)) || !weak(i, 1) || (gapBefore(i) * 1000 >= PAUSE_MS && !LIKE_VERB_BEFORE.has(norm[i - 1] ?? '') && !LIKE_OBJECT_AFTER.has(norm[i + 1] ?? ''));
+  const isYouKnow = (i: number) => (comma(i - 1) && comma(i + 1) && !QUESTION_BEFORE.has(norm[i - 1] ?? '')) || !weak(i, 2);
   for (let i = 0; i < n; i++) {
     if (i + 1 < n && BIGRAM_FILLERS.has(`${norm[i]} ${norm[i + 1]}`)) {
-      if (norm[i] === 'you' && weak(i, 2)) continue;
+      if (norm[i] === 'you' && !isYouKnow(i)) continue;
       fillers.push({ word: `${norm[i]} ${norm[i + 1]}`, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = isFillerAt[i + 1] = true;
       i++;
     } else if (SINGLE_FILLERS.has(norm[i]!)) {
-      if (norm[i] === 'like' && weak(i, 1)) continue;
+      if (norm[i] === 'like' && !isLike(i)) continue;
       fillers.push({ word: norm[i]!, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = true;
     }
@@ -107,7 +117,10 @@ export function computeSpeechMetrics(
     if (isFillerAt[i] || gapBefore(i) * 1000 >= PAUSE_MS) inRun = false;
     if (!isFillerAt[i] && !inRun) (runs++, (inRun = true));
   }
-  const phonation = spoken.reduce((s, w) => s + (w.end - w.start), 0);
+  // Speaking time = the span from the first to the last word minus pauses and filler words. Summing ASR word durations instead left out every gap under
+  // PAUSE_MS and gave about 2x human articulation rates (260-350 wpm); a clamp at 260 wpm keeps timestamp glitches from printing absurd rates.
+  const fillerTime = words.reduce((s, w, i) => s + (isFillerAt[i] ? w.end - w.start : 0), 0);
+  const phonation = n ? Math.max(0, words[n - 1]!.end - words[0]!.start - pauses.reduce((s, p) => s + p.dur, 0) - fillerTime) : 0;
   const wpmSeries: SpeechMetrics['wpmSeries'] = [];
   for (let t = 0; t + WPM_WINDOW_S <= Math.max(durationS, WPM_WINDOW_S); t += WPM_HOP_S)
     wpmSeries.push({ t, wpm: words.filter(w => w.start >= t && w.start < t + WPM_WINDOW_S).length * (60 / WPM_WINDOW_S) });
@@ -123,7 +136,7 @@ export function computeSpeechMetrics(
     durationS: opts.durationS,
     wordCount: spoken.length,
     speechRate: spoken.length / mins,
-    articulationRate: phonation > 0 ? spoken.length / (phonation / 60) : 0,
+    articulationRate: phonation > 0 ? Math.min(MAX_ARTICULATION_WPM, spoken.length / (phonation / 60)) : 0,
     phonationRatio: phonation / durationS,
     pauseRatio: pauses.reduce((s, p) => s + p.dur, 0) / durationS,
     mlr: runs ? spoken.length / runs : 0,

@@ -1,6 +1,6 @@
 // Upserts data/scoring-gold/scripts.json (written by scripts/gold-build.py) into the scoring_scripts table.
 // PRIVATE data: the texts never go into git. Usage: pnpm -F @ielts/server exec tsx ../../scripts/gold-import.ts [--dry] [--prune]
-//   --prune  delete rows whose id is no longer in the file
+//   --prune  delete rows whose id is no longer in the file (authored calibx-* rows from gold-calib-floor.ts are kept)
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { scoringScripts } from '../apps/server/src/db/schema';
@@ -8,7 +8,9 @@ import type { scoringScripts } from '../apps/server/src/db/schema';
 type Row = typeof scoringScripts.$inferInsert;
 const args = process.argv.slice(2);
 const file = fileURLToPath(new URL('../data/scoring-gold/scripts.json', import.meta.url));
-const rows = (JSON.parse(readFileSync(file, 'utf8')) as Row[]).map(({ createdAt: _c, updatedAt: _u, ...r }) => r);
+// Scripts that stop mid-sentence in the source book: every length and truncation rule scores them correctly low, so they are reported apart, not in MAE.
+const TRUNCATED = new Set(['cam-5-5-w2']);
+const rows = (JSON.parse(readFileSync(file, 'utf8')) as Row[]).map(({ createdAt: _c, updatedAt: _u, ...r }) => (TRUNCATED.has(r.id) ? { ...r, expect: { ...r.expect, truncated: true } } : r));
 
 const bad = rows.filter((r) => !r.id || !r.sha256 || !['anchor', 'calib', 'test', 'probe'].includes(r.role) || !['anchor', 'calibration', 'test'].includes(r.split));
 if (bad.length) throw new Error(`invalid rows: ${bad.map((r) => r.id).join(', ')}`);
@@ -30,7 +32,7 @@ for (const r of rows) {
   await db.insert(table).values(r).onConflictDoUpdate({ target: table.id, set: { ...set, updatedAt: new Date() } });
 }
 if (args.includes('--prune')) {
-  const gone = await sql`delete from scoring_scripts where not (id = any(${rows.map((r) => r.id)})) returning id`;
+  const gone = await sql`delete from scoring_scripts where id not like 'calibx-%' and not (id = any(${rows.map((r) => r.id)})) returning id`;
   console.log(`pruned ${gone.length}`);
 }
 console.log(`upserted ${rows.length} scoring_scripts rows`);

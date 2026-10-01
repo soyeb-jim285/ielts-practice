@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import { Headphones, Mic, X } from 'lucide-react';
+import { Headphones, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { MicCheck } from '@/components/speaking/MicCheck';
 import { Alert, Button, buttonStyles, Card, PageContainer, PageHeader } from '@/components/ui';
@@ -15,6 +16,13 @@ const STEPS = [
 export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; fallback: boolean; onStart: () => void }) {
   const mic = useRecorder();
   const live = mic.state === 'recording';
+  // Ask for the microphone on entry so the check is already running (and Start works in one tap). The ref keeps StrictMode from asking twice.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current) return;
+    asked.current = true;
+    void mic.start();
+  }, []);
 
   return (
     <ExamShell
@@ -71,23 +79,25 @@ export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; 
         </section>
 
         <div className="sticky bottom-0 z-10 -mx-4 space-y-2 border-t border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          {/* Always enabled: before the mic is ready a press retries the permission check instead of starting. */}
+          {!live && mic.state !== 'requesting' && (
+            <p id="start-hint" className="text-sm text-muted">
+              Allow microphone access, then press again to begin.
+            </p>
+          )}
           <Button
             size="lg"
             className="w-full sm:w-auto sm:px-8"
             aria-describedby={live ? undefined : 'start-hint'}
-            disabled={!live}
+            loading={mic.state === 'requesting'}
             onClick={() => {
+              if (!live) return void mic.start();
               void mic.stop().catch(() => {});
               onStart();
             }}
           >
-            Start test
+            {live ? 'Start test' : 'Check microphone and start'}
           </Button>
-          {!live && (
-            <p id="start-hint" className="type-caption flex items-center gap-2">
-              <Mic className="size-4 shrink-0" aria-hidden /> Test your microphone above to unlock the test.
-            </p>
-          )}
         </div>
       </PageContainer>
     </ExamShell>

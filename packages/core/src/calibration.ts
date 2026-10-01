@@ -227,3 +227,69 @@ export function fitCalibration(raw: number[], human: number[], groups: Group[], 
   const res = oof.map((p, i) => Math.abs(roundBand(p) - human[i]!));
   return { ...fitMap(raw, human, lambda, minLinear), n: raw.length, q90: conformalQ(res, 0.1), q95: conformalQ(res, 0.05), oof };
 }
+
+/** Piecewise-linear calibration on a composite score z = m + w·(gd − gd0): m = the scorer's raw mean, gd = grammar errors per 100 words from the feedback call.
+ *  The two-parameter linear map could not be steeper at both ends of the scale; knots can (docs/scoring-validation.md §8). Missing gd (scoring-only paths) means gd0. */
+export interface KnotMap { w: number; gd0: number; knots: [number, number][] }
+/** Beyond the end knots the map continues at the end segment's slope, kept within [1, 1.5] so the ends never flatten and never explode. */
+export function applyKnotMap(c: KnotMap, m: number, gd?: number): number {
+  const z = m + c.w * ((gd ?? c.gd0) - c.gd0), k = c.knots, n = k.length;
+  const edge = (a: [number, number], b: [number, number]) => Math.min(1.5, Math.max(1, (b[1] - a[1]) / (b[0] - a[0] || 1)));
+  let y: number;
+  if (n === 1) y = k[0]![1] + z - k[0]![0];
+  else if (z <= k[0]![0]) y = k[0]![1] + edge(k[0]!, k[1]!) * (z - k[0]![0]);
+  else if (z >= k[n - 1]![0]) y = k[n - 1]![1] + edge(k[n - 2]!, k[n - 1]!) * (z - k[n - 1]![0]);
+  else {
+    const i = k.findIndex((_, j) => j < n - 1 && z <= k[j + 1]![0]);
+    const [a, b] = [k[i]!, k[i + 1]!];
+    y = a[1] + ((z - a[0]) * (b[1] - a[1])) / (b[0] - a[0] || 1);
+  }
+  return Math.min(9, Math.max(0, y));
+}
+
+/** Least squares of y on (m, gd): the error density's weight in raw-score units, w = b_gd / b_m. */
+function densityWeight(m: number[], gd: number[], y: number[]): number {
+  const [mm, mg, my] = [mean(m), mean(gd), mean(y)];
+  let smm = 0, sgg = 0, smg = 0, smy = 0, sgy = 0;
+  m.forEach((v, i) => { const a = v - mm, b = gd[i]! - mg, c = y[i]! - my; smm += a * a; sgg += b * b; smg += a * b; smy += a * c; sgy += b * c; });
+  const det = smm * sgg - smg * smg, bm = (smy * sgg - sgy * smg) / det, bg = (smm * sgy - smg * smy) / det;
+  return det > 1e-9 && bm > 1e-9 ? bg / bm : 0;
+}
+
+export interface KnotFit extends KnotMap { n: number; q90: number; q95: number; oof: number[] }
+/** Knot positions on z: below `lo` and above `hi` the map gets its own slope. */
+export const KNOT_OPTS = { lo: 4.5, hi: 7.5 };
+/** Middle: least squares of y on (m, gd), written as a line in z. Ends: below `lo` and above `hi` the slope is refitted on the scripts out there (within 1..1.5),
+ *  so floor and ceiling scripts, which the scorer under-separates, can reach 3.5 and 8.5 (plain least squares keeps them near the middle). */
+function fitKnotLine(m: number[], gd: number[], y: number[], o: typeof KNOT_OPTS): KnotMap {
+  const w = densityWeight(m, gd, y), gd0 = [...gd].sort((a, b) => a - b)[Math.floor(gd.length / 2)]!;
+  const z = m.map((v, i) => v + w * (gd[i]! - gd0)), [mz, my] = [mean(z), mean(y)];
+  const slope = sum(z.map((v, i) => (v - mz) * (y[i]! - my))) / sum(z.map((v) => (v - mz) ** 2)), line = (v: number) => my + slope * (v - mz);
+  // slope of the end segment through its knot, least squares on the points beyond it; too few points: keep the middle slope
+  const end = (k: number, beyond: (v: number) => boolean, min: number) => {
+    const d = z.filter(beyond).map((v) => v - k), r = z.map((v, i) => (beyond(v) ? y[i]! - line(v) : NaN)).filter((v) => !Number.isNaN(v));
+    if (d.length < min) return slope;
+    const dd = sum(d.map((v) => v * v));
+    return Math.min(1.5, Math.max(1, (slope * dd + sum(d.map((v, i) => v * r[i]!))) / dd));
+  };
+  const [sLo, sHi] = [end(o.lo, (v) => v < o.lo, 5), end(o.hi, (v) => v > o.hi, 4)];
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return { w: r2(w), gd0: r2(gd0), knots: ([[o.lo - 1, line(o.lo) - sLo], [o.lo, line(o.lo)], [o.hi, line(o.hi)], [o.hi + 1, line(o.hi) + sHi]] as [number, number][]).map(([a, b]) => [r2(a), r2(b)]) };
+}
+const sum = (x: number[]) => x.reduce((a, b) => a + b, 0);
+
+/** Fits the knot map with leave-one-group-out out-of-fold predictions and conformal half-widths. */
+export function fitKnotMap(m: number[], gd: number[], human: number[], groups: Group[]): KnotFit {
+  const o = KNOT_OPTS;
+  if (m.length !== human.length || m.length !== gd.length || m.length !== groups.length) throw new Error('fitKnotMap: length mismatch');
+  const ids = [...new Set(groups)];
+  if (ids.length < 2 || m.length < 20) throw new Error('fitKnotMap: need at least 2 groups and 20 scripts');
+  const fit = (idx: number[]) => fitKnotLine(idx.map((i) => m[i]!), idx.map((i) => gd[i]!), idx.map((i) => human[i]!), o);
+  const oof = new Array<number>(m.length);
+  for (const g of ids) {
+    const map = fit(groups.map((x, i) => (x === g ? -1 : i)).filter((i) => i >= 0));
+    groups.forEach((x, i) => { if (x === g) oof[i] = applyKnotMap(map, m[i]!, gd[i]!); });
+  }
+  const res = oof.map((p, i) => Math.abs(roundBand(p) - human[i]!));
+  return { ...fit(m.map((_, i) => i)), n: m.length, q90: conformalQ(res, 0.1), q95: conformalQ(res, 0.05), oof };
+}

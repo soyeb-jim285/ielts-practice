@@ -95,3 +95,14 @@ it('cleanTranscript drops fillers, the first copy of repetitions and self-correc
   const m = computeSpeechMetrics(words, { durationS: 7 });
   expect(cleanTranscript(words, m).map(w => w.w).join(' ')).toBe('he say it took a kind of long time');
 });
+it('articulation rate is words per second of speaking time (span minus pauses and fillers), not per summed word duration', () => {
+  // 150 wpm: one word every 0.4 s, each 0.3 s long with a 0.1 s gap (under PAUSE_MS), then the same after a 3 s silence
+  const w = (i: number, off = 0) => ({ w: 'word', start: off + i * 0.4, end: off + i * 0.4 + 0.3 });
+  const steady = computeSpeechMetrics(Array.from({ length: 60 }, (_, i) => w(i)), { durationS: 24 });
+  expect(steady.articulationRate).toBeCloseTo(150, -1);
+  const paused = computeSpeechMetrics([...Array.from({ length: 30 }, (_, i) => w(i)), ...Array.from({ length: 30 }, (_, i) => w(i, 12 + 3))], { durationS: 27 });
+  expect(paused.articulationRate).toBeCloseTo(150, -1); // the 3 s silence does not slow it
+  expect(paused.speechRate).toBeLessThan(paused.articulationRate - 10);
+  // timestamp glitch: 40 words in 3 s cannot print a rate above the 260 wpm sanity clamp
+  expect(computeSpeechMetrics(Array.from({ length: 40 }, (_, i) => ({ w: 'w', start: i * 0.07, end: i * 0.07 + 0.06 })), { durationS: 3 }).articulationRate).toBe(260);
+});

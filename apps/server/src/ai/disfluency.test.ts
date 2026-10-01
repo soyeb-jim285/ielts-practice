@@ -31,3 +31,19 @@ it('"like" and "you know" are not fillers on transcript evidence alone unless th
   expect(filled('you know it was cold')).toBe(0);
   expect(filled('I like football', [{ start: at('I like football')[1]!.start }])).toBe(1); // the text tagger flagged it
 });
+
+it('"like" and "you know" set off by commas or a pause are fillers; the verb "like" is not', () => {
+  const run = (toks: [string, number][]) => {
+    let t = 0;
+    const words = toks.map(([w, gap]) => { t += gap; const x = { w, start: t, end: t + 0.12 }; t = x.end; return x; });
+    return computeSpeechMetrics(words, { durationS: t + 0.2 }).fillers.map((f) => f.word);
+  };
+  // halting-sample cases: "about, like, a boy" (pause before, none after), "was, you know, it was good"
+  expect(run([['book', 0.1], ['about,', 0.1], ['like,', 1.0], ['a', 0.06], ['boy.', 0.06]])).toEqual(['like']);
+  expect(run([['It', 0.1], ['was,', 0.06], ['you', 0.4], ['know,', 0.04], ['it', 0.1], ['was', 0.05], ['good.', 0.05]])).toEqual(['you know']);
+  // the verb, even after a pause; a question; and plain "like" mid-phrase
+  expect(run([['yes', 0.1], ['I', 0.6], ['like', 0.05], ['it', 0.05], ['because', 0.05]])).toEqual([]);
+  expect(run([['do', 0.1], ['you', 0.05], ['know', 0.05], ['him', 0.05]])).toEqual([]);
+  expect(run([['he', 0.1], ['would', 0.05], ['like', 0.05], ['tea', 0.05]])).toEqual([]);
+  expect(run([['I', 0.1], ['like', 0.4], ['football', 0.05]])).toEqual([]); // pause before, but "I like" is the verb
+});

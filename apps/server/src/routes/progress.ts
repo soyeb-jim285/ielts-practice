@@ -109,7 +109,7 @@ export function register(app: App) {
         {
           trend: trend.reverse().map((t) => ({ ...t, date: t.date.toISOString() })),
           streak: streak(days.map((d) => d.day)),
-          minutesThisWeek: Math.round(Number(week?.ms ?? 0) / 60000),
+          minutesThisWeek: Math.ceil(Number(week?.ms ?? 0) / 60000),
           attempts: total?.n ?? 0,
           weakest,
           topMistakes,

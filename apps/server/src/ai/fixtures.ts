@@ -29,6 +29,7 @@ export const writingLlm = (quote: string) => ({
     { category: 'lexis.word-choice', severity: 'minor', quote: 'not in the essay', original: 'x', correction: 'y', explanation: 'z' },
   ],
   structure: { paragraphs: [{ role: 'intro', topicSentence: 'Many people', ok: true, note: '' }], overview: null, position: { clear: true, consistent: true, note: '' }, planFollowed: null },
+  offTopicParagraphs: [] as number[],
   vocabUpgrades: [],
   rewrite: 'Better essay.',
 });

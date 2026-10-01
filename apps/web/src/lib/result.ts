@@ -25,6 +25,12 @@ const LABELS: Record<string, string> = {
 };
 export const criterionLabel = (k: string) => LABELS[k] ?? k;
 
+/** Pronunciation more than 2 bands above fluency (halting or very short speech) is an audio-only guess: shown with a low-confidence badge and a wider range. ponytail: until the server tempers it. */
+export const pronunciationUnsupported = (c: AnalysisResult['criteria'], k: string) => k === 'p' && !!c.p && !!c.fc && c.p.band - c.fc.band > 2;
+
+/** Stored prompt titles can be ALL CAPS: show those in sentence case. */
+export const sentenceCase = (t: string) => (/[A-Z]{2}/.test(t) && t === t.toUpperCase() ? t.charAt(0) + t.slice(1).toLowerCase() : t);
+
 /** good when band ≥ target, warn when 0.5–1.0 below, bad when 1.5+ below. */
 export function bandColor(b: number, target: number): 'good' | 'warn' | 'bad' {
   return b >= target ? 'good' : b > target - 1.5 ? 'warn' : 'bad'; // red only when 1.5+ bands short: 0.5–1 below target is "close", not failure

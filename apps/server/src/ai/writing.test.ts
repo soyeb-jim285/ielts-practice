@@ -3,7 +3,7 @@ import { fakeFetch } from '../test/helpers';
 import { db, sql } from '../db/client';
 import { scoringCalibrations, scoringScripts } from '../db/schema';
 import { setFetch } from './openrouter';
-import { analyzeWriting, applyRules, scoreWriting, scorerK, settleWriting, WRITING_EFFORT, WRITING_K, type RuleInput } from './writing';
+import { analyzeWriting, applyRules, densityCap, grammarDensity, scoreWriting, scorerK, settleWriting, WRITING_EFFORT, WRITING_K, type FeedbackFacts, type RuleInput } from './writing';
 import { criterionScore, settings, writingChat, writingLlm } from './fixtures';
 import type { LlmCriterion } from './schemas';
 import { keepVerbatimEvidence } from './schemas';
@@ -78,14 +78,25 @@ it('early exit: the two fastest samples agree, so the score is their mean (not K
     const scored = await scoreWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() }, { early: true });
     return scored;
   };
-  const agreeing = await run([6, 6, 4]);
+  const agreeing = await run([6, 6, 4, 6, 6]);
   expect(agreeing.used).toBe(2);
   expect(agreeing.samples.map((s) => s.ta.band)).toEqual([6, 6]);
-  expect((await run([5, 7, 6])).used).toBe(3);
+  expect((await run([5, 7, 6, 6, 6])).used).toBe(5); // 2 apart: waits for the third, which is still jagged, so two more are drawn
+  expect((await run([4, 6, 7, 6, 6])).used).toBe(5);
+});
+
+it('three samples 2+ bands apart on a criterion draw two more (production only); the harness keeps K', async () => {
+  const ta = [5, 7, 6, 6, 6];
+  setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
+  const prod = await scoreWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() }, { early: true });
+  expect([prod.used, prod.samples.length]).toEqual([5, 5]);
+  setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
+  const harness = await scoreWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
+  expect(harness.samples).toHaveLength(3);
 });
 
 it('mean of K samples per criterion; samples 2+ bands apart on TA widen the range by a band', async () => {
-  const ta = [5, 7, 6];
+  const ta = [5, 7, 6, 6, 6];
   setFetch(fakeFetch({ '/chat/completions': writingChat((k, n) => (k === 'ta' ? ta[n]! : 6)) }));
   const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
   expect(r.criteria.ta).toMatchObject({ band: 6 });
@@ -126,8 +137,8 @@ it('an active calibration record for (model, promptHash, effort, K) is applied, 
   const rec = { skill: 'writing' as const, modelId: s.models.analysis, promptHash: promptHash([]), effort: WRITING_EFFORT, k: WRITING_K, form: 'linear', slope: 1.5, intercept: -2.5, mLo: 4, mHi: 8, q90: 0.5 };
   await db.insert(scoringCalibrations).values({ ...rec, key, active: false });
   setFetch(fakeFetch({ '/chat/completions': writingChat() }));
-  // no active record: the fixed default map for the default model (6 → 6.6, snapped to 6.5), still labelled unvalidated
-  expect(await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: s })).toMatchObject({ calibrated: false, overall: 6.5, q: 1 });
+  // no active record: the fixed default knot map for the default model (raw 6 with one grammar error in 265 words → 7.0), still labelled unvalidated
+  expect(await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: s })).toMatchObject({ calibrated: false, overall: 7, q: 1 });
 
   await sql`update scoring_calibrations set active = true`;
   clearCalibrationCache();
@@ -181,7 +192,9 @@ it('keepVerbatimEvidence drops metric facts and paraphrases', () => {
 const crit = (band: number): LlmCriterion => ({ band, range: [band, band], descriptor: `band ${band}`, evidence: [], summary: '' });
 const profile = (ta: number, cc: number, lr: number, gra: number) => ({ ta: crit(ta), cc: crit(cc), lr: crit(lr), gra: crit(gra) });
 const rule = (o: Partial<RuleInput> = {}): RuleInput => ({ task: 2, variant: 'academic', words: 280, text: 'A full essay.', ...o });
-const err = (category: string, n = 1) => Array.from({ length: n }, () => ({ category }));
+const err = (category: string, n = 1) => Array.from({ length: n }, () => ({ category, severity: 'minor' }));
+/** Feedback facts with sensible defaults: no errors, nothing off topic, Task 1 overview present. */
+const facts = (o: Partial<FeedbackFacts> = {}): FeedbackFacts => ({ errors: [], sentences: 12, upgrades: 0, offTopic: 0, overview: { present: true, mainTrends: true }, paragraphs: [], ...o });
 
 it('rule layer: under-length and cut-off scripts are capped at criterion level', () => {
   const c = profile(7, 7, 8, 8);
@@ -215,45 +228,97 @@ it('rule layer: under 80% of the minimum caps CC, LR and GRA at TA + 1 (the scor
   expect([near.ta.band, near.cc.band]).toEqual([6, 8]);
 });
 
-it('rule layer: Task 1 Academic without an overview caps TA and CC at 5', () => {
+it('rule layer: Task 1 Academic without an overview caps TA at 5, only when a second witness agrees', () => {
+  const noOverview = facts({ overview: { present: false, mainTrends: false }, errors: err('grammar.article', 6) }); // enough errors for the top-band floor to stay out of the way
   const c = profile(6, 7, 7, 7);
-  applyRules(c, rule({ task: 1, words: 170, overviewMissing: true }));
-  expect([c.ta.band, c.cc.band, c.lr.band, c.gra.band]).toEqual([5, 5, 7, 7]);
+  applyRules(c, rule({ task: 1, words: 170, facts: noOverview }));
+  expect([c.ta.band, c.cc.band, c.lr.band, c.gra.band]).toEqual([5, 7, 7, 7]); // CC is not an overview criterion
+  const major = profile(6, 7, 7, 7);
+  applyRules(major, rule({ task: 1, words: 170, facts: facts({ errors: [{ category: 'task.overview', severity: 'major' }] }) }));
+  expect(major.ta.band).toBe(5);
   const low = profile(4, 6, 6, 6);
-  applyRules(low, rule({ task: 1, words: 170, overviewMissing: true }));
-  expect([low.ta.band, low.cc.band]).toEqual([4, 5]);
+  applyRules(low, rule({ task: 1, words: 170, facts: noOverview }));
+  expect([low.ta.band, low.cc.band]).toEqual([4, 6]);
   const fine = profile(7, 7, 7, 7); // the scorer sees a good report: an unreliable "no overview" flag alone changes nothing
-  expect(applyRules(fine, rule({ task: 1, words: 170, overviewMissing: true }))).toEqual([]);
+  expect(applyRules(fine, rule({ task: 1, words: 170, facts: noOverview }))).toEqual([]);
+  const summed = profile(6, 7, 7, 7); // the text does sum up ("Overall, ..."): the feedback call's flag is not believed
+  applyRules(summed, rule({ task: 1, words: 170, text: 'The chart shows sales. Overall, sales rose.', facts: noOverview }));
+  expect(summed.ta.band).toBe(6);
+  const general = profile(6, 7, 7, 7); // letters have no overview
+  applyRules(general, rule({ task: 1, variant: 'general', words: 170, facts: noOverview }));
+  expect(general.ta.band).toBe(6);
 });
 
-it('rule layer: dense errors cap GRA at 4; near error-free scripts floor LR and GRA at 8', () => {
+it('rule layer: dense grammar errors cap GRA at 4; near error-free scripts floor LR and GRA at 8', () => {
   const weak = profile(5, 5, 5, 5);
-  applyRules(weak, rule({ words: 250, errors: err('grammar.tense', 35) })); // 14 per 100 words
+  applyRules(weak, rule({ words: 250, facts: facts({ errors: err('grammar.tense', 35) }) })); // 14 per 100 words
   expect(weak.gra.band).toBe(4);
   const malformed = profile(5, 5, 5, 6);
-  applyRules(malformed, rule({ words: 250, sentences: 10, errors: [...err('grammar.sentence-structure', 6), ...err('grammar.article', 2)] }));
+  applyRules(malformed, rule({ words: 250, facts: facts({ sentences: 10, errors: [...err('grammar.sentence-structure', 6), ...err('grammar.article', 2)] }) }));
   expect(malformed.gra.band).toBe(4);
   const ok = profile(5, 5, 5, 6);
-  applyRules(ok, rule({ words: 250, sentences: 10, errors: err('grammar.article', 12) }));
+  applyRules(ok, rule({ words: 250, facts: facts({ sentences: 10, errors: err('grammar.article', 12) }) }));
   expect(ok.gra.band).toBe(6); // 4.8 per 100 words: no rule
+  const taskErrors = profile(5, 5, 5, 6); // task-level errors are not grammar: they do not trigger the GRA cap
+  applyRules(taskErrors, rule({ words: 250, facts: facts({ errors: err('task.relevance', 35) }) }));
+  expect(taskErrors.gra.band).toBe(6);
 
   const strong = profile(7, 7, 6, 7);
-  applyRules(strong, rule({ errors: err('grammar.punctuation', 2), upgrades: 2 }));
+  applyRules(strong, rule({ facts: facts({ errors: err('grammar.punctuation', 2), upgrades: 2 }) }));
   expect([strong.lr.band, strong.gra.band]).toEqual([8, 8]);
   const vocab = profile(7, 7, 6, 7); // a vocabulary error: LR is not "precise"
-  applyRules(vocab, rule({ errors: err('lexis.collocation'), upgrades: 2 }));
+  applyRules(vocab, rule({ facts: facts({ errors: err('lexis.collocation'), upgrades: 2 }) }));
   expect([vocab.lr.band, vocab.gra.band]).toEqual([6, 7]);
   const weakTask = profile(6, 7, 6, 7); // TA 6: no floor
-  applyRules(weakTask, rule({ errors: [], upgrades: 0 }));
+  applyRules(weakTask, rule({ facts: facts() }));
   expect([weakTask.lr.band, weakTask.gra.band]).toEqual([6, 7]);
+});
+
+it('rule layer: a paragraph off the prompt caps TA at 7', () => {
+  const c = profile(9, 9, 9, 9);
+  expect(applyRules(c, rule({ facts: facts({ offTopic: 1 }) }))).toHaveLength(1);
+  expect(c.ta.band).toBe(7);
+  const fine = profile(9, 9, 9, 9);
+  expect(applyRules(fine, rule({ facts: facts() }))).toEqual([]);
+});
+
+it('grammar density counts grammar errors only; over 14 per 100 words caps the overall at 4 whatever the scorer said', () => {
+  const dense = facts({ errors: [...err('grammar.tense', 16), ...err('task.relevance', 20)] });
+  expect(grammarDensity(dense, 100)).toBe(16);
+  expect([densityCap(14), densityCap(14.5)]).toEqual([9, 4]);
+  const sample = { ta: criterionScore(6), cc: criterionScore(6), lr: criterionScore(6), gra: criterionScore(6) };
+  const r = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 1 }, { task: 2, rules: rule({ words: 100, facts: dense }) });
+  expect(r.overall).toBe(4);
+  expect(r.rules.some((x) => x.startsWith('overall:'))).toBe(true);
+  const sparse = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 1 }, { task: 2, rules: rule({ words: 100, facts: facts({ errors: err('grammar.tense', 5) }) }) });
+  expect(sparse.overall).toBeGreaterThan(4);
+});
+
+it('the calibration map gets the grammar density: more errors, same raw scores, lower overall', () => {
+  const sample = { ta: criterionScore(6), cc: criterionScore(6), lr: criterionScore(6), gra: criterionScore(6) };
+  const map = (m: number, gd = 0) => m - 0.2 * gd;
+  const at = (n: number) => settleWriting({ samples: [sample], flags: [] }, { map, q: 1 }, { task: 2, rules: rule({ words: 100, facts: facts({ errors: err('grammar.article', n) }) }) }).overall;
+  expect([at(0), at(10)]).toEqual([6, 4]);
+});
+
+it('when the feedback-derived rules move the overall by a band or more, the range also spans where it would have been without them', () => {
+  const sample = { ta: criterionScore(6), cc: criterionScore(6), lr: criterionScore(6), gra: criterionScore(6) };
+  const flag = facts({ overview: { present: false, mainTrends: false } });
+  const plain = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 0 }, { task: 1, rules: rule({ task: 1, words: 170 }) });
+  const r = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 0 }, { task: 1, rules: rule({ task: 1, words: 170, facts: flag }) });
+  expect(plain).toMatchObject({ overall: 6, range: [6, 6] });
+  expect(r).toMatchObject({ overall: 6, range: [6, 6] }); // TA 5 alone: 5.75 rounds to 6, nothing to widen
+  const heavy = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 0 }, { task: 1, rules: rule({ task: 1, words: 170, facts: facts({ overview: { present: false, mainTrends: false }, errors: err('grammar.tense', 30) }) }) });
+  expect(heavy.overall).toBe(4);
+  expect(heavy.range).toEqual([4, 6]); // the un-ruled 6 is inside the range
 });
 
 it('settleWriting applies the rule layer before the overall: an overview-less report cannot keep its 6', () => {
   const sample = { ta: criterionScore(6), cc: criterionScore(6), lr: criterionScore(6), gra: criterionScore(6) };
-  const r = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 1 }, { task: 1, rules: rule({ task: 1, words: 170, overviewMissing: true }) });
-  expect(bandsOf(r)).toEqual([5, 5, 6, 6]);
-  expect(r).toMatchObject({ overallRaw: 5.5, overall: 5.5 });
-  expect(r.rules).toHaveLength(2);
+  const r = settleWriting({ samples: [sample], flags: [] }, { map: (m) => m, q: 1 }, { task: 1, rules: rule({ task: 1, words: 170, facts: facts({ overview: { present: false, mainTrends: false } }) }) });
+  expect(bandsOf(r)).toEqual([5, 6, 6, 6]);
+  expect(r).toMatchObject({ overallRaw: 5.75, overall: 6 });
+  expect(r.rules).toHaveLength(1); // TA 5 is the only change: CC keeps its 6
 });
 
 it('under-length scripts are scored with at most 2 samples', () => {

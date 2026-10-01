@@ -43,6 +43,8 @@ function ReviewPage() {
   const [revealed, setRevealed] = useState(false);
   const [reviewed, setReviewed] = useState(0); // graded this visit, so the end state can say so after the refetch empties the queue
   const card = queue[i];
+  const deck = data.deck;
+  const noCards = !reviewed && deck === 0;
   const grade = useMutation({
     mutationFn: (g: number) => call(client.POST('/api/cards/{id}/review', { params: { path: { id: card!.id } }, body: { grade: g } })),
     onSuccess: (updated, g) => {
@@ -86,15 +88,15 @@ function ReviewPage() {
         </div>
       ) : !card ? (
         <EmptyState
-          icon={<CircleCheck />}
-          title={reviewed ? 'Session complete' : 'All caught up'}
+          icon={noCards ? <Layers /> : <CircleCheck />}
+          title={reviewed ? 'Session complete' : noCards ? 'No cards yet' : deck ? 'All caught up' : 'Nothing due right now'}
           action={
             <div className="flex flex-wrap gap-2">
-              <Link to="/mistakes" className={buttonStyles({ variant: reviewed ? 'primary' : 'outline' })}>
-                Browse your mistakes
+              <Link to="/mistakes" className={buttonStyles({ variant: reviewed ? 'outline' : 'primary' })}>
+                {noCards ? 'Go to Mistakes and add cards' : 'Browse your mistakes'}
               </Link>
               {reviewed > 0 && (
-                <Link to="/" className={buttonStyles({ variant: 'ghost' })}>
+                <Link to="/" className={buttonStyles({ variant: 'primary' })}>
                   Back to dashboard
                 </Link>
               )}
@@ -103,7 +105,11 @@ function ReviewPage() {
         >
           {reviewed
             ? `You reviewed ${plural(reviewed, 'card')}. Each one comes back when it is due, so a short session tomorrow keeps them fresh.`
-            : "Nothing is due right now. Add mistakes and fixes from your results and they'll come back here on a spaced schedule."}
+            : noCards
+              ? 'Your deck is empty. Open Mistakes and press Add to deck on the corrections you want to remember; they come back here on a spaced schedule.'
+              : deck
+                ? "Your cards come back here when they're due. Add more mistakes and fixes from your results any time."
+                : "Cards come back here on a spaced schedule. Add mistakes and fixes from your results to build your deck."}
         </EmptyState>
       ) : (
         <>

@@ -1659,11 +1659,16 @@
           },
           "total": {
             "type": "number"
+          },
+          "deck": {
+            "type": "number",
+            "description": "Total cards owned"
           }
         },
         "required": [
           "cards",
-          "total"
+          "total",
+          "deck"
         ]
       },
       "CardReview": {

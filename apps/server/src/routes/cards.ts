@@ -90,15 +90,16 @@ export function register(app: App) {
       method: 'get',
       path: '/api/cards/due',
       summary: 'Cards due for review now (oldest due first, max 50) and the total due count',
-      responses: { 200: json(z.object({ cards: z.array(CardSchema), total: z.number() }).openapi('DueCards'), 'Due cards') },
+      responses: { 200: json(z.object({ cards: z.array(CardSchema), total: z.number(), deck: z.number().openapi({ description: 'Total cards owned' }) }).openapi('DueCards'), 'Due cards') },
     }),
     async (c) => {
       const where = and(eq(cards.userId, currentUser(c).id), lte(cards.due, new Date()));
-      const [rows, [{ total } = { total: 0 }]] = await Promise.all([
+      const [rows, [{ total } = { total: 0 }], [{ deck } = { deck: 0 }]] = await Promise.all([
         db.select().from(cards).where(where).orderBy(asc(cards.due)).limit(50),
         db.select({ total: count() }).from(cards).where(where),
+        db.select({ deck: count() }).from(cards).where(eq(cards.userId, currentUser(c).id)),
       ]);
-      return c.json({ cards: rows.map(toCard), total }, 200);
+      return c.json({ cards: rows.map(toCard), total, deck }, 200);
     },
   );
 

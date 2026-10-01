@@ -29,7 +29,7 @@ type NavItem = { to: '/' | '/speaking' | '/writing' | '/bank' | '/mistakes' | '/
 const DASHBOARD: NavItem = { to: '/', label: 'Dashboard', short: 'Home', icon: House };
 const SPEAKING: NavItem = { to: '/speaking', label: 'Speaking', short: 'Speak', icon: Mic };
 const WRITING: NavItem = { to: '/writing', label: 'Writing', short: 'Write', icon: PenLine };
-const BANK: NavItem = { to: '/bank', label: 'Prompt bank', icon: LibraryBig };
+const BANK: NavItem = { to: '/bank', label: 'Prompt bank', short: 'Bank', icon: LibraryBig };
 const MISTAKES: NavItem = { to: '/mistakes', label: 'Mistakes', icon: TriangleAlert };
 const REVIEW: NavItem = { to: '/review', label: 'Review', icon: Layers };
 const HISTORY: NavItem = { to: '/history', label: 'History', icon: History };
@@ -187,7 +187,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const moreButton = useRef<HTMLButtonElement>(null);
   const doSignOut = useSignOut();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const moreActive = MORE.some((n) => isCurrent(pathname, n.to));
+  // On a page that lives under More, the tab takes that page's icon and name so the bar still says where you are.
+  const here = MORE.find((n) => isCurrent(pathname, n.to));
+  const MoreIcon = here?.icon ?? Ellipsis;
 
   return (
     <SidebarProvider defaultOpen={initiallyOpen()}>
@@ -215,11 +217,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </li>
           ))}
           <li>
-            <button ref={moreButton} type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-current={moreActive ? 'page' : undefined} data-status={moreActive ? 'active' : undefined} className={tabClass}>
+            <button ref={moreButton} type="button" onClick={() => setMore(true)} aria-haspopup="dialog" aria-current={here ? 'page' : undefined} aria-label={here ? `${here.short ?? here.label}, open more pages` : undefined} data-status={here ? 'active' : undefined} className={tabClass}>
               <span aria-hidden className={pill}>
-                <Ellipsis className="size-5" />
+                <MoreIcon className="size-5" />
               </span>
-              More
+              {here ? (here.short ?? here.label) : 'More'}
             </button>
           </li>
         </ul>

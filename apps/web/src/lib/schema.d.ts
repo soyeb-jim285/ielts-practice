@@ -1763,6 +1763,8 @@ export interface components {
         DueCards: {
             cards: components["schemas"]["Card"][];
             total: number;
+            /** @description Total cards owned */
+            deck: number;
         };
         CardReview: {
             grade: number;

@@ -14,7 +14,7 @@ import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader
 import { formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
-import { notAssessed, offTopicAnswers, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
+import { notAssessed, offTopicAnswers, sentenceCase, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -67,12 +67,15 @@ function ResultPage() {
       Practise another part
     </Link>
   );
-  const meta = `Speaking, Part ${a.part}, ${formatDate(a.createdAt)}${a.durationMs ? `, ${formatDuration(a.durationMs)}` : ''}`;
+  // A Part 1 attempt covers several questions on a topic, so say so; the title starts with the part so it is told apart from a Part 3 on the same topic.
+  const nq = r?.questions?.length ?? 0;
+  const title = a.part === 1 ? `Part 1: ${sentenceCase(a.prompt.title)}` : sentenceCase(a.prompt.title);
+  const meta = `Speaking${a.part === 1 ? '' : `, Part ${a.part}`}${nq > 1 ? `, ${nq} questions` : ''}, ${formatDate(a.createdAt)}${a.durationMs ? `, ${formatDuration(a.durationMs)}` : ''}`;
 
   if (a.status !== 'done' || !r) {
     return (
       <PageContainer>
-        <PageHeader title={a.prompt.title} description={meta} back={back} />
+        <PageHeader title={title} description={meta} back={back} />
         {switcher && <div className="mb-6">{switcher}</div>}
         {a.status === 'analyzing' ? (
           <AnalyzingState steps={STEPS} stepSeconds={7} />
@@ -102,7 +105,7 @@ function ResultPage() {
   if (notAssessed(r)) {
     return (
       <PageContainer>
-        <PageHeader title={a.prompt.title} description={meta} back={back} />
+        <PageHeader title={title} description={meta} back={back} />
         <div className="space-y-6">
           {switcher}
           <EmptyState icon={<MicOff />} title="No speech detected" action={retry}>
@@ -126,7 +129,7 @@ function ResultPage() {
     <PageContainer>
       <ResultHeader
         result={r}
-        title={a.prompt.title}
+        title={title}
         meta={meta}
         target={target}
         back={back}
@@ -142,9 +145,10 @@ function ResultPage() {
       </ResultHeader>
       {/* One sticky strip: the tabs, plus the player on the tabs that seek into the recording. */}
       <StickyTabs>
-        <Tabs id="res" value={tab} onChange={setTab} items={[
+        <Tabs id="res" value={tab} onChange={setTab} className="max-sm:[&_button]:px-1.5" items={[
           { value: 'overview', label: 'Overview' },
-          { value: 'transcript', label: 'Transcript', count: r.errors.length },
+          // "Text" on phones so all five tabs fit without scrolling.
+          { value: 'transcript', label: <><span className="sm:hidden">Text</span><span className="max-sm:hidden">Transcript</span></>, count: r.errors.length },
           { value: 'fluency', label: 'Fluency' },
           { value: 'language', label: 'Language' },
           { value: 'improve', label: 'Improve' },

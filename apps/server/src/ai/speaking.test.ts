@@ -209,3 +209,13 @@ it('FC stays within one band of the measured fluency band, and P within reach of
   const r = await run(settings({ audioPronEnabled: true }));
   expect(r.criteria.p!.band).toBeLessThanOrEqual(Math.min(7, r.criteria.fc!.band + 2));
 });
+
+it('halting speech (FC 4 or below): pronunciation from the audio report is capped at FC + 1, not FC + 2', async () => {
+  const pron = { words: [], misheard: [], disfluencies: { filledPauses: [], repetitions: [], falseStarts: [] }, prosody: 'Choppy, flat intonation.', band: 7 };
+  const words = 'I like um to talk about my my city it is big'.split(' ');
+  const halting = { text: words.join(' '), duration: 30, words: words.map((word, i) => ({ word, start: i * 2.5, end: i * 2.5 + 0.3 })) }; // long pause before every word
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(halting), '/chat/completions': chat({ bands: { fc: 4, lr: 7, gra: 7 }, other: () => pron }) }));
+  const r = await run(settings({ audioPronEnabled: true }));
+  expect(r.criteria.fc!.band).toBeLessThanOrEqual(4);
+  expect(r.criteria.p!.band).toBeLessThanOrEqual(r.criteria.fc!.band + 1);
+});

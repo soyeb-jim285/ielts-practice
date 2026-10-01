@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBand, formatClock, formatDuration, formatRange, formatRelative, plural } from './format';
+import { formatBand, formatClock, formatDuration, formatMinutes, formatRange, formatRelative, plural } from './format';
 
 describe('format', () => {
   it('clock', () => {
@@ -26,5 +26,13 @@ describe('format', () => {
     expect(formatRelative(now - 86_400_000, now)).toBe('yesterday');
     expect(plural(1, 'word')).toBe('1 word');
     expect(plural(1200, 'word')).toBe('1,200 words');
+  });
+});
+
+describe('formatMinutes', () => {
+  it('says "<1 min" instead of 0 minutes', () => {
+    expect(formatMinutes(0)).toBe('<1 min');
+    expect(formatMinutes(1)).toBe('1 minute');
+    expect(formatMinutes(12)).toBe('12 minutes');
   });
 });

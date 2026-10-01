@@ -10,7 +10,7 @@ import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/comp
 import { Onboarding } from '@/components/dashboard/Onboarding';
 import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client } from '@/lib/api';
-import { formatBand, plural } from '@/lib/format';
+import { formatBand, formatMinutes, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
@@ -33,11 +33,12 @@ function Dashboard() {
   const me = useMe().data!;
   const { data: p } = useSuspenseQuery(progressQuery);
   const { data: due } = useSuspenseQuery(dueCountQuery);
+  const deck = due.deck;
   const first = me.user.name.split(' ')[0];
   const target = me.settings.targetBand;
   const weakest = p.weakest && PRACTICE[p.weakest.key as CriterionKey] ? (p.weakest as { key: CriterionKey; avg: number }) : null;
   const maxMistakes = Math.max(1, ...p.topMistakes.map((m) => m.count));
-  const showTrend = (['speaking', 'writing'] as const).some((k) => p.trend.filter((t) => t.skill === k).length >= 2);
+  const showTrend = p.trend.length > 0;
 
   return (
     <PageContainer>
@@ -50,7 +51,7 @@ function Dashboard() {
                 <Flame className={cn('size-4', p.streak ? 'text-warn-text' : 'text-muted')} aria-hidden />
                 {p.streak ? `${plural(p.streak, 'day')} in a row` : 'Practise today to start a streak'}
               </span>
-              <span>{plural(p.minutesThisWeek, 'minute')} practised this week</span>
+              <span>{formatMinutes(p.minutesThisWeek)} practised this week</span>
             </span>
           ) : (
             'Welcome. Here is how to get your first score.'
@@ -123,7 +124,7 @@ function Dashboard() {
                   <RowIcon>
                     <Layers />
                   </RowIcon>
-                  <RowText title="Review deck" meta={due.total ? 'A few minutes keeps corrections from slipping' : 'All caught up for today'} />
+                  <RowText title="Review deck" meta={due.total ? 'A few minutes keeps corrections from slipping' : deck === 0 ? 'Add corrections from Mistakes to start your deck' : deck ? 'All caught up for today' : 'Nothing due today'} />
                   {due.total > 0 && <Badge tone="accent">{due.total} due</Badge>}
                   <RowChevron />
                 </Link>
@@ -258,9 +259,11 @@ function Predicted({ skill, band, n, target }: { skill: Skill; band: number | nu
 }
 
 function Trend({ trend, target }: { trend: Progress['trend']; target: number }): ReactNode {
-  const has = (s: Skill) => trend.filter((t) => t.skill === s).length >= 2;
+  const has = (s: Skill) => trend.filter((t) => t.skill === s).length >= 3;
   const [skill, setSkill] = useState<Skill>(has('speaking') || !has('writing') ? 'speaking' : 'writing');
   const rows = trend.filter((t) => t.skill === skill);
+  const keys = skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA;
+  const latest = rows.at(-1)?.criteria ?? {};
   return (
     <section aria-labelledby="trend-h" className="border-t border-line pt-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
@@ -278,10 +281,31 @@ function Trend({ trend, target }: { trend: Progress['trend']; target: number }):
           ]}
         />
       </div>
-      {rows.length < 2 ? (
-        <p className="type-lede py-6">{rows.length ? 'One more scored attempt and your trend appears here.' : `Your ${skill} criteria trend appears after two scored attempts.`}</p>
+      {rows.length < 3 ? (
+        // A line needs three points to say anything: until then show the latest attempt's bands side by side.
+        rows.length === 0 ? (
+          <p className="type-lede py-6">Your {skill} criteria appear after your first scored attempt.</p>
+        ) : (
+          <div>
+            <ul className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
+              {keys.map((k) => (
+                <li key={k}>
+                  <p className="flex items-baseline justify-between gap-3 text-sm">
+                    <span>{criterionLabel(k)}</span>
+                    <span className="type-band text-lg">{formatBand(latest[k])}</span>
+                  </p>
+                  <div className="relative mt-2">
+                    <ProgressBar value={(latest[k] ?? 0) / 9} label={`${criterionLabel(k)} band ${formatBand(latest[k])} of 9`} className="h-1.5" />
+                    <span aria-hidden className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-ink" style={{ left: `${(target / 9) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="type-caption mt-5">From your latest {skill} attempt; the marker is your {formatBand(target)} target. The trend line appears after three scored attempts.</p>
+          </div>
+        )
       ) : (
-        <CriteriaTrend trend={rows} keys={skill === 'speaking' ? SPEAKING_CRITERIA : WRITING_CRITERIA} target={target} />
+        <CriteriaTrend trend={rows} keys={keys} target={target} />
       )}
     </section>
   );

@@ -7,7 +7,7 @@ import { PendingUploads } from '@/components/speaking/PendingUploads';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
-import { bandColor, type AttemptListItem } from '@/lib/result';
+import { bandColor, sentenceCase, type AttemptListItem } from '@/lib/result';
 import { useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 
@@ -21,11 +21,17 @@ const PARTS = [
 
 const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
 
+/** Shared with the session switcher's cache. */
+const useRecentAttempts = () => useQuery({ queryKey: ['attempts', 'speaking', 1], queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1') });
+
 function SpeakingHome() {
+  // No attempts yet: the first action is a single part, so that list leads (order-first) and the full modes follow.
+  const list = useRecentAttempts();
+  const fresh = list.isSuccess && list.data.items.length === 0;
   return (
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
-      <div className="space-y-12">
+      <div className="flex flex-col gap-12">
         <PendingUploads />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
@@ -49,8 +55,8 @@ function SpeakingHome() {
           />
         </section>
 
-        <section aria-labelledby="one-h">
-          <PanelHeader id="one-h" title="Or practise one part" />
+        <section aria-labelledby="one-h" className={cn(fresh && 'order-first')}>
+          <PanelHeader id="one-h" title={fresh ? 'Start with one part' : 'Or practise one part'} />
           <ul className={cn(listStyles, 'stagger')}>
             {PARTS.map((p) => (
               <li key={p.mode}>
@@ -129,7 +135,7 @@ function RowEnd({ children }: { children: ReactNode }) {
 function Recent() {
   const { data: me } = useMe();
   const target = me?.settings.targetBand ?? 7;
-  const list = useQuery({ queryKey: ['attempts', 'speaking', 1], queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1') });
+  const list = useRecentAttempts();
   const items = (list.data?.items ?? []).slice(0, 5);
   if (!list.isPending && !list.isError && items.length === 0) return null;
   return (
@@ -169,7 +175,7 @@ function Recent() {
           {items.map((a) => (
             <li key={a.id}>
               <Link to="/speaking/result/$attemptId" params={{ attemptId: a.id }} className={rowStyles}>
-                <RowText title={a.promptTitle} desc={`Part ${a.part}, ${formatRelative(a.createdAt)}`} />
+                <RowText title={sentenceCase(a.promptTitle)} desc={`Part ${a.part}, ${formatRelative(a.createdAt)}`} />
                 {a.status === 'done' && a.overall != null ? (
                   <span className={cn('type-band text-xl', BAND_TEXT[bandColor(a.overall, target)])}>
                     <span className="sr-only">Band </span>

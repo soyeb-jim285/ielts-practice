@@ -336,10 +336,11 @@ export async function analyzeSpeaking(i: {
   const fluB = fluencyBand(composite), fcRange: [number, number] = [Math.ceil(fluB - 1), Math.floor(fluB + 1)];
   const fcBands = byKey.fc!.map((s) => (s.band === 0 ? 0 : Math.max(fcRange[0], Math.min(fcRange[1], s.band))));
   const fcMean = mean(fcBands);
-  // P is not judged from a transcript. It stays tied to fluency (at most FC + 2 with an audio report, FC + 1 without one) and, without acoustic evidence of
+  // P is not judged from a transcript. It stays tied to fluency (at most FC + 2 with an audio report, FC + 1 without one or when FC is 4 or below: choppy,
+  // halting speech lacks the chunking and connected speech the pronunciation descriptors expect from band 6) and, without acoustic evidence of
   // word-level problems (fewer than 2 confirmed words), is pulled up to at most one band under the other criteria's mean and capped at 7.
   const meanBand = (ks: Key[]) => ks.reduce((t, k) => t + (k === 'fc' ? fcMean : mean(byKey[k]!.map((x) => x.band))), 0) / ks.length;
-  const pLimit = Math.round(fcMean) + (pron ? 2 : 1);
+  const pLimit = Math.round(fcMean) + (pron && Math.round(fcMean) > 4 ? 2 : 1);
   const pBand = pron && Math.min(pLimit, pron.words.length >= 2 ? pron.band : Math.min(7, Math.max(pron.band, Math.min(9, Math.round(meanBand(['fc', 'lr', 'gra']) - 1)))));
   const pCrit = pron && asCriterion({ band: pBand!, descriptor: bandDescriptor(SPEAKING_DESCRIPTORS.p, pBand!) ?? '', evidence: [], summary: pron.prosody });
   const samples = Array.from({ length: SCORE_K }, (_, n) =>

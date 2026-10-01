@@ -65,7 +65,7 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
           </button>
         ))}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted tabular-nums">
+      <div className="mt-2 flex items-center justify-between gap-3 text-[13px] text-muted tabular-nums">
         <span>0:00</span>
         <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-warn/60" />Short, 0.25–1 s</span>
@@ -105,7 +105,7 @@ export function DisfluencyStrip({ metrics, audio }: { metrics: SpeechMetrics; au
           );
         })}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted tabular-nums">
+      <div className="mt-2 flex items-center justify-between gap-3 text-[13px] text-muted tabular-nums">
         <span>0:00</span>
         <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           {kinds.map((k) => (
@@ -179,7 +179,17 @@ const INDICATOR = {
   bad: { Icon: CircleX, text: 'Work on this', cls: 'text-bad-text' },
 };
 
+/** Worst first (bad before warn, then the list's order): the text badge goes on the top few only, so "Work on this" keeps its signal; the rest get a dot with a hidden label. */
+const BADGED = 3;
+const DOT = { good: 'bg-good', warn: 'bg-warn', bad: 'bg-bad' };
 export function StatGrid({ stats }: { stats: Stat[] }) {
+  const worst = new Set(
+    stats
+      .filter((s) => s.tone === 'warn' || s.tone === 'bad')
+      .sort((a, b) => Number(b.tone === 'bad') - Number(a.tone === 'bad'))
+      .slice(0, BADGED)
+      .map((s) => s.key),
+  );
   return (
     <Card padded={false} className="overflow-hidden">
       {/* -mr-px/-mb-px push the last cell borders outside the clipped panel, so no grey gaps show in a short last row. */}
@@ -198,8 +208,15 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
                   </span>
                 </span>
               </dt>
-              <dd className="type-num mt-1 text-2xl font-semibold tracking-tight">{s.value}</dd>
-              {ind && (
+              <dd className="type-num mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                {s.value}
+                {ind && !worst.has(s.key) && s.tone !== 'na' && (
+                  <span title={ind.text} className={`size-2 rounded-full ${DOT[s.tone]}`}>
+                    <span className="sr-only">{ind.text}</span>
+                  </span>
+                )}
+              </dd>
+              {ind && worst.has(s.key) && (
                 <dd className={`mt-1 flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
                   <ind.Icon className="size-3.5" aria-hidden />
                   {ind.text}
@@ -241,7 +258,7 @@ export function FluencyPanel({ metrics, audio, fc, target }: { metrics: SpeechMe
       </section>
       <section>
         <h2 className="type-heading">Fluency measures</h2>
-        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech. These are guides, not the score.'}</p>
+        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech, not the score. The three furthest from target are labelled; a dot shows the rest (green on target, amber watch, red work on this).'}</p>
         <StatGrid stats={stats} />
       </section>
       <section>

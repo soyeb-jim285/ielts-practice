@@ -184,3 +184,18 @@ describe('splitFirstSentence', () => {
     expect(splitFirstSentence('Uses e.g.no space. Next')).toEqual(['Uses e.g.no space.', 'Next']);
   });
 });
+
+describe('pronunciationUnsupported and sentenceCase', () => {
+  const c = (fc: number, p: number) => ({ fc: { band: fc }, p: { band: p } }) as never;
+  it('flags pronunciation more than 2 bands above fluency only', async () => {
+    const { pronunciationUnsupported } = await import('./result');
+    expect(pronunciationUnsupported(c(4, 8), 'p')).toBe(true);
+    expect(pronunciationUnsupported(c(6, 8), 'p')).toBe(false);
+    expect(pronunciationUnsupported(c(4, 8), 'fc')).toBe(false);
+  });
+  it('lower-cases ALL CAPS titles only', async () => {
+    const { sentenceCase } = await import('./result');
+    expect(sentenceCase('UNIVERSITY CLUBS')).toBe('University clubs');
+    expect(sentenceCase('Films')).toBe('Films');
+  });
+});

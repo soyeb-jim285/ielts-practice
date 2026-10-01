@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agreement, applyCalibration, conformalQ, coverage, fitCalibration, pairedBootstrap, rng, spearman, weightedKappa } from './calibration';
+import { agreement, applyCalibration, applyKnotMap, fitKnotMap, conformalQ, coverage, fitCalibration, pairedBootstrap, rng, spearman, weightedKappa } from './calibration';
 
 const normal = (rand: () => number) => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
 
@@ -150,5 +150,33 @@ describe('pairedBootstrap', () => {
     expect(res.mae).toEqual({ a: 1, b: 0, delta: -1, ci: [-1, -1] });
     expect(res.smd!.delta).toBeLessThan(0);
     expect(pairedBootstrap(human.map((y) => y + 1), human, human)).toEqual(pairedBootstrap(human.map((y) => y + 1), human, human));
+  });
+});
+
+describe('knot map', () => {
+  const c = { w: -0.2, gd0: 3, knots: [[4, 3.5], [5, 5], [6, 6.5], [7.5, 8.5]] as [number, number][] };
+  it('interpolates between knots, continues the end slopes (within 1..1.5) and clamps to 0..9', () => {
+    expect(applyKnotMap(c, 5.5, 3)).toBeCloseTo(5.75);
+    expect(applyKnotMap(c, 7.5, 3)).toBeCloseTo(8.5);
+    expect(applyKnotMap(c, 7.65, 3)).toBeCloseTo(8.5 + 1.333 * 0.15, 1); // top segment slope 1.33
+    expect(applyKnotMap(c, 3, 3)).toBeCloseTo(3.5 - 1.5); // bottom segment slope 1.5 (capped)
+    expect(applyKnotMap(c, 20, 3)).toBe(9);
+    expect(applyKnotMap(c, -5, 3)).toBe(0);
+  });
+  it('error density lowers the score, and a missing density means the training median', () => {
+    expect(applyKnotMap(c, 6, 8)).toBeCloseTo(applyKnotMap(c, 5, 3));
+    expect(applyKnotMap(c, 6)).toBeCloseTo(applyKnotMap(c, 6, 3));
+  });
+  it('fits a line through partial equating with refitted end slopes, a negative density weight and out-of-fold predictions', () => {
+    const r = rng(3), m: number[] = [], gd: number[] = [], y: number[] = [], g: number[] = [];
+    for (let i = 0; i < 132; i++) { const band = 3.5 + (i % 11) * 0.5, d = 14 - (band - 3.5) * 2.4 + (r() - 0.5) * 3; y.push(band); gd.push(Math.max(0, d)); m.push(3.5 + (band - 3.5) * 0.6 + (r() - 0.5) * 1.2); g.push(i % 12); }
+    const f = fitKnotMap(m, gd, y, g);
+    expect(f.w).toBeLessThan(0);
+    expect(f.knots).toHaveLength(4);
+    for (let i = 1; i < f.knots.length; i++) { expect(f.knots[i]![0]).toBeGreaterThan(f.knots[i - 1]![0]); expect(f.knots[i]![1]).toBeGreaterThan(f.knots[i - 1]![1]); } // monotone
+    expect(f.oof).toHaveLength(132);
+    expect(f.oof.reduce((s, p, i) => s + Math.abs(p - y[i]!), 0) / 132).toBeLessThan(0.9);
+    expect(applyKnotMap(f, 3.2, 14)).toBeLessThan(applyKnotMap(f, 3.2, 2)); // more errors, lower band
+    expect(() => fitKnotMap(m.slice(0, 10), gd.slice(0, 10), y.slice(0, 10), g.slice(0, 10))).toThrow();
   });
 });

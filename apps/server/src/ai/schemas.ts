@@ -113,8 +113,9 @@ export const WritingPlanLlmSchema = WritingLlmSchema.extend({
   structure: WritingLlmSchema.shape.structure.extend({ planFollowed: z.object({ followed: z.boolean(), note: z.string() }) }),
 });
 /** Writing feedback call output: the analysis without bands (bands come from the scoring calls, so feedback cannot pull them into a halo). */
-export const WritingFeedbackSchema = WritingLlmSchema.omit({ criteria: true });
-export const WritingPlanFeedbackSchema = WritingPlanLlmSchema.omit({ criteria: true });
+const offTopic = { offTopicParagraphs: z.array(z.number().int()).describe('1-based numbers of the paragraphs whose content has nothing to do with the prompt (not merely weak or badly placed); [] when every paragraph addresses it') };
+export const WritingFeedbackSchema = WritingLlmSchema.omit({ criteria: true }).extend(offTopic);
+export const WritingPlanFeedbackSchema = WritingPlanLlmSchema.omit({ criteria: true }).extend(offTopic);
 
 /** Rationale-first scoring output (scoring-research §2.3): placement and checks come before "band" (strict json_schema keeps the order). */
 export const CriterionScoreSchema = z.object({

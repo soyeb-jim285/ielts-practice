@@ -48,3 +48,6 @@ export const formatDate = (date: Date | string | number, withTime = false) =>
 export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString('en')} ${n === 1 ? one : many}`;
 
 export const formatPercent = (x: number, digits = 0) => `${(x * 100).toFixed(digits)}%`;
+
+/** Practice time from whole minutes: "<1 min" instead of "0 minutes" (the server rounds, so 0 means under a minute of measured time). */
+export const formatMinutes = (minutes: number) => (minutes < 1 ? '<1 min' : plural(minutes, 'minute'));

@@ -2,20 +2,18 @@ import type { CriterionKey } from '@server/ai/types';
 import { useEffect, useRef, useState } from 'react';
 import { formatBand, formatDate } from '@/lib/format';
 import { criterionLabel } from '@/lib/result';
-import { SERIES_COLOR, SERIES_DASH, type Progress } from './criteria';
+import { CRITERION_SHORT, SERIES_COLOR, SERIES_DASH, type Progress } from './criteria';
 
-const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
-const dayTimeFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const swatch = (k: CriterionKey) => (
   <svg width="18" height="8" aria-hidden className="shrink-0">
     <line x1="0" y1="4" x2="18" y2="4" stroke={SERIES_COLOR[k]} strokeWidth="2.5" strokeDasharray={SERIES_DASH[k]} strokeLinecap="round" />
   </svg>
 );
 
-const M = { top: 8, right: 12, bottom: 22, left: 30 };
+const M = { top: 8, right: 96, bottom: 22, left: 30 }; // right: room for the direct series labels
 
 /**
- * Per-criterion band lines for one skill, oldest to newest, with the target as a dashed reference. Plain SVG (a 30-point, 4-series
+ * Per-criterion band lines for one skill, oldest to newest (x axis: attempt number, dates in the hover card), with the target as a dashed reference and each line labelled at its end. Plain SVG (a 30-point, 4-series
  * line chart does not need recharts' ~100 KB): fixed height so nothing shifts, width follows the container.
  */
 export default function CriteriaTrend({ trend, keys, target }: { trend: Progress['trend']; keys: CriterionKey[]; target: number }) {
@@ -29,8 +27,6 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
     return () => ro.disconnect();
   }, []);
 
-  // Several attempts on one day would all read "30 Sept": add the time when days collide.
-  const fmt = new Set(trend.map((t) => dayFmt.format(new Date(t.date)))).size < trend.length ? dayTimeFmt : dayFmt;
   const latest = trend.at(-1)?.criteria ?? {};
   const lo = Math.max(0, Math.min(Math.floor(Math.min(...trend.flatMap((t) => Object.values(t.criteria)))), target) - 0.5);
   const ticks = [3, 4, 5, 6, 7, 8, 9].filter((t) => t >= lo);
@@ -42,6 +38,11 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
   const step = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 80))));
   const labelIdx = Array.from({ length: n }, (_, i) => i).filter((i) => (n - 1 - i) % step === 0);
   const row = hover == null ? null : trend[hover];
+  // Direct labels at each line's end, pushed apart so equal latest scores (Fluency / Pronunciation) stay readable.
+  const ends = keys
+    .flatMap((k) => (latest[k] == null ? [] : [{ k, y: y(latest[k]!) }]))
+    .sort((a, b) => a.y - b.y)
+    .reduce<{ k: CriterionKey; y: number }[]>((acc, e) => [...acc, { ...e, y: Math.max(e.y, (acc.at(-1)?.y ?? -Infinity) + 13) }], []);
 
   return (
     <div>
@@ -60,7 +61,7 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
           Target {formatBand(target)}
         </li>
       </ul>
-      <div ref={box} className="relative h-56 md:h-72" role="img" aria-label={`Band trend over your last ${n} attempts`}>
+      <div ref={box} className="relative h-56 md:h-72" role="img" aria-label={`Band trend over your last ${n} attempts, oldest first`}>
         {w > 0 && h > 0 && (
           <svg
             width={w}
@@ -82,7 +83,7 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
             ))}
             {labelIdx.map((i) => (
               <text key={i} x={x(i)} y={h - 4} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fill="var(--muted)">
-                {fmt.format(new Date(trend[i]!.date))}
+                #{i + 1}
               </text>
             ))}
             <line x1={M.left} x2={w - M.right} y1={y(target)} y2={y(target)} stroke="var(--muted)" strokeDasharray="2 4" />
@@ -93,11 +94,17 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
                 <g key={k} stroke={SERIES_COLOR[k]} fill={SERIES_COLOR[k]}>
                   <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" strokeWidth={2.5} strokeDasharray={SERIES_DASH[k]} strokeLinejoin="round" />
                   {pts.map(([px, py], i) => (
-                    <circle key={i} cx={px} cy={py} r={3} stroke="none" />
+                    // Dashed series get hollow dots, so a solid and a dashed line on the same scores still differ.
+                    <circle key={i} cx={px} cy={py} r={3} strokeWidth={SERIES_DASH[k] ? 1.5 : 0} fill={SERIES_DASH[k] ? 'var(--bg)' : SERIES_COLOR[k]} />
                   ))}
                 </g>
               );
             })}
+            {ends.map((e) => (
+              <text key={e.k} x={x(n - 1) + 9} y={e.y} dominantBaseline="middle" fill="var(--ink)" className="font-medium">
+                {CRITERION_SHORT[e.k]}
+              </text>
+            ))}
           </svg>
         )}
         {row && (
@@ -105,7 +112,7 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
             className="pointer-events-none absolute top-2 z-10 min-w-36 rounded-lg border border-line bg-surface p-2.5 text-[13px] shadow-pop"
             style={{ left: Math.min(Math.max(x(hover!) + 12, 0), Math.max(0, w - 160)) }}
           >
-            <p className="mb-1 text-muted">{formatDate(row.date)}</p>
+            <p className="mb-1 text-muted">#{hover! + 1}, {formatDate(row.date, true)}</p>
             {keys.map((k) => (
               <p key={k} className="flex items-center gap-2">
                 {swatch(k)}

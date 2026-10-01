@@ -91,6 +91,8 @@ export function ModelPicker({
     return list.some((o) => o.value === value) ? list : [{ value, label: value, description: isPending ? 'Loading models…' : 'Current model' }, ...list];
   }, [data, value, isPending, capability, defaultValue]);
 
+  // Same catalogue entry as the option list, so the reset text names the default the way the picker does.
+  const defaultName = data?.models.find((m) => m.id === defaultValue)?.name ?? defaultValue;
   return (
     <Combobox
       label={label}
@@ -104,7 +106,7 @@ export function ModelPicker({
           {isError ? <span className="text-bad-text">Couldn't load the model list. Your current choice still works.</span> : hint}
           {value !== defaultValue ? (
             <Button variant="link" onClick={() => onChange(defaultValue)}>
-              Reset to default ({defaultValue})
+              Reset to default ({defaultName})
             </Button>
           ) : (
             <span>Default</span>
