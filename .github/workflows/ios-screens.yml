@@ -1,0 +1,64 @@
+name: iOS screenshots
+# Builds the app, launches every screen in demo mode (synthetic fixtures, no network) on a simulator in light and dark,
+# and uploads the PNGs as the `ios-screens` artifact. Used for UI review.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["apps/ios/IELTS/**", ".github/workflows/ios-screens.yml"]
+
+concurrency:
+  group: ios-screens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screens:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | grep -iv -e beta -e rc | sort -V | tail -1)" && xcodebuild -version
+      - run: brew install xcodegen && xcodegen generate
+      - name: Pick and boot an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | jq -r '
+            [.devices | to_entries[] | select(.key | test("iOS")) | .key as $rt | .value[]
+             | select(.name | test("^iPhone [0-9]+ Pro$")) | {rt: $rt, name, udid}] | sort_by(.rt, .name) | last | .udid')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl list devices | grep "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build -project IELTS.xcodeproj -scheme IELTS -configuration Debug -destination "id=$UDID" \
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO | tee build.log | grep -E 'error:|BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' build.log
+      - name: Capture screens
+        run: |
+          BID=com.soyeb.ieltspractice
+          xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/IELTS.app
+          xcrun simctl privacy "$UDID" grant microphone "$BID" || true
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          mkdir -p shots
+          SCREENS="login home speaking writing review settings bank history mistakes session session-p1 editor editor-t1 live
+            result-speaking:Overview result-speaking:Transcript result-speaking:Fluency result-speaking:Language result-speaking:Improve
+            result-writing:Overview result-writing:Essay result-writing:Structure result-writing:Language result-writing:Improve"
+          for mode in light dark; do
+            xcrun simctl ui "$UDID" appearance "$mode"
+            for s in $SCREENS; do
+              screen=${s%%:*}; tab=${s#*:}; [ "$tab" = "$s" ] && tab=""
+              name="$mode-$screen${tab:+-$tab}"
+              xcrun simctl launch --terminate-running-process "$UDID" "$BID" -demo -screen "$screen" ${tab:+-tab "$tab"} > /dev/null
+              sleep 4
+              xcrun simctl io "$UDID" screenshot "shots/$name.png" > /dev/null 2>&1 && echo "ok $name"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-screens
+          path: apps/ios/shots

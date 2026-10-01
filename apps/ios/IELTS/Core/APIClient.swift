@@ -25,12 +25,17 @@ final class APIClient {
         c.httpShouldSetCookies = false
         c.httpCookieAcceptPolicy = .never
         c.timeoutIntervalForRequest = 60
+        if Demo.on { c.protocolClasses = [DemoURLProtocol.self] }
         return URLSession(configuration: c)
     }()
 
     init() {
         baseURL = UserDefaults.standard.string(forKey: "serverURL") ?? Self.defaultServer
         token = Keychain.get()
+        if Demo.on {
+            baseURL = "https://demo.ielts.local"
+            token = Demo.screen == "login" ? nil : "demo"
+        }
     }
 
     func setBaseURL(_ url: String) {

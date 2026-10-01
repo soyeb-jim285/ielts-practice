@@ -120,7 +120,7 @@ struct AttemptResultView: View {
     let onRetry: () -> Void
 
     @Environment(APIClient.self) private var api
-    @State private var tab = "Overview"
+    @State private var tab = Demo.arg("tab") ?? "Overview"
     @State private var player = Player()
     @State private var selectedError: AnalysisError?
     @State private var toast: String?

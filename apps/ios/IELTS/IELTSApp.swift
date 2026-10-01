@@ -84,18 +84,21 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
+    @State private var tab = Demo.initialTab
+    @State private var homePath = Demo.initialPath
+
     var body: some View {
-        TabView {
-            NavigationStack { DashboardView().appRoutes() }
-                .tabItem { Label("Home", systemImage: "house") }
+        TabView(selection: $tab) {
+            NavigationStack(path: $homePath) { DashboardView().appRoutes() }
+                .tabItem { Label("Home", systemImage: "house") }.tag(0)
             NavigationStack { SpeakingHomeView().appRoutes() }
-                .tabItem { Label("Speaking", systemImage: "mic") }
+                .tabItem { Label("Speaking", systemImage: "mic") }.tag(1)
             NavigationStack { WritingHomeView().appRoutes() }
-                .tabItem { Label("Writing", systemImage: "pencil.line") }
+                .tabItem { Label("Writing", systemImage: "pencil.line") }.tag(2)
             NavigationStack { ReviewView().appRoutes() }
-                .tabItem { Label("Review", systemImage: "rectangle.on.rectangle.angled") }
+                .tabItem { Label("Review", systemImage: "rectangle.on.rectangle.angled") }.tag(3)
             NavigationStack { SettingsView().appRoutes() }
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
         }
     }
 }
