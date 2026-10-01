@@ -185,7 +185,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         if (listening && vadOn && vad.feed(l, dt)) endTurn()
     }
 
-    private fun setPhase(p: String) {
+    private fun enterPhase(p: String) {
         if (p != phase) phaseStartedAt = SystemClock.elapsedRealtime()
         phase = p
         val part = mapOf("p1" to 1, "p2-talk" to 2, "p2-follow" to 2, "p3" to 3)[p]
@@ -216,7 +216,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             sessionId = reply.sessionId.orEmpty()
             test = reply.test
             while (true) {
-                setPhase(reply.phase)
+                enterPhase(reply.phase)
                 reply.cueCard?.let { cueCard = it }
                 voiceError = if (reply.audioUrl == null) reply.voiceError else null
                 speak(reply.examinerText, reply.audioUrl)
@@ -312,22 +312,22 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             }
             val sock = socket ?: return
 
-            setPhase("p1")
+            enterPhase("p1")
             delay(270_000)
 
-            setPhase("p2-prep")
+            enterPhase("p2-prep")
             cueCard = test?.part2
             sock.hear(false, false)
             cue("Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.")
             delay(8000)
             countdown(60)
 
-            setPhase("p2-talk")
+            enterPhase("p2-talk")
             sock.hear(false, true)
             cue("The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.")
             val timeUp = waitTalk(125.0)
 
-            setPhase("p2-follow")
+            enterPhase("p2-follow")
             cue(
                 if (timeUp) "The two minutes are up. Say \"Thank you. That's the end of your time.\" and ask the rounding-off question."
                 else "The candidate has finished their talk. Say \"Thank you.\" and ask the rounding-off question.",
@@ -336,10 +336,10 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             sock.hear(true, false)
             waitAnswered(45_000)
 
-            setPhase("p3") // the examiner moves from the rounding-off answer into Part 3 by itself
+            enterPhase("p3") // the examiner moves from the rounding-off answer into Part 3 by itself
             delay(270_000)
 
-            setPhase("closing")
+            enterPhase("closing")
             cue("The test is over. Say the closing line now and nothing more.")
             delay(8000)
         } catch (e: CancellationException) {
