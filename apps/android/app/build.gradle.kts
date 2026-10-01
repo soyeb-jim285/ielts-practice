@@ -47,7 +47,7 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
-        freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api,androidx.compose.foundation.layout.ExperimentalLayoutApi,kotlinx.serialization.ExperimentalSerializationApi")
+        freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api,androidx.compose.foundation.layout.ExperimentalLayoutApi,kotlinx.serialization.ExperimentalSerializationApi,androidx.compose.ui.text.ExperimentalTextApi")
     }
 }
 
