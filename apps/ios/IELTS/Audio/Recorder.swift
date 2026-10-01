@@ -56,6 +56,9 @@ final class Recorder {
         recorder = r
         energy = []
         silence = 0
+        elapsed = 0 // a second recording must not start with the previous one's clock
+        liveWpm = 0
+        levels = Array(repeating: 0, count: 48)
         isRecording = true
         loop = Task { [weak self] in
             while !Task.isCancelled {

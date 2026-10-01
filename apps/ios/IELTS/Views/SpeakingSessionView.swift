@@ -1,56 +1,156 @@
 import SwiftUI
 
-/// Practice flow: one recording per prompt (P1 topic / P2 card / P3 set) with "next question" marks,
-/// P2 60 s prep then a 2 min talk with a hard stop. Each recording becomes an attempt sharing a sessionId.
+/// Practice flow (web: components/speaking/SessionFlow.tsx): one recording per prompt (P1 topic / P2 card / P3 set) with
+/// "Next question" marks, P2 one minute of prep then a 2 min talk with a hard stop. Each recording is kept on disk
+/// (PendingStore), uploaded in the background while you continue, and becomes an attempt sharing a sessionId.
 struct SpeakingSessionView: View {
     let mode: SpeakingMode
 
-    private enum Stage: Equatable { case loading, ready, prep, recording, uploading, uploadFailed(String), failed(String), done }
+    private enum Phase: Equatable { case loading, ready, prep, recording, finishing, empty, failed(String) }
+    private struct UploadItem: Identifiable { let id: String; let label: String }
+
+    private static let prepSeconds = 60
+    private static let p2Max = 120.0
 
     @Environment(APIClient.self) private var api
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("ielts.micHintSeen") private var hintSeen = false
     @State private var items: [Prompt] = []
     @State private var index = 0
     @State private var question = 0
     @State private var questionStart: TimeInterval = 0
-    @State private var marks: [Int] = []
-    @State private var stage: Stage = .loading
+    @State private var marks: [Int] = [0]
+    @State private var phase: Phase = .loading
     @State private var recorder = Recorder()
-    @State private var prepLeft = 60
+    @State private var micRecorder = Recorder()
+    @State private var prepEnd = Date()
+    @State private var prepLeft = SpeakingSessionView.prepSeconds
     @State private var notes = ""
-    @State private var ids: [String] = []
+    @State private var recId = newSessionId()
+    @State private var uploads: [UploadItem] = []
     @State private var sessionId = newSessionId()
     @State private var parent: String?
-    @State private var pending: (durationMs: Int, energy: [Int])?
+    @State private var starting = false
+    @State private var startError: String?
     @State private var micDenied = false
+    @State private var exitOpen = false
+    @State private var earlyOpen = false
 
+    private var store: PendingStore { .shared }
     private var current: Prompt? { items.indices.contains(index) ? items[index] : nil }
-    private var fileURL: URL { FileManager.default.temporaryDirectory.appendingPathComponent("speaking-\(sessionId)-\(index).m4a") }
+    private var recording: Bool { phase == .recording }
+    private var isFull: Bool {
+        switch mode {
+        case .full: return true
+        default: return false
+        }
+    }
+
+    private func uploadState(_ u: UploadItem) -> UploadState { store.states[u.id] ?? .uploading }
+    private func isDone(_ u: UploadItem) -> Bool {
+        if case .done = uploadState(u) { return true }
+        return false
+    }
+    private func isFailed(_ u: UploadItem) -> Bool {
+        if case .failed = uploadState(u) { return true }
+        return false
+    }
+    private var doneIds: [String] {
+        uploads.compactMap { u -> String? in
+            if case let .done(id) = uploadState(u) { return id }
+            return nil
+        }
+    }
+    private var allDone: Bool { phase == .finishing && !items.isEmpty && uploads.count == items.count && doneIds.count == uploads.count }
+    private var notDone: Bool { uploads.contains { !isDone($0) } }
+    private var anyFailed: Bool { uploads.contains { isFailed($0) } }
 
     var body: some View {
         Group {
-            switch stage {
-            case .loading: ProgressView("Preparing your test…").task { await load() }
-            case let .failed(msg):
-                ContentUnavailableView { Label("Something went wrong", systemImage: "exclamationmark.triangle") } description: { Text(msg) } actions: {
-                    Button("Try again") { stage = .loading }.buttonStyle(.borderedProminent)
+            if allDone { ResultView(ids: doneIds) } else { content }
+        }
+        .navigationTitle(navTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(!allDone)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                if !allDone {
+                    Button("Exit") {
+                        if recording || phase == .prep || index > 0 || notDone { exitOpen = true } else { leave() }
+                    }
                 }
-            case .done: ResultView(ids: ids)
-            default: if let p = current { exam(p) }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if items.count > 1 && (phase == .ready || phase == .prep || phase == .recording) {
+                    Text("\(index + 1)/\(items.count)").font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                        .accessibilityLabel("Part \(index + 1) of \(items.count)")
+                }
             }
         }
-        .navigationTitle(stage == .done ? "Results" : title)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(stage == .recording || stage == .uploading || stage == .prep)
-        .toolbar(stage == .done ? .visible : .hidden, for: .tabBar)
+        .toolbar(allDone ? .visible : .hidden, for: .tabBar)
+        .confirmationDialog("Leave this test?", isPresented: $exitOpen, titleVisibility: .visible) {
+            Button("Leave", role: .destructive) { leave() }
+            Button("Keep going", role: .cancel) {}
+        } message: {
+            Text(exitMessage)
+        }
         .micDeniedAlert($micDenied)
-        .onDisappear { if recorder.isRecording { _ = recorder.stop() } }
+        .onDisappear { discardLive() }
     }
 
-    private var title: String {
-        guard let p = current else { return "Speaking" }
+    @ViewBuilder private var content: some View {
+        switch phase {
+        case .loading:
+            ProgressView("Loading questions").frame(maxWidth: .infinity, maxHeight: .infinity).task { await load() }
+        case .empty:
+            ContentUnavailableView {
+                Label("No questions available yet", systemImage: "mic.slash")
+            } description: {
+                Text("The prompt bank has no speaking prompts for this part. Seed the bank, then try again.")
+            } actions: {
+                Button("Back to speaking") { dismiss() }.secondaryButton()
+            }
+        case let .failed(message):
+            ContentUnavailableView {
+                Label("Couldn't load the questions", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(message)
+            } actions: {
+                Button("Try again") { phase = .loading }.primaryButton()
+            }
+        case .finishing:
+            finishing
+        default:
+            if let p = current { exam(p) }
+        }
+    }
+
+    private var navTitle: String {
+        if allDone { return "Results" }
+        switch phase {
+        case .finishing: return "Saving your answers"
+        case .loading, .empty, .failed: return "Speaking"
+        default: return label(index)
+        }
+    }
+
+    /// "Part 1, 2 of 3" for a Part 1 topic in a multi-topic test, else "Part N".
+    private func label(_ i: Int) -> String {
+        guard items.indices.contains(i) else { return "Speaking" }
         let p1Count = items.filter { $0.part == 1 }.count
-        if p.part == 1 && p1Count > 1 { return "Part 1 · Topic \(index + 1) of \(p1Count)" }
-        return ["Part 1 · Interview", "Part 2 · Long turn", "Part 3 · Discussion"][max(0, min(2, p.part - 1))]
+        if items[i].part == 1 && p1Count > 1 {
+            return "Part 1, \(items.prefix(i + 1).filter { $0.part == 1 }.count) of \(p1Count)"
+        }
+        return "Part \(items[i].part)"
+    }
+
+    private var exitMessage: String {
+        let parts: [String?] = [
+            recording ? "The answer you are recording now will be discarded." : nil,
+            notDone ? "Recordings that have not uploaded stay on this device. Upload them from the Speaking page." : nil,
+            "Answers already uploaded are still analysed.",
+        ]
+        return parts.compactMap { $0 }.joined(separator: " ")
     }
 
     private func load() async {
@@ -67,9 +167,12 @@ struct SpeakingSessionView: View {
                 items = [p]
                 parent = parentId
             }
-            stage = .ready
+            phase = .ready
+        } catch is CancellationError {
+        } catch let e as APIError where e.status == 404 {
+            phase = .empty
         } catch {
-            stage = .failed(error.localizedDescription)
+            phase = .failed(error.localizedDescription)
         }
     }
 
@@ -78,203 +181,559 @@ struct SpeakingSessionView: View {
     @ViewBuilder
     private func exam(_ p: Prompt) -> some View {
         ScrollView {
-            VStack(spacing: 20) {
-                if p.part == 2 {
-                    CueCardView(prompt: p)
-                } else if stage == .recording {
-                    Text(p.questions[min(question, p.questions.count - 1)])
-                        .font(.title2.weight(.semibold))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .card(padding: 24)
-                        .id(question)
-                        .transition(.push(from: .trailing))
-                    Text("Question \(question + 1) of \(p.questions.count)").font(.subheadline).foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if let topic = p.topic { Chip(text: topic.capitalized, color: .brand) }
-                        Text(p.part == 1 ? "The examiner will ask about familiar topics. Answer naturally in 2–4 sentences."
-                             : "Discussion questions on broader, abstract ideas. Develop each answer with reasons and examples.")
-                            .foregroundStyle(.secondary)
-                        Text("\(p.questions.count) question\(p.questions.count == 1 ? "" : "s") · one recording, tap Next between questions.")
-                            .font(.subheadline).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 24) {
+                if p.part == 2 { CueCardView(prompt: p) } else { questionHeader(p) }
+                if let startError { ErrorLine(message: startError) }
+                switch phase {
+                case .recording: recordingPanel(p)
+                case .prep: prepPanel
+                default: readyPanel(p)
+                }
+                if index == 0 && phase == .ready { MicCheckStep(mic: micRecorder, denied: $micDenied) }
+                if anyFailed {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("An earlier answer didn't upload", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline).foregroundStyle(Color.warnText)
+                        Text("Keep going. You can retry it at the end.").font(.subheadline).foregroundStyle(.muted)
                     }
                     .card()
                 }
-                switch stage {
-                case .ready: startButton(p)
-                case .prep: prep
-                case .recording: recording(p)
-                case .uploading: ProgressView("Uploading your answer…").padding(.top, 30)
-                case let .uploadFailed(msg):
-                    VStack(spacing: 12) {
-                        ErrorLine(message: msg)
-                        Button("Retry upload") { Task { await upload() } }.buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+        }
+        .demoScroll()
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.canvas)
+        .safeAreaInset(edge: .bottom) { controls(p) }
+        .onChange(of: recorder.elapsed) { _, e in
+            // P2 hard stop at 2:00; 15 min caps the energy timeline (20k × 50 ms) for any part.
+            guard phase == .recording, let cur = current else { return }
+            if (cur.part == 2 && e >= Self.p2Max) || e >= 900 { finishPart() }
+        }
+    }
+
+    private func questionText(_ p: Prompt) -> String {
+        p.questions.indices.contains(question) ? p.questions[question] : (p.questions.last ?? p.title)
+    }
+
+    private func questionHeader(_ p: Prompt) -> some View {
+        let n = p.questions.count
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(p.topic ?? p.title).font(.caption.weight(.medium)).foregroundStyle(.ink)
+                Spacer(minLength: 8)
+                if n > 1 {
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text("Question \(question + 1) of \(n)").font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                        HStack(spacing: 4) {
+                            ForEach(0..<n, id: \.self) { i in
+                                RoundedRectangle(cornerRadius: 2).fill(segmentColor(i)).frame(width: 20, height: 4)
+                            }
+                        }
+                        .accessibilityHidden(true)
                     }
-                default: EmptyView()
                 }
             }
-            .padding()
-            .animation(.snappy, value: question)
+            Text(questionText(p))
+                .font(.display(.title))
+                .foregroundStyle(.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityAddTraits(.isHeader)
         }
-        .background(.canvas)
     }
 
-    private func startButton(_ p: Prompt) -> some View {
-        VStack(spacing: 12) {
-            Button {
-                if p.part == 2 { prepLeft = 60; stage = .prep } else { Task { await startRecording() } }
-            } label: {
-                Image(systemName: p.part == 2 ? "timer" : "mic.fill")
-                    .font(.system(size: 40, weight: .semibold))
-                    .frame(width: 110, height: 110)
-                    .background(.brand, in: Circle())
-                    .foregroundStyle(.white)
-            }
-            .accessibilityLabel(p.part == 2 ? "Start one minute preparation" : "Start recording")
-            Text(p.part == 2 ? "Start 1-minute preparation" : "Tap to start recording").foregroundStyle(.secondary)
-        }
-        .padding(.top, 20)
+    private func segmentColor(_ i: Int) -> Color {
+        i < question ? Color.ink.opacity(0.6) : i == question ? Color.brand : Color.muted.opacity(0.35)
     }
 
-    private var prep: some View {
-        VStack(spacing: 12) {
-            Text(clock(prepLeft)).font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
-            Text("Preparation — make notes, recording starts automatically.").font(.subheadline).foregroundStyle(.secondary)
-            TextEditor(text: $notes)
-                .frame(minHeight: 140)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(alignment: .topLeading) {
-                    if notes.isEmpty { Text("Notes (not graded)").foregroundStyle(.tertiary).padding(14).allowsHitTesting(false) }
+    // MARK: Ready
+
+    @ViewBuilder
+    private func readyPanel(_ p: Prompt) -> some View {
+        if p.part == 2 {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 40) {
+                    stat("Preparation", clock(Self.prepSeconds))
+                    stat("Speaking", "up to \(clock(Int(Self.p2Max)))")
                 }
-            Button("Start speaking now") { Task { await startRecording() } }.buttonStyle(.bordered)
+                Text("Talk for 1 to 2 minutes about the card. You get 1 minute to prepare and can make notes. Recording stops at 2:00.")
+                    .foregroundStyle(.muted)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 20) {
+                    Button { Task { await startRecording() } } label: {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 34, weight: .semibold))
+                            .frame(width: 88, height: 88)
+                            .foregroundStyle(Color.onBrand)
+                            .modifier(RecordFill())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Start recording")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Press to start recording").font(.headline)
+                        Text(p.part == 1
+                             ? "Short answers about you. One recording covers every question. Press Next question as you go."
+                             : "A discussion linked to Part 2. Develop each answer with reasons and examples. Press Next question as you go.")
+                            .font(.caption).foregroundStyle(.muted)
+                    }
+                }
+                if !hintSeen {
+                    Label("Tap to start, your whole Part \(p.part) is one recording.", systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.brand)
+                }
+            }
+        }
+    }
+
+    private func stat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.caption).foregroundStyle(.muted)
+            Text(value).font(.display(.title3)).foregroundStyle(.ink)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Prep (Part 2)
+
+    private var prepPanel: some View {
+        HStack(alignment: .top, spacing: 20) {
+            ring(Double(prepLeft) / Double(Self.prepSeconds), tone: prepLeft <= 10 ? Color.warn : Color.brand, size: 96, line: 6) {
+                Text(clock(prepLeft)).font(Font.system(.title3, design: .default, weight: .semibold).monospacedDigit())
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Preparation time left")
+            .accessibilityValue(clock(prepLeft))
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes").font(.subheadline.weight(.medium))
+                TextEditor(text: $notes)
+                    .font(.system(.callout, design: .serif))
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .autocorrectionDisabled()
+                    .padding(8)
+                    .background(Color.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.line))
+                Text("Only you see these. Recording starts automatically when the minute is up.")
+                    .font(.caption).foregroundStyle(.muted)
+            }
         }
         .task {
-            while prepLeft > 0 && stage == .prep {
-                try? await Task.sleep(for: .seconds(1))
-                guard stage == .prep else { return }
-                prepLeft -= 1
+            // Wall clock, so a backgrounded or throttled app still ends prep on time.
+            while phase == .prep {
+                prepLeft = max(0, Int(ceil(prepEnd.timeIntervalSinceNow)))
+                if prepLeft == 0 { await startRecording(); return }
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
             }
-            if stage == .prep { await startRecording() }
         }
     }
 
-    private func recording(_ p: Prompt) -> some View {
-        let total = recorder.elapsed
-        let t = p.part == 2 ? total : total - questionStart
-        let zone = zoneColor(part: p.part, t: t)
-        let maxT: Double = [40, 120, 60][max(0, min(2, p.part - 1))]
-        return VStack(spacing: 18) {
-            ZStack {
-                Circle().stroke(zone.opacity(0.15), lineWidth: 12)
-                Circle().trim(from: 0, to: min(1, t / maxT)).stroke(zone, style: StrokeStyle(lineWidth: 12, lineCap: .round)).rotationEffect(.degrees(-90))
-                VStack(spacing: 2) {
-                    Text(clock(Int(t))).font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
-                    Text(zoneHint(p.part)).font(.caption).foregroundStyle(.secondary)
-                }
+    // MARK: Recording
+
+    private func recordingPanel(_ p: Prompt) -> some View {
+        let seconds = max(0, p.part == 2 ? recorder.elapsed : recorder.elapsed - questionStart)
+        let whole = Int(seconds)
+        let maxSeconds: Double = p.part == 2 ? Self.p2Max : p.part == 3 ? 60 : 40
+        return VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 8) {
+                Circle().fill(Color.bad).frame(width: 10, height: 10)
+                Text("Recording").font(.subheadline.weight(.medium)).foregroundStyle(Color.bad)
             }
-            .frame(width: 180, height: 180)
-            .animation(.linear(duration: 0.1), value: t)
             .accessibilityElement(children: .combine)
 
-            HStack(alignment: .center, spacing: 3) {
-                ForEach(Array(recorder.levels.enumerated()), id: \.offset) { _, l in
-                    Capsule().fill(.brand.opacity(0.7)).frame(width: 3, height: 4 + 40 * l)
+            HStack(alignment: .center, spacing: 20) {
+                ring(seconds / maxSeconds, tone: zoneTone(p.part, seconds), size: 112, line: 6) {
+                    Text(clock(whole)).font(Font.display(.title).monospacedDigit())
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Answer time")
+                .accessibilityValue(clock(whole))
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center, spacing: 3) {
+                        ForEach(Array(recorder.levels.suffix(30).enumerated()), id: \.offset) { _, l in
+                            Capsule().fill(Color.brand.opacity(0.75)).frame(width: 3, height: 4 + 36 * l)
+                        }
+                    }
+                    .frame(height: 40)
+                    .accessibilityHidden(true)
+                    HStack(spacing: 6) {
+                        paceChip
+                        if p.part == 2 { Chip(text: "Stops at \(clock(Int(Self.p2Max)))", color: .ink) }
+                    }
                 }
             }
-            .frame(height: 48)
-            .accessibilityHidden(true)
 
-            HStack {
-                Chip(text: "~\(recorder.liveWpm) wpm", color: .secondary)
-                if recorder.silence >= 3 { Chip(text: "Keep going…", color: .warn).transition(.opacity) }
+            Text(zoneHint(p.part, whole)).font(.caption).foregroundStyle(.muted).accessibilityAddTraits(.updatesFrequently)
+
+            // Keeps its height so the layout does not jump when it appears.
+            Label("Keep going. Add a reason or an example.", systemImage: "lightbulb")
+                .font(.subheadline.weight(.medium)).foregroundStyle(.brand)
+                .opacity(recorder.silence >= 3 ? 1 : 0)
+                .accessibilityHidden(recorder.silence < 3)
+
+            if p.part == 2 && !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your notes").font(.caption).foregroundStyle(.muted)
+                    Text(notes).font(.system(.callout, design: .serif))
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .animation(.easeInOut, value: recorder.silence >= 3)
+        }
+    }
 
-            HStack(spacing: 12) {
-                if p.part != 2 && question + 1 < p.questions.count {
-                    Button {
-                        marks.append(Int(recorder.elapsed * 1000))
-                        questionStart = recorder.elapsed
-                        question += 1
-                    } label: { Label("Next question", systemImage: "arrow.right").frame(maxWidth: .infinity) }
+    /// Rough live pace from energy peaks (web WpmPill). Waits for a few seconds of confident speech.
+    @ViewBuilder private var paceChip: some View {
+        let wpm = recorder.liveWpm
+        if recorder.elapsed < 5 || wpm == 0 {
+            Chip(text: "Measuring pace…", color: .ink)
+        } else if wpm >= 120 && wpm <= 170 {
+            Chip(text: "~\(wpm) wpm, steady", color: .goodText)
+        } else {
+            Chip(text: "~\(wpm) wpm, \(wpm < 120 ? "slow" : "fast")", color: .warnText)
+        }
+    }
+
+    private func ring<C: View>(_ value: Double, tone: Color, size: CGFloat, line: CGFloat, @ViewBuilder center: () -> C) -> some View {
+        ZStack {
+            Circle().stroke(Color.muted.opacity(0.25), lineWidth: line)
+            Circle().trim(from: 0, to: max(0, min(1, value)))
+                .stroke(tone, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            center()
+        }
+        .frame(width: size, height: size)
+    }
+
+    /// Ring colour by the part's target zone (web zoneTone; P2 is only green from 1:30). Teal = keep going, green = in zone, amber = long.
+    private func zoneTone(_ part: Int, _ s: Double) -> Color {
+        switch part {
+        case 2: return s < 60 ? Color.brand : s < 90 ? Color.warn : s <= 120 ? Color.good : Color.warn
+        case 3: return s < 30 ? Color.brand : s <= 60 ? Color.good : Color.warn
+        default: return s < 15 ? Color.brand : s <= 40 ? Color.good : Color.warn
+        }
+    }
+
+    private func zoneHint(_ part: Int, _ s: Int) -> String {
+        let lo = part == 2 ? 60 : part == 3 ? 30 : 15
+        let hi = part == 2 ? 120 : part == 3 ? 60 : 40
+        if s < lo { return "Aim for \(lo)-\(hi) s" }
+        if part == 2 && s < 90 { return "Good. Keep going to 1:30 or more" }
+        return s <= hi ? "In the target zone" : "Time to wrap up"
+    }
+
+    // MARK: Floating controls
+
+    @ViewBuilder
+    private func controls(_ p: Prompt) -> some View {
+        switch phase {
+        case .recording:
+            if p.part != 2 && question + 1 < p.questions.count {
+                controlBar {
+                    Button { earlyOpen = true } label: { Text("Finish part early").frame(maxWidth: .infinity) }
+                        .buttonStyle(.bordered)
+                        .confirmationDialog("Finish with \(question + 1) of \(p.questions.count) answered?", isPresented: $earlyOpen, titleVisibility: .visible) {
+                            Button("Finish now") { finishPart() }
+                            Button("Keep going", role: .cancel) {}
+                        } message: {
+                            let left = p.questions.count - question - 1
+                            Text("Your whole Part \(p.part) is one recording, so finishing now ends it and skips the last \(left) \(left == 1 ? "question" : "questions").")
+                        }
+                    Button { nextQuestion() } label: { Text("Next question").frame(maxWidth: .infinity) }
                         .buttonStyle(.borderedProminent)
                 }
-                Button { Task { await finishPart() } } label: {
-                    Label(index + 1 < items.count ? "Finish part" : "Finish", systemImage: "stop.fill").frame(maxWidth: .infinity)
+            } else {
+                controlBar {
+                    Button { finishPart() } label: {
+                        Label(index + 1 < items.count ? "Finish and continue" : "Finish", systemImage: "checkmark").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.bordered)
-                .tint(.bad)
             }
+        case .prep:
+            controlBar {
+                Button { Task { await startRecording() } } label: { Text("Start speaking now").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent)
+            }
+        case .ready where p.part == 2:
+            controlBar {
+                Button {
+                    prepLeft = Self.prepSeconds
+                    prepEnd = Date().addingTimeInterval(Double(Self.prepSeconds))
+                    phase = .prep
+                } label: { Text("Start 1-minute preparation").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent)
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    /// Floating recorder controls: solid buttons on one glass capsule (never glass on glass).
+    private func controlBar<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        HStack(spacing: 8) { content() }
+            .buttonBorderShape(.capsule)
             .controlSize(.large)
-        }
-        .onChange(of: recorder.elapsed) { _, e in
-            if p.part == 2 && e >= 120 { Task { await finishPart() } } // hard stop like the real test
-            else if e >= 900 { Task { await finishPart() } } // energy timeline cap (20k × 50 ms)
-        }
+            .padding(6)
+            .glassBar(Capsule())
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
     }
 
-    private func zoneColor(part: Int, t: Double) -> Color {
-        switch part {
-        case 2: return t < 60 ? .bad : t < 90 ? .warn : .good
-        case 3: return t < 30 ? .warn : t <= 60 ? .good : .bad
-        default: return t < 15 ? .warn : t <= 40 ? .good : .bad
+    // MARK: Saving your answers
+
+    private var finishing: some View {
+        let total = items.count
+        let failed = uploads.filter { isFailed($0) }
+        let done = doneIds.count
+        let progress = !failed.isEmpty
+            ? "\(done) of \(total) uploaded, \(failed.count) failed"
+            : done == total ? "\(total) of \(total) uploaded" : "Uploading \(min(done + 1, total)) of \(total)"
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(failed.isEmpty ? "Uploading your answers" : "Some answers need another try")
+                        .font(.display(.title)).foregroundStyle(.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(failed.isEmpty ? "Analysis starts as soon as each of the \(total) recordings arrives." : "Your recordings are still here. Retry to send them.")
+                        .foregroundStyle(.muted)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(progress).font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                    ProgressView(value: Double(done), total: Double(max(total, 1)))
+                        .tint(failed.isEmpty ? Color.brand : Color.warn)
+                        .accessibilityLabel("\(done) of \(total) recordings uploaded")
+                }
+                VStack(spacing: 0) {
+                    ForEach(Array(uploads.enumerated()), id: \.element.id) { i, u in
+                        if i > 0 { Divider() }
+                        uploadRow(u)
+                    }
+                }
+                .card(padding: 0)
+                if !failed.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Upload failed", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.bad)
+                        Text("Your recording is saved on this device. If it keeps failing, leave and upload it later from the Speaking page, even after a restart.")
+                            .font(.subheadline).foregroundStyle(.muted)
+                        Button("Retry upload") { failed.forEach { retry($0) } }.primaryButton()
+                    }
+                    .card()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
         }
+        .demoScroll()
+        .background(Color.canvas)
     }
 
-    private func zoneHint(_ part: Int) -> String { ["Aim 15–40 s", "Aim 1:30–2:00", "Aim 30–60 s"][max(0, min(2, part - 1))] }
+    private func uploadRow(_ u: UploadItem) -> some View {
+        let state = uploadState(u)
+        return HStack(spacing: 12) {
+            switch state {
+            case .done:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.goodText).accessibilityLabel("Uploaded")
+            case .failed:
+                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.bad).accessibilityLabel("Failed")
+            case .uploading:
+                ProgressView().accessibilityLabel("Uploading")
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(u.label).font(.subheadline).lineLimit(2)
+                if case .uploading = state { Text("Uploading…").font(.caption).foregroundStyle(.muted) }
+                if case let .failed(message) = state { Text(message).font(.caption).foregroundStyle(.bad) }
+            }
+            Spacer(minLength: 8)
+            if case .failed = state {
+                Button { retry(u) } label: { Label("Retry", systemImage: "arrow.clockwise") }.secondaryButton()
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+    }
+
+    private func retry(_ u: UploadItem) {
+        if let rec = store.items.first(where: { $0.id == u.id }) { store.start(rec, api: api) }
+    }
 
     // MARK: Actions
 
     private func startRecording() async {
+        guard (phase == .ready || phase == .prep), !starting else { return }
+        starting = true
+        defer { starting = false }
+        startError = nil
+        if micRecorder.isRecording { _ = micRecorder.stop() }
+        store.prepare()
         do {
-            guard try await recorder.start(to: fileURL) else { micDenied = true; stage = .ready; return }
+            guard try await recorder.start(to: store.audioURL(recId)) else {
+                micDenied = true
+                phase = .ready
+                return
+            }
+            hintSeen = true
             marks = [0]
             question = 0
             questionStart = 0
-            stage = .recording
+            phase = .recording
         } catch {
-            stage = .failed(error.localizedDescription)
+            startError = error.localizedDescription
+            phase = .ready
         }
     }
 
-    private func finishPart() async {
-        guard stage == .recording else { return }
-        pending = recorder.stop()
-        await upload()
+    private func nextQuestion() {
+        marks.append(Int(recorder.elapsed * 1000))
+        questionStart = recorder.elapsed
+        question += 1
     }
 
-    private func upload() async {
-        guard let p = current, let r = pending else { return }
-        stage = .uploading
-        do {
-            let id = try await api.submitSpeaking(prompt: p, sessionId: sessionId, parentAttemptId: parent, file: fileURL,
-                                                  durationMs: r.durationMs, energy: r.energy, marks: marks)
-            ids.append(id)
-            pending = nil
+    /// Stops, keeps the recording on disk, uploads it in the background and moves on.
+    private func finishPart() {
+        guard phase == .recording, let p = current else { return }
+        let r = recorder.stop()
+        let rec = PendingRecording(id: recId, promptId: p.id, part: p.part,
+                                   label: "\(label(index)): \(p.topic ?? p.title)", createdAt: Date(),
+                                   durationMs: r.durationMs, energy: Array(r.energy.prefix(20000)), marks: Array(marks.prefix(200)),
+                                   sessionId: isFull ? sessionId : nil, parentAttemptId: parent)
+        store.add(rec)
+        uploads.append(UploadItem(id: rec.id, label: rec.label))
+        store.start(rec, api: api)
+        if index + 1 < items.count {
+            index += 1
+            question = 0
             notes = ""
-            if index + 1 < items.count { index += 1; question = 0; stage = .ready } else { stage = .done }
-        } catch {
-            stage = .uploadFailed(error.localizedDescription)
+            recId = newSessionId()
+            phase = .ready
+        } else {
+            phase = .finishing
+        }
+    }
+
+    /// Drop a recording in progress (it was never kept) and the mic test.
+    private func discardLive() {
+        if recorder.isRecording {
+            _ = recorder.stop()
+            try? FileManager.default.removeItem(at: store.audioURL(recId))
+        }
+        if micRecorder.isRecording { _ = micRecorder.stop() }
+    }
+
+    private func leave() {
+        discardLive()
+        dismiss()
+    }
+}
+
+/// Brand-tinted glass on iOS 26 (a floating control), solid brand before.
+private struct RecordFill: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(Color.brand).interactive(), in: Circle())
+        } else {
+            content.background(Color.brand, in: Circle())
         }
     }
 }
 
+/// Optional mic check before the first recording, on its own recorder (web MicCheck): says "clearly" only after ~1 s of speech-level input.
+private struct MicCheckStep: View {
+    let mic: Recorder
+    @Binding var denied: Bool
+    @State private var loud = 0
+    @State private var soft = 0
+    @State private var opening = false
+
+    private static let segments = 24
+
+    private var verdict: (text: String, color: Color) {
+        if loud >= 20 { return ("We can hear you clearly.", Color.goodText) }
+        if soft >= 20 { return ("Very quiet. Move closer to the microphone or speak up.", Color.warnText) }
+        return ("Say a few words, like your name.", Color.muted)
+    }
+
+    private var barColor: Color { loud >= 20 ? Color.good : soft >= 20 ? Color.warn : Color.brand }
+
+    var body: some View {
+        if mic.isRecording {
+            let v = verdict
+            let lit = Int((min(1, mic.level * 1.8) * Double(Self.segments)).rounded())
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(0..<Self.segments, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(i < lit ? barColor : Color.surface2)
+                            .frame(height: 24 * (0.4 + 0.6 * Double(i) / Double(Self.segments)))
+                    }
+                }
+                .frame(height: 24)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Microphone level")
+                .accessibilityValue("\(Int(mic.level * 100)) percent")
+                Text(v.text).font(.subheadline.weight(loud >= 20 || soft >= 20 ? .medium : .regular)).foregroundStyle(v.color)
+                Button("Looks good") { _ = mic.stop() }.secondaryButton()
+            }
+            .card()
+            .onChange(of: mic.elapsed) { _, _ in
+                let e = mic.energy.last ?? 0
+                if e > Recorder.voice { loud += 1 } else if e > 30 { soft += 1 }
+            }
+        } else {
+            Button {
+                Task { await start() }
+            } label: {
+                Label("Check your microphone first", systemImage: "mic")
+            }
+            .secondaryButton()
+            .disabled(opening)
+        }
+    }
+
+    private func start() async {
+        opening = true
+        defer { opening = false }
+        loud = 0
+        soft = 0
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mic-check.m4a")
+        if let ok = try? await mic.start(to: url), !ok { denied = true }
+    }
+}
+
+/// Part 2 cue card, set as reading material: the topic in the serif, the prompt text, and the "You should say" bullets.
 struct CueCardView: View {
     let prompt: Prompt
+
+    private var bullets: [String] { prompt.bullets ?? [] }
+
+    /// The server's body repeats the title and ends with a "You should say:" lead; the bullets get their own heading, so drop both.
+    private var intro: String {
+        var text = prompt.body
+        if text.hasPrefix(prompt.title) { text = String(text.dropFirst(prompt.title.count)) }
+        let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return lines.filter { line in
+            guard !bullets.isEmpty else { return true }
+            return line.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ": ")) != "you should say"
+        }.joined(separator: "\n")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Cue card").font(.caption.weight(.bold)).textCase(.uppercase).foregroundStyle(.brand)
-            Text(prompt.title).font(.title3.weight(.semibold))
-            if let bullets = prompt.bullets, !bullets.isEmpty {
-                Text("You should say:").foregroundStyle(.secondary)
-                ForEach(bullets, id: \.self) { b in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) { Text("•"); Text(b) }
+            Text("Cue card").font(.caption).foregroundStyle(.muted)
+            Text(prompt.title).font(.display(.title3)).foregroundStyle(.ink)
+            if !intro.isEmpty { Text(intro).foregroundStyle(.muted) }
+            if !bullets.isEmpty {
+                Text("You should say").font(.subheadline.weight(.medium)).padding(.top, 6)
+                ForEach(Array(bullets.enumerated()), id: \.offset) { _, b in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("•").foregroundStyle(.muted)
+                        Text(b).font(.system(.body, design: .serif))
+                    }
                 }
             }
-            if !prompt.body.isEmpty && prompt.body != prompt.title { Text(prompt.body).foregroundStyle(.secondary) }
         }
         .card(padding: 20)
     }

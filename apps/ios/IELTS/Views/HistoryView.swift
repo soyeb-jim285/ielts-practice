@@ -1,17 +1,101 @@
 import SwiftUI
 
-/// Every attempt, newest first, 30 per page (GET /api/attempts).
+/// Date helpers for the shell screens (web lib/format.ts and components/bank/group.ts).
+enum ShellDate {
+    private static let fractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let plain = ISO8601DateFormatter()
+    private static let short: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.dateFormat = "d MMM yyyy"
+        return f
+    }()
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        f.dateTimeStyle = .named
+        return f
+    }()
+
+    static func parse(_ s: String) -> Date? { fractional.date(from: s) ?? plain.date(from: s) }
+
+    /// "30 Sep 2026".
+    static func date(_ s: String) -> String { parse(s).map { short.string(from: $0) } ?? String(s.prefix(10)) }
+
+    /// "yesterday", "3 days ago".
+    static func relative(_ s: String) -> String { parse(s).map { relativeFormatter.localizedString(for: $0, relativeTo: Date()) } ?? String(s.prefix(10)) }
+
+    /// Recency bucket for newest-first lists: Today, Yesterday, Past 7 days, Past 30 days, Older.
+    static func bucket(_ s: String, now: Date = Date()) -> String {
+        guard let d = parse(s) else { return "Older" }
+        let cal = Calendar.current
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: d), to: cal.startOfDay(for: now)).day ?? 0
+        return days <= 0 ? "Today" : days == 1 ? "Yesterday" : days < 7 ? "Past 7 days" : days < 30 ? "Past 30 days" : "Older"
+    }
+
+    /// 95_000 ms -> "1m 35s", 42_000 -> "42s", 3_900_000 -> "1h 5m".
+    static func duration(_ ms: Int) -> String {
+        let s = Int((Double(ms) / 1000).rounded())
+        if s < 60 { return "\(s)s" }
+        let h = s / 3600, m = (s % 3600) / 60
+        if h > 0 { return "\(h)h" + (m > 0 ? " \(m)m" : "") }
+        return "\(m)m" + (s % 60 > 0 ? " \(s % 60)s" : "")
+    }
+}
+
+/// One row of GET /api/attempts. Local so it can read `durationMs` and `flag` when the server sends them.
+private struct HistoryItem: Decodable, Identifiable {
+    let id: String
+    let promptTitle: String
+    let skill: String
+    let part: Int
+    let status: String // recording | analyzing | done | failed
+    let overall: Double?
+    let createdAt: String
+    let durationMs: Int?
+    let flag: String? // offTopic | tooShort
+
+    /// Editor time under a minute is a pasted or abandoned essay, not a meaningful duration; speaking recordings are short by design.
+    var shownDuration: String? {
+        guard let ms = durationMs, ms > 0, skill == "speaking" || ms >= 60_000 else { return nil }
+        return ShellDate.duration(ms)
+    }
+}
+
+private struct HistoryPage: Decodable { let items: [HistoryItem]; let total: Int }
+
+/// Every attempt, newest first, grouped by day bucket, 30 per page (GET /api/attempts).
 struct HistoryView: View {
     @Environment(APIClient.self) private var api
     @State private var skill: String // "" = all
     init(skill: String = "") { _skill = State(initialValue: skill) }
-    @State private var items: [AttemptListItem] = []
+    @State private var items: [HistoryItem] = []
     @State private var total = 0
     @State private var page = 1
     @State private var loading = true
     @State private var error: String?
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
+
+    private struct DayGroup: Identifiable {
+        let key: String
+        let items: [HistoryItem]
+        var id: String { key + (items.first?.id ?? "") }
+    }
+
+    /// Consecutive runs that share a bucket, so a page boundary never splits a heading.
+    private var groups: [DayGroup] {
+        var out: [(key: String, items: [HistoryItem])] = []
+        for a in items {
+            let k = ShellDate.bucket(a.createdAt)
+            if out.last?.key == k { out[out.count - 1].items.append(a) } else { out.append((k, [a])) }
+        }
+        return out.map { DayGroup(key: $0.key, items: $0.items) }
+    }
 
     var body: some View {
         List {
@@ -23,21 +107,44 @@ struct HistoryView: View {
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                if total > 0 { Text("\(total) attempt\(total == 1 ? "" : "s")") }
+                Text(total > 0 ? "\(total) \(total == 1 ? "attempt" : "attempts"), newest first" : "Every answer you record and essay you submit.")
             }
-            if let error { Section { ErrorLine(message: error) } }
-            Section {
-                ForEach(items) { a in
-                    NavigationLink(value: Route.result([a.id])) { AttemptRow(a: a, target: target) }
-                        .onAppear { if a.id == items.last?.id && items.count < total { Task { await load(reset: false) } } }
+            if let error {
+                Section {
+                    ErrorLine(message: error)
+                    Button("Try again") { Task { await load(reset: true) } }
                 }
-                if loading { ProgressView().frame(maxWidth: .infinity) }
+            }
+            ForEach(groups) { g in
+                Section {
+                    ForEach(g.items) { a in
+                        NavigationLink(value: Route.result([a.id])) { HistoryRow(a: a, target: target) }
+                            .listRowBackground(Color.surface)
+                            .onAppear { if a.id == items.last?.id && items.count < total { Task { await load(reset: false) } } }
+                    }
+                } header: {
+                    Text(g.key).textCase(nil)
+                }
+            }
+            if loading && !items.isEmpty {
+                Section { ProgressView().frame(maxWidth: .infinity) }.listRowBackground(Color.clear)
             }
         }
+        .canvasList()
+        .demoScroll()
         .overlay {
-            if !loading && items.isEmpty && error == nil {
-                ContentUnavailableView("No attempts yet", systemImage: "clock.arrow.circlepath",
-                                       description: Text("Every answer you record and essay you submit shows up here with its band."))
+            if loading && items.isEmpty {
+                ProgressView()
+            } else if items.isEmpty && error == nil {
+                ContentUnavailableView {
+                    Label(skill.isEmpty ? "Nothing practised yet" : "No \(skill) attempts yet", systemImage: "clock.arrow.circlepath")
+                } description: {
+                    Text("Each answer you record and essay you submit is listed here with its band, newest first, so you can see the trend.")
+                } actions: {
+                    NavigationLink(value: skill == "writing" ? Route.writing(.task2) : Route.speaking(.full)) { Text("Start practising") }
+                        .primaryButton()
+                }
+                .padding(.top, 80)
             }
         }
         .navigationTitle("History")
@@ -51,7 +158,7 @@ struct HistoryView: View {
         loading = true
         defer { loading = false }
         do {
-            let p: AttemptPage = try await api.get("/api/attempts", query: ["skill": skill.isEmpty ? nil : skill, "page": String(page)])
+            let p: HistoryPage = try await api.get("/api/attempts", query: ["skill": skill.isEmpty ? nil : skill, "page": String(page)])
             items = reset ? p.items : items + p.items
             total = p.total
             page += 1
@@ -64,32 +171,57 @@ struct HistoryView: View {
     }
 }
 
-/// One attempt: skill icon, prompt, part · date, band or status.
-struct AttemptRow: View {
-    let a: AttemptListItem
+/// One attempt: skill icon, prompt, status or flag badge, part, date and duration, then the band.
+private struct HistoryRow: View {
+    let a: HistoryItem
     let target: Double
 
-    private var status: (String, Color) {
+    private var status: (label: String, color: Color)? {
         switch a.status {
-        case "recording": ("Not submitted", Color.secondary)
-        case "analyzing": ("Scoring…", Color.brand)
-        case "failed": ("Failed", Color.bad)
-        default: (a.status.capitalized, Color.secondary)
+        case "recording": ("Not submitted", Color.warnText)
+        case "analyzing": ("Scoring", Color.brand)
+        case "failed": ("Scoring failed", Color.bad)
+        default: nil
         }
     }
 
+    private var flag: String? {
+        switch a.flag {
+        case "offTopic": "Off topic"
+        case "tooShort": "Under length"
+        default: nil
+        }
+    }
+
+    private var meta: String {
+        ["\(a.skill == "speaking" ? "Part" : "Task") \(a.part)", ShellDate.date(a.createdAt), a.shownDuration].compactMap { $0 }.joined(separator: ", ")
+    }
+
     var body: some View {
-        HStack {
-            Image(systemName: a.skill == "speaking" ? "mic" : "pencil").foregroundStyle(.secondary).frame(width: 24)
-                .accessibilityLabel(a.skill.capitalized)
-            VStack(alignment: .leading) {
-                Text(a.promptTitle).lineLimit(1)
-                Text("\(a.skill == "speaking" ? "Part" : "Task") \(a.part) · \(a.createdAt.prefix(10))").font(.caption).foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: a.skill == "speaking" ? "mic" : "pencil").foregroundStyle(.muted).frame(width: 24).padding(.top, 2)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(a.promptTitle).font(.body.weight(.medium)).lineLimit(2)
+                if let status {
+                    Chip(text: status.label, color: status.color)
+                } else if let flag {
+                    Chip(text: flag, color: .warnText)
+                }
+                Text(meta).font(.caption).foregroundStyle(.muted)
             }
-            Spacer()
-            if let o = a.overall, a.status == "done" { BandPill(band: o, target: target) } else { Chip(text: status.0, color: status.1) }
+            Spacer(minLength: 8)
+            if status == nil, let o = a.overall {
+                if o == 0 {
+                    Text("No speech").font(.caption).foregroundStyle(.muted)
+                } else {
+                    Text(fmt(o)).font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(bandTextColor(o, target))
+                        .accessibilityLabel("Band \(fmt(o))")
+                }
+            }
         }
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
     }
 }

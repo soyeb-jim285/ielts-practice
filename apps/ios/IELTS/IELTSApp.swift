@@ -47,6 +47,7 @@ enum Route: Hashable {
     case bank(skill: String)
     case history(skill: String?)
     case mistakes(category: String?)
+    case review
 }
 
 extension View {
@@ -60,6 +61,7 @@ extension View {
             case let .bank(skill): BankView(skill: skill)
             case let .history(skill): HistoryView(skill: skill ?? "")
             case let .mistakes(category): MistakesView(category: category)
+            case .review: ReviewView()
             }
         }
     }
@@ -81,7 +83,7 @@ struct RootView: View {
                 } description: {
                     Text(error)
                 } actions: {
-                    Button("Retry") { Task { await load() } }.buttonStyle(.borderedProminent)
+                    Button("Retry") { Task { await load() } }.primaryButton()
                     Button("Sign out", role: .destructive) { api.signOutLocal() }
                 }
             } else {
@@ -101,6 +103,15 @@ struct MainTabs: View {
     @State private var homePath = Demo.initialPath
 
     var body: some View {
+        // The system tab bar is Liquid Glass on iOS 26; on 26 it also tucks away while scrolling down.
+        if #available(iOS 26.0, *) {
+            tabs.tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            tabs
+        }
+    }
+
+    private var tabs: some View {
         TabView(selection: $tab) {
             NavigationStack(path: $homePath) { DashboardView().appRoutes() }
                 .tabItem { Label("Home", systemImage: "house") }.tag(0)

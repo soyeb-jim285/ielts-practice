@@ -51,7 +51,8 @@ jobs:
             result-speaking:Overview result-speaking:Overview@bottom result-speaking:Transcript result-speaking:Fluency result-speaking:Fluency@bottom
             result-speaking:Language result-speaking:Language@bottom result-speaking:Improve
             result-writing:Overview result-writing:Overview@bottom result-writing:Essay result-writing:Structure
-            result-writing:Language result-writing:Language@bottom result-writing:Improve"
+            result-writing:Language result-writing:Language@bottom result-writing:Improve
+            result-session result-analysing result-failed result-nospeech"
           for mode in light dark; do
             xcrun simctl ui "$UDID" appearance "$mode"
             for s in $SCREENS; do
