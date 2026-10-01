@@ -263,21 +263,46 @@ private struct VerifyEmailView: View {
     }
 }
 
-/// Six-digit code entry: numeric keypad, the keyboard offers the code from the email (one-time-code), digits only.
+/// Six-digit code entry, shown as six boxes (like the web's shadcn InputOTP). One hidden field takes the input, so the keyboard's
+/// one-time-code suggestion from the email, paste and Backspace all work; the boxes only display it. Digits only.
 private struct CodeField: View {
     @Binding var code: String
+    @FocusState private var focused: Bool
+
     var body: some View {
-        TextField("6-digit code", text: $code)
-            .textContentType(.oneTimeCode)
-            .keyboardType(.numberPad)
-            .font(.system(.title2, design: .monospaced).weight(.medium))
-            .multilineTextAlignment(.center)
-            .frame(minHeight: 44)
-            .onChange(of: code) { _, new in
-                let digits = AuthText.otpDigits(new)
-                if digits != new { code = digits }
+        let chars = Array(code)
+        ZStack {
+            TextField("", text: $code)
+                .textContentType(.oneTimeCode)
+                .keyboardType(.numberPad)
+                .focused($focused)
+                .foregroundStyle(.clear)
+                .tint(.clear)
+                .opacity(0.02)
+                .onChange(of: code) { _, new in
+                    let digits = AuthText.otpDigits(new)
+                    if digits != new { code = digits }
+                }
+                .accessibilityLabel("6-digit code")
+            HStack(spacing: 8) {
+                ForEach(0..<6, id: \.self) { i in
+                    let active = focused && i == min(chars.count, 5)
+                    Text(i < chars.count ? String(chars[i]) : "")
+                        .font(.system(.title2, design: .monospaced).weight(.medium))
+                        .foregroundStyle(.ink)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(active ? Color.brand : Color.line, lineWidth: active ? 2 : 1)
+                        )
+                }
             }
-            .accessibilityLabel("6-digit code")
+            .contentShape(Rectangle())
+            .onTapGesture { focused = true }
+            .accessibilityHidden(true)
+        }
+        .onAppear { focused = true }
     }
 }
 

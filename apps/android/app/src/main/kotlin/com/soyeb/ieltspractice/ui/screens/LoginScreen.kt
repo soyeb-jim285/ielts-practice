@@ -2,6 +2,13 @@ package com.soyeb.ieltspractice.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -224,10 +231,49 @@ private fun PasswordHints(password: String, mismatch: Boolean) {
     if (mismatch) ErrorLine("The two passwords don't match.")
 }
 
-/** Six-digit code entry: numeric keypad, digits only, big and centred. */
+/**
+ * Six-digit code entry shown as six boxes (like the web's shadcn InputOTP). One BasicTextField holds the value, so the keyboard,
+ * paste, Backspace and the SMS/email one-time-code autofill all work; the decoration draws the boxes. Digits only.
+ */
 @Composable
 private fun CodeField(code: String, onChange: (String) -> Unit) {
-    AppField(code, { onChange(otpDigits(it)) }, "6-digit code", keyboardType = KeyboardType.Number, textAlign = TextAlign.Center, mono = true, contentType = ContentType.SmsOtpCode)
+    val e = MaterialTheme.ext
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    androidx.compose.foundation.text.BasicTextField(
+        value = code,
+        onValueChange = { onChange(otpDigits(it)) },
+        singleLine = true,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Transparent),
+        textStyle = androidx.compose.ui.text.TextStyle(color = androidx.compose.ui.graphics.Color.Transparent),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focus)
+            .onFocusChanged { focused = it.isFocused }
+            .semantics { contentType = ContentType.SmsOtpCode; contentDescription = "6-digit code" },
+        decorationBox = { inner ->
+            Box {
+                Box(Modifier.size(1.dp)) { inner() } // the real (invisible) field; the boxes below show its value
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(6) { i ->
+                        val active = focused && i == minOf(code.length, 5)
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                                .border(if (active) 2.dp else 1.dp, if (active) MaterialTheme.colorScheme.primary else e.line, RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(code.getOrNull(i)?.toString() ?: "", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+        },
+    )
 }
 
 /** "Resend code" with a 30 s cooldown that starts now (a code was just sent); the server sends at most one email per address every 30 s. */
