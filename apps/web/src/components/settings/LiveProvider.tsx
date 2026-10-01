@@ -3,18 +3,22 @@ import { rowStyles } from '@/components/bank/ListRow';
 import type { Settings } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-type Provider = Settings['liveProvider'];
+export type Provider = Settings['liveProvider'];
+
+/** The names Settings and the pre-test screen both use. */
+export const PROVIDER_LABEL: Record<Provider, string> = {
+  turn: 'Examiner waits for you to finish',
+  'openai-realtime': 'Natural conversation (OpenAI)',
+  'gemini-live': 'Natural conversation (Gemini)',
+};
 
 /** Conversation mode: exclusive choice as two full-width rows (Radix RadioGroup), so the options share the settings row rhythm instead of nesting tiles in a card. */
-export function LiveProvider({ value, available, onChange }: { value: Provider; available: boolean; onChange: (v: Provider) => void }) {
+export function LiveProvider({ value, available, onChange }: { value: Provider; available: Partial<Record<Provider, boolean>>; onChange: (v: Provider) => void }) {
+  const natural = 'Talk back and forth as in the real test. You can interrupt each other.';
   const options = [
-    { value: 'turn' as const, label: 'Examiner waits for you to finish', description: 'The examiner asks a question, then listens until you pause.' },
-    {
-      value: 'openai-realtime' as const,
-      label: 'Natural conversation',
-      description: available ? 'Talk back and forth as in the real test. You can interrupt each other.' : 'Not available right now.',
-      disabled: !available,
-    },
+    { value: 'turn' as const, description: 'The examiner asks a question, then listens until you pause.' },
+    { value: 'openai-realtime' as const, description: available['openai-realtime'] ? natural : 'Not available right now.', disabled: !available['openai-realtime'] },
+    { value: 'gemini-live' as const, description: available['gemini-live'] ? natural : 'Not available right now.', disabled: !available['gemini-live'] },
   ];
   return (
     <RadioGroup.Root value={value} onValueChange={(v) => onChange(v as Provider)} aria-label="Conversation mode" className="-my-4 divide-y divide-line">
@@ -30,7 +34,7 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
           )}
         >
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">{o.label}</span>
+            <span className="block text-sm font-medium">{PROVIDER_LABEL[o.value]}</span>
             <span className="type-caption mt-0.5 block max-w-[60ch]">{o.description}</span>
           </span>
           <span className="grid size-5 shrink-0 place-items-center rounded-full border-2 border-input transition-colors group-aria-checked:border-brand group-aria-checked:bg-brand">

@@ -74,7 +74,7 @@ function SettingsPage() {
         </Section>
 
         <Section title="Live examiner" description="How the live speaking test talks to you.">
-          <LiveProvider value={s.liveProvider} available={me.realtimeAvailable} onChange={(v) => mutate({ liveProvider: v })} />
+          <LiveProvider value={s.liveProvider} available={{ 'openai-realtime': me.realtimeAvailable, 'gemini-live': me.geminiLiveAvailable }} onChange={(v) => mutate({ liveProvider: v })} />
         </Section>
 
         <Section title="Appearance" description="Saved in this browser.">

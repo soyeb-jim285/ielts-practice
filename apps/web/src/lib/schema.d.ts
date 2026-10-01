@@ -987,6 +987,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/gemini-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ephemeral Gemini Live token locked to the examiner setup (model, voice, instructions, VAD) for this session */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveGeminiToken"];
+                };
+            };
+            responses: {
+                /** @description Ephemeral token: pass as access_token to BidiGenerateContentConstrained */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeminiToken"];
+                    };
+                };
+                /** @description Gemini Live not configured */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Gemini error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/finish": {
         parameters: {
             query?: never;
@@ -1380,13 +1456,14 @@ export interface components {
                 };
                 audioPronEnabled: boolean;
                 /** @enum {string} */
-                liveProvider: "turn" | "openai-realtime";
+                liveProvider: "turn" | "openai-realtime" | "gemini-live";
                 targetBand: number;
                 writingAutoSubmit: boolean;
                 blockPaste: boolean;
             };
             cambridgeAccess: boolean;
             realtimeAvailable: boolean;
+            geminiLiveAvailable: boolean;
         };
         Settings: {
             models: {
@@ -1399,7 +1476,7 @@ export interface components {
             };
             audioPronEnabled: boolean;
             /** @enum {string} */
-            liveProvider: "turn" | "openai-realtime";
+            liveProvider: "turn" | "openai-realtime" | "gemini-live";
             targetBand: number;
             writingAutoSubmit: boolean;
             blockPaste: boolean;
@@ -1415,7 +1492,7 @@ export interface components {
             };
             audioPronEnabled?: boolean;
             /** @enum {string} */
-            liveProvider?: "turn" | "openai-realtime";
+            liveProvider?: "turn" | "openai-realtime" | "gemini-live";
             targetBand?: number;
             writingAutoSubmit?: boolean;
             blockPaste?: boolean;
@@ -1663,6 +1740,15 @@ export interface components {
             model: string;
         };
         LiveRealtimeToken: {
+            sessionId: string;
+        };
+        GeminiToken: {
+            value: string;
+            /** @description Unix seconds */
+            expiresAt: number;
+            model: string;
+        };
+        LiveGeminiToken: {
             sessionId: string;
         };
         LiveFinished: {

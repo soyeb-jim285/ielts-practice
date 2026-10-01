@@ -5,6 +5,7 @@ import { ExamShell } from '@/components/layout/ExamShell';
 import { MicCheck } from '@/components/speaking/MicCheck';
 import { Alert, Button, buttonStyles, Card, PageContainer, PageHeader } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
+import { PROVIDER_LABEL, type Provider } from '@/components/settings/LiveProvider';
 
 const STEPS = [
   ['1', '4-5 min', 'Questions about you and familiar topics.'],
@@ -13,7 +14,7 @@ const STEPS = [
 ] as const;
 
 /** Before the test (in the exam frame, Exit back to Speaking): how it runs, which examiner, and a mic check with a live level meter. */
-export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; fallback: boolean; onStart: () => void }) {
+export function PreScreen({ style, fallback, onStart }: { style: Provider; fallback: boolean; onStart: () => void }) {
   const mic = useRecorder();
   const live = mic.state === 'recording';
   // Ask for the microphone on entry so the check is already running (and Start works in one tap). The ref keeps StrictMode from asking twice.
@@ -66,7 +67,7 @@ export function PreScreen({ realtime, fallback, onStart }: { realtime: boolean; 
           </Card>
           <p className="type-caption mt-3">
             {/* Same labels as Settings, Live examiner. */}
-            Examiner style: <span className="font-medium text-ink">{realtime ? 'Natural conversation' : 'Examiner waits for you to finish'}</span>.{' '}
+            Examiner style: <span className="font-medium text-ink">{PROVIDER_LABEL[style]}</span>.{' '}
             <Link to="/settings" className={buttonStyles({ variant: 'link', className: 'hit' })}>
               Change
             </Link>

@@ -16,6 +16,9 @@ it('returns defaults, applies partial updates, rejects bad model ids', async () 
   expect(s.liveProvider).toBe('openai-realtime');
   expect(s.models).toEqual({ ...DEFAULT_SETTINGS.models, analysis: 'anthropic/claude-sonnet-5' });
 
+  expect((await req('/api/settings', { method: 'PUT', headers, body: { liveProvider: 'gemini-live' } })).status).toBe(200);
+  expect(((await (await req('/api/settings', { headers })).json()) as any).liveProvider).toBe('gemini-live');
+  expect((await req('/api/settings', { method: 'PUT', headers, body: { liveProvider: 'nope' } })).status).toBe(400);
   expect((await req('/api/settings', { method: 'PUT', headers, body: { models: { analysis: 'bad id!' } } })).status).toBe(400);
   expect((await req('/api/settings', { method: 'PUT', headers, body: { targetBand: 7.3 } })).status).toBe(400);
 });

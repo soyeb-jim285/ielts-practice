@@ -16,7 +16,7 @@ export const SettingsSchema = z.object({
     audioPron: ModelId,
   }),
   audioPronEnabled: z.boolean(),
-  liveProvider: z.enum(['turn', 'openai-realtime']),
+  liveProvider: z.enum(['turn', 'openai-realtime', 'gemini-live']),
   targetBand: z.number().min(4).max(9).multipleOf(0.5),
   writingAutoSubmit: z.boolean(),
   blockPaste: z.boolean(),

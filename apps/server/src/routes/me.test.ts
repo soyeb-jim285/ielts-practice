@@ -16,6 +16,7 @@ it('returns user, settings and access flags', async () => {
   expect(me.settings).toEqual(DEFAULT_SETTINGS);
   expect(me.cambridgeAccess).toBe(false);
   expect(typeof me.realtimeAvailable).toBe('boolean');
+  expect(typeof me.geminiLiveAvailable).toBe('boolean');
 });
 
 it('deleting the account also deletes its recordings', async () => {

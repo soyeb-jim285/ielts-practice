@@ -1,7 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
+import { createHash } from 'node:crypto';
 import { EXAMINER_SYSTEM, direction, newState, nextPhase, PREP_MS, realtimeInstructions, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
+import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -14,7 +16,8 @@ import { storage, uploadError } from '../storage';
 import type { App } from '../types';
 import { pickSpeakingTest, PromptSchema } from './prompts';
 
-const REALTIME_MODEL = 'gpt-realtime';
+// Low eagerness: the examiner waits for the candidate to finish instead of jumping into a thinking pause.
+const TURN_DETECTION = { type: 'semantic_vad', eagerness: 'low' } as const;
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
 const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav' };
 
@@ -245,12 +248,26 @@ export function register(app: App) {
     }),
     async (c) => {
       if (!env.OPENAI_API_KEY) return c.json({ error: 'OpenAI Realtime is not configured on this server' }, 400);
-      const s = await loadSession(c.req.valid('json').sessionId, currentUser(c).id);
+      const user = currentUser(c);
+      const s = await loadSession(c.req.valid('json').sessionId, user.id);
+      const model = env.OPENAI_REALTIME_MODEL;
+      // The secret only has to be valid until the client posts its SDP offer (the session then runs on), so it expires quickly.
       const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Safety-Identifier': createHash('sha256').update(user.id).digest('hex'),
+        },
         body: JSON.stringify({
-          session: { type: 'realtime', model: REALTIME_MODEL, instructions: realtimeInstructions(s.test), audio: { output: { voice: 'marin' } } },
+          expires_after: { anchor: 'created_at', seconds: 120 },
+          session: {
+            type: 'realtime',
+            model,
+            instructions: realtimeInstructions(s.test),
+            reasoning: { effort: 'low' }, // gpt-realtime-2.x reasons before it speaks: low keeps replies quick and the script on track
+            audio: { input: { turn_detection: TURN_DETECTION }, output: { voice: 'marin' } },
+          },
         }),
         signal: AbortSignal.timeout(20_000),
       }).catch(() => null);
@@ -259,7 +276,36 @@ export function register(app: App) {
         return c.json({ error: 'Could not start a realtime session. Please retry or use the turn-based examiner.' }, 502);
       }
       const d = (await res.json()) as { value: string; expires_at: number };
-      return c.json({ value: d.value, expiresAt: d.expires_at, model: REALTIME_MODEL }, 200);
+      return c.json({ value: d.value, expiresAt: d.expires_at, model }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/gemini-token',
+      summary: 'Ephemeral Gemini Live token locked to the examiner setup (model, voice, instructions, VAD) for this session',
+      request: body(SessionRef.openapi('LiveGeminiToken')),
+      responses: {
+        200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('GeminiToken'), 'Ephemeral token: pass as access_token to BidiGenerateContentConstrained'),
+        400: json(ErrorSchema, 'Gemini Live not configured'),
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+        502: json(ErrorSchema, 'Gemini error'),
+      },
+    }),
+    async (c) => {
+      if (!env.GEMINI_API_KEY) return c.json({ error: 'Gemini Live is not configured on this server' }, 400);
+      const s = await loadSession(c.req.valid('json').sessionId, currentUser(c).id);
+      const model = env.GEMINI_LIVE_MODEL;
+      const req = geminiTokenRequest(model, s.test);
+      const t = await mintGeminiToken(env.GEMINI_API_KEY, req);
+      if (!('name' in t)) {
+        console.error('gemini auth_tokens', t.status, t.detail);
+        return c.json({ error: 'Could not start a Gemini Live session. Please retry or use the turn-based examiner.' }, 502);
+      }
+      return c.json({ value: t.name, expiresAt: Math.floor(Date.parse(req.expireTime) / 1000), model }, 200);
     },
   );
 

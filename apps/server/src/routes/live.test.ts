@@ -27,7 +27,7 @@ beforeEach(async () => {
   await seedPrompt({ part: 2, type: 'cue-card', title: 'Describe a book you enjoyed', groupId: 'g1', followUps: ['Do you read often?'] });
   await seedPrompt({ part: 3, type: 'p3-discussion', topic: 'reading habits', groupId: 'g1', followUps: ['Do people read less today?'] });
 });
-afterEach(() => void (env.OPENAI_API_KEY = undefined));
+afterEach(() => void (env.OPENAI_API_KEY = env.GEMINI_API_KEY = undefined));
 
 const start = async (headers: Headers) => (await (await req('/api/live/start', { headers, body: {} })).json()) as any;
 const upload = async (headers: Headers, sessionId: string) => {
@@ -109,13 +109,41 @@ it('realtime-token: 400 without a key, else mints a client secret', async () => 
   globalThis.fetch = openai;
   try {
     const r = await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId } });
-    expect(await r.json()).toEqual({ value: 'ek_123', expiresAt: 1756310470, model: 'gpt-realtime' });
+    expect(await r.json()).toEqual({ value: 'ek_123', expiresAt: 1756310470, model: 'gpt-realtime-2.1' });
   } finally {
     globalThis.fetch = real;
   }
   const sent = openai.calls[0]!.body;
-  expect(sent.session).toMatchObject({ type: 'realtime', model: 'gpt-realtime', audio: { output: { voice: 'marin' } } });
+  expect(sent).toMatchObject({ expires_after: { anchor: 'created_at', seconds: 120 } });
+  expect(sent.session).toMatchObject({
+    type: 'realtime',
+    model: 'gpt-realtime-2.1',
+    reasoning: { effort: 'low' },
+    audio: { input: { turn_detection: { type: 'semantic_vad', eagerness: 'low' } }, output: { voice: 'marin' } },
+  });
   expect(sent.session.instructions).toContain('Describe a book you enjoyed');
+});
+
+it('gemini-token: 400 without a key, else mints a locked ephemeral token', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  expect((await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(400);
+
+  env.GEMINI_API_KEY = 'g-test';
+  const google = fakeFetch({ '/v1beta/auth_tokens': () => json({ name: 'auth_tokens/abc', expireTime: '2030-01-01T00:20:00Z' }) });
+  const real = globalThis.fetch;
+  globalThis.fetch = google;
+  try {
+    const r = await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } });
+    expect(await r.json()).toMatchObject({ value: 'auth_tokens/abc', model: 'gemini-3.8-live', expiresAt: expect.any(Number) });
+  } finally {
+    globalThis.fetch = real;
+  }
+  const sent = google.calls[0]!.body;
+  expect(sent).toMatchObject({ uses: 1, bidiGenerateContentSetup: { model: 'models/gemini-3.8-live', generationConfig: { responseModalities: ['AUDIO'] } } });
+  expect(sent.bidiGenerateContentSetup.systemInstruction.parts[0].text).toContain('Describe a book you enjoyed');
+  expect(sent.fieldMask).toContain('systemInstruction.parts');
+  expect(sent.fieldMask).not.toContain('sessionResumption');
 });
 
 it('finish creates one live attempt per part and analyses each, once', async () => {

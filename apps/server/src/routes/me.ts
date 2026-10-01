@@ -10,6 +10,7 @@ const MeSchema = z
     settings: SettingsSchema,
     cambridgeAccess: z.boolean(),
     realtimeAvailable: z.boolean(),
+    geminiLiveAvailable: z.boolean(),
   })
   .openapi('Me');
 
@@ -27,7 +28,13 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       return c.json(
-        { user, settings: await getSettings(user.id), cambridgeAccess: isCambridgeAllowed(user), realtimeAvailable: !!env.OPENAI_API_KEY },
+        {
+          user,
+          settings: await getSettings(user.id),
+          cambridgeAccess: isCambridgeAllowed(user),
+          realtimeAvailable: !!env.OPENAI_API_KEY,
+          geminiLiveAvailable: !!env.GEMINI_API_KEY,
+        },
         200,
       );
     },
