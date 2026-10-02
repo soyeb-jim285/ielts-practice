@@ -1,5 +1,5 @@
 // Community quotas (docs/community.md): who pays for a test, how many a person gets, and the reserve/refund ledger (quota_usage).
-import { and, count, eq, gte, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { keyCtx } from './ai/keyctx';
@@ -103,59 +103,90 @@ function burst(p: Payer, ipHash: string | null) {
   if (!burstOk(ipHash ?? p.userId)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
 }
 
-const unitActive = async (x: Executor, p: Payer, skill: Skill, unitKey: string) =>
-  (await x.select({ id: quotaUsage.id }).from(quotaUsage).where(and(eq(quotaUsage.userId, p.userId), eq(quotaUsage.skill, skill), eq(quotaUsage.unitKey, unitKey), isNull(quotaUsage.refundedAt))).limit(1)).length > 0;
+type Member = { part: number; id: string };
+const tag = (m: Member) => `${m.part}:${m.id}`;
+const unitRow = (x: Executor, p: Payer, skill: Skill, unitKey: string) =>
+  x.select({ id: quotaUsage.id, refundedAt: quotaUsage.refundedAt, members: quotaUsage.members }).from(quotaUsage).where(and(eq(quotaUsage.userId, p.userId), eq(quotaUsage.skill, skill), eq(quotaUsage.unitKey, unitKey))).limit(1).then((r) => r[0]);
+/** A paid unit covers an attempt of a session when it is already a member (a retry) or its part has not been paid yet. A part paid under another attempt (even a deleted one) is a new test, so one payment cannot be reused for endless re-takes. */
+const covers = (row: Awaited<ReturnType<typeof unitRow>>, m?: Member) => !!row && !row.refundedAt && (!m || row.members.includes(tag(m)) || !row.members.some((t) => t.startsWith(`${m.part}:`)));
 
 /** Before starting a test (create attempt, start live): throws the same errors a submit would, but reserves nothing, so people learn before writing the essay.
  *  A unit that is already paid (another part of the same test) always passes. */
-export async function checkStart(p: Payer, skill: Skill, ipHash: string | null, unitKey?: string) {
+export async function checkStart(p: Payer, skill: Skill, ipHash: string | null, unitKey?: string, member?: Member) {
   if (p.tier === 'own-key') return;
   burst(p, ipHash);
-  if (unitKey && (await unitActive(db, p, skill, unitKey))) return;
+  if (unitKey && covers(await unitRow(db, p, skill, unitKey), member)) return;
   const q = await evaluate(db, p, skill, ipHash, { balance: await communityBalance(), hourly: await hourlyCount(db) });
   if (q.blocked) throw blockedError(p, skill, q);
 }
 
 const LOCK = 7_260_001; // one lock serialises every reservation: per-user, per-IP and global counts stay exact (a few per second at most)
 
-/** Reserves one test for (user, skill, unit). Idempotent per unit: re-submitting or re-scoring the same attempt, or sending another part of the same test, costs nothing more. */
-export async function reserve(p: Payer, skill: Skill, unitKey: string, ipHash: string | null) {
+/** Reserves one test for (user, skill, unit). Idempotent per unit: re-submitting or re-scoring the same attempt, or sending another part of the same test, costs nothing more.
+ *  `member`: the attempt being paid when the unit is a session (all its parts share one payment, each part once); a part already paid under a different attempt is charged as its own unit (keyed by the attempt).
+ *  An array is a finished live session registering all its parts at once: they join the payment as they are.
+ *  Everything runs under the advisory lock, so concurrent submits of the same part cannot both ride on one payment. */
+export async function reserve(p: Payer, skill: Skill, unitKey: string, ipHash: string | null, member?: Member | Member[]) {
   if (p.tier === 'own-key') return;
   burst(p, ipHash);
   const balance = await communityBalance();
+  const ms = member === undefined ? [] : Array.isArray(member) ? member : [member];
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${LOCK})`);
-    const [row] = await tx.select({ id: quotaUsage.id, refundedAt: quotaUsage.refundedAt }).from(quotaUsage).where(and(eq(quotaUsage.userId, p.userId), eq(quotaUsage.skill, skill), eq(quotaUsage.unitKey, unitKey))).limit(1);
-    if (row && !row.refundedAt) return;
+    let key = unitKey;
+    let members = ms.map(tag);
+    let row = await unitRow(tx, p, skill, key);
+    if (row && !row.refundedAt) {
+      const add = members.filter((t) => !row!.members.includes(t));
+      if (!add.length) return; // a retry of an attempt already paid
+      if (Array.isArray(member) || !row.members.some((t) => t.startsWith(`${ms[0]!.part}:`))) {
+        await tx.update(quotaUsage).set({ members: sql`${quotaUsage.members} || ARRAY[${sql.join(add.map((t) => sql`${t}`), sql`, `)}]::text[]` }).where(eq(quotaUsage.id, row.id));
+        return;
+      }
+      // This part was already paid under another attempt: this one is a test of its own.
+      key = ms[0]!.id;
+      members = [];
+      row = await unitRow(tx, p, skill, key);
+      if (row && !row.refundedAt) return;
+    }
     const q = await evaluate(tx, p, skill, ipHash, { balance, hourly: await hourlyCount(tx) });
     if (q.blocked) throw blockedError(p, skill, q);
     // A refunded unit (failed analysis, retried now) is charged again from now on.
-    if (row) await tx.update(quotaUsage).set({ refundedAt: null, createdAt: new Date(), tier: p.tier, ipHash }).where(eq(quotaUsage.id, row.id));
-    else await tx.insert(quotaUsage).values({ userId: p.userId, skill, unitKey, tier: p.tier, ipHash, createdAt: new Date() });
+    if (row) await tx.update(quotaUsage).set({ refundedAt: null, createdAt: new Date(), tier: p.tier, ipHash, members }).where(eq(quotaUsage.id, row.id));
+    else await tx.insert(quotaUsage).values({ userId: p.userId, skill, unitKey: key, tier: p.tier, ipHash, members, createdAt: new Date() });
   });
 }
 
 type AttemptRef = { id: string; userId: string; skill: Skill; part: number; sessionId: string | null };
 
-/** The unit one attempt is paid under: its session (all parts of a full test count once), unless that part was already submitted in the session (then it is its own test, so a reused sessionId cannot bundle unlimited tests). */
-export async function unitFor(a: AttemptRef): Promise<string> {
-  if (!a.sessionId) return a.id;
-  const [dup] = await db.select({ id: attempts.id }).from(attempts).where(and(eq(attempts.userId, a.userId), eq(attempts.sessionId, a.sessionId), eq(attempts.part, a.part), ne(attempts.id, a.id), or(eq(attempts.status, 'analyzing'), eq(attempts.status, 'done')))).limit(1);
-  return dup ? a.id : a.sessionId;
-}
+/** The unit one attempt is paid under: its session (all parts of a full test count once) or itself. */
+export const reserveAttempt = (p: Payer, a: AttemptRef, ipHash: string | null) => reserve(p, a.skill, a.sessionId ?? a.id, ipHash, a.sessionId ? { part: a.part, id: a.id } : undefined);
+export const checkAttempt = (p: Payer, a: AttemptRef, ipHash: string | null) => checkStart(p, a.skill, ipHash, a.sessionId ?? a.id, a.sessionId ? { part: a.part, id: a.id } : undefined);
 
-export async function reserveAttempt(p: Payer, a: AttemptRef, ipHash: string | null) {
-  if (p.tier !== 'own-key') await reserve(p, a.skill, await unitFor(a), ipHash);
-}
-export async function checkAttempt(p: Payer, a: AttemptRef, ipHash: string | null) {
-  if (p.tier !== 'own-key') await checkStart(p, a.skill, ipHash, await unitFor(a));
-}
+/** Refunds one user (or, for guests, one IP) may get in 24 h. Failed analyses and silent recordings are mostly honest accidents, but each one already spent STT/LLM credit, so they cannot be an endless free retry loop. */
+export const REFUND_CAP = 5;
 
-/** Gives the test back (analysis failed, or no speech was heard). For a session the unit is refunded only when no other part of it is still counting. Never throws. */
-export async function refundAttempt(a: AttemptRef) {
+/** Gives the test back (analysis failed, or no speech was heard). For a session the unit is refunded only when no other part of it is still counting. Never throws.
+ *  Past REFUND_CAP refunds in 24 h the test stays spent. */
+export async function refundAttempt(ref: AttemptRef) {
   try {
+    // A guest may have signed up while this attempt was being analysed (link.ts moved it and its quota row to the account): refund under the owner it has now, not the one the caller read earlier.
+    const [cur] = await db.select({ userId: attempts.userId }).from(attempts).where(eq(attempts.id, ref.id));
+    const a = { ...ref, userId: cur?.userId ?? ref.userId };
+    const [unit] = await db
+      .select({ tier: quotaUsage.tier, ipHash: quotaUsage.ipHash })
+      .from(quotaUsage)
+      .where(and(eq(quotaUsage.userId, a.userId), eq(quotaUsage.skill, a.skill), inArray(quotaUsage.unitKey, a.sessionId ? [a.id, a.sessionId] : [a.id]), isNull(quotaUsage.refundedAt)))
+      .limit(1);
+    if (!unit) return; // nothing paid, nothing to give back
+    const since = new Date(Date.now() - DAY);
+    const [used] = await db
+      .select({ n: sql<number>`coalesce(sum(${quotaUsage.refunds}), 0)::int` })
+      .from(quotaUsage)
+      .where(and(gte(quotaUsage.createdAt, since), unit.tier === 'guest' && unit.ipHash ? eq(quotaUsage.ipHash, unit.ipHash) : eq(quotaUsage.userId, a.userId)));
+    if (used!.n >= REFUND_CAP) return console.warn('refund cap reached, test stays spent', a.id);
     const now = new Date();
-    const free = (unitKey: string) => db.update(quotaUsage).set({ refundedAt: now }).where(and(eq(quotaUsage.userId, a.userId), eq(quotaUsage.skill, a.skill), eq(quotaUsage.unitKey, unitKey), isNull(quotaUsage.refundedAt))).returning({ id: quotaUsage.id });
+    const free = (unitKey: string) => db.update(quotaUsage).set({ refundedAt: now, refunds: sql`${quotaUsage.refunds} + 1` }).where(and(eq(quotaUsage.userId, a.userId), eq(quotaUsage.skill, a.skill), eq(quotaUsage.unitKey, unitKey), isNull(quotaUsage.refundedAt))).returning({ id: quotaUsage.id });
     if ((await free(a.id)).length || !a.sessionId) return; // the attempt was its own unit
     const [sibling] = await db
       .select({ id: attempts.id })
@@ -165,7 +196,7 @@ export async function refundAttempt(a: AttemptRef) {
       .limit(1);
     if (!sibling) await free(a.sessionId);
   } catch (e) {
-    console.error('quota refund failed', a.id, (e as Error).message);
+    console.error('quota refund failed', ref.id, (e as Error).message);
   }
 }
 

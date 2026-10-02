@@ -384,8 +384,11 @@ export function register(app: App) {
         if (bad) return c.json({ error: `${bad} (part ${p.part})` }, 400);
       }
       const promptId = { 1: s.test.part1[0]!.id, 2: s.test.part2.id, 3: s.test.part3.id };
+      // A retried finish (client retry after a lost response) must not reserve again: if the first one's analysis failed and was refunded, that would charge a test for nothing.
+      if ((await db.select({ id: attempts.id }).from(attempts).where(and(eq(attempts.sessionId, s.sessionId), eq(attempts.userId, user.id))).limit(1)).length) return c.json({ error: 'This session was already finished' }, 409);
       // One speaking test for the whole session. Normally already checked at start; reserved now, before any analysis spends community credit.
-      await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c));
+      const ids = b.parts.map(() => crypto.randomUUID()); // the parts are members of the payment, so none can be re-submitted for free later
+      await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c), b.parts.map((p, i) => ({ part: p.part, id: ids[i]! })));
       const rows = await db.transaction(async (tx) => {
         // Row lock serialises concurrent finishes (double click, client retry): the second one then sees the first's attempts.
         await tx.select({ id: liveSessions.id }).from(liveSessions).where(and(eq(liveSessions.id, s.sessionId), eq(liveSessions.userId, user.id))).for('update');
@@ -396,7 +399,8 @@ export function register(app: App) {
         return tx
           .insert(attempts)
           .values(
-            b.parts.map((p) => ({
+            b.parts.map((p, i) => ({
+              id: ids[i]!,
               userId: user.id,
               promptId: promptId[p.part],
               skill: 'speaking' as const,

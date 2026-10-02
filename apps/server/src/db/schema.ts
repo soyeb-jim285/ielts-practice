@@ -237,6 +237,9 @@ export const quotaUsage = pgTable('quota_usage', {
   ipHash: text('ip_hash'), // salted HMAC of the client IP; null when the address is unknown
   createdAt: createdAt(),
   refundedAt: timestamp('refunded_at', { withTimezone: true }),
+  // Session units only: "part:attemptId" of every attempt this payment covers, kept even if the attempt is deleted, so a part can never be paid once and submitted again and again.
+  members: text('members').array().notNull().default([]),
+  refunds: integer('refunds').notNull().default(0), // times this unit was given back (failed analysis / no speech): capped per user and IP so refunds cannot be farmed
 }, (t) => [
   uniqueIndex('quota_usage_unit_idx').on(t.userId, t.skill, t.unitKey),
   index('quota_usage_user_idx').on(t.userId, t.skill, t.createdAt),

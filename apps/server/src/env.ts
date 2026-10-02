@@ -36,7 +36,10 @@ const Env = z.object({
     .transform((s) => s.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)),
   WEB_DIST: z.string().default('../web/dist'),
   // Community mode (docs/community.md). Encrypts users' own API keys at rest (AES-256-GCM). Unset in production: saving keys is disabled (503) instead of using a weak default.
-  KEY_ENCRYPTION_SECRET: z.string().optional().transform((v) => v || undefined),
+  KEY_ENCRYPTION_SECRET: z.string().optional().transform((v) => {
+    if (v && v.length < 32 && !process.env.VITEST) console.warn('KEY_ENCRYPTION_SECRET is shorter than 32 characters: ignored, saving keys stays off (use `openssl rand -hex 32`)');
+    return v && v.length >= 32 ? v : undefined; // HKDF does not stretch a weak secret
+  }),
   // Community tests are blocked when the shared OpenRouter key has less than this many USD left.
   COMMUNITY_MIN_BALANCE: z.coerce.number().min(0).default(0.25),
   // Global cap on community-paid test submissions per rolling hour, across all users.

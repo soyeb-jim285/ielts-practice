@@ -49,8 +49,10 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
     let result: AnalysisResult;
     let models: Record<string, string>;
     if (a.skill === 'speaking') {
-      if (!a.audioKey) throw new AiError('http', 'No recording was uploaded for this attempt.');
-      const ext = a.audioKey.split('.').pop() as Format;
+      // re-read the key: a guest who signed up since the attempt was loaded had the recording re-keyed to the new account (link.ts)
+      const audioKey = (await db.query.attempts.findFirst({ where: eq(attempts.id, attemptId), columns: { audioKey: true } }))?.audioKey ?? a.audioKey;
+      if (!audioKey) throw new AiError('http', 'No recording was uploaded for this attempt.');
+      const ext = audioKey.split('.').pop() as Format;
       const part = a.part as 1 | 2 | 3;
       const session = a.mode === 'live' && a.sessionId && part !== 2 ? await db.query.liveSessions.findFirst({ where: eq(liveSessions.id, a.sessionId) }) : undefined;
       const questions =
@@ -60,7 +62,7 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
             (p.followUps?.length ? (a.sessionId && part === 1 ? p.followUps.slice(0, P1_TEST_QUESTIONS) : p.followUps) : [p.body]));
       result = await analyzeSpeaking({
         onStage: (stage) => void setStage({ stage }),
-        audio: await storage.get(a.audioKey),
+        audio: await storage.get(audioKey),
         format: FORMATS.includes(ext) ? ext : 'webm',
         durationMs: a.durationMs ?? 0,
         energy: a.energy,
@@ -95,12 +97,13 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
     }
 
     await db.transaction(async (tx) => {
+      const ownerId = (await tx.select({ userId: attempts.userId }).from(attempts).where(eq(attempts.id, attemptId)))[0]?.userId ?? a.userId; // not a.userId: a guest may have signed up meanwhile
       const row = { result, overall: result.overall, criteria: bands(result) as Record<string, number>, models };
       await tx.insert(analyses).values({ attemptId, ...row }).onConflictDoUpdate({ target: analyses.attemptId, set: row });
       await tx.delete(mistakes).where(eq(mistakes.attemptId, attemptId));
       if (result.errors.length)
         await tx.insert(mistakes).values(
-          result.errors.map((e) => ({ userId: a.userId, attemptId, errorId: e.id, category: e.category, original: e.original, correction: e.correction, explanation: e.explanation, time: e.time })),
+          result.errors.map((e) => ({ userId: ownerId, attemptId, errorId: e.id, category: e.category, original: e.original, correction: e.correction, explanation: e.explanation, time: e.time })),
         );
       await tx.update(attempts).set({ status: 'done', error: null, errorRetryable: true, stage: null, partial: null }).where(eq(attempts.id, attemptId));
     });

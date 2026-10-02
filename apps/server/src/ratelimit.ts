@@ -35,3 +35,7 @@ export const burstOk = (key: string) => take(ipBuckets, `burst:${key}`, BURST.ca
 
 /** Anonymous sign-ins per IP: guests may share a network (school, office), but nobody needs more than a handful a minute. */
 export const anonSignInOk = (ipHash: string) => take(ipBuckets, `anon:${ipHash}`, 15, 30_000);
+
+/** Key checks (PUT /api/keys) per client address: each one makes an outbound call to a provider with a key the caller typed, so without this the server is a key-testing oracle. 5 at once, then 1 per 30 s.
+ *  `key` is the IP hash, or the user id when the address is unknown. */
+export const keyCheckOk = (key: string) => take(ipBuckets, `keys:${key}`, 5, 30_000);

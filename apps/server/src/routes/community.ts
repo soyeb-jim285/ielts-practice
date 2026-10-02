@@ -5,7 +5,7 @@ import { ApiError } from '../errors';
 import { clientIpHash } from '../ip';
 import { deleteKey, keysEnabled, listKeys, PROVIDERS, saveKey, validateKey } from '../keys';
 import { payerOf, quotaSnapshot, type Payer } from '../quota';
-import { aiLimit } from '../ratelimit';
+import { aiLimit, keyCheckOk } from '../ratelimit';
 import type { App } from '../types';
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
@@ -119,11 +119,12 @@ export function register(app: App) {
       const { provider } = c.req.valid('param');
       const { key } = c.req.valid('json');
       if (!keysEnabled()) throw new ApiError(503, { error: 'Saving your own key is not available on this server yet.', code: 'keys_unavailable' });
+      const user = currentUser(c);
+      if (!keyCheckOk(clientIpHash(c) ?? user.id)) throw new ApiError(429, { error: 'Too many key checks. Wait a minute, then try again.', code: 'too_many_requests' });
       const label = { openrouter: 'OpenRouter', openai: 'OpenAI', gemini: 'Gemini' }[provider];
       const verdict = await validateKey(provider, key);
       if (verdict === 'invalid') throw new ApiError(400, { error: `${label} did not accept this key. Check that you copied all of it.`, code: 'invalid_key' });
       if (verdict === 'unreachable') throw new ApiError(502, { error: `Could not reach ${label} to check the key. Please try again.`, code: 'key_check_failed' });
-      const user = currentUser(c);
       await saveKey(user.id, provider, key);
       return c.json((await listKeys(user.id)).find((k) => k.provider === provider)!, 200);
     },

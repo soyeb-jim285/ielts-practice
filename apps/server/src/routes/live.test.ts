@@ -312,6 +312,17 @@ it('live finish with an exhausted community balance is refused (402) and creates
   expect(await db.select().from(attempts).where(eq(attempts.sessionId, s.sessionId))).toHaveLength(0);
 });
 
+it('a retried finish after a refund is a 409 and does not charge the test again', async () => {
+  const { headers, user } = await testUser(undefined, { key: false });
+  await setKey(user.id, 'gemini', 'g-test');
+  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
+  expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
+  await db.update(quotaUsage).set({ refundedAt: new Date() }).where(eq(quotaUsage.userId, user.id)); // its analysis failed and was given back
+  expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(409);
+  expect((await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id)))[0]!.refundedAt).toBeInstanceOf(Date);
+});
+
 it('an own-key user can run any number of live sessions', async () => {
   const { headers, user } = await testUser();
   await setKey(user.id, 'gemini', 'g-test');

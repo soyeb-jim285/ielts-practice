@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, setKey, testUser } from './test/helpers';
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, quotaUsage, user as userTable, userApiKeys } from './db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys } from './db/schema';
 import { auth } from './auth';
 import { env } from './env';
 import { keyCtx } from './ai/keyctx';
@@ -312,10 +312,10 @@ describe('guests', () => {
     expect(JSON.stringify(await db.select().from(userTable))).not.toContain(addr);
   });
 
-  it('falls back to X-Forwarded-For when CF-Connecting-IP is absent', async () => {
+  it('falls back to the last X-Forwarded-For hop (the one our proxy wrote) when CF-Connecting-IP is absent', async () => {
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const g = await guestUser();
-    g.headers.set('X-Forwarded-For', '198.51.100.9, 10.0.0.1');
+    g.headers.set('X-Forwarded-For', '10.0.0.1, 198.51.100.9'); // a client-written first hop is not trusted
     await writing(g.headers, p);
     expect((await rows(g.user.id))[0]!.ipHash).toBe(hashIp('198.51.100.9'));
   });
@@ -378,6 +378,41 @@ describe('guest → account linking', () => {
     expect(res.status).toBe(200);
     expect((await db.query.attempts.findFirst({ where: eq(attempts.id, wr.id) }))!.userId).toBe(existing.user.id);
     expect(await rows(existing.user.id)).toHaveLength(1);
+  });
+});
+
+describe('guest signs up while an attempt is being analysed', () => {
+  const guestWriting = async () => {
+    const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+    const g = await guestUser(ip());
+    return { g, w };
+  };
+
+  it('a failure after the link still refunds the test on the new account', async () => {
+    const { g, w } = await guestWriting();
+    let signed: ReturnType<typeof signUp> | undefined;
+    setAnalyzer(analyze);
+    setFetch(fakeFetch({ '/chat/completions': async () => ((signed ??= signUp(g, `mid${++n}@test.dev`)), await signed, chatReply('garbage')) }));
+    const { id } = await writing(g.headers, w);
+    await settled(id, 'failed');
+    const acct = await signed!;
+    expect((await rows(acct.user.id))[0]).toMatchObject({ refundedAt: expect.any(Date) });
+    expect((await quota(acct.headers)).writing).toMatchObject({ used: 0, remaining: 1 });
+  });
+
+  it('a result that arrives after the link is stored for the new account (mistakes and all)', async () => {
+    const { g, w } = await guestWriting();
+    let signed: ReturnType<typeof signUp> | undefined;
+    setAnalyzer(analyze);
+    const ok = writingChat();
+    setFetch(fakeFetch({ '/chat/completions': async (u, i) => ((signed ??= signUp(g, `mid${++n}@test.dev`)), await signed, ok(u, i)) }));
+    const { id } = await writing(g.headers, w);
+    await settled(id, 'done');
+    const acct = await signed!;
+    expect((await db.query.attempts.findFirst({ where: eq(attempts.id, id) }))!.userId).toBe(acct.user.id);
+    const ms = await db.select().from(mistakes).where(eq(mistakes.attemptId, id));
+    expect(ms.length).toBeGreaterThan(0);
+    expect(ms.every((m) => m.userId === acct.user.id)).toBe(true);
   });
 });
 
