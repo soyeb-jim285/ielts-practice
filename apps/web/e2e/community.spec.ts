@@ -102,10 +102,16 @@ test.describe('limits are explained before anything is typed', () => {
     await expect(page.getByRole('link', { name: 'Add your own key' })).toHaveAttribute('href', /\/settings#api-keys/);
   });
 
-  test('an empty community balance blocks tests and says so', async ({ page }) => {
-    await page.route('**/api/quota', (r) => r.fulfill({ json: quota({ writing: { ...quota().writing, blocked: 'community_balance_exhausted' }, communityBalance: { limit: 20, used: 19.9, remaining: 0.1, updatedAt: new Date().toISOString() } }) }));
+  test('an empty community balance blocks tests: signed-in users add a key, guests create an account', async ({ page }) => {
+    const empty = (tier: string) => (r: { fulfill: (o: { json: unknown }) => unknown }) =>
+      r.fulfill({ json: quota({ tier, writing: { ...quota().writing, blocked: 'community_balance_exhausted' }, communityBalance: { limit: 20, used: 19.9, remaining: 0.1, updatedAt: new Date().toISOString() } }) });
+    await page.route('**/api/quota', empty('guest'));
     await startWriting(page);
     await expect(page.getByRole('heading', { name: 'The community balance is used up for now' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Create an account' }).first()).toBeVisible();
+    await page.unroute('**/api/quota');
+    await page.route('**/api/quota', empty('community'));
+    await startWriting(page);
     await expect(page.getByRole('link', { name: 'Add your own OpenRouter key' })).toBeVisible();
   });
 
