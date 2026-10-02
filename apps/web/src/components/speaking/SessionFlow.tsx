@@ -3,11 +3,14 @@ import type { Prompt } from '@server/routes/prompts';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronRight, CircleAlert, Info, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { BlockedAlert } from '@/components/community/BlockedPanel';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { Alert, Badge, Button, Card, Dialog, PageContainer, ProgressBar, ProgressRing, Stat, Textarea } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { savePending, uploadPending, type Pending } from '@/hooks/pendingRecordings';
 import { useRecorder } from '@/hooks/useRecorder';
+import { rememberSession } from '@/lib/attempt';
+import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { CueCard } from './CueCard';
@@ -33,7 +36,7 @@ const INTRO = {
 };
 const P2_MAX_MS = SPEAKING_ZONES[2].max * 1000;
 
-type Upload = { key: number; label: string; status: 'uploading' | 'done' | 'failed'; id?: string; error?: string; /** A copy is in IndexedDB, so leaving or reloading does not lose it. */ kept: boolean };
+type Upload = { key: number; label: string; status: 'uploading' | 'done' | 'failed'; id?: string; error?: string; /** The quota, balance or traffic limit that refused it: the recording is kept and sent once it clears. */ blocker?: Blocker; /** A copy is in IndexedDB, so leaving or reloading does not lose it. */ kept: boolean };
 
 const HINT_KEY = 'ielts.micHintSeen';
 const hintSeen = () => {
@@ -75,12 +78,13 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   const kept = useRef<Record<number, boolean>>({});
   const upload = async (key: number) => {
     const patch = (u: Partial<Upload>) => setUploads((all) => all.map((x) => (x.key === key ? { ...x, ...u } : x)));
-    patch({ status: 'uploading', error: undefined });
+    patch({ status: 'uploading', error: undefined, blocker: undefined });
     try {
       const id = await uploadPending(pending.current[key]!, kept.current[key]);
       patch({ status: 'done', id });
     } catch (e) {
-      patch({ status: 'failed', error: e instanceof Error ? e.message : 'Upload failed' });
+      const blocker = blockerOf(e) ?? undefined;
+      patch({ status: 'failed', error: blocker ? undefined : e instanceof Error ? e.message : 'Upload failed', blocker });
     }
   };
 
@@ -135,6 +139,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   useEffect(() => {
     if (!allDone) return;
     const first = uploads.find((u) => u.key === 0)!.id!;
+    if (sessionId) rememberSession(sessionId, [...uploads].sort((a, b) => a.key - b.key).map((u) => u.id!));
     void navigate({ to: '/speaking/result/$attemptId', params: { attemptId: first }, search: sessionId ? { session: sessionId } : {}, replace: true });
   }, [allDone, uploads, navigate, sessionId]);
 
@@ -458,7 +463,8 @@ function Finishing({ uploads, total, onRetry }: { uploads: Upload[]; total: numb
           ))}
         </ul>
       </Card>
-      {failed.length > 0 && (
+      {failed.some((u) => u.blocker) && <BlockedAlert blocker={failed.find((u) => u.blocker)!.blocker!} keeps={kept ? 'Your recording is saved on this device. Upload it from the Speaking page once you can.' : 'Keep this tab open: this recording is not saved anywhere else.'} />}
+      {failed.some((u) => !u.blocker) && (
         <Alert
           tone="bad"
           title="Upload failed"

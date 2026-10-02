@@ -1,5 +1,7 @@
 import { infiniteQueryOptions, useMutation, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AccountGate } from '@/components/community/AccountGate';
+import { loadForAccount, useAccount } from '@/lib/query';
 import { clsx } from 'clsx';
 import { ArrowRight, Check, Plus, TriangleAlert } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -24,9 +26,14 @@ const mistakesQuery = (category?: string) =>
 export const Route = createFileRoute('/_app/mistakes')({
   validateSearch: (s: Record<string, unknown>): { category?: string } => ({ category: typeof s.category === 'string' && s.category ? s.category : undefined }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => context.queryClient.ensureInfiniteQueryData(mistakesQuery(deps.category)),
-  component: MistakesPage,
+  loader: ({ context, deps }) => loadForAccount(context.queryClient, () => context.queryClient.ensureInfiniteQueryData(mistakesQuery(deps.category))),
+  component: GatedMistakesPage,
 });
+
+/** A guest gets the sign-up gate instead of a page that would answer 403. */
+function GatedMistakesPage() {
+  return useAccount() ? <MistakesPage /> : <AccountGate what="mistakes" />;
+}
 
 function MistakesPage() {
   const { category } = Route.useSearch();

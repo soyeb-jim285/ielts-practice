@@ -4,28 +4,38 @@ import { LoaderCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatBand } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { attemptQuery, type AttemptListItem } from '@/lib/attempt';
+import { attemptQuery, recallSession, type AttemptListItem } from '@/lib/attempt';
+import { useAccount } from '@/lib/query';
 import { notAssessed, sessionOverall } from '@/lib/result';
 
 /** Full-test part switcher + session overall (criteria weighted by speaking time). */
 export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; currentId: string }) {
+  const account = !!useAccount();
   const list = useQuery({
+    enabled: account, // a guest cannot list attempts: their parts come from this tab's memory of the test it just took
     queryKey: ['attempts', 'speaking', 1],
     queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1'),
   });
-  const parts = (list.data?.items ?? []).filter((a) => a.sessionId === sessionId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const details = useQueries({ queries: parts.map((p) => attemptQuery(p.id)) });
+  const listed = (list.data?.items ?? []).filter((a) => a.sessionId === sessionId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const ids = account ? listed.map((p) => p.id) : recallSession(sessionId);
+  const details = useQueries({ queries: ids.map((id) => attemptQuery(id)) });
+  const parts = ids.flatMap((id, i) => {
+    const l = listed[i];
+    const d = details[i]?.data;
+    const part = l?.part ?? d?.part;
+    return part ? [{ id, part, d, promptTitle: l?.promptTitle ?? d?.prompt.title ?? '', durationMs: l?.durationMs ?? d?.durationMs ?? null }] : [];
+  });
   if (parts.length < 2) return null;
 
-  const summary = sessionOverall(details.map((d, i) => ({ result: d.data?.analysis, durationMs: d.data?.durationMs ?? parts[i]!.durationMs })));
+  const summary = sessionOverall(parts.map((p) => ({ result: p.d?.analysis, durationMs: p.d?.durationMs ?? p.durationMs })));
   const p1Total = parts.filter((p) => p.part === 1).length;
   let p1 = 0;
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <nav aria-label="Test parts" className="inline-flex flex-wrap gap-1 rounded-md bg-surface-2 p-0.5 ring-1 ring-line ring-inset">
-        {parts.map((p, i) => {
-          const d = details[i]?.data;
+        {parts.map((p) => {
+          const d = p.d;
           const label = p.part === 1 && p1Total > 1 ? `P1.${++p1}` : `P${p.part}`;
           const current = p.id === currentId;
           return (

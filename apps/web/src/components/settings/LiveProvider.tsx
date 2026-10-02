@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router';
 import { RadioGroup } from 'radix-ui';
 import { rowStyles } from '@/components/bank/ListRow';
+import { buttonStyles } from '@/components/ui';
 import type { Settings } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -16,11 +18,13 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 export function LiveProvider({ value, available, onChange }: { value: Provider; available: Partial<Record<Provider, boolean>>; onChange: (v: Provider) => void }) {
   const natural = 'Talk back and forth as in the real test. You can interrupt each other.';
   const options = [
-    { value: 'turn' as const, description: 'The examiner asks a question, then listens until you pause.' },
-    { value: 'gpt-live' as const, description: available['gpt-live'] ? natural : 'Not available right now.', disabled: !available['gpt-live'] },
-    { value: 'gemini-live' as const, description: available['gemini-live'] ? natural : 'Not available right now.', disabled: !available['gemini-live'] },
+    { value: 'turn' as const, description: available.turn === false ? 'Needs your own OpenRouter key.' : 'The examiner asks a question, then listens until you pause.', disabled: available.turn === false },
+    { value: 'gpt-live' as const, description: available['gpt-live'] ? natural : 'Needs your own OpenAI key.', disabled: !available['gpt-live'] },
+    { value: 'gemini-live' as const, description: available['gemini-live'] ? natural : 'Needs your own Gemini key.', disabled: !available['gemini-live'] },
   ];
+  const locked = options.some((o) => o.disabled);
   return (
+    <>
     <RadioGroup.Root value={value} onValueChange={(v) => onChange(v as Provider)} aria-label="Conversation mode" className="-my-4 divide-y divide-line">
       {options.map((o) => (
         <RadioGroup.Item
@@ -43,5 +47,14 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
         </RadioGroup.Item>
       ))}
     </RadioGroup.Root>
+    {locked && (
+      <p className="type-caption pt-5">
+        The live examiner never uses the community balance.{' '}
+        <Link to="/settings" hash="api-keys" className={buttonStyles({ variant: 'link', className: 'hit' })}>
+          Add your own key
+        </Link>
+      </p>
+    )}
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AccountGate } from '@/components/community/AccountGate';
 import { History, Mic, PenLine } from 'lucide-react';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
@@ -7,7 +8,7 @@ import { dayBucket, runs } from '@/components/bank/group';
 import { Badge, buttonStyles, EmptyState, PageContainer, PageHeader, Segmented, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
-import { useMe } from '@/lib/query';
+import { loadForAccount, useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
@@ -24,8 +25,8 @@ const historyQuery = (skill?: Skill) =>
 export const Route = createFileRoute('/_app/history')({
   validateSearch: (s: Record<string, unknown>): { skill?: Skill } => ({ skill: s.skill === 'speaking' || s.skill === 'writing' ? s.skill : undefined }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => context.queryClient.ensureInfiniteQueryData(historyQuery(deps.skill)),
-  component: HistoryPage,
+  loader: ({ context, deps }) => loadForAccount(context.queryClient, () => context.queryClient.ensureInfiniteQueryData(historyQuery(deps.skill))),
+  component: GatedHistoryPage,
 });
 
 const STATUS: Record<Exclude<AttemptItem['status'], 'done'>, { label: string; tone: Tone }> = {
@@ -39,6 +40,11 @@ const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-b
 const showDuration = (a: AttemptItem) => !!a.durationMs && (a.skill === 'speaking' || a.durationMs >= 60_000);
 // ponytail: `flag` isn't in the list contract yet (server request); rendered when present.
 const FLAG: Record<string, string> = { offTopic: 'Off topic', tooShort: 'Under length' };
+
+/** A guest gets the sign-up gate instead of a page that would answer 403. */
+function GatedHistoryPage() {
+  return useAccount() ? <HistoryPage /> : <AccountGate what="history" />;
+}
 
 function HistoryPage() {
   const { skill } = Route.useSearch();

@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
 import type { RepeatedWord } from '@ielts/core';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { KeepResult, RefundNote } from '@/components/community/KeepResult';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -80,6 +81,7 @@ function ResultPage() {
     return (
       <PageContainer>
         <PageHeader title={title} description={meta} back={back} />
+        <KeepResult />
         {switcher && <div className="mb-6">{switcher}</div>}
         {a.status === 'analyzing' ? (
           <AnalyzingState steps={STEPS} stepSeconds={7} />
@@ -110,10 +112,12 @@ function ResultPage() {
     return (
       <PageContainer>
         <PageHeader title={title} description={meta} back={back} />
+        <KeepResult />
         <div className="space-y-6">
           {switcher}
           <EmptyState icon={<MicOff />} title="No speech detected" action={retry}>
             We couldn't hear enough speech in this recording to score it. Check the right microphone is selected, speak a little closer to it, and keep talking for at least 20 seconds.
+            {!session && <RefundNote />}
           </EmptyState>
           {a.audioUrl && <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} />}
         </div>
@@ -152,6 +156,7 @@ function ResultPage() {
       >
         {switcher}
       </ResultHeader>
+      <KeepResult />
       {/* One sticky strip: the tabs, plus the player on the tabs that seek into the recording. */}
       <StickyTabs>
         <Tabs id="res" value={tab} onChange={setTab} className="max-sm:[&_button]:px-1.5" items={[

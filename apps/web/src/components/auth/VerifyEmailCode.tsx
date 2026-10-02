@@ -1,8 +1,7 @@
 import { MailCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Button, OtpInput } from '@/components/ui';
-import { authClient, otpError } from '@/lib/auth';
-import { queryClient } from '@/lib/query';
+import { authClient, otpError, refreshSession } from '@/lib/auth';
 import { ResendCode } from './ResendCode';
 
 /** "Enter the code we emailed you" step for sign-up and for signing in with an unverified address. A correct code verifies the email and signs the user in. */
@@ -19,7 +18,7 @@ export function VerifyEmailCode({ email, onVerified }: { email: string; onVerifi
     const { error } = await authClient.emailOtp.verifyEmail({ email, otp: code });
     setBusy(false);
     if (error) return setError(otpError(error));
-    queryClient.removeQueries({ queryKey: ['me'] });
+    refreshSession();
     onVerified();
   }
 

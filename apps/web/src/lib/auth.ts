@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { redirect } from '@tanstack/react-router';
-import { meQuery, queryClient } from './query';
+import { ApiError } from './api';
+import { isAccount, meQuery, queryClient } from './query';
 
 /** Better Auth error as the pages read it (the same fields its own client returns). */
 export type AuthError = { status: number; code?: string; message?: string };
@@ -14,13 +15,15 @@ async function post(path: string, body: object = {}): Promise<Result> {
   try {
     const r = await fetch(`/api/auth${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => null);
-    return r.ok ? { data: j, error: null } : { data: null, error: { status: r.status, code: j?.code, message: j?.message } };
+    return r.ok ? { data: j, error: null } : { data: null, error: { status: r.status, code: j?.code, message: j?.message ?? j?.error } };
   } catch {
     return { data: null, error: { status: 0, message: 'Network error. Check your connection and try again.' } };
   }
 }
 
 export const authClient = {
+  /** A guest session (Better Auth anonymous plugin): created on the first test start, never on page view. */
+  signInAnonymous: () => post('/sign-in/anonymous'),
   signIn: { email: (b: { email: string; password: string }) => post('/sign-in/email', b) },
   signUp: { email: (b: { name: string; email: string; password: string; callbackURL: string }) => post('/sign-up/email', b) },
   signOut: () => post('/sign-out'),
@@ -51,8 +54,24 @@ export async function signOut() {
   queryClient.clear();
 }
 
-/** beforeLoad for signed-out pages: bounce signed-in users to the dashboard. */
+/** beforeLoad for sign-in and sign-up: bounce signed-in users to the dashboard. A guest session stays: it is linked to the account on sign-in. */
 export async function redirectIfSignedIn({ context }: { context: { queryClient: QueryClient } }) {
   const me = await context.queryClient.fetchQuery(meQuery).catch(() => null);
-  if (me) throw redirect({ to: '/' });
+  if (isAccount(me)) throw redirect({ to: '/' });
 }
+
+/**
+ * Make sure there is a session before a test starts (a guest session when nobody is signed in), so attempts can be created.
+ * Called when a test actually starts, so merely browsing never creates a guest. Resolves to the current me.
+ */
+export async function ensureSession() {
+  const have = await queryClient.fetchQuery(meQuery).catch(() => null);
+  if (have) return have;
+  const { error } = await authClient.signInAnonymous();
+  if (error) throw new ApiError(error.status, error.status === 429 ? 'You’re going a bit fast. Try again in a moment.' : error.message || 'Could not start the test. Try again.', error.status === 429 ? 'too_many_requests' : error.code);
+  await queryClient.invalidateQueries({ queryKey: ['quota'] });
+  return queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+}
+
+/** After a sign-in or sign-up: the guest's tests now count on the account, so every cached answer about who you are and what you may do is stale. */
+export const refreshSession = () => queryClient.removeQueries({ predicate: (q) => ['me', 'quota', 'keys', 'attempts', 'attempt'].includes(String(q.queryKey[0])) });

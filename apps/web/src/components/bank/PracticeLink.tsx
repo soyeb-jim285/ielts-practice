@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Button, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
+import { ensureSession } from '@/lib/auth';
 
 type Mode = 'full' | 'p1' | 'p2' | 'p3';
 
@@ -29,6 +30,7 @@ export function useStartWriting(task: 1 | 2 = 2) {
   const start = async () => {
     setBusy(true);
     try {
+      await ensureSession(); // picking a test prompt needs a session; a guest gets theirs when they press Start
       const p = await call(client.GET('/api/prompts/random', { params: { query: { skill: 'writing', part: task } } }));
       await navigate({ to: '/writing/task/$promptId', params: { promptId: p.id } });
     } catch (e) {

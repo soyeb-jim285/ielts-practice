@@ -9,10 +9,11 @@ import { speakingSession, StartWritingButton, useStartWriting } from '@/componen
 import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/components/dashboard/criteria';
 import { GuestHome } from '@/components/dashboard/GuestHome';
 import { Onboarding } from '@/components/dashboard/Onboarding';
+import { QuotaStrip } from '@/components/community/QuotaNote';
 import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatMinutes, plural } from '@/lib/format';
-import { meQuery, useMe } from '@/lib/query';
+import { isAccount, meQuery, useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { categoryLabel, criterionLabel, SPEAKING_CRITERIA, WRITING_CRITERIA } from '@/lib/result';
 
@@ -23,13 +24,13 @@ const dueCountQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => 
 export const Route = createFileRoute('/_app/')({
   // Guests (no session) get a static intro and load nothing personal.
   loader: async ({ context }) => {
-    if (await context.queryClient.ensureQueryData(meQuery)) await Promise.all([context.queryClient.ensureQueryData(progressQuery), context.queryClient.ensureQueryData(dueCountQuery)]);
+    if (isAccount(await context.queryClient.ensureQueryData(meQuery))) await Promise.all([context.queryClient.ensureQueryData(progressQuery), context.queryClient.ensureQueryData(dueCountQuery)]);
   },
   component: Home,
 });
 
 function Home() {
-  return useMe().data ? <Dashboard /> : <GuestHome />;
+  return useAccount() ? <Dashboard /> : <GuestHome />;
 }
 
 const greeting = () => {
@@ -68,6 +69,7 @@ function Dashboard() {
       />
 
       <div className="space-y-6 md:space-y-8">
+        <QuotaStrip />
         {p.lastFailed && (
           <Alert
             tone="warn"
@@ -120,7 +122,7 @@ function Dashboard() {
                   <RowIcon>
                     <MessagesSquare />
                   </RowIcon>
-                  <RowText title="Live examiner" meta="A spoken conversation with an AI examiner" />
+                  <RowText title="Live examiner" meta={me.liveProviders.length ? 'A spoken conversation with an AI examiner' : 'Needs your own API key, added in Settings'} />
                   <RowChevron />
                 </Link>
               </li>

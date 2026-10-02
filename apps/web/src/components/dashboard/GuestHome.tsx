@@ -1,12 +1,14 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Layers, LibraryBig, MessagesSquare, Mic, PenLine, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
+import { speakingSession, StartWritingButton } from '@/components/bank/PracticeLink';
+import { QuotaStrip } from '@/components/community/QuotaNote';
 import { Badge, buttonStyles, Card, PageContainer, PageHeader, ProgressBar } from '@/components/ui';
 import { formatBand } from '@/lib/format';
 
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: Mic, title: 'Speaking test', body: 'All three parts, recorded. Fluency, vocabulary, grammar and pronunciation are scored, with your pauses timed in the transcript.' },
-  { icon: MessagesSquare, title: 'Live examiner', body: 'A spoken conversation: an AI examiner asks, listens and follows up on what you say.' },
+  { icon: MessagesSquare, title: 'Live examiner', body: 'A spoken conversation: an AI examiner asks, listens and follows up on what you say. Runs on your own API key.' },
   { icon: PenLine, title: 'Writing Task 1 and 2', body: 'Timed tasks marked against the public band descriptors, with each mistake underlined and corrected.' },
   { icon: TriangleAlert, title: 'Mistake log', body: 'The errors you repeat, grouped, so you know what to fix first.' },
   { icon: Layers, title: 'Review deck', body: 'Turn corrections into short flashcards that come back just before you forget them.' },
@@ -28,18 +30,26 @@ export function GuestHome() {
         title="Practise IELTS Speaking and Writing"
         description="Timed practice with a band for every criterion, and each mistake marked exactly where you made it."
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row-reverse">
-            <Link to="/signup" className={buttonStyles({ size: 'lg', className: 'h-11 sm:h-10' })}>
-              Create account
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Link {...speakingSession('p1')} className={buttonStyles({ size: 'lg', className: 'h-11 sm:h-10' })}>
+              Try a speaking test
             </Link>
-            <Link to="/login" className={buttonStyles({ variant: 'outline', size: 'lg', className: 'h-11 sm:h-10' })}>
-              Sign in
-            </Link>
+            <StartWritingButton variant="outline" size="lg" className="h-11 sm:h-10">
+              Try a writing test
+            </StartWritingButton>
           </div>
         }
       />
 
       <div className="space-y-10 md:space-y-12">
+        <section aria-labelledby="free-h" className="space-y-3">
+          <h2 id="free-h" className="type-heading">
+            Free to try, no account
+          </h2>
+          <p className="type-lede max-w-[60ch]">One speaking test and one writing test a week, paid from a balance the community shares. Create an account for one of each a day, or add your own key for unlimited tests and the live examiner.</p>
+          <QuotaStrip />
+        </section>
+
         <section aria-labelledby="features-h">
           <PanelHeader id="features-h" title="What you get" />
           <ul className="grid gap-x-12 gap-y-7 sm:grid-cols-2">
@@ -116,9 +126,12 @@ export function GuestHome() {
             </li>
           </ul>
           <p className="type-caption mt-4 flex flex-wrap items-center gap-x-2">
-            Starting a test, or seeing your results, needs an account.
+            History, mistakes and the review deck need an account.
             <Link to="/signup" className="inline-flex items-center gap-1 font-medium text-accent-text underline-offset-4 hover:underline">
               Create one <ArrowRight className="size-4" aria-hidden />
+            </Link>
+            <Link to="/login" className="inline-flex items-center gap-1 font-medium text-accent-text underline-offset-4 hover:underline">
+              Sign in
             </Link>
           </p>
         </section>

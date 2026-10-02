@@ -20,7 +20,8 @@ import {
   useSidebar,
 } from '@/components/ui/shadcn/sidebar';
 import { signOut } from '@/lib/auth';
-import { useMe } from '@/lib/query';
+import { BalanceMeter } from '@/components/community/BalanceMeter';
+import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { Logo, LogoMark } from './Logo';
 
@@ -103,7 +104,7 @@ function GuestMenu() {
 
 /** Account control in the sidebar footer: square initial and the name (the email lives in the menu, so nothing truncates). */
 function UserMenu() {
-  const { data: me } = useMe();
+  const me = useAccount();
   const doSignOut = useSignOut();
   if (!me) return <GuestMenu />;
   const name = me.user.name || me.user.email;
@@ -164,8 +165,19 @@ function SidebarTop() {
   );
 }
 
+/** The shared balance, always in view in the sidebar (hidden in the icon rail, where there is no room for a label). */
+function SidebarBalance() {
+  const { state } = useSidebar();
+  if (state === 'collapsed') return null;
+  return (
+    <div className="px-2 pt-1 pb-2">
+      <BalanceMeter />
+    </div>
+  );
+}
+
 function AppSidebar() {
-  const signedIn = !!useMe().data;
+  const signedIn = !!useAccount();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-3 pb-1">
@@ -188,6 +200,7 @@ function AppSidebar() {
         </nav>
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
+        <SidebarBalance />
         {signedIn && (
           <SidebarMenu>
             <SideLink item={SETTINGS} />
@@ -215,7 +228,7 @@ const pill = 'grid h-7 w-14 place-items-center rounded-full transition-colors du
 
 /** Authed app frame: shadcn Sidebar (collapsible to icons, 240px) from md, bottom tab bar + "More" sheet below. Pages render their own PageHeader inside. */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { data: me } = useMe();
+  const me = useAccount();
   const [more, setMore] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const doSignOut = useSignOut();
@@ -279,13 +292,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <Separator className="my-4" />
+        <BalanceMeter className="mb-4" />
         {me ? (
           <Button variant="ghost" icon={<LogOut />} onClick={doSignOut}>
             Sign out
           </Button>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted">Sign in to take a test and save your results.</p>
+            <p className="text-sm text-muted">Create an account to keep your results and get 1 test a day.</p>
             <Link to="/signup" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ size: 'lg', className: 'h-11 w-full' })}>
               Create account
             </Link>

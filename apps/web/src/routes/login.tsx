@@ -3,8 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode';
 import { Alert, Button, buttonStyles, Input } from '@/components/ui';
-import { authClient, redirectIfSignedIn, safeRedirect } from '@/lib/auth';
-import { queryClient } from '@/lib/query';
+import { authClient, redirectIfSignedIn, refreshSession, safeRedirect } from '@/lib/auth';
 
 export const Route = createFileRoute('/login')({
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => (typeof s.redirect === 'string' ? { redirect: s.redirect } : {}),
@@ -38,7 +37,7 @@ function Login() {
   }
 
   function done() {
-    queryClient.removeQueries({ queryKey: ['me'] });
+    refreshSession();
     router.history.push(safeRedirect(redirect));
   }
 
@@ -52,7 +51,7 @@ function Login() {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle={redirect ? 'Sign in to take a test and save your results.' : 'Sign in to continue your practice.'}
+      subtitle={redirect ? 'Sign in to pick up where you left off.' : 'Sign in to continue your practice.'}
       footer={
         <>
           New here?{' '}

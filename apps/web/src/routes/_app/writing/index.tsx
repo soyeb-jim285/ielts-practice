@@ -6,8 +6,10 @@ import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/compo
 import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
 import { api, call, client } from '@/lib/api';
+import { ensureSession } from '@/lib/auth';
 import { formatBand, formatDate, plural } from '@/lib/format';
-import { useMe } from '@/lib/query';
+import { QuotaNote } from '@/components/community/QuotaNote';
+import { useAccount } from '@/lib/query';
 import { bandColor } from '@/lib/result';
 import { cn } from '@/lib/utils';
 import { typeLabel } from '@/lib/writing';
@@ -36,6 +38,7 @@ function WritingHome() {
   const start = async (k: Kind | 'full') => {
     setStarting(k);
     try {
+      await ensureSession(); // picking a test prompt needs a session; a guest gets theirs when they press Start
       if (k === 'full') {
         const [t1, t2] = await Promise.all([random(fullVariant === 'academic' ? 't1a' : 't1g'), random('t2')]);
         await navigate({ to: '/writing/full', search: { t1: t1.id, t2: t2.id } });
@@ -74,10 +77,11 @@ function WritingHome() {
                 Start full test
               </Button>
             </div>
+            <QuotaNote skill="writing" className="mt-3 sm:text-right" />
           </Card>
 
           <section aria-labelledby="one-h" className="flex flex-col">
-            <PanelHeader id="one-h" title="Or practise one task" />
+            <PanelHeader id="one-h" title="Or practise one task" meta={<QuotaNote skill="writing" />} />
             <ul className={cn(listStyles, 'stagger flex-1')}>
               {(Object.keys(KIND) as Kind[]).map((k) => (
                 <li key={k}>
@@ -108,7 +112,7 @@ function WritingHome() {
 
 /** The last few writing attempts with their band, so a returning learner can reopen feedback or see progress at a glance. Hidden until there is one. */
 function Recent() {
-  const me = useMe().data;
+  const me = useAccount();
   const target = me?.settings.targetBand ?? 7;
   const { data } = useQuery({
     enabled: !!me, // guests have no attempts

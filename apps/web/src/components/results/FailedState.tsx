@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { BlockedAlert } from '@/components/community/BlockedPanel';
+import { RefundNote } from '@/components/community/KeepResult';
 import { Alert, Button } from '@/components/ui';
 import { retryAnalysis } from '@/lib/attempt';
+import { blockerOf } from '@/lib/community';
 
 /** Failed attempt: readable server message plus "Retry analysis" (POST submit again, then refetch), or a custom `action` (e.g. "Record again" when there is nothing to re-analyse). `extra` adds secondary ways out. */
 export function FailedState({ attemptId, message, title = 'Analysis failed', action, extra, retryable = true }: { attemptId: string; message?: string | null; title?: string; action?: ReactNode; extra?: ReactNode; retryable?: boolean }) {
@@ -10,6 +13,8 @@ export function FailedState({ attemptId, message, title = 'Analysis failed', act
     mutationFn: () => retryAnalysis(attemptId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['attempt', attemptId] }),
   });
+  const blocker = blockerOf(retry.error);
+  if (blocker) return <BlockedAlert blocker={blocker} keeps="Your answer is saved, so you can retry later." />; // the test was used elsewhere in the meantime
   return (
     <Alert
       tone="bad"
@@ -27,6 +32,7 @@ export function FailedState({ attemptId, message, title = 'Analysis failed', act
       }
     >
       {retry.error?.message ?? message ?? 'Something went wrong. Your answer is saved, so you can retry.'}
+      <RefundNote />
     </Alert>
   );
 }

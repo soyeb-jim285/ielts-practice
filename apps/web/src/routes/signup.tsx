@@ -4,8 +4,7 @@ import { PasswordPair, passwordsMatch } from '@/components/auth/PasswordPair';
 import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { Alert, Button, buttonStyles, Input } from '@/components/ui';
-import { authClient, redirectIfSignedIn, safeRedirect } from '@/lib/auth';
-import { queryClient } from '@/lib/query';
+import { authClient, redirectIfSignedIn, refreshSession, safeRedirect } from '@/lib/auth';
 
 export const Route = createFileRoute('/signup')({
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => (typeof s.redirect === 'string' ? { redirect: s.redirect } : {}),
@@ -22,7 +21,7 @@ function Signup() {
   const [submitted, setSubmitted] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const done = () => {
-    queryClient.removeQueries({ queryKey: ['me'] });
+    refreshSession();
     router.history.push(safeRedirect(redirect));
   };
 

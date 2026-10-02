@@ -2,9 +2,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { clsx } from 'clsx';
 import { ChevronDown, Clock, NotebookPen, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { BlockedAlert } from '@/components/community/BlockedPanel';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Tabs, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
+import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock, plural } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { minWords, SUBMIT_FLOOR, taskLabel } from '@/lib/writing';
@@ -64,6 +66,7 @@ export function WritingExam({
   const [busy, setBusy] = useState(false);
   const [promptOpen, setPromptOpen] = useState(() => !drafts[prompts[0]!.id]!.text); // phones: collapse the question once the answer is under way
   const [error, setError] = useState<string | null>(null);
+  const [blocker, setBlocker] = useState<Blocker | null>(null); // the quota ran out (a second tab, the window rolled): the draft stays, the reason is shown
   const left = useDeadline(seconds);
   const created = useRef<Record<string, string>>({}); // promptId → attemptId, so a retried submit never duplicates attempts
   const sessionId = useRef(prompts.length > 1 ? crypto.randomUUID() : undefined);
@@ -73,6 +76,7 @@ export function WritingExam({
     if (busy) return;
     setBusy(true);
     setError(null);
+    setBlocker(null);
     const overtime = left < 0;
     // Editor time, split across the tasks of a full test so weekly minutes don't count it twice.
     const durationMs = Math.round(((seconds - left) * 1000) / prompts.length);
@@ -92,7 +96,9 @@ export function WritingExam({
       clear();
       void navigate({ to: '/writing/result/$attemptId', params: { attemptId: ids[0]! }, search: ids[1] ? { pair: ids[1] } : {} });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not submit. Your answer is still here; try again.');
+      const b = blockerOf(e);
+      if (b) setBlocker(b);
+      else setError(e instanceof Error ? e.message : 'Could not submit. Your answer is still here; try again.');
       setBusy(false);
       setConfirm(null);
     }
@@ -151,6 +157,7 @@ export function WritingExam({
             items={prompts.map((p) => ({ value: p.id, label: `${p.part === 1 ? 'Task 1' : 'Task 2'}, ${plural(countWords(drafts[p.id]!.text), 'word')}` }))}
           />
         )}
+        {blocker && <BlockedAlert blocker={blocker} keeps="Your answer is still here and saved on this device." className="m-3 shrink-0 sm:mx-5" />}
         {error && (
           <Alert tone="bad" title="Submit failed" className="m-3 shrink-0 sm:mx-5">
             {error}

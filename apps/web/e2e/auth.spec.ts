@@ -11,12 +11,13 @@ async function fillSignup(page: Page, to: string, confirm = 'correct-horse-batte
 }
 
 test.describe('guest browsing', () => {
-  test('login is not the first screen: the dashboard explains the product', async ({ page }) => {
+  test('login is not the first screen: the dashboard explains the product and the free tests', async ({ page }) => {
     await page.goto('/');
     await expect(page).not.toHaveURL(/\/login/);
     await expect(page.getByRole('heading', { level: 1, name: 'Practise IELTS Speaking and Writing' })).toBeVisible();
     await expect(page.getByText('Example, not a real score').first()).toBeVisible();
-    await expect(page.getByRole('main').getByRole('link', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('link', { name: 'Try a speaking test' })).toBeVisible();
+    await expect(page.getByRole('main').getByText('1 test left this week').first()).toBeVisible();
   });
 
   test('hubs and the prompt bank open without an account (no Cambridge prompts)', async ({ page }) => {
@@ -29,21 +30,12 @@ test.describe('guest browsing', () => {
     await expect(page.getByText(/Cambridge/)).toHaveCount(0);
   });
 
-  test('personal pages ask for sign-in and bring you back after signing up', async ({ page }) => {
-    await page.goto('/speaking');
-    await page.getByRole('link', { name: /Start full test/ }).click();
-    await expect(page).toHaveURL(/\/login\?redirect=/);
-    await expect(page.getByText('Sign in to take a test and save your results.')).toBeVisible();
-
-    await page.getByRole('link', { name: 'Create an account' }).click();
-    await expect(page).toHaveURL(/\/signup\?redirect=/);
-    await fillSignup(page, email('back'));
-    await expect(page).toHaveURL(/\/speaking\/session\?mode=full/);
-  });
-
-  test('history needs an account', async ({ page }) => {
-    await page.goto('/history');
-    await expect(page).toHaveURL(/\/login\?redirect=%2Fhistory/);
+  test('personal pages show a sign-up gate, not a redirect', async ({ page }) => {
+    for (const [path, title] of [['/history', 'Create an account to see your history'], ['/mistakes', 'Create an account to see your mistakes'], ['/review', 'Create an account to build a review deck'], ['/settings', 'Create an account to change settings']] as const) {
+      await page.goto(path);
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+    }
   });
 });
 
@@ -77,7 +69,7 @@ test.describe('forgot password with an email code', () => {
     await page.getByRole('button', { name: 'Send code' }).click();
     await expect(page.getByRole('heading', { name: 'Enter your code' })).toBeVisible();
 
-    const first = page.getByLabel('Digit 1 of 6');
+    const first = page.getByLabel('Verification code');
     await expect(first).toHaveAttribute('autocomplete', 'one-time-code');
     await first.focus();
     await page.evaluate(() => {
@@ -85,7 +77,7 @@ test.describe('forgot password with an email code', () => {
       dt.setData('text', '482 913');
       document.activeElement!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     });
-    await expect(page.getByLabel('Digit 6 of 6')).toHaveValue('3');
+    await expect(first).toHaveValue('482913');
 
     await page.getByLabel('New password', { exact: true }).fill('a-brand-new-passphrase');
     await page.getByLabel('Confirm password').fill('a-different-passphrase');
@@ -104,7 +96,7 @@ test.describe('forgot password with an email code', () => {
     await page.goto('/forgot-password');
     await page.getByLabel('Email').fill('someone@example.com');
     await page.getByRole('button', { name: 'Send code' }).click();
-    await page.getByLabel('Digit 1 of 6').fill('123456');
+    await page.getByLabel('Verification code').fill('123456');
     await page.getByLabel('New password', { exact: true }).fill('a-brand-new-passphrase');
     await page.getByLabel('Confirm password').fill('a-brand-new-passphrase');
     await page.getByRole('button', { name: 'Update password' }).click();

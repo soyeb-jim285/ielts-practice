@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { MicOff } from 'lucide-react';
 import { useState } from 'react';
+import { TestGate } from '@/components/community/TestGate';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { SessionFlow, toSegment, type Segment } from '@/components/speaking/SessionFlow';
 import { Alert, Button, buttonStyles, EmptyState, Skeleton } from '@/components/ui';
@@ -31,13 +32,25 @@ async function loadSegments({ mode, promptId }: Search): Promise<Segment[]> {
   return [toSegment(await api.get<Prompt>(`/prompts/random?skill=speaking&part=${mode.slice(1)}`))];
 }
 
+/** The gate first (quota, fair use, guest session); the questions load after it, because picking them needs a session. */
 function SessionPage() {
+  return (
+    <TestGate skill="speaking" title="Speaking">
+      <Session />
+    </TestGate>
+  );
+}
+
+function Session() {
   const search = Route.useSearch();
   // A fresh test each visit, stable while you're on the page.
   const q = useQuery({ queryKey: ['speaking-session', search.mode, search.promptId ?? null], queryFn: () => loadSegments(search), staleTime: Infinity, gcTime: 0 });
   const [sessionId] = useState(() => (search.mode === 'full' && !search.promptId ? crypto.randomUUID() : undefined));
 
-  if (q.data) return <SessionFlow segments={q.data} sessionId={sessionId} parentAttemptId={search.parent} />;
+  return q.data ? <SessionFlow segments={q.data} sessionId={sessionId} parentAttemptId={search.parent} /> : <Loading q={q} />;
+}
+
+function Loading({ q }: { q: ReturnType<typeof useQuery<Segment[]>> }) {
   return (
     <ExamShell title="Speaking">
       {q.isPending ? (

@@ -6,6 +6,10 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Machine-readable reason from the server (docs/community.md): quota_exceeded, community_balance_exhausted, live_requires_own_key, ... Clients map it to UX; `message` is only the fallback. */
+    public code?: string,
+    /** The rest of the error body (skill, resetAt, tier for quota_exceeded). */
+    public body?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -24,8 +28,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
-const apiError = (res: Response, body: unknown) =>
-  new ApiError(res.status, (body as { error?: string } | undefined)?.error || (res.status >= 500 ? 'Something went wrong on our side. Try again.' : res.statusText || 'Request failed'));
+const apiError = (res: Response, body: unknown) => {
+  const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined;
+  const text = typeof b?.error === 'string' && b.error;
+  return new ApiError(res.status, text || (res.status >= 500 ? 'Something went wrong on our side. Try again.' : res.statusText || 'Request failed'), typeof b?.code === 'string' ? b.code : undefined, b);
+};
 
 /**
  * Contract-typed client: paths, params, bodies and responses come from openapi.json (src/lib/schema.d.ts, `pnpm gen:api`),

@@ -14,7 +14,7 @@ const STEPS = [
 ] as const;
 
 /** Before the test (in the exam frame, Exit back to Speaking): how it runs, which examiner, and a mic check with a live level meter. */
-export function PreScreen({ style, fallback, onStart }: { style: Provider; fallback: boolean; onStart: () => void }) {
+export function PreScreen({ style, fallback, onStart }: { style: Provider; fallback: false | 'failed' | 'locked'; onStart: () => void }) {
   const mic = useRecorder();
   const live = mic.state === 'recording';
   // Ask for the microphone on entry so the check is already running (and Start works in one tap). The ref keeps StrictMode from asking twice.
@@ -72,9 +72,17 @@ export function PreScreen({ style, fallback, onStart }: { style: Provider; fallb
               Change
             </Link>
           </p>
-          {fallback && (
+          {fallback === 'failed' && (
             <Alert tone="warn" className="mt-4" title="Natural conversation isn't available right now">
               Your examiner will wait for you to finish each answer instead. It runs the same test.
+            </Alert>
+          )}
+          {fallback === 'locked' && (
+            <Alert tone="info" className="mt-4" title="Natural conversation needs your own OpenAI or Gemini key">
+              Your examiner will wait for you to finish each answer instead. It runs the same test.{' '}
+              <Link to="/settings" hash="api-keys" className={buttonStyles({ variant: 'link', className: 'hit' })}>
+                Add a key
+              </Link>
             </Alert>
           )}
         </section>

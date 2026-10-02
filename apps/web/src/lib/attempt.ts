@@ -92,3 +92,21 @@ export const attemptQuery = (id: string) =>
 
 /** Re-run a failed analysis (or submit a never-submitted one with its stored data). */
 export const retryAnalysis = (id: string) => api.post<{ status: 'analyzing' }>(`/attempts/${id}/submit`, {});
+
+// A guest cannot list attempts, so the part switcher of a full speaking test would have nothing to show. The tab remembers the ids of the parts it just uploaded.
+const sessionKey = (sessionId: string) => `ielts.session.${sessionId}`;
+
+export function rememberSession(sessionId: string, attemptIds: string[]) {
+  try {
+    sessionStorage.setItem(sessionKey(sessionId), JSON.stringify(attemptIds));
+  } catch {}
+}
+
+export function recallSession(sessionId: string): string[] {
+  try {
+    const v: unknown = JSON.parse(sessionStorage.getItem(sessionKey(sessionId)) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}

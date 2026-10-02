@@ -1,6 +1,7 @@
 import { WRITING_SECONDS } from '@ielts/core';
 import { createFileRoute } from '@tanstack/react-router';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
+import { TestGate } from '@/components/community/TestGate';
 import { WritingExam } from '@/components/writing/WritingExam';
 import { api } from '@/lib/api';
 
@@ -18,12 +19,8 @@ function TaskPage() {
   const prompt = Route.useLoaderData();
   const { parent } = Route.useSearch();
   return (
-    <WritingExam
-      key={prompt.id}
-      prompts={[prompt]}
-      seconds={prompt.part === 1 ? WRITING_SECONDS.t1 : WRITING_SECONDS.t2}
-      mode="practice"
-      parentAttemptId={parent}
-    />
+    <TestGate skill="writing" title="Writing">
+      <WritingExam key={prompt.id} prompts={[prompt]} seconds={prompt.part === 1 ? WRITING_SECONDS.t1 : WRITING_SECONDS.t2} mode="practice" parentAttemptId={parent} />
+    </TestGate>
   );
 }

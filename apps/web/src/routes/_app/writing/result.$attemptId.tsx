@@ -13,6 +13,7 @@ import { capOffTopic } from '@/components/writing/offTopic';
 import { PromptTitle, PromptToggle } from '@/components/writing/PromptTitle';
 import { StructureMap } from '@/components/writing/StructureMap';
 import { formatBand, formatDate, plural } from '@/lib/format';
+import { KeepResult } from '@/components/community/KeepResult';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
 import { addFixesToDeck, bandColor, WRITING_CRITERIA, type Attempt } from '@/lib/result';
@@ -102,6 +103,8 @@ function ResultPage() {
       ) : (
         <PageHeader title={a.prompt.title} description={meta} actions={switcher} back={back} />
       )}
+
+      <KeepResult />
 
       {combined && (
         <Card className="mb-6 flex items-center justify-between gap-4">

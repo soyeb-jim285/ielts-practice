@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, type LinkProps } from '@tanstack/react-router';
-import { ArrowRight, AudioLines, ListOrdered } from 'lucide-react';
+import { ArrowRight, AudioLines, ListOrdered, Lock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
 import { PendingUploads } from '@/components/speaking/PendingUploads';
@@ -8,7 +8,9 @@ import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
 import { bandColor, sentenceCase, type AttemptListItem } from '@/lib/result';
-import { useMe } from '@/lib/query';
+import { QuotaNote } from '@/components/community/QuotaNote';
+import { useAccount } from '@/lib/query';
+import { useQuota } from '@/lib/community';
 import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/speaking/')({ component: SpeakingHome });
@@ -23,14 +25,15 @@ const BAND_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-b
 
 /** Shared with the session switcher's cache. */
 const useRecentAttempts = () => {
-  const signedIn = !!useMe().data; // guests have no attempts
+  const signedIn = !!useAccount(); // guests have no history
   return useQuery({ enabled: signedIn, queryKey: ['attempts', 'speaking', 1], queryFn: () => api.get<{ items: AttemptListItem[] }>('/attempts?skill=speaking&page=1') });
 };
 
 function SpeakingHome() {
   // No attempts yet: the first action is a single part, so that list leads (order-first) and the full modes follow.
   const list = useRecentAttempts();
-  const fresh = !useMe().data || (list.isSuccess && list.data.items.length === 0);
+  const fresh = !useAccount() || (list.isSuccess && list.data.items.length === 0);
+  const live = useQuota().data?.liveProviders.length !== 0; // unknown while loading counts as open, so the card does not flash a lock
   return (
     <PageContainer>
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
@@ -45,6 +48,7 @@ function SpeakingHome() {
             body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
             meta="11-14 min, recorded"
             cta="Start full test"
+            note={<QuotaNote skill="speaking" />}
           />
           <ModeCard
             link={{ to: '/speaking/live' }}
@@ -55,11 +59,12 @@ function SpeakingHome() {
             body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
             meta="11-14 min, needs a microphone"
             cta="Talk to the examiner"
+            note={live ? undefined : <p className="type-caption flex items-center gap-1.5"><Lock className="size-3.5" aria-hidden />Needs your own OpenAI or Gemini key</p>}
           />
         </section>
 
         <section aria-labelledby="one-h" className={cn(fresh && 'order-first')}>
-          <PanelHeader id="one-h" title={fresh ? 'Start with one part' : 'Or practise one part'} />
+          <PanelHeader id="one-h" title={fresh ? 'Start with one part' : 'Or practise one part'} meta={<QuotaNote skill="speaking" />} />
           <ul className={cn(listStyles, 'stagger')}>
             {PARTS.map((p) => (
               <li key={p.mode}>
@@ -88,7 +93,7 @@ const MODE_TONE = {
   test: { card: 'border-line bg-[color-mix(in_oklab,var(--surface-2)_75%,var(--surface))]', icon: 'text-ink' },
   live: { card: 'border-brand/25 bg-[color-mix(in_oklab,var(--accent-soft)_70%,var(--surface))]', icon: 'text-accent-text' },
 };
-function ModeCard({ link, tone = 'test', icon, kind, title, body, meta, cta }: { link: LinkProps; tone?: keyof typeof MODE_TONE; icon: ReactNode; kind: string; title: string; body: string; meta: string; cta: string }) {
+function ModeCard({ link, tone = 'test', icon, kind, title, body, meta, cta, note }: { link: LinkProps; tone?: keyof typeof MODE_TONE; icon: ReactNode; kind: string; title: string; body: string; meta: string; cta: string; note?: ReactNode }) {
   const t = MODE_TONE[tone];
   return (
     <div className={cn('flex flex-col gap-6 rounded-lg border p-6 sm:p-7', t.card)}>
@@ -108,6 +113,7 @@ function ModeCard({ link, tone = 'test', icon, kind, title, body, meta, cta }: {
           {cta}
           <ArrowRight aria-hidden />
         </Link>
+        {note && <div className="basis-full">{note}</div>}
       </div>
     </div>
   );
@@ -136,7 +142,7 @@ function RowEnd({ children }: { children: ReactNode }) {
 
 /** Last few speaking results, so the next session starts from what you just did. Shares its cache with the session switcher. Hidden until there is one. */
 function Recent() {
-  const { data: me } = useMe();
+  const me = useAccount();
   const target = me?.settings.targetBand ?? 7;
   const list = useRecentAttempts();
   const items = (list.data?.items ?? []).slice(0, 5);

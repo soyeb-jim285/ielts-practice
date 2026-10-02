@@ -1,19 +1,20 @@
 import { review } from '@ielts/core';
 import { useMutation, useSuspenseQuery, queryOptions } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AccountGate } from '@/components/community/AccountGate';
 import { clsx } from 'clsx';
 import { CircleCheck, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button, buttonStyles, Card, EmptyState, Kbd, PageContainer, PageHeader, ProgressBar, Skeleton, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { plural } from '@/lib/format';
-import { queryClient } from '@/lib/query';
+import { loadForAccount, queryClient, useAccount } from '@/lib/query';
 
 const dueQuery = queryOptions({ queryKey: ['cards', 'due'], queryFn: () => call(client.GET('/api/cards/due')), staleTime: 0 });
 
 export const Route = createFileRoute('/_app/review')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(dueQuery),
-  component: ReviewPage,
+  loader: ({ context }) => loadForAccount(context.queryClient, () => context.queryClient.ensureQueryData(dueQuery)),
+  component: GatedReviewPage,
 });
 
 const GRADES = [
@@ -30,6 +31,11 @@ const PROMPT = {
   fix: 'How would you improve this sentence? Say or write it, then reveal the answer.',
 };
 const days = (n: number) => (n === 1 ? '1 day' : n < 30 ? `${n} days` : `${Math.round(n / 30)} mo`);
+
+/** A guest gets the sign-up gate instead of a page that would answer 403. */
+function GatedReviewPage() {
+  return useAccount() ? <ReviewPage /> : <AccountGate what="review" />;
+}
 
 function ReviewPage() {
   const { data, isFetching } = useSuspenseQuery(dueQuery);

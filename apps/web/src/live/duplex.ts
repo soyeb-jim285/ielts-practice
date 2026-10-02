@@ -3,7 +3,7 @@
 import type { Prompt } from '@server/routes/prompts';
 import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveStarted, type Phase } from './turn';
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
@@ -198,7 +198,8 @@ export function useDuplexExaminer(
       close();
       const denied = (e as DOMException)?.name === 'NotAllowedError';
       const msg = denied ? "Microphone blocked — allow it in the browser's site settings and retry" : e instanceof Error ? e.message : 'Could not start the test.';
-      if (!denied && onUnavailable) return onUnavailable(msg);
+      // A refusal with a reason (no key, no quota) is not an outage: falling back to the turn-based examiner would hit the same wall.
+      if (!denied && !(e instanceof ApiError && e.code) && onUnavailable) return onUnavailable(msg);
       setError(msg);
       setRetry(() => () => (setError(undefined), void start()));
       setStatus('error');

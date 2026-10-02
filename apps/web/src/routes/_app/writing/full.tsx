@@ -1,6 +1,7 @@
 import { WRITING_SECONDS } from '@ielts/core';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
+import { TestGate } from '@/components/community/TestGate';
 import { WritingExam } from '@/components/writing/WritingExam';
 import { api } from '@/lib/api';
 
@@ -23,5 +24,9 @@ export const Route = createFileRoute('/_app/writing/full')({
 
 function FullTest() {
   const [t1, t2] = Route.useLoaderData();
-  return <WritingExam key={`${t1.id}+${t2.id}`} prompts={[t1, t2]} seconds={WRITING_SECONDS.full} mode="exam" />;
+  return (
+    <TestGate skill="writing" title="Writing, full test">
+      <WritingExam key={`${t1.id}+${t2.id}`} prompts={[t1, t2]} seconds={WRITING_SECONDS.full} mode="exam" />
+    </TestGate>
+  );
 }

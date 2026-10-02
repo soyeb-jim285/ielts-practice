@@ -32,3 +32,17 @@ export const meQuery = queryOptions({
 
 /** Current user + settings, or null for a guest. Resolved by the `_app` layout loader. Pages behind `requireSignIn` can rely on it being set (`data!`). */
 export const useMe = () => useQuery(meQuery);
+
+/** Signed in with a real account: not signed out, and not a guest (anonymous session). Guests browse and take their few tests but have no history, keys or settings. */
+export const isAccount = (me: Schemas['Me'] | null | undefined): me is Schemas['Me'] => !!me && !me.user.isAnonymous;
+
+/** The signed-in account, or null for a visitor and for a guest session. */
+export const useAccount = () => {
+  const me = useMe().data;
+  return isAccount(me) ? me : null;
+};
+
+/** Loader helper for personal pages: runs `load` only for a signed-in account. A visitor or a guest gets the page's sign-up gate and no request that would answer 403. */
+export async function loadForAccount(qc: QueryClient, load: () => unknown) {
+  if (isAccount(await qc.ensureQueryData(meQuery))) await load();
+}

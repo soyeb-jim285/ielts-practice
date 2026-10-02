@@ -2,25 +2,32 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, LogOut, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { AccountGate } from '@/components/community/AccountGate';
+import { ApiKeys } from '@/components/settings/ApiKeys';
 import { LiveProvider } from '@/components/settings/LiveProvider';
 import { DEFAULT_MODELS, ModelPicker, TtsPicker, useModels } from '@/components/settings/ModelPicker';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
-import { Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
+import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
 import { authClient, signOut } from '@/lib/auth';
 import type { Settings } from '@/lib/api';
-import { useMe } from '@/lib/query';
+import { useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 
-export const Route = createFileRoute('/_app/settings')({ component: SettingsPage });
+export const Route = createFileRoute('/_app/settings')({ component: SettingsRoute });
+
+/** Guests have no settings or keys: they get the sign-up gate, not an error. */
+function SettingsRoute() {
+  return useAccount() ? <SettingsPage /> : <AccountGate what="settings" />;
+}
 
 /**
  * One settings group: a left column with the serif heading and what it does, a right column with plain rows between hairlines (no card).
  * Stacks on phones. Rows use the page grid, so every section lines up.
  */
-function Section({ title, description, children, className }: { title: string; description: string; children: ReactNode; className?: string }) {
+function Section({ title, description, children, className, id }: { title: string; description: string; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section aria-labelledby={`s-${title}`} className={cn('grid gap-x-12 gap-y-4 border-t border-line pt-8 md:grid-cols-[14rem_minmax(0,1fr)]', className)}>
+    <section id={id} aria-labelledby={`s-${title}`} className={cn('grid scroll-mt-6 gap-x-12 gap-y-4 border-t border-line pt-8 md:grid-cols-[14rem_minmax(0,1fr)]', className)}>
       <div>
         <h2 id={`s-${title}`} className="type-heading">
           {title}
@@ -47,6 +54,7 @@ const InlineRow = ({ title, description, children }: { title: ReactNode; descrip
 
 function SettingsPage() {
   const me = useMe().data!;
+  const community = me.tier !== 'own-key'; // custom models only run on the user's own OpenRouter key
   const s = me.settings;
   const { mutate } = useUpdateSettings();
   const setModel = (key: keyof Settings['models']) => (v: string) => mutate({ models: { [key]: v } });
@@ -64,6 +72,10 @@ function SettingsPage() {
           </Row>
         </Section>
 
+        <Section id="api-keys" title="Your API keys" description="Practise without limits, or use the live examiner, with your own keys.">
+          <ApiKeys />
+        </Section>
+
         <Section title="Writing" description="How the timed essay editor behaves.">
           <Row>
             <Switch label="Submit when time runs out" description="Off: the timer keeps counting as overtime and the result is flagged." checked={s.writingAutoSubmit} onChange={(v) => mutate({ writingAutoSubmit: v })} />
@@ -74,7 +86,11 @@ function SettingsPage() {
         </Section>
 
         <Section title="Live examiner" description="How the live speaking test talks to you.">
-          <LiveProvider value={s.liveProvider} available={{ 'gpt-live': me.gptLiveAvailable, 'gemini-live': me.geminiLiveAvailable }} onChange={(v) => mutate({ liveProvider: v })} />
+          <LiveProvider
+            value={s.liveProvider}
+            available={{ turn: me.liveProviders.includes('turn'), 'gpt-live': me.gptLiveAvailable, 'gemini-live': me.geminiLiveAvailable }}
+            onChange={(v) => mutate({ liveProvider: v })}
+          />
         </Section>
 
         <Section title="Appearance" description="Saved in this browser.">
@@ -94,6 +110,11 @@ function SettingsPage() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="divide-y divide-line border-t border-line">
+                {community && (
+                  <div className="py-4">
+                    <Alert tone="info">Your own OpenRouter key is needed to use other models. Until then, tests paid from the community balance always use the default models.</Alert>
+                  </div>
+                )}
                 <p className="type-caption max-w-[65ch] py-4">Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.</p>
                 <Row>
                   <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
