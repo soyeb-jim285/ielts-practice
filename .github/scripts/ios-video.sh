@@ -5,6 +5,13 @@
 set -u
 BID=com.soyeb.ieltspractice
 mkdir -p "$OUT" "$RAW"
+# No "slide to type" first-run card over the keyboard, no predictive bar.
+for k in DidShowContinuousPathIntroduction DidShowGestureKeyboardIntroduction KeyboardDidShowContinuousPathIntroduction; do
+  xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences "$k" -bool true || true
+done
+for k in KeyboardPrediction KeyboardAutocorrection KeyboardContinuousPathEnabled; do
+  xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences "$k" -bool false || true
+done
 
 clip() { # name screen tab tour mode dur
   local name=$1 screen=$2 tab=$3 tour=$4 mode=$5 dur=$6
@@ -19,15 +26,15 @@ clip() { # name screen tab tour mode dur
   sleep 4
   xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RAW/$name.mov" > "$RAW/$name.log" 2>&1 &
   local rpid=$!
-  sleep 2
+  sleep 3
   xcrun simctl spawn "$UDID" notifyutil -p com.soyeb.ielts.tourgo || echo "notifyutil failed"
   touch /tmp/ielts-tour-go
   sleep "$dur"
   kill -INT "$rpid" 2>/dev/null; wait "$rpid" 2>/dev/null
   rm -f /tmp/ielts-tour-go
   [ -s "$RAW/$name.mov" ] || { echo "no recording for $name"; cat "$RAW/$name.log"; return; }
-  # Drop the first second (recorder warm-up); constant 30 fps for the editor.
-  ffmpeg -y -loglevel error -ss 1.0 -i "$RAW/$name.mov" -vf "fps=30,format=yuv420p" -c:v libx264 -crf 20 -preset medium -movflags +faststart -an "$OUT/$name.mp4"
+  # simctl only writes a frame when the screen changes: drop the first second (recorder warm-up), hold the last frame, cut to dur, constant 30 fps.
+  ffmpeg -y -loglevel error -ss 1.0 -i "$RAW/$name.mov" -vf "fps=30,tpad=stop_mode=clone:stop_duration=4,format=yuv420p" -t "$((dur + 1))" -c:v libx264 -crf 20 -preset medium -movflags +faststart -an "$OUT/$name.mp4"
   ffprobe -v error -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 "$OUT/$name.mp4"
 }
 
