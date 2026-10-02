@@ -31,13 +31,13 @@ export const webrtcBody = (sdp: string) => ({ session: sessionConfig('webrtc'), 
 export const sessionStart = () => ({ type: 'session.start', session: sessionConfig('websocket') });
 
 const safetyId = (userId: string) => createHash('sha256').update(userId).digest('hex');
-const auth = (userId: string) => ({ Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'OpenAI-Safety-Identifier': safetyId(userId) });
+const auth = (userId: string, apiKey: string) => ({ Authorization: `Bearer ${apiKey}`, 'OpenAI-Safety-Identifier': safetyId(userId) });
 
 /** Creates the WebRTC session from the browser's SDP offer: returns the answer SDP and OpenAI's session id. */
-export async function createWebrtcSession(sdp: string, userId: string): Promise<{ sdp: string; id: string } | { status: number; detail: string }> {
+export async function createWebrtcSession(sdp: string, userId: string, apiKey: string): Promise<{ sdp: string; id: string } | { status: number; detail: string }> {
   const res = await fetch(LIVE_HTTP, {
     method: 'POST',
-    headers: { ...auth(userId), 'Content-Type': 'application/json' },
+    headers: { ...auth(userId, apiKey), 'Content-Type': 'application/json' },
     body: JSON.stringify(webrtcBody(sdp)),
     signal: AbortSignal.timeout(20_000),
   }).catch(() => null);
@@ -49,7 +49,7 @@ export async function createWebrtcSession(sdp: string, userId: string): Promise<
 
 /** The upstream WebSocket factory (tests swap it for a fake). */
 export type Upstream = { send(d: string): void; close(): void; terminate(): void; on(ev: string, fn: (...a: any[]) => void): unknown; readyState: number };
-let connect: (url: string, userId: string) => Upstream = (url, userId) => new WebSocket(url, { headers: auth(userId) });
+let connect: (url: string, userId: string, apiKey: string) => Upstream = (url, userId, apiKey) => new WebSocket(url, { headers: auth(userId, apiKey) });
 export const setUpstream = (f: typeof connect) => void (connect = f);
 
 // ---- client messages (native relay)
@@ -232,8 +232,8 @@ function wire(run: Run, ws: Upstream, onEvent?: (raw: string) => void, onClosed?
 }
 
 /** Browser sessions: attach the sideband to a session OpenAI created from the browser's offer. A failure only costs the server-side transcript and cues. */
-export function attachSideband(o: { userId: string; sessionId: string; test: SpeakingTest; liveId: string }): Run {
-  const ws = connect(`${LIVE_WS}/${encodeURIComponent(o.liveId)}/attach`, o.userId);
+export function attachSideband(o: { userId: string; sessionId: string; test: SpeakingTest; liveId: string; apiKey: string }): Run {
+  const ws = connect(`${LIVE_WS}/${encodeURIComponent(o.liveId)}/attach`, o.userId, o.apiKey);
   const run = startRun({ ...o, upstream: ws });
   // The attach connection is open once we may send; session.started was sent before we attached, so it is not awaited.
   ws.on('open', () => (run.ready = true));
@@ -241,8 +241,8 @@ export function attachSideband(o: { userId: string; sessionId: string; test: Spe
 }
 
 /** Native relay: the main upstream connection. Resolves with the run once `session.start` is sent. */
-export function openRelay(o: { userId: string; sessionId: string; test: SpeakingTest; onEvent: (raw: string) => void; onClosed: () => void }): Run {
-  const ws = connect(LIVE_WS, o.userId);
+export function openRelay(o: { userId: string; sessionId: string; test: SpeakingTest; apiKey: string; onEvent: (raw: string) => void; onClosed: () => void }): Run {
+  const ws = connect(LIVE_WS, o.userId, o.apiKey);
   const run = startRun({ ...o, upstream: ws });
   ws.on('open', () => run.send(sessionStart()));
   return run;

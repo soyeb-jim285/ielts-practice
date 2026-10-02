@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createApp } from './app';
 import { env } from './env';
-import { recoverStale } from './jobs';
+import { purgeGuests, recoverStale } from './jobs';
 import { attachLiveRelay } from './routes/live-ws';
 
 const app = createApp();
@@ -27,5 +27,8 @@ if (existsSync(env.WEB_DIST)) {
 const sweep = () => recoverStale().catch((e) => console.error('recoverStale failed', e));
 await sweep();
 setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become stale 10 min after submit
+const purge = () => purgeGuests().catch((e) => console.error('purgeGuests failed', e));
+void purge();
+setInterval(purge, 6 * 3_600_000).unref();
 const server = serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
 injectWebSocket(server);

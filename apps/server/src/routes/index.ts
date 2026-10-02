@@ -8,7 +8,8 @@ import * as live from './live';
 import * as progress from './progress';
 import * as mistakes from './mistakes';
 import * as cards from './cards';
+import * as community from './community';
 
 export function registerRoutes(app: App) {
-  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards]) m.register(app);
+  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards, community]) m.register(app);
 }

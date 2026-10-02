@@ -1,12 +1,14 @@
 # Live examiner
 
+> Community mode: the live examiner is never paid from the shared community balance. Every provider runs on the user's **own** key (Settings, "Your API keys"): turn-based needs their OpenRouter key, GPT-Live their OpenAI key, Gemini Live their Gemini key. `OPENAI_API_KEY` / `GEMINI_API_KEY` below are used only for the owner (`CAMBRIDGE_ALLOWED_EMAILS`). See [community.md](community.md).
+
 The live speaking test has three examiners. All three run the same test (intro, Part 1, Part 2 with a one-minute prep and a two-minute long turn, Part 3) and all three end the same way: one recording per part goes to `POST /api/live/finish`, which creates one `live` attempt per part and scores each like any other speaking attempt.
 
 | Setting (`liveProvider`) | Label in Settings | How it talks | Needs |
 | --- | --- | --- | --- |
-| `turn` | Examiner waits for you to finish | Server TTS line, local VAD ends your turn, `POST /api/live/turn` | OpenRouter (always on) |
-| `gpt-live` | Natural conversation (GPT-Live) | Full-duplex speech-to-speech (OpenAI `gpt-live-1`), you can interrupt | `OPENAI_API_KEY` |
-| `gemini-live` | Natural conversation (Gemini) | Duplex speech-to-speech, you can interrupt | `GEMINI_API_KEY` |
+| `turn` | Examiner waits for you to finish | Server TTS line, local VAD ends your turn, `POST /api/live/turn` | The user's own OpenRouter key |
+| `gpt-live` | Natural conversation (GPT-Live) | Full-duplex speech-to-speech (OpenAI `gpt-live-1`), you can interrupt | the user's own OpenAI key |
+| `gemini-live` | Natural conversation (Gemini) | Duplex speech-to-speech, you can interrupt | the user's own Gemini key |
 
 `/api/me` reports `gptLiveAvailable` (OpenAI key set) and `geminiLiveAvailable` (Gemini key set). `realtimeAvailable` is a deprecated alias of `gptLiveAvailable` for app builds from before GPT-Live. A provider whose key is missing is disabled in Settings, and a user who selected it anyway gets the turn-based examiner with a notice on the pre-test screen. Web and iOS also fall back to the turn-based examiner when the chosen provider fails to connect.
 
@@ -186,10 +188,10 @@ Server environment (`.env`, or the Dokploy environment for production):
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | GPT-Live | A normal project key with GPT-Live access. Only the server sees it. |
+| `OPENAI_API_KEY` | GPT-Live for the owner only | A normal project key with GPT-Live access. Only the server sees it. Other users bring their own. |
 | `OPENAI_LIVE_MODEL` | optional | Default `gpt-live-1`. |
 | `OPENAI_LIVE_VOICE` | optional | Default `vesper`. Others: quartz, ripple, willow, stone, gleam, meridian, bossa, tempo, beacon, delta, cinder. |
-| `GEMINI_API_KEY` | Gemini Live | Create it in Google AI Studio (aistudio.google.com/apikey) for the Gemini Developer API, not Vertex. Use a project with billing enabled: the free tier works but Google may use free-tier data to improve its products. |
+| `GEMINI_API_KEY` | Gemini Live for the owner only | Create it in Google AI Studio (aistudio.google.com/apikey) for the Gemini Developer API, not Vertex. Use a project with billing enabled: the free tier works but Google may use free-tier data to improve its products. |
 | `GEMINI_LIVE_MODEL` | optional | Default `gemini-3.8-live`. |
 
 Regions and access: the Gemini Developer API and AI Studio are available in Bangladesh (and the other countries on ai.google.dev/gemini-api/docs/available-regions); OpenAI's API is also available in Bangladesh. The model runs where the provider decides; there is nothing to select. The Live API and ephemeral tokens are in Preview, so ids and fields can still change. Browsers need HTTPS (microphone, AudioWorklet); the production site is on HTTPS.

@@ -1,5 +1,5 @@
 import { createRoute } from '@hono/zod-openapi';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireAccount, requireUser } from '../auth';
 import { getSettings, SettingsPatchSchema, SettingsSchema, updateSettings } from '../settings';
 import type { App } from '../types';
 
@@ -27,7 +27,7 @@ export function register(app: App) {
       tags: ['Settings'],
       summary: 'Update settings (partial; models merge per key)',
       security: [{ bearer: [] }],
-      middleware: [requireUser] as const,
+      middleware: [requireAccount] as const,
       request: { body: { required: true, content: { 'application/json': { schema: SettingsPatchSchema.openapi('SettingsPatch') } } } },
       responses: ok,
     }),

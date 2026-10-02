@@ -11,6 +11,7 @@ export const user = pgTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
+  isAnonymous: boolean('is_anonymous').default(false), // Better Auth anonymous plugin: guests get a real user row until they sign up (docs/community.md)
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -208,3 +209,37 @@ export const scoringCalibrations = pgTable('scoring_calibrations', {
   active: boolean('active').notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [index('scoring_calibrations_lookup_idx').on(t.modelId, t.promptHash, t.effort, t.k)]);
+
+// ---------- Community mode (docs/community.md) ----------
+export const providerEnum = pgEnum('key_provider', ['openrouter', 'openai', 'gemini']);
+
+// A user's own API keys. The key itself is AES-256-GCM encrypted (src/keys.ts); only last4 is ever shown.
+export const userApiKeys = pgTable('user_api_keys', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  provider: providerEnum('provider').notNull(),
+  ciphertext: text('ciphertext').notNull(), // base64(ciphertext || 16-byte GCM tag)
+  iv: text('iv').notNull(), // base64, random per row
+  last4: text('last4').notNull(),
+  valid: boolean('valid').notNull().default(true), // false once the provider rejected it (401/403); the user must re-enter it
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [uniqueIndex('user_api_keys_user_provider_idx').on(t.userId, t.provider)]);
+
+// One row per test paid from the community balance ("reservation"). unit_key = the speaking/writing session id, else the attempt id,
+// so every part of one full test shares one row. refunded_at: analysis failed permanently or heard no speech.
+export const quotaUsage = pgTable('quota_usage', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  skill: skillEnum('skill').notNull(),
+  unitKey: text('unit_key').notNull(),
+  tier: text('tier').notNull(), // 'guest' | 'community' at reservation time
+  ipHash: text('ip_hash'), // salted HMAC of the client IP; null when the address is unknown
+  createdAt: createdAt(),
+  refundedAt: timestamp('refunded_at', { withTimezone: true }),
+}, (t) => [
+  uniqueIndex('quota_usage_unit_idx').on(t.userId, t.skill, t.unitKey),
+  index('quota_usage_user_idx').on(t.userId, t.skill, t.createdAt),
+  index('quota_usage_ip_idx').on(t.ipHash, t.skill, t.createdAt),
+  index('quota_usage_created_idx').on(t.createdAt),
+]);

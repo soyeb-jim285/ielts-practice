@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer, emailOTP } from 'better-auth/plugins';
+import { anonymous, bearer, emailOTP } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
@@ -8,6 +8,8 @@ import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
 import { sendEmail } from './email';
+import { ApiError } from './errors';
+import { linkGuest } from './link';
 import { storage } from './storage';
 import type { AppEnv } from './types';
 
@@ -86,6 +88,8 @@ export const auth = betterAuth({
   },
   plugins: [
     bearer(),
+    // Guests: POST /api/auth/sign-in/anonymous on the first test start. On sign-up/sign-in their attempts and used quota move to the real account (src/link.ts).
+    anonymous({ emailDomainName: 'guest.invalid', onLinkAccount: ({ anonymousUser, newUser }) => linkGuest(anonymousUser.user.id, newUser.user.id) }),
     // Codes for email verification (replaces the link) and password reset. Better Auth rate-limits these endpoints to 3 per minute per IP (production).
     emailOTP({
       sendVerificationOTP: sendOtpEmail,
@@ -118,7 +122,7 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     return next();
   }
   const s = await auth.api.getSession({ headers: c.req.raw.headers });
-  const user = s ? { id: s.user.id, email: s.user.email, name: s.user.name, emailVerified: s.user.emailVerified } : null;
+  const user = s ? { id: s.user.id, email: s.user.email, name: s.user.name, emailVerified: s.user.emailVerified, isAnonymous: !!s.user.isAnonymous } : null;
   if (bearer && user) {
     if (bearerCache.size >= 5000) bearerCache.clear();
     bearerCache.set(bearer, { at: Date.now(), user });
@@ -129,6 +133,14 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
   if (!c.get('user')) throw new HTTPException(401, { message: 'Sign in required' });
+  await next();
+});
+
+/** Personal pages (history, mistakes, review, settings, keys): a guest has a session but no account yet. */
+export const requireAccount = createMiddleware<AppEnv>(async (c, next) => {
+  const u = c.get('user');
+  if (!u) throw new HTTPException(401, { message: 'Sign in required' });
+  if (u.isAnonymous) throw new ApiError(403, { error: 'Create an account to use this.', code: 'account_required' });
   await next();
 });
 

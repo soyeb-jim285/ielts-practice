@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { review } from '@ielts/core';
 import { and, asc, count, eq, inArray, lte } from 'drizzle-orm';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireAccount } from '../auth';
 import { db } from '../db/client';
 import { cards } from '../db/schema';
 import type { Fix } from '../ai/types';
@@ -9,7 +9,7 @@ import type { App } from '../types';
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
-const authed = { tags: ['Cards'], security: [{ bearer: [] }], middleware: [requireUser] };
+const authed = { tags: ['Cards'], security: [{ bearer: [] }], middleware: [requireAccount] };
 
 export const CardInput = z
   .object({ front: z.string().trim().min(1).max(2000), back: z.string().trim().min(1).max(4000), source: z.enum(['mistake', 'vocab', 'fix']) })

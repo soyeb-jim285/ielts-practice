@@ -9,14 +9,14 @@ import type { LiveState } from '../ai/examiner';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { liveSessions } from '../db/schema';
-import { env } from '../env';
+import { payerOf, liveKey, requireLive } from '../quota';
 import { aiLimit } from '../ratelimit';
 import type { App, AppEnv } from '../types';
 
 export type Client = { send(data: string): void; close(code?: number, reason?: string): void };
 
 /** One relayed connection: `message` takes what the app sends, the app gets upstream events through `client`. */
-export function relay(client: Client, o: { userId: string; sessionId: string; test: LiveState['test'] }) {
+export function relay(client: Client, o: { userId: string; sessionId: string; test: LiveState['test']; apiKey: string }) {
   const run: Run = openRelay({ ...o, onEvent: (raw) => client.send(scrub(raw)), onClosed: () => client.close(1000, 'session ended') });
   return {
     run,
@@ -31,7 +31,9 @@ export function relay(client: Client, o: { userId: string; sessionId: string; te
 }
 
 const check = createMiddleware<AppEnv>(async (c, next) => {
-  if (!env.OPENAI_API_KEY) throw new HTTPException(400, { message: 'GPT-Live is not configured on this server' });
+  const payer = await payerOf(currentUser(c));
+  requireLive(payer, 'gpt-live'); // the user's own OpenAI key (the owner may use the server's): the relay opens the upstream connection with it
+  c.set('liveKey' as never, liveKey(payer, 'openai') as never);
   const id = c.req.query('sessionId') ?? '';
   const row = await db.query.liveSessions.findFirst({ where: and(eq(liveSessions.id, id), eq(liveSessions.userId, currentUser(c).id)) });
   if (!row) throw new HTTPException(404, { message: 'Live session not found' });
@@ -52,8 +54,9 @@ export function attachLiveRelay(app: App) {
       const sessionId = c.req.query('sessionId')!;
       const userId = currentUser(c).id;
       const test = c.get('liveTest' as never) as LiveState['test'];
+      const apiKey = c.get('liveKey' as never) as string;
       return {
-        onOpen: (_e, ws) => (r = relay({ send: (d) => ws.send(d), close: (code, reason) => ws.close(code, reason) }, { userId, sessionId, test })),
+        onOpen: (_e, ws) => (r = relay({ send: (d) => ws.send(d), close: (code, reason) => ws.close(code, reason) }, { userId, sessionId, test, apiKey })),
         onMessage: (e) => typeof e.data === 'string' && r?.message(e.data),
         onClose: () => r?.closed(),
         onError: () => r?.closed(),

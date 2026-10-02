@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Word } from '@ielts/core';
 import { env, IS_TEST } from '../env';
+import { keyCtx, redact } from './keyctx';
 
 const BASE = 'https://openrouter.ai/api/v1';
 
@@ -11,6 +12,8 @@ export function setFetch(f: Fetch) {
   fetcher = f;
   modelCache = undefined;
 }
+/** The injectable fetch for the small non-AI calls (key validation, the community balance) so tests can mock them. */
+export const httpFetch: Fetch = (...a) => fetcher(...a);
 
 /** Error whose message is safe to show the user (stored on failed attempts). */
 export class AiError extends Error {
@@ -29,7 +32,9 @@ export class AiError extends Error {
 }
 
 /** Candidate-facing copy per upstream status; only 429/5xx/timeouts say "retry". Operator detail goes to the server log. */
-function httpMessage(status: number) {
+function httpMessage(status: number, own = false) {
+  if (own && status === 402) return 'Your OpenRouter key is out of credit. Add credit to it, or remove it in Settings to use the community balance.';
+  if (own && (status === 401 || status === 403)) return 'Your OpenRouter key was rejected. Check it in Settings.';
   if (status === 429) return 'The AI service is rate-limited right now. Please retry in a minute.';
   if (status >= 500) return `The AI service returned an error (${status}). Please retry.`;
   if (status === 402 || status === 401 || status === 403) return 'The AI service is temporarily unavailable. Your work is saved, so try again later.';
@@ -49,13 +54,15 @@ const backoff = (n: number) => new Promise((r) => setTimeout(r, IS_TEST ? 1 : 10
 
 /** Retries network errors, 429 and 5xx twice with jittered backoff; timeouts are not retried (they already waited minutes). */
 async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'POST'): Promise<Response> {
+  const ctx = keyCtx.getStore();
+  const apiKey = ctx?.openrouter ?? env.OPENROUTER_API_KEY; // the user's own key when they have one: their credit, not the community's
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
       res = await fetcher(`${BASE}${path}`, {
         method,
         headers: {
-          Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': env.BETTER_AUTH_URL,
           'X-Title': 'IELTS Practice',
@@ -80,8 +87,9 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
       await backoff(attempt);
       continue;
     }
-    console.error(`openrouter ${path} ${res.status}`, OPERATOR_HINT[res.status] ?? '', (await res.text().catch(() => '')).slice(0, 500));
-    throw new AiError('http', httpMessage(res.status), res.status);
+    console.error(`openrouter ${path} ${res.status}`, ctx?.openrouter ? 'own key' : OPERATOR_HINT[res.status] ?? '', redact((await res.text().catch(() => '')).slice(0, 500), apiKey));
+    if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
+    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status);
   }
 }
 
@@ -290,7 +298,8 @@ async function scribe(o: { audio: Uint8Array; format: Format }) {
  *  model `elevenlabs/scribe_v2` uses ElevenLabs when ELEVENLABS_API_KEY is set and falls back to Whisper on any error or quota; `model` in the result is the one that answered. */
 export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean; model: string }> {
   if (o.model === SCRIBE_MODEL) {
-    if (env.ELEVENLABS_API_KEY)
+    // ElevenLabs credit is the owner's: users with their own OpenRouter key transcribe with Whisper on their key instead.
+    if (env.ELEVENLABS_API_KEY && !keyCtx.getStore()?.openrouter)
       try {
         return await scribe(o);
       } catch (e) {

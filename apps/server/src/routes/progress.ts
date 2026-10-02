@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { roundBand } from '@ielts/core';
 import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireAccount } from '../auth';
 import { db } from '../db/client';
 import { analyses, attempts, mistakes } from '../db/schema';
 import type { App } from '../types';
@@ -40,7 +40,7 @@ export function register(app: App) {
     createRoute({
       tags: ['Progress'],
       security: [{ bearer: [] }],
-      middleware: [requireUser],
+      middleware: [requireAccount],
       method: 'get',
       path: '/api/progress',
       summary: 'Dashboard stats: band trend, streak, minutes, weakest criterion, recurring mistakes, predicted band',

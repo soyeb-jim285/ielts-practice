@@ -23,20 +23,26 @@
                 "type": "string"
               },
               "email": {
-                "type": "string"
+                "type": "string",
+                "description": "Empty for a guest"
               },
               "name": {
                 "type": "string"
               },
               "emailVerified": {
                 "type": "boolean"
+              },
+              "isAnonymous": {
+                "type": "boolean",
+                "description": "A guest (anonymous session, no account yet): show \"Create an account\", hide keys, history and review"
               }
             },
             "required": [
               "id",
               "email",
               "name",
-              "emailVerified"
+              "emailVerified",
+              "isAnonymous"
             ]
           },
           "settings": {
@@ -115,7 +121,8 @@
             "type": "boolean"
           },
           "gptLiveAvailable": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "This user has an OpenAI key (or is the owner)"
           },
           "realtimeAvailable": {
             "type": "boolean",
@@ -123,7 +130,37 @@
             "description": "Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)"
           },
           "geminiLiveAvailable": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "This user has a Gemini key (or is the owner)"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "community",
+              "own-key"
+            ]
+          },
+          "speaking": {
+            "$ref": "#/components/schemas/SkillQuota"
+          },
+          "writing": {
+            "$ref": "#/components/schemas/SkillQuota"
+          },
+          "liveProviders": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "turn",
+                "gpt-live",
+                "gemini-live"
+              ]
+            },
+            "description": "Live examiner providers this user may use (their own keys; the owner may use the server keys)"
+          },
+          "communityBalance": {
+            "$ref": "#/components/schemas/CommunityBalance"
           }
         },
         "required": [
@@ -132,7 +169,109 @@
           "cambridgeAccess",
           "gptLiveAvailable",
           "realtimeAvailable",
-          "geminiLiveAvailable"
+          "geminiLiveAvailable",
+          "tier",
+          "speaking",
+          "writing",
+          "liveProviders",
+          "communityBalance"
+        ]
+      },
+      "SkillQuota": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Tests per window; null = unlimited"
+          },
+          "remaining": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "resetAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO instant the window resets; show in local time. null when unlimited"
+          },
+          "window": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "day",
+              "week",
+              null
+            ],
+            "description": "day: resets 00:00 UTC; week: resets Monday 00:00 UTC"
+          },
+          "blocked": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quota_exceeded",
+              "community_balance_exhausted",
+              "community_busy",
+              null
+            ],
+            "description": "Why a test cannot start now; null = it can"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "remaining",
+          "resetAt",
+          "window",
+          "blocked"
+        ]
+      },
+      "CommunityBalance": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD spend limit of the shared OpenRouter key; null if it has none"
+          },
+          "used": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD spent so far; null if unknown"
+          },
+          "remaining": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD left; null if unknown or unlimited"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "ISO time of the reading (cached up to 60 s)"
+          }
+        },
+        "required": [
+          "limit",
+          "used",
+          "remaining",
+          "updatedAt"
         ]
       },
       "Settings": {
@@ -564,6 +703,58 @@
         "required": [
           "id"
         ]
+      },
+      "CodedError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Friendly, safe to show"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "quota_exceeded",
+              "community_balance_exhausted",
+              "community_busy",
+              "too_many_requests",
+              "live_requires_own_key",
+              "account_required",
+              "keys_unavailable",
+              "invalid_key",
+              "key_check_failed"
+            ]
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "speaking",
+              "writing"
+            ],
+            "description": "quota_exceeded"
+          },
+          "resetAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "quota_exceeded: ISO time the window resets (00:00 UTC daily, Monday 00:00 UTC weekly)"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "community",
+              "own-key"
+            ],
+            "description": "quota_exceeded, live_requires_own_key"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "description": "Errors with a machine-readable code (docs/community.md). Map `code` to UX; `error` is a fallback."
       },
       "CreateAttempt": {
         "type": "object",
@@ -1768,6 +1959,105 @@
         "required": [
           "grade"
         ]
+      },
+      "Quota": {
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "community",
+              "own-key"
+            ]
+          },
+          "speaking": {
+            "$ref": "#/components/schemas/SkillQuota"
+          },
+          "writing": {
+            "$ref": "#/components/schemas/SkillQuota"
+          },
+          "liveProviders": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "turn",
+                "gpt-live",
+                "gemini-live"
+              ]
+            },
+            "description": "Live examiner providers this user may use (their own keys; the owner may use the server keys)"
+          },
+          "communityBalance": {
+            "$ref": "#/components/schemas/CommunityBalance"
+          }
+        },
+        "required": [
+          "tier",
+          "speaking",
+          "writing",
+          "liveProviders",
+          "communityBalance"
+        ]
+      },
+      "ApiKeyList": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyInfo"
+            }
+          }
+        },
+        "required": [
+          "keys"
+        ]
+      },
+      "ApiKeyInfo": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openrouter",
+              "openai",
+              "gemini"
+            ]
+          },
+          "last4": {
+            "type": "string"
+          },
+          "addedAt": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "false: the provider rejected this key; enter a new one"
+          }
+        },
+        "required": [
+          "provider",
+          "last4",
+          "addedAt",
+          "valid"
+        ],
+        "description": "The key itself is never returned."
+      },
+      "PutApiKey": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 512,
+            "pattern": "^[\\x21-\\x7E]+$"
+          }
+        },
+        "required": [
+          "key"
+        ]
       }
     },
     "parameters": {}
@@ -2269,6 +2559,7 @@
           }
         ],
         "summary": "Create an attempt (speaking: returns a presigned audio upload URL)",
+        "description": "Also checks the quota first (nothing is reserved yet), so a person out of tests hears before writing the essay: 429 quota_exceeded, 402 community_balance_exhausted, 503 community_busy. docs/community.md",
         "requestBody": {
           "required": true,
           "content": {
@@ -2300,12 +2591,42 @@
               }
             }
           },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "quota_exceeded (or too_many_requests)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2371,6 +2692,7 @@
           }
         ],
         "summary": "Submit an attempt for analysis (also re-runs a failed one). Returns immediately; poll GET /api/attempts/{id}.",
+        "description": "Reserves the test against the quota (one per speaking/writing session; re-submitting the same attempt never costs again; refunded if analysis fails or no speech is heard). When refused, a writing draft sent in the body is still saved on the attempt. docs/community.md",
         "parameters": [
           {
             "schema": {
@@ -2423,6 +2745,16 @@
               }
             }
           },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -2444,11 +2776,21 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "quota_exceeded (or too_many_requests)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2608,6 +2950,7 @@
           }
         ],
         "summary": "Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio",
+        "description": "Needs the user's own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).",
         "requestBody": {
           "required": true,
           "content": {
@@ -2629,6 +2972,26 @@
               }
             }
           },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Bank is empty",
             "content": {
@@ -2640,11 +3003,11 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2655,6 +3018,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2759,6 +3132,16 @@
               }
             }
           },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -2780,11 +3163,11 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2835,11 +3218,21 @@
             }
           },
           "400": {
-            "description": "GPT-Live not configured",
+            "description": "invalid_key: OpenAI rejected the user's key",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2855,11 +3248,11 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2920,11 +3313,11 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2965,11 +3358,21 @@
             }
           },
           "400": {
-            "description": "Gemini Live not configured",
+            "description": "invalid_key: Gemini rejected the user's key",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -2985,11 +3388,11 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -3049,6 +3452,16 @@
               }
             }
           },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -3070,11 +3483,21 @@
             }
           },
           "429": {
-            "description": "Too many requests",
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -3379,6 +3802,249 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/community/balance": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "summary": "Shared community balance (public, cached 60 s)",
+        "responses": {
+          "200": {
+            "description": "Balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityBalance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quota": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "summary": "Tests left, reset times and live access for the caller. Works without a session (a guest, counted by IP). Call it when a test is about to start",
+        "responses": {
+          "200": {
+            "description": "Quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quota"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/keys": {
+      "get": {
+        "tags": [
+          "Keys"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Your saved API keys (provider, last 4 characters, date, whether it still works)",
+        "responses": {
+          "200": {
+            "description": "Keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guests have no keys (account_required)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/keys/{provider}": {
+      "put": {
+        "tags": [
+          "Keys"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save (or replace) your own key for a provider. It is checked with a free live call first and stored encrypted",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "openrouter",
+                "openai",
+                "gemini"
+              ]
+            },
+            "required": true,
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutApiKey"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_key: the provider rejected it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "account_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "key_check_failed: the provider could not be reached; try again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "keys_unavailable: the server cannot store keys (KEY_ENCRYPTION_SECRET is not set)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Keys"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove your key for a provider",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "openrouter",
+                "openai",
+                "gemini"
+              ]
+            },
+            "required": true,
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed (also when there was none)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "account_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }

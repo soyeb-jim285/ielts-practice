@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 // helpers first: it loads the app (and @hono/zod-openapi's zod extension) before the settings schema is built
-import { chatReply, fakeFetch, json, req, seedPrompt, testUser } from '../test/helpers';
+import { chatReply, fakeFetch, json, req, seedPrompt, setKey, testUser } from '../test/helpers';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { attempts, liveSessions } from '../db/schema';
-import { env } from '../env';
+import { attempts, liveSessions, quotaUsage } from '../db/schema';
 import { setAnalyzer } from '../jobs';
 import { setFetch } from '../ai/openrouter';
+import { clearBalanceCache } from '../community';
 import type { LiveState } from '../ai/examiner';
 import { storage } from '../storage';
 import { clearSpeechCache } from './live';
@@ -29,7 +29,6 @@ beforeEach(async () => {
   await seedPrompt({ part: 2, type: 'cue-card', title: 'Describe a book you enjoyed', groupId: 'g1', followUps: ['Do you read often?'] });
   await seedPrompt({ part: 3, type: 'p3-discussion', topic: 'reading habits', groupId: 'g1', followUps: ['Do people read less today?'] });
 });
-afterEach(() => void (env.OPENAI_API_KEY = env.GEMINI_API_KEY = undefined));
 
 const start = async (headers: Headers) => (await (await req('/api/live/start', { headers, body: {} })).json()) as any;
 const upload = async (headers: Headers, sessionId: string) => {
@@ -59,6 +58,9 @@ it('start → turn advances intro → p1 and grows the history by 2', async () =
   // Part 1 questions are fixed wording: no examiner LLM call, so the voice is made while the answer is transcribed.
   expect(ai.calls.some((c) => c.url.includes('/chat/completions'))).toBe(false);
   expect(ai.calls.filter((c) => c.url.includes('/audio/transcriptions'))).toHaveLength(1);
+  // the turn-based examiner (STT, TTS, LLM) is paid with the user's own OpenRouter key, never the community key
+  expect(ai.calls.length).toBeGreaterThan(2);
+  expect(new Set(ai.calls.map((c) => c.headers.authorization))).toEqual(new Set(['Bearer sk-test-openrouter-0000']));
 });
 
 it('a generated examiner line (Part 3) uses a low-effort, short LLM call after the transcript', async () => {
@@ -100,13 +102,15 @@ it('p1 end gives the cue card with 60 s prep, then the scripted long-turn start'
   expect(talk).toMatchObject({ phase: 'p2-talk', examinerText: expect.stringContaining('Can you start speaking now, please?') });
 });
 
-it('gpt-live/session: 400 without a key, else creates the WebRTC session with the server-owned config and attaches a sideband', async () => {
+it('gpt-live/session: 403 without an own OpenAI key, else creates the WebRTC session on that key with the server-owned config and attaches a sideband', async () => {
   const { headers, user } = await testUser();
   const s = await start(headers);
   const body = { sessionId: s.sessionId, sdp: 'v=0 offer' };
-  expect((await req('/api/live/gpt-live/session', { headers, body })).status).toBe(400);
+  const denied = await req('/api/live/gpt-live/session', { headers, body });
+  expect(denied.status).toBe(403);
+  expect(await denied.json()).toMatchObject({ code: 'live_requires_own_key', tier: 'own-key' });
 
-  env.OPENAI_API_KEY = 'sk-test';
+  await setKey(user.id, 'openai', 'sk-test');
   const openai = fakeFetch({ '/v1/live/sessions': () => json({ session: { id: 'live_123' }, transport: { type: 'webrtc', sdp: 'v=0 answer' } }, 201) });
   const real = globalThis.fetch;
   globalThis.fetch = openai;
@@ -120,6 +124,7 @@ it('gpt-live/session: 400 without a key, else creates the WebRTC session with th
     globalThis.fetch = real;
     await endRun(s.sessionId, user.id);
   }
+  expect(openai.calls[0]!.headers.authorization).toBe('Bearer sk-test'); // their key, not the server's
   const sent = openai.calls[0]!.body;
   expect(sent.transport).toEqual({ type: 'webrtc', sdp: 'v=0 offer' });
   expect(sent.session).toMatchObject({ model: 'gpt-live-1', audio: { output: { voice: 'vesper' } } });
@@ -137,7 +142,7 @@ it('gpt-live/cue: the server sends the instruction through the sideband, else ha
   expect(before.sent).toBe(false);
   expect(before.content).toContain('Describe a book you enjoyed');
 
-  env.OPENAI_API_KEY = 'sk-test';
+  await setKey(user.id, 'openai', 'sk-test');
   const sock = fakeSocket();
   setUpstream(() => sock);
   const real = globalThis.fetch;
@@ -158,12 +163,12 @@ it('gpt-live/cue: the server sends the instruction through the sideband, else ha
   expect(st.history.map((h) => [h.role, h.phase, h.text])).toEqual([['examiner', 'p2-prep', 'Thank you.']]);
 });
 
-it('gemini-token: 400 without a key, else mints a locked ephemeral token', async () => {
-  const { headers } = await testUser();
+it('gemini-token: 403 without an own Gemini key, else mints a locked ephemeral token with it', async () => {
+  const { headers, user } = await testUser();
   const s = await start(headers);
-  expect((await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(400);
+  expect((await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(403);
 
-  env.GEMINI_API_KEY = 'g-test';
+  await setKey(user.id, 'gemini', 'g-test');
   const google = fakeFetch({ '/v1beta/auth_tokens': () => json({ name: 'auth_tokens/abc', expireTime: '2030-01-01T00:20:00Z' }) });
   const real = globalThis.fetch;
   globalThis.fetch = google;
@@ -173,6 +178,7 @@ it('gemini-token: 400 without a key, else mints a locked ephemeral token', async
   } finally {
     globalThis.fetch = real;
   }
+  expect(google.calls[0]!.headers['x-goog-api-key']).toBe('g-test');
   const sent = google.calls[0]!.body;
   expect(sent).toMatchObject({ uses: 1, bidiGenerateContentSetup: { model: 'models/gemini-3.8-live', generationConfig: { responseModalities: ['AUDIO'] } } });
   expect(sent.bidiGenerateContentSetup.systemInstruction.parts[0].text).toContain('Describe a book you enjoyed');
@@ -221,7 +227,8 @@ it('TTS failure (402) degrades to captions: start and turn still work with audio
 });
 
 it('skipTts starts a (realtime) session without calling TTS', async () => {
-  const { headers } = await testUser();
+  const { headers, user } = await testUser();
+  await setKey(user.id, 'gemini');
   const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
   expect(s).toMatchObject({ phase: 'intro', audioUrl: null });
   expect(s.voiceError).toBeUndefined();
@@ -268,4 +275,49 @@ it('Part 2 long turn: prep timer, talk, then the 2:00 cut-in leads into the roun
   expect((await state(s.sessionId)).history.filter((h) => h.phase === 'p2-talk').map((h) => [h.role, h.durationMs])).toEqual([['examiner', undefined], ['candidate', 120_000]]);
   const after = await turn({ skipped: true });
   expect(after.phase).toBe('p3');
+});
+
+it('a signed-in user without an OpenRouter key but with an OpenAI key: duplex start is allowed, turn-based is not; the quota is checked at start and reserved at finish', async () => {
+  const { headers, user } = await testUser(undefined, { key: false });
+  await setKey(user.id, 'openai', 'sk-test');
+  const turnBased = await req('/api/live/start', { headers, body: {} });
+  expect([turnBased.status, ((await turnBased.json()) as any).code]).toEqual([403, 'live_requires_own_key']);
+
+  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  expect(s.sessionId).toBeTruthy();
+  const turn = await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } });
+  expect(turn.status).toBe(403);
+
+  const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
+  const done = await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } });
+  expect(done.status).toBe(200);
+  expect(await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id))).toMatchObject([{ skill: 'speaking', unitKey: s.sessionId, tier: 'community' }]);
+
+  // the one speaking test of the day is gone: the next live session is refused before it starts
+  const again = await req('/api/live/start', { headers, body: { skipTts: true } });
+  expect(again.status).toBe(429);
+  expect(await again.json()).toMatchObject({ code: 'quota_exceeded', skill: 'speaking', tier: 'community' });
+});
+
+it('live finish with an exhausted community balance is refused (402) and creates no attempts', async () => {
+  const { headers, user } = await testUser(undefined, { key: false });
+  await setKey(user.id, 'gemini', 'g-test');
+  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  const f = fakeFetch({ '/api/v1/key': () => json({ data: { limit: 20, usage: 20, limit_remaining: 0 } }) });
+  setFetch(f);
+  clearBalanceCache(); // the balance ran out while the session was running
+  const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
+  const r = await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } });
+  expect([r.status, ((await r.json()) as any).code]).toEqual([402, 'community_balance_exhausted']);
+  expect(await db.select().from(attempts).where(eq(attempts.sessionId, s.sessionId))).toHaveLength(0);
+});
+
+it('an own-key user can run any number of live sessions', async () => {
+  const { headers, user } = await testUser();
+  await setKey(user.id, 'gemini', 'g-test');
+  for (let i = 0; i < 3; i++) {
+    const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+    const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
+    expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
+  }
 });

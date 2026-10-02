@@ -1,6 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, count, desc, eq } from 'drizzle-orm';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireAccount } from '../auth';
 import { db } from '../db/client';
 import { attempts, mistakes, prompts } from '../db/schema';
 import type { App } from '../types';
@@ -11,7 +11,7 @@ const mistakeCard = (m: { original: string; correction: string; explanation: str
 const PAGE_SIZE = 30;
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
-const authed = { tags: ['Mistakes'], security: [{ bearer: [] }], middleware: [requireUser] };
+const authed = { tags: ['Mistakes'], security: [{ bearer: [] }], middleware: [requireAccount] };
 
 const MistakeSchema = z
   .object({

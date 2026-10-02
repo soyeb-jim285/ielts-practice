@@ -1,4 +1,7 @@
 # Production stack for Dokploy (Compose service). Set the variables in Dokploy's Environment tab (they become .env here).
+# Community mode (docs/community.md) adds: KEY_ENCRYPTION_SECRET (required: `openssl rand -hex 32`; without it users cannot save their own API keys),
+# and optionally COMMUNITY_MIN_BALANCE, COMMUNITY_MAX_PER_HOUR, GUEST_IP_WEEKLY_CAP, IP_HASH_SALT. OPENROUTER_API_KEY must carry a spend limit (it is the shared balance).
+# Guest limits use the client IP from the Cloudflare Tunnel (CF-Connecting-IP): keep the app reachable only through the tunnel.
 # Exposed through the VPS's Cloudflare Tunnel (cloudflared on dokploy-network), like the other sites there:
 # public hostname ielts.soyebjim.me → http://ielts-app:8787. No host ports are published.
 # Memory caps keep this app from squeezing other projects on the same VPS.

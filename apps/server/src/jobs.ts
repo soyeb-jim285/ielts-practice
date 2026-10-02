@@ -2,13 +2,16 @@
 import { P1_TEST_QUESTIONS } from '@ielts/core';
 import { and, eq, lt, sql } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema';
+import { analyses, attempts, liveSessions, mistakes, prompts, user } from './db/schema';
 import { liveQuestions, type LiveState } from './ai/examiner';
 import { AiError } from './ai/openrouter';
+import { keyCtx } from './ai/keyctx';
 import { analyzeSpeaking } from './ai/speaking';
 import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } from './ai/types';
 import { analyzeWriting } from './ai/writing';
-import { getSettings } from './settings';
+import { markKeyInvalid } from './keys';
+import { payerOf, refundAttempt, type Tier } from './quota';
+import { DEFAULT_SETTINGS, getSettings } from './settings';
 import { storage } from './storage';
 
 const FORMATS = ['webm', 'm4a', 'wav', 'mp3', 'ogg'] as const;
@@ -24,15 +27,25 @@ const bands = (r: AnalysisResult) => Object.fromEntries(Object.entries(r.criteri
 const progress = (attemptId: string) => (patch: { stage?: AnalysisStage; partial?: AnalysisPartial }) =>
   db.update(attempts).set(patch).where(and(eq(attempts.id, attemptId), eq(attempts.status, 'analyzing'))).then(() => undefined, (e) => console.error('progress update failed', attemptId, e));
 
-async function analyze(attemptId: string): Promise<void> {
+/** Analysis runs on the owner's shared OpenRouter key unless the user brought their own, in which case every call in it (STT, scoring, audio pronunciation) uses theirs. */
+export async function analyze(attemptId: string): Promise<void> {
   const a = await db.query.attempts.findFirst({ where: eq(attempts.id, attemptId) });
   if (!a) return;
+  const u = await db.query.user.findFirst({ where: eq(user.id, a.userId), columns: { id: true, email: true, emailVerified: true, isAnonymous: true } });
+  const payer = u ? await payerOf(u) : undefined;
+  const ownKey = payer?.keys.openrouter;
+  return keyCtx.run({ openrouter: ownKey, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a, payer?.tier ?? 'community'));
+}
+
+async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Promise<void> {
+  const attemptId = a.id;
   const setStage = progress(attemptId);
   try {
     const p = await db.query.prompts.findFirst({ where: eq(prompts.id, a.promptId) });
     if (!p) throw new AiError('http', 'The prompt for this attempt no longer exists.');
-    const settings = await getSettings(a.userId);
-
+    const own = await getSettings(a.userId);
+    // Community-paid analysis always runs on the default models: a custom model choice (maybe a pricey one) is only honoured on the user's own key.
+    const settings = tier === 'own-key' ? own : { ...own, models: DEFAULT_SETTINGS.models };
     let result: AnalysisResult;
     let models: Record<string, string>;
     if (a.skill === 'speaking') {
@@ -91,10 +104,12 @@ async function analyze(attemptId: string): Promise<void> {
         );
       await tx.update(attempts).set({ status: 'done', error: null, errorRetryable: true, stage: null, partial: null }).where(eq(attempts.id, attemptId));
     });
+    if (result.noSpeech) await refundAttempt(a); // nothing was heard: the test is given back
   } catch (e) {
     console.error('analysis failed', attemptId, e);
     const error = e instanceof AiError ? e.message : 'Analysis failed. Please retry.';
     await db.update(attempts).set({ status: 'failed', error, errorRetryable: !(e instanceof AiError) || e.retryable, stage: null, partial: null }).where(eq(attempts.id, attemptId)).catch((e2) => console.error('could not mark attempt failed', attemptId, e2));
+    await refundAttempt(a); // a failed analysis never costs a test; a retry reserves it again
   }
 }
 
@@ -111,8 +126,23 @@ export function runAnalysis(attemptId: string): Promise<void> {
 /** Spec §4: marks attempts `analyzing` for over 10 min (far beyond the longest analysis, so orphaned by a restart) as failed, so they can be retried.
  *  Younger rows may still be running in another process. Called at boot and every few minutes. */
 export async function recoverStale(): Promise<void> {
-  await db
+  const stale = await db
     .update(attempts)
     .set({ status: 'failed', error: 'Interrupted, retry', errorRetryable: true, stage: null, partial: null })
-    .where(and(eq(attempts.status, 'analyzing'), lt(attempts.updatedAt, sql`now() - interval '10 minutes'`)));
+    .where(and(eq(attempts.status, 'analyzing'), lt(attempts.updatedAt, sql`now() - interval '10 minutes'`)))
+    .returning();
+  for (const a of stale) await refundAttempt(a);
+}
+
+const GUEST_KEEP_DAYS = 30;
+/** Guest data is kept 30 days (the result page says "Create an account to keep this result"): then the anonymous user, its attempts, quota rows and recordings go. */
+export async function purgeGuests(): Promise<number> {
+  const old = await db.select({ id: user.id }).from(user).where(and(eq(user.isAnonymous, true), lt(user.createdAt, sql`now() - ${GUEST_KEEP_DAYS} * interval '1 day'`))).limit(200);
+  for (const { id } of old) {
+    const sessions = await db.select({ id: liveSessions.id }).from(liveSessions).where(eq(liveSessions.userId, id));
+    await storage.deletePrefix(`audio/${id}/`);
+    for (const s of sessions) await storage.deletePrefix(`live/${s.id}/`);
+    await db.delete(user).where(eq(user.id, id)); // cascades attempts, analyses, quota rows, sessions
+  }
+  return old.length;
 }

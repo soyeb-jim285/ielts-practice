@@ -120,7 +120,7 @@ it('writing: an Academic Task 1 figure without chart data is sent to the model a
 });
 
 it('out of AI credit (402): failed, not retryable, candidate-safe message; retryable again once it succeeds', async () => {
-  const { user } = await testUser();
+  const { user } = await testUser(undefined, { key: false }); // community user: the shared key ran dry
   const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
   const text = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
   const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing' }).returning();

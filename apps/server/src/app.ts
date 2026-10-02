@@ -5,6 +5,9 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { auth, clearBearerCache, sessionMiddleware } from './auth';
 import { env, R2_CONFIGURED } from './env';
+import { ApiError } from './errors';
+import { clientIpHash } from './ip';
+import { anonSignInOk } from './ratelimit';
 import { MAX_AUDIO_BYTES, requestOrigin, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
 import { registerRoutes } from './routes';
@@ -24,9 +27,17 @@ export function createApp() {
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
   app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS], credentials: true, exposeHeaders: ['set-auth-token'] }));
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => {
-    if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password)/.test(c.req.path)) clearBearerCache();
-    return auth.handler(c.req.raw);
+  // Guests get an anonymous session on their first test start; one IP cannot mint them in bulk.
+  app.post('/api/auth/sign-in/anonymous', async (c, next) => {
+    const ip = clientIpHash(c);
+    if (ip && !anonSignInOk(ip)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
+    await next();
+  });
+  app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+    const res = await auth.handler(c.req.raw);
+    // sign-in/sign-up/verify-email can merge a guest into the account, which deletes the guest's session: drop it from the bearer cache (after the call, so nothing re-caches it).
+    if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password|sign-in(?!\/anonymous)|sign-up|verify-email)/.test(c.req.path)) clearBearerCache();
+    return res;
   });
   app.use('/api/*', sessionMiddleware);
 
@@ -79,6 +90,7 @@ export function createApp() {
   app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'IELTS Practice API' }));
 
   app.onError((err, c) => {
+    if (err instanceof ApiError) return c.json(err.body, err.status);
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
     console.error(err);
     return c.json({ error: 'Internal error' }, 500);

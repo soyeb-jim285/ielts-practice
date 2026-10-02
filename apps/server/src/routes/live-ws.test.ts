@@ -6,8 +6,8 @@ import { setUpstream } from '../ai/gpt-live';
 import type { LiveState } from '../ai/examiner';
 import { db } from '../db/client';
 import { liveSessions } from '../db/schema';
-import { env } from '../env';
-import { app, req, seedPrompt, testUser } from '../test/helpers';
+import { deleteKey } from '../keys';
+import { app, req, seedPrompt, setKey, testUser } from '../test/helpers';
 import { fakeSocket } from '../test/fakeSocket';
 import { attachLiveRelay } from './live-ws';
 
@@ -39,20 +39,24 @@ it('relay: bearer auth, one allowlisted pipe to OpenAI, server-owned session.sta
   for (const t of ['home', 'work', 'food']) await seedPrompt({ topic: t, followUps: [`${t} 1?`] });
   await seedPrompt({ part: 2, type: 'cue-card', title: 'Describe a book', groupId: 'g1', followUps: ['Do you read?'] });
   await seedPrompt({ part: 3, type: 'p3-discussion', topic: 'reading', groupId: 'g1', followUps: ['Why?'] });
-  const { headers } = await testUser();
+  const { headers, user } = await testUser();
+  await setKey(user.id, 'openai', 'sk-test'); // GPT-Live runs on the user's own OpenAI key
   const { sessionId } = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
   const auth = { Authorization: headers.get('Authorization')! };
   expect(await open({}, sessionId)).toEqual({ status: 401 });
-  expect(await open(auth, sessionId)).toEqual({ status: 400 }); // no OPENAI_API_KEY
-  env.OPENAI_API_KEY = 'sk-test';
+  await deleteKey(user.id, 'openai');
+  expect(await open(auth, sessionId)).toEqual({ status: 403 }); // live_requires_own_key
+  await setKey(user.id, 'openai', 'sk-test');
   try {
     expect(await open(auth, 'nope')).toEqual({ status: 404 });
     const up = fakeSocket(false);
     const urls: string[] = [];
-    setUpstream((u) => (urls.push(u), up));
+    const keys: string[] = [];
+    setUpstream((u, _user, key) => (urls.push(u), keys.push(key), up));
     const c = (await open(auth, sessionId)) as { ws: WebSocket; msgs: any[] };
     await until(() => urls.length === 1);
     expect(urls).toEqual(['wss://api.openai.com/v1/live/sessions']);
+    expect(keys).toEqual(['sk-test']); // the relay connects with the user's key
     up.readyState = 1;
     up.emit('open');
     expect(JSON.parse(up.sent[0]!)).toMatchObject({ type: 'session.start', session: { model: 'gpt-live-1', audio: { format: { type: 'audio/pcm', rate: 24000 } } } });
@@ -77,6 +81,6 @@ it('relay: bearer auth, one allowlisted pipe to OpenAI, server-owned session.sta
     const row = await db.query.liveSessions.findFirst({ where: eq(liveSessions.id, sessionId) });
     expect((row!.state as LiveState).history.map((h) => h.text)).toEqual(['Hello.']);
   } finally {
-    env.OPENAI_API_KEY = undefined;
+    await deleteKey(user.id, 'openai');
   }
 });

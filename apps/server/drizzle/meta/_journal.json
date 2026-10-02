@@ -29,6 +29,13 @@
       "when": 1790801581766,
       "tag": "0003_stage_trgm",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790966946161,
+      "tag": "0004_community",
+      "breakpoints": true
     }
   ]
 }

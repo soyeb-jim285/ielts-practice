@@ -444,7 +444,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Create an attempt (speaking: returns a presigned audio upload URL) */
+        /**
+         * Create an attempt (speaking: returns a presigned audio upload URL)
+         * @description Also checks the quota first (nothing is reserved yet), so a person out of tests hears before writing the essay: 429 quota_exceeded, 402 community_balance_exhausted, 503 community_busy. docs/community.md
+         */
         post: {
             parameters: {
                 query?: never;
@@ -476,6 +479,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
                 /** @description Not found */
                 404: {
                     headers: {
@@ -483,6 +495,24 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description quota_exceeded (or too_many_requests) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
             };
@@ -502,7 +532,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit an attempt for analysis (also re-runs a failed one). Returns immediately; poll GET /api/attempts/{id}. */
+        /**
+         * Submit an attempt for analysis (also re-runs a failed one). Returns immediately; poll GET /api/attempts/{id}.
+         * @description Reserves the test against the quota (one per speaking/writing session; re-submitting the same attempt never costs again; refunded if analysis fails or no speech is heard). When refused, a writing draft sent in the body is still saved on the attempt. docs/community.md
+         */
         post: {
             parameters: {
                 query?: never;
@@ -539,6 +572,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
                 /** @description Not found */
                 404: {
                     headers: {
@@ -557,13 +599,22 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description quota_exceeded (or too_many_requests) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
             };
@@ -710,7 +761,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio */
+        /**
+         * Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio
+         * @description Needs the user's own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).
+         */
         post: {
             parameters: {
                 query?: never;
@@ -733,6 +787,24 @@ export interface paths {
                         "application/json": components["schemas"]["LiveStarted"];
                     };
                 };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
                 /** @description Bank is empty */
                 404: {
                     headers: {
@@ -742,13 +814,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description AI service error */
@@ -758,6 +830,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
             };
@@ -867,6 +948,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
                 /** @description Not found */
                 404: {
                     headers: {
@@ -885,13 +975,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description AI service error */
@@ -943,13 +1033,22 @@ export interface paths {
                         "application/json": components["schemas"]["GptLiveSession"];
                     };
                 };
-                /** @description GPT-Live not configured */
+                /** @description invalid_key: OpenAI rejected the user's key */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description Not found */
@@ -961,13 +1060,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description OpenAI error */
@@ -1028,13 +1127,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
             };
@@ -1077,13 +1176,22 @@ export interface paths {
                         "application/json": components["schemas"]["GeminiToken"];
                     };
                 };
-                /** @description Gemini Live not configured */
+                /** @description invalid_key: Gemini rejected the user's key */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description Not found */
@@ -1095,13 +1203,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
                 /** @description Gemini error */
@@ -1162,6 +1270,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
                 /** @description Not found */
                 404: {
                     headers: {
@@ -1180,13 +1297,22 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Too many requests */
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
                 429: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
                     };
                 };
             };
@@ -1492,6 +1618,243 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shared community balance (public, cached 60 s) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CommunityBalance"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tests left, reset times and live access for the caller. Works without a session (a guest, counted by IP). Call it when a test is about to start */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Quota */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Quota"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your saved API keys (provider, last 4 characters, date, whether it still works) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Keys */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiKeyList"];
+                    };
+                };
+                /** @description Guests have no keys (account_required) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/keys/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save (or replace) your own key for a provider. It is checked with a free live call first and stored encrypted */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: "openrouter" | "openai" | "gemini";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PutApiKey"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiKeyInfo"];
+                    };
+                };
+                /** @description invalid_key: the provider rejected it */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description account_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Too many requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description key_check_failed: the provider could not be reached; try again */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description keys_unavailable: the server cannot store keys (KEY_ENCRYPTION_SECRET is not set) */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Remove your key for a provider */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: "openrouter" | "openai" | "gemini";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Removed (also when there was none) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                /** @description account_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1499,9 +1862,12 @@ export interface components {
         Me: {
             user: {
                 id: string;
+                /** @description Empty for a guest */
                 email: string;
                 name: string;
                 emailVerified: boolean;
+                /** @description A guest (anonymous session, no account yet): show "Create an account", hide keys, history and review */
+                isAnonymous: boolean;
             };
             settings: {
                 models: {
@@ -1520,13 +1886,50 @@ export interface components {
                 blockPaste: boolean;
             };
             cambridgeAccess: boolean;
+            /** @description This user has an OpenAI key (or is the owner) */
             gptLiveAvailable: boolean;
             /**
              * @deprecated
              * @description Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)
              */
             realtimeAvailable: boolean;
+            /** @description This user has a Gemini key (or is the owner) */
             geminiLiveAvailable: boolean;
+            /** @enum {string} */
+            tier: "guest" | "community" | "own-key";
+            speaking: components["schemas"]["SkillQuota"];
+            writing: components["schemas"]["SkillQuota"];
+            /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
+            liveProviders: ("turn" | "gpt-live" | "gemini-live")[];
+            communityBalance: components["schemas"]["CommunityBalance"];
+        };
+        SkillQuota: {
+            used: number;
+            /** @description Tests per window; null = unlimited */
+            limit: number | null;
+            remaining: number | null;
+            /** @description ISO instant the window resets; show in local time. null when unlimited */
+            resetAt: string | null;
+            /**
+             * @description day: resets 00:00 UTC; week: resets Monday 00:00 UTC
+             * @enum {string|null}
+             */
+            window: "day" | "week" | null;
+            /**
+             * @description Why a test cannot start now; null = it can
+             * @enum {string|null}
+             */
+            blocked: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | null;
+        };
+        CommunityBalance: {
+            /** @description USD spend limit of the shared OpenRouter key; null if it has none */
+            limit: number | null;
+            /** @description USD spent so far; null if unknown */
+            used: number | null;
+            /** @description USD left; null if unknown or unlimited */
+            remaining: number | null;
+            /** @description ISO time of the reading (cached up to 60 s) */
+            updatedAt: string;
         };
         Settings: {
             models: {
@@ -1629,6 +2032,25 @@ export interface components {
             /** @description Presigned PUT (speaking). Send the same Content-Type as audioContentType. */
             uploadUrl?: string;
             audioKey?: string;
+        };
+        /** @description Errors with a machine-readable code (docs/community.md). Map `code` to UX; `error` is a fallback. */
+        CodedError: {
+            /** @description Friendly, safe to show */
+            error: string;
+            /** @enum {string} */
+            code: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | "too_many_requests" | "live_requires_own_key" | "account_required" | "keys_unavailable" | "invalid_key" | "key_check_failed";
+            /**
+             * @description quota_exceeded
+             * @enum {string}
+             */
+            skill?: "speaking" | "writing";
+            /** @description quota_exceeded: ISO time the window resets (00:00 UTC daily, Monday 00:00 UTC weekly) */
+            resetAt?: string | null;
+            /**
+             * @description quota_exceeded, live_requires_own_key
+             * @enum {string}
+             */
+            tier?: "guest" | "community" | "own-key";
         };
         CreateAttempt: {
             promptId: string;
@@ -1927,6 +2349,30 @@ export interface components {
         };
         CardReview: {
             grade: number;
+        };
+        Quota: {
+            /** @enum {string} */
+            tier: "guest" | "community" | "own-key";
+            speaking: components["schemas"]["SkillQuota"];
+            writing: components["schemas"]["SkillQuota"];
+            /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
+            liveProviders: ("turn" | "gpt-live" | "gemini-live")[];
+            communityBalance: components["schemas"]["CommunityBalance"];
+        };
+        ApiKeyList: {
+            keys: components["schemas"]["ApiKeyInfo"][];
+        };
+        /** @description The key itself is never returned. */
+        ApiKeyInfo: {
+            /** @enum {string} */
+            provider: "openrouter" | "openai" | "gemini";
+            last4: string;
+            addedAt: string;
+            /** @description false: the provider rejected this key; enter a new one */
+            valid: boolean;
+        };
+        PutApiKey: {
+            key: string;
         };
     };
     responses: never;

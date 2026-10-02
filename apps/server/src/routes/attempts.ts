@@ -2,15 +2,19 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { and, count, desc, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { visiblePromptWhere } from '../access';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireAccount, requireUser } from '../auth';
 import { db } from '../db/client';
 import { analyses, attempts, prompts } from '../db/schema';
+import { ApiError } from '../errors';
+import { clientIpHash } from '../ip';
 import { runAnalysis } from '../jobs';
+import { checkAttempt, payerOf, reserveAttempt } from '../quota';
 import { aiLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
 import type { AnalysisResult } from '../ai/types';
 import type { App } from '../types';
 import { fixCard, inDeck } from './cards';
+import { CodedError } from './community';
 
 const PAGE_SIZE = 20;
 const AUDIO_EXT: Record<string, string> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
@@ -23,6 +27,11 @@ const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 const notFound = { 404: json(ErrorSchema, 'Not found') };
 const authed = { tags: ['Attempts'], security: [{ bearer: [] }], middleware: [requireUser] };
+const limited = {
+  402: json(CodedError, 'community_balance_exhausted'),
+  429: json(CodedError, 'quota_exceeded (or too_many_requests)'),
+  503: json(CodedError, 'community_busy'),
+};
 
 const CreateAttempt = z
   .object({
@@ -140,8 +149,9 @@ export function register(app: App) {
       method: 'post',
       path: '/api/attempts',
       summary: 'Create an attempt (speaking: returns a presigned audio upload URL)',
+      description: 'Also checks the quota first (nothing is reserved yet), so a person out of tests hears before writing the essay: 429 quota_exceeded, 402 community_balance_exhausted, 503 community_busy. docs/community.md',
       request: { body: { required: true, content: { 'application/json': { schema: CreateAttempt } } } },
-      responses: { 201: json(CreatedAttempt, 'Created'), 400: json(ErrorSchema, 'Bad request'), ...notFound },
+      responses: { 201: json(CreatedAttempt, 'Created'), 400: json(ErrorSchema, 'Bad request'), ...limited, ...notFound },
     }),
     async (c) => {
       const user = currentUser(c);
@@ -157,6 +167,7 @@ export function register(app: App) {
       }
 
       const id = crypto.randomUUID();
+      await checkAttempt(await payerOf(user), { id, userId: user.id, skill: b.skill, part: b.part, sessionId: b.sessionId ?? null }, clientIpHash(c));
       if (b.skill === 'writing') {
         await db.insert(attempts).values({ id, userId: user.id, promptId: b.promptId, skill: b.skill, part: b.part, mode: b.mode, sessionId: b.sessionId, parentAttemptId: b.parentAttemptId, text: b.text });
         return c.json({ id }, 201);
@@ -177,23 +188,32 @@ export function register(app: App) {
       method: 'post',
       path: '/api/attempts/{id}/submit',
       summary: 'Submit an attempt for analysis (also re-runs a failed one). Returns immediately; poll GET /api/attempts/{id}.',
+      description: 'Reserves the test against the quota (one per speaking/writing session; re-submitting the same attempt never costs again; refunded if analysis fails or no speech is heard). When refused, a writing draft sent in the body is still saved on the attempt. docs/community.md',
       request: { params: Id, body: { required: true, content: { 'application/json': { schema: SubmitAttempt } } } },
       responses: {
         200: json(z.object({ status: z.literal('analyzing') }), 'Analysis started'),
         400: json(ErrorSchema, 'Upload missing'),
         409: json(ErrorSchema, 'Already submitted'),
-        429: json(ErrorSchema, 'Too many requests'),
+        ...limited,
         ...notFound,
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param');
       const b = c.req.valid('json');
-      const a = await ownAttempt(id, currentUser(c).id);
+      const user = currentUser(c);
+      const a = await ownAttempt(id, user.id);
       if (a.status === 'analyzing' || a.status === 'done') return c.json({ error: `Attempt is already ${a.status}` }, 409);
       if (a.skill === 'speaking') {
         const bad = a.audioKey ? await uploadError(a.audioKey) : 'Upload missing';
         if (bad) return c.json({ error: bad }, 400);
+      }
+      try {
+        await reserveAttempt(await payerOf(user), a, clientIpHash(c));
+      } catch (e) {
+        // The quota ran out between start and submit (a second tab, the window rolled): the essay is kept on the attempt, nothing is lost.
+        if (e instanceof ApiError && a.skill === 'writing' && (b.text !== undefined || b.plan !== undefined)) await db.update(attempts).set({ text: b.text, plan: b.plan }).where(eq(attempts.id, id));
+        throw e;
       }
 
       // drizzle skips undefined keys, so a bare {} re-runs a failed attempt with its stored data.
@@ -296,6 +316,7 @@ export function register(app: App) {
   app.openapi(
     createRoute({
       ...authed,
+      middleware: [requireAccount],
       method: 'get',
       path: '/api/attempts',
       summary: `Attempt history, newest first, ${PAGE_SIZE} per page`,

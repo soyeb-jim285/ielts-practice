@@ -4,16 +4,22 @@ import { HTTPException } from 'hono/http-exception';
 import { EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
+import { redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { attempts, liveSessions } from '../db/schema';
 import { env } from '../env';
+import { ApiError } from '../errors';
+import { clientIpHash } from '../ip';
 import { runAnalysis } from '../jobs';
+import { markKeyInvalid } from '../keys';
+import { checkStart, liveKey, requireLive, reserve, withPayer } from '../quota';
 import { getSettings, type Settings } from '../settings';
 import { aiLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
 import type { App } from '../types';
+import { CodedError } from './community';
 import { pickSpeakingTest, PromptSchema } from './prompts';
 
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
@@ -25,8 +31,9 @@ const json = <T extends z.ZodType>(schema: T, description: string) => ({ descrip
 const body = <T extends z.ZodType>(schema: T) => ({ body: { required: true, content: { 'application/json': { schema } } } });
 const authed = { tags: ['Live'], security: [{ bearer: [] }], middleware: [requireUser] };
 /** Routes that spend AI credit: rate-limited per user. */
-const paid = { ...authed, middleware: [requireUser, aiLimit] };
-const tooMany = { 429: json(ErrorSchema, 'Too many requests') };
+const paid = { ...authed, middleware: [requireUser, withPayer, aiLimit] };
+const tooMany = { 429: json(CodedError, 'Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)') };
+const needsKey = { 403: json(CodedError, 'live_requires_own_key: the live examiner runs only on the user\'s own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key') };
 const SessionRef = z.object({ sessionId: z.string() });
 
 const ExaminerLine = z
@@ -93,6 +100,13 @@ async function ai<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+/** The provider rejected the user's own key (401/403): flag it and tell them, instead of a vague "could not start". Only when the key was theirs; a rejected owner/server key is an operator problem. */
+function rejectedKey(userId: string, provider: 'openai' | 'gemini', label: string, own: string | undefined): never {
+  if (!own) throw new ApiError(502, { error: `Could not start a ${label} session. Please retry.`, code: 'key_check_failed' });
+  void markKeyInvalid(userId, provider);
+  throw new ApiError(400, { error: `${label} rejected your API key. Check it in Settings.`, code: 'invalid_key' });
+}
+
 export function register(app: App) {
   app.openapi(
     createRoute({
@@ -108,7 +122,11 @@ export function register(app: App) {
           })
           .openapi('LiveStart'),
       ),
+      description: 'Needs the user\'s own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).',
       responses: {
+        ...needsKey,
+        402: json(CodedError, 'community_balance_exhausted'),
+        503: json(CodedError, 'community_busy'),
         200: json(
           ExaminerLine.extend({ sessionId: z.string(), test: z.object({ part1: z.array(PromptSchema), part2: PromptSchema, part3: PromptSchema }) }).openapi('LiveStarted'),
           'Session started',
@@ -121,6 +139,9 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       const { source, skipTts } = c.req.valid('json');
+      const payer = c.get('payer')!;
+      requireLive(payer, skipTts ? 'duplex' : 'turn');
+      await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
       const test = await pickSpeakingTest(user, source);
       if (!test) return c.json({ error: 'No speaking test available' }, 404);
       const sessionId = crypto.randomUUID();
@@ -163,6 +184,7 @@ export function register(app: App) {
         400: json(ErrorSchema, 'Bad audio key'),
         404: json(ErrorSchema, 'Not found'),
         409: json(ErrorSchema, 'Test already over'),
+        ...needsKey,
         ...tooMany,
         502: json(ErrorSchema, 'AI service error'),
       },
@@ -170,6 +192,7 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       const b = c.req.valid('json');
+      requireLive(c.get('payer')!, 'turn');
       const s = await loadSession(b.sessionId, user.id);
       if (s.phase === 'done') return c.json({ error: 'The test is already over' }, 409);
       const settings = await getSettings(user.id);
@@ -238,23 +261,27 @@ export function register(app: App) {
       request: body(SessionRef.extend({ sdp: z.string().min(1).max(50_000).openapi({ description: "The browser's SDP offer (data channel \"oai-events\" created before the offer)" }) }).openapi('LiveGptSession')),
       responses: {
         200: json(z.object({ sdp: z.string(), sessionId: z.string().openapi({ description: "OpenAI's live session id" }) }).openapi('GptLiveSession'), 'SDP answer'),
-        400: json(ErrorSchema, 'GPT-Live not configured'),
+        400: json(CodedError, 'invalid_key: OpenAI rejected the user\'s key'),
+        ...needsKey,
         404: json(ErrorSchema, 'Not found'),
         ...tooMany,
         502: json(ErrorSchema, 'OpenAI error'),
       },
     }),
     async (c) => {
-      if (!env.OPENAI_API_KEY) return c.json({ error: 'GPT-Live is not configured on this server' }, 400);
       const user = currentUser(c);
+      const payer = c.get('payer')!;
+      requireLive(payer, 'gpt-live');
       const b = c.req.valid('json');
       const s = await loadSession(b.sessionId, user.id);
-      const r = await createWebrtcSession(b.sdp, user.id);
+      const apiKey = liveKey(payer, 'openai')!;
+      const r = await createWebrtcSession(b.sdp, user.id, apiKey);
       if (!('id' in r)) {
-        console.error('gpt-live create session', r.status, r.detail);
+        console.error('gpt-live create session', r.status, redact(r.detail, apiKey));
+        if (r.status === 401 || r.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
         return c.json({ error: 'Could not start a GPT-Live session. Please retry or use the turn-based examiner.' }, 502);
       }
-      attachSideband({ userId: user.id, sessionId: s.sessionId, test: s.test, liveId: r.id });
+      attachSideband({ userId: user.id, sessionId: s.sessionId, test: s.test, liveId: r.id, apiKey });
       return c.json({ sdp: r.sdp, sessionId: r.id }, 200);
     },
   );
@@ -290,20 +317,24 @@ export function register(app: App) {
       request: body(SessionRef.openapi('LiveGeminiToken')),
       responses: {
         200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('GeminiToken'), 'Ephemeral token: pass as access_token to BidiGenerateContentConstrained'),
-        400: json(ErrorSchema, 'Gemini Live not configured'),
+        400: json(CodedError, 'invalid_key: Gemini rejected the user\'s key'),
+        ...needsKey,
         404: json(ErrorSchema, 'Not found'),
         ...tooMany,
         502: json(ErrorSchema, 'Gemini error'),
       },
     }),
     async (c) => {
-      if (!env.GEMINI_API_KEY) return c.json({ error: 'Gemini Live is not configured on this server' }, 400);
+      const payer = c.get('payer')!;
+      requireLive(payer, 'gemini-live');
       const s = await loadSession(c.req.valid('json').sessionId, currentUser(c).id);
       const model = env.GEMINI_LIVE_MODEL;
       const req = geminiTokenRequest(model, s.test);
-      const t = await mintGeminiToken(env.GEMINI_API_KEY, req);
+      const t = await mintGeminiToken(liveKey(payer, 'gemini')!, req);
       if (!('name' in t)) {
-        console.error('gemini auth_tokens', t.status, t.detail);
+        const geminiKey = liveKey(payer, 'gemini')!;
+        console.error('gemini auth_tokens', t.status, redact(t.detail, geminiKey));
+        if (t.status === 401 || t.status === 403 || (t.status === 400 && /API key not valid|API_KEY_INVALID/i.test(t.detail))) return rejectedKey(currentUser(c).id, 'gemini', 'Gemini', payer.keys.gemini);
         return c.json({ error: 'Could not start a Gemini Live session. Please retry or use the turn-based examiner.' }, 502);
       }
       return c.json({ value: t.name, expiresAt: Math.floor(Date.parse(req.expireTime) / 1000), model }, 200);
@@ -337,6 +368,8 @@ export function register(app: App) {
         400: json(ErrorSchema, 'Bad upload'),
         404: json(ErrorSchema, 'Not found'),
         409: json(ErrorSchema, 'Already finished'),
+        402: json(CodedError, 'community_balance_exhausted'),
+        503: json(CodedError, 'community_busy'),
         ...tooMany,
       },
     }),
@@ -351,6 +384,8 @@ export function register(app: App) {
         if (bad) return c.json({ error: `${bad} (part ${p.part})` }, 400);
       }
       const promptId = { 1: s.test.part1[0]!.id, 2: s.test.part2.id, 3: s.test.part3.id };
+      // One speaking test for the whole session. Normally already checked at start; reserved now, before any analysis spends community credit.
+      await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c));
       const rows = await db.transaction(async (tx) => {
         // Row lock serialises concurrent finishes (double click, client retry): the second one then sees the first's attempts.
         await tx.select({ id: liveSessions.id }).from(liveSessions).where(and(eq(liveSessions.id, s.sessionId), eq(liveSessions.userId, user.id))).for('update');
