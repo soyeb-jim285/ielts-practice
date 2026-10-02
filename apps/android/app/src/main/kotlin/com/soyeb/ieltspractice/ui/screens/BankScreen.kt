@@ -99,7 +99,7 @@ fun BankScreen(route: Bank, nav: AppNav) {
     LaunchedEffect(skill, partKey, type, topic, source, searched) { paged.reset() }
 
     fun clear() { query = ""; searched = ""; skill = ""; partKey = "all"; type = ""; topic = ""; source = "" }
-    fun open(p: BankPrompt) = nav.requireSignIn("Sign in to practise this prompt.") {
+    fun open(p: BankPrompt) = nav.startTest(if (p.skill == "speaking") "speaking" else "writing") {
         nav.go(if (p.skill == "speaking") SpeakingSession("prompt", promptId = p.id) else WritingEditor("prompt", promptId = p.id))
     }
 

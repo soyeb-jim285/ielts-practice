@@ -9,7 +9,11 @@ import kotlinx.serialization.json.doubleOrNull
 // apps/ios/IELTS/Core/Models.swift. Nested Swift types (ProgressData.TrendPoint, AnalysisResult.Rewrite, ...) are top-level here.
 // Decode with `AppJson` (lenient). Optional Swift fields are nullable here with a `= null` default.
 
-@Serializable data class User(val id: String, val email: String, val name: String, val emailVerified: Boolean = false)
+@Serializable data class User(
+    val id: String, val email: String = "", val name: String = "", val emailVerified: Boolean = false,
+    /** A guest (anonymous session): no account yet. Their `email` is empty; never show it. */
+    val isAnonymous: Boolean = false,
+)
 
 @Serializable data class ModelChoices(
     val analysis: String, val examiner: String, val stt: String, val tts: String, val ttsVoice: String, val audioPron: String,
@@ -35,8 +39,17 @@ import kotlinx.serialization.json.doubleOrNull
     /** Deprecated alias the server still sends for app versions from before GPT-Live. */
     val realtimeAvailable: Boolean = false,
     val geminiLiveAvailable: Boolean = false,
+    // Community mode: the same fields as GET /api/quota.
+    val tier: String? = null,
+    val speaking: SkillQuota? = null,
+    val writing: SkillQuota? = null,
+    val liveProviders: List<String>? = null,
+    val communityBalance: Balance? = null,
 ) {
     val gptLive: Boolean get() = gptLiveAvailable ?: realtimeAvailable
+
+    /** The quota block of `/api/me`, or null from a server that predates community mode. */
+    fun quota(): Quota? = tier?.let { Quota(it, speaking ?: SkillQuota(), writing ?: SkillQuota(), liveProviders.orEmpty(), communityBalance) }
 }
 
 /** An empty `{}` body (writes that return nothing useful). */

@@ -85,6 +85,7 @@ import com.soyeb.ieltspractice.core.formatDate
 import com.soyeb.ieltspractice.core.formatDuration
 import com.soyeb.ieltspractice.core.minWords
 import com.soyeb.ieltspractice.core.notAssessed
+import com.soyeb.ieltspractice.ui.community.RefundNote
 import com.soyeb.ieltspractice.core.offTopic
 import com.soyeb.ieltspractice.core.pronUnsupported
 import com.soyeb.ieltspractice.core.repeatedWords
@@ -207,7 +208,10 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
                         ResUnavailable(
                             "No speech detected",
                             "We couldn't hear enough speech in this recording to score it. Check the right microphone is selected, speak a little closer to it, and keep talking for at least 20 seconds.",
-                        ) { PrimaryButton(retryLabel(false), { nav.go(retryRoute()) }) }
+                        ) {
+                            RefundNote()
+                            PrimaryButton(retryLabel(false), { nav.go(retryRoute()) })
+                        }
                     } else {
                         stickyHeader { Box(Modifier.fillMaxWidth().background(e.bg).padding(vertical = 4.dp)) { TabStrip(tabs, current) { tab = it } } }
                         item {
@@ -586,6 +590,7 @@ private fun Failed(attempt: Attempt, speaking: Boolean, retryable: Boolean, nav:
                 }
             },
         )
+        RefundNote()
         QuestionsCard(attempt)
     }
 }

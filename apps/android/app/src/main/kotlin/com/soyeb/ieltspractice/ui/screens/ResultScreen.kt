@@ -57,6 +57,7 @@ import com.soyeb.ieltspractice.ui.screens.result.AttemptResultView
 import com.soyeb.ieltspractice.ui.screens.result.Busy
 import com.soyeb.ieltspractice.ui.screens.result.ResUnavailable
 import com.soyeb.ieltspractice.ui.theme.AppCard
+import com.soyeb.ieltspractice.ui.community.GuestResultBar
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
@@ -83,6 +84,7 @@ private class Fetched(val attempt: Attempt, val stage: String?, val retryable: B
 fun ResultScreen(route: AttemptResult, nav: AppNav) {
     val api = LocalApp.current.api
     val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     ScreenScaffold("Results", onBack = nav::back, scroll = false) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (token == null) {
@@ -91,6 +93,8 @@ fun ResultScreen(route: AttemptResult, nav: AppNav) {
                 ResultContainer(route.idList, nav)
             }
         }
+        // A guest can read their own result now; it is kept for 30 days unless they make an account.
+        if (token != null && !account) GuestResultBar(nav)
     }
 }
 
@@ -137,7 +141,8 @@ private fun ResultContainer(ids: List<String>, nav: AppNav) {
                 fetched.remove(id)
                 poll++
             } catch (x: ApiError) {
-                error = x.message
+                // Retrying costs nothing again, unless the quota was used elsewhere in the meantime: say so, the answer stays.
+                if (!nav.reportBlocked(x, fetched[id]?.attempt?.skill ?: "speaking")) error = x.message
             }
         }
     }

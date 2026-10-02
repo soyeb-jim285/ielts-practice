@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
@@ -40,7 +42,14 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** A failed request. [status] is 0 for client-side failures (offline, bad response). [message] is safe to show the user. [code] is Better Auth's error code (INVALID_OTP, ...). */
-class ApiError(val status: Int, override val message: String, val code: String? = null) : Exception(message)
+class ApiError(
+    val status: Int, override val message: String, val code: String? = null,
+    /** quota_exceeded extras (docs/community.md): when the window resets (ISO), which skill, and the caller's tier. */
+    val resetAt: String? = null, val skill: String? = null, val tier: String? = null,
+) : Exception(message) {
+    /** One of the "you can't start or finish a test now" codes (quota, balance, busy, too fast, live needs a key). */
+    val isLimit: Boolean get() = code in Codes.limits
+}
 
 class ApiResponse(val status: Int, val body: String, val headers: Headers)
 
@@ -77,8 +86,27 @@ class ApiClient(
         .build()
 
     private val _token = MutableStateFlow(initialToken)
+    /** The bearer token: an account's, or a guest's (see [hasAccount]). */
     val token: StateFlow<String?> = _token.asStateFlow()
+    /** A session exists (guest or account). Tests need one; it is created on the first test start ([ensureSession]). */
     val isSignedIn: Boolean get() = _token.value != null
+
+    private val _account = MutableStateFlow(initialToken != null)
+    /** True only for a real account. False for no session and for a guest session: History, Mistakes, Review and keys are account-only. */
+    val hasAccount: StateFlow<Boolean> = _account.asStateFlow()
+    private var guest = false
+
+    private fun setSession(token: String?, isGuest: Boolean) {
+        guest = isGuest
+        _token.value = token
+        _account.value = token != null && !isGuest
+    }
+
+    private val _quota = MutableStateFlow<Quota?>(null)
+    /** Tests left, the community balance and the live providers this person may use. Null until first loaded. */
+    val quota: StateFlow<Quota?> = _quota.asStateFlow()
+    private var quotaAt = 0L
+    private val sessionLock = Mutex()
 
     /** False until the stored token has been read at launch, so the UI doesn't flash the guest state for a signed-in user. */
     private val _ready = MutableStateFlow(initialToken != null)
@@ -92,7 +120,7 @@ class ApiClient(
 
     /** Load the stored token and the account (call once at launch). A guest simply stays signed out. */
     suspend fun restoreSession() {
-        if (_token.value == null) _token.value = store.load()
+        if (_token.value == null) store.load()?.let { setSession(it, store.loadGuest()) }
         _ready.value = true
         if (_token.value != null && _me.value == null) runCatching { loadMe() }
     }
@@ -113,7 +141,9 @@ class ApiClient(
             val err = runCatching { AppJson.parseToJsonElement(text) as? JsonObject }.getOrNull()
             fun field(k: String) = (err?.get(k) as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
             if (status == 401 && _token.value != null && !path.startsWith("/api/auth/")) signOutLocal()
-            throw ApiError(status, field("error") ?: field("message") ?: httpReason(status), field("code"))
+            // A guest on an account-only endpoint is not an expired session: flip the UI to its "Create an account" gates.
+            if (status == 403 && field("code") == Codes.ACCOUNT && _token.value != null && _account.value) { _account.value = false; guest = true }
+            throw ApiError(status, field("error") ?: field("message") ?: httpReason(status), field("code"), field("resetAt"), field("skill"), field("tier"))
         }
         return ApiResponse(status, text, headers)
     }
@@ -219,6 +249,8 @@ class ApiClient(
         adopt(r)
         return true
     }
+    // A guest token, when there is one, is sent on sign-up, sign-in and verify-email (see [raw]): the server moves the guest's tests to the
+    // new account and answers with the account's token, which replaces the guest's here. Until then the guest session keeps working.
 
     suspend fun resendVerification(email: String) {
         raw("POST", "/api/auth/send-verification-email", buildJsonObject { put("email", email); put("callbackURL", "$baseUrl/") })
@@ -245,12 +277,74 @@ class ApiClient(
     private suspend fun adopt(r: ApiResponse) {
         val t = r.headers["set-auth-token"]
         if (t.isNullOrEmpty()) throw ApiError(0, "Sign-in didn't complete. Please try again.")
-        _token.value = t
-        store.save(t)
+        setSession(t, false)
+        store.save(t, false)
         loadMe()
     }
 
-    suspend fun loadMe() { _me.value = get<Me>("/api/me") }
+    /** Start an anonymous guest session (the first test start, never a page view). The bearer token is the `set-auth-token` header, not the JSON `token`. */
+    suspend fun signInAnonymously() {
+        val r = raw("POST", "/api/auth/sign-in/anonymous", buildJsonObject {})
+        val t = r.headers["set-auth-token"]
+        if (t.isNullOrEmpty()) throw ApiError(0, "Couldn't start a guest session. Please try again.")
+        setSession(t, true)
+        store.save(t, true)
+        loadMe()
+    }
+
+    /** A session for the test about to start: the guest session is created here when there is none. */
+    suspend fun ensureSession() = sessionLock.withLock { if (_token.value == null) signInAnonymously() }
+
+    suspend fun loadMe() {
+        val m = get<Me>("/api/me")
+        _me.value = m
+        m.quota()?.let { _quota.value = it; quotaAt = System.currentTimeMillis() }
+        if (_token.value != null && m.user.isAnonymous != guest) {
+            val t = _token.value
+            setSession(t, m.user.isAnonymous)
+            if (t != null) store.save(t, m.user.isAnonymous)
+        }
+    }
+
+    /** GET /api/quota: works without a session (answers for a guest by IP). A stale token is dropped and asked again as a guest. */
+    suspend fun refreshQuota(): Quota {
+        val q = try {
+            get<Quota>("/api/quota")
+        } catch (e: ApiError) {
+            if (e.status == 401) get<Quota>("/api/quota") else throw e
+        }
+        _quota.value = q
+        quotaAt = System.currentTimeMillis()
+        return q
+    }
+
+    /** For screens that show the labels: refreshes at most once a minute and stays quiet on failure. */
+    suspend fun refreshQuotaIfStale() {
+        if (quotaBusy || (_quota.value != null && System.currentTimeMillis() - quotaAt < 60_000)) return
+        quotaBusy = true
+        try { runCatching { refreshQuota() } } finally { quotaBusy = false }
+    }
+    @Volatile private var quotaBusy = false
+
+    // MARK: Own API keys (account only)
+
+    suspend fun loadKeys(): List<KeyInfo> = get<KeysResponse>("/api/keys").keys
+
+    /** Validates the key with the provider, then saves it encrypted. The key is sent once and never kept or logged here. */
+    suspend fun saveKey(provider: String, key: String): KeyInfo {
+        val info: KeyInfo = send("PUT", "/api/keys/$provider", buildJsonObject { put("key", key.trim()) })
+        loadMe() // tier, live providers and unlimited tests may have changed
+        return info
+    }
+
+    suspend fun removeKey(provider: String) {
+        raw("DELETE", "/api/keys/$provider")
+        loadMe()
+    }
+
+    /** The live examiners this person may start (docs/community.md): turn, gpt-live, gemini-live. */
+    val liveProviders: List<String>
+        get() = _quota.value?.liveProviders ?: _me.value?.let { m -> listOfNotNull(if (m.gptLive) "gpt-live" else null, if (m.geminiLiveAvailable) "gemini-live" else null) }.orEmpty()
 
     suspend fun signOut() {
         runCatching { raw("POST", "/api/auth/sign-out") }
@@ -264,8 +358,9 @@ class ApiClient(
     }
 
     fun signOutLocal() {
-        _token.value = null
+        setSession(null, false)
         _me.value = null
+        _quota.value = null
         scope.launch { store.clear() }
     }
 

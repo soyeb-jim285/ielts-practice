@@ -75,9 +75,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun MistakesScreen(route: Mistakes, nav: AppNav) {
     val api = LocalApp.current.api
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     ScreenScaffold("Mistakes", onBack = nav::back, scroll = false) {
-        SignInGate(nav, "Sign in to see the errors you repeat, grouped by type.", token != null, "Your mistake log", R.drawable.ic_alert) { MistakeLogList(route, nav) }
+        SignInGate(nav, "Create an account to see the errors you repeat, grouped by type.", account, "Your mistake log", R.drawable.ic_alert) { MistakeLogList(route, nav) }
     }
 }
 

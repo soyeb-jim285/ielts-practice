@@ -67,10 +67,10 @@ import kotlinx.serialization.json.put
 @Composable
 fun ReviewScreen(nav: AppNav) {
     val api = LocalApp.current.api
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     val ready by api.ready.collectAsState()
     ScreenScaffold("Review", large = true) {
-        if (ready) SignInGate(nav, "Sign in to turn your corrections into flashcards.", token != null, "Your review deck", R.drawable.ic_review) { ReviewBody(nav) }
+        if (ready) SignInGate(nav, "Create an account to turn your corrections into flashcards.", account, "Your review deck", R.drawable.ic_review) { ReviewBody(nav) }
     }
 }
 

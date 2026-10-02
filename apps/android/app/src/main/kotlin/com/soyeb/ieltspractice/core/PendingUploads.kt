@@ -136,7 +136,9 @@ class PendingStore(private val dir: File, private val scope: CoroutineScope) {
             _states.update { it - p.id }
             throw e
         } catch (e: Exception) {
-            _states.update { it + (p.id to UploadState.Failed(e.message ?: "Upload failed.")) }
+            // A refused test (no tests left, balance used up) says so and that the recording is safe; the retry button works once there is room.
+            val msg = if (e is ApiError && e.isLimit) GateText.sentence(e, "Your recording is saved on this device.") else e.message ?: "Upload failed."
+            _states.update { it + (p.id to UploadState.Failed(msg)) }
             null
         }
     }

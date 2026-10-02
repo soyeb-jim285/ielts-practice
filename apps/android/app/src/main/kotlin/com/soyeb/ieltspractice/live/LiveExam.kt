@@ -17,6 +17,7 @@ import com.soyeb.ieltspractice.audio.Vad
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.DemoConfig
 import com.soyeb.ieltspractice.core.FinishResult
+import com.soyeb.ieltspractice.core.GateText
 import com.soyeb.ieltspractice.core.LiveReply
 import com.soyeb.ieltspractice.core.Prompt
 import com.soyeb.ieltspractice.core.SpeakingTest
@@ -48,7 +49,8 @@ sealed interface LiveStage {
     data object Running : LiveStage
     data object Uploading : LiveStage
     data class Finished(val ids: List<String>) : LiveStage
-    data class Failed(val message: String) : LiveStage
+    /** [error] is set when the server refused (no tests left, live needs a key): the screen shows the limit panel for it. */
+    data class Failed(val message: String, val error: ApiError? = null) : LiveStage
 }
 
 /** Web LiveStage PHASE_LABEL. */
@@ -235,10 +237,14 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         } catch (e: CancellationException) {
             if (!ending) throw e
         } catch (e: Exception) {
-            if (!ending) { stage = LiveStage.Failed(e.message ?: "Something went wrong."); return }
+            if (!ending) { stage = failed(e); return }
         }
         finish()
     }
+
+    /** A failure as the screen shows it: a refused test keeps the server's error for the limit panel. */
+    private fun failed(e: Exception): LiveStage.Failed =
+        if (e is ApiError && e.isLimit) LiveStage.Failed(GateText.sentence(e, "Nothing was recorded."), e) else LiveStage.Failed(e.message ?: "Something went wrong.")
 
     private suspend fun speak(text: String, audioUrl: String?) {
         caption = text
@@ -301,7 +307,9 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
                 socket = connectDuplex(kind)
             } catch (e: Exception) {
                 if (ending || e is CancellationException) throw e
-                // The provider couldn't connect (token, network, key): the turn-based examiner runs the same test.
+                // The provider couldn't connect (token, network, key): the turn-based examiner runs the same test, if this person may use it
+                // (it needs their own OpenRouter key).
+                if ("turn" !in api.liveProviders) throw ApiError(0, "Couldn't connect to the examiner. Check your key in Settings and try again.")
                 fellBack = true
                 audio?.onPcm16 = null
                 runTurnBased()
@@ -342,7 +350,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
         } catch (e: CancellationException) {
             if (!ending) throw e
         } catch (e: Exception) {
-            if (!ending) { stage = LiveStage.Failed(e.message ?: "Something went wrong."); return }
+            if (!ending) { stage = failed(e); return }
         }
         finish()
     }
@@ -474,7 +482,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
             })
             stage = LiveStage.Finished(res.attemptIds)
         } catch (e: Exception) {
-            stage = LiveStage.Failed(e.message ?: "Something went wrong.")
+            stage = failed(e)
         }
     }
 

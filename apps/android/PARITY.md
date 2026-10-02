@@ -26,6 +26,11 @@ Status: done / partial / missing. Verified by unit tests (models against the sha
 | Mistakes log, add to deck | done | |
 | History (bucketed by date, filters) | done | |
 | Prompt bank (search, part, topic filters) | done | |
+| Community mode: guest sessions (bearer, started at the first test), 1 test per week as a guest and per day signed in, tests left under Start, Home and Settings summary | done | `core/Community.kt`, `ui/community/`; copy from docs/community.md; unit-tested (`CommunityTest`) |
+| Fair-use dialog (once per user per UTC day), limit panels (quota, balance, busy, too fast, live needs a key), draft kept when a submit is refused | done | bottom sheet (`GateHost`) |
+| Community balance meter (Home, Settings, panels) | done | neutral bar, amber under 10 % |
+| Settings, Your API keys (OpenRouter, OpenAI, Gemini; masked, validated by the server, replace, remove) and live provider gating | done | the key is never stored on the device |
+| Guest result page ("Create an account to keep this result"), history/mistakes/review gates | done | |
 | Settings (target band, models and pickers, voice, live provider, writing options, sign out, delete account) | done | |
 | Theme Ocean Teal, Newsreader + Hanken Grotesk, light and dark | done | AA contrast enforced by `ContrastTest` |
 | Accessibility (content descriptions, 48dp targets, reduced motion) | partial | no TalkBack pass on a device |

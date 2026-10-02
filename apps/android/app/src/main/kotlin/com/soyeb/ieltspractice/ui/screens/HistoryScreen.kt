@@ -67,9 +67,9 @@ import com.soyeb.ieltspractice.ui.theme.ext
 @Composable
 fun HistoryScreen(route: History, nav: AppNav) {
     val api = LocalApp.current.api
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     ScreenScaffold("History", onBack = nav::back, scroll = false) {
-        SignInGate(nav, "Sign in to see every attempt and its band.", token != null, "Your history", R.drawable.ic_history) { HistoryList(route, nav) }
+        SignInGate(nav, "Create an account to see your history.", account, "Your history", R.drawable.ic_history) { HistoryList(route, nav) }
     }
 }
 

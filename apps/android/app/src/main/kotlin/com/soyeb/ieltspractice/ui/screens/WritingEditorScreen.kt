@@ -56,6 +56,7 @@ import com.soyeb.ieltspractice.core.ApiClient
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.AppJson
 import com.soyeb.ieltspractice.core.Created
+import com.soyeb.ieltspractice.core.GateText
 import com.soyeb.ieltspractice.core.Empty
 import com.soyeb.ieltspractice.core.Prompt
 import com.soyeb.ieltspractice.core.clock
@@ -407,7 +408,9 @@ private fun submit(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            setError(e.message ?: "Could not submit. Your answer is still here; try again.")
+            // Out of tests (another tab used it, the window moved, the balance ran out): the draft stays and a panel says what to do.
+            val blocked = e is ApiError && nav.reportBlocked(e, "writing", "Your essay is still here.")
+            setError(if (blocked) GateText.sentence(e as ApiError, "Your essay is still here.") else e.message ?: "Could not submit. Your answer is still here; try again.")
             setBusy(false)
         }
     }

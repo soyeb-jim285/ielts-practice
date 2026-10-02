@@ -56,6 +56,7 @@ import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.Bank
 import com.soyeb.ieltspractice.ui.nav.History
 import com.soyeb.ieltspractice.ui.nav.WritingEditor
+import com.soyeb.ieltspractice.ui.community.QuotaCaption
 import com.soyeb.ieltspractice.ui.screens.writing.Segmented
 import com.soyeb.ieltspractice.ui.screens.writing.shortDate
 import com.soyeb.ieltspractice.ui.theme.AppCard
@@ -68,7 +69,7 @@ import com.soyeb.ieltspractice.ui.theme.bandTextColor
 import com.soyeb.ieltspractice.ui.theme.ext
 
 // Mirrors: iOS Views/WritingHomeView.swift, web routes/_app/writing/index.tsx
-// Writing hub: full test (Academic or General), one-task practice, recent writing, prompt bank link. Guests browse it; starting a test needs an account.
+// Writing hub: full test (Academic or General), one-task practice, recent writing, prompt bank link. Guests can start a test without an account (one free test a week).
 
 private class Kind(val id: String, val route: WritingEditor, val title: String, val blurb: String, val meta: String, @DrawableRes val icon: Int)
 
@@ -82,12 +83,12 @@ private val kinds = listOf(
 fun WritingHomeScreen(nav: AppNav) {
     val api = LocalApp.current.api
     val me by api.me.collectAsState()
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     val target = me?.settings?.targetBand ?: 7.0
     var variant by rememberSaveable { mutableStateOf("academic") }
     // Recent writing: the last three scored or scoring attempts. Quiet on failure and for guests (they have none).
-    val recent by produceState(emptyList<AttemptListItem>(), token) {
-        value = if (token == null) emptyList() else runCatching { api.get<AttemptPage>("/api/attempts", mapOf("skill" to "writing", "page" to "1")) }
+    val recent by produceState(emptyList<AttemptListItem>(), account) {
+        value = if (!account) emptyList() else runCatching { api.get<AttemptPage>("/api/attempts", mapOf("skill" to "writing", "page" to "1")) }
             .getOrNull()?.items?.filter { it.status == "done" || it.status == "analyzing" }?.take(3).orEmpty()
     }
     val scroll = rememberScrollState()
@@ -100,7 +101,7 @@ fun WritingHomeScreen(nav: AppNav) {
                 "Timed tasks, marked against the public band descriptors with every mistake located.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
             )
-            FullTest(variant, { variant = it }) { nav.requireSignIn { nav.go(WritingEditor("full", variant)) } }
+            FullTest(variant, { variant = it }) { nav.startTest("writing") { nav.go(WritingEditor("full", variant)) } }
             Practise(nav)
             if (recent.isNotEmpty()) Recent(recent, target, nav)
             PromptBankLink(nav)
@@ -124,6 +125,7 @@ private fun FullTest(variant: String, onVariant: (String) -> Unit, onStart: () -
         Text("Task 1, 20 min. Task 2, 40 min. Both answers are marked together into one writing band.", style = MaterialTheme.typography.bodySmall, color = e.muted)
         Segmented(listOf("academic" to "Academic", "general" to "General"), variant, onVariant, Modifier.padding(vertical = 4.dp))
         PrimaryButton("Start full test", onStart, Modifier.fillMaxWidth())
+        QuotaCaption("writing")
     }
 }
 
@@ -138,7 +140,7 @@ private fun Practise(nav: AppNav) {
             kinds.forEachIndexed { i, k ->
                 if (i > 0) HorizontalDivider(Modifier.padding(start = 64.dp), color = e.line)
                 ListRow(
-                    onClick = { nav.requireSignIn { nav.go(k.route) } }, minHeight = 76.dp,
+                    onClick = { nav.startTest("writing") { nav.go(k.route) } }, minHeight = 76.dp,
                     description = "${k.title}. ${k.blurb}. ${k.meta}. Starts a random prompt",
                 ) {
                     IconTile(k.icon)

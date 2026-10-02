@@ -3,6 +3,7 @@ package com.soyeb.ieltspractice
 import android.content.Context
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.soyeb.ieltspractice.core.ApiClient
+import com.soyeb.ieltspractice.core.DemoCommunity
 import com.soyeb.ieltspractice.core.DemoConfig
 import com.soyeb.ieltspractice.core.DemoFixtures
 import com.soyeb.ieltspractice.core.DemoInterceptor
@@ -30,10 +31,12 @@ class AppContainer(context: Context, val demo: DemoConfig? = null) {
         api = if (demo == null) {
             ApiClient(store = KeystoreTokenStore(app), scope = scope)
         } else {
+            DemoCommunity.pinClock()
             ApiClient(
                 baseUrl = "https://demo.ielts.local", store = MemoryTokenStore(),
-                interceptor = DemoInterceptor(DemoFixtures.load(app)),
-                initialToken = if (demo.screen == "login" || demo.screen?.startsWith("guest") == true) null else "demo", // iOS: `-screen login` / `guest-*` show the signed-out state
+                interceptor = DemoInterceptor(DemoCommunity.overlay(DemoFixtures.load(app), demo.screen, demo.tab)),
+                // iOS: `-screen login` / `guest-*` show the signed-out state; a screen with "guest" in its name is signed out, except the guest's own result.
+                initialToken = if (demo.screen == "login" || (DemoCommunity.guest(demo.screen) && !DemoCommunity.anonymousSession(demo.screen))) null else "demo",
                 scope = scope,
             )
         }

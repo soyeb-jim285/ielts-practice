@@ -53,6 +53,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
+import com.soyeb.ieltspractice.core.Providers
 import com.soyeb.ieltspractice.core.clock
 import com.soyeb.ieltspractice.live.Examiner
 import com.soyeb.ieltspractice.live.LiveExam
@@ -100,6 +101,7 @@ fun LiveExamScreen(nav: AppNav) {
     val demo = LocalDemo.current
     val ctx = LocalContext.current
     val me by app.api.me.collectAsState()
+    val quota by app.api.quota.collectAsState()
     val exam: LiveExam = viewModel(factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = LiveExam(app, ctx.cacheDir, demo) as T
@@ -109,11 +111,15 @@ fun LiveExamScreen(nav: AppNav) {
     var captions by remember { mutableStateOf(false) }
 
     val provider = me?.settings?.provider ?: "turn"
-    // The examiner that runs: the chosen duplex provider when the server offers it, else turn-based.
+    // The examiners this person may use come from their own keys (OpenRouter: turn-based, OpenAI: GPT-Live, Gemini: Gemini Live).
+    val allowed = quota?.liveProviders ?: app.api.liveProviders
+    // The examiner that runs: the chosen one when allowed, else turn-based, else whichever natural-conversation one they have a key for.
     val examiner = when {
-        provider == "gpt-live" && me?.gptLive == true -> Examiner.GptLive
-        provider == "gemini-live" && me?.geminiLiveAvailable == true -> Examiner.Gemini
-        else -> Examiner.Turn
+        provider == "gpt-live" && "gpt-live" in allowed -> Examiner.GptLive
+        provider == "gemini-live" && "gemini-live" in allowed -> Examiner.Gemini
+        "turn" in allowed || allowed.isEmpty() -> Examiner.Turn
+        "gpt-live" in allowed -> Examiner.GptLive
+        else -> Examiner.Gemini
     }
     // Natural conversation is selected but the server can't offer it: the turn-based examiner runs instead.
     val fallback = provider != "turn" && examiner == Examiner.Turn
@@ -123,6 +129,10 @@ fun LiveExamScreen(nav: AppNav) {
     LaunchedEffect(Unit) { if (demo == null) checkMic() }
 
     val stage = exam.stage
+    // The server refused (live needs a key, no tests left): the same panel as before the test, over the failure message.
+    LaunchedEffect(stage) {
+        (stage as? LiveStage.Failed)?.error?.let { nav.reportBlocked(it, "speaking", needs = Providers.name(Providers.keyFor(provider))) }
+    }
     if (stage is LiveStage.Finished) { ResultScreen(AttemptResult.of(*stage.ids.toTypedArray()), nav); return }
 
     val running = stage == LiveStage.Running

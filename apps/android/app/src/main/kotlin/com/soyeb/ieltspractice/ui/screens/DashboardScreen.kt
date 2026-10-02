@@ -77,6 +77,7 @@ import com.soyeb.ieltspractice.ui.theme.Chip
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
 import com.soyeb.ieltspractice.ui.theme.SecondaryButton
 import com.soyeb.ieltspractice.ui.theme.SectionTitle
+import com.soyeb.ieltspractice.ui.community.QuotaSummary
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -90,10 +91,10 @@ import java.time.LocalTime
 fun DashboardScreen(nav: AppNav) {
     val api = LocalApp.current.api
     val ready by api.ready.collectAsState()
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     when {
         !ready -> ScreenScaffold("Home", large = true) {} // the stored token is still being read: no guest flash
-        token == null -> GuestHome(nav)
+        !account -> GuestHome(nav) // no session, or a guest session (no account yet)
         else -> SignedInHome(nav)
     }
 }
@@ -123,6 +124,7 @@ private fun Dashboard(d: DashData, target: Double, nav: AppNav) {
     val e = MaterialTheme.ext
     val p = d.progress
     Header(p)
+    QuotaSummary(nav)
     p.lastFailed?.let { f ->
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = e.warn.copy(alpha = 0.12f)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

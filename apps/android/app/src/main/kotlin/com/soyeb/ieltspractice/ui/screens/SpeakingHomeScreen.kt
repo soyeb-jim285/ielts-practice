@@ -58,6 +58,8 @@ import com.soyeb.ieltspractice.ui.nav.Bank
 import com.soyeb.ieltspractice.ui.nav.History
 import com.soyeb.ieltspractice.ui.nav.LiveExam
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
+import com.soyeb.ieltspractice.ui.community.LiveCaption
+import com.soyeb.ieltspractice.ui.community.QuotaCaption
 import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.screens.speaking.ConfirmDialog
 import com.soyeb.ieltspractice.ui.screens.speaking.ListCard
@@ -75,7 +77,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // Mirrors: iOS Views/SpeakingHomeView.swift, web routes/_app/speaking/index.tsx
-// Speaking hub: unsent recordings, the two ways to practise, single parts, recent results. Guests see it too; starting anything asks them to sign in.
+// Speaking hub: unsent recordings, the two ways to practise, single parts, recent results. Guests see it too and can start a test: no account needed (one free test a week).
 
 private class PartInfo(val n: Int, val title: String, val desc: String, val time: String)
 
@@ -94,11 +96,11 @@ fun SpeakingHomeScreen(nav: AppNav) {
     val pending by store.items.collectAsState()
     val states by store.states.collectAsState()
     val me by api.me.collectAsState()
-    val token by api.token.collectAsState()
+    val account by api.hasAccount.collectAsState()
     val target = me?.settings?.targetBand ?: 7.0
-    // Guests have no results. The list reloads when the account changes.
-    val recent = rememberLoad(token) {
-        if (token == null) emptyList<AttemptListItem>() else api.get<AttemptPage>("/api/attempts", mapOf("skill" to "speaking", "page" to "1")).items
+    // Guests have no history (it is account-only). The list reloads when the account changes.
+    val recent = rememberLoad(account) {
+        if (!account) emptyList<AttemptListItem>() else api.get<AttemptPage>("/api/attempts", mapOf("skill" to "speaking", "page" to "1")).items
     }
     val fresh = (recent.state as? Load.Ready)?.value?.isEmpty() == true
     var deleting by remember { mutableStateOf<PendingRecording?>(null) }
@@ -195,19 +197,19 @@ private fun ModesSection(nav: AppNav) {
         ModeCard(
             R.drawable.ic_sp_numbered, "Practice test, at your own pace", "Full practice test",
             "All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band.",
-            "11-14 min, recorded", "Start full test", live = false,
-        ) { nav.requireSignIn { nav.go(SpeakingSession("full")) } }
+            "11-14 min, recorded", "Start full test", live = false, caption = { QuotaCaption("speaking") },
+        ) { nav.startTest("speaking") { nav.go(SpeakingSession("full")) } }
         ModeCard(
             R.drawable.ic_sp_waveform, "Live, spoken conversation", "Live examiner",
             "An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end.",
-            "11-14 min, needs a microphone", "Talk to the examiner", live = true,
-        ) { nav.requireSignIn { nav.go(LiveExam) } }
+            "11-14 min, needs a microphone", "Talk to the examiner", live = true, caption = { LiveCaption() },
+        ) { nav.startLive { nav.go(LiveExam) } }
     }
 }
 
 /** Static card; the button is the only interactive part. The live examiner sits on a soft teal wash, the self-paced test on the plain surface. */
 @Composable
-private fun ModeCard(icon: Int, kind: String, title: String, text: String, meta: String, cta: String, live: Boolean, onClick: () -> Unit) {
+private fun ModeCard(icon: Int, kind: String, title: String, text: String, meta: String, cta: String, live: Boolean, caption: @Composable () -> Unit, onClick: () -> Unit) {
     val e = MaterialTheme.ext
     Surface(
         Modifier.fillMaxWidth(), shape = CardShape, color = e.surface,
@@ -227,7 +229,10 @@ private fun ModeCard(icon: Int, kind: String, title: String, text: String, meta:
             }
             HorizontalDivider(color = if (live) e.brand.copy(alpha = 0.2f) else e.line)
             Text(meta, style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)
-            SecondaryButton(cta, onClick, Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton(cta, onClick, Modifier.fillMaxWidth())
+                caption()
+            }
         }
     }
 }
@@ -244,7 +249,7 @@ private fun PartsSection(fresh: Boolean, nav: AppNav) {
                 if (i > 0) RowDivider()
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 76.dp)
-                        .clickable(role = Role.Button) { nav.requireSignIn { nav.go(SpeakingSession("part", p.n)) } }.padding(16.dp),
+                        .clickable(role = Role.Button) { nav.startTest("speaking") { nav.go(SpeakingSession("part", p.n)) } }.padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("${p.n}", Modifier.width(28.dp), style = MaterialTheme.typography.headlineSmall, color = e.muted)

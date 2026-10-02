@@ -23,6 +23,7 @@ import com.soyeb.ieltspractice.core.Band
 import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.Bank
+import com.soyeb.ieltspractice.ui.community.QuotaSummary
 import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.Chip
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
@@ -52,6 +53,8 @@ fun GuestHome(nav: AppNav) {
         }
         PrimaryButton("Create account", { nav.openLogin("Create an account to start practising.", signUp = true) }, Modifier.fillMaxWidth())
         SecondaryButton("Sign in", { nav.openLogin("Sign in to continue your practice.") }, Modifier.fillMaxWidth())
+
+        QuotaSummary(nav)
 
         AppCard {
             SectionTitle("What you get")
@@ -92,7 +95,7 @@ fun GuestHome(nav: AppNav) {
         AppCard {
             SectionTitle("Look around first")
             Text(
-                "The Speaking and Writing tabs and the prompt bank open without an account. Starting a test, or seeing your results, needs one.",
+                "Everything here opens without an account, and you can take a speaking and a writing test as a guest. History, mistakes and review need an account.",
                 style = MaterialTheme.typography.bodyMedium, color = e.muted,
             )
             LinkButton("Browse the prompt bank", { nav.go(Bank("")) })

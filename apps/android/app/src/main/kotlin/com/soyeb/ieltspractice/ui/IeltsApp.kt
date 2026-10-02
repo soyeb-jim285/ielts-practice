@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -23,6 +24,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import com.soyeb.ieltspractice.core.FairUseAck
+import com.soyeb.ieltspractice.ui.community.GateHost
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -92,36 +98,44 @@ private val Exit: ExitTransition = fadeOut(tween(120))
 private fun AppNavHost(start: Any) {
     val api = LocalApp.current.api
     val controller = rememberNavController()
-    val nav = remember(controller) { AppNav(controller, api) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val demo = LocalDemo.current
+    val nav = remember(controller) {
+        AppNav(controller, api, scope, FairUseAck(if (demo == null) context.applicationContext.getSharedPreferences("ielts", Context.MODE_PRIVATE) else null))
+    }
     val entry by controller.currentBackStackEntryAsState()
     val destination = entry?.destination
     val current = Tab.entries.firstOrNull { destination?.hasRoute(it.route::class) == true }
 
-    Scaffold(
-        containerColor = MaterialTheme.ext.bg,
-        contentWindowInsets = WindowInsets(0),
-        bottomBar = { if (current != null) TabBar(current, nav) },
-    ) { pad ->
-        NavHost(
-            controller, startDestination = start,
-            modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(pad),
-            enterTransition = { Enter }, exitTransition = { Exit },
-            popEnterTransition = { Enter }, popExitTransition = { Exit },
-        ) {
-            composable<HomeTab> { DashboardScreen(nav) }
-            composable<SpeakingTab> { SpeakingHomeScreen(nav) }
-            composable<WritingTab> { WritingHomeScreen(nav) }
-            composable<ReviewTab> { ReviewScreen(nav) }
-            composable<SettingsTab> { SettingsScreen(nav) }
-            composable<Login> { LoginScreen(nav) }
-            composable<SpeakingSession> { SpeakingSessionScreen(it.toRoute(), nav) }
-            composable<LiveExam> { LiveExamScreen(nav) }
-            composable<WritingEditor> { WritingEditorScreen(it.toRoute(), nav) }
-            composable<AttemptResult> { ResultScreen(it.toRoute(), nav) }
-            composable<Bank> { BankScreen(it.toRoute(), nav) }
-            composable<History> { HistoryScreen(it.toRoute(), nav) }
-            composable<Mistakes> { MistakesScreen(it.toRoute(), nav) }
+    Box {
+        Scaffold(
+            containerColor = MaterialTheme.ext.bg,
+            contentWindowInsets = WindowInsets(0),
+            bottomBar = { if (current != null) TabBar(current, nav) },
+        ) { pad ->
+            NavHost(
+                controller, startDestination = start,
+                modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(pad),
+                enterTransition = { Enter }, exitTransition = { Exit },
+                popEnterTransition = { Enter }, popExitTransition = { Exit },
+            ) {
+                composable<HomeTab> { DashboardScreen(nav) }
+                composable<SpeakingTab> { SpeakingHomeScreen(nav) }
+                composable<WritingTab> { WritingHomeScreen(nav) }
+                composable<ReviewTab> { ReviewScreen(nav) }
+                composable<SettingsTab> { SettingsScreen(nav) }
+                composable<Login> { LoginScreen(nav) }
+                composable<SpeakingSession> { SpeakingSessionScreen(it.toRoute(), nav) }
+                composable<LiveExam> { LiveExamScreen(nav) }
+                composable<WritingEditor> { WritingEditorScreen(it.toRoute(), nav) }
+                composable<AttemptResult> { ResultScreen(it.toRoute(), nav) }
+                composable<Bank> { BankScreen(it.toRoute(), nav) }
+                composable<History> { HistoryScreen(it.toRoute(), nav) }
+                composable<Mistakes> { MistakesScreen(it.toRoute(), nav) }
+            }
         }
+        GateHost(nav) // the limit panel and the fair-use dialog, over whatever screen is open
     }
 }
 
