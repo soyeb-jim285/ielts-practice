@@ -88,7 +88,10 @@ final class Recorder {
                 try? await Task.sleep(for: .milliseconds(50))
                 guard let self else { return }
                 let i = self.energy.count
-                let e = i % 130 >= 100 && i % 130 < 115 ? 12 : Int(Double([70, 110, 190, 120, 80][i % 5]) * (0.8 + 0.2 * sin(Double(i) / 9)))
+                let burst: [Double] = [70, 110, 190, 120, 80]
+                let swell: Double = 0.8 + 0.2 * sin(Double(i) / 9)
+                let paused = i % 130 >= 100 && i % 130 < 115
+                let e: Int = paused ? 12 : Int(burst[i % 5] * swell)
                 let l = min(1, Double(e) / 255 * 1.15)
                 self.energy.append(e)
                 self.level = l
