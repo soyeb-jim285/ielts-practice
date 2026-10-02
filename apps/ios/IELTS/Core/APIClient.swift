@@ -111,6 +111,8 @@ final class APIClient {
             throw APIError(status: http.statusCode, message: b?.error ?? b?.message ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode).capitalized,
                            code: b?.code, skill: b?.skill, resetAt: b?.resetAt, tier: b?.tier)
         }
+        // A submitted test is now used: the "tests left" labels must not keep the old numbers for up to a minute.
+        if method == "POST", path.hasSuffix("/submit") || path == "/api/live/finish" { quotaLoadedAt = .distantPast }
         return (data, http)
     }
 

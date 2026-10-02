@@ -21,17 +21,17 @@ export const useBalance = () => useQuery(balanceQuery);
 
 const DAY = 86_400_000;
 
-/** "in 5 h", "in 40 min", or "Monday 6:00" (local time). */
+/** "in 5 h", "in 40 min", or "Monday 6:00" (local time). Same rounding and wording as the iOS and Android apps. */
 export function resetPhrase(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return 'soon';
   const at = new Date(iso);
   const ms = at.getTime() - now;
-  if (ms < 60_000) return 'in a moment';
-  if (ms < 3_600_000) return `in ${Math.round(ms / 60_000)} min`;
-  if (ms < DAY) return `in ${Math.round(ms / 3_600_000)} h`;
+  if (ms <= 60_000) return 'in a moment';
+  const minutes = Math.ceil(ms / 60_000);
+  if (minutes < 60) return `in ${minutes} min`;
+  if (ms < DAY) return `in ${Math.max(1, Math.round(minutes / 60))} h`;
   const day = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(at);
-  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(at);
-  return `${day} ${time}`;
+  return `${day} ${at.getHours()}:${String(at.getMinutes()).padStart(2, '0')}`; // 24-hour H:mm like the apps ("Monday 6:00")
 }
 
 /** "Resets in 5 h" / "Resets Monday 6:00". */
@@ -88,13 +88,13 @@ export function blockerCopy(b: Blocker, now?: number): Copy {
         ? { title: "You've used this week's free test", body: `It resets ${resetPhrase(b.resetAt, now)}.` }
         : { title: "You've used today's free test", body: `It resets ${resetPhrase(b.resetAt, now)}.` };
     case 'community_balance_exhausted':
-      return { title: 'The community balance is used up for now', body: 'Free tests are paid from one shared balance, and it has run out. Add your own OpenRouter key to keep practising, or try again later.' };
+      return { title: 'The community balance is used up for now', body: `Free tests are paid from one shared balance, and it has run out. ${guest ? 'Create an account, then add' : 'Add'} your own OpenRouter key to keep practising, or try again later.` };
     case 'community_busy':
       return { title: 'A lot of people are practising right now', body: 'Try again in a few minutes.' };
     case 'too_many_requests':
       return { title: "You're going a bit fast", body: 'Try again in a moment.' };
     case 'live_requires_own_key':
-      return { title: 'The live examiner runs on your own key', body: guest ? 'Create an account, then add an OpenAI or Gemini key in Settings.' : 'Add an OpenAI key for GPT-Live or a Gemini key for Gemini Live in Settings.' };
+      return { title: 'The live examiner runs on your own key', body: guest ? 'Create an account, then add your own OpenAI or Gemini key in Settings.' : 'Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live.' };
   }
 }
 

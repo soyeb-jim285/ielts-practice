@@ -89,7 +89,7 @@ object QuotaCopy {
         val at = parse(resetAt) ?: return null
         val minutes = (at.epochSecond - now.epochSecond + 59) / 60
         return when {
-            minutes < 1 -> "Resets in a moment"
+            minutes <= 1 -> "Resets in a moment" // up to a minute away, like the web and iOS
             minutes < 60 -> "Resets in $minutes min"
             minutes < 24 * 60 -> "Resets in ${(minutes / 60.0).roundToInt().coerceAtLeast(1)} h"
             else -> {
@@ -171,10 +171,9 @@ object FairUse {
         val n = s.remaining ?: 0
         val whenText = if (s.window == "week") "this week" else "today"
         val left = "You have $n $skill test${if (n == 1) "" else "s"} left $whenText."
-        val money = q.communityBalance?.remaining?.let { " The community balance has ${BalanceCopy.usd(it)} left." }.orEmpty()
         return listOf(
             "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use.",
-            left + money,
+            left, // the balance itself is the meter under the text
             if (guest) "Create an account for 1 test a day." else "Want unlimited tests and the live examiner? Add your own API key in Settings.",
         )
     }
@@ -190,12 +189,12 @@ enum class GateAction { Account, Keys, Close }
 data class GateCopy(val title: String, val body: String, val primary: Pair<String, GateAction>?, val secondary: Pair<String, GateAction>)
 
 object GateText {
-    private fun skillName(skill: String) = if (skill == "writing") "writing" else "speaking"
-
     /**
-     * [code] is the server's code, [tier] guest/community/own-key, [needs] the provider a live test needs ("OpenRouter", "OpenAI", "Gemini").
-     * [keep] is a note for a test that was already under way ("Your essay is still here.").
+     * The same titles and bodies as the web and iOS (docs/community.md, panel copy). [code] is the server's code, [tier] guest/community/own-key,
+     * [needs] the provider a live test needs ("OpenRouter", "OpenAI", "Gemini"). [keep] is a note for a test that was already under way ("Your essay is still here.").
+     * [skill] is kept for the callers; the copy no longer names it.
      */
+    @Suppress("UNUSED_PARAMETER")
     fun copy(code: String, skill: String, tier: String, resetAt: String?, needs: String? = null, keep: String? = null,
              now: Instant = Clocks.now(), zone: ZoneId = Clocks.zone()): GateCopy {
         val guest = tier == "guest"
@@ -203,35 +202,35 @@ object GateText {
         val whenText = QuotaCopy.resetsWhen(resetAt, now, zone)
         return when (code) {
             Codes.QUOTA -> GateCopy(
-                "No ${skillName(skill)} tests left",
-                withKeep(
-                    if (guest) "You've used this week's free test." + (whenText?.let { " It resets $it." } ?: "")
-                    else "You've used today's free test." + (whenText?.let { " It resets $it." } ?: ""),
-                ),
+                if (guest) "You've used this week's free test" else "You've used today's free test",
+                withKeep("It resets ${whenText ?: "soon"}."),
                 if (guest) "Create an account for 1 test a day" to GateAction.Account else "Add your own key" to GateAction.Keys,
                 (if (guest) "Not now" else "Wait for the reset") to GateAction.Close,
             )
             Codes.BALANCE -> GateCopy(
-                "Community tests are paused",
-                withKeep("The community balance is used up for now."),
+                "The community balance is used up for now",
+                withKeep("Free tests are paid from one shared balance, and it has run out. ${if (guest) "Create an account, then add" else "Add"} your own OpenRouter key to keep practising, or try again later."),
                 if (guest) "Create an account" to GateAction.Account else "Add your own OpenRouter key" to GateAction.Keys,
                 "Not now" to GateAction.Close,
             )
             Codes.BUSY -> GateCopy(
-                "It's busy right now",
-                withKeep("A lot of people are practising right now. Try again in a few minutes."),
+                "A lot of people are practising right now",
+                withKeep("Try again in a few minutes."),
                 null, "Close" to GateAction.Close,
             )
             Codes.LIVE -> GateCopy(
-                "The live examiner needs your key",
-                if (guest) "The live examiner runs on your own key. Create an account, then add a key in Settings."
-                else "The live examiner runs on your own key. Add ${needs?.let { "${article(it)} $it key" } ?: "a key"} in Settings, under Your API keys.",
+                "The live examiner runs on your own key",
+                when {
+                    guest -> "Create an account, then add your own OpenAI or Gemini key in Settings."
+                    needs != null -> "Add your own $needs key in Settings."
+                    else -> "Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live."
+                },
                 if (guest) "Create an account" to GateAction.Account else "Add your own key" to GateAction.Keys,
                 "Not now" to GateAction.Close,
             )
             else -> GateCopy(
                 "You're going a bit fast",
-                withKeep("You're going a bit fast. Try again in a moment."),
+                withKeep("Try again in a moment."),
                 null, "Close" to GateAction.Close,
             )
         }
@@ -240,7 +239,7 @@ object GateText {
     /** One sentence for a place with no panel (an upload that was refused): why, when it resets, and what was kept. */
     fun sentence(e: ApiError, keep: String): String {
         val c = copy(e.code.orEmpty(), e.skill ?: "speaking", e.tier ?: "community", e.resetAt)
-        return "${c.body} $keep"
+        return "${c.title}. ${c.body} $keep"
     }
 
     /** Which key a live test is blocked on, as the sentence names it ("an OpenAI key" / "a Gemini key"). */

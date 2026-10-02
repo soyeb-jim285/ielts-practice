@@ -37,8 +37,7 @@ function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?:
     case 'community_balance_exhausted':
       return (
         <>
-          {addKey('Add your own OpenRouter key')}
-          {guest && create('Create an account', false)}
+          {guest ? create('Create an account', true) : addKey('Add your own OpenRouter key')}
           {back}
         </>
       );

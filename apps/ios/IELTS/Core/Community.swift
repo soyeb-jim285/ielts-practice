@@ -20,9 +20,11 @@ enum CommunityText {
     /// "in 40 min", "in 5 h" (under a day) or "Monday 6:00", always in the viewer's local time.
     static func resetWhen(_ d: Date, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
         let s = d.timeIntervalSince(now)
-        if s <= 60 { return "in a minute" }
-        if s < 3600 { return "in \(Int(ceil(s / 60))) min" }
-        if s < 86400 { return "in \(Int(ceil(s / 3600))) h" }
+        // Same rounding and wording as the web and Android: minutes round up, hours to the nearest.
+        if s <= 60 { return "in a moment" }
+        let minutes = Int(ceil(s / 60))
+        if minutes < 60 { return "in \(minutes) min" }
+        if s < 86400 { return "in \(max(1, Int((Double(minutes) / 60).rounded()))) h" }
         let f = DateFormatter()
         f.calendar = calendar
         f.locale = locale
@@ -52,10 +54,10 @@ enum CommunityText {
         let sq = skillQuota(q, skill)
         var out = "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use."
         if let n = sq.remaining {
-            out += " You have \(n) \(skill) \(n == 1 ? "test" : "tests") left \(sq.window == "week" ? "this week" : "today")."
+            out += "\n\nYou have \(n) \(skill) \(n == 1 ? "test" : "tests") left \(sq.window == "week" ? "this week" : "today")."
         }
-        if let r = q.communityBalance.remaining { out += " The community balance has \(money(r)) left." }
-        out += q.tier == "guest" ? " Create an account for 1 test a day." : " Want unlimited tests and the live examiner? Add your own API key in Settings."
+        // The balance itself is the meter under this text; saying it twice only makes the paragraph longer.
+        out += q.tier == "guest" ? "\n\nCreate an account for 1 test a day." : "\n\nWant unlimited tests and the live examiner? Add your own API key in Settings."
         return out
     }
 }
@@ -113,11 +115,9 @@ struct CommunityIssue: Equatable {
     func message(now: Date = Date()) -> String {
         switch kind {
         case .quota:
-            let when = resetAt.map { "It resets " + CommunityText.resetWhen($0, now: now) + "." } ?? "It resets soon."
-            return isGuest ? when + " With an account you get 1 test a day." : when + " Add your own key for unlimited tests."
+            return resetAt.map { "It resets " + CommunityText.resetWhen($0, now: now) + "." } ?? "It resets soon."
         case .balance:
-            return isGuest ? "Free tests are paused until it's topped up. Create an account, then add your own OpenRouter key to keep practising."
-                : "Free tests are paused until it's topped up. Your own OpenRouter key works any time."
+            return "Free tests are paid from one shared balance, and it has run out. " + (isGuest ? "Create an account, then add" : "Add") + " your own OpenRouter key to keep practising, or try again later."
         case .busy: return "Try again in a few minutes."
         case .liveKey:
             return isGuest ? "Create an account, then add your own OpenAI or Gemini key in Settings."

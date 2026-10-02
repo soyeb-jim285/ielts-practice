@@ -8,7 +8,7 @@ import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dia
 import { api, ApiError } from '@/lib/api';
 import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock, plural } from '@/lib/format';
-import { useMe } from '@/lib/query';
+import { queryClient, useMe } from '@/lib/query';
 import { minWords, SUBMIT_FLOOR, taskLabel } from '@/lib/writing';
 import { PromptPanel, type WritingPrompt } from './PromptPanel';
 import { countWords, NO_ASSIST, useDrafts, WritingEditor } from './WritingEditor';
@@ -94,6 +94,7 @@ export function WritingExam({
         ids.push(id);
       }
       clear();
+      void queryClient.invalidateQueries({ queryKey: ['quota'] }); // this test is now used
       void navigate({ to: '/writing/result/$attemptId', params: { attemptId: ids[0]! }, search: ids[1] ? { pair: ids[1] } : {} });
     } catch (e) {
       const b = blockerOf(e);

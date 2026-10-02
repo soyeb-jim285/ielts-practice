@@ -10,6 +10,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { savePending, uploadPending, type Pending } from '@/hooks/pendingRecordings';
 import { useRecorder } from '@/hooks/useRecorder';
 import { rememberSession } from '@/lib/attempt';
+import { queryClient } from '@/lib/query';
 import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -139,6 +140,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   useEffect(() => {
     if (!allDone) return;
     const first = uploads.find((u) => u.key === 0)!.id!;
+    void queryClient.invalidateQueries({ queryKey: ['quota'] }); // this test is now used
     if (sessionId) rememberSession(sessionId, [...uploads].sort((a, b) => a.key - b.key).map((u) => u.id!));
     void navigate({ to: '/speaking/result/$attemptId', params: { attemptId: first }, search: sessionId ? { session: sessionId } : {}, replace: true });
   }, [allDone, uploads, navigate, sessionId]);

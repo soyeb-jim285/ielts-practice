@@ -11,7 +11,7 @@ export function FailedState({ attemptId, message, title = 'Analysis failed', act
   const qc = useQueryClient();
   const retry = useMutation({
     mutationFn: () => retryAnalysis(attemptId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attempt', attemptId] }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ['attempt', attemptId] }), qc.invalidateQueries({ queryKey: ['quota'] })]), // a retry reserves the test again
   });
   const blocker = blockerOf(retry.error);
   if (blocker) return <BlockedAlert blocker={blocker} keeps="Your answer is saved, so you can retry later." />; // the test was used elsewhere in the meantime

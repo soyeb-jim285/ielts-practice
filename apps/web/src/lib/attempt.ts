@@ -85,7 +85,13 @@ export async function loadAttempt(id: string, prev?: Attempt) {
 export const attemptQuery = (id: string) =>
   queryOptions({
     queryKey: ['attempt', id],
-    queryFn: ({ client }) => loadAttempt(id, client.getQueryData<Attempt>(['attempt', id])),
+    queryFn: async ({ client }) => {
+      const prev = client.getQueryData<Attempt>(['attempt', id]);
+      const next = await loadAttempt(id, prev);
+      // The analysis just ended: a failure or a silent recording is refunded, so the "tests left" shown elsewhere is out of date.
+      if (prev?.status === 'analyzing' && next.status !== 'analyzing') void client.invalidateQueries({ queryKey: ['quota'] });
+      return next;
+    },
     refetchInterval: (q) => (pending(q.state.data?.status) ? pollDelay(q.state.dataUpdateCount) : false),
     staleTime: (q) => (pending(q.state.data?.status) ? 0 : 5 * 60_000), // presigned audio URL lives longer than this
   });

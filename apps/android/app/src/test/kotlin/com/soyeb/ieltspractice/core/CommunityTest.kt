@@ -38,6 +38,9 @@ class CommunityTest {
         assertEquals("Resets Monday 6:00", QuotaCopy.resets(week, now, dhaka)) // 00:00 UTC is 6:00 in Dhaka
         assertEquals("Resets Monday 0:00", QuotaCopy.resets(week, now, ZoneId.of("UTC")))
         assertEquals("Resets in a moment", QuotaCopy.resets("2026-10-03T18:00:00Z", now, dhaka))
+        assertEquals("Resets in a moment", QuotaCopy.resets("2026-10-03T18:01:00Z", now, dhaka)) // up to a minute, like web and iOS
+        assertEquals("Resets in 2 min", QuotaCopy.resets("2026-10-03T18:01:30Z", now, dhaka))
+        assertEquals("Resets in 4 h", QuotaCopy.resets("2026-10-03T22:20:00Z", now, dhaka)) // hours round to the nearest
         assertEquals("in 6 h", QuotaCopy.resetsWhen(day, now, dhaka))
         assertEquals("Monday 6:00", QuotaCopy.resetsWhen(week, now, dhaka))
         assertNull(QuotaCopy.resets(null, now, dhaka))
@@ -70,11 +73,11 @@ class CommunityTest {
         val q = quota("community", SkillQuota(0, 1, 1, day, "day"))
         assertEquals(
             "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use. " +
-                "You have 1 speaking test left today. The community balance has \$12.40 left. Want unlimited tests and the live examiner? Add your own API key in Settings.",
+                "You have 1 speaking test left today. Want unlimited tests and the live examiner? Add your own API key in Settings.",
             FairUse.body(q, "speaking", guest = false),
         )
         val guest = quota("guest", SkillQuota(0, 1, 1, week, "week"))
-        assertTrue(FairUse.body(guest, "writing", guest = true).endsWith("You have 1 writing test left this week. The community balance has \$12.40 left. Create an account for 1 test a day."))
+        assertTrue(FairUse.body(guest, "writing", guest = true).endsWith("You have 1 writing test left this week. Create an account for 1 test a day."))
         assertEquals("You're using the community balance", FairUse.TITLE)
     }
 
@@ -91,24 +94,31 @@ class CommunityTest {
 
     @Test fun limitPanels() {
         val guestQuota = GateText.copy(Codes.QUOTA, "speaking", "guest", week, now = now, zone = dhaka)
-        assertEquals("You've used this week's free test. It resets Monday 6:00.", guestQuota.body)
+        assertEquals("You've used this week's free test", guestQuota.title)
+        assertEquals("It resets Monday 6:00.", guestQuota.body)
         assertEquals("Create an account for 1 test a day" to GateAction.Account, guestQuota.primary)
         val community = GateText.copy(Codes.QUOTA, "writing", "community", day, keep = "Your essay is still here.", now = now, zone = dhaka)
-        assertEquals("You've used today's free test. It resets in 6 h. Your essay is still here.", community.body)
+        assertEquals("You've used today's free test", community.title)
+        assertEquals("It resets in 6 h. Your essay is still here.", community.body)
         assertEquals("Add your own key" to GateAction.Keys, community.primary)
-        assertEquals("No writing tests left", community.title)
         val balance = GateText.copy(Codes.BALANCE, "speaking", "community", null)
-        assertEquals("The community balance is used up for now.", balance.body)
+        assertEquals("The community balance is used up for now", balance.title)
+        assertEquals("Free tests are paid from one shared balance, and it has run out. Add your own OpenRouter key to keep practising, or try again later.", balance.body)
+        assertTrue(GateText.copy(Codes.BALANCE, "speaking", "guest", null).body.contains("Create an account, then add your own OpenRouter key"))
         assertEquals("Add your own OpenRouter key" to GateAction.Keys, balance.primary)
         assertEquals("Create an account" to GateAction.Account, GateText.copy(Codes.BALANCE, "speaking", "guest", null).primary)
         val busy = GateText.copy(Codes.BUSY, "speaking", "community", null)
-        assertEquals("A lot of people are practising right now. Try again in a few minutes.", busy.body)
+        assertEquals("A lot of people are practising right now", busy.title)
+        assertEquals("Try again in a few minutes.", busy.body)
         assertNull(busy.primary)
-        assertEquals("You're going a bit fast. Try again in a moment.", GateText.copy(Codes.FAST, "speaking", "guest", null).body)
+        assertEquals("You're going a bit fast", GateText.copy(Codes.FAST, "speaking", "guest", null).title)
+        assertEquals("Try again in a moment.", GateText.copy(Codes.FAST, "speaking", "guest", null).body)
         assertEquals(GateAction.Account, GateText.copy(Codes.LIVE, "speaking", "guest", null).primary?.second)
         val live = GateText.copy(Codes.LIVE, "speaking", "community", null, needs = "OpenAI")
-        assertEquals("The live examiner runs on your own key. Add an OpenAI key in Settings, under Your API keys.", live.body)
-        assertEquals("The live examiner runs on your own key. Add a Gemini key in Settings, under Your API keys.", GateText.copy(Codes.LIVE, "speaking", "community", null, needs = "Gemini").body)
+        assertEquals("The live examiner runs on your own key", live.title)
+        assertEquals("Add your own OpenAI key in Settings.", live.body)
+        assertEquals("Add your own Gemini key in Settings.", GateText.copy(Codes.LIVE, "speaking", "community", null, needs = "Gemini").body)
+        assertEquals("Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live.", GateText.copy(Codes.LIVE, "speaking", "community", null).body)
     }
 
     @Test fun keyErrorsNameTheProvider() {

@@ -145,6 +145,8 @@ class ApiClient(
             if (status == 403 && field("code") == Codes.ACCOUNT && _token.value != null && _account.value) { _account.value = false; guest = true }
             throw ApiError(status, field("error") ?: field("message") ?: httpReason(status), field("code"), field("resetAt"), field("skill"), field("tier"))
         }
+        // A submitted test is now used: the "tests left" labels must not keep the old numbers for up to a minute.
+        if (method == "POST" && (path.endsWith("/submit") || path == "/api/live/finish")) quotaAt = 0L
         return ApiResponse(status, text, headers)
     }
 

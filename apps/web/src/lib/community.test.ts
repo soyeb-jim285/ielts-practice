@@ -11,8 +11,13 @@ describe('reset phrase', () => {
     expect(resetPhrase('2026-10-03T19:40:00Z', NOW)).toBe('in 40 min');
     expect(resetPhrase('2026-10-03T19:00:20Z', NOW)).toBe('in a moment');
   });
-  it('names the weekday beyond a day', () => {
-    expect(resetPhrase('2026-10-05T00:00:00Z', NOW)).toMatch(/^[A-Z][a-z]+ \d/);
+  it('rounds like the apps: minutes up, hours to the nearest', () => {
+    expect(resetPhrase('2026-10-03T19:01:30Z', NOW)).toBe('in 2 min');
+    expect(resetPhrase('2026-10-03T23:20:00Z', NOW)).toBe('in 4 h');
+    expect(resetPhrase('2026-10-03T19:59:30Z', NOW)).toBe('in 1 h');
+  });
+  it('names the weekday and a 24-hour time beyond a day', () => {
+    expect(resetPhrase('2026-10-05T00:00:00Z', NOW)).toMatch(/^[A-Z][a-z]+ \d{1,2}:\d{2}$/);
   });
 });
 
@@ -47,6 +52,14 @@ describe('blockers', () => {
   it('words guests and members differently', () => {
     expect(blockerCopy({ code: 'quota_exceeded', tier: 'guest', resetAt: '2026-10-05T00:00:00Z' }, NOW).title).toBe("You've used this week's free test");
     expect(blockerCopy({ code: 'quota_exceeded', tier: 'community', resetAt: '2026-10-04T00:00:00Z' }, NOW)).toEqual({ title: "You've used today's free test", body: 'It resets in 5 h.' });
+  });
+});
+
+describe('blocker copy', () => {
+  it('sends a guest to an account, not to a key they cannot save', () => {
+    expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'guest' }).body).toContain('Create an account, then add your own OpenRouter key');
+    expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'community' }).body).toContain('Add your own OpenRouter key');
+    expect(blockerCopy({ code: 'live_requires_own_key', tier: 'community' }).body).toContain('OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live');
   });
 });
 

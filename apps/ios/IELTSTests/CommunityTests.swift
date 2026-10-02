@@ -12,7 +12,9 @@ final class CommunityTests: XCTestCase {
         let now = d("2026-10-03T19:00:00Z")
         XCTAssertEqual(CommunityText.resetWhen(d("2026-10-04T00:00:00Z"), now: now, calendar: utc), "in 5 h")
         XCTAssertEqual(CommunityText.resetWhen(d("2026-10-03T19:40:00Z"), now: now, calendar: utc), "in 40 min")
-        XCTAssertEqual(CommunityText.resetWhen(d("2026-10-03T19:00:10Z"), now: now, calendar: utc), "in a minute")
+        XCTAssertEqual(CommunityText.resetWhen(d("2026-10-03T19:00:10Z"), now: now, calendar: utc), "in a moment")
+        XCTAssertEqual(CommunityText.resetWhen(d("2026-10-03T19:01:30Z"), now: now, calendar: utc), "in 2 min")
+        XCTAssertEqual(CommunityText.resetWhen(d("2026-10-03T23:20:00Z"), now: now, calendar: utc), "in 4 h") // hours round to the nearest, like web and Android
     }
 
     func testResetWhenAWeekNamesTheLocalWeekday() {
@@ -42,7 +44,7 @@ final class CommunityTests: XCTestCase {
         let community = Quota(tier: "community", speaking: sq(), writing: sq(), liveProviders: [], communityBalance: balance)
         let body = CommunityText.fairUseBody(skill: "speaking", quota: community)
         XCTAssertTrue(body.contains("You have 1 speaking test left today."))
-        XCTAssertTrue(body.contains("The community balance has $12.40 left."))
+        XCTAssertFalse(body.contains("$12.40"), "the balance is the meter, not a second sentence")
         XCTAssertTrue(body.hasSuffix("Add your own API key in Settings."))
         let guest = Quota(tier: "guest", speaking: sq(window: "week"), writing: sq(window: "week"), liveProviders: [], communityBalance: balance)
         let g = CommunityText.fairUseBody(skill: "writing", quota: guest)
@@ -62,6 +64,14 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(CommunityIssue(APIError(status: 403, message: "x", code: "live_requires_own_key", tier: "community"))?.kind, .liveKey)
         XCTAssertEqual(CommunityIssue(APIError(status: 429, message: "x", code: "too_many_requests"))?.kind, .tooFast)
         XCTAssertNil(CommunityIssue(APIError(status: 400, message: "x", code: "invalid_key")))
+    }
+
+    func testPanelBodiesMatchTheWebCopy() {
+        let day = CommunityIssue(kind: .quota, skill: "speaking", resetAt: d("2026-10-04T00:00:00Z"), tier: "community")
+        XCTAssertEqual(day.message(now: d("2026-10-03T19:00:00Z")), "It resets in 5 h.")
+        XCTAssertTrue(CommunityIssue(kind: .balance, tier: "guest").message().contains("Create an account, then add your own OpenRouter key"))
+        XCTAssertTrue(CommunityIssue(kind: .balance, tier: "community").message().hasPrefix("Free tests are paid from one shared balance, and it has run out. Add your own OpenRouter key"))
+        XCTAssertEqual(CommunityIssue(kind: .balance, tier: "guest").primary, .createAccount)
     }
 
     func testFairUseKeyIsPerUserAndPerUtcDay() {
