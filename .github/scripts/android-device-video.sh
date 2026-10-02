@@ -51,7 +51,7 @@ pick = [h for h in hits if h[0] == best]
 h = pick[min(n, len(pick) - 1)]
 print(*(h[4:] if len(sys.argv) > 3 else h[2:4]))
 PY
-DUMPN=0
+DUMPN=0; CLIP=init
 dump() { # UI hierarchy to $OUT/dumps (kept as an artifact) and /tmp/ui.xml
   local i
   for i in 1 2 3; do
