@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -103,7 +104,7 @@ private fun KeyRow(provider: String, saved: KeyInfo?, onSaved: (KeyInfo) -> Unit
         }
         if (saved != null && !editing) {
             Text(KeyCopy.saved(saved), style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = e.ink)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.offset(x = (-12).dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) { // text buttons carry 12dp of padding: align the words with the column
                 LinkButton("Replace", { editing = true; error = null })
                 TextButton(
                     {

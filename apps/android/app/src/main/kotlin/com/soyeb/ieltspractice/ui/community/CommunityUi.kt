@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -163,8 +164,8 @@ fun QuotaSummary(nav: AppNav, action: Boolean = true) {
             BalanceMeter(q.communityBalance, Modifier.padding(top = 8.dp))
             if (action) {
                 when (q.tier) {
-                    "guest" -> LinkButton("Create an account for 1 test a day", { nav.openLogin("Create an account for 1 test a day.", signUp = true) })
-                    "community" -> LinkButton("Add your own key for unlimited tests", { nav.openTab(Tab.Settings) })
+                    "guest" -> LinkButton("Create an account for 1 test a day", { nav.openLogin("Create an account for 1 test a day.", signUp = true) }, Modifier.offset(x = (-12).dp))
+                    "community" -> LinkButton("Add your own key for unlimited tests", { nav.openTab(Tab.Settings) }, Modifier.offset(x = (-12).dp))
                 }
             }
         } else {
