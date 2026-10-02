@@ -7,6 +7,9 @@ mkdir -p device-shots
 adb install -r "$APK"
 adb shell pm grant "$PKG" android.permission.RECORD_AUDIO || true
 adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS || true
+# A slow CI emulator can make Pixel Launcher miss its ANR deadline; the "isn't responding" dialog would cover every shot.
+adb shell settings put global hide_error_dialogs 1
+adb shell settings put secure anr_show_background 0 || true
 # Clean status bar: 9:41, full battery and signal.
 adb shell settings put global sysui_demo_allowed 1
 adb shell am broadcast -a com.android.systemui.demo -e command enter > /dev/null
