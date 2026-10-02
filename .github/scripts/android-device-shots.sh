@@ -10,6 +10,8 @@ adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS || true
 # A slow CI emulator can make Pixel Launcher miss its ANR deadline; the "isn't responding" dialog would cover every shot.
 adb shell settings put global hide_error_dialogs 1
 adb shell settings put secure anr_show_background 0 || true
+# hide_error_dialogs did not stop it on API 35 (every shot of one run had the dialog): take the launcher out of the picture, the app is started directly.
+for l in com.google.android.apps.nexuslauncher com.android.launcher3; do adb shell pm disable-user --user 0 "$l" > /dev/null 2>&1 || true; done
 # Clean status bar: 9:41, full battery and signal.
 adb shell settings put global sysui_demo_allowed 1
 adb shell am broadcast -a com.android.systemui.demo -e command enter > /dev/null
@@ -36,6 +38,8 @@ for mode in light dark; do
     adb shell am force-stop "$PKG"
     adb shell am start -W -n "$PKG/.MainActivity" --ez demo true --es screen "$screen" ${tab:+--es tab "$tab"} --es theme "$mode" > /dev/null
     sleep 5
+    # Last resort: a system "isn't responding" dialog is dismissed with Wait, and the shot is retaken after a pause.
+    if adb exec-out uiautomator dump /dev/tty 2>/dev/null | grep -q "isn't responding"; then adb shell input keyevent KEYCODE_DPAD_DOWN KEYCODE_DPAD_DOWN KEYCODE_ENTER; sleep 3; fi
     adb exec-out screencap -p > "device-shots/$name.png" && echo "ok $name"
   done
 done
