@@ -83,7 +83,7 @@ rec_start() { # rec_start <clip-name>: screenrecord runs in the background (time
   adb shell rm -f "/sdcard/$CLIP.mp4"
   adb shell screenrecord --bit-rate 8000000 --time-limit 40 "/sdcard/$CLIP.mp4" &
   REC=$!
-  sleep 1.5
+  sleep 0.8
 }
 rec_stop() {
   sleep 1
@@ -92,76 +92,83 @@ rec_stop() {
   sleep 1
   adb pull "/sdcard/$CLIP.mp4" "$OUT/$CLIP.mp4" > /dev/null && echo "clip $CLIP $(du -k "$OUT/$CLIP.mp4" | cut -f1) KB"
 }
-typewords() { local w; for w in "$@"; do adb shell input text "$w%s"; sleep 0.15; done; }
+typewords() { local w; for w in "$@"; do adb shell input text "$w"; sleep 0.1; done; } # each arg is one input call, use %s for spaces
 
 # ---- clips ---------------------------------------------------------------------------------------------------------
 clip_home() { # $1 theme
   launch home "$1"; rec_start "01-home-scroll-$1"
-  sleep 1.5; swipe_up 900 1.2; swipe_up 900 1.5; swipe_up 900 1.2; swipe_down 700 0.6; swipe_down 700 0.6; swipe_down 700 1
+  sleep 0.7; swipe_up 900 1.2; swipe_up 900 1.4; swipe_up 900 1.2; swipe_down 700 0.6; swipe_down 700 0.6; swipe_down 700 1
   rec_stop
 }
-clip_speaking_hub() {
+clip_speaking_hub() { # the hub, scroll to the single parts, tap Part 1, press record (real mic, silence on the emulator)
   launch speaking light; rec_start "02-speaking-hub-light"
-  sleep 1.5; swipe_up 800 1.2; swipe_down 800 1
-  tap_text "Part 2" 0 3
+  sleep 0.7; swipe_up 800 1.0; swipe_up 800 1.0
+  tap_text "Part 1" 0 2.5
+  tap_text "Start recording" 0 5
   rec_stop
 }
-clip_session_recording() {
-  launch session-recording light; rec_start "03-session-recording-light"
-  sleep 4; swipe_up 700 1.5; swipe_down 700 3
+clip_session_prep() { # Part 2 preparation minute: tap the notes box and type notes
+  launch session-prep light; rec_start "03-session-prep-notes-light"
+  sleep 1.5; tap_text "Notes" 0 1.2
+  typewords "Book:%s" "Sapiens%s" "-%sread%sit%s" "in%s2019%s" "-%schanged%show%sI%s" "see%shistory"
+  sleep 2
   rec_stop
 }
 clip_session_live_record() { # a real recording on the emulator mic: Part 1, press the record button, the timer and level run
   launch session-p1 light; rec_start "03b-session-p1-record-light"
-  sleep 2; tap_text "Start recording" 0 6
+  sleep 1; tap_text "Start recording" 0 7
   rec_stop
 }
 clip_result_tabs() { # $1 theme
   launch result-speaking "$1" Overview; rec_start "04-result-tabs-$1"
-  sleep 1.2; swipe_up 800 1.2; swipe_up 800 1.2; swipe_down 700 0.5; swipe_down 700 0.5
-  tap_text "Transcript" 0 1.5; swipe_up 800 1.2; swipe_up 800 1.2; swipe_down 700 0.5; swipe_down 700 0.5
-  tap_text "Fluency" 0 1.5; swipe_up 800 1.5; swipe_up 800 1.5
+  sleep 0.7; swipe_up 800 1.0; swipe_up 800 1.0; swipe_down 700 0.4; swipe_down 700 0.4
+  tap_text "Transcript" 0 1.2; swipe_up 800 1.0; swipe_up 800 1.0; swipe_down 700 0.4; swipe_down 700 0.4
+  tap_text "Fluency" 0 1.2; swipe_up 800 1.2; swipe_up 800 1.2
   rec_stop
 }
-clip_fluency_dot() { # $1 theme: scroll to the pace chart, tap mistake dots until one opens its detail card
+fluency_scroll() { swipe_up 700 1.0; swipe_up 700 1.0; } # brings the pace chart into view (same swipes in the probe pass and the recorded pass)
+clip_fluency_dot() { # $1 theme. Pass 1 (not recorded): probe the chart for dots with taps + dumps. Pass 2 (recorded): replay the scroll and the dot taps.
+  local box x0 y0 x1 y1 w h fx fy last=-99 n=0 hits="" xy
+  launch result-speaking "$1" Fluency; CLIP="05-fluency-dot-$1"
+  fluency_scroll
+  dump chart; box=$(python3 /tmp/find_xy.py "Words per minute over time" 0 box < /tmp/ui.xml)
+  if [ -z "$box" ]; then echo "MISS chart"; return 1; fi
+  read -r x0 y0 x1 y1 <<< "$box"; w=$((x1 - x0)); h=$((y1 - y0)); echo "chart box $box"
+  for fx in 16 24 34 44 52 60 68 76 84 92; do for fy in 40 30 50 60 70; do
+    [ $((fx - last)) -lt 18 ] && continue
+    adb shell input tap $((x0 + w * fx / 100)) $((y0 + h * fy / 100)); sleep 0.4
+    if has_text "Close"; then echo "dot hit at $fx,$fy"; hits="$hits $((x0 + w * fx / 100)),$((y0 + h * fy / 100))"; last=$fx; n=$((n + 1)); break; fi
+  done; [ $n -ge 3 ] && break; done
+  xy=$(python3 /tmp/find_xy.py "Close" 0 < /tmp/ui.xml); echo "close at $xy hits:$hits"
   launch result-speaking "$1" Fluency; rec_start "05-fluency-dot-$1"
-  sleep 1.2; swipe_up 700 1.2
-  local box x0 y0 x1 y1 w h n=0 fx fy i
-  for i in 1 2 3 4; do dump chart; box=$(python3 /tmp/find_xy.py "Words per minute over time" 0 box < /tmp/ui.xml) && break; swipe_up 700 1; done
-  if [ -n "${box:-}" ]; then
-    read -r x0 y0 x1 y1 <<< "$box"
-    adb shell input swipe $CX $((y0 + 150)) $CX $((H * 25 / 100)) 700; sleep 1 # chart to the top, the detail card lands under it
-    dump chart2; box=$(python3 /tmp/find_xy.py "Words per minute over time" 0 box < /tmp/ui.xml); read -r x0 y0 x1 y1 <<< "$box"
-    w=$((x1 - x0)); h=$((y1 - y0))
-    for fy in 38 48 30 58; do for fx in 14 24 34 44 54 64 74 84 93; do
-      adb shell input tap $((x0 + w * fx / 100)) $((y0 + h * fy / 100)); sleep 0.5
-      if has_text "Close"; then n=$((n + 1)); echo "dot hit at $fx,$fy"; sleep 2.5; tap_text "Close" 0 1; [ $n -ge 2 ] && break 2; fi
-    done; done
-  else echo "MISS chart"; fi
+  sleep 0.7; fluency_scroll; sleep 1
+  for xy2 in $hits; do adb shell input tap ${xy2%,*} ${xy2#*,}; sleep 2.6; done
+  [ -n "$xy" ] && adb shell input tap $xy
+  sleep 1.2
   rec_stop
 }
 clip_writing_type() { # $1 theme
   launch editor "$1"; rec_start "06-writing-editor-type-$1"
-  sleep 1.5; tap_text "Your answer" 0 1.2
-  typewords "Some" "people" "believe" "that" "children" "should" "start" "school" "later" "in" "life." "However," "I" "think" "an" "early" "start" "gives" "them" "a" "real" "advantage" "in" "learning" "to" "read" "and" "write."
-  sleep 2
+  sleep 1; tap_text "Your answer" 0 1.0
+  typewords "Some%speople%s" "believe%sthat%s" "children%sshould%s" "start%sschool%s" "later%sin%slife.%s" "However,%sI%s" "think%san%searly%s" "start%sgives%s" "them%sa%sreal%s" "advantage%sin%s" "learning%sto%s" "read%sand%swrite."
+  sleep 1.5
   rec_stop
 }
 clip_review() {
   launch review light Question; rec_start "07-review-reveal-light"
-  sleep 2; tap_text "Show answer" 0 3; tap_text "Good" 0 2.5
+  sleep 1.5; tap_text "Show answer" 0 2.5; tap_text "Good" 0 2; tap_text "Show answer" 0 2.5; tap_text "Easy" 0 2
   rec_stop
 }
 clip_settings_keys() {
   launch settings-keys light Empty; rec_start "08-settings-keys-light"
   sleep 1.5; swipe_up 700 1; tap_text "API key" 0 1.5
-  typewords "sk-or-v1-demo-key-0123456789"
-  sleep 1.5; swipe_down 700 1
+  typewords "sk-or-v1-" "demo-key-" "0123456789"
+  sleep 1; tap_text "Save" 0 3
   rec_stop
 }
 clip_guest_home() {
   launch guest-home light; rec_start "09-guest-home-light"
-  sleep 1.5; swipe_up 900 1.3; swipe_up 900 1.5; swipe_down 800 0.8; swipe_down 800 1
+  sleep 0.7; swipe_up 900 1.3; swipe_up 900 1.5; swipe_down 800 0.8; swipe_down 800 1
   rec_stop
 }
 
@@ -169,7 +176,7 @@ ONLY=${ONLY:-}  # e.g. ONLY="clip_review clip_home" for a quick re-run
 if [ -n "$ONLY" ]; then for c in $ONLY; do ${c%%:*} ${c#*:}; done; exit 0; fi
 clip_home light
 clip_speaking_hub
-clip_session_recording
+clip_session_prep
 clip_session_live_record
 clip_result_tabs light
 clip_fluency_dot light
