@@ -96,6 +96,17 @@ struct SpeakingSessionView: View {
         }
         .micDeniedAlert($micDenied)
         .onDisappear { discardLive() }
+        .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift)
+            switch s {
+            case "prep" where phase == .ready:
+                prepLeft = Self.prepSeconds
+                prepEnd = Date().addingTimeInterval(Double(Self.prepSeconds))
+                phase = .prep
+            case "record": Task { await startRecording() }
+            case "next" where phase == .recording: nextQuestion()
+            default: if s.hasPrefix("n:") { notes += String(s.dropFirst(2)) }
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {

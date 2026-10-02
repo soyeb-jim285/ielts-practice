@@ -43,6 +43,9 @@ final class Recorder {
 
     /// Returns false when mic permission is denied.
     func start(to url: URL) async throws -> Bool {
+        #if DEBUG
+        if DemoTour.name != nil { return startScripted() }
+        #endif
         guard await AVAudioApplication.requestRecordPermission() else { return false }
         try Self.configureSession()
         let r = try AVAudioRecorder(url: url, settings: [
@@ -68,6 +71,37 @@ final class Recorder {
         }
         return true
     }
+
+    #if DEBUG
+    /// Demo tour only (no microphone on a CI simulator): a scripted voice of about 140 wpm with a short pause every few seconds,
+    /// so the timer, waveform and live pace chip move.
+    private func startScripted() -> Bool {
+        energy = []
+        silence = 0
+        elapsed = 0
+        liveWpm = 0
+        levels = Array(repeating: 0, count: 48)
+        isRecording = true
+        let t0 = Date()
+        loop = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(50))
+                guard let self else { return }
+                let i = self.energy.count
+                let e = i % 130 >= 100 && i % 130 < 115 ? 12 : Int(Double([70, 110, 190, 120, 80][i % 5]) * (0.8 + 0.2 * sin(Double(i) / 9)))
+                let l = min(1, Double(e) / 255 * 1.15)
+                self.energy.append(e)
+                self.level = l
+                self.elapsed = Date().timeIntervalSince(t0)
+                self.silence = l < 0.3 ? self.silence + 0.05 : 0
+                self.levels.removeFirst()
+                self.levels.append(l)
+                self.liveWpm = Self.estimateWpm(self.energy)
+            }
+        }
+        return true
+    }
+    #endif
 
     private func tick() {
         guard let r = recorder, r.isRecording else { return }

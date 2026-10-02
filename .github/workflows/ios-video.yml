@@ -1,0 +1,58 @@
+name: iOS video
+# Builds the app, boots an iPhone Pro simulator, and records screen videos of the demo-mode auto-tour
+# (apps/ios/IELTS/Demo/DemoTour.swift, driven by .github/scripts/ios-video.sh). Uploads mp4 clips as the `ios-video` artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Clip names to record, space-separated (empty = all)"
+        default: ""
+
+concurrency:
+  group: ios-video-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  video:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | grep -iv -e beta -e rc | sort -V | tail -1)" && xcodebuild -version
+      - run: brew install xcodegen ffmpeg && xcodegen generate
+      - name: Pick and boot an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | jq -r '
+            [.devices | to_entries[] | select(.key | test("iOS")) | .key as $rt | .value[]
+             | select(.name | test("^iPhone [0-9]+ Pro$")) | {rt: $rt, name, udid}] | sort_by(.rt, .name) | last | .udid')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl list devices | grep "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build -project IELTS.xcodeproj -scheme IELTS -configuration Debug -destination "id=$UDID" \
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO | tee build.log | grep -E 'error:|BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' build.log
+      - name: Record clips
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          export APP="$PWD/build/dd/Build/Products/Debug-iphonesimulator/IELTS.app" OUT="$PWD/video" RAW="$PWD/video-raw"
+          ../../.github/scripts/ios-video.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-video
+          path: apps/ios/video
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-video-raw-logs
+          path: apps/ios/video-raw/*.log
+          if-no-files-found: ignore

@@ -193,6 +193,7 @@ struct StartGate<Content: View>: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .task(id: check) { await run() }
                 .onChange(of: api.isSignedIn) { _, signedIn in if signedIn { check += 1 } } // an account changes the limits
+                .onDemoTour { if $0 == "start", phase == .fairUse { Task { await begin() } } } // demo auto-tour (Demo/DemoTour.swift)
         }
     }
 
