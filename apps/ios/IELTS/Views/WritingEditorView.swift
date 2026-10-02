@@ -80,6 +80,10 @@ struct WritingEditorView: View {
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(stage == .writing || stage == .submitting)
+        .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift): types the essay
+            guard s.hasPrefix("t:"), stage == .writing, let p = current else { return }
+            textBinding(p).wrappedValue += String(s.dropFirst(2))
+        }
         .toolbar(stage == .done ? .visible : .hidden, for: .tabBar)
         .toolbar {
             if stage == .writing || stage == .submitting {

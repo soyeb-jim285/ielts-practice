@@ -740,6 +740,10 @@ struct AttemptResultView: View {
             }
         }
         .animation(reduceMotion ? nil : .snappy, value: toast)
+        .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift)
+            if s == "tab:next", let i = tabs.firstIndex(of: current) { withAnimation(.snappy) { tab = tabs[(i + 1) % tabs.count] } }
+            if s.hasPrefix("play:") { DemoTour.playback(player, end: attempt.analysis?.words?.last?.end ?? 60, arg: String(s.dropFirst(5))) }
+        }
     }
 
     private func sheetPlay(_ e: AnalysisError) -> (() -> Void)? {
