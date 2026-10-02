@@ -6,7 +6,7 @@ import Foundation
 
 // openapi: Me.user
 
-struct User: Codable { let id: String; let email: String; let name: String; let emailVerified: Bool }
+struct User: Codable { let id: String; let email: String; let name: String; let emailVerified: Bool; let isAnonymous: Bool }
 
 // openapi: Settings.models
 
@@ -33,6 +33,45 @@ struct Me: Codable {
     let cambridgeAccess: Bool
     let gptLiveAvailable: Bool
     let geminiLiveAvailable: Bool
+}
+
+// openapi: SkillQuota
+
+struct SkillQuota: Codable, Equatable {
+    let used: Int
+    let limit: Int? // nil: unlimited (own key, owner)
+    let remaining: Int?
+    let resetAt: String?
+    let window: String? // "day" | "week"
+    let blocked: String? // quota_exceeded | community_balance_exhausted | community_busy
+}
+
+// openapi: CommunityBalance
+
+struct CommunityBalance: Codable, Equatable {
+    let limit: Double?
+    let used: Double?
+    let remaining: Double?
+    let updatedAt: String
+}
+
+// openapi: Quota
+
+struct Quota: Codable, Equatable {
+    let tier: String // guest | community | own-key
+    let speaking: SkillQuota
+    let writing: SkillQuota
+    let liveProviders: [String] // turn | gpt-live | gemini-live
+    let communityBalance: CommunityBalance
+}
+
+// openapi: ApiKeyInfo
+
+struct ApiKeyInfo: Codable, Equatable {
+    let provider: String // openrouter | openai | gemini
+    let last4: String
+    let addedAt: String
+    let valid: Bool
 }
 
 /// Decodes to nil instead of failing the parent when the payload has an unexpected shape.

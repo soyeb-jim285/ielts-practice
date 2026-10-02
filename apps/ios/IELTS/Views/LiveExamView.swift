@@ -186,7 +186,7 @@ final class LiveExam {
                 thinking = false
             }
         } catch {
-            if !ending && !(error is CancellationError) { stage = .failed(error.localizedDescription); return }
+            if !ending && !(error is CancellationError) { stage = .failed(CommunityIssue.summary(error)); return }
         }
         await finish()
     }
@@ -279,7 +279,7 @@ final class LiveExam {
             cue("The test is over. Say the closing line now and nothing more.", key: "closing")
             try await Task.sleep(for: .seconds(8))
         } catch {
-            if !ending && !(error is CancellationError) { stage = .failed(error.localizedDescription); return }
+            if !ending && !(error is CancellationError) { stage = .failed(CommunityIssue.summary(error)); return }
         }
         await finish()
     }
@@ -421,7 +421,7 @@ final class LiveExam {
             let res: FinishResult = try await api.send("POST", "/api/live/finish", ["sessionId": sessionId, "parts": parts] as [String: Any])
             stage = .finished(res.attemptIds)
         } catch {
-            stage = .failed(error.localizedDescription)
+            stage = .failed(CommunityIssue.summary(error))
         }
     }
 }
@@ -450,9 +450,20 @@ struct LiveExamView: View {
     private var provider: String { api.me?.settings.liveProvider ?? "turn" }
     /// The examiner that runs: the chosen duplex provider when the server offers it, else turn-based.
     private var examiner: Examiner {
-        if provider == "gpt-live", api.me?.gptLiveAvailable == true { return .gptLive }
-        if provider == "gemini-live", api.me?.geminiLiveAvailable == true { return .gemini }
+        if provider == "gpt-live", allowed.contains("gpt-live") { return .gptLive }
+        if provider == "gemini-live", allowed.contains("gemini-live") { return .gemini }
+        if allowed.contains("turn") { return .turn }
+        if allowed.contains("gpt-live") { return .gptLive }
+        if allowed.contains("gemini-live") { return .gemini }
         return .turn
+    }
+    /// Live examiners this user may run: only those whose own key they have set (LiveGate keeps everyone else out).
+    private var allowed: Set<String> {
+        if let q = api.quota { return Set(q.liveProviders) }
+        var s: Set<String> = []
+        if api.me?.gptLiveAvailable == true { s.insert("gpt-live") }
+        if api.me?.geminiLiveAvailable == true { s.insert("gemini-live") }
+        return s
     }
     /// Same labels as Settings, Live examiner.
     private var styleLabel: String {
@@ -462,8 +473,8 @@ struct LiveExamView: View {
         case .gemini: return "Natural conversation (Gemini)"
         }
     }
-    /// Natural conversation is selected but the server can't offer it: the turn-based examiner runs instead.
-    private var fallback: Bool { provider != "turn" && examiner == .turn }
+    /// The chosen examiner needs a key the user hasn't added: another one they can run takes its place.
+    private var fallback: Bool { !allowed.contains(provider) }
 
     var body: some View {
         Group {
@@ -580,8 +591,8 @@ struct LiveExamView: View {
                     }
                     .font(.subheadline)
                     if fallback {
-                        notice("Natural conversation isn't available right now",
-                               "Your examiner will wait for you to finish each answer instead. It runs the same test.")
+                        notice("That examiner needs your own key",
+                               "The style you chose isn't set up, so \"\(styleLabel)\" runs instead. It's the same test. Add keys in Settings.")
                     }
                 }
             }

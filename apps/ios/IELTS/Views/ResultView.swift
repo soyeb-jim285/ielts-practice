@@ -408,6 +408,7 @@ struct ResultView: View {
     @State private var selected = 0
     @State private var poll = 0
     @State private var error: String?
+    @State private var retryNote: String? // a refused retry (no test left, balance used up); the attempt stays as it was
 
     /// Parts in part order (web sorts the same way), once every part has loaded; the given order until then.
     private var ordered: [String] {
@@ -439,9 +440,11 @@ struct ResultView: View {
             }
         }
         .background(.canvas)
+        .safeAreaInset(edge: .top, spacing: 0) { banners }
         .navigationTitle("Results")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: poll) { await pollUntilDone() }
+        .task { await api.loadQuota() }
     }
 
     private func pollUntilDone() async {
@@ -465,9 +468,35 @@ struct ResultView: View {
         do {
             let _: Empty = try await api.send("POST", "/api/attempts/\(id)/submit", [String: String]())
             fetched[id] = nil
+            retryNote = nil
             poll += 1
         } catch {
-            self.error = error.localizedDescription
+            if error is CancellationError { return }
+            retryNote = CommunityIssue.summary(error)
+        }
+    }
+
+    /// Above the result: a guest's reminder that the result is kept 30 days, and why a retry was refused.
+    @ViewBuilder private var banners: some View {
+        if api.isGuest || retryNote != nil {
+            VStack(spacing: 8) {
+                if let retryNote { ErrorLine(message: retryNote).frame(maxWidth: .infinity, alignment: .leading) }
+                if api.isGuest {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Create an account to keep this result").font(.subheadline.weight(.semibold)).foregroundStyle(.ink)
+                            Text("Guest results are deleted after 30 days.").font(.caption).foregroundStyle(.muted)
+                        }
+                        Spacer(minLength: 8)
+                        Button("Create account") { api.requestSignIn("Create an account to keep this result.", signUp: true) }
+                            .secondaryButton().controlSize(.small)
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.surface)
+            .overlay(alignment: .bottom) { Divider() }
         }
     }
 
@@ -843,7 +872,17 @@ struct AttemptResultView: View {
         } description: {
             Text("We couldn't hear enough speech in this recording to score it. Check the right microphone is selected, speak a little closer to it, and keep talking for at least 20 seconds.")
         } actions: {
-            retryLink(prominent: true)
+            VStack(spacing: 12) {
+                refundNote
+                retryLink(prominent: true)
+            }
+        }
+    }
+
+    /// Community tests are refunded when scoring fails or no speech was heard.
+    @ViewBuilder private var refundNote: some View {
+        if api.quota?.tier != "own-key" {
+            Text("This one didn't count against your tests.").font(.subheadline).foregroundStyle(.muted)
         }
     }
 
@@ -864,6 +903,7 @@ struct AttemptResultView: View {
                             }
                         }
                      ))
+            refundNote
             questionsCard
         }
     }

@@ -51,14 +51,15 @@ enum Route: Hashable {
 }
 
 extension View {
-    /// Guests can open the prompt bank; every other destination needs an account (a sign-in prompt stands in until they sign in).
+    /// Guests can open the prompt bank, take a test and see its result; history, mistakes and review need an account (a sign-in prompt stands in).
     func appRoutes() -> some View {
         navigationDestination(for: Route.self) { route in
             switch route {
-            case let .speaking(mode): SignInGate(icon: "mic", title: "Sign in to take a test", reason: "Sign in to take a test and save your results.") { SpeakingSessionView(mode: mode) }
-            case .live: SignInGate(icon: "bubble.left.and.bubble.right", title: "Sign in to talk to the examiner", reason: "Sign in to take a test and save your results.") { LiveExamView() }
-            case let .writing(mode): SignInGate(icon: "pencil.line", title: "Sign in to take a test", reason: "Sign in to take a test and save your results.") { WritingEditorView(mode: mode) }
-            case let .result(ids): SignInGate(icon: "chart.bar", title: "Your results", reason: "Sign in to see your results and the mistakes behind them.") { ResultView(ids: ids) }
+            // Guests can take a test (a guest session starts at Start) and see its result; the live examiner needs the user's own key.
+            case let .speaking(mode): StartGate(skill: "speaking") { SpeakingSessionView(mode: mode) }
+            case .live: LiveGate { LiveExamView() }
+            case let .writing(mode): StartGate(skill: "writing") { WritingEditorView(mode: mode) }
+            case let .result(ids): ResultView(ids: ids)
             case let .bank(skill): BankView(skill: skill)
             case let .history(skill): SignInGate(icon: "clock.arrow.circlepath", title: "Your history", reason: "Sign in to see every attempt and its band.") { HistoryView(skill: skill ?? "") }
             case let .mistakes(category): SignInGate(icon: "exclamationmark.triangle", title: "Your mistake log", reason: "Sign in to see the errors you repeat, grouped by type.") { MistakesView(category: category) }
@@ -99,7 +100,6 @@ struct RootView: View {
 
 struct MainTabs: View {
     @Environment(APIClient.self) private var api
-    @State private var tab = Demo.initialTab
     @State private var homePath = Demo.initialPath
 
     var body: some View {
@@ -116,7 +116,7 @@ struct MainTabs: View {
     }
 
     private var tabs: some View {
-        TabView(selection: $tab) {
+        TabView(selection: Binding(get: { api.tab }, set: { api.tab = $0 })) {
             NavigationStack(path: $homePath) { HomeView().appRoutes() }
                 .tabItem { Label("Home", systemImage: "house") }.tag(0)
             NavigationStack { SpeakingHomeView().appRoutes() }

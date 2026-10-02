@@ -84,6 +84,7 @@ struct DashboardView: View {
                 if let p = progress {
                     header(p)
                     if let f = p.lastFailed { failedAlert(f) }
+                    CommunityCard()
                     if p.attempts == 0 {
                         onboarding
                     } else {
@@ -112,8 +113,9 @@ struct DashboardView: View {
         .background(Color.canvas)
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await load() }
+        .refreshable { await load(); await api.loadQuota(force: true) }
         .task { await load() }
+        .task { await api.loadQuota() }
         .onAppear { targetDraft = target }
     }
 

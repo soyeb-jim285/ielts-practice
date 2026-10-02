@@ -6,7 +6,7 @@ struct GuestDashboardView: View {
 
     private let features: [(icon: String, title: String, body: String)] = [
         ("mic", "Speaking test", "All three parts, recorded. Fluency, vocabulary, grammar and pronunciation are scored, with your pauses timed in the transcript."),
-        ("bubble.left.and.bubble.right", "Live examiner", "A spoken conversation: an AI examiner asks, listens and follows up on what you say."),
+        ("bubble.left.and.bubble.right", "Live examiner", "A spoken conversation: an AI examiner asks, listens and follows up on what you say. Runs on your own API key."),
         ("pencil.line", "Writing Task 1 and 2", "Timed tasks marked against the public band descriptors, with each mistake underlined and corrected."),
         ("exclamationmark.triangle", "Mistake log", "The errors you repeat, grouped, so you know what to fix first."),
         ("rectangle.on.rectangle.angled", "Review deck", "Turn corrections into short flashcards that come back just before you forget them."),
@@ -29,15 +29,24 @@ struct GuestDashboardView: View {
                         .foregroundStyle(.muted)
                 }
                 VStack(spacing: 12) {
-                    Button { api.requestSignIn("Create an account to start practising.", signUp: true) } label: {
-                        Text("Create account").frame(maxWidth: .infinity, minHeight: 28)
+                    NavigationLink(value: Route.speaking(.full)) {
+                        Text("Try a free speaking test").frame(maxWidth: .infinity, minHeight: 28)
                     }
                     .primaryButton().controlSize(.large)
-                    Button { api.requestSignIn("Sign in to continue your practice.") } label: {
-                        Text("Sign in").frame(maxWidth: .infinity, minHeight: 28)
+                    QuotaLabel(skill: "speaking")
+                    NavigationLink(value: Route.writing(.task2)) {
+                        Text("Try a free writing task").frame(maxWidth: .infinity, minHeight: 28)
                     }
                     .secondaryButton().controlSize(.large)
+                    QuotaLabel(skill: "writing")
+                    HStack(spacing: 4) {
+                        Button("Create account") { api.requestSignIn("Create an account for 1 test a day.", signUp: true) }
+                        Text("or").foregroundStyle(.muted)
+                        Button("sign in") { api.requestSignIn("Sign in to continue your practice.") }
+                    }
+                    .buttonStyle(.borderless).font(.subheadline).frame(minHeight: 44)
                 }
+                CommunityCard()
 
                 VStack(alignment: .leading, spacing: 14) {
                     SectionTitle("What you get")
@@ -90,7 +99,7 @@ struct GuestDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     SectionTitle("Look around first")
-                    Text("The Speaking and Writing tabs and the prompt bank open without an account. Starting a test, or seeing your results, needs one.")
+                    Text("Everything opens without an account. Guests get 1 speaking and 1 writing test a week; an account gets 1 of each a day. History, mistakes and review need an account.")
                         .font(.subheadline).foregroundStyle(.muted)
                     NavigationLink(value: Route.bank(skill: "")) {
                         Label("Browse the prompt bank", systemImage: "books.vertical").frame(minHeight: 44, alignment: .leading)
@@ -102,6 +111,7 @@ struct GuestDashboardView: View {
         }
         .demoScroll()
         .background(Color.canvas)
+        .task { await api.loadQuota() }
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
     }

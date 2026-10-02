@@ -39,6 +39,7 @@ struct WritingEditorView: View {
     @State private var autoFired = false
     @State private var stage: Stage = .loading
     @State private var submitError: String?
+    @State private var submitIssue: CommunityIssue? // no test left, balance used up, busy: the draft stays and the notice says so
     @State private var showSubmit = false
     @State private var showExit = false
     @State private var toast: Toast?
@@ -212,6 +213,9 @@ struct WritingEditorView: View {
                     .pickerStyle(.segmented)
                 }
                 if !showPrompt { questionToggle(p).card(padding: 12) } // folded: stays pinned above the answer
+                if let submitIssue {
+                    IssueNotice(issue: submitIssue, kept: "Your draft is saved on this device.") { Task { await submit() } }
+                }
                 if let submitError {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Submit failed").font(.subheadline.weight(.semibold)).foregroundStyle(.ink)
@@ -446,6 +450,7 @@ struct WritingEditorView: View {
         guard stage == .writing else { return }
         stage = .submitting
         submitError = nil
+        submitIssue = nil
         let overtime = left < 0
         // Editor time, split across the tasks of a full test so weekly minutes don't count it twice.
         let durationMs = Int(Double(max(0, seconds - left)) * 1000 / Double(prompts.count))
@@ -476,7 +481,7 @@ struct WritingEditorView: View {
             stage = .done
         } catch {
             // Text stays in the editor (and the saved draft) so nothing is lost.
-            submitError = error.localizedDescription
+            if let e = error as? APIError, let issue = CommunityIssue(e) { submitIssue = issue } else { submitError = error.localizedDescription }
             stage = .writing
         }
     }

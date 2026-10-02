@@ -44,7 +44,8 @@ struct SpeakingHomeView: View {
         .navigationTitle("Speaking")
         .navigationDestination(item: $openResult) { id in ResultView(ids: [id]) }
         .task { await loadRecent() }
-        .refreshable { await loadRecent() }
+        .task { await api.loadQuota() }
+        .refreshable { await loadRecent(); await api.loadQuota(force: true) }
         .onAppear { store.reload() }
         .confirmationDialog("Delete this recording?",
                             isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
@@ -147,6 +148,7 @@ struct SpeakingHomeView: View {
             }
             .secondaryButton()
             .controlSize(.large)
+            if live { liveNote } else { QuotaLabel(skill: "speaking").frame(maxWidth: .infinity, alignment: .center) }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,11 +162,20 @@ struct SpeakingHomeView: View {
         .overlay(shape.strokeBorder(live ? Color.brand.opacity(0.25) : Color.line))
     }
 
+    /// The live examiner never runs on the community balance: it needs an own OpenRouter, OpenAI or Gemini key.
+    @ViewBuilder private var liveNote: some View {
+        if let q = api.quota {
+            Text(q.liveProviders.isEmpty ? "Needs your own API key" : "Runs on your own key")
+                .font(.caption).foregroundStyle(.muted).frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
     // MARK: Parts
 
     private var partsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(fresh ? "Start with one part" : "Or practise one part")
+            QuotaLabel(skill: "speaking")
             VStack(spacing: 0) {
                 ForEach(parts) { p in
                     if p.n > 1 { Divider() }

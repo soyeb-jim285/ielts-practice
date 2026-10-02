@@ -80,6 +80,7 @@ struct SettingsTab: View {
             SettingsView()
         } else {
             Form {
+                CommunitySection()
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Sign in to save your results, history and settings.").foregroundStyle(.muted)
@@ -105,6 +106,7 @@ struct SettingsTab: View {
             .canvasList()
             .demoScroll()
             .navigationTitle("Settings")
+            .task { await api.loadQuota() }
         }
     }
 }

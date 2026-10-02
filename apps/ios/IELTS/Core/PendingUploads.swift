@@ -126,7 +126,7 @@ final class PendingStore {
             states[p.id] = .done(attemptId)
             return attemptId
         } catch {
-            states[p.id] = .failed(error.localizedDescription)
+            states[p.id] = .failed(CommunityIssue.summary(error))
             return nil
         }
     }

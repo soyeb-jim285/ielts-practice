@@ -44,6 +44,8 @@ struct WritingHomeView: View {
         .demoScroll()
         .navigationTitle("Writing")
         .task { await loadRecent() }
+        .task { await api.loadQuota() }
+        .refreshable { await api.loadQuota(force: true) }
     }
 
     // MARK: Full test
@@ -65,6 +67,7 @@ struct WritingHomeView: View {
             }
             .primaryButton()
             .controlSize(.large)
+            QuotaLabel(skill: "writing").frame(maxWidth: .infinity, alignment: .center)
         }
         .card()
     }
@@ -74,6 +77,7 @@ struct WritingHomeView: View {
     private var practise: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle("Or practise one task")
+            QuotaLabel(skill: "writing")
             VStack(spacing: 0) {
                 ForEach(Array(kinds.enumerated()), id: \.element.id) { i, k in
                     if i > 0 { Divider().padding(.leading, 64) }

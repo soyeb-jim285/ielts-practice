@@ -26,8 +26,11 @@ struct SettingsView: View {
     @State private var showDelete = false
 
     var body: some View {
+        ScrollViewReader { proxy in
         Form {
             if let error { Section { ErrorLine(message: error) } }
+            CommunitySection()
+            ApiKeysSection()
             Section {
                 NavigationLink(value: Route.history(skill: nil)) { Label("Past attempts", systemImage: "clock.arrow.circlepath") }
                 NavigationLink(value: Route.mistakes(category: nil)) { Label("Mistakes", systemImage: "exclamationmark.triangle") }
@@ -76,6 +79,14 @@ struct SettingsView: View {
             s?.models.ttsVoice = first
         }
         .sheet(isPresented: $showDelete) { DeleteAccountSheet() }
+        .onChange(of: api.wantsKeys, initial: true) { _, wants in
+            // "Add your own key" from a blocked panel: bring the plan and key rows into view.
+            guard wants else { return }
+            api.wantsKeys = false
+            withAnimation { proxy.scrollTo("community", anchor: .top) }
+        }
+        .task { await api.loadQuota() }
+        }
     }
 
     private var binding: Binding<AppSettings> {
@@ -116,8 +127,11 @@ struct SettingsView: View {
     @ViewBuilder
     private var settingsSections: some View {
         let b = binding
-        let gptLiveOK = api.me?.gptLiveAvailable == true
-        let geminiOK = api.me?.geminiLiveAvailable == true
+        // Per user: a live examiner is on only with the matching own key (turn-based: an OpenRouter key).
+        let live = api.quota.map { Set($0.liveProviders) } ?? []
+        let turnOK = live.contains("turn")
+        let gptLiveOK = api.quota != nil ? live.contains("gpt-live") : api.me?.gptLiveAvailable == true
+        let geminiOK = api.quota != nil ? live.contains("gemini-live") : api.me?.geminiLiveAvailable == true
         let natural = "Talk back and forth as in the real test. You can interrupt each other."
         Section {
             VStack(alignment: .leading, spacing: 8) {
@@ -154,21 +168,24 @@ struct SettingsView: View {
             Text("How the timed essay editor behaves.")
         }
         Section {
-            providerRow("turn", "Examiner waits for you to finish", "The examiner asks a question, then listens until you pause.", current: b.wrappedValue.liveProvider) {
+            providerRow("turn", "Examiner waits for you to finish",
+                        turnOK ? "The examiner asks a question, then listens until you pause." : "Needs your own OpenRouter key.",
+                        current: b.wrappedValue.liveProvider, enabled: turnOK) {
                 s?.liveProvider = "turn"
             }
-            providerRow("gpt-live", "Natural conversation (GPT-Live)", gptLiveOK ? natural : "Not available right now.",
+            providerRow("gpt-live", "Natural conversation (GPT-Live)", gptLiveOK ? natural : "Needs your own OpenAI key.",
                         current: b.wrappedValue.liveProvider, enabled: gptLiveOK) {
                 s?.liveProvider = "gpt-live"
             }
-            providerRow("gemini-live", "Natural conversation (Gemini)", geminiOK ? natural : "Not available right now.",
+            providerRow("gemini-live", "Natural conversation (Gemini)", geminiOK ? natural : "Needs your own Gemini key.",
                         current: b.wrappedValue.liveProvider, enabled: geminiOK) {
                 s?.liveProvider = "gemini-live"
             }
         } header: {
             Text("Live examiner")
         } footer: {
-            Text("How the live speaking test talks to you.")
+            Text(live.isEmpty ? "The live examiner never uses the community balance. Add your own key under Your API keys to unlock it."
+                 : "How the live speaking test talks to you.")
         }
         Section {
             DisclosureGroup {
@@ -194,7 +211,8 @@ struct SettingsView: View {
         } header: {
             Text("AI models")
         } footer: {
-            Text("The models that score your work and play the examiner. The defaults suit most people.")
+            Text(api.quota?.tier == "own-key" ? "The models that score your work and play the examiner. The defaults suit most people."
+                 : "Community tests always use the default models. A custom model applies only with your own OpenRouter key.")
         }
     }
 }
