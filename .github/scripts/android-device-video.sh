@@ -104,12 +104,13 @@ clip_speaking_hub() { # the hub, scroll to the single parts, tap Part 1, press r
   launch speaking light; rec_start "02-speaking-hub-light"
   sleep 0.7; swipe_up 800 1.0; swipe_up 800 1.0
   tap_text "Part 1" 0 2.5
+  has_text "Start test" && tap_text "Start test" 0 3 # community-balance fair-use dialog
   tap_text "Start recording" 0 5
   rec_stop
 }
 clip_session_prep() { # Part 2 preparation minute: tap the notes box and type notes
   launch session-prep light; rec_start "03-session-prep-notes-light"
-  sleep 1.5; tap_text "Notes" 0 1.2
+  sleep 1.5; tap_text "Notes" 1 1.2 # 0 is the label, 1 the field
   typewords "Book:%s" "Sapiens%s" "-%sread%sit%s" "in%s2019%s" "-%schanged%show%sI%s" "see%shistory"
   sleep 2
   rec_stop
@@ -126,7 +127,7 @@ clip_result_tabs() { # $1 theme
   tap_text "Fluency" 0 1.2; swipe_up 800 1.2; swipe_up 800 1.2
   rec_stop
 }
-fluency_scroll() { swipe_up 700 1.0; swipe_up 700 1.0; } # brings the pace chart into view (same swipes in the probe pass and the recorded pass)
+fluency_scroll() { swipe_up 700 1.0; } # brings the pace chart into view (same swipes in the probe pass and the recorded pass)
 clip_fluency_dot() { # $1 theme. Pass 1 (not recorded): probe the chart for dots with taps + dumps. Pass 2 (recorded): replay the scroll and the dot taps.
   local box x0 y0 x1 y1 w h fx fy last=-99 n=0 hits="" xy
   launch result-speaking "$1" Fluency; CLIP="05-fluency-dot-$1"
@@ -150,7 +151,7 @@ clip_fluency_dot() { # $1 theme. Pass 1 (not recorded): probe the chart for dots
 clip_writing_type() { # $1 theme
   launch editor "$1"; rec_start "06-writing-editor-type-$1"
   sleep 1; tap_text "Your answer" 0 1.0
-  typewords "Some%speople%s" "believe%sthat%s" "children%sshould%s" "start%sschool%s" "later%sin%slife.%s" "However,%sI%s" "think%san%searly%s" "start%sgives%s" "them%sa%sreal%s" "advantage%sin%s" "learning%sto%s" "read%sand%swrite."
+  typewords "Some%speople%s" "believe%sthat%s" "children%sshould%s" "start%sschool%s" "later%sin%slife.%s" "However,%sI%s" "think%san%searly%s" "start%sis%sbetter."
   sleep 1.5
   rec_stop
 }
@@ -161,7 +162,7 @@ clip_review() {
 }
 clip_settings_keys() {
   launch settings-keys light Empty; rec_start "08-settings-keys-light"
-  sleep 1.5; swipe_up 700 1; tap_text "API key" 0 1.5
+  sleep 1.5; tap_text "OpenRouter API key" 0 1.5
   typewords "sk-or-v1-" "demo-key-" "0123456789"
   sleep 1; tap_text "Save" 0 3
   rec_stop
