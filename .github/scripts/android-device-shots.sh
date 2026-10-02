@@ -12,6 +12,7 @@ adb shell settings put global hide_error_dialogs 1
 adb shell settings put secure anr_show_background 0 || true
 # hide_error_dialogs did not stop it on API 35 (every shot of one run had the dialog): take the launcher out of the picture, the app is started directly.
 for l in com.google.android.apps.nexuslauncher com.android.launcher3; do adb shell pm disable-user --user 0 "$l" > /dev/null 2>&1 || true; done
+sleep 8 # SystemUI restarts when the launcher goes; set the demo status bar after that
 # Clean status bar: 9:41, full battery and signal.
 adb shell settings put global sysui_demo_allowed 1
 adb shell am broadcast -a com.android.systemui.demo -e command enter > /dev/null
