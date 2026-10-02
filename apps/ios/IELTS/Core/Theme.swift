@@ -43,7 +43,8 @@ extension Font {
 extension View {
     /// Prominent call to action: glass prominent on iOS 26, bordered prominent before.
     @ViewBuilder func primaryButton() -> some View {
-        if #available(iOS 26.0, *) { self.buttonStyle(.glassProminent) } else { self.buttonStyle(.borderedProminent) }
+        // onBrand text: white on the light-mode teal, deep teal on the bright dark-mode teal (white there is under 2:1).
+        if #available(iOS 26.0, *) { self.buttonStyle(.glassProminent).foregroundStyle(Color.onBrand) } else { self.buttonStyle(.borderedProminent).foregroundStyle(Color.onBrand) }
     }
 
     /// Secondary action: glass on iOS 26, bordered before.

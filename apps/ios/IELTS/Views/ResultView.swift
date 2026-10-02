@@ -482,14 +482,14 @@ struct ResultView: View {
             VStack(spacing: 8) {
                 if let retryNote { ErrorLine(message: retryNote).frame(maxWidth: .infinity, alignment: .leading) }
                 if api.isGuest {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Create an account to keep this result").font(.subheadline.weight(.semibold)).foregroundStyle(.ink)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Create an account to keep this result").font(.subheadline.weight(.semibold)).foregroundStyle(.ink)
+                        HStack(spacing: 12) {
                             Text("Guest results are deleted after 30 days.").font(.caption).foregroundStyle(.muted)
+                            Spacer(minLength: 8)
+                            Button("Create account") { api.requestSignIn("Create an account to keep this result.", signUp: true) }
+                                .secondaryButton().controlSize(.small)
                         }
-                        Spacer(minLength: 8)
-                        Button("Create account") { api.requestSignIn("Create an account to keep this result.", signUp: true) }
-                            .secondaryButton().controlSize(.small)
                     }
                 }
             }

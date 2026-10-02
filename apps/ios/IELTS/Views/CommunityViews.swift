@@ -163,7 +163,7 @@ struct FairUseSheet: View {
             .padding(24)
         }
         .background(Color.canvas)
-        .presentationDetents([.large])
+        .presentationDetents([.fraction(0.75), .large])
     }
 }
 
