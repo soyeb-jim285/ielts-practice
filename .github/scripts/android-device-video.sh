@@ -138,13 +138,13 @@ clip_fluency_dot() { # $1 theme. Pass 1 (not recorded): probe the chart for dots
   for fx in 16 24 34 44 52 60 68 76 84 92; do for fy in 40 30 50 60 70; do
     [ $((fx - last)) -lt 18 ] && continue
     adb shell input tap $((x0 + w * fx / 100)) $((y0 + h * fy / 100)); sleep 0.4
-    if has_text "Close"; then echo "dot hit at $fx,$fy"; hits="$hits $((x0 + w * fx / 100)),$((y0 + h * fy / 100))"; last=$fx; n=$((n + 1)); break; fi
+    if has_text "Close"; then echo "dot hit at $fx,$fy"; hits="$hits $((x0 + w * fx / 100)),$((y0 + h * fy / 100))"; last=$fx; n=$((n + 1)); tap_text "Close" 0 0.4; break; fi
   done; [ $n -ge 3 ] && break; done
-  xy=$(python3 /tmp/find_xy.py "Close" 0 < /tmp/ui.xml); echo "close at $xy hits:$hits"
+  xy=; echo "hits:$hits"
   launch result-speaking "$1" Fluency; rec_start "05-fluency-dot-$1"
   sleep 0.7; fluency_scroll; sleep 1
   for xy2 in $hits; do adb shell input tap ${xy2%,*} ${xy2#*,}; sleep 2.6; done
-  [ -n "$xy" ] && adb shell input tap $xy
+  tap_text "Close" 0 1
   sleep 1.2
   rec_stop
 }
@@ -164,7 +164,7 @@ clip_settings_keys() {
   launch settings-keys light Empty; rec_start "08-settings-keys-light"
   sleep 1.5; tap_text "OpenRouter API key" 0 1.5
   typewords "sk-or-v1-" "demo-key-" "0123456789"
-  sleep 1; tap_text "Save" 0 3
+  sleep 0.8; tap_text "Show" 0 2.5 # (Save answers an error in demo mode, so it is not tapped)
   rec_stop
 }
 clip_guest_home() {
