@@ -1,7 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { Button, buttonStyles, Dialog } from '@/components/ui';
 import { plural } from '@/lib/format';
-import { isGuestTier, usd, type Quota, type Skill } from '@/lib/community';
+import { isGuestTier, type Quota, type Skill } from '@/lib/community';
 import { BalanceMeter } from './BalanceMeter';
 
 /**
@@ -13,7 +13,6 @@ export function FairUseDialog({ open, quota, skill, onStart, onClose }: { open: 
   const guest = isGuestTier(quota.tier);
   const s = quota[skill];
   const left = s.remaining;
-  const remaining = quota.communityBalance.remaining;
   return (
     <Dialog
       open={open}
@@ -36,19 +35,12 @@ export function FairUseDialog({ open, quota, skill, onStart, onClose }: { open: 
       }
     >
       <div className="space-y-4 text-sm">
-        <p>
-          {left != null && (
-            <>
-              You have <strong className="font-semibold">{plural(left, `${skill} test`)}</strong> left {s.window === 'week' ? 'this week' : 'today'}.{' '}
-            </>
-          )}
-          {remaining != null && (
-            <>
-              The community balance has <strong className="font-semibold type-num">{usd(remaining)}</strong> left.
-            </>
-          )}
-        </p>
-        <BalanceMeter hideLabel />
+        {left != null && (
+          <p>
+            You have <strong className="font-semibold">{plural(left, `${skill} test`)}</strong> left {s.window === 'week' ? 'this week' : 'today'}.
+          </p>
+        )}
+        <BalanceMeter />
         <p className="text-muted">{guest ? 'Create an account for 1 test a day.' : 'Want unlimited tests and the live examiner? Add your own API key in Settings.'}</p>
       </div>
     </Dialog>

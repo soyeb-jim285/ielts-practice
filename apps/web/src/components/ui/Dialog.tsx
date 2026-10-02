@@ -49,11 +49,11 @@ export function Dialog({ open, onClose, title, description, children, footer, cl
   const returnFocus = useReturnFocus(open, returnFocusRef);
   return (
     <ShDialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent showCloseButton={false} onCloseAutoFocus={returnFocus} className={cn('max-w-md gap-0 rounded-lg p-0', className)}>
+      <DialogContent showCloseButton={false} onCloseAutoFocus={returnFocus} className={cn('max-w-[min(28rem,calc(100%-2rem))] gap-0 rounded-lg p-0', className)}>
         <DialogHeader className="flex-row items-start gap-3 px-5 pt-5 pb-3 text-left">
           <div className="min-w-0 flex-1">
-            <DialogTitle>{title}</DialogTitle>
-            {description ? <DialogDescription className="mt-1 text-sm text-muted">{description}</DialogDescription> : <DialogDescription className="sr-only">{title}</DialogDescription>}
+            <DialogTitle className="leading-snug">{title}</DialogTitle>
+            {description ? <DialogDescription className="mt-1.5 text-sm text-muted">{description}</DialogDescription> : <DialogDescription className="sr-only">{title}</DialogDescription>}
           </div>
           {closeButton(DialogClose)}
         </DialogHeader>
