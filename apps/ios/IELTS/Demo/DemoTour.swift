@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import Darwin
 
 /// Demo-only auto-tour for screen recordings: `-demo -screen <name> -tour <script>` scripts scrolling, tab switches, typing and playback
 /// with timers so a simulator video has real motion (the simulator can't be tapped from the CLI). It waits for a go signal
@@ -37,8 +36,9 @@ extension DemoTour {
     static func arm() {
         guard let name, !armed else { return }
         armed = true
-        var token: Int32 = 0
-        notify_register_dispatch("com.soyeb.ielts.tourgo", &token, .main) { _ in Task { @MainActor in go(name) } }
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), nil, { _, _, _, _, _ in
+            Task { @MainActor in if let n = DemoTour.name { DemoTour.go(n) } }
+        }, "com.soyeb.ielts.tourgo" as CFString, nil, .deliverImmediately)
         Task { @MainActor in
             for _ in 0..<200 {
                 if started { return }
@@ -49,7 +49,7 @@ extension DemoTour {
         }
     }
 
-    private static func go(_ name: String) {
+    fileprivate static func go(_ name: String) {
         guard !started else { return }
         started = true
         Task { @MainActor in await run(script(name)) }
