@@ -80,6 +80,11 @@ Cambridge maps are realistic site plans or floor plans: a labelled entrance or "
 - Spelled names: write "H-A-R-G-R-E-A-V-E-S"; v4 Turbo reads them letter by letter (verified with speech-to-text).
 - Phone numbers and postcodes: digits grouped as spoken ("07700 900 316", "YO62 5HQ").
 
+## 7b. Rendering facts (measured)
+- v4 Turbo `text-to-dialogue` costs about 0.06 credits per character (a 5,000-character part is about 300 credits; a whole test about 1,100). Four generated tests fit in 5k credits.
+- Rendered parts: 5.7-7.8 min, loudness -16 to -17 LUFS, planned silences 20/30-35/30 s (Part 4: 50 s, then 60 s).
+- Check audio without a local ASR through ElevenLabs `speech-to-text` (`scribe_v1`); it spells British words American ("mold"), so match answers loosely.
+
 ## 8. Findings on our first generation (gen-l-01..03) and the fix
 
 | Area | Cambridge | Ours before | Fix |
