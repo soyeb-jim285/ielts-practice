@@ -113,6 +113,39 @@ struct LrStats: Codable, Hashable {
     var partS: [String: Double] = [:]
     var changes: [String: Int] = [:]
     var late: [Int] = []
+    var audio: LrAudioState? = nil // practice listening: where each part's recording was left
+}
+
+/// Practice listening resume state (saved in the attempt's stats.audio, mirrored on the device): playback position per part, and the speed.
+struct LrAudioState: Codable, Hashable {
+    var pos: [String: Double] = [:]
+    var rate: Double? = nil
+
+    static let rates: [Double] = [0.75, 1, 1.25]
+
+    /// Where to put the playhead: within 3 s of the end (or unknown) means the part was finished, so start over.
+    static func resumePosition(_ pos: Double, duration: Double) -> Double {
+        pos > 1 && duration.isFinite && pos < duration - 3 ? pos : 0
+    }
+
+    /// Drops anything the server would reject (non-finite, out of range, unknown speed).
+    var cleaned: LrAudioState {
+        var out = LrAudioState()
+        for (k, v) in pos where k.count == 1 && k.first!.isNumber && v.isFinite { out.pos[k] = (min(3600, max(0, v)) * 10).rounded() / 10 }
+        if let r = rate, Self.rates.contains(r) { out.rate = r }
+        return out
+    }
+
+    private static func key(_ id: String) -> String { "lr:\(id):audio" }
+    func saveLocal(_ id: String, defaults: UserDefaults = .standard) {
+        if let d = try? JSONEncoder().encode(cleaned) { defaults.set(d, forKey: Self.key(id)) }
+    }
+    static func clearLocal(_ id: String, defaults: UserDefaults = .standard) { defaults.removeObject(forKey: key(id)) }
+    /// This device's copy wins over the server's (it is never older than what this device last played).
+    static func load(_ id: String, server: LrAudioState?, defaults: UserDefaults = .standard) -> LrAudioState? {
+        if let d = defaults.data(forKey: key(id)), let a = try? JSONDecoder().decode(LrAudioState.self, from: d) { return a.cleaned }
+        return server?.cleaned
+    }
 }
 
 struct LrGapEntry: Codable, Hashable { let n: Int; let kind: String; let label: String; let message: String; let word: String?; let typed: String?; let before: Int? }

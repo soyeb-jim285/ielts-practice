@@ -27,4 +27,23 @@ final class LrTests: XCTestCase {
         XCTAssertEqual(r, ["11": "B", "12": "D"])
         XCTAssertEqual(Lr.multiPicks(g, Lr.setMultiPicks(g, r, ["D"])), ["D"])
     }
+
+    func testAudioResumePosition() {
+        XCTAssertEqual(LrAudioState.resumePosition(205.5, duration: 600), 205.5)
+        XCTAssertEqual(LrAudioState.resumePosition(598, duration: 600), 0)
+        XCTAssertEqual(LrAudioState.resumePosition(0.5, duration: 600), 0)
+        XCTAssertEqual(LrAudioState.resumePosition(50, duration: .nan), 0)
+    }
+
+    func testAudioCleanedAndStore() {
+        let c = LrAudioState(pos: ["1": 12.34, "2": .nan, "3": -4, "4": 9999, "x": 1], rate: 2).cleaned
+        XCTAssertEqual(c.pos, ["1": 12.3, "3": 0, "4": 3600])
+        XCTAssertNil(c.rate)
+        let d = UserDefaults(suiteName: "lr-audio-test")!
+        d.removePersistentDomain(forName: "lr-audio-test")
+        XCTAssertEqual(LrAudioState.load("a", server: LrAudioState(pos: ["1": 30], rate: 0.75), defaults: d), LrAudioState(pos: ["1": 30], rate: 0.75))
+        LrAudioState(pos: ["1": 40, "3": 7], rate: 1).saveLocal("a", defaults: d)
+        XCTAssertEqual(LrAudioState.load("a", server: LrAudioState(pos: ["1": 30]), defaults: d), LrAudioState(pos: ["1": 40, "3": 7], rate: 1))
+        XCTAssertNil(LrAudioState.load("b", server: nil, defaults: d))
+    }
 }

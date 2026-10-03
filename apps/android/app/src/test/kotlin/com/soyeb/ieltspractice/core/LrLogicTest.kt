@@ -70,4 +70,23 @@ class LrLogicTest {
         assertEquals("Matching headings", typeLabel(LrGroup(1, 2, "match", options = listOf(LrOption("i"), LrOption("ii")))))
         assertEquals("Table completion", typeLabel(LrGroup(1, 2, "gap", instructions = "Complete the table below.")))
     }
+
+    @Test fun audioResumePosition() {
+        assertEquals(205.5, LrAudioState.resumePosition(205.5, 600.0))
+        assertEquals(0.0, LrAudioState.resumePosition(598.0, 600.0))
+        assertEquals(0.0, LrAudioState.resumePosition(0.5, 600.0))
+        assertEquals(0.0, LrAudioState.resumePosition(50.0, Double.NaN))
+    }
+
+    @Test fun audioCleanedAndPick() {
+        val c = LrAudioState(mapOf("1" to 12.34, "2" to Double.NaN, "3" to -4.0, "4" to 9999.0, "x" to 1.0), 2.0).cleaned()
+        assertEquals(mapOf("1" to 12.3, "3" to 0.0, "4" to 3600.0), c.pos)
+        assertEquals(null, c.rate)
+        val server = LrAudioState(mapOf("1" to 30.0), 0.75)
+        assertEquals(server, LrAudioState.pick(null, server))
+        val local = LrAudioState(mapOf("1" to 40.0, "3" to 7.0), 1.0)
+        assertEquals(local, LrAudioState.pick(local.encode(), LrAudioState(mapOf("1" to 30.0))))
+        assertEquals(null, LrAudioState.pick(null, null))
+        assertEquals(server, LrAudioState.pick("not json", server))
+    }
 }

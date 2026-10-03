@@ -109,7 +109,11 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     val examListening = listening && exam
     val wide = LocalConfiguration.current.screenWidthDp >= 840
 
-    val session = remember(attempt.id) { LrSession(attempt, app.api, app.scope) }
+    val session = remember(attempt.id) {
+        LrSession(attempt, app.api, app.scope,
+            loadLocalAudio = { if (demo == null) prefs(context).getString("audio:${attempt.id}", null) else null },
+            saveLocalAudio = { prefs(context).edit().putString("audio:${attempt.id}", it).apply() })
+    }
     val flat = remember(test) { test.flat() }
     val total = flat.size
     val reg = remember { QRegistry() }
@@ -240,7 +244,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
                     listening -> {
                         Surface2 {
                             if (exam) ExamAudioBar(playlist)
-                            else androidx.compose.runtime.key(section.audio) { PracticeAudio(attempt.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}") }
+                            else androidx.compose.runtime.key(section.audio) { PracticeAudio(attempt.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", resume = LrResume(session.audioStart(section.part), session.audioRate, { session.noteAudio(section.part, it) }, session::saveAudio, session::noteRate)) }
                         }
                         QuestionsPane(section, ctx, exam, true, Modifier.weight(1f).fillMaxWidth())
                     }

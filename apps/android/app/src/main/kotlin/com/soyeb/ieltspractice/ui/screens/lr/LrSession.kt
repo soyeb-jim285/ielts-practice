@@ -27,7 +27,13 @@ enum class SaveState(val label: String) { Saved("Saved"), Dirty("Unsaved changes
  * a keep-alive save of the clock every 15 s, and submit. Saves run on the app [scope] so a flush survives the screen leaving.
  * [elapsed] is the clock in seconds, written by the screen; it is never state, so the clock does not recompose this.
  */
-class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val scope: CoroutineScope) {
+class LrSession(
+    val attempt: LrAttempt,
+    private val api: ApiClient,
+    private val scope: CoroutineScope,
+    private val loadLocalAudio: () -> String? = { null },
+    private val saveLocalAudio: (String) -> Unit = {},
+) {
     var responses by mutableStateOf(attempt.responses)
         private set
     var state by mutableStateOf(SaveState.Saved)
@@ -42,6 +48,19 @@ class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val 
     private val partS = HashMap<String, Double>(attempt.stats?.partS.orEmpty())
     private val changes = HashMap<String, Int>(attempt.stats?.changes.orEmpty())
     private val late = LinkedHashSet<Int>(attempt.stats?.late.orEmpty())
+    // Practice listening position: noteAudio is hot (every player tick, memory only); saveAudio stores it on the device and queues a server save.
+    @Volatile private var audio: LrAudioState? = LrAudioState.pick(loadLocalAudio(), attempt.stats?.audio)
+    fun audioStart(part: Int): Double = audio?.pos?.get(part.toString()) ?: 0.0
+    val audioRate: Float get() = (audio?.rate ?: 1.0).toFloat()
+    fun noteAudio(part: Int, pos: Double) { val a = audio ?: LrAudioState(); audio = a.copy(pos = a.pos + (part.toString() to pos)) }
+    fun noteRate(rate: Float) { audio = (audio ?: LrAudioState()).copy(rate = rate.toDouble()); saveAudio() }
+    fun saveAudio() {
+        val a = audio ?: return
+        if (done) return
+        saveLocalAudio(a.encode())
+        dirty = true
+        flushLater()
+    }
     private val focusVal = HashMap<Int, String>()
     private var textField: Int? = null
 
@@ -107,6 +126,12 @@ class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val 
             put("partS", JsonObject(partS.mapValues { JsonPrimitive(it.value.toInt()) }))
             put("changes", JsonObject(changes.filterValues { it > 0 }.mapValues { JsonPrimitive(it.value) }))
             put("late", buildJsonArray { late.forEach { add(it) } })
+            audio?.cleaned()?.let { a ->
+                put("audio", buildJsonObject {
+                    put("pos", JsonObject(a.pos.mapValues { JsonPrimitive(it.value) }))
+                    a.rate?.let { put("rate", it) }
+                })
+            }
         })
     }
 

@@ -34,7 +34,9 @@ final class LrSession {
         self.api = api
         responses = attempt.responses
         elapsed = Double(attempt.elapsedS)
-        stats = attempt.stats ?? LrStats()
+        var st = attempt.stats ?? LrStats()
+        st.audio = LrAudioState.load(attempt.id, server: st.audio)
+        stats = st
         flagged = Set((UserDefaults.standard.array(forKey: "lr:\(attempt.id):flags") as? [Int]) ?? [])
         keepAlive = Task { [weak self] in
             while !Task.isCancelled {
@@ -71,7 +73,36 @@ final class LrSession {
     }
     func tick(part: Int) { stats.partS[String(part), default: 0] += 1 }
 
-    private var statsBody: [String: Any] { ["partS": stats.partS.mapValues { Int($0.rounded()) }, "changes": stats.changes, "late": stats.late] }
+    private var statsBody: [String: Any] {
+        var b: [String: Any] = ["partS": stats.partS.mapValues { Int($0.rounded()) }, "changes": stats.changes, "late": stats.late]
+        if let a = stats.audio?.cleaned {
+            var o: [String: Any] = ["pos": a.pos]
+            if let r = a.rate { o["rate"] = r }
+            b["audio"] = o
+        }
+        return b
+    }
+
+    // Practice listening position: `noteAudio` is hot (every player tick, memory only); `saveAudio` stores it on the device and queues a server save.
+    func audioStart(_ part: Int) -> Double { stats.audio?.pos[String(part)] ?? 0 }
+    var audioRate: Float { Float(stats.audio?.rate ?? 1) }
+    func noteAudio(part: Int, pos: Double) {
+        var a = stats.audio ?? LrAudioState()
+        a.pos[String(part)] = pos
+        stats.audio = a
+    }
+    func noteRate(_ r: Float) {
+        var a = stats.audio ?? LrAudioState()
+        a.rate = Double(r)
+        stats.audio = a
+        saveAudio()
+    }
+    func saveAudio() {
+        guard !done, let a = stats.audio else { return }
+        a.saveLocal(attempt.id)
+        dirty = true
+        Task { await flush() }
+    }
 
     func replace(_ next: [String: String]) {
         for k in Set(responses.keys).union(next.keys) where (responses[k] ?? "") != (next[k] ?? "") {
@@ -132,6 +163,7 @@ final class LrSession {
             let a: LrAttempt = try await api.send("POST", "/api/lr/attempts/\(attempt.id)/submit", ["responses": responses, "elapsedS": Int(elapsed), "stats": statsBody] as [String: Any])
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):flags")
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):pos")
+            LrAudioState.clearLocal(attempt.id)
             return a
         } catch {
             done = false

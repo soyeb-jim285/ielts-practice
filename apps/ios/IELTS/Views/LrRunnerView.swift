@@ -136,6 +136,7 @@ private struct LrRunnerBody: View {
         .onAppear(perform: setUp)
         .onDisappear { playlist?.stop(); practice.teardown(); Task { await session.saveNow() }; session.stop() }
         .onChange(of: scenePhase) { _, p in if p != .active { Task { await session.saveNow() } } }
+        .onChange(of: rate) { _, r in if !exam, Double(r) != (session.stats.audio?.rate ?? 1) { session.noteRate(r) } }
         .onChange(of: current) { _, n in session.remember(part: partIdx, n: n) }
         .onChange(of: playlist?.idx) { _, i in if examListening, let i, playlist?.phase == .audio { goPart(i) } }
         .task { await examLoop() }
@@ -150,6 +151,7 @@ private struct LrRunnerBody: View {
     // MARK: Setup and clocks
 
     private func setUp() {
+        rate = session.audioRate
         if let pos = session.position, pos.part < test.sections.count {
             partIdx = pos.part
             current = pos.n
@@ -300,7 +302,7 @@ private struct LrRunnerBody: View {
             if examListening, let pl = playlist {
                 LrExamBar(playlist: pl)
             } else {
-                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate)
+                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, resume: LrResume(start: session.audioStart(section.part), track: { session.noteAudio(part: section.part, pos: $0) }, persist: { session.saveAudio() }))
             }
         }
         .padding(14)
@@ -461,11 +463,19 @@ private struct LrExamBar: View {
 }
 
 /// Practice and review player: play, scrub, ±5 s, speed 0.75-1.25x, replay the part.
+/// Practice runner: where this part was left (seconds) and how to report the position back to the session.
+struct LrResume {
+    let start: Double
+    let track: (Double) -> Void
+    let persist: () -> Void
+}
+
 struct LrPracticeBar: View {
     let player: LrPracticePlayer
     let url: URL?
     let label: String
     @Binding var rate: Float
+    var resume: LrResume?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -483,6 +493,7 @@ struct LrPracticeBar: View {
                     HStack {
                         Text(clock(Int(player.time))).foregroundStyle(Color.muted)
                         Spacer()
+                        if player.resumedAt > 0 { Text("Resume from \(clock(Int(player.resumedAt)))").foregroundStyle(Color.brand); Spacer() }
                         Text(player.failed ? "Could not load" : clock(Int(player.duration))).foregroundStyle(player.failed ? Color.bad : Color.muted)
                     }
                     .font(.caption.monospacedDigit())
@@ -503,7 +514,7 @@ struct LrPracticeBar: View {
                     .secondaryButton().buttonBorderShape(.circle).accessibilityLabel("Replay \(label.lowercased())")
             }
         }
-        .task(id: url) { player.load(url); player.rate = rate }
+        .task(id: url) { player.load(url, resumeAt: resume?.start ?? 0, track: resume?.track, persist: resume?.persist); player.rate = rate }
         .onChange(of: rate) { _, r in player.rate = r }
         .onDisappear { player.teardown() }
     }

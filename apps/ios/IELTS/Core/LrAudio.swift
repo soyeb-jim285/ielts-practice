@@ -15,6 +15,14 @@ final class LrPracticePlayer {
     private(set) var duration: Double = 0
     private(set) var playing = false
     private(set) var failed = false
+    /// Set while the player sits at a restored position and has not been played since.
+    private(set) var resumedAt: Double = 0
+    /// Resume hooks (practice runner): `track` gets the position every tick once the saved one is applied, `persist` asks for a save (pause, every ~5 s, teardown).
+    @ObservationIgnored private var track: ((Double) -> Void)?
+    @ObservationIgnored private var persist: (() -> Void)?
+    @ObservationIgnored private var resumeTo: Double?
+    @ObservationIgnored private var ready = true // false until the saved position is applied: currentTime is 0 and must not overwrite it
+    @ObservationIgnored private var lastPersist: Double = 0
     var rate: Float = 1 { didSet { if playing { player?.rate = rate } } }
     @ObservationIgnored private var player: AVPlayer?
     @ObservationIgnored private var observer: Any?
@@ -23,10 +31,13 @@ final class LrPracticePlayer {
     @ObservationIgnored private var stopAt: Double?
     @ObservationIgnored private var pending: (from: Double, to: Double)?
 
-    func load(_ url: URL?) {
+    func load(_ url: URL?, resumeAt: Double = 0, track: ((Double) -> Void)? = nil, persist: (() -> Void)? = nil) {
         let keep = pending
         teardown()
         pending = keep
+        self.track = track; self.persist = persist
+        resumeTo = track == nil ? nil : resumeAt
+        ready = track == nil
         guard let url else { failed = true; return }
         failed = false
         let item = AVPlayerItem(url: url)
@@ -41,6 +52,14 @@ final class LrPracticePlayer {
                 self.failed = item.status == .failed
                 if let stop = self.stopAt, self.time >= stop { self.stopAt = nil; self.player?.pause(); self.playing = false }
                 if let c = self.pending, self.duration > 0 { self.pending = nil; self.play(from: c.from, to: c.to) }
+                if !self.ready, self.duration > 0 {
+                    let at = LrAudioState.resumePosition(self.resumeTo ?? 0, duration: self.duration)
+                    self.ready = true
+                    if at > 0 { self.seek(to: at); self.resumedAt = at }
+                } else if self.ready, self.track != nil {
+                    self.track?(self.time)
+                    if self.playing, self.time - self.lastPersist >= 5 || self.time < self.lastPersist { self.lastPersist = self.time; self.persist?() }
+                }
             }
         }
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
@@ -50,7 +69,10 @@ final class LrPracticePlayer {
 
     func toggle() {
         guard let p = player else { return }
-        if playing { p.pause(); playing = false } else { activatePlayback(); p.rate = rate; playing = true }
+        if playing {
+            p.pause(); playing = false
+            savePosition()
+        } else { activatePlayback(); p.rate = rate; playing = true; resumedAt = 0 }
     }
 
     func play(from: Double, to: Double) {
@@ -60,6 +82,12 @@ final class LrPracticePlayer {
         activatePlayback()
         p.rate = rate
         playing = true
+    }
+
+    private func savePosition() {
+        guard ready, let track else { return }
+        track(time)
+        persist?()
     }
 
     func seek(to t: Double) {
@@ -74,12 +102,15 @@ final class LrPracticePlayer {
     func replay() {
         seek(to: 0)
         guard let p = player else { return }
+        resumedAt = 0
         activatePlayback()
         p.rate = rate
         playing = true
     }
 
     func teardown() {
+        savePosition()
+        track = nil; persist = nil; resumeTo = nil; ready = true; resumedAt = 0; lastPersist = 0
         if let o = observer { player?.removeTimeObserver(o) }
         if let e = endObserver { NotificationCenter.default.removeObserver(e) }
         observer = nil; endObserver = nil

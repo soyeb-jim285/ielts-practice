@@ -66,7 +66,26 @@ const val LISTENING_REVIEW_SECONDS = 120
 @Serializable data class LrMark(val n: Int, val given: String = "", val correct: Boolean = false, val answer: List<String> = emptyList())
 
 /** What the runner measured: seconds per part, answer changes per question, questions answered in the final 5 minutes (or after the recordings, in the exam). */
-@Serializable data class LrStats(val partS: Map<String, Double> = emptyMap(), val changes: Map<String, Int> = emptyMap(), val late: List<Int> = emptyList())
+@Serializable data class LrStats(val partS: Map<String, Double> = emptyMap(), val changes: Map<String, Int> = emptyMap(), val late: List<Int> = emptyList(), val audio: LrAudioState? = null)
+
+/** Practice listening resume state (stats.audio, mirrored on the device): playback position per part in seconds, and the speed. */
+@Serializable data class LrAudioState(val pos: Map<String, Double> = emptyMap(), val rate: Double? = null) {
+    /** Drops anything the server would reject (non-finite, out of range, unknown speed). */
+    fun cleaned() = LrAudioState(
+        pos.filter { (k, v) -> k.length == 1 && k[0].isDigit() && v.isFinite() }.mapValues { Math.round(it.value.coerceIn(0.0, 3600.0) * 10) / 10.0 },
+        rate?.takeIf { it in RATES },
+    )
+    fun encode() = AppJson.encodeToString(serializer(), cleaned())
+
+    companion object {
+        val RATES = listOf(0.75, 1.0, 1.25)
+        /** Where to put the playhead: within 3 s of the end (or unknown) means the part was finished, so start over. */
+        fun resumePosition(pos: Double, duration: Double) = if (pos > 1 && duration.isFinite() && duration > 0 && pos < duration - 3) pos else 0.0
+        /** This device's copy wins over the server's (it is never older than what this device last played). */
+        fun pick(local: String?, server: LrAudioState?): LrAudioState? =
+            local?.let { runCatching { AppJson.decodeFromString(serializer(), it).cleaned() }.getOrNull() } ?: server?.cleaned()
+    }
+}
 /** A wrong gap answer with a deterministic reason (server `analysis.gaps`). */
 @Serializable data class LrGapEntry(val n: Int, val kind: String, val label: String, val message: String, val word: String? = null, val typed: String? = null, val before: Int? = null)
 @Serializable data class LrTfngRow(val n: Int, val kind: String, val chose: String, val answer: String)

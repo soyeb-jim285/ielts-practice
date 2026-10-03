@@ -65,7 +65,7 @@ import kotlin.math.max
 
 /** Practice / review player state: play, scrub, speed. In demo mode there is no engine, only a fixed spot, so screenshots need no audio. */
 @Stable
-class LrPlayer(private val demo: Boolean) {
+class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null) {
     var playing by mutableStateOf(false)
         private set
     var position by mutableDoubleStateOf(if (demo) 87.0 else 0.0)
@@ -76,12 +76,19 @@ class LrPlayer(private val demo: Boolean) {
         private set
     var failed by mutableStateOf(false)
         private set
+    /** Set while the player sits at a restored position and has not been played since. */
+    var resumedAt by mutableDoubleStateOf(0.0)
+        private set
     private var engine: AudioPlayer? = null
     private var stopAt: Double? = null
+    private var ready = resume == null // false until the saved position is applied: the position is 0 and must not overwrite it
+    private var lastPersist = 0.0
+
+    init { if (resume != null) speed = resume.rate }
 
     fun load(context: Context, url: String) {
         if (demo || engine != null) return
-        engine = AudioPlayer(context).also { it.load(url) }
+        engine = AudioPlayer(context).also { it.load(url); if (speed != 1f) it.setSpeed(speed) }
     }
 
     suspend fun poll() {
@@ -93,11 +100,28 @@ class LrPlayer(private val demo: Boolean) {
             stopAt?.let { if (position >= it) { e.pause(); playing = false; stopAt = null } }
             val d = e.durationMs / 1000.0
             if (d > 0) duration = d else if (duration == 0.0 && ++waited > 80) failed = true
+            if (resume != null) {
+                if (!ready && d > 0) {
+                    ready = true
+                    val at = LrAudioState.resumePosition(resume.start, d)
+                    if (at > 0) { seek(at); resumedAt = at }
+                } else if (ready) {
+                    resume.track(position)
+                    if (playing && (position - lastPersist >= 5 || position < lastPersist)) { lastPersist = position; resume.persist() }
+                }
+            }
             delay(if (playing) 200 else 400)
         }
     }
 
-    fun toggle() { if (playing) { engine?.pause(); playing = false } else { engine?.play(); if (engine != null) playing = true } }
+    fun toggle() {
+        if (playing) { engine?.pause(); playing = false; savePosition() } else { engine?.play(); if (engine != null) { playing = true; resumedAt = 0.0 } }
+    }
+    private fun savePosition() {
+        if (resume == null || !ready) return
+        resume.track(position)
+        resume.persist()
+    }
     /** "Play from here": jump to [from], play, stop at [to]. */
     fun playWindow(from: Double, to: Double) {
         seek(from)
@@ -112,9 +136,13 @@ class LrPlayer(private val demo: Boolean) {
         position = v
         engine?.seekTo((v * 1000).toLong())
     }
-    fun replay() { seek(0.0); if (!playing) toggle() }
-    fun changeSpeed(s: Float) { speed = s; engine?.setSpeed(s) }
-    fun release() { engine?.release(); engine = null }
+    fun replay() { seek(0.0); resumedAt = 0.0; if (!playing) toggle() }
+    fun changeSpeed(s: Float) { speed = s; engine?.setSpeed(s); resume?.onRate?.invoke(s) }
+    fun release() {
+        engine?.let { position = it.positionMs / 1000.0 }
+        savePosition()
+        engine?.release(); engine = null
+    }
 }
 
 @Composable
@@ -135,16 +163,19 @@ private fun SkipButton(text: String, label: String, onClick: () -> Unit) {
     ) { Text(text, style = MaterialTheme.typography.labelLarge.merge(AppText.num), color = MaterialTheme.ext.ink) }
 }
 
+/** Practice runner: where this part was left (seconds), the saved speed, and how to report position and speed back to the session. */
+class LrResume(val start: Double, val rate: Float, val track: (Double) -> Unit, val persist: () -> Unit, val onRate: ((Float) -> Unit)? = null)
+
 /** A segment to play in review: [id] changes on every tap so the same segment can be replayed. */
 data class AudioCue(val from: Double, val to: Double, val id: Int)
 
 /** Practice and review player: play, scrub, 5 s back and forward, speed 0.75 / 1 / 1.25, replay the part. */
 @Composable
-fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue: AudioCue? = null) {
+fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue: AudioCue? = null, resume: LrResume? = null) {
     val e = MaterialTheme.ext
     val context = LocalContext.current
     val demo = LocalDemo.current != null
-    val player = remember(src) { LrPlayer(demo) }
+    val player = remember(src) { LrPlayer(demo, resume) }
     LaunchedEffect(player) { if (src.isNotEmpty()) { player.load(context, src); player.poll() } }
     DisposableEffect(player) { onDispose { player.release() } }
     // review: "Play from here" jumps to the cue and stops at its end
@@ -167,6 +198,7 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
             )
             Text(clock(player.duration.toInt()), Modifier.widthIn(min = 40.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)
         }
+        if (player.resumedAt > 0) Text("Resume from ${clock(player.resumedAt.toInt())}", style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand)
         Segmented(
             listOf("0.75" to "0.75×", "1.0" to "1×", "1.25" to "1.25×"), if (player.speed == 1f) "1.0" else player.speed.toString(),
             { player.changeSpeed(it.toFloat()) }, Modifier.semantics { contentDescription = "Playback speed" },
