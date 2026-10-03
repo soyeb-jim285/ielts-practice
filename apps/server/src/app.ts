@@ -64,14 +64,11 @@ export function createApp() {
     const checking = c.req.method === 'POST' ? await checkedEmail(c.req.path, c.req.raw) : null;
     let reserved: string | undefined;
     if (checking) {
-      if (!codeCheckOk(clientIpHash(c) ?? 'unknown')) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
-      const r = await reserveAttempt(checking);
-      if (r.id === undefined) {
-        // Budget spent (same answer for every address): refuse, and burn the live codes so nothing guessed earlier can still be redeemed once the window ends.
-        const ctx = await auth.$context;
-        for (const t of ['email-verification', 'forget-password']) await ctx.internalAdapter.deleteVerificationByIdentifier(`${t}-otp-${checking.trim().toLowerCase()}`);
-        throw new ApiError(429, { error: `Too many wrong codes. Try again in ${Math.max(1, Math.ceil(r.wait / 60))} ${r.wait <= 60 ? 'minute' : 'minutes'}.`, code: 'otp_locked', retryAfterSeconds: r.wait });
-      }
+      const ip = clientIpHash(c) ?? 'unknown';
+      if (!codeCheckOk(ip)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
+      const r = await reserveAttempt(checking, ip);
+      // Budget spent (same answer for every address): refuse this caller. Live codes are left alone, so the owner is never locked out by someone else's guessing.
+      if (r.id === undefined) throw new ApiError(429, { error: `Too many wrong codes. Try again in ${Math.max(1, Math.ceil(r.wait / 60))} ${r.wait <= 60 ? 'minute' : 'minutes'}.`, code: 'otp_locked', retryAfterSeconds: r.wait });
       reserved = r.id;
     }
     const before = asked ? await countBefore(asked) : 0;

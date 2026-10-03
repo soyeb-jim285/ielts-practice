@@ -337,66 +337,67 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
 });
 
 describe('wrong-code budget', () => {
-  const reset = (email: string, otp: string) => post('/email-otp/reset-password', { email, otp, password: 'new-password-123' });
-  const age = (email: string, secs: number, purpose = 'verify') => db.execute(sql`update email_log set created_at = created_at - make_interval(secs => ${secs}) where email = ${email} and purpose = ${purpose}`);
-  const newCode = async (email: string) => {
-    await age(email, 31, 'forget-password'); // step past the 30 s send cooldown
-    await post('/email-otp/request-password-reset', { email });
+  const A = '10.60.0.1'; // the guesser
+  const B = '10.60.0.2'; // the owner
+  const reset = (email: string, otp: string, ip = A) => post('/email-otp/reset-password', { email, otp, password: 'new-password-123' }, ip);
+  const newCode = async (email: string, ip = '10.60.0.9') => {
+    await db.execute(sql`update email_log set created_at = created_at - interval '31 seconds' where email = ${email} and purpose = 'forget-password'`); // past the send cooldown
+    await post('/email-otp/request-password-reset', { email }, ip);
     await sendsIdle();
   };
   const lastOtp = () => /(\d{6})<\/p>/.exec(String((send.mock.calls.at(-1)![0] as { html: string }).html))![1]!;
-  const run = async (email: string) => {
+  const run = async (email: string, ip = A) => {
     const codes: [number, unknown][] = [];
     for (let c = 0; c < 3; c++) {
       await newCode(email);
       for (let g = 0; g < 5; g++) {
-        const r = await reset(email, '000000');
+        const r = await reset(email, '000000', ip);
         codes.push([r.status, ((await r.json()) as { code?: string }).code]);
       }
     }
     return codes;
   };
 
-  it('guesses across re-sent codes share one per-address budget (10/hour), refuse even a correct code, and keep sending codes', async () => {
+  it('a guesser exhausts only its own (address, IP) budget: 10 an hour across re-sent codes; the owner on another IP still verifies with the live code', async () => {
     const e = fresh();
     await signUp(e);
     send.mockResolvedValue(ok);
     const codes = await run(e);
     expect(codes.slice(0, 10).every(([s, c]) => s === 400 && c === 'INVALID_OTP')).toBe(true);
     expect(codes.slice(10).every(([s, c]) => s === 429 && c === 'otp_locked')).toBe(true);
-    // delivery is never blocked...
+    // delivery is never blocked, and the guesser is refused even with the right code, with minutes in the message
     await newCode(e);
-    expect(lastOtp()).toMatch(/^\d{6}$/);
-    // ...but even the right code is refused while locked, with minutes in the message
-    const r = await reset(e, lastOtp());
-    expect(r.status).toBe(429);
-    expect(((await r.json()) as { error: string }).error).toMatch(/Try again in \d+ minutes?/);
-    // another address is unaffected
+    const code = lastOtp();
+    const refused = await reset(e, code, A);
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { error: string }).error).toMatch(/Try again in \d+ minutes?/);
+    // the live code was not deleted: the owner, from another IP, resets with it
+    expect((await reset(e, code, B)).status).toBe(200);
+    // another address is unaffected for the guesser too
     const o = fresh();
     await signUp(o);
-    expect((await reset(o, '000000')).status).toBe(400);
-    // the window ends: a fresh code works (the old one was burned at the first refusal)
-    await age(e, 3601);
-    await newCode(e);
-    expect((await reset(e, lastOtp())).status).toBe(200);
+    expect((await reset(o, '000000', A)).status).toBe(400);
+    // the guesser's hour ends
+    await db.execute(sql`update email_log set created_at = created_at - interval '3601 seconds' where purpose = 'verify' and email = ${e}`);
+    expect((await reset(e, '000000', A)).status).toBe(400);
   });
 
   it('an unknown address gets exactly the same sequence', async () => {
     const real = fresh();
     await signUp(real);
     send.mockResolvedValue(ok);
-    expect(await run(fresh())).toEqual(await run(real));
+    expect(await run(fresh(), '10.60.1.1')).toEqual(await run(real, '10.60.1.2'));
   });
 
-  it('the per-day budget (20) outlasts the hourly window', async () => {
+  it('the per-address backstop (100 a day, any IPs) refuses everyone, and ends with the day', async () => {
     const e = fresh();
     await signUp(e);
     send.mockResolvedValue(ok);
-    for (let i = 0; i < 20; i++) {
-      await db.insert(emailLog).values({ email: e, purpose: 'verify', status: 'wrong_code', createdAt: new Date(Date.now() - (2 + i) * 3600_000 * 1.1) });
-    }
+    for (let i = 0; i < 100; i++) await db.insert(emailLog).values({ email: e, purpose: 'verify', status: 'wrong_code', error: `ip${i}`, createdAt: new Date(Date.now() - (2 + i * 0.2) * 3600_000) });
     await newCode(e);
-    expect((await reset(e, '000000')).status).toBe(429); // 20 in the last 24 h, none in the last hour
+    expect((await reset(e, lastOtp(), B)).status).toBe(429); // even the owner's correct code, from an IP with no guesses of its own
+    await db.execute(sql`update email_log set created_at = created_at - interval '5 hours' where purpose = 'verify' and email = ${e}`);
+    expect((await reset(e, lastOtp(), B)).status).toBe(200); // the oldest guesses aged out of the day, and the live code was never deleted
   });
 
   it('a correct code gives its attempt back; concurrent guesses cannot overshoot the budget', async () => {
@@ -404,11 +405,11 @@ describe('wrong-code budget', () => {
     await signUp(e);
     send.mockResolvedValue(ok);
     await newCode(e);
-    expect((await reset(e, lastOtp())).status).toBe(200);
+    expect((await reset(e, lastOtp(), B)).status).toBe(200);
     expect(await db.select().from(emailLog).where(sql`${emailLog.purpose} = 'verify'`)).toHaveLength(0);
     const f = fresh();
     await signUp(f);
-    const rs = await Promise.all(Array.from({ length: 30 }, () => reset(f, '000000')));
+    const rs = await Promise.all(Array.from({ length: 30 }, () => reset(f, '000000', A)));
     const wrong = await db.select().from(emailLog).where(sql`${emailLog.purpose} = 'verify' and ${emailLog.email} = ${f}`);
     expect(wrong.length).toBeLessThanOrEqual(10);
     expect(rs.filter((r) => r.status === 429).length).toBeGreaterThanOrEqual(20);

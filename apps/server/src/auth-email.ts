@@ -129,27 +129,28 @@ export async function emailStatus(token: string | undefined | null): Promise<Ema
 }
 
 // ---------- Wrong-code budget ----------
-// Better Auth allows 5 guesses per code, but a new code (and 5 more guesses) can be requested every 30 s from any address, so the budget is per EMAIL across codes and purposes,
-// kept in email_log (purpose 'verify', status 'wrong_code') so it survives restarts and works across instances. It limits guessing only: sending codes is never blocked.
-// Counted for any address, real or not, so a lock reveals nothing.
-export const WRONG_CODE_BUDGET = { perHour: 10, perDay: 20 };
+// Better Auth allows 5 guesses per code, but a new code (and 5 more guesses) can be requested every 30 s, so guesses are budgeted across codes and purposes, durably in email_log
+// (purpose 'verify', status 'wrong_code', the caller's IP hash in `error`). Two budgets, both counted for any address (real or not), so a limit reveals nothing:
+//  - per (address, client IP): 10 an hour. It refuses only that caller, so an attacker cannot lock the owner out from another IP.
+//  - per address, all IPs: 100 a day, the backstop against a botnet (~1e-4 chance a day per account). Only this one blocks everyone, and it takes a large attack to reach.
+// Sending codes is never blocked, and tripping a limit never deletes the live code (Better Auth's own per-code attempt cap burns a guessed-at code).
+export const WRONG_CODE_BUDGET = { perIpHour: 10, perEmailDay: 100 };
 
-/** Atomically counts this attempt against the address's budget BEFORE the code is checked (so parallel guesses cannot overshoot).
- *  Returns { wait } seconds when the budget is spent, else { id } of the reserved row (delete it with [releaseAttempt] unless the guess was wrong). */
-export async function reserveAttempt(raw: string): Promise<{ wait: number; id?: undefined } | { id: string; wait?: undefined }> {
+/** Atomically counts this attempt BEFORE the code is checked (so parallel guesses cannot overshoot).
+ *  Returns { wait } seconds when a budget is spent, else { id } of the reserved row (delete it with [releaseAttempt] unless the guess was wrong). */
+export async function reserveAttempt(raw: string, ip: string): Promise<{ wait: number; id?: undefined } | { id: string; wait?: undefined }> {
   const email = raw.trim().toLowerCase();
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`verify:${email}`}, 0))`);
-    const rows = (await tx.execute(sql`select extract(epoch from now() - created_at)::float as age from email_log
-      where email = ${email} and purpose = 'verify' and status = 'wrong_code' and created_at > now() - interval '24 hours' order by created_at desc limit 20`)) as unknown as { age: number }[];
-    const ages = rows.map((r) => r.age);
-    const inHour = ages.filter((a) => a < 3600);
+    const rows = (await tx.execute(sql`select extract(epoch from now() - created_at)::float as age, error as ip from email_log
+      where email = ${email} and purpose = 'verify' and status = 'wrong_code' and created_at > now() - interval '24 hours' order by created_at desc limit ${WRONG_CODE_BUDGET.perEmailDay}`)) as unknown as { age: number; ip: string }[];
+    const mine = rows.filter((r) => r.ip === ip && r.age < 3600);
     const wait = Math.max(
-      inHour.length >= WRONG_CODE_BUDGET.perHour ? 3600 - inHour[WRONG_CODE_BUDGET.perHour - 1]! : 0,
-      ages.length >= WRONG_CODE_BUDGET.perDay ? 86400 - ages[WRONG_CODE_BUDGET.perDay - 1]! : 0,
+      mine.length >= WRONG_CODE_BUDGET.perIpHour ? 3600 - mine[WRONG_CODE_BUDGET.perIpHour - 1]!.age : 0,
+      rows.length >= WRONG_CODE_BUDGET.perEmailDay ? 86400 - rows[WRONG_CODE_BUDGET.perEmailDay - 1]!.age : 0,
     );
     if (wait > 0) return { wait: Math.ceil(wait) };
-    const [row] = await tx.insert(emailLog).values({ userId: null, email, purpose: 'verify', status: 'wrong_code', attempts: 0 }).returning({ id: emailLog.id });
+    const [row] = await tx.insert(emailLog).values({ userId: null, email, purpose: 'verify', status: 'wrong_code', error: ip, attempts: 0 }).returning({ id: emailLog.id });
     return { id: row!.id };
   });
 }
