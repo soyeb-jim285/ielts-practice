@@ -97,6 +97,8 @@ export type LrResponses = Record<number, string>;
 export interface LrMark { n: number; given: string; correct: boolean; answer: string[] }
 export interface LrScore { raw: number; total: number; band: number; marks: LrMark[] }
 
+/** The comparison form used by marking (lowercase, accents/punctuation folded, numbers as digits); exported for offline checkers. */
+export const canonAnswerText = (s: string) => norm(s);
 const norm = (s: string) =>
   numbersToDigits(
     s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')

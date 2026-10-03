@@ -7,11 +7,12 @@
 // Exported: checkPart() is used as a generation gate by scripts/gen-lr-listening.ts.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { expandAnswer, type LrSection } from '../packages/core/src/lr';
+import { canonAnswerText, expandAnswer, type LrSection } from '../packages/core/src/lr';
 
 export interface Turn { speaker: string; text: string; marks?: number[] } // marks: this turn gives the FINAL answer to these question numbers (for questions without enrich evidence)
 const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-const nrm = (s: string) => ` ${s.replace(/\[[^\]]*\]/g, ' ').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[‘’`]/g, "'").replace(/[^a-z0-9']+/g, ' ').replace(/\s+/g, ' ').trim()} `;
+// Same folding as marking (numbers spoken as words → digits: "six fifteen" = 6.15, "fourteenth" = 14th, "thirty-five pounds" = £35), so time/date/price answers can be located.
+const nrm = (s: string) => ` ${canonAnswerText(s.replace(/\[[^\]]*\]/g, ' ')).replace(/[^a-z0-9']+/g, ' ').replace(/\s+/g, ' ').trim()} `;
 /** spoken variants of an answer: as written, digits as words */
 function variants(a: string): string[] {
   const out = new Set<string>();
