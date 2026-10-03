@@ -308,57 +308,83 @@ struct LrPacingPanel: View {
     private func dur(_ s: Double) -> String { ShellDate.duration(Int(s * 1000)) }
     private func list(_ ns: [Int]) -> String { ns.sorted().map(String.init).joined(separator: ", ") }
 
+    private var times: [(part: Int, s: Double)] { parts.map { (part: $0.part, s: stats.partS[String($0.part)] ?? 0) } }
+    private var split: Double? { totalS.map { $0 / Double(max(1, parts.count)) } }
+    private var changed: [(n: Int, c: Int)] {
+        var out: [(n: Int, c: Int)] = []
+        for (k, v) in stats.changes where v > 0 { if let n = Int(k) { out.append((n: n, c: v)) } }
+        return out.sorted { $0.c != $1.c ? $0.c > $1.c : $0.n < $1.n }
+    }
+
     var body: some View {
-        let times = parts.map { (part: $0.part, s: stats.partS[String($0.part)] ?? 0) }
-        let spent = times.reduce(0) { $0 + $1.s }
+        let spent: Double = times.reduce(0) { $0 + $1.s }
         if spent >= 5 || !stats.changes.isEmpty {
-            let split = totalS.map { $0 / Double(max(1, parts.count)) }
-            let mx = max(1, split ?? 0, times.map(\.s).max() ?? 0)
-            let changed = stats.changes.filter { $0.value > 0 }.compactMap { k, v in Int(k).map { ($0, v) } }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0 < $1.0 }
-            let lateWrong = stats.late.filter { marks[$0]?.correct == false }
             VStack(alignment: .leading, spacing: 14) {
                 SectionTitle("Pacing")
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Time per \(noun.lowercased())" + (split.map { ", against \(dur($0)) each" } ?? "")).font(.caption).foregroundStyle(Color.muted)
-                    ForEach(times, id: \.part) { t in
-                        let over = split.map { t.s > $0 * 1.15 } ?? false
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text("\(noun) \(t.part)").font(.body).foregroundStyle(Color.ink)
-                                Spacer()
-                                Text(dur(t.s)).font(.subheadline.monospacedDigit().weight(over ? .semibold : .regular)).foregroundStyle(over ? Color.warnText : Color.muted)
-                            }
-                            GeometryReader { g in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color.surface2)
-                                    Capsule().fill(over ? Color.warn : Color.brand).frame(width: g.size.width * min(1, t.s / mx))
-                                    if let split { Capsule().fill(Color.ink).frame(width: 2, height: 14).offset(x: min(max(g.size.width * split / mx - 1, 0), g.size.width - 2)) }
-                                }
-                            }
-                            .frame(height: 8)
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(noun) \(t.part): \(dur(t.s))" + (over ? ", over the suggested time" : ""))
-                    }
-                    if split != nil { Text("The marker is an even split of the 60 minutes.").font(.caption).foregroundStyle(Color.muted) }
+                    bars
                     Divider().overlay(Color.line)
-                    fact("Answers you changed") {
-                        if changed.isEmpty { Text("None. You stuck with your first answers.") } else {
-                            Text("\(changed.reduce(0) { $0 + $1.1 }) changes across \(changed.count) \(changed.count == 1 ? "question" : "questions")")
-                            Text("Most: " + changed.prefix(5).map { "Q\($0.0) (\($0.1)×)" }.joined(separator: ", ")).font(.caption).foregroundStyle(Color.muted)
-                        }
-                    }
-                    fact("Answered in the last 5 minutes") {
-                        if stats.late.isEmpty { Text("None.") } else {
-                            Text("\(stats.late.count) \(stats.late.count == 1 ? "question" : "questions"): \(list(stats.late))")
-                            if !lateWrong.isEmpty { Text("\(lateWrong.count) of them wrong (\(list(lateWrong))). Rushed guesses cost marks.").font(.caption).foregroundStyle(Color.warnText) }
-                        }
-                    }
+                    changesFact
+                    lateFact
                     fact("Left blank") {
                         Text(blank.isEmpty ? "None." : "\(blank.count): \(list(blank)). There is no penalty for guessing.")
                     }
                 }
                 .card()
+            }
+        }
+    }
+
+    @ViewBuilder private var bars: some View {
+        let mx: Double = max(1, split ?? 0, times.map(\.s).max() ?? 0)
+        let head: String = "Time per \(noun.lowercased())" + (split.map { ", against \(dur($0)) each" } ?? "")
+        Text(head).font(.caption).foregroundStyle(Color.muted)
+        ForEach(times, id: \.part) { t in bar(t.part, t.s, mx) }
+        if split != nil { Text("The marker is an even split of the 60 minutes.").font(.caption).foregroundStyle(Color.muted) }
+    }
+
+    private func bar(_ part: Int, _ s: Double, _ mx: Double) -> some View {
+        let over: Bool = split.map { s > $0 * 1.15 } ?? false
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text("\(noun) \(part)").font(.body).foregroundStyle(Color.ink)
+                Spacer()
+                Text(dur(s)).font(.subheadline.monospacedDigit()).fontWeight(over ? .semibold : .regular).foregroundStyle(over ? Color.warnText : Color.muted)
+            }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.surface2)
+                    Capsule().fill(over ? Color.warn : Color.brand).frame(width: g.size.width * min(1, s / mx))
+                    if let sp = split { Capsule().fill(Color.ink).frame(width: 2, height: 14).offset(x: min(max(g.size.width * sp / mx - 1, 0), g.size.width - 2)) }
+                }
+            }
+            .frame(height: 8)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(noun) \(part): \(dur(s))" + (over ? ", over the suggested time" : ""))
+    }
+
+    private var changesFact: some View {
+        fact("Answers you changed") {
+            if changed.isEmpty {
+                Text("None. You stuck with your first answers.")
+            } else {
+                let total: Int = changed.reduce(0) { $0 + $1.c }
+                let top: String = changed.prefix(5).map { "Q\($0.n) (\($0.c)×)" }.joined(separator: ", ")
+                Text("\(total) changes across \(changed.count) \(changed.count == 1 ? "question" : "questions")")
+                Text("Most: \(top)").font(.caption).foregroundStyle(Color.muted)
+            }
+        }
+    }
+
+    private var lateFact: some View {
+        let lateWrong: [Int] = stats.late.filter { marks[$0]?.correct == false }
+        return fact("Answered in the last 5 minutes") {
+            if stats.late.isEmpty {
+                Text("None.")
+            } else {
+                Text("\(stats.late.count) \(stats.late.count == 1 ? "question" : "questions"): \(list(stats.late))")
+                if !lateWrong.isEmpty { Text("\(lateWrong.count) of them wrong (\(list(lateWrong))). Rushed guesses cost marks.").font(.caption).foregroundStyle(Color.warnText) }
             }
         }
     }
