@@ -48,7 +48,7 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
     pauses: result.metrics?.pauses.length ?? 0,
   };
   for (const m of timeline.markers) counts[m.type === 'vocabulary' ? 'vocab' : m.type]++;
-  const hasFillers = tokens.some((t) => t.filler);
+  const hasFillers = tokens.some((t) => t.filler || t.disfluency?.some((d) => d.kind === 'filled'));
   const hasMarks = tokens.some((t) => t.disfluency);
   const hasUnclear = tokens.some((t) => t.unclearTier);
 
@@ -77,7 +77,8 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
 
   // Sentence-wide notes (relevance etc.) would drown word-level marks, so they only show under their own filter.
   const shown = (e: AnalysisError) => !isSentenceNote(e) || filter === errorGroup(e);
-  const filler = (t: Token) => t.filler && 'text-muted line-through decoration-muted';
+  // Fillers stay in the text, marked like the other fluency issues.
+  const filler = (t: Token) => t.filler && ['underline decoration-2 underline-offset-4', TYPE_STYLE.fluency.underline];
 
   const word = (t: Token) => (
     <span
@@ -100,7 +101,21 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
 
   // Typed chip before the word where the event happens. Hover (title) or tap explains it; tapping also plays that moment.
   const chips = (t: Token) =>
-    t.disfluency?.map((d: DisfluencyMark, k) => (
+    t.disfluency?.map((d: DisfluencyMark, k) =>
+      // A filled pause the recogniser dropped: typed out where it was heard instead of a tag.
+      d.kind === 'filled' ? (
+        <Fragment key={k}>
+          <button
+            type="button"
+            title={d.detail}
+            aria-label={d.detail}
+            onClick={() => audio.seek(d.time)}
+            className={clsx('cursor-pointer rounded-sm italic hover:bg-hover', ['underline decoration-2 underline-offset-4', TYPE_STYLE.fluency.underline], filter !== 'all' && filter !== 'fluency' && 'opacity-35')}
+          >
+            um
+          </button>{' '}
+        </Fragment>
+      ) : (
       <button
         key={k}
         type="button"
@@ -116,7 +131,8 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
         <MarkerShape type="fluency" size={8} />
         {d.short}
       </button>
-    ));
+      ),
+    );
 
   const pause = (t: Token) => {
     const p = t.pauseAfter!;
@@ -239,7 +255,7 @@ function Legend({ notes, fillers, marks, unclear }: { notes: boolean; fillers: b
           <span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE[k].underline)}>word</span> {TYPE_STYLE[k].label.toLowerCase()}
         </li>
       ))}
-      {fillers && <li className="flex items-center gap-1.5"><span className="text-muted line-through decoration-muted">um</span> filler</li>}
+      {fillers && <li className="flex items-center gap-1.5"><span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE.fluency.underline)}>um</span> filler (italic when only heard in the audio)</li>}
       {marks && <li>Tap a grey tag for the detail</li>}
       <li className="flex items-center gap-1.5"><span className="rounded-sm bg-bad-soft px-1 text-xs font-medium whitespace-nowrap text-bad-text">pause 1.3s</span> long pause; short ones show under Pauses</li>
       {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}

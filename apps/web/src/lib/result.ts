@@ -79,7 +79,7 @@ export function buildTokens(r: AnalysisResult): Token[] {
   }
   for (const u of m.unclear) if (tokens[u.wordIdx]) tokens[u.wordIdx]!.unclearTier = u.tier;
   for (const e of disfluencyEvents(m)) {
-    if (e.kind === 'filled' && e.sources.includes('stt')) continue; // already struck through on its word
+    if (e.kind === 'filled' && e.sources.includes('stt')) continue; // already marked on its word
     const i = tokens.findIndex((t) => t.end > e.start - 0.02);
     const t = tokens[i < 0 ? tokens.length - 1 : i];
     if (t) (t.disfluency ??= []).push(describeDisfluency(e, tokens, m));
@@ -217,7 +217,7 @@ export function describeDisfluency(e: Disfluency, tokens: Token[], m: SpeechMetr
   if (kind === 'false_start') return mark('False start: a sentence abandoned or restarted');
   if (kind === 'partial') return mark('Cut-off word: you stopped mid-word and started again');
   if (kind === 'prolongation') return mark('Held sound: a word stretched while you thought');
-  return mark('Filled pause (heard in the audio, not shown in the transcript)');
+  return mark('Filler (um, uh, er) heard in the audio here; speech recognition left it out');
 }
 
 const PER_MIN = { filled: [2, 4], repetition: [1, 2], repair: [1, 2], false_start: [1, 2], partial: [1, 2], prolongation: [2, 4] } as const;
