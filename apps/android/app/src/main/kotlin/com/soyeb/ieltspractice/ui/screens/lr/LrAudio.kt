@@ -52,6 +52,7 @@ import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.audio.AudioPlayer
 import com.soyeb.ieltspractice.core.LISTENING_REVIEW_SECONDS
 import com.soyeb.ieltspractice.core.clock
+import com.soyeb.ieltspractice.core.LrAudioState
 import com.soyeb.ieltspractice.ui.screens.shell.Segmented
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
