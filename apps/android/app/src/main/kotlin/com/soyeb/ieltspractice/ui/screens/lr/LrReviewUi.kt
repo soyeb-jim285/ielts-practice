@@ -38,7 +38,11 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.withLink
+import com.soyeb.ieltspractice.core.clock
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -84,31 +88,51 @@ import kotlinx.coroutines.launch
 
 // Mirrors: web components/lr/ReviewPanels.tsx (question detail, dictation, TFNG panel, pacing, vocabulary) and the evidence marks of Passage.tsx.
 
+/** A question's answer sits at offset [s] of paragraph [p]. */
+data class QPin(val p: Int, val s: Int, val n: Int, val correct: Boolean)
+
 /** Paragraph text with the evidence span marked (soft teal, underlined). When [scrollKey] changes it scrolls the marked line into view. */
 @Composable
-fun EvidenceText(text: String, span: TextSpan?, style: TextStyle, color: Color, scrollKey: Int, modifier: Modifier = Modifier) {
+fun EvidenceText(text: String, span: TextSpan?, style: TextStyle, color: Color, scrollKey: Int, modifier: Modifier = Modifier, pins: List<QPin> = emptyList(), onPin: (Int) -> Unit = {}) {
     val e = MaterialTheme.ext
     val req = remember { BringIntoViewRequester() }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val marked = remember(text, span, e) {
-        buildAnnotatedString {
-            append(text)
+    // a "Q7" pill (tappable link) sits right before each question's evidence; the evidence span shifts by the pills before it
+    val (marked, mspan) = remember(text, span, pins, e) {
+        val ps = pins.sortedBy { it.s }
+        fun len(p: QPin) = "Q${p.n}".length + 2 // Q7 + mark + space
+        fun shifted(o: Int, inclusive: Boolean) = o + ps.filter { if (inclusive) it.s <= o else it.s < o }.sumOf(::len)
+        val out = buildAnnotatedString {
+            var at = 0
+            for (p in ps) {
+                val s0 = p.s.coerceIn(at, text.length)
+                append(text.substring(at, s0)); at = s0
+                val c = if (p.correct) e.goodText else e.badText
+                withLink(LinkAnnotation.Clickable("q${p.n}", TextLinkStyles(SpanStyle(color = c, fontWeight = FontWeight.Bold, background = (if (p.correct) e.good else e.bad).copy(alpha = 0.15f)))) { onPin(p.n) }) {
+                    append("Q${p.n}${if (p.correct) "\u2713" else "\u2717"}")
+                }
+                append(" ")
+            }
+            append(text.substring(at))
             if (span != null) addStyle(
-                SpanStyle(background = e.brandSoft, textDecoration = TextDecoration.Underline), span.s.coerceIn(0, text.length), span.e.coerceIn(0, text.length),
+                SpanStyle(background = e.brandSoft, textDecoration = TextDecoration.Underline),
+                shifted(span.s.coerceIn(0, text.length), true), shifted(span.e.coerceIn(0, text.length), false),
             )
         }
+        out to span?.let { TextSpan(it.p, shifted(it.s.coerceIn(0, text.length), true), shifted(it.e.coerceIn(0, text.length), false)) }
     }
-    if (span != null) LaunchedEffect(scrollKey, layout != null) {
+    if (mspan != null) LaunchedEffect(scrollKey, layout != null) {
         val l = layout
         if (l != null && scrollKey > 0) {
             delay(450)
-            val a = span.s.coerceIn(0, maxOf(0, text.length - 1))
-            val b = (span.e - 1).coerceIn(a, maxOf(a, text.length - 1))
+            val n = marked.text.length
+            val a = mspan.s.coerceIn(0, maxOf(0, n - 1))
+            val b = (mspan.e - 1).coerceIn(a, maxOf(a, n - 1))
             runCatching { req.bringIntoView(Rect(0f, l.getLineTop(l.getLineForOffset(a)), l.size.width.toFloat(), l.getLineBottom(l.getLineForOffset(b)))) }
         }
     }
     Text(
-        marked, modifier.bringIntoViewRequester(req).semantics { if (span != null) contentDescription = "$text. Where the answer is: ${text.substring(span.s.coerceIn(0, text.length), span.e.coerceIn(0, text.length))}" },
+        marked, modifier.bringIntoViewRequester(req).semantics { if (span != null && pins.isEmpty()) contentDescription = "$text. Where the answer is: ${text.substring(span.s.coerceIn(0, text.length), span.e.coerceIn(0, text.length))}" },
         style = style, color = color, onTextLayout = { layout = it },
     )
 }
@@ -191,7 +215,8 @@ fun QuestionDetail(
         }
         if (win != null) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Play from here${if (win.exact) "" else " (approx.)"}", onPlay)
+                SecondaryButton("Play from ${clock(win.from.toInt())}", onPlay)
+                Text("Answer heard at ${clock(win.start.toInt())}${if (win.exact) "" else " (approx.)"}", Modifier.align(Alignment.CenterVertically), style = MaterialTheme.typography.bodySmall.merge(AppText.num), color = e.muted)
                 if (canDictate) SecondaryButton("Dictation", onDictate)
             }
         }

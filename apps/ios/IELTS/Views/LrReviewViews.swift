@@ -11,20 +11,46 @@ func lrMarked(_ text: String, _ span: LrReview.Span?) -> AttributedString {
     return a
 }
 
-/// The listening transcript, one paragraph per line, with the evidence marked.
+/// Where a question's answer sits in the transcript: a "Q7" pill is inserted there (tappable link; right / wrong by symbol, not colour alone).
+struct LrQPin: Hashable { let p: Int, s: Int, n: Int, correct: Bool }
+
+func lrPinned(_ line: String, _ span: LrReview.Span?, _ pins: [LrQPin]) -> AttributedString {
+    var a = lrMarked(line, span)
+    for pin in pins.sorted(by: { $0.s > $1.s }) {
+        guard let r = Range(NSRange(location: min(pin.s, line.utf16.count), length: 0), in: a) else { continue }
+        var chip = AttributedString("Q\(pin.n)\(pin.correct ? "\u{2713}" : "\u{2717}")")
+        chip.font = .caption.weight(.bold)
+        chip.foregroundColor = pin.correct ? Color.goodText : Color.bad
+        chip.backgroundColor = (pin.correct ? Color.good : Color.bad).opacity(0.15)
+        chip.link = URL(string: "ieltsq://\(pin.n)")
+        chip.underlineStyle = nil
+        chip.accessibilityLabel = "Question \(pin.n), \(pin.correct ? "right" : "wrong"): show details"
+        a.insert(chip + AttributedString(" "), at: r.lowerBound)
+    }
+    return a
+}
+
+/// The listening transcript, one paragraph per line, with the evidence marked and a Q badge before each question's evidence.
 struct LrTranscriptView: View {
     let text: String
     var evidence: LrReview.Span?
+    var pins: [LrQPin] = []
+    var onPin: (Int) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(text.components(separatedBy: "\n").enumerated()), id: \.offset) { i, line in
                 if !line.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Text(lrMarked(line, evidence?.p == i ? evidence : nil))
+                    let mine = pins.filter { $0.p == i }
+                    Text(lrPinned(line, evidence?.p == i ? evidence : nil, mine))
                         .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .id(evidence?.p == i ? "ev" : "t\(i)")
-                        .accessibilityLabel(evidence?.p == i ? "Where the answer is: \(line)" : line)
+                        .accessibilityLabel(mine.isEmpty ? (evidence?.p == i ? "Where the answer is: \(line)" : line) : line)
+                        .environment(\.openURL, OpenURLAction { url in
+                            if url.scheme == "ieltsq", let n = Int(url.host ?? "") { onPin(n); return .handled }
+                            return .systemAction
+                        })
                 }
             }
         }
@@ -128,7 +154,8 @@ struct LrQuestionDetail: View {
                     Button(action: onShow) { Label("Show \(listening ? "in transcript" : "in passage")", systemImage: "text.magnifyingglass") }.secondaryButton().controlSize(.regular)
                 }
                 if let w = window {
-                    Button(action: onPlay) { Label("Play from here" + (w.exact ? "" : " (approx.)"), systemImage: "play.fill") }.secondaryButton().controlSize(.regular)
+                    Button(action: onPlay) { Label("Play from \(clock(Int(w.from)))", systemImage: "play.fill") }.secondaryButton().controlSize(.regular)
+                    Text("Answer heard at \(clock(Int(w.start)))" + (w.exact ? "" : " (approx.)")).font(.footnote.monospacedDigit()).foregroundStyle(Color.muted)
                 }
                 if canDictate {
                     Button(action: onDictate) { Label("Dictation", systemImage: "ear") }.secondaryButton().controlSize(.regular)

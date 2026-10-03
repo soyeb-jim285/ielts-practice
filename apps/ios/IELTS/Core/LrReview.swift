@@ -176,6 +176,15 @@ enum LrReview {
         return nil
     }
 
+    struct QuestionMoment: Equatable { let n: Int, at: Double, from: Double, to: Double, exact: Bool }
+
+    /// Where each question of a listening part is answered in the recording, in time order (web questionMoments). Unlocatable questions are left out.
+    static func questionMoments(_ timings: [LrWord]?, _ groups: [LrGroup]) -> [QuestionMoment] {
+        groups.flatMap { $0.questions }.compactMap { q in
+            audioWindow(timings, q).map { QuestionMoment(n: q.n, at: $0.start, from: $0.from, to: $0.to, exact: $0.exact) }
+        }.sorted { $0.at != $1.at ? $0.at < $1.at : $0.n < $1.n }
+    }
+
     /// The recording's words between two instants, as spoken (for the dictation drill).
     static func wordsBetween(_ t: [LrWord]?, _ from: Double, _ to: Double) -> String {
         (t ?? []).filter { $0.s >= from - 0.01 && $0.e <= to + 0.01 }.map(\.w).joined(separator: " ")

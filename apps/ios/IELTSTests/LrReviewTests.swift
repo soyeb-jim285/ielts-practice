@@ -54,6 +54,18 @@ final class LrReviewTests: XCTestCase {
         XCTAssertNil(LrReview.audioWindow(nil, q(answer: ["x"])))
     }
 
+    func testQuestionMoments() {
+        func qq(_ n: Int, _ answer: [String], at: Double? = nil) -> LrQuestion {
+            LrQuestion(n: n, text: nil, options: nil, answer: answer, review: at.map { LrQuestionReview(evidence: nil, at: $0) })
+        }
+        let g = LrGroup(from: 1, to: 4, type: "gap", instructions: "", wordLimit: nil, title: nil, content: nil, options: nil, reusable: nil, image: nil,
+                        questions: [qq(2, ["coat"]), qq(3, ["x"], at: 20), qq(4, ["y"])])
+        let m = LrReview.questionMoments(t, [g])
+        XCTAssertEqual(m.map(\.n), [2, 3]) // 4 cannot be located; ordered by time
+        XCTAssertEqual(m[0].at, 7.1, accuracy: 1e-9); XCTAssertTrue(m[0].exact)
+        XCTAssertEqual(m[1].at, 20); XCTAssertFalse(m[1].exact)
+    }
+
     func testDictationDiff() {
         XCTAssertTrue(LrReview.dictationDiff("half past six", "Half past six.").allSatisfy { $0.status == .correct })
         let ops = LrReview.dictationDiff("the tour start at six now", "The tour starts at half past six")

@@ -53,6 +53,8 @@ import com.soyeb.ieltspractice.core.READING_SECONDS
 import com.soyeb.ieltspractice.core.LrMark
 import com.soyeb.ieltspractice.core.LrProgress
 import com.soyeb.ieltspractice.core.audioWindow
+import com.soyeb.ieltspractice.core.clock
+import com.soyeb.ieltspractice.core.questionMoments
 import com.soyeb.ieltspractice.core.evidenceSpan
 import com.soyeb.ieltspractice.core.sectionParagraphs
 import com.soyeb.ieltspractice.core.timingRows
@@ -180,6 +182,15 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     val selSection = sel?.let { f -> test.sections.firstOrNull { it.part == f.part } }
     val span = remember(sel, selSection) { if (sel != null && selSection != null) evidenceSpan(sectionParagraphs(selSection), sel.q, sel.group.type == "gap") else null }
     val evidence = if (span != null && selSection?.part == section.part) span else null
+    val moments = remember(test) { if (listening) test.sections.flatMap { questionMoments(it.timingRows, it.groups) }.associateBy { it.n } else emptyMap() }
+    val pins = remember(section, marks) { questionMoments(section.timingRows, section.groups).map { AudioPin(it.n, it.at, marks[it.n]?.correct == true, !it.exact) } }
+    val tpins = remember(section, marks) {
+        if (!listening || section.transcript == null) emptyList() else {
+            val paras = sectionParagraphs(section)
+            section.groups.flatMap { g -> g.questions.mapNotNull { q -> evidenceSpan(paras, q, g.type == "gap")?.let { QPin(it.p, it.s, q.n, marks[q.n]?.correct == true) } } }
+        }
+    }
+    fun pick(n: Int) { selected = null; jump(n); play(n) }
     val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
     LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-pacing") { delay(400); runCatching { paceReq.bringIntoView() } } }
     fun retake() {
@@ -248,11 +259,12 @@ private fun Results(a: LrAttempt, nav: AppNav) {
             Text("No.", Modifier.width(44.dp), style = MaterialTheme.typography.labelMedium, color = e.muted)
             Text("Your answer", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = e.muted)
             Text("Correct answer", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = e.muted)
+            if (listening) Text("Heard", Modifier.width(56.dp), style = MaterialTheme.typography.labelMedium, color = e.muted)
             Spacer(Modifier.width(24.dp))
         }
         rows.forEach { f ->
             HorizontalDivider(color = e.line)
-            AnswerRow(f.n, marks[f.n]) { jump(f.n) }
+            AnswerRow(listening, f.n, marks[f.n], moments[f.n], f.part, { jump(f.n) }) { pick(f.n) }
         }
     }
 
@@ -275,8 +287,8 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     androidx.compose.runtime.key(section.part) {
         VocabList(section.vocab.orEmpty())
         if (listening) {
-            AppCard { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second) }
-            section.transcript?.let { Transcript(it, evidence, scrollKey) }
+            AppCard { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second, pins = pins, pinned = selected, onPin = ::pick) }
+            section.transcript?.let { Transcript(it, evidence, scrollKey, tpins) { n -> selected = n; scrollKey++ } }
             QuestionsBlock(section, ctx)
         } else if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -302,7 +314,7 @@ private fun QuestionsBlock(section: com.soyeb.ieltspractice.core.LrSection, ctx:
 }
 
 @Composable
-private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int) {
+private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int, pins: List<QPin>, onPin: (Int) -> Unit) {
     val e = MaterialTheme.ext
     var open by remember { mutableStateOf(true) }
     AppCard(padding = 0.dp) {
@@ -320,7 +332,7 @@ private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // one paragraph per line; the evidence span's index counts every line, blank ones too
                     text.split('\n').forEachIndexed { i, line ->
-                        if (line.isNotBlank()) EvidenceText(line, evidence?.takeIf { it.p == i }, AppText.reading, e.ink, scrollKey)
+                        if (line.isNotBlank()) EvidenceText(line, evidence?.takeIf { it.p == i }, AppText.reading, e.ink, scrollKey, pins = pins.filter { it.p == i }, onPin = onPin)
                     }
                 }
             }
@@ -329,7 +341,7 @@ private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int) {
 }
 
 @Composable
-private fun AnswerRow(n: Int, m: LrMark?, onClick: () -> Unit) {
+private fun AnswerRow(listening: Boolean, n: Int, m: LrMark?, moment: com.soyeb.ieltspractice.core.QuestionMoment?, part: Int, onClick: () -> Unit, onPlay: () -> Unit) {
     val e = MaterialTheme.ext
     val given = m?.given.orEmpty()
     Row(
@@ -347,6 +359,14 @@ private fun AnswerRow(n: Int, m: LrMark?, onClick: () -> Unit) {
             color = if (m?.correct == true) e.ink else if (given.isEmpty()) e.muted else e.badText, fontStyle = if (given.isEmpty()) FontStyle.Italic else FontStyle.Normal,
         )
         Text(m?.answer?.joinToString(" / ").orEmpty(), Modifier.weight(1f).padding(vertical = 6.dp), style = MaterialTheme.typography.bodyMedium, color = e.ink, fontWeight = FontWeight.Medium)
+        if (moment != null) Box(
+            Modifier.width(56.dp).heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onPlay)
+                .semantics { contentDescription = "Question $n: play from Part $part at ${clock(moment.at.toInt())}${if (moment.exact) "" else ", approximate"}" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("${if (moment.exact) "" else "~"}${clock(moment.at.toInt())}", Modifier.background(e.surface2, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand)
+        }
+        else if (listening) Spacer(Modifier.width(56.dp))
         if (m?.correct == true) Icon(Icons.Filled.Check, null, Modifier.size(20.dp), tint = e.goodText) else Icon(Icons.Filled.Close, null, Modifier.size(20.dp), tint = e.badText)
     }
 }

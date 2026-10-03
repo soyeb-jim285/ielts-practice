@@ -470,12 +470,20 @@ struct LrResume {
     let persist: () -> Void
 }
 
+/// One answer moment on the results scrubber.
+struct LrAudioPin: Hashable { let n: Int, at: Double, correct: Bool, approx: Bool
+    var label: String { "Question \(n), \(correct ? "right" : "wrong"), \(clock(Int(at)))" + (approx ? ", approximate" : "") }
+}
+
 struct LrPracticeBar: View {
     let player: LrPracticePlayer
     let url: URL?
     let label: String
     @Binding var rate: Float
     var resume: LrResume?
+    var pins: [LrAudioPin] = []
+    var pinned: Int?
+    var onPin: (Int) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -486,6 +494,21 @@ struct LrPracticeBar: View {
                 .primaryButton().buttonBorderShape(.circle).controlSize(.large)
                 .accessibilityLabel(player.playing ? "Pause" : "Play")
                 VStack(spacing: 2) {
+                    if !pins.isEmpty, player.duration > 0 {
+                        GeometryReader { g in
+                            ForEach(pins, id: \.n) { p in
+                                Text("\(p.n)").font(.caption2.weight(.bold).monospacedDigit())
+                                    .foregroundStyle(p.correct ? Color.goodText : Color.bad)
+                                    .frame(minWidth: 20, minHeight: 20)
+                                    .background((p.correct ? Color.good : Color.bad).opacity(0.15), in: p.correct ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 4)))
+                                    .overlay((p.correct ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 4))).stroke(p.correct ? Color.good : Color.bad, style: StrokeStyle(lineWidth: pinned == p.n ? 2.5 : 1, dash: p.approx ? [2, 2] : [])))
+                                    .position(x: 10 + (g.size.width - 20) * min(1, p.at / player.duration), y: 10)
+                                    .onTapGesture { onPin(p.n) }
+                                    .accessibilityHidden(true) // the strip below is the accessible, 44 pt version
+                            }
+                        }
+                        .frame(height: 22)
+                    }
                     Slider(value: Binding(get: { player.time }, set: { player.seek(to: $0) }), in: 0...max(player.duration, 1))
                         .tint(.brand)
                         .accessibilityLabel("\(label) position")
@@ -497,6 +520,27 @@ struct LrPracticeBar: View {
                         Text(player.failed ? "Could not load" : clock(Int(player.duration))).foregroundStyle(player.failed ? Color.bad : Color.muted)
                     }
                     .font(.caption.monospacedDigit())
+                }
+            }
+            if !pins.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(pins.sorted { $0.at < $1.at }, id: \.n) { p in
+                            Button { onPin(p.n) } label: {
+                                VStack(spacing: 0) {
+                                    Text("\(p.n)").font(.subheadline.weight(.bold).monospacedDigit())
+                                    Text(clock(Int(p.at))).font(.caption2.monospacedDigit())
+                                }
+                                .foregroundStyle(p.correct ? Color.goodText : Color.bad)
+                                .frame(minWidth: 52, minHeight: 44)
+                                .background((p.correct ? Color.good : Color.bad).opacity(0.15), in: p.correct ? AnyShape(RoundedRectangle(cornerRadius: 22)) : AnyShape(RoundedRectangle(cornerRadius: 6)))
+                                .overlay((p.correct ? AnyShape(RoundedRectangle(cornerRadius: 22)) : AnyShape(RoundedRectangle(cornerRadius: 6))).stroke(p.correct ? Color.good : Color.bad, style: StrokeStyle(lineWidth: pinned == p.n ? 2.5 : 1, dash: p.approx ? [3, 2] : [])))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(p.label)
+                            .accessibilityAddTraits(pinned == p.n ? .isSelected : [])
+                        }
+                    }
                 }
             }
             HStack(spacing: 8) {

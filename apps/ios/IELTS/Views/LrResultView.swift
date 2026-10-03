@@ -29,6 +29,19 @@ struct LrResultView: View {
     private var band: Double { attempt.band ?? 0 }
     private var raw: Int { attempt.raw ?? 0 }
     private var entries: [Int: LrGapEntry] { Dictionary((attempt.analysis?.gaps ?? []).map { ($0.n, $0) }, uniquingKeysWith: { a, _ in a }) }
+    private var moments: [Int: LrReview.QuestionMoment] {
+        listening ? Dictionary(test.sections.flatMap { LrReview.questionMoments($0.timings, $0.groups) }.map { ($0.n, $0) }, uniquingKeysWith: { a, _ in a }) : [:]
+    }
+    private var audioPins: [LrAudioPin] {
+        LrReview.questionMoments(section.timings, section.groups).map { LrAudioPin(n: $0.n, at: $0.at, correct: marks[$0.n]?.correct == true, approx: !$0.exact) }
+    }
+    private var transcriptPins: [LrQPin] {
+        guard listening, let t = section.transcript else { return [] }
+        let paras = t.components(separatedBy: "\n")
+        return section.groups.flatMap { g in g.questions.compactMap { q in
+            LrReview.evidenceSpan(paras, q, gap: g.type == "gap").map { LrQPin(p: $0.p, s: $0.s, n: q.n, correct: marks[q.n]?.correct == true) }
+        } }
+    }
     private var sel: LrFlatQ? { selected.flatMap { n in test.flat.first { $0.n == n } } }
     private var selSection: LrSection? { sel.flatMap { f in test.sections.first { $0.part == f.part } } }
     /// Evidence of the selected question, when it lies in the part on screen.
@@ -179,7 +192,9 @@ struct LrResultView: View {
 
     private func answerRow(_ n: Int) -> some View {
         let m = marks[n]
-        return Button { jump(n) } label: {
+        let mo = moments[n]
+        return HStack(alignment: .center, spacing: 0) {
+        Button { jump(n) } label: {
             HStack(alignment: .top, spacing: 12) {
                 Text("\(n)").font(.body.weight(.semibold).monospacedDigit()).foregroundStyle(Color.brand).frame(width: 34, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
@@ -202,6 +217,15 @@ struct LrResultView: View {
         .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")" + (entries[n].map { " \($0.label)." } ?? ""))
         .accessibilityValue(selected == n ? "Selected" : "")
         .accessibilityHint("Explains the question and shows where the answer is")
+        if let mo, let part = test.section(of: n).map({ test.sections[$0].part }) {
+            Button { select(n); play(n) } label: {
+                Label("\(mo.exact ? "" : "~")\(clock(Int(mo.at)))", systemImage: "play.fill").font(.footnote.weight(.medium).monospacedDigit())
+                    .padding(.horizontal, 10).frame(minHeight: 44)
+            }
+            .buttonStyle(.plain).foregroundStyle(Color.brand)
+            .accessibilityLabel("Question \(n): play from \(test.partNoun) \(part) at \(clock(Int(mo.at)))" + (mo.exact ? "" : ", approximate"))
+        }
+        }
     }
 
     private var context: some View {
@@ -221,11 +245,11 @@ struct LrResultView: View {
             }
             if let v = section.vocab { LrVocabList(vocab: v) }
             if listening {
-                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate)
+                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, onPin: { select($0); play($0) })
                     .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 if let t = section.transcript {
                     DisclosureGroup("Transcript", isExpanded: $passageOpen) {
-                        LrTranscriptView(text: t, evidence: span).textSelection(.enabled).padding(.top, 8)
+                        LrTranscriptView(text: t, evidence: span, pins: transcriptPins, onPin: { select($0) }).textSelection(.enabled).padding(.top, 8)
                     }
                     .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
                 }

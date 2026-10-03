@@ -204,6 +204,13 @@ fun audioWindow(timings: List<Timing>?, q: LrQuestion): AudioWin? {
     return AudioWin(maxOf(0.0, at - 2), at + 6, at, at + 6, false)
 }
 
+data class QuestionMoment(val n: Int, val at: Double, val from: Double, val to: Double, val exact: Boolean)
+
+/** Where each question of a listening part is answered in the recording, in time order (web questionMoments). Unlocatable questions are left out. */
+fun questionMoments(timings: List<Timing>?, groups: List<LrGroup>): List<QuestionMoment> =
+    groups.flatMap { it.questions }.mapNotNull { q -> audioWindow(timings, q)?.let { QuestionMoment(q.n, it.start, it.from, it.to, it.exact) } }
+        .sortedWith(compareBy({ it.at }, { it.n }))
+
 /** The recording's words between two instants, as spoken (for the dictation drill). */
 fun wordsBetween(t: List<Timing>?, from: Double, to: Double): String =
     t.orEmpty().filter { it.s >= from - 0.01 && it.e <= to + 0.01 }.joinToString(" ") { it.w }

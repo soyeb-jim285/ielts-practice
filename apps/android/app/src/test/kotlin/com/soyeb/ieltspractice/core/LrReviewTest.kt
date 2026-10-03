@@ -61,6 +61,15 @@ class LrReviewTest {
         assertNull(audioWindow(null, q(answer = listOf("x"))))
     }
 
+    @Test fun questionMomentsOrderedAndApprox() {
+        fun qq(n: Int, a: String, at: Double? = null) = LrQuestion(n, answer = listOf(a), review = at?.let { LrReview(at = it) })
+        val g = LrGroup(from = 1, to = 4, type = "gap", instructions = "", questions = listOf(qq(2, "coat"), qq(3, "x", 20.0), qq(4, "y")))
+        val m = questionMoments(t, listOf(g))
+        assertEquals(listOf(2, 3), m.map { it.n })
+        assertEquals(7.1, m[0].at, 1e-9); assertTrue(m[0].exact)
+        assertEquals(20.0, m[1].at, 1e-9); assertEquals(false, m[1].exact)
+    }
+
     @Test fun dictationPerfect() = assertTrue(dictationDiff("half past six", "Half past six.").all { it.status == DictStatus.Correct })
 
     @Test fun dictationWrongMissingExtra() {

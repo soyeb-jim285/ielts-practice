@@ -2,6 +2,21 @@ package com.soyeb.ieltspractice.ui.screens.lr
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -167,12 +182,30 @@ private fun SkipButton(text: String, label: String, onClick: () -> Unit) {
 /** Practice runner: where this part was left (seconds), the saved speed, and how to report position and speed back to the session. */
 class LrResume(val start: Double, val rate: Float, val track: (Double) -> Unit, val persist: () -> Unit, val onRate: ((Float) -> Unit)? = null)
 
+/** One answer moment on the results scrubber. Right / wrong is shown by shape (circle / square) and the number, not by colour alone. */
+data class AudioPin(val n: Int, val at: Double, val correct: Boolean, val approx: Boolean) {
+    val label get() = "Question $n, ${if (correct) "right" else "wrong"}, ${clock(at.toInt())}${if (approx) ", approximate" else ""}"
+}
+
+@Composable
+private fun PinChip(p: AudioPin, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val e = MaterialTheme.ext
+    val c = if (p.correct) e.goodText else e.badText
+    val shape = if (p.correct) CircleShape else RoundedCornerShape(4.dp)
+    Box(
+        modifier.background((if (p.correct) e.good else e.bad).copy(alpha = 0.15f), shape)
+            .border(if (selected) 2.5.dp else 1.dp, c, shape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides c) { content() } }
+}
+
 /** A segment to play in review: [id] changes on every tap so the same segment can be replayed. */
 data class AudioCue(val from: Double, val to: Double, val id: Int)
 
 /** Practice and review player: play, scrub, 5 s back and forward, speed 0.75 / 1 / 1.25, replay the part. */
 @Composable
-fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue: AudioCue? = null, resume: LrResume? = null) {
+fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue: AudioCue? = null, resume: LrResume? = null, pins: List<AudioPin> = emptyList(), pinned: Int? = null, onPin: (Int) -> Unit = {}) {
     val e = MaterialTheme.ext
     val context = LocalContext.current
     val demo = LocalDemo.current != null
@@ -189,6 +222,17 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
             Box(Modifier.weight(1f))
             TextButton(player::replay, Modifier.heightIn(min = 48.dp)) { Text("Replay ${label.lowercase()}", color = e.brand, style = MaterialTheme.typography.labelLarge) }
         }
+        if (pins.isNotEmpty() && player.duration > 0) Row(Modifier.fillMaxWidth().height(26.dp)) {
+            Spacer(Modifier.width(48.dp))
+            BoxWithConstraints(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 10.dp).clearAndSetSemantics { }) { // visual twin of the strip below, which is the accessible one
+                pins.forEach { p ->
+                    PinChip(p, pinned == p.n, { onPin(p.n) }, Modifier.offset(x = maxWidth * (p.at / player.duration).toFloat().coerceIn(0f, 1f) - 11.dp).size(22.dp)) {
+                        Text("${p.n}", style = MaterialTheme.typography.labelSmall.merge(AppText.num), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(Modifier.width(48.dp))
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(clock(player.position.toInt()), Modifier.widthIn(min = 40.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted, textAlign = TextAlign.End)
             Slider(
@@ -198,6 +242,16 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
                 colors = SliderDefaults.colors(thumbColor = e.brand, activeTrackColor = e.brand, inactiveTrackColor = e.surface2),
             )
             Text(clock(player.duration.toInt()), Modifier.widthIn(min = 40.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)
+        }
+        if (pins.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).semantics { contentDescription = "Questions in this part, by time" }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            pins.sortedBy { it.at }.forEach { p ->
+                PinChip(p, pinned == p.n, { onPin(p.n) }, Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 48.dp).semantics { contentDescription = p.label; selected = pinned == p.n }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${p.n}", style = MaterialTheme.typography.titleSmall.merge(AppText.num), fontWeight = FontWeight.Bold)
+                        Text(clock(p.at.toInt()), style = MaterialTheme.typography.labelSmall.merge(AppText.num))
+                    }
+                }
+            }
         }
         if (player.resumedAt > 0) Text("Resume from ${clock(player.resumedAt.toInt())}", style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand)
         Segmented(
