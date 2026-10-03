@@ -6,6 +6,7 @@ import { visiblePromptWhere } from '../access';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { attempts, prompts } from '../db/schema';
+import { promptAudio } from '../ai/speaking-audio';
 import { storage } from '../storage';
 import type { App, SessionUser } from '../types';
 
@@ -20,6 +21,7 @@ const authed = { tags: ['Prompts'], security: [{ bearer: [] }], middleware: [req
 /** Readable by guests: restricted (Cambridge) prompts are filtered out unless the signed-in user is allow-listed, and `done` is false. */
 const open = { tags: ['Prompts'], security: [{ bearer: [] }, {}] as Record<string, string[]>[] }; // {} = optional
 
+const AudioLine = z.object({ text: z.string(), url: z.string().nullable() });
 export const PromptSchema = z
   .object({
     id: z.string(),
@@ -39,6 +41,7 @@ export const PromptSchema = z
     sourceRef: z.string().nullable(),
     groupId: z.string().nullable(),
     done: z.boolean().openapi({ description: 'The user has an attempt on this prompt' }),
+    audio: z.object({ intro: AudioLine.nullable(), lead: AudioLine, questions: z.array(AudioLine) }).nullable().optional().openapi({ description: 'Generated speaking prompts (single-prompt and test endpoints): presigned examiner audio. intro = greeting before the first Part 1 topic of a full test; lead = Let\'s talk about… / part transition; questions align with followUps (P2: the cue card title). A line without url is not rendered: ask it silently.' }),
   })
   .openapi('Prompt');
 export type Prompt = z.infer<typeof PromptSchema>;
@@ -62,6 +65,8 @@ const doneExpr = (userId: string | null) =>
   userId ? sql<boolean>`exists(select 1 from ${attempts} a where a.prompt_id = "prompts".id and a.user_id = ${userId})` : sql<boolean>`false`;
 const selectWithDone = (userId: string | null) => db.select({ ...getTableColumns(prompts), done: doneExpr(userId) }).from(prompts);
 type Row = Awaited<ReturnType<ReturnType<typeof selectWithDone>['execute']>>[number];
+
+const withAudio = async (p: Prompt): Promise<Prompt> => (p.skill === 'speaking' ? { ...p, audio: await promptAudio(p) } : p);
 
 async function toPrompt({ imageKey, restricted: _r, createdAt: _c, ...p }: Row): Promise<Prompt> {
   return { ...p, imageUrl: imageKey ? await storage.presignGet(imageKey) : null };
@@ -100,9 +105,9 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
   const [linked] = await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 3), eq(prompts.groupId, card.groupId!)), 1);
   if (!linked) return null;
   return {
-    part1: await Promise.all(part1.map((p) => toPrompt({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null }))),
-    part2: await toPrompt(card),
-    part3: await toPrompt(linked),
+    part1: await Promise.all(part1.map((p) => toPrompt({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null }).then(withAudio))),
+    part2: await toPrompt(card).then(withAudio),
+    part3: await toPrompt(linked).then(withAudio),
   };
 }
 
@@ -178,7 +183,7 @@ export function register(app: App) {
     async (c) => {
       const user = c.get('user');
       const [row] = await pick(user, filters(user, c.req.valid('query')), 1);
-      return row ? c.json(await toPrompt(row), 200) : c.json({ error: 'No matching prompt' }, 404);
+      return row ? c.json(await withAudio(await toPrompt(row)), 200) : c.json({ error: 'No matching prompt' }, 404);
     },
   );
 
@@ -194,7 +199,7 @@ export function register(app: App) {
     async (c) => {
       const user = c.get('user');
       const [row] = await selectWithDone(user?.id ?? null).where(and(eq(prompts.id, c.req.valid('param').id), visiblePromptWhere(user)));
-      return row ? c.json(await toPrompt(row), 200) : c.json({ error: 'Prompt not found' }, 404);
+      return row ? c.json(await withAudio(await toPrompt(row)), 200) : c.json({ error: 'Prompt not found' }, 404);
     },
   );
 

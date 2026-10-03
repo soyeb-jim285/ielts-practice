@@ -34,7 +34,8 @@ Types:
 Tag only what the words show. Do not tag grammar errors, fluent lists, discourse markers used as words, or punctuation. A fluent transcript returns an empty list. Return JSON only.`;
 
 /** Words of the transcript as the tagger sees them. */
-const indexed = (words: Word[]) => words.map((w, i) => `${i && w.start - words[i - 1]!.end >= 0.5 ? '(pause) ' : ''}[${i}]${w.w}`).join(' ');
+const indexed = (words: Word[], transitions: [number, number][] = []) =>
+  words.map((w, i) => `${i && w.start - words[i - 1]!.end >= 0.5 && !transitions.some(([a, b]) => a <= w.start && b >= words[i - 1]!.end) ? '(pause) ' : ''}[${i}]${w.w}`).join(' ');
 const bare = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}'-]/gu, '');
 
 /** LLM spans drift by a word or two: anchors a tag on the nearest occurrence of its reparandum's first word (else of the repair's, else the stated index). */
@@ -62,10 +63,10 @@ export function tagEvents(words: Word[], tags: DisfluencyTag[]): Disfluency[] {
 }
 
 /** Runs the tagger; a failure returns no tags (the rule and audio detectors still count). */
-export async function llmDisfluencies(words: Word[], model: string): Promise<Disfluency[]> {
+export async function llmDisfluencies(words: Word[], model: string, transitions?: [number, number][]): Promise<Disfluency[]> {
   if (words.length < 3) return [];
   try {
-    const r = await chatJson({ model, system: SYSTEM, user: indexed(words), schema: DisfluencyTagsSchema, schemaName: 'disfluency_tags', temperature: 0, effort: 'low', timeoutMs: 60_000 });
+    const r = await chatJson({ model, system: SYSTEM, user: indexed(words, transitions), schema: DisfluencyTagsSchema, schemaName: 'disfluency_tags', temperature: 0, effort: 'low', timeoutMs: 60_000 });
     return tagEvents(words, r.tags);
   } catch (e) {
     console.error('disfluency tagger failed, continuing without it', (e as Error).message);

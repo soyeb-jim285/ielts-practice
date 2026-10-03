@@ -64,6 +64,13 @@
       "when": 1791055438022,
       "tag": "0008_email_log",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791062785776,
+      "tag": "0009_speaking_segments",
+      "breakpoints": true
     }
   ]
 }

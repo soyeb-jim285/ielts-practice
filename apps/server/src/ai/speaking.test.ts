@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries, transitionsOf } from './speaking';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
 /** Speaking fixture split the way the pipeline calls: feedback (no bands) and one criterion score per call. */
@@ -132,6 +132,13 @@ it('maps question marks to word boundaries', () => {
     { text: 'b', startWord: 2 },
     { text: 'c', startWord: -1 },
   ]);
+});
+
+it('answer windows give the transitions between questions and place headers by who spoke', () => {
+  const words = sttWords.words.map((w) => ({ w: w.word, start: w.start, end: w.end }));
+  const segments = [{ q: 0, startMs: 0, endMs: 1000 }, { q: 1, startMs: 1000, endMs: 1000 }, { q: 2, startMs: 5000, endMs: 9000 }];
+  expect(transitionsOf(segments)).toEqual([[1, 1], [1, 5]]);
+  expect(questionBoundaries(['a', 'b', 'c'], words, [0, 1000, 5000], segments).map((q) => q.startWord)).toEqual([0, -1, -1]);
 });
 
 it('re-anchors an off-by-one LLM error span on its words', async () => {

@@ -5,7 +5,9 @@ import { count } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/client';
 import { attempts, prompts } from '../db/schema';
+import { forgetRenderedAudio, speakingAudioHash, speakingAudioKey } from '../ai/speaking-audio';
 import { DEFAULT_BANK_DIR, seedBank } from '../seed';
+import { storage } from '../storage';
 import { req, seedPrompt, testUser } from '../test/helpers';
 
 const body = async (r: Response) => (await r.json()) as any;
@@ -153,5 +155,21 @@ describe('speaking test + seed', () => {
     expect(warns).toHaveLength(3);
     const [row] = await db.select().from(prompts);
     expect([row!.topic, row!.title, row!.part, row!.variant]).toEqual(['Education', 'Schools should ban phones.', 2, null]);
+  });
+});
+
+describe('examiner audio on speaking prompts', () => {
+  it('presigns the rendered lines, leaves the rest null and skips Cambridge prompts', async () => {
+    const gen = await seedPrompt({ slug: 'aud-1' });
+    const cam = await seedPrompt({ slug: 'aud-2', source: 'cambridge', restricted: true });
+    const { headers } = await testUser('soyebjim@gmail.com');
+    const q = 'Where is your hometown?';
+    await storage.put('speaking/manifest.json', new TextEncoder().encode(JSON.stringify({ [speakingAudioHash(q)]: speakingAudioKey(q) })), 'application/json');
+    forgetRenderedAudio();
+    const a = (await body(await req(`/api/prompts/${gen.id}`, { headers }))).audio;
+    expect(a.questions).toEqual([{ text: q, url: `https://download.test/${speakingAudioKey(q)}` }, { text: 'What do you like about it?', url: null }]);
+    expect(a.lead).toEqual({ text: "Let's talk about hometown.", url: null });
+    expect((await body(await req(`/api/prompts/${cam.id}`, { headers }))).audio).toBeNull();
+    forgetRenderedAudio();
   });
 });

@@ -22,7 +22,7 @@ const HELD_VOICE_MS = 500, VOICED_FILLER_MS = 1000;
 
 export function computeSpeechMetrics(
   words: Word[],
-  opts: { durationS: number; energy?: number[]; frameMs?: number; voiceThreshold?: number },
+  opts: { durationS: number; energy?: number[]; frameMs?: number; voiceThreshold?: number; /** [from, to] seconds where the app moved between questions (page render, examiner audio, auto-start): a gap touching one is app timing, not a pause. */ transitions?: [number, number][] },
 ): SpeechMetrics {
   // Trim stretched words to their expected length and expose the rest as a gap before them.
   // ponytail: the hidden gap may really sit after the word; placing it before only shifts which clause edge it touches.
@@ -63,10 +63,15 @@ export function computeSpeechMetrics(
   const heldGaps = new Set<number>(); // pause starts that pass isHeldVoice
 
   const pauses: Pause[] = [];
+  let transitionS = 0; // gap time spent between questions: neither pause nor speech
   for (let i = 1; i < n; i++) {
     const gap = gapBefore(i);
     if (gap * 1000 < PAUSE_MS) continue;
     const start = words[i - 1]!.end, end = words[i]!.start;
+    if (opts.transitions?.some(([a, b]) => a <= end && b >= start)) {
+      transitionS += gap;
+      continue;
+    }
     // Only energy frames can tell a filled pause from silence; without them no gap is called voiced (a stretched word may hide either).
     const voiced = isVoiced(start, end);
     if (voiced && isHeldVoice(start, end)) heldGaps.add(start);
@@ -139,7 +144,7 @@ export function computeSpeechMetrics(
   // Speaking time = the span from the first to the last word minus pauses and filler words. Summing ASR word durations instead left out every gap under
   // PAUSE_MS and gave about 2x human articulation rates (260-350 wpm); a clamp at 260 wpm keeps timestamp glitches from printing absurd rates.
   const fillerTime = words.reduce((s, w, i) => s + (isFillerAt[i] ? w.end - w.start : 0), 0);
-  const phonation = n ? Math.max(0, words[n - 1]!.end - words[0]!.start - pauses.reduce((s, p) => s + p.dur, 0) - fillerTime) : 0;
+  const phonation = n ? Math.max(0, words[n - 1]!.end - words[0]!.start - pauses.reduce((s, p) => s + p.dur, 0) - transitionS - fillerTime) : 0;
   const wpmSeries: SpeechMetrics['wpmSeries'] = [];
   for (let t = 0; t + WPM_WINDOW_S <= Math.max(durationS, WPM_WINDOW_S); t += WPM_HOP_S)
     wpmSeries.push({ t, wpm: words.filter(w => w.start >= t && w.start < t + WPM_WINDOW_S).length * (60 / WPM_WINDOW_S) });

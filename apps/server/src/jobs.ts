@@ -67,6 +67,7 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
         durationMs: a.durationMs ?? 0,
         energy: a.energy,
         marks: a.marks,
+        segments: a.segments,
         questions,
         part,
         settings,

@@ -60,6 +60,7 @@ const SubmitAttempt = z
     durationMs: z.number().int().min(0).optional().openapi({ description: 'Speaking: recording length. Writing: time spent in the editor (counts toward weekly minutes).' }),
     energy: z.array(z.number().int().min(0).max(255)).max(20000).optional().openapi({ description: '50 ms RMS frames, 0-255' }),
     marks: z.array(z.number().int().min(0)).max(200).optional().openapi({ description: 'Question start offsets (ms)' }),
+    segments: z.array(z.object({ q: z.number().int().min(0), startMs: z.number().int().min(0), endMs: z.number().int().min(0) })).max(200).optional().openapi({ description: 'Non-live speaking: answer window of each question (ms within the recording). Time between windows is app timing (page render, examiner audio) and is left out of the pause measurements.' }),
     text: z.string().max(20000).optional(),
     plan: z.string().max(5000).optional(),
     overtime: z.boolean().optional(),

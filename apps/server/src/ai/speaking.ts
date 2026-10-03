@@ -205,14 +205,27 @@ export function dropHallucinations(words: Word[]) {
   return words.filter((_, i) => !drop.has(i));
 }
 
-/** Maps question start marks (ms into the recording) to the first word spoken after each. */
-export function questionBoundaries(questions: string[], words: Word[], marks?: number[] | null) {
+export type Segment = { q: number; startMs: number; endMs: number };
+/** Maps question start marks (ms into the recording) to the first word spoken after each. With answer windows (`segments`), a question nobody spoke in gets -1. */
+export function questionBoundaries(questions: string[], words: Word[], marks?: number[] | null, segments?: Segment[] | null) {
   return questions.map((text, i) => {
+    const seg = segments?.find((s) => s.q === i);
+    if (seg) return { text, startWord: words.findIndex((w) => w.end > seg.startMs / 1000 && w.start < seg.endMs / 1000) };
     const mark = marks?.[i] ?? (i === 0 ? 0 : undefined);
     const startWord = mark == null ? -1 : words.findIndex((w) => w.end > mark / 1000);
     return { text, startWord };
   });
 }
+
+/** Seconds between consecutive answer windows: the app moved to the next question there (page render, examiner audio, auto-start). A point when the recorder was paused meanwhile. */
+export function transitionsOf(segments?: Segment[] | null): [number, number][] {
+  const s = [...(segments ?? [])].sort((a, b) => a.startMs - b.startMs);
+  return s.slice(1).map((x, i) => [Math.min(s[i]!.endMs, x.startMs) / 1000, x.startMs / 1000]);
+}
+
+/** Tells the grader that the joins between answers are not candidate behaviour. */
+export const TRANSITION_NOTE =
+  'The recording holds the candidate\'s answers only: the app played each examiner question aloud and paused the microphone meanwhile. Silence or a jump at a "Q<n>:" boundary is app timing between questions, already left out of every pause, rate and disfluency measurement: never read it as hesitation, a long pause or a filled pause. Hesitation inside an answer still counts.';
 
 export async function analyzeSpeaking(i: {
   audio: Uint8Array;
@@ -220,6 +233,8 @@ export async function analyzeSpeaking(i: {
   durationMs: number;
   energy?: number[] | null;
   marks?: number[] | null;
+  /** Non-live test: answer window per question, see transitionsOf. */
+  segments?: Segment[] | null;
   questions: string[];
   part: 1 | 2 | 3;
   settings: Settings;
@@ -233,7 +248,8 @@ export async function analyzeSpeaking(i: {
   i.onStage?.('analyzing');
   const frameMs = frameMsOf(i.energy, i.durationMs);
   const words = alignWords(dropHallucinations(stt.words.filter((w) => !SOUND_EVENT.test(w.w))), i.energy ?? undefined, frameMs); // sound events ("*Ding*", "[music]") out; word times trimmed to the voiced part, which the transcript highlight follows
-  const questions = questionBoundaries(i.questions, words, i.marks);
+  const questions = questionBoundaries(i.questions, words, i.marks, i.segments);
+  const transitions = transitionsOf(i.segments);
   const noSpeech = (): AnalysisResult => ({
     v: 1, skill: 'speaking', part: i.part, overall: 0, overallRaw: 0, range: [0, 0], criteria: {}, topFixes: [], errors: [], vocabUpgrades: [],
     rewrite: { text: '', note: 'No speech detected. Check your microphone and speak clearly, then try again.' },
@@ -241,8 +257,8 @@ export async function analyzeSpeaking(i: {
   });
   if (isNoSpeech(words)) return noSpeech();
 
-  const durationS = i.durationMs > 0 ? i.durationMs / 1000 : stt.duration;
-  const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs });
+  const durationS = (i.durationMs > 0 ? i.durationMs / 1000 : stt.duration) - transitions.reduce((s, [a, b]) => s + (b - a), 0); // gaps between answers are not speaking time
+  const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs, transitions });
 
   // Audio pronunciation pass and the text disfluency tagger are independent: run them together.
   const pronPass = async (): Promise<PronunciationLlm | undefined> => {
@@ -264,7 +280,7 @@ export async function analyzeSpeaking(i: {
       return undefined;
     }
   };
-  const [pronRaw, llmTags] = await Promise.all([pronPass(), llmDisfluencies(words, models.analysis)]);
+  const [pronRaw, llmTags] = await Promise.all([pronPass(), llmDisfluencies(words, models.analysis, transitions)]);
   const pron = pronRaw && { ...pronRaw, words: confirmedWords(pronRaw, words, metrics) };
 
   const fused = fuseDisfluencies(metrics, pron?.disfluencies, 0.3, [...tagDisfluencies(words), ...llmTags]);
@@ -287,6 +303,7 @@ export async function analyzeSpeaking(i: {
       user: JSON.stringify({
         part: i.part,
         partContext: PART_CONTEXT[i.part],
+        ...(i.segments?.length && { recordingNote: TRANSITION_NOTE }),
         questions: i.questions,
         transcript: indexedTranscript(words, questions),
         metrics: metricsSummary(metrics, words, features, fused),
@@ -307,7 +324,7 @@ export async function analyzeSpeaking(i: {
   const keys: Key[] = pron ? ['fc', 'lr', 'gra'] : ['fc', 'lr', 'gra', 'p'];
   const criterionUser = (k: Key) =>
     [
-      `<test>\nPart ${i.part}: ${PART_CONTEXT[i.part]}\nQuestions:\n${i.questions.map((q, n) => `Q${n + 1}: ${q}`).join('\n')}\n</test>`,
+      `<test>\nPart ${i.part}: ${PART_CONTEXT[i.part]}\nQuestions:\n${i.questions.map((q, n) => `Q${n + 1}: ${q}`).join('\n')}${i.segments?.length ? `\n${TRANSITION_NOTE}` : ''}\n</test>`,
       k === 'fc' && `<measured_fluency note="measured from the audio timing">\n${fluencyObservations(metrics, features, fused)}\n</measured_fluency>`,
       k === 'lr' && metrics.lexical && `<measurements note="deterministic, for reference only">\nlexical diversity (MTLD) ${r1(metrics.lexical.mtld)}; ${r1(metrics.lexical.lessCommonPct)}% of words outside the 5,000 most common; most repeated content words: ${metrics.lexical.overused.map((o) => `${o.word} ×${o.count}`).join(', ') || 'none'}\n</measurements>`,
       k === 'p' && `<asr_evidence>\nunclear (low-confidence) words: ${JSON.stringify(unclearWords)}\n</asr_evidence>`,

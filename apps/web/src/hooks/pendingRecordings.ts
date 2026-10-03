@@ -12,6 +12,8 @@ export type Pending = {
   durationMs: number;
   energy: number[];
   marks: number[];
+  /** Non-live: answer window of each question within the recording (ms). */
+  segments?: { q: number; startMs: number; endMs: number }[];
   sessionId?: string;
   parentAttemptId?: string;
   // upload progress, so a retry resumes at the step that failed
@@ -72,7 +74,7 @@ export async function uploadPending(p: Pending, kept = true): Promise<string> {
     await save();
   }
   // 409 = an earlier submit already went through (its response was lost).
-  await within(api.post(`/attempts/${p.attemptId}/submit`, { durationMs: p.durationMs, energy: p.energy, marks: p.marks }), API_MS, 'Submitting').catch((e) => {
+  await within(api.post(`/attempts/${p.attemptId}/submit`, { durationMs: p.durationMs, energy: p.energy, marks: p.marks, segments: p.segments }), API_MS, 'Submitting').catch((e) => {
     if (!(e instanceof ApiError && e.status === 409)) throw e;
   });
   await deletePending(p.key);

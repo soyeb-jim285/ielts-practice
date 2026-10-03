@@ -1,7 +1,7 @@
 import { P2_PREP_S, SPEAKING_ZONES } from '@ielts/core';
 import type { Prompt } from '@server/routes/prompts';
 import { useNavigate } from '@tanstack/react-router';
-import { Check, ChevronRight, CircleAlert, Info, LoaderCircle, Mic, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronRight, CircleAlert, Info, LoaderCircle, Mic, RotateCcw, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { BlockedAlert } from '@/components/community/BlockedPanel';
 import { ExamShell } from '@/components/layout/ExamShell';
@@ -10,6 +10,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { savePending, uploadPending, type Pending } from '@/hooks/pendingRecordings';
 import { useRecorder } from '@/hooks/useRecorder';
 import { rememberSession } from '@/lib/attempt';
+import { playLine } from '@/lib/examiner';
 import { queryClient } from '@/lib/query';
 import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock } from '@/lib/format';
@@ -22,6 +23,8 @@ import { MicProblem } from './MicProblem';
 import { TimerRing } from './TimerRing';
 import { Waveform } from './Waveform';
 
+type AudioLine = NonNullable<Prompt['audio']>['lead'];
+
 export type Segment = { part: 1 | 2 | 3; prompt: Prompt; questions: string[] };
 
 /** P1/P3 answer the follow-ups (or the body); P2 is a single cue card. */
@@ -31,9 +34,9 @@ export const toSegment = (prompt: Prompt): Segment => {
 };
 
 const INTRO = {
-  1: 'Short answers about you. One recording covers every question. Press Next question as you go.',
+  1: 'Short answers about you. The examiner reads each question aloud, then you speak. Press Next question when you have answered.',
   2: 'Talk for 1 to 2 minutes about the card. You get 1 minute to prepare and can make notes. Recording stops at 2:00.',
-  3: 'A discussion linked to Part 2. Develop each answer with reasons and examples. Press Next question as you go.',
+  3: 'A discussion linked to Part 2. The examiner reads each question aloud. Develop each answer with reasons and examples, then press Next question.',
 };
 const P2_MAX_MS = SPEAKING_ZONES[2].max * 1000;
 
@@ -64,7 +67,13 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   const [hint, setHint] = useState(() => !hintSeen());
   const [exitOpen, setExitOpen] = useState(false);
   const marks = useRef<number[]>([]);
+  /** Answer window of each question on the recording clock (which stands still while the examiner talks). */
+  const windows = useRef<{ q: number; startMs: number; endMs: number }[]>([]);
+  const openAt = useRef(0);
+  const askCtl = useRef<AbortController | undefined>(undefined);
+  const [examiner, setExaminer] = useState<'idle' | 'asking' | 'cue'>('idle');
   const stopping = useRef(false);
+  useEffect(() => () => askCtl.current?.abort(), []);
 
   const seg = segments[segIdx]!;
   const recording = rec.state === 'recording';
@@ -73,6 +82,42 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   const p1Pos = segments.slice(0, segIdx + 1).filter((s) => s.part === 1).length;
 
   const prep = useCountdown(P2_PREP_S, { onEnd: () => void startRecording() });
+
+  /** The examiner reads `lines` (microphone held meanwhile, so the recording has only the candidate's voice), then the answer window opens with a "Speak now" cue. */
+  const ask = async (lines: (AudioLine | null | undefined)[], resume = true) => {
+    askCtl.current?.abort();
+    const ctl = (askCtl.current = new AbortController());
+    const spoken = lines.filter((l) => l?.url);
+    if (spoken.length) {
+      setExaminer('asking');
+      rec.pause();
+      for (const l of spoken) await playLine(l!.url, ctl.signal);
+    }
+    if (ctl.signal.aborted) return;
+    if (!resume) return setExaminer('idle');
+    rec.resume();
+    openAt.current = Math.round(rec.clock());
+    setExaminer('cue');
+    setTimeout(() => setExaminer((e) => (e === 'cue' ? 'idle' : e)), 2500);
+  };
+  const lineFor = (s: Segment, text: string) => s.prompt.audio?.questions.find((l) => l.text === text);
+  /** P2: the examiner introduces the card; Part 1 and 3 begin by opening the mic (held) and asking the first question. */
+  const introduce = async () => {
+    marks.current = [];
+    windows.current = [];
+    if (seg.part === 2) return ask([seg.prompt.audio?.lead, lineFor(seg, seg.questions[0]!)], false);
+    if (!(await rec.start({ paused: true }))) return;
+    await ask([segIdx === 0 && seg.part === 1 && segments.length > 1 ? seg.prompt.audio?.intro : null, seg.prompt.audio?.lead, lineFor(seg, seg.questions[0]!)]);
+  };
+  // After the first part the next one starts by itself (the Finish tap is the gesture that lets audio play); the first waits for the mic tap.
+  const introduced = useRef(-1);
+  useEffect(() => {
+    if (segIdx === 0 && seg.part !== 2) return;
+    if (phase !== 'ready' || introduced.current === segIdx) return;
+    introduced.current = segIdx;
+    void introduce();
+    // once per segment
+  }, [segIdx, phase]);
 
   // ---- upload: create attempt → PUT audio → submit (hard timeouts). A retry resumes from the step that failed. ----
   const pending = useRef<Record<number, Pending>>({});
@@ -95,8 +140,10 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     if (stopping.current || rec.state !== 'recording') return;
     stopping.current = true;
     try {
+      windows.current.push({ q: qIdx, startMs: openAt.current, endMs: Math.round(rec.clock()) });
+      marks.current = windows.current.map((w) => w.startMs);
       const r = await rec.stop();
-      const p: Pending = { key: crypto.randomUUID(), promptId: seg.prompt.id, part: seg.part, sessionId, parentAttemptId, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, createdAt: Date.now(), mime: r.mime, blob: r.blob, durationMs: r.durationMs, energy: r.energy, marks: marks.current };
+      const p: Pending = { key: crypto.randomUUID(), promptId: seg.prompt.id, part: seg.part, sessionId, parentAttemptId, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, createdAt: Date.now(), mime: r.mime, blob: r.blob, durationMs: r.durationMs, energy: r.energy, marks: marks.current, segments: windows.current };
       pending.current[segIdx] = p;
       kept.current[segIdx] = await savePending(p); // before anything can fail: the recording survives a failed upload, a reload or a closed tab
       setUploads((u) => [...u, { key: segIdx, label: p.label, status: 'uploading', kept: kept.current[segIdx]! }]);
@@ -119,13 +166,20 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       localStorage.setItem(HINT_KEY, '1');
     } catch {}
     setHint(false);
-    marks.current = [0];
-    await rec.start();
+    windows.current = [];
+    if (seg.part === 2) {
+      // the card was introduced before the preparation minute: recording starts now, with the cue
+      if (!(await rec.start())) return;
+      openAt.current = 0;
+      setExaminer('cue');
+      setTimeout(() => setExaminer((e) => (e === 'cue' ? 'idle' : e)), 2500);
+    } else void introduce(); // first tap of the test (later parts start themselves)
   };
 
   const nextQuestion = () => {
-    marks.current.push(Math.round(rec.elapsedMs));
+    windows.current.push({ q: qIdx, startMs: openAt.current, endMs: Math.round(rec.clock()) });
     setQIdx(qIdx + 1);
+    void ask([lineFor(seg, seg.questions[qIdx + 1]!)]);
   };
 
   // P2 hard stop at 2:00.
@@ -161,7 +215,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     void navigate({ to: '/speaking' });
   };
 
-  const answerS = (rec.elapsedMs - (marks.current.at(-1) ?? 0)) / 1000;
+  const answerS = Math.max(0, rec.elapsedMs - openAt.current) / 1000;
+  const asking = examiner === 'asking';
   const title = phase === 'finishing' ? 'Saving your answers' : label(seg, segIdx);
   const multiQ = seg.questions.length > 1;
 
@@ -204,9 +259,20 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
           {recording ? (
             <div className="flex w-full flex-col gap-7">
+              {asking ? (
+                <p role="status" className="flex min-h-40 items-center gap-3 type-subheading">
+                  <Volume2 className="size-6 text-brand-text motion-safe:animate-pulse" aria-hidden />
+                  The examiner is asking the question
+                </p>
+              ) : (
               <div className="grid items-center gap-x-14 gap-y-6 sm:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col items-start gap-4">
                   <RecordingDot />
+                  {examiner === 'cue' && (
+                    <Badge tone="good" className="motion-safe:animate-[fade-in_200ms_var(--ease-out-quart)]">
+                      Speak now
+                    </Badge>
+                  )}
                   <TimerRing part={seg.part} seconds={seg.part === 2 ? rec.elapsedMs / 1000 : answerS} />
                 </div>
                 <div className="min-w-0 space-y-4">
@@ -218,6 +284,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
                   <SilenceNudge silenceMs={rec.silenceMs} />
                 </div>
               </div>
+              )}
               {seg.part === 2 && notes && (
                 <div className="rounded-lg bg-surface-2 p-4 text-left">
                   <p className="type-caption">Your notes</p>
@@ -228,15 +295,15 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-3 self-stretch border-t border-line bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:flex-row sm:justify-start md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="outline" size="lg" onClick={() => setEarlyOpen(true)}>
+                    <Button variant="outline" size="lg" disabled={asking} onClick={() => setEarlyOpen(true)}>
                       Finish part early
                     </Button>
-                    <Button size="lg" onClick={nextQuestion} icon={<ChevronRight />}>
+                    <Button size="lg" disabled={asking} onClick={nextQuestion} icon={<ChevronRight />}>
                       Next question
                     </Button>
                   </>
                 ) : (
-                  <Button size="lg" className="w-full sm:w-auto" onClick={() => void finishPart()} icon={<Check />}>
+                  <Button size="lg" className="w-full sm:w-auto" disabled={asking} onClick={() => void finishPart()} icon={<Check />}>
                     {segIdx + 1 < segments.length ? 'Finish and continue' : 'Finish'}
                   </Button>
                 )}
@@ -276,6 +343,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
               <Button
                 size="lg"
                 className="w-full sm:w-auto"
+                disabled={asking}
                 onClick={() => {
                   setPhase('prep');
                   prep.start();

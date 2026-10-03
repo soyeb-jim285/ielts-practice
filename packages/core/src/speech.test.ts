@@ -129,3 +129,20 @@ it('articulation rate is words per second of speaking time (span minus pauses an
   // timestamp glitch: 40 words in 3 s cannot print a rate above the 260 wpm sanity clamp
   expect(computeSpeechMetrics(Array.from({ length: 40 }, (_, i) => ({ w: 'w', start: i * 0.07, end: i * 0.07 + 0.06 })), { durationS: 3 }).articulationRate).toBe(260);
 });
+
+it('a gap that touches a question transition is not a pause, a long pause or a voiced filler', () => {
+  const w = (s: string, start: number, end: number): Word => ({ w: s, start, end });
+  const words = [w('I', 0, 0.2), w('like', 0.3, 0.6), w('tea', 0.7, 1), w('Yes', 6, 6.3), w('often', 6.4, 6.8)];
+  const energy = new Array(140).fill(100); // voiced everywhere, so the 5 s gap would also be called a filled pause
+  const base = computeSpeechMetrics(words, { durationS: 7, energy });
+  expect(base.longPauses).toBe(1);
+  expect(base.fillers.some((f) => f.kind === 'voiced')).toBe(true);
+  const m = computeSpeechMetrics(words, { durationS: 7, energy, transitions: [[3, 3]] });
+  expect(m.pauses).toHaveLength(0);
+  expect(m.longPauses).toBe(0);
+  expect(m.fillers.some((f) => f.kind === 'voiced')).toBe(false);
+  expect(m.pauseRatio).toBe(0);
+  // a pause inside an answer still counts
+  const inside = computeSpeechMetrics([...words.slice(0, 2), w('tea', 2.6, 3), ...words.slice(3)], { durationS: 7, transitions: [[4.5, 4.5]] });
+  expect(inside.pauses.map((p) => p.dur)).toEqual([2]);
+});

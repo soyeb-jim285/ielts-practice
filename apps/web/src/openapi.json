@@ -588,6 +588,80 @@
           "done": {
             "type": "boolean",
             "description": "The user has an attempt on this prompt"
+          },
+          "audio": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "intro": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "text",
+                  "url"
+                ]
+              },
+              "lead": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "text",
+                  "url"
+                ]
+              },
+              "questions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "url"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "intro",
+              "lead",
+              "questions"
+            ],
+            "description": "Generated speaking prompts (single-prompt and test endpoints): presigned examiner audio. intro = greeting before the first Part 1 topic of a full test; lead = Let's talk about… / part transition; questions align with followUps (P2: the cue card title). A line without url is not rendered: ask it silently."
           }
         },
         "required": [
@@ -831,6 +905,33 @@
             },
             "maxItems": 200,
             "description": "Question start offsets (ms)"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "startMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "endMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "q",
+                "startMs",
+                "endMs"
+              ]
+            },
+            "maxItems": 200,
+            "description": "Non-live speaking: answer window of each question (ms within the recording). Time between windows is app timing (page render, examiner audio) and is left out of the pause measurements."
           },
           "text": {
             "type": "string",

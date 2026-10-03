@@ -50,12 +50,16 @@ export function useRecorder() {
   const [state, setState] = useState<RecorderState>('idle');
   const [error, setError] = useState<string>();
   const [live, setLive] = useState({ level: 0, elapsedMs: 0, liveWpm: 0, silenceMs: 0 });
-  const r = useRef<{ stream?: MediaStream; rec?: MediaRecorder; ctx?: AudioContext; timer?: ReturnType<typeof setInterval>; chunks: Blob[]; energy: number[]; t0: number; mime: string }>({
+  const [paused, setPaused] = useState(false);
+  const r = useRef<{ stream?: MediaStream; rec?: MediaRecorder; ctx?: AudioContext; timer?: ReturnType<typeof setInterval>; chunks: Blob[]; energy: number[]; t0: number; mime: string; pausedAt?: number; silent: number }>({
     chunks: [],
     energy: [],
     t0: 0,
     mime: '',
+    silent: 0,
   });
+  /** The recording clock in ms: time while paused does not count, so it matches the audio and the energy frames. */
+  const clock = useCallback(() => (r.current.pausedAt ?? performance.now()) - r.current.t0, []);
 
   const teardown = useCallback(() => {
     const c = r.current;
@@ -66,12 +70,13 @@ export function useRecorder() {
   }, []);
   useEffect(() => teardown, [teardown]);
 
-  const start = useCallback(async () => {
+  /** `paused`: open the mic and the recorder but hold the clock until resume() (the examiner is still asking). Resolves true when recording started. */
+  const start = useCallback(async (opts?: { paused?: boolean }) => {
     setError(undefined);
     if (!navigator.mediaDevices?.getUserMedia || !globalThis.MediaRecorder) {
       setState('unsupported');
       setError(MESSAGES.unsupported);
-      return;
+      return false;
     }
     setState('requesting');
     let stream: MediaStream;
@@ -82,7 +87,7 @@ export function useRecorder() {
       const noDevice = name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'NotReadableError';
       setState(noDevice ? 'unsupported' : 'denied');
       setError(noDevice ? MESSAGES.noDevice : MESSAGES.denied);
-      return;
+      return false;
     }
     const c = r.current;
     c.stream = stream;
@@ -99,20 +104,47 @@ export function useRecorder() {
     analyser.fftSize = 2048;
     ctx.createMediaStreamSource(stream).connect(analyser);
     const buf = new Float32Array(analyser.fftSize);
-    let silentFrames = 0;
+    c.silent = 0;
+    c.pausedAt = undefined;
 
     rec.start(1000);
     c.t0 = performance.now();
+    if (opts?.paused) {
+      rec.pause();
+      c.pausedAt = c.t0;
+    }
+    setPaused(!!opts?.paused);
     c.timer = setInterval(() => {
+      if (c.pausedAt != null) return;
       analyser.getFloatTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += v * v;
       const byte = Math.min(255, Math.round(Math.sqrt(Math.sqrt(sum / buf.length)) * GAIN));
       c.energy.push(byte);
-      silentFrames = byte < VOICE ? silentFrames + 1 : 0;
-      setLive({ level: byte / 255, elapsedMs: performance.now() - c.t0, liveWpm: estimateWpm(c.energy), silenceMs: silentFrames * FRAME_MS });
+      c.silent = byte < VOICE ? c.silent + 1 : 0;
+      setLive({ level: byte / 255, elapsedMs: performance.now() - c.t0, liveWpm: estimateWpm(c.energy), silenceMs: c.silent * FRAME_MS });
     }, FRAME_MS);
     setState('recording');
+    return true;
+  }, []);
+
+  const pause = useCallback(() => {
+    const c = r.current;
+    if (c.rec?.state !== 'recording') return;
+    c.rec.pause();
+    c.pausedAt = performance.now();
+    setPaused(true);
+    setLive((l) => ({ ...l, level: 0, silenceMs: 0 }));
+  }, []);
+
+  const resume = useCallback(() => {
+    const c = r.current;
+    if (c.rec?.state !== 'paused') return;
+    c.rec.resume();
+    c.t0 += performance.now() - (c.pausedAt ?? performance.now());
+    c.pausedAt = undefined;
+    c.silent = 0;
+    setPaused(false);
   }, []);
 
   const stop = useCallback(
@@ -121,19 +153,20 @@ export function useRecorder() {
         const c = r.current;
         const rec = c.rec;
         if (!rec || rec.state === 'inactive') return reject(new Error('Not recording'));
-        const durationMs = Math.round(performance.now() - c.t0);
+        const durationMs = Math.round(clock());
         clearInterval(c.timer);
         rec.onstop = () => {
           const mime = rec.mimeType || c.mime || 'audio/webm';
           teardown();
+          setPaused(false);
           setState('stopped');
           setLive((l) => ({ ...l, level: 0, silenceMs: 0 }));
           resolve({ blob: new Blob(c.chunks, { type: mime }), mime, durationMs, energy: c.energy.slice(0, 20000) });
         };
         rec.stop();
       }),
-    [teardown],
+    [teardown, clock],
   );
 
-  return { state, error, start, stop, ...live };
+  return { state, error, paused, start, stop, pause, resume, clock, ...live };
 }
