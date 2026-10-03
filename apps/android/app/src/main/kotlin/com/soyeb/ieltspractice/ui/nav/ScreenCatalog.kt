@@ -25,6 +25,11 @@ val screenCatalog: List<ScreenSpec> = listOf(
     // Community mode: the guest's result and gates, the limit panels and fair-use dialog (drawn over their screen), tests left, the balance, own keys.
     ScreenSpec("guest-result", AttemptResult.of("as1")),
     ScreenSpec("guest-history", History()),
+    // A guest with tests: "Your recent tests" on Home and on the hubs.
+    ScreenSpec("guest-recent-home", HomeTab),
+    ScreenSpec("guest-recent-speaking", SpeakingTab),
+    ScreenSpec("guest-recent-writing", WritingTab),
+    ScreenSpec("guest-recent-lr", LrHub("reading")),
     ScreenSpec("quota-speaking-spent", SpeakingTab),
     ScreenSpec("gate-fairuse", SpeakingTab),
     ScreenSpec("gate-fairuse-guest", WritingTab),

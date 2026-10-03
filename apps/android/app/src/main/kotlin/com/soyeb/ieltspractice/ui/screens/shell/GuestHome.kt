@@ -54,6 +54,8 @@ fun GuestHome(nav: AppNav) {
         PrimaryButton("Create account", { nav.openLogin("Create an account to start practising.", signUp = true) }, Modifier.fillMaxWidth())
         SecondaryButton("Sign in", { nav.openLogin("Sign in to continue your practice.") }, Modifier.fillMaxWidth())
 
+        GuestRecentSection(nav)
+
         QuotaSummary(nav)
 
         AppCard {

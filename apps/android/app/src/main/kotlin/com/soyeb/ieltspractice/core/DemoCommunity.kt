@@ -25,7 +25,7 @@ object DemoCommunity {
     /** Signed out (no session at all) unless it is the guest's own result page. */
     fun guest(screen: String?) = screen?.contains("guest") == true
     /** A guest session exists: the token is there, `/api/me` says anonymous. */
-    fun anonymousSession(screen: String?) = screen == "guest-result"
+    fun anonymousSession(screen: String?) = screen == "guest-result" || screen?.startsWith("guest-recent") == true
 
     private fun spent(window: String) = SkillQuota(1, 1, 0, if (window == "week") WEEK else DAY, window, Codes.QUOTA)
     private fun open(window: String) = SkillQuota(0, 1, 1, if (window == "week") WEEK else DAY, window, null)

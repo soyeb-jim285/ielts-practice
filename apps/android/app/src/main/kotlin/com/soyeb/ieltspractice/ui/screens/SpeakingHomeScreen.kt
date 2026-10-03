@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
+import com.soyeb.ieltspractice.ui.screens.shell.GuestRecentSection
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.AttemptListItem
@@ -130,6 +131,7 @@ fun SpeakingHomeScreen(nav: AppNav) {
                 "Record your answers and get a band for each criterion, with every mistake and pause located in your transcript.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
             )
+            GuestRecentSection(nav, "speaking")
             if (fresh) PartsSection(true, nav)
             if (pending.isNotEmpty()) PendingSection(pending, states, onUpload = { p -> started.add(p.id); store.start(p, api) }, onDelete = { deleting = it })
             ModesSection(nav)

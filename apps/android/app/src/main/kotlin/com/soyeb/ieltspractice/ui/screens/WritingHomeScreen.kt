@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
+import com.soyeb.ieltspractice.ui.screens.shell.GuestRecentSection
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.AttemptListItem
@@ -101,6 +102,7 @@ fun WritingHomeScreen(nav: AppNav) {
                 "Timed tasks, marked against the public band descriptors with every mistake located.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
             )
+            GuestRecentSection(nav, "writing")
             FullTest(variant, { variant = it }) { nav.startTest("writing") { nav.go(WritingEditor("full", variant)) } }
             Practise(nav)
             if (recent.isNotEmpty()) Recent(recent, target, nav)

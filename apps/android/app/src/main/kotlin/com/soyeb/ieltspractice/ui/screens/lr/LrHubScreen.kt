@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
+import com.soyeb.ieltspractice.ui.screens.shell.GuestRecentSection
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.ApiError
@@ -102,6 +103,7 @@ private fun HubContent(skill: String, target: Double, nav: AppNav) {
     LaunchedEffect(state) { if (demo?.screen == "lr-mode" && state is Load.Ready) pick = state.value.firstOrNull { it.attemptId == null } }
 
     Text(lede(listening), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
+    GuestRecentSection(nav, skill)
     when (state) {
         Load.Loading -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
         is Load.Failed -> AppCard { ErrorLine(state.message); SecondaryButton("Try again", load.reload) }
