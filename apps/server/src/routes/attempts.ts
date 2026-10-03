@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { and, count, desc, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { visiblePromptWhere } from '../access';
-import { currentUser, requireAccount, requireUser } from '../auth';
+import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { analyses, attempts, prompts } from '../db/schema';
 import { ApiError } from '../errors';
@@ -17,6 +17,7 @@ import { fixCard, inDeck } from './cards';
 import { CodedError } from './community';
 
 const PAGE_SIZE = 20;
+const GUEST_RECENT = 10; // guests get a short "your recent tests" list, never the full History
 const AUDIO_EXT: Record<string, string> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
 
 const Skill = z.enum(['speaking', 'writing']);
@@ -316,18 +317,20 @@ export function register(app: App) {
   app.openapi(
     createRoute({
       ...authed,
-      middleware: [requireAccount],
       method: 'get',
       path: '/api/attempts',
-      summary: `Attempt history, newest first, ${PAGE_SIZE} per page`,
+      summary: `Attempt history, newest first, ${PAGE_SIZE} per page. A guest (anonymous session) gets only their ${GUEST_RECENT} latest, no paging.`,
       request: { query: z.object({ skill: Skill.optional(), page: z.coerce.number().int().min(1).default(1) }) },
       responses: {
         200: json(z.object({ items: z.array(AttemptListItem), page: z.number(), pageSize: z.number(), total: z.number() }).openapi('AttemptList'), 'Attempts'),
       },
     }),
     async (c) => {
-      const { skill, page } = c.req.valid('query');
+      const { skill, page: asked } = c.req.valid('query');
       const user = currentUser(c);
+      const guest = user.isAnonymous;
+      const page = guest ? 1 : asked;
+      const size = guest ? GUEST_RECENT : PAGE_SIZE;
       const where = and(eq(attempts.userId, user.id), skill ? eq(attempts.skill, skill) : undefined);
       const [rows, [{ total } = { total: 0 }]] = await Promise.all([
         db
@@ -349,11 +352,11 @@ export function register(app: App) {
           .leftJoin(analyses, eq(analyses.attemptId, attempts.id))
           .where(where)
           .orderBy(desc(attempts.createdAt), desc(attempts.id))
-          .limit(PAGE_SIZE)
-          .offset((page - 1) * PAGE_SIZE),
+          .limit(size)
+          .offset((page - 1) * size),
         db.select({ total: count() }).from(attempts).where(where),
       ]);
-      return c.json({ items: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })), page, pageSize: PAGE_SIZE, total }, 200);
+      return c.json({ items: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })), page, pageSize: size, total: guest ? Math.min(total, size) : total }, 200);
     },
   );
 

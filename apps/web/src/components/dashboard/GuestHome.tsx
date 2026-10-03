@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { ArrowRight, Layers, LibraryBig, MessagesSquare, Mic, PenLine, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
 import { speakingSession, StartWritingButton } from '@/components/bank/PracticeLink';
+import { GuestRecent } from '@/components/dashboard/GuestRecent';
 import { QuotaStrip } from '@/components/community/QuotaNote';
 import { Badge, buttonStyles, Card, PageContainer, PageHeader, ProgressBar } from '@/components/ui';
 import { formatBand } from '@/lib/format';
@@ -42,6 +43,7 @@ export function GuestHome() {
       />
 
       <div className="space-y-10 md:space-y-12">
+        <GuestRecent />
         <section aria-labelledby="free-h" className="space-y-3">
           <h2 id="free-h" className="type-heading">
             Free to try, no account

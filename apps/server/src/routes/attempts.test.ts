@@ -1,6 +1,6 @@
 import { beforeEach, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { req, seedPrompt, testUser } from '../test/helpers';
+import { guestUser, req, seedPrompt, testUser } from '../test/helpers';
 import { db } from '../db/client';
 import { analyses, attempts, user as userTable } from '../db/schema';
 import { setAnalyzer } from '../jobs';
@@ -180,4 +180,29 @@ it('topFixesInDeck turns true once the top fixes were added to the deck', async 
   expect(await flag()).toBe(false);
   await req('/api/cards/bulk', { headers, body: { cards: topFixes.map((f) => ({ front: `${f.title}\n\n${f.before}`, back: `${f.after}\n\n${f.why}`, source: 'fix' })) } });
   expect(await flag()).toBe(true);
+});
+
+it('list: a guest sees only their own latest 10 (no paging); accounts keep full paged history', async () => {
+  const g = await guestUser();
+  const other = await guestUser();
+  const acct = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const mine = Array.from({ length: 12 }, (_, i) => ({ id: `gr-${g.user.id}-${i}`, userId: g.user.id, promptId: p.id, skill: 'writing' as const, part: 2, createdAt: new Date(Date.now() - i * 1000) }));
+  await db.insert(attempts).values([...mine, { id: `gr-o-${other.user.id}`, userId: other.user.id, promptId: p.id, skill: 'writing', part: 2 }]);
+  await db.insert(attempts).values(Array.from({ length: 12 }, (_, i) => ({ id: `ga-${acct.user.id}-${i}`, userId: acct.user.id, promptId: p.id, skill: 'writing' as const, part: 2 })));
+
+  const res = await req('/api/attempts?page=2', { headers: g.headers });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as any;
+  expect(body).toMatchObject({ page: 1, pageSize: 10, total: 10 });
+  expect(body.items).toHaveLength(10);
+  expect(body.items.every((a: any) => a.id.startsWith(`gr-${g.user.id}-`))).toBe(true);
+  expect(body.items[0].id).toBe(mine[0]!.id);
+
+  const o = (await (await req('/api/attempts', { headers: other.headers })).json()) as any;
+  expect(o.items.map((a: any) => a.id)).toEqual([`gr-o-${other.user.id}`]);
+
+  const a = (await (await req('/api/attempts', { headers: acct.headers })).json()) as any;
+  expect(a).toMatchObject({ pageSize: 20, total: 12 });
+  expect((await req('/api/attempts')).status).toBe(401);
 });

@@ -257,7 +257,8 @@ describe('guests', () => {
     expect((await quota(g.headers)).writing).toMatchObject({ window: 'week', used: 1, remaining: 0 });
 
     expect((await req(`/api/attempts/${first.id}`, { headers: g.headers })).status).toBe(200); // the result page right after the test
-    for (const path of ['/api/attempts', '/api/mistakes', '/api/cards/due', '/api/progress'])
+    expect(((await (await req('/api/attempts', { headers: g.headers })).json()) as any).items).toHaveLength(1); // a guest's own short recent list is open (capped); the full pages are not
+    for (const path of ['/api/mistakes', '/api/cards/due', '/api/progress'])
       expect(await (async () => { const r = await req(path, { headers: g.headers }); return [r.status, (await r.json() as any).code]; })()).toEqual([403, 'account_required']);
     expect((await req('/api/settings', { method: 'PUT', headers: g.headers, body: { targetBand: 8 } })).status).toBe(403);
     expect((await req('/api/keys', { headers: g.headers })).status).toBe(403);

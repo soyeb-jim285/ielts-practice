@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { BookOpen, Headphones } from 'lucide-react';
 import { useState } from 'react';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
+import { GuestRecent } from '@/components/dashboard/GuestRecent';
 import { Alert, Badge, Button, Dialog, EmptyState, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
 import { ensureSession } from '@/lib/auth';
@@ -142,6 +143,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
           )
         }
       />
+      <GuestRecent skill={skill} />
       {items.length === 0 ? (
         <EmptyState icon={<c.icon />} title={`No ${skill} tests yet`}>
           Tests appear here once they are imported. Run the importer, then reload this page.

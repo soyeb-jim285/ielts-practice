@@ -10,6 +10,7 @@ import { formatBand, formatRelative } from '@/lib/format';
 import { bandColor, sentenceCase, type AttemptListItem } from '@/lib/result';
 import { QuotaNote } from '@/components/community/QuotaNote';
 import { useAccount } from '@/lib/query';
+import { GuestRecent } from '@/components/dashboard/GuestRecent';
 import { useQuota } from '@/lib/community';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ function SpeakingHome() {
       <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
       <div className="flex flex-col gap-12">
         <PendingUploads />
+        <GuestRecent skill="speaking" />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
             link={{ to: '/speaking/session', search: { mode: 'full' } }}

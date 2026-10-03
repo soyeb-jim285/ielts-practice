@@ -3685,7 +3685,7 @@
             "bearer": []
           }
         ],
-        "summary": "Attempt history, newest first, 20 per page",
+        "summary": "Attempt history, newest first, 20 per page. A guest (anonymous session) gets only their 10 latest, no paging.",
         "parameters": [
           {
             "schema": {

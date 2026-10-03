@@ -8,6 +8,7 @@ import type { WritingPrompt } from '@/components/writing/PromptPanel';
 import { api, call, client } from '@/lib/api';
 import { ensureSession } from '@/lib/auth';
 import { formatBand, formatDate, plural } from '@/lib/format';
+import { GuestRecent } from '@/components/dashboard/GuestRecent';
 import { QuotaNote } from '@/components/community/QuotaNote';
 import { useAccount } from '@/lib/query';
 import { bandColor } from '@/lib/result';
@@ -56,6 +57,7 @@ function WritingHome() {
     <PageContainer>
       <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
 
+      <GuestRecent skill="writing" />
       <div className="space-y-12">
         <section aria-label="Start a task" className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <Card tone="hero" className="flex flex-col p-5 sm:p-7">

@@ -419,7 +419,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Attempt history, newest first, 20 per page */
+        /** Attempt history, newest first, 20 per page. A guest (anonymous session) gets only their 10 latest, no paging. */
         get: {
             parameters: {
                 query?: {
