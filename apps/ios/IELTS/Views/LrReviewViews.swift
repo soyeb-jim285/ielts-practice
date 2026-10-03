@@ -24,7 +24,6 @@ func lrPinned(_ line: String, _ span: LrReview.Span?, _ pins: [LrQPin]) -> Attri
         chip.backgroundColor = (pin.correct ? Color.good : Color.bad).opacity(0.15)
         chip.link = URL(string: "ieltsq://\(pin.n)")
         chip.underlineStyle = nil
-        chip.accessibilityLabel = "Question \(pin.n), \(pin.correct ? "right" : "wrong"): show details"
         a.insert(chip + AttributedString(" "), at: r.lowerBound)
     }
     return a
