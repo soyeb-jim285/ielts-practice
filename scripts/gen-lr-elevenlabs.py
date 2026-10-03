@@ -86,7 +86,9 @@ def main():
     rest = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or args[i - 1] != "--max-credits")]
     slug, only = rest[0], {int(p) for p in rest[1:]}
     CACHE.mkdir(parents=True, exist_ok=True)
-    parts = [p for p in json.loads((OUT / f"scripts/{slug}.json").read_text())["parts"] if not only or p["part"] in only]
+    script = json.loads((OUT / f"scripts/{slug}.json").read_text())
+    tempo = script.get("tempo", 1)  # optional atempo for speech (e.g. 0.92 = slightly slower)
+    parts = [p for p in script["parts"] if not only or p["part"] in only]
     est = sum(len(t["text"]) for p in parts for t in p["turns"])
     left, tier = remaining()
     print(f"{slug}: {est} chars (~{est // 2} credits at 0.5/char), account {tier}, {left} credits left", flush=True)
@@ -107,7 +109,7 @@ def main():
                     inputs = [{"voice_id": p["voices"][t["speaker"]], "text": t["text"]} for t in blk]
                     f, c = speech(inputs); spent += c
                     w = Path(td) / f"b{len(pieces)}.wav"
-                    ff("-i", str(f), "-ac", "1", "-ar", "44100", str(w)); pieces.append(w)
+                    ff("-i", str(f), "-ac", "1", "-ar", "44100", *(["-af", f"atempo={tempo}"] if tempo != 1 else []), str(w)); pieces.append(w)
                 add_silence(pause if pause else GAP)
             lst = Path(td) / "list.txt"
             lst.write_text("".join(f"file '{x}'\n" for x in pieces))
