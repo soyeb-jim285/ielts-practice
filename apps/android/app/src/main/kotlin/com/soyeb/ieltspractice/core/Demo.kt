@@ -44,17 +44,25 @@ object DemoFixtures {
  * Answers every request from the fixtures: exact "path?sorted-query" first, then the bare path. Writes succeed with `{}`.
  * Unknown GETs are 404. Every response carries `set-auth-token: demo`, like iOS.
  */
-class DemoInterceptor(private val fixtures: Map<String, String>) : Interceptor {
+class DemoInterceptor(private val fixtures: Map<String, String>, private val assets: (String) -> ByteArray? = { null }) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val req = chain.request()
         var status = 200
         var body = "{}"
+        // Bundled demo media: the map figure of the Listening & Reading fixtures (iOS demo-map.png).
+        if (req.method == "GET" && req.url.encodedPath.startsWith("/lr-assets/") && req.url.encodedPath.endsWith(".png")) {
+            assets("demo-map.png")?.let { png ->
+                return Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("OK").body(png.toResponseBody("image/png".toMediaType())).build()
+            }
+        }
         if (req.method == "GET") {
             val url = req.url
             val query = url.queryParameterNames.sorted().mapNotNull { n -> url.queryParameter(n)?.let { "$n=$it" } }.joinToString("&")
             val path = url.encodedPath
             val hit = fixtures[if (query.isEmpty()) path else "$path?$query"] ?: fixtures[path]
             if (hit != null) body = hit else status = 404
+        } else {
+            fixtures["${req.method} ${req.url.encodedPath}"]?.let { body = it } // a canned answer to a write ("POST /api/lr/attempts/x/submit"); other writes succeed with {}
         }
         return Response.Builder()
             .request(req).protocol(Protocol.HTTP_1_1).code(status).message(if (status == 200) "OK" else "Not Found")

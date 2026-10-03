@@ -37,6 +37,12 @@ import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.History
+import com.soyeb.ieltspractice.ui.nav.LrHub
+import com.soyeb.ieltspractice.ui.nav.LrResult
+import com.soyeb.ieltspractice.ui.nav.LrRun
+import com.soyeb.ieltspractice.core.LrAttemptItem
+import com.soyeb.ieltspractice.ui.Load
+import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
 import com.soyeb.ieltspractice.ui.nav.WritingEditor
 import com.soyeb.ieltspractice.ui.screens.shell.EmptyState
@@ -80,8 +86,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
     val me by api.me.collectAsState()
     val target = me?.settings?.targetBand ?: 7.0
     var skill by remember { mutableStateOf(route.skill.orEmpty()) } // "" = all
+    // Listening & Reading attempts (cambridge accounts only) come from their own list and sit above the speaking and writing ones.
+    val lrOn = me?.cambridgeAccess == true
+    val isLr = skill == "listening" || skill == "reading"
+    val lrLoad = rememberLoad(lrOn) { if (lrOn) api.getList<LrAttemptItem>("/api/lr/attempts") else emptyList() }
+    val lr = ((lrLoad.state as? Load.Ready)?.value ?: emptyList()).filter { !isLr || it.skill == skill }
     val paged = remember {
         Paged(scope) { page ->
+            if (skill == "listening" || skill == "reading") return@Paged PageResult(emptyList(), 0)
             val r = api.get<HistoryPage>("/api/attempts", mapOf("skill" to skill.ifEmpty { null }, "page" to page.toString()))
             PageResult(r.items, r.total)
         }
@@ -93,7 +105,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             AppCard {
-                Segmented(listOf("" to "All", "speaking" to "Speaking", "writing" to "Writing"), skill, { skill = it })
+                Segmented(
+                    listOf("" to "All", "speaking" to "Speaking", "writing" to "Writing") + if (lrOn) listOf("listening" to "Listening", "reading" to "Reading") else emptyList(),
+                    skill, { skill = it },
+                )
                 Text(
                     if (total > 0) "$total ${if (total == 1) "attempt" else "attempts"}, newest first" else "Every answer you record and essay you submit.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.ext.muted,
@@ -103,7 +118,21 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
         paged.error?.let { msg ->
             item { AppCard { ErrorLine(msg); SecondaryButton("Try again", { paged.reset() }) } }
         }
-        if (paged.items.isEmpty() && paged.error == null) {
+        if (lrOn && lr.isNotEmpty()) item(key = "lr") {
+            Column {
+                GroupHeader("Listening and Reading")
+                AppCard(padding = 0.dp) {
+                    lr.take(if (isLr) lr.size else 5).forEachIndexed { i, a ->
+                        if (i > 0) RowDivider()
+                        LrHistoryRow(a, target) { nav.go(if (a.status == "submitted") LrResult(a.id) else LrRun(a.id)) }
+                    }
+                }
+            }
+        }
+        if (isLr && lr.isEmpty() && lrLoad.state is Load.Ready) item {
+            EmptyState("No $skill attempts yet", "Every $skill test you take is listed here with its band.", action = "Start a test", onAction = { nav.go(LrHub(skill)) })
+        }
+        if (!isLr && !(lrOn && lr.isNotEmpty()) && paged.items.isEmpty() && paged.error == null) {
             item {
                 if (paged.loading) Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
                 else EmptyState(
@@ -131,6 +160,29 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
             if (paged.items.isNotEmpty() && paged.loading) Box(Modifier.fillMaxWidth().padding(16.dp), Alignment.Center) { CircularProgressIndicator() }
             LaunchedEffect(paged.items.size, paged.hasMore) { paged.more() }
         }
+    }
+}
+
+/** One Listening or Reading attempt: skill icon, title, mode and date (or "In progress"), then the band. */
+@Composable
+private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit) {
+    val e = MaterialTheme.ext
+    val done = a.status == "submitted"
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
+    ) {
+        Icon(painterResource(if (a.skill == "listening") R.drawable.ic_sp_headphones else R.drawable.ic_lr_book), null, Modifier.padding(top = 2.dp).size(20.dp), tint = e.muted)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(a.title, style = MaterialTheme.typography.titleSmall, color = e.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (!done) Chip("In progress", color = e.warnText)
+            Text(
+                "${if (a.mode == "exam") "Exam" else "Practice"}, ${ShellDate.date(a.startedAt)}" + if (done) ", ${a.raw}/${a.total}" else "",
+                style = MaterialTheme.typography.bodySmall, color = e.muted,
+            )
+        }
+        val b = a.band
+        if (done && b != null) Text(fmt(b), Modifier.clearAndSetSemantics { contentDescription = "Band ${fmt(b)}" }, style = AppText.band(20), color = bandTextColor(b, target))
     }
 }
 

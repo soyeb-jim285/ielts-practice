@@ -36,6 +36,11 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
 
     fun back() { controller.popBackStack() }
 
+    /** Open [route] in place of the current screen (a submitted test: the runner is replaced by its result). */
+    fun replace(route: Any) = controller.navigate(route) {
+        controller.currentBackStackEntry?.destination?.id?.let { popUpTo(it) { inclusive = true } }
+    }
+
     /** Switch tab like the bottom bar does (keeps each tab's stack). */
     fun openTab(tab: Tab) = controller.navigate(tab.route) {
         popUpTo(controller.graph.findStartDestination().id) { saveState = true }

@@ -50,6 +50,7 @@ import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.Bank
 import com.soyeb.ieltspractice.ui.nav.History
+import com.soyeb.ieltspractice.ui.nav.LrHub
 import com.soyeb.ieltspractice.ui.nav.LiveExam
 import com.soyeb.ieltspractice.ui.nav.Mistakes
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
@@ -339,6 +340,12 @@ private fun PractiseCard(due: DueResponse?, nav: AppNav) {
             RowDivider()
             NavRow("Task 2 essay", "40 min, at least 250 words", { nav.go(WritingEditor("task2")) }, icon = R.drawable.ic_edit)
             RowDivider()
+            if (LocalApp.current.api.me.collectAsState().value?.cambridgeAccess == true) { // Listening and Reading: Cambridge-allow-listed accounts only
+                NavRow("Listening", "Four recordings, 40 questions", { nav.go(LrHub("listening")) }, icon = R.drawable.ic_sp_headphones)
+                RowDivider()
+                NavRow("Reading", "Three passages, 60 minutes", { nav.go(LrHub("reading")) }, icon = R.drawable.ic_lr_book)
+                RowDivider()
+            }
             NavRow(
                 "Review deck", reviewMeta(due), { nav.openTab(Tab.Review) }, icon = R.drawable.ic_review,
                 badge = due?.dueTotal?.takeIf { it > 0 }?.let { "$it due" },

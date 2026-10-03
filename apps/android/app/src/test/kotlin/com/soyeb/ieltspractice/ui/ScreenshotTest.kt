@@ -34,21 +34,7 @@ data class ScreenCase(val screen: String, val variant: String?, val dark: Boolea
 class ScreenshotTest(private val case: ScreenCase) {
     @get:Rule val rule = createComposeRule()
 
-    @Test fun capture() {
-        val demo = DemoConfig(screen = case.screen, tab = case.variant, theme = if (case.dark) "dark" else "light")
-        val container = AppContainer(RuntimeEnvironment.getApplication(), demo)
-        rule.setContent { IeltsApp(container, demo) }
-        // Demo requests answer synchronously from fixtures but complete on an IO thread: wait until none are in flight, then let
-        // the UI settle. Repeat, since a loaded screen can start follow-up requests.
-        repeat(4) {
-            rule.waitForIdle()
-            Thread.sleep(80) // let a request that follows another one start before the counter is read
-            // Soft wait: a slow CI worker must not lose the shot (the capture shows whatever state was reached).
-            try { rule.waitUntil(30_000) { container.api.inflight.get() == 0 } } catch (e: ComposeTimeoutException) { println("capture ${case.fileName}: inflight=${container.api.inflight.get()} after 30s") }
-        }
-        rule.waitForIdle()
-        rule.onRoot().captureRoboImage("../screenshots/${case.fileName}.png")
-    }
+    @Test fun capture() = captureScreen(rule, case, case.fileName)
 
     companion object {
         @JvmStatic
@@ -57,4 +43,21 @@ class ScreenshotTest(private val case: ScreenCase) {
             (s.variants.ifEmpty { listOf(null) }).flatMap { v -> listOf(false, true).map { d -> arrayOf<Any>(ScreenCase(s.name, v, d)) } }
         }
     }
+}
+
+/** Renders [case] from the demo fixtures, waits for its requests, and writes `screenshots/<file>.png`. */
+internal fun captureScreen(rule: androidx.compose.ui.test.junit4.ComposeContentTestRule, case: ScreenCase, file: String) {
+    val demo = DemoConfig(screen = case.screen, tab = case.variant, theme = if (case.dark) "dark" else "light")
+    val container = AppContainer(RuntimeEnvironment.getApplication(), demo)
+    rule.setContent { IeltsApp(container, demo) }
+    // Demo requests answer synchronously from fixtures but complete on an IO thread: wait until none are in flight, then let
+    // the UI settle. Repeat, since a loaded screen can start follow-up requests.
+    repeat(4) {
+        rule.waitForIdle()
+        Thread.sleep(80) // let a request that follows another one start before the counter is read
+        // Soft wait: a slow CI worker must not lose the shot (the capture shows whatever state was reached).
+        try { rule.waitUntil(30_000) { container.api.inflight.get() == 0 } } catch (e: ComposeTimeoutException) { println("capture $file: inflight=${container.api.inflight.get()} after 30s") }
+    }
+    rule.waitForIdle()
+    rule.onRoot().captureRoboImage("../screenshots/$file.png")
 }

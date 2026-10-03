@@ -16,6 +16,10 @@ Status: done / partial / missing. Verified by unit tests (models against the sha
 | Live examiner, Gemini Live | done | token from /api/live/gemini-token, direct socket, session resumption |
 | Fallback to turn-based when a duplex provider cannot connect | done | |
 | Live settings value migration `openai-realtime` to `gpt-live`, `gptLiveAvailable` (with `realtimeAvailable` alias) | done | |
+| Listening & Reading hubs (Cambridge book groups, Original practice tests, Academic / General chip, in-progress bar, best band), Exam / Practice sheet | done | only when `/api/me` has `cambridgeAccess`; reached from the Home "Practise" card and Settings "More" (the tab bar stays five tabs); `ui/screens/lr/LrHubScreen.kt` |
+| Listening & Reading runner: reading Passage / Questions tabs (side by side from 840 dp), listening sticky audio bar, every question type (gap inline in text and tables, mcq, choose-N, true/false/not given, match and word-box dropdowns, zoomable figures), navigator sheet with answered and flagged, flag, previous / next, autosave (~1 s, on stop, clock every 15 s), resume, leave and submit dialogs | done | Exam: reading 60-min countdown that auto-submits; listening plays all parts once with no pause or seek, then a 2-min review countdown and auto-submit (Media3 playlist). Practice: scrub, +-5 s, 0.75 / 1 / 1.25x, replay a part. Audio playback and a live server are not exercised by CI (demo mode shows fixed states) |
+| Listening & Reading result (band, raw / 40, by part and type, answers with Wrong only, tap a number to see it in context, transcript with player, passage, Retake) and History rows | done | |
+| Passage highlighting (web: select text, kept per attempt) | partial | long-press selects and copies; highlights are not kept |
 | Writing hub (full test, Task 1 academic/general, Task 2) | done | |
 | Writing editor (timer from wall clock, 5/1 min warnings, word bar, plan, paste block, auto submit, drafts) | done | |
 | Task 1 charts (line, bar, pie, table, process, map) | done | drawn natively |
@@ -36,4 +40,4 @@ Status: done / partial / missing. Verified by unit tests (models against the sha
 | Accessibility (content descriptions, 48dp targets, reduced motion) | partial | no TalkBack pass on a device |
 | Offline use | partial | pending recordings queue; screens need the network |
 | Push notifications / reminders | missing | not in web or iOS either |
-| Tablet / landscape layouts | partial | phone layouts scale; no two-pane |
+| Tablet / landscape layouts | partial | phone layouts scale; Listening & Reading reading and results go two-pane from 840 dp, nothing else does |

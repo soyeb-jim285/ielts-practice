@@ -55,15 +55,19 @@ kotlin {
 // as the asset `fixtures.json`. One source of truth for both apps.
 abstract class CopyDemoFixtures : DefaultTask() {
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) abstract val source: RegularFileProperty
+    /** The map figure of the Listening & Reading fixtures (served for the placeholder image URL). */
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) abstract val map: RegularFileProperty
     @get:OutputDirectory abstract val outDir: DirectoryProperty
 
     @TaskAction fun copy() {
         source.get().asFile.copyTo(outDir.get().file("fixtures.json").asFile, overwrite = true)
+        map.get().asFile.copyTo(outDir.get().file("demo-map.png").asFile, overwrite = true)
     }
 }
 
 val copyDemoFixtures by tasks.registering(CopyDemoFixtures::class) {
     source.set(rootProject.layout.projectDirectory.file("../ios/IELTS/Demo/fixtures.json"))
+    map.set(rootProject.layout.projectDirectory.file("../ios/IELTS/Demo/demo-map.png"))
 }
 
 androidComponents {

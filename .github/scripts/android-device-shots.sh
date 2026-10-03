@@ -29,7 +29,9 @@ SCREENS="login guest-home guest-speaking guest-writing guest-review guest-settin
   session-p1 session session-prep session-recording session-saving editor editor-t1 editor-full live
   result-speaking:Overview result-speaking:Transcript result-speaking:Fluency result-speaking:Language result-speaking:Improve
   result-writing:Overview result-writing:Essay result-writing:Structure result-writing:Language result-writing:Improve
-  result-session result-analysing result-failed result-nospeech"
+  result-session result-analysing result-failed result-nospeech
+  lr-hub lr-hub-listening lr-mode lr-reading lr-reading-questions lr-reading-p2 lr-navigator lr-submit lr-leave
+  lr-listening lr-listening-exam lr-listening-gate lr-listening-review lr-result lr-result-p2 lr-result-listening lr-history lr-home"
 
 for mode in light dark; do
   if [ "$mode" = dark ]; then adb shell cmd uimode night yes; else adb shell cmd uimode night no; fi

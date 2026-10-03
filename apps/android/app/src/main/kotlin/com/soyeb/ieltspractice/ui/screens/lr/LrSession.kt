@@ -1,0 +1,94 @@
+package com.soyeb.ieltspractice.ui.screens.lr
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.soyeb.ieltspractice.core.ApiClient
+import com.soyeb.ieltspractice.core.LrAttempt
+import com.soyeb.ieltspractice.core.LrSaved
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+enum class SaveState(val label: String) { Saved("Saved"), Dirty("Unsaved changes"), Saving("Saving"), Error("Offline, retrying") }
+
+/**
+ * The answers of an in-progress attempt (web useLrSession): local state, debounced autosave (~1 s), a flush when the screen stops,
+ * a keep-alive save of the clock every 15 s, and submit. Saves run on the app [scope] so a flush survives the screen leaving.
+ * [elapsed] is the clock in seconds, written by the screen; it is never state, so the clock does not recompose this.
+ */
+class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val scope: CoroutineScope) {
+    var responses by mutableStateOf(attempt.responses)
+        private set
+    var state by mutableStateOf(SaveState.Saved)
+        private set
+    var submitting by mutableStateOf(false)
+        private set
+    @Volatile var elapsed: Double = attempt.elapsedS.toDouble()
+
+    private var dirty = false
+    private var done = false
+    private var debounce: Job? = null
+    private val lock = Mutex()
+
+    fun change(next: Map<String, String>) {
+        responses = next
+        dirty = true
+        state = SaveState.Dirty
+        debounce?.cancel()
+        debounce = scope.launch { delay(1000); flush() }
+    }
+
+    /** Persist now when something changed (or [force], for the clock). Failures retry every 5 s. */
+    suspend fun flush(force: Boolean = false) {
+        if (done || (!dirty && !force)) return
+        lock.withLock {
+            if (done) return
+            dirty = false
+            state = SaveState.Saving
+            try {
+                api.send<LrSaved>("PUT", "/api/lr/attempts/${attempt.id}", body())
+                state = if (dirty) SaveState.Dirty else SaveState.Saved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                dirty = true
+                state = SaveState.Error
+                debounce?.cancel()
+                debounce = scope.launch { delay(5000); flush() }
+            }
+        }
+    }
+
+    /** Fire-and-forget [flush] for lifecycle callbacks (ON_STOP, leaving the screen). */
+    fun flushLater(force: Boolean = false) { scope.launch { flush(force) } }
+
+    private fun body(): JsonObject = buildJsonObject {
+        put("responses", JsonObject(responses.mapValues { JsonPrimitive(it.value) }))
+        put("elapsedS", elapsed.toInt())
+    }
+
+    /** Scores the attempt. Throws the ApiError on failure (the answers stay saved and the caller may try again). */
+    suspend fun submit(): LrAttempt {
+        if (done) error("already submitting")
+        done = true
+        debounce?.cancel()
+        submitting = true
+        try {
+            return lock.withLock { api.send<LrAttempt>("POST", "/api/lr/attempts/${attempt.id}/submit", body()) }
+        } catch (e: Throwable) {
+            done = false
+            throw e
+        } finally {
+            submitting = false
+        }
+    }
+}

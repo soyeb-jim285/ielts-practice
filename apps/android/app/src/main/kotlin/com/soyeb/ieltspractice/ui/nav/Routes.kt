@@ -44,3 +44,8 @@ import kotlinx.serialization.Serializable
 
 /** iOS `.mistakes(category:)`: null for all categories. */
 @Serializable data class Mistakes(val category: String? = null)
+
+/** Listening & Reading (cambridge-gated): the hub of one skill ("listening" | "reading"), a test being taken, and the result of a submitted one. */
+@Serializable data class LrHub(val skill: String)
+@Serializable data class LrRun(val attemptId: String)
+@Serializable data class LrResult(val attemptId: String)

@@ -49,6 +49,12 @@ import com.soyeb.ieltspractice.ui.nav.History
 import com.soyeb.ieltspractice.ui.nav.HomeTab
 import com.soyeb.ieltspractice.ui.nav.LiveExam
 import com.soyeb.ieltspractice.ui.nav.Login
+import com.soyeb.ieltspractice.ui.nav.LrHub
+import com.soyeb.ieltspractice.ui.nav.LrResult
+import com.soyeb.ieltspractice.ui.nav.LrRun
+import com.soyeb.ieltspractice.ui.screens.lr.LrHubScreen
+import com.soyeb.ieltspractice.ui.screens.lr.LrResultScreen
+import com.soyeb.ieltspractice.ui.screens.lr.LrRunScreen
 import com.soyeb.ieltspractice.ui.nav.Mistakes
 import com.soyeb.ieltspractice.ui.nav.ReviewTab
 import com.soyeb.ieltspractice.ui.nav.SettingsTab
@@ -133,6 +139,9 @@ private fun AppNavHost(start: Any) {
                 composable<Bank> { BankScreen(it.toRoute(), nav) }
                 composable<History> { HistoryScreen(it.toRoute(), nav) }
                 composable<Mistakes> { MistakesScreen(it.toRoute(), nav) }
+                composable<LrHub> { LrHubScreen(it.toRoute(), nav) }
+                composable<LrRun> { LrRunScreen(it.toRoute(), nav) }
+                composable<LrResult> { LrResultScreen(it.toRoute(), nav) }
             }
         }
         GateHost(nav) // the limit panel and the fair-use dialog, over whatever screen is open

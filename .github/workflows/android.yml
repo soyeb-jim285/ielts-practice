@@ -9,6 +9,7 @@ on:
     paths:
       - "apps/android/**"
       - "apps/ios/IELTS/Demo/fixtures.json" # the demo fixtures are shared with iOS
+      - "apps/ios/IELTS/Demo/demo-map.png"
       - ".github/workflows/android.yml"
 
 concurrency:

@@ -52,6 +52,7 @@ import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.Bank
 import com.soyeb.ieltspractice.ui.nav.History
+import com.soyeb.ieltspractice.ui.nav.LrHub
 import com.soyeb.ieltspractice.ui.nav.Mistakes
 import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.screens.shell.AppField
@@ -156,6 +157,12 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
     AppCard {
         SectionTitle("More")
         Column {
+            if (LocalApp.current.api.me.collectAsState().value?.cambridgeAccess == true) {
+                NavRow("Listening tests", null, { nav.go(LrHub("listening")) }, icon = R.drawable.ic_sp_headphones)
+                RowDivider()
+                NavRow("Reading tests", null, { nav.go(LrHub("reading")) }, icon = R.drawable.ic_lr_book)
+                RowDivider()
+            }
             NavRow("Past attempts", null, { nav.go(History()) }, icon = R.drawable.ic_history)
             RowDivider()
             NavRow("Mistakes", null, { nav.go(Mistakes()) }, icon = R.drawable.ic_alert)
