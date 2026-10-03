@@ -52,7 +52,7 @@ export function createApp() {
   });
   app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
     const asked = c.req.method === 'POST' ? await codeRequest(c.req.path, c.req.raw) : null;
-    if (asked && !codeRequestOk(clientIpHash(c) ?? 'unknown', asked.email)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
+    if (asked && !codeRequestOk(clientIpHash(c) ?? 'unknown')) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
     const before = asked ? await countBefore(asked) : 0;
     let res = await auth.handler(c.req.raw);
     if (asked) res = await finishRequest(asked, before, res);

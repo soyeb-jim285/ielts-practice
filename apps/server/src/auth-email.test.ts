@@ -265,16 +265,73 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
     expect((await rows()).map((r) => r.status).sort()).toEqual(['sent', 'skipped_cooldown', 'skipped_cooldown', 'skipped_cooldown', 'skipped_cooldown']);
   });
 
-  it('is limited per target address and per client address on the code-sending endpoints', async () => {
+  it('is limited per client address only (a per-victim bucket would be a lockout)', async () => {
     const e = fresh();
     send.mockResolvedValue(ok);
     const codes: number[] = [];
-    for (let i = 0; i < 7; i++) codes.push((await post('/email-otp/send-verification-otp', { email: e, type: 'email-verification' }, `10.8.0.${i}`)).status); // different clients, same victim
-    expect(codes.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
-    expect(codes.slice(5)).toEqual([429, 429]);
+    for (let i = 0; i < 12; i++) codes.push((await post('/email-otp/send-verification-otp', { email: e, type: 'email-verification' }, `10.8.0.${i}`)).status); // different clients, same victim
+    expect(codes.every((c) => c === 200)).toBe(true); // never per target address: that would let anyone lock the owner out of their own code
     const ip: number[] = [];
     for (let i = 0; i < 33; i++) ip.push((await post('/email-otp/send-verification-otp', { email: fresh(), type: 'email-verification' }, '10.7.7.7')).status); // one client, many victims
     expect(ip.slice(0, 30).every((c) => c === 200)).toBe(true);
     expect(ip.at(-1)).toBe(429);
+  });
+
+  it('full observable trace of every code-sending endpoint: status, body, header names and latency match for an existing and an unknown address', async () => {
+    const real = fresh();
+    const ghost = fresh();
+    await signUp(real);
+    send.mockResolvedValue(ok);
+    const trace = async (email: string) => {
+      const out: unknown[] = [];
+      const ms: number[] = [];
+      for (const [path, body] of [
+        ['/email-otp/send-verification-otp', { email, type: 'email-verification' }],
+        ['/email-otp/send-verification-otp', { email, type: 'email-verification' }], // immediate repeat
+        ['/email-otp/request-password-reset', { email }],
+        ['/email-otp/reset-password', { email, otp: '123456', password: 'new-password-123' }],
+      ] as const) {
+        const t = performance.now();
+        const r = await post(path, body);
+        ms.push(performance.now() - t);
+        await sendsIdle();
+        out.push({ path, http: r.status, body: await r.json(), headers: [...r.headers.keys()].sort() });
+      }
+      return { out, ms };
+    };
+    const a = await trace(real);
+    const b = await trace(ghost);
+    expect(b.out).toEqual(a.out);
+    // latency: compare the two code-sending calls that make Better Auth look the user up
+    const med = (x: number[]) => [...x].sort((p, q) => p - q)[Math.floor(x.length / 2)]!;
+    const ra: number[] = [];
+    const rb: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      await ageRows(real);
+      await ageRows(ghost);
+      ra.push((await trace(real)).ms[0]!);
+      rb.push((await trace(ghost)).ms[0]!);
+    }
+    expect(Math.abs(med(ra) - med(rb))).toBeLessThan(100);
+  });
+
+  it('sign-up of an existing address (production setting) answers like a new one: same status, body shape, headers and status sequence', async () => {
+    const opts = auth.options.emailAndPassword!;
+    opts.requireEmailVerification = true;
+    try {
+      const real = fresh();
+      const ghost = fresh();
+      await signUp(real);
+      const go = async (email: string) => {
+        const r = await post('/sign-up/email', { email, password: 'password1234', name: 'U' });
+        const j = (await r.json()) as { token: unknown; user: Record<string, unknown> };
+        await sendsIdle();
+        const st = (await status(r.headers.get('x-email-status-token'))).body;
+        return { http: r.status, token: j.token, userKeys: Object.keys(j.user).sort(), headers: [...r.headers.keys()].filter((k) => k !== 'set-auth-token').sort(), status: st.status, again: st.alreadySent, error: st.error };
+      };
+      expect(await go(ghost)).toEqual(await go(real)); // 'ghost' is brand new here, 'real' already has an account
+    } finally {
+      opts.requireEmailVerification = false;
+    }
   });
 });

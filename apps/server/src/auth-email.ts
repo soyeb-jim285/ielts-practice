@@ -37,8 +37,7 @@ export const sendsIdle = () => Promise.all([...sends]);
 export async function sendOtpEmail({ email: raw, otp, type }: { email: string; otp: string; type: string }) {
   if (!isPurpose(type)) return; // sign-in codes are not offered: passwords only
   const email = raw.toLowerCase();
-  const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
-  const id = await claim(email, type, u?.id ?? null);
+  const id = await claim(email, type, null); // same work as an unknown address's stand-in claim (finishRequest): no user lookup before the response
   if (!id) return;
   const mail = MAIL[type];
   const p = (async () => {
@@ -47,7 +46,8 @@ export async function sendOtpEmail({ email: raw, otp, type }: { email: string; o
       subject: mail.subject,
       html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
     });
-    await db.update(emailLog).set(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }).where(eq(emailLog.id, id));
+    const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
+    await db.update(emailLog).set({ userId: u?.id ?? null, ...(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }) }).where(eq(emailLog.id, id));
   })().catch((e) => console.error('[email] send/log failed', e instanceof Error ? e.message : e));
   sends.add(p);
   void p.finally(() => sends.delete(p));
