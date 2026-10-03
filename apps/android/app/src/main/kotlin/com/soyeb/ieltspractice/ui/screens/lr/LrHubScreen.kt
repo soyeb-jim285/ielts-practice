@@ -152,7 +152,7 @@ private fun TestRow(t: LrTestItem, listening: Boolean, target: Double, onClick: 
         Icon(painterResource(if (listening) R.drawable.ic_sp_headphones else R.drawable.ic_lr_book), null, Modifier.size(22.dp), tint = e.muted)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(name, style = MaterialTheme.typography.titleSmall, color = e.ink)
-            Chip(if (t.variant == "academic") "Academic" else "General Training", color = if (t.variant == "academic") e.muted else e.brand)
+            if (!listening) Chip(if (t.variant == "academic") "Academic" else "General Training", color = if (t.variant == "academic") e.muted else e.brand)
             Text(sub, style = MaterialTheme.typography.bodySmall, color = e.muted)
         }
         Column(Modifier.widthIn(min = 72.dp, max = 124.dp).clearAndSetSemantics {}, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {

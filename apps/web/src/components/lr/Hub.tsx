@@ -160,7 +160,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="type-subheading font-medium">{r ? `Test ${r.test}` : t.title}</span>
-                          <Badge tone={t.variant === 'academic' ? 'neutral' : 'info'}>{t.variant === 'academic' ? 'Academic' : 'General Training'}</Badge>
+                          {t.skill === 'reading' && <Badge tone={t.variant === 'academic' ? 'neutral' : 'info'}>{t.variant === 'academic' ? 'Academic' : 'General Training'}</Badge>}
                         </span>
                         <span className="type-caption mt-0.5 block">
                           {t.attemptId ? `Resume in ${t.mode} mode` : t.status === 'submitted' ? 'Retake or review' : '40 questions'}

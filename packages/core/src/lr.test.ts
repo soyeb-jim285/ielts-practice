@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { expandAnswer, isCorrect, lrBand, scoreLr, stripAnswers, validateLrTest, type LrTest } from './lr';
+import { expandAnswer, isCorrect, lrBand, normalizeLrContent, scoreLr, stripAnswers, validateLrTest, type LrTest } from './lr';
 
 describe('answer matching', () => {
   it('expands optional words', () => expect(expandAnswer('(the) old (town) hall').sort()).toEqual(['old hall', 'old town hall', 'the old hall', 'the old town hall']));
@@ -44,3 +44,9 @@ it('strips answers and transcript', () => {
   expect(s.sections[0]!.transcript).toBeUndefined();
 });
 it('validates', () => expect(validateLrTest(test)).toEqual(['3 questions (expected 40)']));
+
+it('normalizes content to the shared markdown subset', () => {
+  expect(normalizeLrContent('### Regular activities\n\n**Beach**\n- no {{2}}')).toBe('**Regular activities**\n\n**Beach**\n- no {{2}}');
+  expect(normalizeLrContent('| a | x {{40}} eat<br>– more |')).toBe('| a | x {{40}} eat · – more |');
+  expect(normalizeLrContent('| *Example* Tickets | **The** {{1}} |')).toBe('| Example Tickets | **The** {{1}} |');
+});

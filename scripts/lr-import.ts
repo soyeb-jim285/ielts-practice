@@ -4,7 +4,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateLrTest, type LrTest } from '../packages/core/src/lr';
+import { normalizeLrTest, validateLrTest, type LrTest } from '../packages/core/src/lr';
 
 const args = process.argv.slice(2);
 const [dry, force, dev] = ['--dry', '--force', '--dev'].map((f) => args.includes(f));
@@ -32,7 +32,7 @@ for (const dir of dirs) {
     continue;
   }
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.json')).sort()) {
-    const t = JSON.parse(readFileSync(join(dir, f), 'utf8')) as LrTest;
+    const t = normalizeLrTest(JSON.parse(readFileSync(join(dir, f), 'utf8')) as LrTest);
     const problems = validateLrTest(t);
     const keys = [...new Set(t.sections.flatMap((s) => [s.audio, ...s.groups.map((g) => g.image)]).filter((k): k is string => !!k))];
     const missing = keys.filter((k) => !existsSync(join(dir, 'assets', k)));

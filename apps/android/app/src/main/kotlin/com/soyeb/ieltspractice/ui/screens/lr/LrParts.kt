@@ -60,9 +60,10 @@ fun PassageView(p: LrPassage, modifier: Modifier = Modifier) {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(p.title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = e.ink)
             p.subtitle?.let { Text(it, style = AppText.readingSm, color = e.muted, fontStyle = FontStyle.Italic) }
+            val labelled = p.paragraphs.any { it.label != null }
             p.paragraphs.forEach { para ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(28.dp).padding(top = 3.dp), contentAlignment = Alignment.Center) {
+                    if (labelled) Box(Modifier.size(28.dp).padding(top = 3.dp), contentAlignment = Alignment.Center) {
                         if (para.label != null) Box(Modifier.size(24.dp).background(e.surface2, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                             Text(para.label, style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)
                         }

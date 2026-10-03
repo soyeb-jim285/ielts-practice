@@ -168,3 +168,22 @@ export function validateLrTest(t: LrTest): string[] {
   }
   return errs;
 }
+
+/**
+ * Reduce group content to the markdown subset every client renders (paragraphs, **bold**, lists, tables, {{n}}):
+ * "## Heading" → "**Heading**", <br> → " · ", other tags and *italic* markers dropped.
+ */
+export function normalizeLrContent(md: string): string {
+  return md
+    .split('\n')
+    .map((l) => l.replace(/^\s*#{1,6}\s+(.*?)\s*#*\s*$/, (_, h: string) => `**${h.replace(/\*\*/g, '')}**`))
+    .join('\n')
+    .replace(/<br\s*\/?>/gi, ' · ')
+    .replace(/<\/?[a-z][^>]*>/gi, '')
+    .replace(/(?<![*\w])\*(?!\*)([^*\n]+?)\*(?![*\w])/g, '$1');
+}
+
+/** normalizeLrContent applied to every group of a test (importers call this). */
+export function normalizeLrTest(t: LrTest): LrTest {
+  return { ...t, sections: t.sections.map((s) => ({ ...s, groups: s.groups.map((g) => (g.content ? { ...g, content: normalizeLrContent(g.content) } : g)) })) };
+}

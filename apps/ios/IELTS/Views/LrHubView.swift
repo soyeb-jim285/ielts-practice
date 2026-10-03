@@ -109,7 +109,7 @@ struct LrHubView: View {
             Image(systemName: icon).foregroundStyle(Color.muted).frame(width: 24).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(r.map { "Test \($0.test)" } ?? t.title).font(.body.weight(.medium)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
-                HStack(spacing: 6) {
+                if t.skill == "reading" {
                     Chip(text: t.variant == "academic" ? "Academic" : "General Training", color: t.variant == "academic" ? .muted : .sky)
                 }
                 Text(t.attemptId != nil ? "Resume in \(t.mode ?? "practice") mode" : t.status == "submitted" ? "Retake or review" : "40 questions")

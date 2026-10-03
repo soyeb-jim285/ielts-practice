@@ -42,6 +42,7 @@ export function Passage({ section, highlights, onAdd, onRemove }: { section: LrS
   const p = section.passage;
   const root = useRef<HTMLDivElement>(null);
   if (!p) return null;
+  const labelled = p.paragraphs.some((x) => x.label);
 
   const capture = () => {
     const sel = window.getSelection();
@@ -68,10 +69,12 @@ export function Passage({ section, highlights, onAdd, onRemove }: { section: LrS
       </header>
       <div className="space-y-4">
         {p.paragraphs.map((para, i) => (
-          <div key={i} className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3">
-            <span aria-hidden={!para.label} className="type-num mt-1.5 grid size-7 place-items-center self-start rounded-md bg-surface-2 text-sm font-semibold text-muted">
-              {para.label ?? ''}
-            </span>
+          <div key={i} className={labelled ? 'grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3' : undefined}>
+            {labelled && (
+              <span aria-hidden className={para.label ? 'type-num mt-1.5 grid size-7 place-items-center self-start rounded-md bg-surface-2 text-sm font-semibold text-muted' : undefined}>
+                {para.label}
+              </span>
+            )}
             <p className="type-reading max-w-[68ch] text-pretty selection:bg-warn-soft">
               {para.label && <span className="sr-only">Paragraph {para.label}. </span>}
               <Paragraph index={i} text={para.text} marks={(highlights ?? []).filter((h) => h.p === i)} onRemove={onRemove} />
