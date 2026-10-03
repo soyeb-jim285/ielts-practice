@@ -114,7 +114,7 @@ private fun AccuracyList(rows: List<Accuracy>) {
         rows.sortedBy { if (it.total > 0) it.right.toDouble() / it.total else 0.0 }.forEachIndexed { i, r ->
             val ratio = if (r.total > 0) r.right.toDouble() / r.total else 0.0
             if (i > 0) HorizontalDivider(color = e.line)
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row {
                     Text(r.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = e.ink)
                     Text("${r.right}/${r.total}", style = MaterialTheme.typography.titleSmall.merge(AppText.num), color = e.ink)
