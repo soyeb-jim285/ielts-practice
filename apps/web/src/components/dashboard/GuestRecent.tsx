@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { BookOpen, Headphones, Mic, PenLine } from 'lucide-react';
+import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
 import { Badge, buttonStyles } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate } from '@/lib/format';
 import { useMe } from '@/lib/query';
+import { cn } from '@/lib/utils';
 
 type Skill = 'speaking' | 'writing' | 'listening' | 'reading';
 type Row = { id: string; skill: Skill; title: string; part: string; mode: string; at: string; band: number | null; state: 'done' | 'open' | 'scoring' | 'failed' };
@@ -44,8 +46,8 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
           const to = r.skill === 'listening' || r.skill === 'reading' ? (r.state === 'open' ? '/lr/run/$attemptId' : '/lr/result/$attemptId') : r.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId';
           const st = r.state in STATE ? STATE[r.state as keyof typeof STATE] : null;
           return (
-            <li key={r.id}>
-              <Link to={to} params={{ attemptId: r.id }} className={rowStyles}>
+            <li key={r.id} className="flex items-center gap-1">
+              <Link to={to} params={{ attemptId: r.id }} className={cn(rowStyles, 'min-w-0 flex-1')}>
                 <RowIcon>
                   <Icon />
                 </RowIcon>
@@ -71,6 +73,7 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
                 ) : null}
                 <RowChevron />
               </Link>
+              <RemoveAttempt kind={r.skill === 'listening' || r.skill === 'reading' ? 'lr' : 'attempt'} id={r.id} title={r.title} />
             </li>
           );
         })}

@@ -3939,7 +3939,8 @@
             "bearer": []
           }
         ],
-        "summary": "Delete an attempt (its analysis and mistakes cascade)",
+        "summary": "Remove an attempt from my history (any status, also one still in progress)",
+        "description": "Hard delete: the row, its analysis and mistakes (cascade) and its recording. Review cards stay (they hold no attempt reference). The quota is NOT refunded (quota_usage keeps the payment and its members). A retry whose parent this was loses the parent link.",
         "parameters": [
           {
             "schema": {
@@ -5469,6 +5470,58 @@
           },
           "409": {
             "description": "Already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an attempt from my history (submitted or still in progress)",
+        "description": "Hard delete of the row (responses, marks, stats and analysis live in it), so progress, trend and spelling lists drop it. Review cards stay. There is no quota on Listening & Reading.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {

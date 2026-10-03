@@ -263,6 +263,23 @@ describe('listening & reading review', () => {
     expect(sp.items[0].typed.sort()).toEqual(['castorium', 'castoreumm'].sort());
   });
 
+  it('delete: owner only, in-progress or submitted; spelling and progress forget it', async () => {
+    const rid = await seed(fixture('reading'));
+    const { headers } = await testUser();
+    const other = await testUser('someone@x.com');
+    const a = await start(rid, headers);
+    await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: { '7': 'castorium' } } });
+    expect((await body(await req('/api/lr/spelling', { headers }))).items).toHaveLength(1);
+    expect((await req(`/api/lr/attempts/${a.id}`, { method: 'DELETE', headers: other.headers })).status).toBe(404);
+    expect((await req(`/api/lr/attempts/${a.id}`, { method: 'DELETE', headers })).status).toBe(200);
+    expect((await req(`/api/lr/attempts/${a.id}`, { method: 'DELETE', headers })).status).toBe(404);
+    expect((await body(await req('/api/lr/attempts', { headers }))).items).toEqual([]);
+    expect((await body(await req('/api/lr/spelling', { headers }))).items).toEqual([]);
+    expect((await body(await req('/api/lr/progress', { headers }))).trend).toEqual([]);
+    const b = await start(rid, headers);
+    expect((await req(`/api/lr/attempts/${b.id}`, { method: 'DELETE', headers })).status).toBe(200);
+  });
+
   it('progress: trend, accuracy by type, weakest types, a suggested untried test, tfng pattern; per user', async () => {
     const rid = await seed(fixture('reading'));
     const other = await seed({ ...fixture('reading'), slug: 'dev-reading-2', ref: 'G2', title: 'Second' });

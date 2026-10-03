@@ -3,6 +3,7 @@ import { ArrowLeft, Check, ChevronRight, Play, RotateCcw, X } from 'lucide-react
 import { useQuery } from '@tanstack/react-query';
 import { audioWindow, evidenceSpan, questionMoments, sectionParagraphs, type GapEntry, type LrTimings } from '@ielts/core';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { Badge, Button, buttonStyles, CountUp, PageContainer, PageHeader, ProgressBar, Segmented, Tabs, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatClock, formatDate, formatDuration } from '@/lib/format';
@@ -166,9 +167,12 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
         title={test.title}
         description={`${listening ? 'Listening' : 'Reading'}, ${test.variant === 'academic' ? 'Academic' : 'General Training'}, ${attempt.mode} mode, ${formatDate(attempt.submittedAt ?? attempt.startedAt)}${time ? `, ${time}` : ''}`}
         actions={
-          <Button icon={<RotateCcw />} loading={busy} onClick={retake}>
-            Retake
-          </Button>
+          <>
+            <Button icon={<RotateCcw />} loading={busy} onClick={retake}>
+              Retake
+            </Button>
+            <RemoveAttempt kind="lr" id={attempt.id} title={test.title} variant="menu" onRemoved={() => void navigate({ to: listening ? '/listening' : '/reading' })} />
+          </>
         }
       />
 

@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ArrowLeft, BookmarkPlus, FileText, RotateCcw } from 'lucide-react';
+import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { Alert, Badge, Button, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, toast } from '@/components/ui';
 import { DiffView } from '@/components/writing/DiffView';
@@ -64,6 +65,7 @@ function ResultPage() {
       <ArrowLeft aria-hidden /> Writing
     </Link>
   );
+  const rm = <RemoveAttempt kind="attempt" id={a.id} title={a.prompt.title} variant="menu" onRemoved={() => void navigate({ to: '/writing' })} />;
   const switcher = pairTasks && (
     <Segmented
       label="Task"
@@ -88,6 +90,7 @@ function ResultPage() {
           }
           target={target}
           back={back}
+          actions={rm}
           flags={
             <>
               {/* On phones the overview banner says it; the chip row stays on one line. */}
@@ -101,7 +104,7 @@ function ResultPage() {
           {switcher}
         </ResultHeader>
       ) : (
-        <PageHeader title={a.prompt.title} description={meta} actions={switcher} back={back} />
+        <PageHeader title={a.prompt.title} description={meta} actions={<>{switcher}{rm}</>} back={back} />
       )}
 
       <KeepResult />

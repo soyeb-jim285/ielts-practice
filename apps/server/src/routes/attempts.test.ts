@@ -2,7 +2,7 @@ import { beforeEach, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { guestUser, req, seedPrompt, testUser } from '../test/helpers';
 import { db } from '../db/client';
-import { analyses, attempts, user as userTable } from '../db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable } from '../db/schema';
 import { setAnalyzer } from '../jobs';
 import { storage } from '../storage';
 
@@ -144,6 +144,28 @@ it('owner-only get/submit/delete; parent must be own attempt', async () => {
   expect((await req(`/api/attempts/${body.id}`, { method: 'DELETE', headers: a.headers })).status).toBe(200);
   expect((await req(`/api/attempts/${body.id}`, { headers: a.headers })).status).toBe(404);
   expect(await storage.size(body.audioKey)).toBeNull();
+});
+
+it('delete: cascades, keeps the quota payment, frees child retries, guests can delete their own', async () => {
+  const { headers, user } = await testUser();
+  const p = await seedPrompt();
+  const { body } = await speaking(headers, p.id);
+  const child = (await speaking(headers, p.id, { parentAttemptId: body.id })).body;
+  await put(body.audioKey);
+  await db.insert(analyses).values({ attemptId: body.id, result: {}, overall: 6, criteria: {}, models: {} });
+  await db.insert(mistakes).values({ userId: user.id, attemptId: body.id, errorId: 'e1', category: 'grammar', original: 'a', correction: 'b', explanation: 'c' });
+  await db.insert(quotaUsage).values({ userId: user.id, skill: 'speaking', unitKey: body.id, tier: 'community', members: [`1:${body.id}`] });
+  expect((await req(`/api/attempts/${body.id}`, { method: 'DELETE', headers })).status).toBe(200);
+  expect(await db.select().from(analyses).where(eq(analyses.attemptId, body.id))).toEqual([]);
+  expect(await db.select().from(mistakes).where(eq(mistakes.attemptId, body.id))).toEqual([]);
+  expect(await storage.size(body.audioKey)).toBeNull();
+  expect(await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id))).toHaveLength(1);
+  expect((await db.query.attempts.findFirst({ where: eq(attempts.id, child.id) }))!.parentAttemptId).toBeNull();
+  expect(((await (await req('/api/attempts', { headers })).json()) as any).items.map((i: any) => i.id)).toEqual([child.id]);
+
+  const g = await guestUser();
+  const mine = (await speaking(g.headers, p.id)).body;
+  expect((await req(`/api/attempts/${mine.id}`, { method: 'DELETE', headers: g.headers })).status).toBe(200);
 });
 
 it('lists own attempts newest first with overall band and prompt title, paged and filterable', async () => {

@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { AccountGate } from '@/components/community/AccountGate';
 import { BookOpen, Headphones, History, Mic, PenLine } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -89,8 +90,8 @@ function HistoryPage() {
               const Icon = a.skill === 'listening' ? Headphones : BookOpen;
               const done = a.status === 'submitted';
               return (
-                <li key={a.id}>
-                  <Link to={done ? '/lr/result/$attemptId' : '/lr/run/$attemptId'} params={{ attemptId: a.id }} className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_7rem_5.5rem_6rem_1rem] md:gap-x-4')}>
+                <li key={a.id} className="flex items-center gap-1">
+                  <Link to={done ? '/lr/result/$attemptId' : '/lr/run/$attemptId'} params={{ attemptId: a.id }} className={cn(rowStyles, 'min-w-0 flex-1 md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_7rem_5.5rem_6rem_1rem] md:gap-x-4')}>
                     <RowIcon>
                       <Icon />
                     </RowIcon>
@@ -112,6 +113,7 @@ function HistoryPage() {
                     </span>
                     <RowChevron />
                   </Link>
+                  <RemoveAttempt kind="lr" id={a.id} title={a.title} />
                 </li>
               );
             })}
@@ -148,12 +150,12 @@ function HistoryPage() {
                   const flag = FLAG[(a as { flag?: string | null }).flag ?? ''];
                   const duration = showDuration(a) ? formatDuration(a.durationMs!) : null;
                   return (
-                    <li key={a.id}>
+                    <li key={a.id} className="flex items-center gap-1">
                       {/* Phones: icon, title + one meta line, band. From md: icon, title, part, date, duration, band as aligned columns. */}
                       <Link
                         to={a.skill === 'speaking' ? '/speaking/result/$attemptId' : '/writing/result/$attemptId'}
                         params={{ attemptId: a.id }}
-                        className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_5.5rem_4.5rem_3rem_1rem] md:gap-x-4')}
+                        className={cn(rowStyles, 'min-w-0 flex-1 md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_5.5rem_4.5rem_3rem_1rem] md:gap-x-4')}
                       >
                         <RowIcon>
                           <Icon />
@@ -181,6 +183,7 @@ function HistoryPage() {
                         </span>
                         <RowChevron />
                       </Link>
+                      <RemoveAttempt kind="attempt" id={a.id} title={a.promptTitle} />
                     </li>
                   );
                 })}

@@ -4,6 +4,7 @@ import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
 import type { RepeatedWord } from '@ielts/core';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { KeepResult, RefundNote } from '@/components/community/KeepResult';
+import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -77,10 +78,12 @@ function ResultPage() {
   const title = a.part === 1 ? `Part 1: ${sentenceCase(a.prompt.title)}` : sentenceCase(a.prompt.title);
   const meta = `Speaking${a.part === 1 ? '' : `, Part ${a.part}`}${nq > 1 ? `, ${nq} questions` : ''}, ${formatDate(a.createdAt)}${a.durationMs ? `, ${formatDuration(a.durationMs)}` : ''}`;
 
+  const rm = <RemoveAttempt kind="attempt" id={a.id} title={title} variant="menu" onRemoved={() => void navigate({ to: '/speaking' })} />;
+
   if (a.status !== 'done' || !r) {
     return (
       <PageContainer>
-        <PageHeader title={title} description={meta} back={back} />
+        <PageHeader title={title} description={meta} back={back} actions={rm} />
         <KeepResult />
         {switcher && <div className="mb-6">{switcher}</div>}
         {a.status === 'analyzing' ? (
@@ -111,7 +114,7 @@ function ResultPage() {
   if (notAssessed(r)) {
     return (
       <PageContainer>
-        <PageHeader title={title} description={meta} back={back} />
+        <PageHeader title={title} description={meta} back={back} actions={rm} />
         <KeepResult />
         <div className="space-y-6">
           {switcher}
@@ -146,6 +149,7 @@ function ResultPage() {
         meta={meta}
         target={target}
         back={back}
+        actions={rm}
         flags={
           off && (
             <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="rounded-full">

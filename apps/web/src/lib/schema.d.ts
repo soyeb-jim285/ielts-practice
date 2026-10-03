@@ -713,7 +713,10 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete an attempt (its analysis and mistakes cascade) */
+        /**
+         * Remove an attempt from my history (any status, also one still in progress)
+         * @description Hard delete: the row, its analysis and mistakes (cascade) and its recording. Review cards stay (they hold no attempt reference). The quota is NOT refunded (quota_usage keeps the payment and its members). A retry whose parent this was loses the parent link.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -2142,7 +2145,43 @@ export interface paths {
             };
         };
         post?: never;
-        delete?: never;
+        /**
+         * Remove an attempt from my history (submitted or still in progress)
+         * @description Hard delete of the row (responses, marks, stats and analysis live in it), so progress, trend and spelling lists drop it. Review cards stay. There is no quota on Listening & Reading.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                /** @description Not found (also for a Cambridge test this user may not open) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

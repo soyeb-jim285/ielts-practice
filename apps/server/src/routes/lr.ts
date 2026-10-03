@@ -473,6 +473,24 @@ export function register(app: App) {
       return c.json({ items: [...out.values()].sort((a, b) => b.count - a.count || a.word.localeCompare(b.word)).map((e) => ({ ...e, typed: [...e.typed].slice(0, 5) })) }, 200);
     },
   );
+
+  app.openapi(
+    createRoute({
+      method: 'delete',
+      path: '/api/lr/attempts/{id}',
+      ...common,
+      middleware: [requireUser, lrSaveLimit],
+      summary: 'Remove an attempt from my history (submitted or still in progress)',
+      description: 'Hard delete of the row (responses, marks, stats and analysis live in it), so progress, trend and spelling lists drop it. Review cards stay. There is no quota on Listening & Reading.',
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: json(z.object({ ok: z.boolean() }), 'Deleted'), ...errors },
+    }),
+    async (c) => {
+      const [gone] = await db.delete(lrAttempts).where(and(eq(lrAttempts.id, c.req.valid('param').id), eq(lrAttempts.userId, currentUser(c).id))).returning({ id: lrAttempts.id });
+      if (!gone) return c.json({ error: 'Attempt not found' }, 404);
+      return c.json({ ok: true }, 200);
+    },
+  );
 }
 
 /** Gap mistakes (spelling / plural) of the user's earlier submitted attempts. */

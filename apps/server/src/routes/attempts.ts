@@ -9,7 +9,7 @@ import { ApiError } from '../errors';
 import { clientIpHash } from '../ip';
 import { runAnalysis } from '../jobs';
 import { checkAttempt, payerOf, reserveAttempt } from '../quota';
-import { aiLimit } from '../ratelimit';
+import { aiLimit, lrSaveLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
 import type { AnalysisResult } from '../ai/types';
 import type { App } from '../types';
@@ -363,9 +363,11 @@ export function register(app: App) {
   app.openapi(
     createRoute({
       ...authed,
+      middleware: [requireUser, lrSaveLimit],
       method: 'delete',
       path: '/api/attempts/{id}',
-      summary: 'Delete an attempt (its analysis and mistakes cascade)',
+      summary: 'Remove an attempt from my history (any status, also one still in progress)',
+      description: 'Hard delete: the row, its analysis and mistakes (cascade) and its recording. Review cards stay (they hold no attempt reference). The quota is NOT refunded (quota_usage keeps the payment and its members). A retry whose parent this was loses the parent link.',
       request: { params: Id },
       responses: { 200: json(z.object({ ok: z.boolean() }), 'Deleted'), ...notFound },
     }),
@@ -373,7 +375,8 @@ export function register(app: App) {
       const { id } = c.req.valid('param');
       const [gone] = await db.delete(attempts).where(and(eq(attempts.id, id), eq(attempts.userId, currentUser(c).id))).returning({ audioKey: attempts.audioKey });
       if (!gone) return c.json({ error: 'Attempt not found' }, 404);
-      if (gone.audioKey) await storage.deletePrefix(gone.audioKey); // keys are unique per attempt, so the prefix is exactly this recording
+      await db.update(attempts).set({ parentAttemptId: null }).where(and(eq(attempts.userId, currentUser(c).id), eq(attempts.parentAttemptId, id)));
+      if (gone.audioKey) await storage.deletePrefix(gone.audioKey).catch((e) => console.error('recording delete failed', gone.audioKey, e)); // keys are unique per attempt, so the prefix is exactly this recording; best effort
       return c.json({ ok: true }, 200);
     },
   );
