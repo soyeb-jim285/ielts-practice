@@ -7,7 +7,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** Listening & Reading: wire models against the shared demo fixtures, and the pure logic ported from the web (lib/lr.ts). */
-class LrTest {
+class LrLogicTest {
     private val fixtures = DemoFixtures.parse(File("../../ios/IELTS/Demo/fixtures.json").readText())
 
     @Test fun fixturesDecode() {
