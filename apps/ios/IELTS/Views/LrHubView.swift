@@ -9,13 +9,17 @@ struct LrHubView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var variant = "all"
+    @State private var state = Demo.screen == "lr-hub-todo" ? "todo" : "all" // all | todo | done
     @State private var pick: LrTestItem?
     @State private var runId: String?
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
     private var listening: Bool { skill == "listening" }
     private var icon: String { listening ? "headphones" : "book" }
-    private var shown: [LrTestItem] { items.filter { variant == "all" || $0.variant == variant } }
+    private var shown: [LrTestItem] {
+        items.filter { (variant == "all" || $0.variant == variant) && (state == "all" || (state == "done") == ($0.status == "submitted")) }
+    }
+    private var doneCount: Int { items.filter { $0.status == "submitted" }.count }
 
     private struct Bucket: Identifiable { let id: String; let heading: String; let tests: [LrTestItem] }
 
@@ -52,12 +56,30 @@ struct LrHubView: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            if doneCount > 0 {
+                Section {
+                    HStack {
+                        Text("\(doneCount) of \(items.count) done").font(.subheadline).foregroundStyle(Color.muted)
+                        Spacer(minLength: 12)
+                        Picker("Show", selection: $state) {
+                            Text("All").tag("all")
+                            Text("To do").tag("todo")
+                            Text("Done").tag("done")
+                        }
+                        .pickerStyle(.segmented).frame(maxWidth: 240)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+            }
             if api.isGuest {
                 Section { GuestRecentView(skill: listening ? "listening" : "reading") }
                     .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
             }
             if let error {
                 Section { ErrorLine(message: error); Button("Try again") { Task { await load() } } }
+            }
+            if shown.isEmpty && !items.isEmpty {
+                Section { Text("No tests match this filter.").font(.subheadline).foregroundStyle(Color.muted).listRowBackground(Color.clear) }
             }
             ForEach(groups) { g in
                 Section {
@@ -116,7 +138,7 @@ struct LrHubView: View {
                 if t.skill == "reading" {
                     Chip(text: t.variant == "academic" ? "Academic" : "General Training", color: t.variant == "academic" ? .muted : .sky)
                 }
-                Text(t.attemptId != nil ? "Resume in \(t.mode ?? "practice") mode" : t.status == "submitted" ? "Retake or review" : "40 questions")
+                Text(t.attemptId != nil ? "Resume in \(t.mode ?? "practice") mode" : t.status == "submitted" ? "Retake this test" : "40 questions")
                     .font(.caption).foregroundStyle(Color.muted)
             }
             Spacer(minLength: 8)

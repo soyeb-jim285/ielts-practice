@@ -38,13 +38,13 @@ enum Demo {
         case "writing-quota-exhausted": [.writing(.task2)]
         case "guest-result": [.result(["as1"])]
         case "guest-recent-lr": [.lrHub(skill: "reading")]
-        case "lr-hub", "lr-mode": [.lrHub(skill: "reading")]
+        case "lr-hub", "lr-mode", "lr-hub-todo": [.lrHub(skill: "reading")]
         case "lr-hub-listening": [.lrHub(skill: "listening")]
         case "lr-reading", "lr-reading-questions", "lr-reading-p2", "lr-navigator", "lr-submit": [.lrAttempt(id: "lra-r")]
         case "lr-listening": [.lrAttempt(id: "lra-l")]
         case "lr-listening-exam": [.lrAttempt(id: "lra-le")]
-        case "lr-result", "lr-result-p2", "lr-result-detail", "lr-result-evidence", "lr-result-pacing": [.lrAttempt(id: "lra-rs")]
-        case "lr-result-listening", "lr-result-detail-listening", "lr-result-timestamps", "lr-dictation": [.lrAttempt(id: "lra-ls")]
+        case "lr-result", "lr-result-p2", "lr-result-detail", "lr-result-evidence", "lr-result-pacing", "lr-result-answers", "lr-result-passage": [.lrAttempt(id: "lra-rs")]
+        case "lr-result-listening", "lr-result-detail-listening", "lr-result-transcript", "lr-result-timestamps", "lr-dictation": [.lrAttempt(id: "lra-ls")]
         default: []
         }
     }

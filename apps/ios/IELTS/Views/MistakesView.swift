@@ -11,6 +11,8 @@ struct MistakesView: View {
     @State private var groups: [ProgressData.CategoryCount] = []
     @State private var items: [Mistake] = []
     @State private var spelling: [LrSpelling.Item] = []
+    @State private var spellKind = "all" // all | spelling | plural
+    @State private var spellMore = false
     @State private var total = 0
     @State private var page = 1
     @State private var loading = true
@@ -91,28 +93,44 @@ struct MistakesView: View {
 
     @ViewBuilder private var spellingSection: some View {
         if !spelling.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            let nPlural = spelling.filter { $0.kind == "plural" }.count
+            let repeats = spelling.filter { $0.count > 1 }.count
+            let shown = spelling.filter { spellKind == "all" || $0.kind == spellKind }
+            let list = spellMore ? shown : Array(shown.prefix(8))
+            VStack(alignment: .leading, spacing: 10) {
                 SectionTitle("Spelling and plurals")
-                Text("Words you misspelt or put in the wrong form in Listening and Reading. Each also becomes a card in Review.").font(.footnote).foregroundStyle(.muted)
+                Text("\(spelling.count) \(spelling.count == 1 ? "word" : "words"): \(spelling.count - nPlural) spelling, \(nPlural) plural"
+                     + (repeats > 0 ? ". \(repeats) came up more than once, start with those." : ".") + " Each also becomes a card in Review.")
+                    .font(.subheadline).foregroundStyle(.muted)
+                Picker("Kind", selection: $spellKind) {
+                    Text("All").tag("all")
+                    Text("Spelling").tag("spelling")
+                    Text("Plural").tag("plural")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: spellKind) { _, _ in spellMore = false }
                 VStack(spacing: 0) {
-                    ForEach(Array(spelling.enumerated()), id: \.element.id) { i, w in
+                    ForEach(Array(list.enumerated()), id: \.element.id) { i, w in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(w.word).font(.body.weight(.semibold)).foregroundStyle(.ink)
+                                (Text(w.word).font(.body.weight(.semibold)).foregroundStyle(.ink) + Text("  \(w.kind == "plural" ? "plural" : "spelling")").font(.footnote).foregroundStyle(.muted))
                                 (Text("You wrote ").foregroundStyle(.muted) + Text(w.typed.joined(separator: ", ")).strikethrough().foregroundStyle(.bad))
                                     .font(.footnote)
                             }
                             Spacer(minLength: 8)
-                            Chip(text: w.kind == "plural" ? "Plural" : "Spelling")
-                            Text("\(w.count)×").font(.subheadline.monospacedDigit()).foregroundStyle(.muted)
+                            Text("\(w.count)×").font(.subheadline.weight(w.count > 1 ? .semibold : .regular).monospacedDigit()).foregroundStyle(w.count > 1 ? Color.warnText : Color.muted)
                         }
                         .padding(.horizontal, 14).padding(.vertical, 12).frame(minHeight: 44)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(w.word), \(w.kind == "plural" ? "plural" : "spelling"). You wrote \(w.typed.joined(separator: ", ")). \(w.count) \(w.count == 1 ? "time" : "times").")
-                        if i < spelling.count - 1 { Divider().overlay(Color.line) }
+                        if i < list.count - 1 { Divider().overlay(Color.line) }
                     }
                 }
                 .card(padding: 0)
+                if shown.count > 8 {
+                    Button(spellMore ? "Show fewer" : "Show all \(shown.count)") { withAnimation { spellMore.toggle() } }
+                        .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                }
             }
             .padding(.bottom, 4)
         }

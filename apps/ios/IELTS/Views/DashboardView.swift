@@ -134,15 +134,23 @@ struct DashboardView: View {
     @ViewBuilder private var lrCard: some View {
         if let d = lr, !d.trend.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Listening and Reading").font(.display(.title3)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Listening and Reading").font(.display(.title3)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    NavigationLink(value: Route.history(skill: "listening")) { Text("All results").font(.subheadline.weight(.medium)).frame(minHeight: 44) }
+                }
                 ForEach(["listening", "reading"], id: \.self) { k in
                     let rows = d.trend.filter { $0.skill == k }
                     if let last = rows.last {
                         let name = k == "listening" ? "Listening" : "Reading"
                         HStack(alignment: .center, spacing: 16) {
                             VStack(alignment: .leading, spacing: 0) {
-                                Text("\(name), latest of \(rows.count)").font(.caption).foregroundStyle(.muted)
+                                Text("\(name), latest of \(rows.count)").font(.subheadline).foregroundStyle(.muted)
                                 Text(fmt(last.band)).font(.system(size: 34, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(last.band, target))
+                                if rows.count > 1, let first = rows.first {
+                                    let d = last.band - first.band
+                                    Text(d == 0 ? "Same as your first" : "\(d > 0 ? "Up" : "Down") \(fmt(abs(d))) from your first").font(.caption).foregroundStyle(.muted)
+                                }
                             }
                             Spacer(minLength: 8)
                             Chart {

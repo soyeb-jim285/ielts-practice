@@ -5,7 +5,10 @@ import SwiftUI
 struct LrResultView: View {
     @Environment(APIClient.self) private var api
     let attempt: LrAttempt
-    @State private var wrongOnly = false
+    private enum Tab: String { case summary, answers, context }
+    @State private var tab: Tab = .summary
+    @State private var wrongOnly = true
+    @State private var byPart = false
     @State private var partIdx = 0
     @State private var active: Int?
     @State private var scrollTo: AnyHashable?
@@ -17,7 +20,7 @@ struct LrResultView: View {
     @State private var busy = false
     @State private var failed = false
     @State private var retakeId: String?
-    @State private var passageOpen = false
+    @State private var vocabOpen = false
     @State private var practice = LrPracticePlayer()
     @State private var rate: Float = 1
 
@@ -50,20 +53,33 @@ struct LrResultView: View {
         return LrReview.evidenceSpan(LrReview.sectionParagraphs(ss), f.q, gap: f.group.type == "gap")
     }
 
+    private var wrongCount: Int { max(0, (attempt.total ?? test.flat.count) - raw) }
+    private var blankNs: [Int] { test.flat.filter { marks[$0.n]?.given.isEmpty ?? true }.map(\.n) }
+    private var byType: [(label: String, right: Int, total: Int)] { Lr.accuracy(test, attempt.marks ?? []) { Lr.typeLabel($0.group) } }
+    private var byPartRows: [(label: String, right: Int, total: Int)] {
+        test.sections.map { s in
+            let qs = s.groups.flatMap { $0.questions.map { marks[$0.n] } }
+            return ("\(test.partNoun) \(s.part)", qs.filter { $0?.correct == true }.count, qs.count)
+        }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 24) {
                     header
-                    score
-                    accuracy
-                    if let st = attempt.stats {
-                        LrPacingPanel(stats: st, parts: test.sections.map { (part: $0.part, questions: $0.groups.flatMap { $0.questions.map(\.n) }) }, noun: test.partNoun,
-                                      totalS: listening ? nil : 3600, marks: marks, blank: test.flat.filter { marks[$0.n]?.given.isEmpty ?? true }.map(\.n)).id("pace")
+                    hero
+                    Picker("View", selection: $tab) {
+                        Text("Summary").tag(Tab.summary)
+                        Text("Answers\(wrongCount > 0 ? " (\(wrongCount))" : "")").tag(Tab.answers)
+                        Text(listening ? "Transcript" : "Passage").tag(Tab.context)
                     }
-                    LrTfngPanel(rows: attempt.analysis?.tfng ?? [], pattern: tfngPattern)
-                    answers
-                    context
+                    .pickerStyle(.segmented)
+                    switch tab {
+                    case .summary: summary
+                    case .answers: answers
+                    case .context: context
+                    }
                 }
                 .padding(16).padding(.bottom, 24)
                 .frame(maxWidth: 760, alignment: .leading)
@@ -77,6 +93,18 @@ struct LrResultView: View {
         }
         .demoScroll()
         .background(Color.canvas)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // The practice player stays in reach while you read the transcript. It stays mounted (hidden) on the other tabs so
+            // "Listen from" can start it from Answers.
+            if listening {
+                let on = tab == .context
+                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, onPin: { select($0); play($0) })
+                    .padding(12).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .padding(.horizontal, 12).padding(.bottom, 4)
+                    .opacity(on ? 1 : 0).frame(height: on ? nil : 0).clipped().accessibilityHidden(!on)
+            }
+        }
+        .onChange(of: tab) { _, t in if t != .context, practice.playing { practice.toggle() } }
         .navigationTitle(listening ? "Listening result" : "Reading result")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Retake") { Task { await retake() } }.disabled(busy).fontWeight(.semibold) } }
@@ -87,14 +115,18 @@ struct LrResultView: View {
         }
         .task { if let p: LrProgress = try? await api.get("/api/lr/progress") { tfngPattern = p.tfng.pattern?.text } }
         .onAppear {
+            if wrongCount == 0 { wrongOnly = false }
             switch Demo.screen {
             case "lr-result-p2": if test.sections.count > 1 { partIdx = 1 }
-            case "lr-result-detail": select(9)
-            case "lr-result-evidence": select(9); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
-            case "lr-result-detail-listening": select(28)
-            case "lr-result-timestamps": select(28); Task { try? await Task.sleep(for: .seconds(1.5)); scrollTo = "audio"; scrollAnchor = .top; scrollStamp += 1 }
-            case "lr-dictation": select(28); Task { try? await Task.sleep(for: .seconds(1)); dictOpen = true }
-            case "lr-result-pacing": scrollTo = "pace"; scrollAnchor = .top; scrollStamp += 1
+            case "lr-result-detail": tab = .answers; select(9)
+            case "lr-result-answers": tab = .answers
+            case "lr-result-passage": tab = .context
+            case "lr-result-evidence": tab = .answers; select(9); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
+            case "lr-result-detail-listening": tab = .answers; select(28)
+            case "lr-result-transcript": tab = .context; select(28)
+            case "lr-result-timestamps": tab = .context; select(28); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
+            case "lr-dictation": tab = .answers; select(28); Task { try? await Task.sleep(for: .seconds(1)); dictOpen = true }
+            case "lr-result-pacing": tab = .summary
             default: break
             }
         }
@@ -110,79 +142,135 @@ struct LrResultView: View {
         }
     }
 
-    private var score: some View {
+    /// Two or three plain sentences about what to fix first.
+    private var takeaways: [String] {
+        let weak = byType.filter { $0.total >= 3 && $0.right < $0.total }.min { Double($0.right) / Double($0.total) < Double($1.right) / Double($1.total) }
+        let slips = (attempt.analysis?.gaps ?? []).filter { $0.kind == "spelling" || $0.kind == "plural" }.count
+        var out: [String] = []
+        if let w = weak { out.append("Weakest: \(w.label.lowercased()), \(w.right) of \(w.total) right.") }
+        if slips > 0 { out.append("\(slips) \(slips == 1 ? "answer was" : "answers were") the right word with a spelling or plural slip.") }
+        if !blankNs.isEmpty { out.append("\(blankNs.count) left blank. There is no penalty for guessing.") }
+        if wrongCount == 0 { out.append("Every answer was correct.") }
+        return Array(out.prefix(3))
+    }
+
+    private var hero: some View {
         let gap = target - band
-        return HStack(alignment: .bottom, spacing: 28) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Band").font(.caption).foregroundStyle(Color.muted)
-                Text(fmt(band)).font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(band, target))
-                    .contentTransition(.numericText()).accessibilityLabel("Band \(fmt(band))")
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .bottom, spacing: 24) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Band").font(.subheadline).foregroundStyle(Color.muted)
+                    Text(fmt(band)).font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(band, target))
+                        .contentTransition(.numericText()).accessibilityLabel("Band \(fmt(band))")
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    (Text("\(raw)").foregroundStyle(Color.ink) + Text("/\(attempt.total ?? 40)").foregroundStyle(Color.muted) + Text("  correct").font(.subheadline).foregroundStyle(Color.muted))
+                        .font(.system(size: 28, weight: .bold, design: .serif).monospacedDigit())
+                        .accessibilityLabel("\(raw) of \(attempt.total ?? 40) correct")
+                    Text(gap <= 0 ? "At or above your \(fmt(target)) target" : "\(fmt(gap)) below your \(fmt(target)) target")
+                        .font(.subheadline.weight(.medium)).foregroundStyle(bandTextColor(band, target))
+                }
+                .padding(.bottom, 8)
+                Spacer(minLength: 0)
             }
-            VStack(alignment: .leading, spacing: 6) {
-                (Text("\(raw)").foregroundStyle(Color.ink) + Text("/\(attempt.total ?? 40)").foregroundStyle(Color.muted) + Text("  correct").font(.caption).foregroundStyle(Color.muted))
-                    .font(.system(size: 28, weight: .bold, design: .serif).monospacedDigit())
-                    .accessibilityLabel("\(raw) of \(attempt.total ?? 40) correct")
-                Text(gap <= 0 ? "At or above your \(fmt(target)) target" : "\(fmt(gap)) below your \(fmt(target)) target")
-                    .font(.subheadline.weight(.medium)).foregroundStyle(bandTextColor(band, target))
+            if wrongCount > 0 {
+                Button { wrongOnly = true; tab = .answers } label: { Text("See your \(wrongCount) \(wrongCount == 1 ? "mistake" : "mistakes")").frame(maxWidth: .infinity) }
+                    .primaryButton().controlSize(.large)
             }
-            .padding(.bottom, 8)
-            Spacer(minLength: 0)
-        }
-        .card()
-    }
-
-    private var accuracy: some View {
-        let byPart = test.sections.map { s -> (label: String, right: Int, total: Int) in
-            let qs = s.groups.flatMap { $0.questions.map { marks[$0.n] } }
-            return ("\(test.partNoun) \(s.part)", qs.filter { $0?.correct == true }.count, qs.count)
-        }
-        let byType = Lr.accuracy(test, attempt.marks ?? []) { Lr.typeLabel($0.group) }
-        return VStack(alignment: .leading, spacing: 24) {
-            accuracyBlock("By \(test.partNoun.lowercased())", byPart)
-            accuracyBlock("By question type", byType)
-        }
-    }
-
-    private func accuracyBlock(_ title: String, _ rows: [(label: String, right: Int, total: Int)]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title)
-            VStack(spacing: 0) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
-                    let ratio = r.total > 0 ? Double(r.right) / Double(r.total) : 0
-                    VStack(spacing: 6) {
-                        HStack {
-                            Text(r.label).font(.body).foregroundStyle(Color.ink)
-                            Spacer(minLength: 8)
-                            Text("\(r.right)/\(r.total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink)
+            if !takeaways.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(takeaways, id: \.self) { t in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "circle.fill").font(.system(size: 5)).foregroundStyle(Color.brand).accessibilityHidden(true)
+                            Text(t).font(.callout).foregroundStyle(Color.ink)
                         }
-                        ProgressView(value: ratio).tint(ratio >= 0.75 ? .good : ratio >= 0.5 ? .warn : .bad)
                     }
-                    .padding(.vertical, 10)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(r.label): \(r.right) of \(r.total) correct")
-                    if i < rows.count - 1 { Divider().overlay(Color.line) }
                 }
             }
-            .card(padding: 14)
         }
+        .card(padding: 18)
+    }
+
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionTitle("Where you lost marks")
+                Picker("Group by", selection: $byPart) {
+                    Text("Question type").tag(false)
+                    Text(test.partNoun).tag(true)
+                }
+                .pickerStyle(.segmented)
+                accuracyList(byPart ? byPartRows : worstFirst(byType))
+            }
+            if let st = attempt.stats {
+                fold("How you used your time", hint: "Minutes per \(test.partNoun.lowercased()), answers you changed, last-minute answers.") {
+                    LrPacingPanel(stats: st, parts: test.sections.map { (part: $0.part, questions: $0.groups.flatMap { $0.questions.map(\.n) }) }, noun: test.partNoun,
+                                  totalS: listening ? nil : 3600, marks: marks, blank: blankNs)
+                }
+            }
+            if !(attempt.analysis?.tfng ?? []).isEmpty {
+                fold("True / False / Not Given", hint: "Which statements you mix up, and the rule for each.") {
+                    LrTfngPanel(rows: attempt.analysis?.tfng ?? [], pattern: tfngPattern)
+                }
+            }
+        }
+    }
+
+    private func worstFirst(_ rows: [(label: String, right: Int, total: Int)]) -> [(label: String, right: Int, total: Int)] {
+        func ratio(_ r: (label: String, right: Int, total: Int)) -> Double { r.total > 0 ? Double(r.right) / Double(r.total) : 1 }
+        return rows.sorted { ratio($0) != ratio($1) ? ratio($0) < ratio($1) : $0.total > $1.total }
+    }
+
+    private func fold<C: View>(_ title: String, hint: String, @ViewBuilder _ content: () -> C) -> some View {
+        DisclosureGroup {
+            content().padding(.top, 12)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline).foregroundStyle(Color.ink)
+                Text(hint).font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
+            }
+        }
+        .tint(.brand).card()
+    }
+
+    private func accuracyList(_ rows: [(label: String, right: Int, total: Int)]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+                let ratio = r.total > 0 ? Double(r.right) / Double(r.total) : 0
+                VStack(spacing: 6) {
+                    HStack {
+                        Text(r.label).font(.body).foregroundStyle(Color.ink)
+                        Spacer(minLength: 8)
+                        Text("\(r.right)/\(r.total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink)
+                    }
+                    ProgressView(value: ratio).tint(ratio >= 0.75 ? .good : ratio >= 0.5 ? .warn : .bad)
+                }
+                .padding(.vertical, 10)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(r.label): \(r.right) of \(r.total) correct")
+                if i < rows.count - 1 { Divider().overlay(Color.line) }
+            }
+        }
+        .card(padding: 14)
     }
 
     private var answers: some View {
         let all = test.flat
         let rows = all.filter { !wrongOnly || marks[$0.n]?.correct != true }
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             SectionTitle("Your answers")
-            Picker("Filter", selection: $wrongOnly) {
+            Picker("Show", selection: $wrongOnly) {
                 Text("All \(all.count)").tag(false)
-                Text("Wrong only (\(all.count - raw))").tag(true)
+                Text("Wrong only (\(wrongCount))").tag(true)
             }
             .pickerStyle(.segmented)
+            Text("Tap a question to see why it is wrong and where the answer is.").font(.subheadline).foregroundStyle(Color.muted)
             if rows.isEmpty {
                 Text("Nothing wrong. Every answer was correct.").font(.subheadline).foregroundStyle(Color.muted).padding(.vertical, 8)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.n) { i, f in
-                        answerRow(f.n)
+                        answerRow(f.n).id("row\(f.n)")
                         if i < rows.count - 1 { Divider().overlay(Color.line) }
                     }
                 }
@@ -194,71 +282,72 @@ struct LrResultView: View {
     private func answerRow(_ n: Int) -> some View {
         let m = marks[n]
         let mo = moments[n]
-        return HStack(alignment: .center, spacing: 0) {
-        Button { jump(n) } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Text("\(n)").font(.body.weight(.semibold).monospacedDigit()).foregroundStyle(Color.brand).frame(width: 34, alignment: .leading)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text((m?.given.isEmpty ?? true) ? "No answer" : m!.given)
-                        .font(.body).italic(m?.given.isEmpty ?? true)
-                        .foregroundStyle(m?.correct == true ? Color.ink : (m?.given.isEmpty ?? true) ? Color.muted : Color.bad)
-                    if m?.correct != true {
-                        Text("Correct: \((m?.answer ?? []).joined(separator: " / "))").font(.subheadline.weight(.medium)).foregroundStyle(Color.goodText)
+        let open = selected == n
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 0) {
+                Button { jump(n) } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: m?.correct == true ? "checkmark.circle.fill" : "xmark.circle.fill").foregroundStyle(m?.correct == true ? Color.goodText : Color.bad)
+                            .accessibilityHidden(true).padding(.top, 2)
+                        Text("\(n)").font(.body.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink).frame(minWidth: 26, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text((m?.given.isEmpty ?? true) ? "No answer" : m!.given)
+                                .font(.body).italic(m?.given.isEmpty ?? true)
+                                .foregroundStyle(m?.correct == true ? Color.ink : (m?.given.isEmpty ?? true) ? Color.muted : Color.bad)
+                            if m?.correct != true {
+                                Text("Answer: \((m?.answer ?? []).joined(separator: " / "))").font(.subheadline.weight(.medium)).foregroundStyle(Color.goodText)
+                            }
+                            if let e = entries[n] { Chip(text: e.label, color: .warnText) }
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.down").font(.footnote.weight(.semibold)).foregroundStyle(Color.muted).rotationEffect(.degrees(open ? 180 : 0)).accessibilityHidden(true).padding(.top, 4)
                     }
-                    if let e = entries[n] { Chip(text: e.label, color: .warnText) }
+                    .padding(.horizontal, 10).padding(.vertical, 10).frame(minHeight: 44).contentShape(Rectangle())
                 }
-                Spacer(minLength: 8)
-                Image(systemName: m?.correct == true ? "checkmark.circle.fill" : "xmark.circle.fill").foregroundStyle(m?.correct == true ? Color.goodText : Color.bad)
-                    .accessibilityHidden(true)
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")" + (entries[n].map { " \($0.label)." } ?? ""))
+                .accessibilityValue(open ? "Expanded" : "Collapsed")
+                .accessibilityHint("Explains the question and shows where the answer is")
+                if let mo, let part = test.section(of: n).map({ test.sections[$0].part }) {
+                    Button { select(n); play(n) } label: {
+                        Label("\(mo.exact ? "" : "~")\(clock(Int(mo.at)))", systemImage: "play.fill").font(.footnote.weight(.medium).monospacedDigit())
+                            .padding(.horizontal, 10).frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain).foregroundStyle(Color.brand)
+                    .accessibilityLabel("Question \(n): listen from \(test.partNoun) \(part) at \(clock(Int(mo.at)))" + (mo.exact ? "" : ", approximate"))
+                }
             }
-            .padding(.horizontal, 10).padding(.vertical, 10).frame(minHeight: 44).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")" + (entries[n].map { " \($0.label)." } ?? ""))
-        .accessibilityValue(selected == n ? "Selected" : "")
-        .accessibilityHint("Explains the question and shows where the answer is")
-        if let mo, let part = test.section(of: n).map({ test.sections[$0].part }) {
-            Button { select(n); play(n) } label: {
-                Label("\(mo.exact ? "" : "~")\(clock(Int(mo.at)))", systemImage: "play.fill").font(.footnote.weight(.medium).monospacedDigit())
-                    .padding(.horizontal, 10).frame(minHeight: 44)
+            if open, let f = sel, let ss = selSection {
+                let win = ss.audio != nil ? LrReview.audioWindow(ss.timings, f.q) : nil
+                LrQuestionDetail(q: f.q, mark: marks[f.n], entry: entries[f.n], listening: listening, window: win,
+                                 canDictate: win?.exact == true && !(ss.timings ?? []).isEmpty && marks[f.n]?.correct == false,
+                                 onShow: show, onPlay: { play(f.n) }, onDictate: { dictOpen = true })
+                    .padding(14)
+                    .background(Color.surface2.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(.horizontal, 6).padding(.bottom, 8)
             }
-            .buttonStyle(.plain).foregroundStyle(Color.brand)
-            .accessibilityLabel("Question \(n): play from \(test.partNoun) \(part) at \(clock(Int(mo.at)))" + (mo.exact ? "" : ", approximate"))
-        }
         }
     }
 
     private var context: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(listening ? "Transcript and questions" : "Passage and questions")
-            Text("Pick a question above to explain it and mark where the answer is.").font(.footnote).foregroundStyle(Color.muted)
+            Text(listening ? "Read along with the recording. The Q marks show where each answer is; tap one to hear it." : "Pick a question under Answers to mark where its answer is in the passage.")
+                .font(.subheadline).foregroundStyle(Color.muted)
             Picker(test.partNoun, selection: $partIdx) {
                 ForEach(Array(test.sections.enumerated()), id: \.offset) { i, s in Text("\(test.partNoun) \(s.part)").tag(i) }
             }
             .pickerStyle(.segmented)
-            if let f = sel, let ss = selSection {
-                let win = ss.audio != nil ? LrReview.audioWindow(ss.timings, f.q) : nil
-                LrQuestionDetail(q: f.q, mark: marks[f.n], entry: entries[f.n], listening: listening, window: win,
-                                 canDictate: win?.exact == true && !(ss.timings ?? []).isEmpty && marks[f.n]?.correct == false,
-                                 onShow: show, onPlay: { play(f.n) }, onDictate: { dictOpen = true }, onClose: { selected = nil })
-                    .id("detail")
-            }
-            if let v = section.vocab { LrVocabList(vocab: v) }
             if listening {
-                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, onPin: { select($0); play($0) })
-                    .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous)).id("audio")
                 if let t = section.transcript {
-                    DisclosureGroup("Transcript", isExpanded: $passageOpen) {
-                        LrTranscriptView(text: t, evidence: span, pins: transcriptPins, onPin: { select($0) }).textSelection(.enabled).padding(.top, 8)
-                    }
-                    .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
+                    LrTranscriptView(text: t, evidence: span, pins: transcriptPins, onPin: { select($0) }).textSelection(.enabled)
                 }
             } else if section.passage != nil {
-                DisclosureGroup("Passage", isExpanded: $passageOpen) {
-                    LrPassageView(section: section, evidence: span).padding(.top, 8)
-                }
-                .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
+                LrPassageView(section: section, evidence: span)
+            }
+            if let v = section.vocab, !v.isEmpty {
+                DisclosureGroup("Key vocabulary (\(v.count))", isExpanded: $vocabOpen) { LrVocabList(vocab: v).padding(.top, 8) }
+                    .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
             }
             VStack(alignment: .leading, spacing: 32) {
                 ForEach(section.groups) { g in
@@ -269,7 +358,7 @@ struct LrResultView: View {
         }
     }
 
-    /// Tap a question: explain it (detail card above the passage), mark the evidence in the passage or transcript, open both.
+    /// Tap a question: expand its explanation in place and mark the evidence in the passage or transcript.
     private func jump(_ n: Int) {
         if selected == n { selected = nil; return }
         select(n)
@@ -280,15 +369,13 @@ struct LrResultView: View {
         partIdx = si
         selected = n
         active = n
-        passageOpen = true
-        scrollTo = "detail"; scrollAnchor = .top
-        scrollStamp += 1
+        if tab == .answers { scrollTo = "row\(n)"; scrollAnchor = .top; scrollStamp += 1 }
         Task { try? await Task.sleep(for: .seconds(3)); if active == n { active = nil } }
     }
 
     /// "Show in passage": scroll to the marked evidence.
     private func show() {
-        passageOpen = true
+        tab = .context
         scrollTo = "ev"; scrollAnchor = .center
         scrollStamp += 1
     }
@@ -299,9 +386,8 @@ struct LrResultView: View {
               let w = LrReview.audioWindow(test.sections[si].timings, f.q) else { return }
         partIdx = si
         practice.rate = rate
+        tab = .context
         practice.play(from: w.from, to: w.to)
-        scrollTo = "detail"; scrollAnchor = .top
-        scrollStamp += 1
     }
 
     private func retake() async {

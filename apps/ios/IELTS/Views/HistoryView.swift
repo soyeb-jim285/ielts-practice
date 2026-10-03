@@ -61,6 +61,7 @@ private struct HistoryItem: Decodable, Identifiable {
     /// Listening & Reading attempts (GET /api/lr/attempts) share the list; they open the L/R runner or result.
     var lr = false
     var lrDetail: String? = nil
+    var lrScore: String? = nil
     enum CodingKeys: String, CodingKey { case id, promptTitle, skill, part, status, overall, createdAt, durationMs, flag }
 
     /// Editor time under a minute is a pasted or abandoned essay, not a meaningful duration; speaking recordings are short by design.
@@ -77,7 +78,7 @@ private extension HistoryItem {
     init(_ a: LrAttemptItem) {
         self.init(id: a.id, promptTitle: a.title, skill: a.skill, part: 0, status: a.status == "submitted" ? "done" : "recording", overall: a.band,
                   createdAt: a.submittedAt ?? a.startedAt, durationMs: nil, flag: nil, lr: true,
-                  lrDetail: [a.mode.capitalized, a.raw.map { "\($0)/\(a.total ?? 40)" }].compactMap { $0 }.joined(separator: ", "))
+                  lrDetail: a.mode.capitalized, lrScore: a.raw.map { "\($0)/\(a.total ?? 40)" })
     }
 }
 
@@ -247,8 +248,11 @@ private struct HistoryRow: View {
                 if o == 0 {
                     Text("No speech").font(.caption).foregroundStyle(.muted)
                 } else {
-                    Text(fmt(o)).font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(bandTextColor(o, target))
-                        .accessibilityLabel("Band \(fmt(o))")
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if let sc = a.lrScore { Text(sc).font(.footnote.monospacedDigit()).foregroundStyle(.muted).accessibilityLabel("Score \(sc)") }
+                        Text(fmt(o)).font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(bandTextColor(o, target))
+                            .accessibilityLabel("Band \(fmt(o))")
+                    }
                 }
             }
         }

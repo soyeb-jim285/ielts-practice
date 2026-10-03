@@ -61,7 +61,7 @@ private struct Block<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased()).font(.caption.weight(.semibold)).tracking(0.6).foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
+            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
             content
         }
     }
@@ -80,23 +80,24 @@ struct LrQuestionDetail: View {
     var onShow: () -> Void
     var onPlay: () -> Void
     var onDictate: () -> Void
-    var onClose: () -> Void
 
     private var r: LrQuestionReview? { q.review }
     private var wrong: String? { mark?.correct == false ? LrReview.wrongNote(q, given: mark!.given) : nil }
 
+    private func verdict(_ m: LrMark) -> Text {
+        let ans = Text(m.answer.joined(separator: " / ")).bold()
+        if m.correct { return Text("Correct. The answer is ") + ans }
+        if m.given.isEmpty { return Text("You left it blank, the answer is ") + ans }
+        return Text("You wrote ") + Text(m.given).bold() + Text(", the answer is ") + ans
+    }
+
+    /// Verdict first, in words, then why, the evidence, and the actions. Reworded phrases stay folded away.
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Question \(q.n)").font(.display(.title3)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
-                    if let m = mark {
-                        Text(m.correct ? "Correct" : "You wrote \(m.given.isEmpty ? "nothing" : m.given), the answer is \(m.answer.joined(separator: " / "))")
-                            .font(.subheadline.weight(.medium)).foregroundStyle(m.correct ? Color.goodText : Color.bad)
-                    }
-                }
-                Spacer(minLength: 8)
-                Button("Close", action: onClose).font(.subheadline.weight(.medium)).frame(minHeight: 44)
+            if let m = mark {
+                Label { verdict(m) } icon: { Image(systemName: m.correct ? "checkmark.circle.fill" : "xmark.circle.fill") }
+                    .font(.body).foregroundStyle(m.correct ? Color.goodText : Color.bad)
+                    .accessibilityElement(children: .combine)
             }
             if let e = entry {
                 VStack(alignment: .leading, spacing: 6) {
@@ -120,12 +121,18 @@ struct LrQuestionDetail: View {
                 .background(Color.warn.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .accessibilityElement(children: .combine)
             }
-            if let why = r?.why { Block(title: "Why") { Text(why).font(.body).foregroundStyle(Color.ink) } }
+            if let why = r?.why { Block(title: "Why this is the answer") { Text(why).font(.body).foregroundStyle(Color.ink) } }
             if let w = wrong, let g = mark?.given {
                 Block(title: "Why \(g.count <= 3 ? g.uppercased() : "\"\(g)\"") is wrong") { Text(w).font(.body).foregroundStyle(Color.ink) }
             }
+            if let ev = r?.evidence {
+                Block(title: listening ? "What the speaker says" : "What the passage says") {
+                    Text(ev).font(.system(.callout, design: .serif)).foregroundStyle(Color.ink)
+                        .padding(.leading, 10).overlay(alignment: .leading) { Rectangle().fill(Color.brand).frame(width: 2) }
+                }
+            }
             if let pairs = r?.paraphrase, !pairs.isEmpty {
-                Block(title: "Same idea, different words") {
+                DisclosureGroup("How the question is reworded (\(pairs.count))") {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(pairs.enumerated()), id: \.offset) { _, p in
                             if p.count >= 2 {
@@ -139,13 +146,9 @@ struct LrQuestionDetail: View {
                             }
                         }
                     }
+                    .padding(.top, 6)
                 }
-            }
-            if let ev = r?.evidence {
-                Block(title: listening ? "In the recording" : "In the passage") {
-                    Text(ev).font(.system(.callout, design: .serif)).foregroundStyle(Color.ink)
-                        .padding(.leading, 10).overlay(alignment: .leading) { Rectangle().fill(Color.brand).frame(width: 2) }
-                }
+                .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).tint(.brand)
             }
             if r == nil && entry == nil && window == nil { Text("No extra notes for this question.").font(.footnote).foregroundStyle(Color.muted) }
             FlowLayout(spacing: 8, lineSpacing: 8) {
@@ -153,15 +156,17 @@ struct LrQuestionDetail: View {
                     Button(action: onShow) { Label("Show \(listening ? "in transcript" : "in passage")", systemImage: "text.magnifyingglass") }.secondaryButton().controlSize(.regular)
                 }
                 if let w = window {
-                    Button(action: onPlay) { Label("Play from \(clock(Int(w.from)))", systemImage: "play.fill") }.secondaryButton().controlSize(.regular)
-                    Text("Answer heard at \(clock(Int(w.start)))" + (w.exact ? "" : " (approx.)")).font(.footnote.monospacedDigit()).foregroundStyle(Color.muted)
+                    Button(action: onPlay) { Label("Listen from \(clock(Int(w.from)))", systemImage: "play.fill") }.secondaryButton().controlSize(.regular)
                 }
                 if canDictate {
                     Button(action: onDictate) { Label("Dictation", systemImage: "ear") }.secondaryButton().controlSize(.regular)
                 }
             }
+            if let w = window {
+                Text("Answer heard at \(clock(Int(w.start)))" + (w.exact ? "" : " (approx.)")).font(.footnote.monospacedDigit()).foregroundStyle(Color.muted)
+            }
         }
-        .card()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
     }
 }
@@ -272,7 +277,6 @@ struct LrTfngPanel: View {
         let kinds = ["tfng", "ynng"].filter { k in rows.contains { $0.kind == k } }
         if !kinds.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                SectionTitle("True / False / Not Given")
                 if let p = pattern {
                     (Text(p).fontWeight(.medium) + Text(" Across all your attempts.").foregroundStyle(Color.muted))
                         .font(.subheadline).foregroundStyle(Color.warnText)
@@ -315,7 +319,6 @@ struct LrTfngPanel: View {
                         }
                         .padding(.top, 4)
                     }
-                    .card()
                 }
             }
         }
@@ -346,17 +349,13 @@ struct LrPacingPanel: View {
         let spent: Double = times.reduce(0) { $0 + $1.s }
         if spent >= 5 || !stats.changes.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                SectionTitle("Pacing")
-                VStack(alignment: .leading, spacing: 14) {
-                    bars
-                    Divider().overlay(Color.line)
-                    changesFact
-                    lateFact
-                    fact("Left blank") {
-                        Text(blank.isEmpty ? "None." : "\(blank.count): \(list(blank)). There is no penalty for guessing.")
-                    }
+                bars
+                Divider().overlay(Color.line)
+                changesFact
+                lateFact
+                fact("Left blank") {
+                    Text(blank.isEmpty ? "None." : "\(blank.count): \(list(blank)). There is no penalty for guessing.")
                 }
-                .card()
             }
         }
     }
@@ -417,7 +416,7 @@ struct LrPacingPanel: View {
 
     private func fact<C: View>(_ title: String, @ViewBuilder _ body: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(Color.muted)
+            Text(title).font(.subheadline).foregroundStyle(Color.muted)
             body().font(.body).foregroundStyle(Color.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -436,7 +435,6 @@ struct LrVocabList: View {
     var body: some View {
         if !vocab.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Key vocabulary").font(.display(.headline)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
                 VStack(spacing: 0) {
                     ForEach(Array(vocab.enumerated()), id: \.element.word) { i, v in
                         HStack(alignment: .top, spacing: 12) {
