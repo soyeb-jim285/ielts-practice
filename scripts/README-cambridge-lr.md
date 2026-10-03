@@ -111,3 +111,7 @@ in the old compact keys (books 1-6, e.g. `1-11 B C B F ...` lines) or sections w
 - General Training: only book 15 ships a GT book; GT sections in the old books were not located.
 - Questions typed `gap` for a flow-chart or table are markdown; check visually before relying on them.
 
+
+## Listening word timings
+
+`uv run scripts/lr-timings.py [--cap N] [slug…]` transcribes every listening part with ElevenLabs scribe_v1 (needs `ELEVENLABS_API_KEY` in `.env`, last one wins) and writes sidecars `data/{lr-generated,cambridge-lr}/timings/{slug}.json` as `{slug, sections: {part: [[word, start, end], …]}}`. Resumable, 2 parallel calls, default cap 40,000 credits, every call logged to `data/lr-timings-cost.log`. Cambridge audio is private: it goes only to ElevenLabs STT.
