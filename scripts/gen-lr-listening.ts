@@ -7,7 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkPart, qinfos } from './lr-structure-check';
+import { checkLayout, checkPart, qinfos } from './lr-structure-check';
 import { expandAnswer, isCorrect, validateLrTest, type LrGroup, type LrSection, type LrTest } from '../packages/core/src/lr';
 import { MAPS } from './lr-maps';
 
@@ -59,7 +59,7 @@ async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
 
 // ---------- Cambridge-pattern question kinds ----------
 const GROUP_SHAPE = `Each group is a JSON object: {"from":int,"to":int,"type":"gap|mcq|mcq-multi|match","title"?:string,"content"?:string,"options"?:[{"key","text"}],"questions":[{"n":int,"text"?:string,"options"?:[{"key","text"}],"answer":[string]}]}. Do not write "instructions" or "wordLimit" (added by code). Optional words in an answer go in parentheses "(the) harbour"; genuinely acceptable alternatives are extra array entries.`;
-const GAPRULES = 'Answers are copied VERBATIM from the transcript (exact word, digits as written there), ONE common word or a number in the vast majority (93% of real answers); never a Latin name, never a long technical phrase. Each answer is a different fact (no repeats), in the same order as the transcript, each fact said once (some after a correction by the speaker). The sentence around each gap must not contain the answer word and should paraphrase, not copy, the transcript where natural.';
+const GAPRULES = 'LAYOUT: the narrator announces question ranges (e.g. 1-5, 6-10) and each must coincide with an on-screen block: if the content has several bold sub-headings, the first gap under a sub-heading must be where a narrator range starts and a sub-section never straddles two ranges (a single table or list with no sub-headings may be split anywhere). Answers are copied VERBATIM from the transcript (exact word, digits as written there), ONE common word or a number in the vast majority (93% of real answers); never a Latin name, never a long technical phrase. Each answer is a different fact (no repeats), in the same order as the transcript, each fact said once (some after a correction by the speaker). The sentence around each gap must not contain the answer word and should paraphrase, not copy, the transcript where natural.';
 const KIND: Record<Kind, string> = {
   notes: `type "gap" (note completion in the style of a real Cambridge exam). "title" = a short heading (e.g. "Advice on surfing holidays"). "content" = markdown: bold subheadings (**Heading**) and "- " bullet lines (or short label lines such as "Cost: £{{n}}"), each line carrying at most one {{n}} placeholder, gaps in transcript order, telegraphic note style (no full sentences, articles dropped). The FIRST line under the title is a pre-filled example, written "Example: <label> <value stated in the opening example exchange of the transcript>" (not a gap, not numbered). ${GAPRULES}`,
   lnotes: `type "gap" (lecture note completion in the style of a real Cambridge exam). "title" = the lecture topic as a short heading. "content" = markdown: 3-4 bold subheadings (**Heading**), under each 2-4 "- " bullets. Each bullet is a short note FRAGMENT that restates a point of the lecture with the gap placed inside the sentence (e.g. "Stoicism is still relevant today because of its {{n}} appeal.", "- ... despite not being intended for {{n}}"), NOT a "Label: {{n}}" pattern and NOT a definition. Some bullets carry no gap and give context. Gaps in lecture order. ${GAPRULES}`,
@@ -425,7 +425,8 @@ async function main() {
     const parts = await Promise.all(PLANS[slug].map(async (p, i) => {
       for (let a = 0; ; a++) {
         const x = await listeningPart(slug, i, p, starts[i]);
-        const probs = checkPart(ttsPart(slug, i, p, x.script, num).turns, qinfos(x.section), { lenient: true });
+        const tts = ttsPart(slug, i, p, x.script, num).turns;
+        const probs = [...checkPart(tts, qinfos(x.section), { lenient: true }), ...checkLayout(tts, x.section)];
         if (!probs.length) return x;
         console.warn(`  [${slug}-p${i + 1}] structure gate failed (attempt ${a + 1}): ${probs.join('; ')}`);
         if (a >= 2) throw new Error(`${slug}-p${i + 1}: answers out of order / outside narrator segment: ${probs.join('; ')}`);
