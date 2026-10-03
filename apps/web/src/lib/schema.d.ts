@@ -2477,6 +2477,21 @@ export interface components {
             groupId: string | null;
             /** @description The user has an attempt on this prompt */
             done: boolean;
+            /** @description Generated speaking prompts (single-prompt and test endpoints): presigned examiner audio. intro = greeting before the first Part 1 topic of a full test; lead = Let's talk about… / part transition; questions align with followUps (P2: the cue card title). A line without url is not rendered: ask it silently. */
+            audio?: {
+                intro: {
+                    text: string;
+                    url: string | null;
+                } | null;
+                lead: {
+                    text: string;
+                    url: string | null;
+                };
+                questions: {
+                    text: string;
+                    url: string | null;
+                }[];
+            } | null;
         };
         PromptMeta: {
             groups: {
@@ -2543,6 +2558,12 @@ export interface components {
             energy?: number[];
             /** @description Question start offsets (ms) */
             marks?: number[];
+            /** @description Non-live speaking: answer window of each question (ms within the recording). Time between windows is app timing (page render, examiner audio) and is left out of the pause measurements. */
+            segments?: {
+                q: number;
+                startMs: number;
+                endMs: number;
+            }[];
             text?: string;
             plan?: string;
             overtime?: boolean;
