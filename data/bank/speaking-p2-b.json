@@ -1,1384 +1,1577 @@
 [
- {
-  "slug": "p2b-family-celebration",
-  "topic": "Celebrations",
-  "title": "Describe a family celebration that you really enjoyed",
-  "bullets": [
-   "what the occasion was",
-   "when and where it took place",
-   "who was there",
-   "what you did during the celebration"
-  ],
-  "explain": "and explain why you enjoyed it so much.",
-  "followUps": [
-   "Do you often have celebrations like this?",
-   "Who usually organises family events in your home?"
-  ],
-  "p3": [
-   "What kinds of occasions do families in your country usually celebrate?",
-   "Are family celebrations becoming smaller or larger than they used to be? Why?",
-   "Why do some people prefer to celebrate in restaurants rather than at home?",
-   "Do you think people spend too much money on celebrations nowadays?",
-   "How important are traditions in keeping families together?",
-   "Will family celebrations change in the future, do you think?"
-  ]
- },
- {
-  "slug": "p2b-wedding-attended",
-  "topic": "Celebrations",
-  "title": "Describe a wedding that you attended",
-  "bullets": [
-   "whose wedding it was",
-   "where it was held",
-   "what happened on the day",
-   "what you wore"
-  ],
-  "explain": "and explain how you felt about the wedding.",
-  "followUps": [
-   "Would you like to have a similar wedding yourself?"
-  ],
-  "p3": [
-   "How have weddings in your country changed over the last few decades?",
-   "Why do some couples choose to have a very small wedding?",
-   "Do you think expensive weddings lead to happier marriages?",
-   "What role do parents play in their children's weddings in your culture?",
-   "Is marriage still as important to young people as it was in the past?",
-   "How might weddings look different in fifty years' time?"
-  ]
- },
- {
-  "slug": "p2b-live-sports-event",
-  "topic": "Sport",
-  "title": "Describe a sporting event that you watched live",
-  "bullets": [
-   "what the event was",
-   "where it took place",
-   "who you went with",
-   "what happened during the event"
-  ],
-  "explain": "and explain why it was memorable for you.",
-  "followUps": [
-   "Do you prefer watching sport live or on television?"
-  ],
-  "p3": [
-   "Why do so many people enjoy watching sport?",
-   "What are the benefits for a country of hosting a major international sporting event?",
-   "Are there any disadvantages of hosting such events?",
-   "Do you think professional athletes are paid too much?",
-   "How has technology changed the way people watch sport?",
-   "Should governments invest more money in sports facilities for ordinary people?"
-  ]
- },
- {
-  "slug": "p2b-local-festival",
-  "topic": "Festivals",
-  "title": "Describe a festival that is important in your country",
-  "bullets": [
-   "what the festival is called",
-   "when it takes place",
-   "what people do during it",
-   "what special food or clothing is associated with it"
-  ],
-  "explain": "and explain why this festival is important to people.",
-  "followUps": [
-   "Did you celebrate it last year?",
-   "Has the way you celebrate it changed since you were a child?"
-  ],
-  "p3": [
-   "Why do people think it is important to keep traditional festivals alive?",
-   "Do you think festivals have become too commercial?",
-   "How do young people and older people celebrate festivals differently?",
-   "Should foreign festivals be celebrated in your country?",
-   "What can tourists learn by attending local festivals?",
-   "Do you think some traditional festivals will disappear in the future?"
-  ]
- },
- {
-  "slug": "p2b-late-for-something",
-  "topic": "Time management",
-  "title": "Describe a time when you were late for something important",
-  "bullets": [
-   "what you were late for",
-   "why you were late",
-   "how late you were",
-   "what happened as a result"
-  ],
-  "explain": "and explain how you felt about being late.",
-  "followUps": [
-   "Are you usually a punctual person?"
-  ],
-  "p3": [
-   "Why is punctuality important in the workplace?",
-   "Are attitudes to punctuality different in different cultures?",
-   "What are some good ways to manage time effectively?",
-   "Do you think modern technology helps people to be more punctual?",
-   "Why do some people always seem to be late?",
-   "Should schools teach time management skills?"
-  ]
- },
- {
-  "slug": "p2b-pleasant-surprise",
-  "topic": "Surprises",
-  "title": "Describe a time when you received a pleasant surprise",
-  "bullets": [
-   "what the surprise was",
-   "when it happened",
-   "who gave you the surprise",
-   "how you reacted"
-  ],
-  "explain": "and explain why it was such a pleasant surprise.",
-  "followUps": [
-   "Have you ever organised a surprise for someone else?"
-  ],
-  "p3": [
-   "Why do people enjoy giving surprises to others?",
-   "Do you think all people like surprises?",
-   "What kinds of surprises are common in your culture?",
-   "Can surprises ever cause problems in relationships?",
-   "Are children easier to surprise than adults? Why?",
-   "Do you think people plan their lives too carefully nowadays, leaving little room for surprises?"
-  ]
- },
- {
-  "slug": "p2b-got-lost",
-  "topic": "Travel",
-  "title": "Describe a time when you got lost",
-  "bullets": [
-   "where you were",
-   "how you got lost",
-   "what you did to find your way",
-   "how long it took"
-  ],
-  "explain": "and explain how you felt during this experience.",
-  "followUps": [
-   "Do you have a good sense of direction?"
-  ],
-  "p3": [
-   "Why do some people get lost more easily than others?",
-   "How have smartphones changed the way people find their way around?",
-   "Is it a problem if people rely too much on GPS?",
-   "Should children learn to read paper maps at school?",
-   "What can cities do to help visitors find their way?",
-   "Do you think getting lost can sometimes be a positive experience?"
-  ]
- },
- {
-  "slug": "p2b-power-cut",
-  "topic": "Technology",
-  "title": "Describe a time when you had to manage without electricity or the internet",
-  "bullets": [
-   "when and where this happened",
-   "how long it lasted",
-   "what you did during that time",
-   "what problems it caused"
-  ],
-  "explain": "and explain how you felt about the experience.",
-  "followUps": [
-   "Does this happen often where you live?"
-  ],
-  "p3": [
-   "How dependent on electricity are people in your country?",
-   "What would be the main effects of a long power cut in a big city?",
-   "Do you think people should spend more time without technology?",
-   "How did people entertain themselves before the internet existed?",
-   "Should governments invest more in renewable energy to prevent shortages?",
-   "Is it possible for modern society to reduce its reliance on the internet?"
-  ]
- },
- {
-  "slug": "p2b-memorable-journey",
-  "topic": "Travel",
-  "title": "Describe a journey that you remember well",
-  "bullets": [
-   "where you were going",
-   "how you travelled",
-   "who you travelled with",
-   "what happened on the way"
-  ],
-  "explain": "and explain why you remember this journey so well.",
-  "followUps": [
-   "Would you like to make the same journey again?"
-  ],
-  "p3": [
-   "What are the most popular ways to travel long distances in your country?",
-   "Why do some people prefer travelling by train rather than by plane?",
-   "How has international travel changed in recent years?",
-   "Do you think people will travel less in the future because of environmental concerns?",
-   "What are the advantages of travelling alone compared with travelling in a group?",
-   "Is the journey itself as important as the destination?"
-  ]
- },
- {
-  "slug": "p2b-helped-stranger",
-  "topic": "Helping others",
-  "title": "Describe a time when you helped someone you did not know",
-  "bullets": [
-   "who the person was",
-   "where you met them",
-   "what kind of help they needed",
-   "what you did to help"
-  ],
-  "explain": "and explain how you felt after helping them.",
-  "followUps": [
-   "Do you think the person would remember you?"
-  ],
-  "p3": [
-   "Why are some people more willing to help strangers than others?",
-   "Are people today less helpful than people in the past?",
-   "Should children be taught to help others at school?",
-   "Do people in cities and in the countryside help each other in different ways?",
-   "What kinds of voluntary work are common in your country?",
-   "Should employers give staff time off to do volunteer work?"
-  ]
- },
- {
-  "slug": "p2b-someone-helped-you",
-  "topic": "Helping others",
-  "title": "Describe a time when someone helped you in a difficult situation",
-  "bullets": [
-   "who helped you",
-   "what the situation was",
-   "how they helped you",
-   "what happened afterwards"
-  ],
-  "explain": "and explain why this help was important to you.",
-  "followUps": [
-   "Did you thank them in any special way?"
-  ],
-  "p3": [
-   "Who do people in your country usually ask for help when they have a problem?",
-   "Is it easy for people to ask for help? Why or why not?",
-   "Do you think neighbours help each other as much as they used to?",
-   "What kinds of help should the government provide to citizens?",
-   "Can too much help from parents be bad for young people?",
-   "How can communities encourage people to support one another?"
-  ]
- },
- {
-  "slug": "p2b-proud-of-relative",
-  "topic": "Family",
-  "title": "Describe a time when you felt proud of a family member",
-  "bullets": [
-   "who the person is",
-   "what they did",
-   "when it happened",
-   "how other people reacted"
-  ],
-  "explain": "and explain why you felt proud of them.",
-  "followUps": [
-   "Did you tell them that you were proud?"
-  ],
-  "p3": [
-   "What kinds of achievements do parents in your country usually feel proud of?",
-   "Should parents praise their children often?",
-   "Is it more important to be proud of effort or of results?",
-   "Why do some people find it hard to express pride in others?",
-   "Do you think society values some achievements more than others?",
-   "Can feeling too proud of something be a bad thing?"
-  ]
- },
- {
-  "slug": "p2b-disagreement-friend",
-  "topic": "Relationships",
-  "title": "Describe a time when you disagreed with a friend",
-  "bullets": [
-   "who the friend was",
-   "what you disagreed about",
-   "how the disagreement developed",
-   "how it was resolved"
-  ],
-  "explain": "and explain how you felt about the situation afterwards.",
-  "followUps": [
-   "Are you still friends with this person?"
-  ],
-  "p3": [
-   "What are the most common reasons for disagreements between friends?",
-   "Is it healthy for friends to disagree sometimes?",
-   "How can people disagree politely?",
-   "Why do some people avoid conflict at all costs?",
-   "Do you think social media causes more arguments between people?",
-   "What skills are needed to settle disputes at work?"
-  ]
- },
- {
-  "slug": "p2b-changed-mind",
-  "topic": "Decisions",
-  "title": "Describe a time when you changed your mind about something",
-  "bullets": [
-   "what you originally thought",
-   "what made you change your mind",
-   "when this happened",
-   "what you think now"
-  ],
-  "explain": "and explain whether you think changing your mind was the right thing to do.",
-  "followUps": [
-   "Do you change your mind easily?"
-  ],
-  "p3": [
-   "Why do people find it difficult to change their opinions?",
-   "Is it a sign of weakness or strength to change your mind?",
-   "Who has the greatest influence on young people's opinions?",
-   "How does advertising try to change people's minds?",
-   "Should politicians be criticised for changing their views?",
-   "Do people become more fixed in their opinions as they get older?"
-  ]
- },
- {
-  "slug": "p2b-long-wait",
-  "topic": "Patience",
-  "title": "Describe a time when you had to wait a long time for something",
-  "bullets": [
-   "what you were waiting for",
-   "where you were",
-   "how long you had to wait",
-   "what you did while you were waiting"
-  ],
-  "explain": "and explain how you felt while waiting.",
-  "followUps": [
-   "Would you say you are a patient person?"
-  ],
-  "p3": [
-   "In what situations do people usually have to wait in your country?",
-   "Why are people today less patient than in the past?",
-   "Is patience a skill that can be learned?",
-   "How can businesses reduce the time customers spend waiting?",
-   "Do you think technology has made people more impatient?",
-   "Are there situations in which waiting can be beneficial?"
-  ]
- },
- {
-  "slug": "p2b-first-outdoor-activity",
-  "topic": "Outdoor activities",
-  "title": "Describe an outdoor activity that you tried for the first time",
-  "bullets": [
-   "what the activity was",
-   "where you did it",
-   "who you did it with",
-   "whether it was easy or difficult"
-  ],
-  "explain": "and explain how you felt about trying it.",
-  "followUps": [
-   "Would you do it again?"
-  ],
-  "p3": [
-   "What outdoor activities are popular in your country?",
-   "Why do fewer children play outside nowadays?",
-   "What are the benefits of spending time in nature?",
-   "Should schools organise more outdoor activities for students?",
-   "Are dangerous outdoor sports worth the risk?",
-   "How does the weather affect the activities people choose to do?"
-  ]
- },
- {
-  "slug": "p2b-missed-appointment",
-  "topic": "Time management",
-  "title": "Describe a time when you forgot or missed an appointment",
-  "bullets": [
-   "what the appointment was for",
-   "why you missed it",
-   "when you realised",
-   "what you did about it"
-  ],
-  "explain": "and explain how you felt about missing it.",
-  "followUps": [
-   "How do you usually remember your appointments now?"
-  ],
-  "p3": [
-   "What methods do people use to remember important things?",
-   "Do you think people have worse memories now because of technology?",
-   "Why are some people more organised than others?",
-   "How should businesses deal with customers who miss appointments?",
-   "Is it acceptable to cancel an appointment at the last minute?",
-   "Do older people and younger people plan their time differently?"
-  ]
- },
- {
-  "slug": "p2b-good-news",
-  "topic": "Emotions",
-  "title": "Describe a time when you received some good news",
-  "bullets": [
-   "what the news was",
-   "how you received it",
-   "who you were with at the time",
-   "who you shared it with"
-  ],
-  "explain": "and explain why this news was important to you.",
-  "followUps": [
-   "How did you celebrate?"
-  ],
-  "p3": [
-   "How do people usually share good news in your country?",
-   "Why do some people prefer to keep good news private?",
-   "Do you think the media focuses too much on bad news?",
-   "Should newspapers include more positive stories?",
-   "How has technology changed the way people receive important news?",
-   "Is it better to hear bad news in person or in writing?"
-  ]
- },
- {
-  "slug": "p2b-broke-something",
-  "topic": "Mistakes",
-  "title": "Describe a time when you broke something valuable",
-  "bullets": [
-   "what you broke",
-   "how it happened",
-   "who it belonged to",
-   "what you did afterwards"
-  ],
-  "explain": "and explain how you felt about the situation.",
-  "followUps": [
-   "Was it possible to repair or replace it?"
-  ],
-  "p3": [
-   "Why is it important to admit when you have made a mistake?",
-   "How should parents react when children break things?",
-   "Do people repair things less often than in the past?",
-   "Why do many modern products break so easily?",
-   "Should manufacturers be required to make products that last longer?",
-   "What can people learn from accidents like this?"
-  ]
- },
- {
-  "slug": "p2b-traffic-jam",
-  "topic": "Transport",
-  "title": "Describe a time when you were stuck in a traffic jam",
-  "bullets": [
-   "where you were going",
-   "where and when it happened",
-   "how long you were stuck",
-   "what you did while you waited"
-  ],
-  "explain": "and explain how you felt about the experience.",
-  "followUps": [
-   "Is traffic a big problem where you live?"
-  ],
-  "p3": [
-   "What are the main causes of traffic congestion in cities?",
-   "How can governments reduce traffic problems?",
-   "Should people be charged money to drive into city centres?",
-   "Do you think public transport in your country is good enough?",
-   "How might transport in cities change in the future?",
-   "Would people be happier if they lived closer to their workplace?"
-  ]
- },
- {
-  "slug": "p2b-learned-from-mistake",
-  "topic": "Mistakes",
-  "title": "Describe a mistake you made that taught you an important lesson",
-  "bullets": [
-   "what the mistake was",
-   "when you made it",
-   "what the consequences were",
-   "what you did to put it right"
-  ],
-  "explain": "and explain what you learned from it.",
-  "followUps": [
-   "Have you ever made a similar mistake again?"
-  ],
-  "p3": [
-   "Why are people often afraid of making mistakes?",
-   "Should teachers allow students to learn from their own mistakes?",
-   "Do you think people learn more from success or from failure?",
-   "How should managers respond when employees make mistakes?",
-   "Are some mistakes impossible to learn from?",
-   "Why do some people repeat the same mistakes again and again?"
-  ]
- },
- {
-  "slug": "p2b-taught-someone",
-  "topic": "Teaching",
-  "title": "Describe a time when you taught someone how to do something",
-  "bullets": [
-   "who you taught",
-   "what you taught them",
-   "how you taught it",
-   "how long it took them to learn"
-  ],
-  "explain": "and explain how you felt about teaching this person.",
-  "followUps": [
-   "Would you like to be a teacher?"
-  ],
-  "p3": [
-   "What qualities make a good teacher?",
-   "Is it better to learn from a teacher or to teach yourself?",
-   "Why do some people find it easier to learn from friends than from teachers?",
-   "How has the internet changed the way people learn practical skills?",
-   "Should older people learn new skills from younger people?",
-   "Do you think teachers will be replaced by technology in the future?"
-  ]
- },
- {
-  "slug": "p2b-very-busy-day",
-  "topic": "Work and study",
-  "title": "Describe a time when you were extremely busy",
-  "bullets": [
-   "when it was",
-   "what you had to do",
-   "how you organised your time",
-   "whether anyone helped you"
-  ],
-  "explain": "and explain how you felt during this busy period.",
-  "followUps": [
-   "How do you relax after a busy time?"
-  ],
-  "p3": [
-   "Why do people seem to be busier today than in the past?",
-   "Is being busy always a sign of being productive?",
-   "How can employers reduce stress for their staff?",
-   "Should students have less homework?",
-   "What are the effects of a busy lifestyle on family life?",
-   "Will people have more free time in the future, do you think?"
-  ]
- },
- {
-  "slug": "p2b-felt-bored",
-  "topic": "Emotions",
-  "title": "Describe a time when you felt bored",
-  "bullets": [
-   "when and where it was",
-   "what you were doing",
-   "why it was boring",
-   "what you did to pass the time"
-  ],
-  "explain": "and explain how you felt after the experience.",
-  "followUps": [
-   "Do you often get bored?"
-  ],
-  "p3": [
-   "Why do children get bored more easily than adults?",
-   "Can boredom ever be good for people?",
-   "Do you think young people today are less able to cope with boredom?",
-   "Which jobs do you think are the most boring?",
-   "How can teachers make lessons more interesting?",
-   "Is it the responsibility of employers to make work enjoyable?"
-  ]
- },
- {
-  "slug": "p2b-teamwork-success",
-  "topic": "Teamwork",
-  "title": "Describe a time when you worked in a team to achieve something",
-  "bullets": [
-   "what the task was",
-   "who was in the team",
-   "what your role was",
-   "what the result was"
-  ],
-  "explain": "and explain how you felt about working in this team.",
-  "followUps": [
-   "Do you prefer working alone or in a team?"
-  ],
-  "p3": [
-   "What makes a team work well together?",
-   "Is it important for every team to have a leader?",
-   "What problems can arise when people work in groups?",
-   "Should schools give students more group projects?",
-   "How can team members deal with someone who does not contribute?",
-   "Do you think remote working makes teamwork more difficult?"
-  ]
- },
- {
-  "slug": "p2b-competition",
-  "topic": "Competition",
-  "title": "Describe a competition that you took part in",
-  "bullets": [
-   "what kind of competition it was",
-   "when and where it took place",
-   "how you prepared for it",
-   "what the result was"
-  ],
-  "explain": "and explain how you felt about taking part.",
-  "followUps": [
-   "Would you enter a competition like this again?"
-  ],
-  "p3": [
-   "Why do people like to enter competitions?",
-   "Is competition good for children?",
-   "Should schools give prizes to the best students?",
-   "Do you think competition in the workplace increases productivity?",
-   "Why do some people dislike competing with others?",
-   "Is cooperation more important than competition in modern society?"
-  ]
- },
- {
-  "slug": "p2b-public-speech",
-  "topic": "Communication",
-  "title": "Describe a time when you had to speak in front of a group of people",
-  "bullets": [
-   "when and where it was",
-   "who the audience was",
-   "what you talked about",
-   "how you prepared"
-  ],
-  "explain": "and explain how you felt before and after speaking.",
-  "followUps": [
-   "Do you enjoy speaking in public?"
-  ],
-  "p3": [
-   "Why are many people nervous about public speaking?",
-   "Should public speaking be taught at school?",
-   "What makes a speech interesting to listen to?",
-   "In which jobs is public speaking an essential skill?",
-   "Are good speakers born or made?",
-   "How has online communication changed the way people give presentations?"
-  ]
- },
- {
-  "slug": "p2b-had-to-be-polite",
-  "topic": "Manners",
-  "title": "Describe a time when you had to be polite even though you did not want to be",
-  "bullets": [
-   "when and where it happened",
-   "who you were with",
-   "what the situation was",
-   "what you said or did"
-  ],
-  "explain": "and explain why you decided to be polite.",
-  "followUps": [
-   "Was it difficult for you?"
-  ],
-  "p3": [
-   "What are considered good manners in your country?",
-   "Are young people less polite than older generations?",
-   "Should parents or schools be responsible for teaching manners?",
-   "Is it ever acceptable to be impolite?",
-   "Do good manners matter in business?",
-   "Are manners changing because of the internet and social media?"
-  ]
- },
- {
-  "slug": "p2b-made-complaint",
-  "topic": "Consumer issues",
-  "title": "Describe a time when you complained about something",
-  "bullets": [
-   "what you complained about",
-   "who you complained to",
-   "how you complained",
-   "what the result was"
-  ],
-  "explain": "and explain how you felt about the outcome.",
-  "followUps": [
-   "Do you complain often?"
-  ],
-  "p3": [
-   "What do people in your country most often complain about?",
-   "Is it better to complain in person, by phone or online?",
-   "Why do some people never complain even when they are unhappy?",
-   "How should companies deal with complaints from customers?",
-   "Do online reviews give customers too much power?",
-   "Are people today more likely to complain than in the past?"
-  ]
- },
- {
-  "slug": "p2b-new-food",
-  "topic": "Food",
-  "title": "Describe a time when you tried a type of food for the first time",
-  "bullets": [
-   "what the food was",
-   "where you tried it",
-   "who you were with",
-   "what it tasted like"
-  ],
-  "explain": "and explain whether you would eat it again.",
-  "followUps": [
-   "Do you enjoy trying new food?"
-  ],
-  "p3": [
-   "Why are some people unwilling to try new kinds of food?",
-   "How has the diet of people in your country changed in recent years?",
-   "Do you think fast food is replacing traditional dishes?",
-   "Should children be encouraged to try a variety of foods?",
-   "How does international travel influence what people eat?",
-   "Will people eat very differently in the future?"
-  ]
- },
- {
-  "slug": "p2b-skill-to-learn",
-  "topic": "Skills",
-  "title": "Describe a skill that you would like to learn in the future",
-  "bullets": [
-   "what the skill is",
-   "why you want to learn it",
-   "how you would learn it",
-   "how difficult you think it would be"
-  ],
-  "explain": "and explain how this skill would be useful to you.",
-  "followUps": [
-   "Do you know anyone who already has this skill?"
-  ],
-  "p3": [
-   "What skills are most useful for young people to learn today?",
-   "Is it easier to learn a new skill as a child or as an adult?",
-   "Should practical skills be given more importance at school?",
-   "Can people learn skills effectively from online videos?",
-   "Which traditional skills are disappearing in your country?",
-   "Do employers value qualifications more than practical skills?"
-  ]
- },
- {
-  "slug": "p2b-childhood-skill",
-  "topic": "Skills",
-  "title": "Describe a skill that you learned when you were a child",
-  "bullets": [
-   "what the skill was",
-   "who taught you",
-   "how you learned it",
-   "how old you were"
-  ],
-  "explain": "and explain how this skill has helped you in your life.",
-  "followUps": [
-   "Do you still use this skill today?"
-  ],
-  "p3": [
-   "What skills should all children learn before they leave primary school?",
-   "Are parents or teachers more important in teaching children skills?",
-   "Do children today learn different skills from those of previous generations?",
-   "Should children learn to cook at school?",
-   "Do you think children spend too much time on academic subjects?",
-   "How can adults encourage children to keep practising a skill?"
-  ]
- },
- {
-  "slug": "p2b-difficult-decision",
-  "topic": "Decisions",
-  "title": "Describe a difficult decision that you have made",
-  "bullets": [
-   "what the decision was",
-   "when you made it",
-   "what choices you had",
-   "who helped you decide"
-  ],
-  "explain": "and explain why the decision was difficult and whether it was the right one.",
-  "followUps": [
-   "Do you usually make decisions quickly?"
-  ],
-  "p3": [
-   "What important decisions do young people in your country have to make?",
-   "Should parents make important decisions for their children?",
-   "Why do some people find it hard to make decisions?",
-   "Is it better to make decisions based on logic or on feelings?",
-   "Do people today have too many choices?",
-   "What decisions should governments make on behalf of citizens?"
-  ]
- },
- {
-  "slug": "p2b-unachieved-goal",
-  "topic": "Goals",
-  "title": "Describe a goal that you have not yet achieved",
-  "bullets": [
-   "what the goal is",
-   "when you set it",
-   "what you have done so far",
-   "what is stopping you from achieving it"
-  ],
-  "explain": "and explain how you would feel if you achieved it.",
-  "followUps": [
-   "When do you hope to achieve it?"
-  ],
-  "p3": [
-   "Why is it important for people to set goals?",
-   "Do young people today have realistic goals?",
-   "What is more important in achieving a goal: talent or hard work?",
-   "Should parents set goals for their children?",
-   "How do people's goals change as they get older?",
-   "Is it bad to give up on a goal?"
-  ]
- },
- {
-  "slug": "p2b-useful-advice",
-  "topic": "Advice",
-  "title": "Describe a piece of good advice that someone gave you",
-  "bullets": [
-   "who gave you the advice",
-   "when you received it",
-   "what the advice was",
-   "whether you followed it"
-  ],
-  "explain": "and explain why you think it was good advice.",
-  "followUps": [
-   "Have you passed this advice on to anyone else?"
-  ],
-  "p3": [
-   "Who do young people usually ask for advice?",
-   "Is advice from older people always better?",
-   "Why do some people refuse to listen to advice?",
-   "Should people pay for advice from professionals?",
-   "Can you trust advice that you find on the internet?",
-   "What are the risks of giving advice to others?"
-  ]
- },
- {
-  "slug": "p2b-useful-website",
-  "topic": "Internet",
-  "title": "Describe a website that you find useful",
-  "bullets": [
-   "what the website is",
-   "how you found it",
-   "what you use it for",
-   "how often you visit it"
-  ],
-  "explain": "and explain why you find it so useful.",
-  "followUps": [
-   "Have you recommended it to anyone?"
-  ],
-  "p3": [
-   "What kinds of websites are most popular in your country?",
-   "How can people tell whether information online is reliable?",
-   "Should the government control what is published on the internet?",
-   "Do you think websites will be replaced by apps and AI assistants?",
-   "What are the dangers of children using the internet without supervision?",
-   "How has the internet changed the way people shop?"
-  ]
- },
- {
-  "slug": "p2b-good-law",
-  "topic": "Law and society",
-  "title": "Describe a law in your country that you think is a good one",
-  "bullets": [
-   "what the law is",
-   "when it was introduced",
-   "who it affects",
-   "how it is enforced"
-  ],
-  "explain": "and explain why you think it is a good law.",
-  "followUps": [
-   "Do most people in your country obey this law?"
-  ],
-  "p3": [
-   "Why do societies need laws?",
-   "Should laws be the same in every country?",
-   "Why do some people break laws even when they know the punishment?",
-   "Is prison the best way to deal with people who break the law?",
-   "Should young people be punished in the same way as adults?",
-   "How can governments encourage people to obey laws?"
-  ]
- },
- {
-  "slug": "p2b-news-story",
-  "topic": "Media",
-  "title": "Describe a news story that interested you",
-  "bullets": [
-   "what the story was about",
-   "when you heard about it",
-   "where you heard it",
-   "how other people reacted to it"
-  ],
-  "explain": "and explain why it interested you.",
-  "followUps": [
-   "Did you follow the story afterwards?"
-  ],
-  "p3": [
-   "How do most people in your country get their news?",
-   "Do you think news reporting is generally accurate?",
-   "Why does bad news seem to attract more attention than good news?",
-   "Should journalists be allowed to report on celebrities' private lives?",
-   "How has social media changed the way news spreads?",
-   "Is it important for young people to follow current affairs?"
-  ]
- },
- {
-  "slug": "p2b-good-habit",
-  "topic": "Habits",
-  "title": "Describe a good habit that you have",
-  "bullets": [
-   "what the habit is",
-   "when you started it",
-   "how often you do it",
-   "how you keep it up"
-  ],
-  "explain": "and explain how this habit benefits you.",
-  "followUps": [
-   "Did anyone encourage you to start it?"
-  ],
-  "p3": [
-   "What good habits should parents teach their children?",
-   "Why is it so difficult to break bad habits?",
-   "How long does it take to form a new habit?",
-   "Are there habits that are common to people in your country?",
-   "Can advertising encourage people to develop healthy habits?",
-   "Should governments try to change people's unhealthy habits?"
-  ]
- },
- {
-  "slug": "p2b-habit-to-change",
-  "topic": "Habits",
-  "title": "Describe a habit that you would like to change",
-  "bullets": [
-   "what the habit is",
-   "how long you have had it",
-   "why you want to change it",
-   "what you have tried to do about it"
-  ],
-  "explain": "and explain how your life would be different if you changed it.",
-  "followUps": [
-   "Do other people in your family have the same habit?"
-  ],
-  "p3": [
-   "What are the most common bad habits among young people?",
-   "Why do people continue with habits they know are harmful?",
-   "Is it easier to stop a bad habit or to start a good one?",
-   "Should unhealthy products be taxed more heavily?",
-   "How do friends influence a person's habits?",
-   "Can technology help people change their behaviour?"
-  ]
- },
- {
-  "slug": "p2b-career-ambition",
-  "topic": "Work",
-  "title": "Describe an ambition you have for your career",
-  "bullets": [
-   "what the ambition is",
-   "when you first had it",
-   "what you need to do to achieve it",
-   "how long it might take"
-  ],
-  "explain": "and explain why this ambition is important to you.",
-  "followUps": [
-   "Does your family support this ambition?"
-  ],
-  "p3": [
-   "What jobs are most young people in your country ambitious to do?",
-   "Is it good for people to be very ambitious?",
-   "Should people choose a career for money or for personal satisfaction?",
-   "How important is job security compared with job satisfaction?",
-   "Do schools prepare young people well for the world of work?",
-   "How will the jobs market change over the next twenty years?"
-  ]
- },
- {
-  "slug": "p2b-useful-invention",
-  "topic": "Technology",
-  "title": "Describe an invention that has changed the way people live",
-  "bullets": [
-   "what the invention is",
-   "when it was invented",
-   "how people use it",
-   "how life was different before it existed"
-  ],
-  "explain": "and explain why you think it is so important.",
-  "followUps": [
-   "Could you live without it?"
-  ],
-  "p3": [
-   "What are the most important inventions of the last hundred years?",
-   "Do all inventions improve people's lives?",
-   "Should governments fund scientific research?",
-   "Why do some people resist new technology?",
-   "Who benefits most from new inventions: rich or poor countries?",
-   "What kinds of inventions do we need most in the future?"
-  ]
- },
- {
-  "slug": "p2b-school-rule",
-  "topic": "Education",
-  "title": "Describe an important rule that you had to follow at school",
-  "bullets": [
-   "what the rule was",
-   "who made the rule",
-   "what happened if students broke it",
-   "whether students followed it"
-  ],
-  "explain": "and explain whether you think it was a good rule.",
-  "followUps": [
-   "Did you ever break this rule?"
-  ],
-  "p3": [
-   "Why do schools need rules?",
-   "Should students be involved in making school rules?",
-   "Are school rules stricter now than in the past?",
-   "Should students be required to wear a school uniform?",
-   "What is the best way to deal with students who misbehave?",
-   "Do rules at home and at school have the same purpose?"
-  ]
- },
- {
-  "slug": "p2b-creative-idea",
-  "topic": "Creativity",
-  "title": "Describe a time when you had a creative idea",
-  "bullets": [
-   "what the idea was",
-   "when you had it",
-   "what inspired it",
-   "what happened to the idea"
-  ],
-  "explain": "and explain how you felt about having this idea.",
-  "followUps": [
-   "Do you think of yourself as a creative person?"
-  ],
-  "p3": [
-   "Can creativity be taught?",
-   "Which jobs require the most creativity?",
-   "Do schools in your country encourage creativity?",
-   "Is creativity more important than knowledge?",
-   "Why do some people have more creative ideas than others?",
-   "Will artificial intelligence make human creativity less valuable?"
-  ]
- },
- {
-  "slug": "p2b-new-hobby",
-  "topic": "Hobbies",
-  "title": "Describe a hobby that you started recently",
-  "bullets": [
-   "what the hobby is",
-   "when and why you started it",
-   "how much time you spend on it",
-   "what equipment you need"
-  ],
-  "explain": "and explain what you enjoy about this hobby.",
-  "followUps": [
-   "Do you think you will continue with it?"
-  ],
-  "p3": [
-   "Why is it important for people to have hobbies?",
-   "How do the hobbies of young people differ from those of older people?",
-   "Are hobbies becoming more expensive?",
-   "Can a hobby turn into a career?",
-   "Do people have less time for hobbies than they did in the past?",
-   "Should employers encourage staff to have hobbies?"
-  ]
- },
- {
-  "slug": "p2b-exercise-you-enjoy",
-  "topic": "Health",
-  "title": "Describe a type of physical exercise that you enjoy",
-  "bullets": [
-   "what the exercise is",
-   "how often you do it",
-   "where you do it",
-   "who you do it with"
-  ],
-  "explain": "and explain why you enjoy it.",
-  "followUps": [
-   "When did you start doing this exercise?"
-  ],
-  "p3": [
-   "Why do many people find it hard to exercise regularly?",
-   "What are the benefits of exercising in a group?",
-   "Should physical education be compulsory at school?",
-   "Do you think gyms are the best place to keep fit?",
-   "How can governments encourage people to be more active?",
-   "Are people in your country healthier now than in the past?"
-  ]
- },
- {
-  "slug": "p2b-difficult-technology",
-  "topic": "Technology",
-  "title": "Describe a piece of technology that you find difficult to use",
-  "bullets": [
-   "what it is",
-   "when you first used it",
-   "what you use it for",
-   "what makes it difficult"
-  ],
-  "explain": "and explain how you feel when you use it.",
-  "followUps": [
-   "Has anyone helped you learn how to use it?"
-  ],
-  "p3": [
-   "Why do older people often find new technology difficult?",
-   "Should companies make their products simpler to use?",
-   "Do young people depend too much on technology?",
-   "How can older people be encouraged to use technology?",
-   "Is technology making people's lives more complicated?",
-   "What skills will people need to cope with future technology?"
-  ]
- },
- {
-  "slug": "p2b-useful-app",
-  "topic": "Technology",
-  "title": "Describe an app on your phone that you use often",
-  "bullets": [
-   "what the app is",
-   "when you started using it",
-   "what you use it for",
-   "how often you use it"
-  ],
-  "explain": "and explain why this app is important to you.",
-  "followUps": [
-   "Would you pay for this app?"
-  ],
-  "p3": [
-   "What kinds of apps are most popular in your country?",
-   "Do people spend too much time on their phones?",
-   "Should there be age limits on the use of smartphones?",
-   "How do free apps make money?",
-   "Are people worried about the personal data collected by apps?",
-   "How might mobile phones change in the next ten years?"
-  ]
- },
- {
-  "slug": "p2b-subject-to-study",
-  "topic": "Education",
-  "title": "Describe a subject you would like to study in the future",
-  "bullets": [
-   "what the subject is",
-   "where you would study it",
-   "how you would study it",
-   "what you already know about it"
-  ],
-  "explain": "and explain why you would like to study this subject.",
-  "followUps": [
-   "Is this subject popular in your country?"
-  ],
-  "p3": [
-   "How do young people in your country choose what to study at university?",
-   "Should university education be free?",
-   "Are some subjects more valuable than others?",
-   "Is it better to study in your own country or abroad?",
-   "Do you think online degrees are as good as traditional ones?",
-   "Should adults be encouraged to return to education?"
-  ]
- },
- {
-  "slug": "p2b-local-change",
-  "topic": "Cities and change",
-  "title": "Describe a change that has taken place in your local area",
-  "bullets": [
-   "what the change was",
-   "when it happened",
-   "how it has affected the people who live there",
-   "what you think of it"
-  ],
-  "explain": "and explain whether you think it was a positive change.",
-  "followUps": [
-   "Would you like to see any other changes in your area?"
-  ],
-  "p3": [
-   "What changes have happened in towns and cities in your country recently?",
-   "Should local residents be consulted about new building projects?",
-   "Why do some people resist change in their neighbourhood?",
-   "Is it important to preserve old buildings?",
-   "How has the growth of cities affected people's lives?",
-   "What will cities in your country be like in the future?"
-  ]
- },
- {
-  "slug": "p2b-online-video",
-  "topic": "Media",
-  "title": "Describe an online video that you found interesting",
-  "bullets": [
-   "what the video was about",
-   "where you watched it",
-   "who made it",
-   "how you found it"
-  ],
-  "explain": "and explain why you found it interesting.",
-  "followUps": [
-   "Did you share it with anyone?"
-  ],
-  "p3": [
-   "Why are short online videos so popular?",
-   "Can people learn useful things from watching online videos?",
-   "Should video platforms be responsible for the content they show?",
-   "Is being an online content creator a real job?",
-   "How has online video changed the television industry?",
-   "Do online videos have a greater influence on young people than teachers or parents?"
-  ]
- },
- {
-  "slug": "p2b-family-tradition",
-  "topic": "Traditions",
-  "title": "Describe a tradition that your family follows",
-  "bullets": [
-   "what the tradition is",
-   "when it takes place",
-   "who takes part",
-   "how long your family has followed it"
-  ],
-  "explain": "and explain what this tradition means to you.",
-  "followUps": [
-   "Will you continue this tradition in the future?"
-  ],
-  "p3": [
-   "Why do families have traditions?",
-   "Are traditions less important to young people today?",
-   "How do traditions help to build a sense of identity?",
-   "Is globalisation causing local traditions to disappear?",
-   "Should schools teach children about national traditions?",
-   "Can new traditions be created, or must they be old?"
-  ]
- },
- {
-  "slug": "p2b-environmental-problem",
-  "topic": "Environment",
-  "title": "Describe an environmental problem in your area",
-  "bullets": [
-   "what the problem is",
-   "what has caused it",
-   "how it affects people",
-   "what is being done about it"
-  ],
-  "explain": "and explain what you think should be done to solve it.",
-  "followUps": [
-   "Have you done anything personally to help?"
-  ],
-  "p3": [
-   "What are the biggest environmental problems facing the world today?",
-   "Who should take responsibility for protecting the environment: individuals, companies or governments?",
-   "Are people in your country aware of environmental issues?",
-   "Should polluting companies pay heavy fines?",
-   "Can technology solve environmental problems?",
-   "Is it fair to ask developing countries to limit their industrial growth?"
-  ]
- },
- {
-  "slug": "p2b-unnecessary-purchase",
-  "topic": "Money",
-  "title": "Describe a time when you spent money on something you did not need",
-  "bullets": [
-   "what you bought",
-   "when and where you bought it",
-   "why you bought it",
-   "what you did with it afterwards"
-  ],
-  "explain": "and explain how you felt about buying it.",
-  "followUps": [
-   "Do you often buy things on impulse?"
-  ],
-  "p3": [
-   "Why do people buy things they do not need?",
-   "How does advertising influence what people buy?",
-   "Should children be taught how to manage money at school?",
-   "Is it better to save money or to enjoy spending it?",
-   "Has online shopping made people spend more?",
-   "Do you think society has become too materialistic?"
-  ]
- },
- {
-  "slug": "p2b-time-alone",
-  "topic": "Lifestyle",
-  "title": "Describe a time when you enjoyed being alone",
-  "bullets": [
-   "when and where it was",
-   "what you did",
-   "how long you were alone",
-   "why you wanted to be alone"
-  ],
-  "explain": "and explain why you enjoyed this time.",
-  "followUps": [
-   "How often do you spend time alone?"
-  ],
-  "p3": [
-   "Why do some people prefer to spend time alone?",
-   "Is it healthy for children to spend time on their own?",
-   "Are people today lonelier than in the past?",
-   "How can communities help people who are lonely?",
-   "Do introverts and extroverts need different kinds of workplaces?",
-   "Has technology made people more or less isolated?"
-  ]
- },
- {
-  "slug": "p2b-rule-disagreed",
-  "topic": "Rules",
-  "title": "Describe a rule that you had to follow but did not agree with",
-  "bullets": [
-   "what the rule was",
-   "where you had to follow it",
-   "who made the rule",
-   "what happened when people did not follow it"
-  ],
-  "explain": "and explain why you did not agree with it.",
-  "followUps": [
-   "Do you think the rule should be changed?"
-  ],
-  "p3": [
-   "Why do people sometimes disagree with rules?",
-   "Should people always obey rules even if they think they are wrong?",
-   "How can ordinary people change rules they think are unfair?",
-   "Are there too many rules in modern society?",
-   "Do rules at work make employees more or less productive?",
-   "How should parents explain rules to their children?"
-  ]
- },
- {
-  "slug": "p2b-interesting-conversation",
-  "topic": "Communication",
-  "title": "Describe an interesting conversation you had with someone",
-  "bullets": [
-   "who you talked with",
-   "when and where it happened",
-   "what you talked about",
-   "how long it lasted"
-  ],
-  "explain": "and explain why you found the conversation interesting.",
-  "followUps": [
-   "Have you spoken to this person again since then?"
-  ],
-  "p3": [
-   "What topics do people in your country usually avoid discussing with strangers?",
-   "Is face-to-face conversation more valuable than online messaging?",
-   "Why do some people find it difficult to start conversations?",
-   "Do men and women communicate differently?",
-   "How has texting changed the way people communicate?",
-   "Are listening skills as important as speaking skills?"
-  ]
- },
- {
-  "slug": "p2b-future-challenge",
-  "topic": "Challenges",
-  "title": "Describe a challenge that you would like to take on",
-  "bullets": [
-   "what the challenge is",
-   "why you want to do it",
-   "how you would prepare for it",
-   "what difficulties you might face"
-  ],
-  "explain": "and explain how you would feel if you succeeded.",
-  "followUps": [
-   "Do you know anyone who has done something similar?"
-  ],
-  "p3": [
-   "Why do people like to challenge themselves?",
-   "Is it good for children to face challenges?",
-   "What are the biggest challenges facing young people today?",
-   "Do people respect those who take risks?",
-   "Should companies give their employees more challenging work?",
-   "Are people today less willing to take on difficult challenges than in the past?"
-  ]
- },
- {
-  "slug": "p2b-happy-period-life",
-  "topic": "Life stages",
-  "title": "Describe a period of your life that you really enjoyed",
-  "bullets": [
-   "when it was",
-   "where you were living",
-   "what you were doing at that time",
-   "who you spent time with"
-  ],
-  "explain": "and explain why you enjoyed this period so much.",
-  "followUps": [
-   "Would you like to go back to that time?"
-  ],
-  "p3": [
-   "Which stage of life do you think is the happiest?",
-   "Why do people often remember the past as better than it really was?",
-   "Do people have more responsibilities today than their parents did at the same age?",
-   "How do people's priorities change as they get older?",
-   "Should people save for retirement from a young age?",
-   "Is childhood today happier than it was in the past?"
-  ]
- },
- {
-  "slug": "p2b-volunteer-activity",
-  "topic": "Community",
-  "title": "Describe a time when you did some voluntary work",
-  "bullets": [
-   "what the work was",
-   "where you did it",
-   "who you worked with",
-   "how long you did it for"
-  ],
-  "explain": "and explain how you felt about doing this work.",
-  "followUps": [
-   "Would you like to do more voluntary work?"
-  ],
-  "p3": [
-   "Why do people choose to volunteer?",
-   "Should voluntary work be compulsory for students?",
-   "What kinds of organisations need volunteers most?",
-   "Do volunteers do work that should really be paid?",
-   "Are young people less interested in helping their community than before?",
-   "How can charities attract more volunteers?"
-  ]
- }
+  {
+    "slug": "p2b-family-celebration",
+    "topic": "Celebrations",
+    "title": "Describe a family celebration that you really enjoyed.",
+    "bullets": [
+      "what the occasion was",
+      "where the celebration took place",
+      "who you celebrated with"
+    ],
+    "explain": "and explain why you enjoyed it so much.",
+    "followUps": [
+      "Do you often have celebrations like this?",
+      "Who usually organises family events in your home?"
+    ],
+    "p3Topics": [
+      "Family occasions",
+      "Celebrations in society"
+    ],
+    "p3": [
+      "What family celebrations are commonly held in your country?",
+      "Why do some people prefer small family gatherings to large celebrations?",
+      "Do you think children benefit from taking part in family celebrations?",
+      "What are the advantages of celebrating important occasions with relatives?",
+      "How have family celebrations changed in your country in recent years?",
+      "Do you think people are spending less time celebrating traditional occasions?"
+    ]
+  },
+  {
+    "slug": "p2b-wedding-attended",
+    "topic": "Celebrations",
+    "title": "Describe a wedding that you attended.",
+    "bullets": [
+      "whose wedding it was",
+      "where it was held",
+      "what you wore"
+    ],
+    "explain": "and explain what made it a special day.",
+    "followUps": [
+      "Would you like to have a similar wedding yourself?"
+    ],
+    "p3Topics": [
+      "Wedding customs",
+      "Marriage and society"
+    ],
+    "p3": [
+      "What wedding traditions are still common in your country?",
+      "Why do some couples choose a simple wedding instead of a large one?",
+      "Do you think wedding celebrations should reflect a couple's personalities?",
+      "Do you think weddings are more important to families than to the couple?",
+      "What are the advantages of keeping wedding traditions alive?",
+      "How have weddings changed in your country in recent years?"
+    ]
+  },
+  {
+    "slug": "p2b-live-sports-event",
+    "topic": "Sport",
+    "title": "Describe a sporting event that you watched live.",
+    "bullets": [
+      "what the event was",
+      "where it took place",
+      "who you went with"
+    ],
+    "explain": "and explain why it was memorable for you.",
+    "followUps": [
+      "Do you prefer watching sport live or on television?"
+    ],
+    "p3Topics": [
+      "Watching sport",
+      "Sport in society"
+    ],
+    "p3": [
+      "What sports do people in your country most often watch live?",
+      "Why do some people prefer watching sport at a stadium to watching it on television?",
+      "Do you think children should have opportunities to watch live sports?",
+      "What are the benefits of attending a sporting event with other people?",
+      "How do major sporting events affect the atmosphere in a city?",
+      "Do you think live sports will remain popular in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-local-festival",
+    "topic": "Festivals",
+    "title": "Describe a festival or public holiday that people celebrate where you live.",
+    "bullets": [
+      "what the festival is called",
+      "when it takes place",
+      "what people do during it"
+    ],
+    "explain": "and explain why people look forward to it.",
+    "followUps": [
+      "Did you celebrate it last year?",
+      "Has the way you celebrate it changed since you were a child?"
+    ],
+    "p3Topics": [
+      "Local celebrations",
+      "Public holidays"
+    ],
+    "p3": [
+      "What kinds of festivals do people in your country celebrate with family?",
+      "Why do some people prefer small local celebrations to large public events?",
+      "Do you think festivals are important for bringing communities together?",
+      "What are the advantages of having public holidays that are shared across the country?",
+      "How do public holidays in your country compare with ordinary weekends for families?",
+      "Do you think traditional festivals will remain important to young people in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-late-for-something",
+    "topic": "Time management",
+    "title": "Describe a time when you were late for something important.",
+    "bullets": [
+      "what you were late for",
+      "when it happened",
+      "what happened as a result"
+    ],
+    "explain": "and explain how you felt about being late.",
+    "followUps": [
+      "Are you usually a punctual person?"
+    ],
+    "p3Topics": [
+      "Being on time",
+      "Time and society"
+    ],
+    "p3": [
+      "What kinds of events are people in your country most careful not to be late for?",
+      "Why do some people find it difficult to arrive on time?",
+      "Do you think people are less punctual now than they were in the past?",
+      "What are the problems caused when workers arrive late for work?",
+      "How do people in your country usually explain being late?",
+      "Do you think technology has made it easier for people to manage their time?"
+    ]
+  },
+  {
+    "slug": "p2b-pleasant-surprise",
+    "topic": "Surprises",
+    "title": "Describe a time when you received a pleasant surprise.",
+    "bullets": [
+      "what the surprise was",
+      "when it happened",
+      "who gave you the surprise"
+    ],
+    "explain": "and explain why it was such a pleasant surprise.",
+    "followUps": [
+      "Have you ever organised a surprise for someone else?"
+    ],
+    "p3Topics": [
+      "Giving surprises",
+      "Celebrating good news"
+    ],
+    "p3": [
+      "What kinds of surprises do people in your country enjoy receiving?",
+      "Why do some people prefer planning surprises rather than receiving planned gifts?",
+      "Do you think surprises are more memorable when they are small and personal?",
+      "How do families in your country usually celebrate good news?",
+      "What are the benefits of surprising colleagues with small celebrations at work?",
+      "Do you think people will continue to enjoy unexpected celebrations in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-got-lost",
+    "topic": "Travel",
+    "title": "Describe a time when you got lost.",
+    "bullets": [
+      "where you were",
+      "when it happened",
+      "what you did to find your way"
+    ],
+    "explain": "and explain how you felt during this experience.",
+    "followUps": [
+      "Do you have a good sense of direction?"
+    ],
+    "p3Topics": [
+      "Finding directions",
+      "Navigation technology"
+    ],
+    "p3": [
+      "How do people in your country usually find their way around unfamiliar places?",
+      "Why do some people find it difficult to ask strangers for directions?",
+      "Do you think learning to read maps is still useful today?",
+      "What are the advantages of using digital maps instead of asking local people?",
+      "Do you think navigation apps make people less observant of their surroundings?",
+      "How has technology changed the way people travel around cities in recent years?"
+    ]
+  },
+  {
+    "slug": "p2b-power-cut",
+    "topic": "Technology",
+    "title": "Describe a time when you had to manage without electricity or the internet.",
+    "bullets": [
+      "when and where this happened",
+      "how long it lasted",
+      "what you did without power"
+    ],
+    "explain": "and explain how you felt about the experience.",
+    "followUps": [
+      "Does this happen often where you live?"
+    ],
+    "p3Topics": [
+      "Daily disruptions",
+      "Reliable services"
+    ],
+    "p3": [
+      "What do people in your country usually do during a power cut?",
+      "Why are some people more affected by losing internet than electricity?",
+      "Do you think people could manage without internet for a day? Why?",
+      "Which services in your country are most disrupted by power cuts?",
+      "How can power cuts affect local businesses?",
+      "Do you think homes will become less dependent on the electricity grid in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-memorable-journey",
+    "topic": "Travel",
+    "title": "Describe a journey that you remember well.",
+    "bullets": [
+      "where you were going",
+      "how you travelled",
+      "what happened on the way"
+    ],
+    "explain": "and explain why this journey was so memorable.",
+    "followUps": [
+      "Would you like to make the same journey again?"
+    ],
+    "p3Topics": [
+      "Enjoyable journeys",
+      "Travel choices"
+    ],
+    "p3": [
+      "What kinds of journeys do people in your country enjoy most?",
+      "Why do some journeys stay in people's memories longer than others?",
+      "Do you think people value the journey as much as the destination? Why?",
+      "Which forms of transport do people in your country use for long journeys?",
+      "How do journeys by train compare with journeys by car?",
+      "Do you think long-distance travel will become more comfortable in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-helped-stranger",
+    "topic": "Friends",
+    "title": "Describe an old friend you have lost touch with.",
+    "bullets": [
+      "who this friend is",
+      "where you first met",
+      "how you kept in touch"
+    ],
+    "explain": "and explain why you lost touch with this friend.",
+    "followUps": [
+      "Would you like to see this friend again?",
+      "Do you make friends easily?"
+    ],
+    "p3Topics": [
+      "Keeping friendships",
+      "Friendship today"
+    ],
+    "p3": [
+      "How do people in your country usually stay in touch with old friends?",
+      "Why do some people lose contact with friends as they get older?",
+      "Do you think childhood friendships are different from adult friendships?",
+      "What are the benefits of having friends from different stages of life?",
+      "How important is it for people to make time for old friends?",
+      "Do you think social media makes it easier to maintain close friendships?"
+    ]
+  },
+  {
+    "slug": "p2b-someone-helped-you",
+    "topic": "Sport",
+    "title": "Describe a sport or physical activity you did at school.",
+    "bullets": [
+      "which activity you took part in",
+      "where you did it at school",
+      "who you did it with"
+    ],
+    "explain": "and explain how you felt about taking part.",
+    "followUps": [
+      "Do you still do this activity?",
+      "Were you good at it?"
+    ],
+    "p3Topics": [
+      "Sport at school",
+      "Exercise in adulthood"
+    ],
+    "p3": [
+      "What kinds of physical activities are popular in schools in your country?",
+      "Why do some pupils enjoy team sports more than individual activities?",
+      "Do you think school sports help students develop useful skills?",
+      "What are the advantages of taking part in sport as a child?",
+      "How has the way adults exercise changed in your country in recent years?",
+      "Do you think people are more likely to exercise when they do it with friends?"
+    ]
+  },
+  {
+    "slug": "p2b-proud-of-relative",
+    "topic": "Family",
+    "title": "Describe a time when you visited relatives.",
+    "bullets": [
+      "where they live",
+      "when you visited them",
+      "what you did together"
+    ],
+    "explain": "and explain why the visit was important to you.",
+    "followUps": [
+      "Do you often visit relatives?",
+      "Do your relatives live near you?"
+    ],
+    "p3Topics": [
+      "Visiting relatives",
+      "Family traditions"
+    ],
+    "p3": [
+      "What kinds of occasions bring families together in your country?",
+      "Why do some people visit relatives more often than others?",
+      "Do you think family visits are important for children?",
+      "What are the benefits of children spending time with older relatives?",
+      "How do family gatherings today compare with those in the past?",
+      "Do you think people will continue to visit relatives regularly in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-disagreement-friend",
+    "topic": "Relationships",
+    "title": "Describe a time when you disagreed with a friend.",
+    "bullets": [
+      "who the friend was",
+      "what you disagreed about",
+      "how you resolved the disagreement"
+    ],
+    "explain": "and explain how you felt about the situation afterwards.",
+    "followUps": [
+      "Are you still friends with this person?"
+    ],
+    "p3Topics": [
+      "Friends and disagreements",
+      "Resolving differences"
+    ],
+    "p3": [
+      "What kinds of issues do friends in your country most often disagree about?",
+      "Why do some people find it hard to admit they are wrong to a friend?",
+      "Do you think disagreements can sometimes make friendships stronger?",
+      "How do people in your country usually settle disagreements with friends?",
+      "What are the benefits of discussing disagreements calmly rather than avoiding them?",
+      "Do you think a friendship can stay strong when friends have very different opinions?"
+    ]
+  },
+  {
+    "slug": "p2b-changed-mind",
+    "topic": "Health",
+    "title": "Describe a time when you felt very tired.",
+    "bullets": [
+      "where you had been",
+      "what you had been doing",
+      "when you started feeling tired"
+    ],
+    "explain": "and explain why you were so tired.",
+    "followUps": [
+      "Do you usually get enough sleep?",
+      "How do you relax after a tiring day?"
+    ],
+    "p3Topics": [
+      "Getting enough rest",
+      "Modern working life"
+    ],
+    "p3": [
+      "What kinds of activities help people in your country relax after a tiring day?",
+      "Why do some people find it difficult to get enough sleep?",
+      "Do you think people today are more tired than they were in the past?",
+      "What are the effects of being tired on people's everyday lives?",
+      "How important is it for workers to take regular breaks during the day?",
+      "Do you think flexible working hours can help people feel less tired?"
+    ]
+  },
+  {
+    "slug": "p2b-long-wait",
+    "topic": "Patience",
+    "title": "Describe a time when you had to wait a long time for something.",
+    "bullets": [
+      "what you were waiting for",
+      "where you were",
+      "what you did while waiting"
+    ],
+    "explain": "and explain how you felt while waiting.",
+    "followUps": [
+      "Would you say you are a patient person?"
+    ],
+    "p3Topics": [
+      "Waiting in queues",
+      "Waiting for results"
+    ],
+    "p3": [
+      "What kinds of places in your country make people wait in long queues?",
+      "Why do some people become impatient when they have to wait?",
+      "Do you think waiting can sometimes be useful?",
+      "What do people in your country usually do while waiting for important results?",
+      "What are the benefits of learning to wait patiently?",
+      "Do you think online services have reduced the time people spend waiting?"
+    ]
+  },
+  {
+    "slug": "p2b-first-outdoor-activity",
+    "topic": "Outdoor activities",
+    "title": "Describe an outdoor activity that you tried for the first time.",
+    "bullets": [
+      "what the activity was",
+      "where you did it",
+      "who you did it with"
+    ],
+    "explain": "and explain how you felt about trying it.",
+    "followUps": [
+      "Would you do it again?"
+    ],
+    "p3Topics": [
+      "Trying outdoor activities",
+      "Access to outdoor spaces"
+    ],
+    "p3": [
+      "What outdoor activities do people in your country often try for the first time?",
+      "Why do some people prefer trying outdoor activities with an instructor?",
+      "Do you think beginners gain confidence by starting with simple activities?",
+      "How do people in your country make use of local parks and walking trails?",
+      "What are the benefits of organised outdoor activities compared with going alone?",
+      "Do you think outdoor activities will become more popular in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-missed-appointment",
+    "topic": "Daily life",
+    "title": "Describe a time when you had to get up very early.",
+    "bullets": [
+      "what you were doing",
+      "where you were going",
+      "who was with you"
+    ],
+    "explain": "and explain why you had to get up so early.",
+    "followUps": [
+      "Do you often get up early?",
+      "Would you do it again?"
+    ],
+    "p3Topics": [
+      "Early mornings",
+      "Early work schedules"
+    ],
+    "p3": [
+      "What kinds of activities do people in your country usually do early in the morning?",
+      "Why do some people prefer starting their day before most others?",
+      "Do you think people are more productive when they get up early?",
+      "What are the advantages of starting work early for people in your country?",
+      "How do early shifts compare with evening shifts for workers?",
+      "Do you think employers will offer more flexible working hours in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-good-news",
+    "topic": "Friends",
+    "title": "Describe a time when you met someone again after a long time.",
+    "bullets": [
+      "who you met",
+      "where you met them",
+      "what you talked about"
+    ],
+    "explain": "and explain how you felt seeing this person again.",
+    "followUps": [
+      "Do you keep in touch with this person now?",
+      "Do you enjoy meeting old friends?"
+    ],
+    "p3Topics": [
+      "Keeping in touch",
+      "Meeting old friends"
+    ],
+    "p3": [
+      "How do people in your country usually keep in touch with friends they rarely see?",
+      "Why do some people enjoy meeting friends from their past?",
+      "Do you think social media has made it easier to reconnect with old friends?",
+      "What are the advantages for people in your country of meeting old friends face to face?",
+      "How have people's ways of keeping in touch changed in your country in recent years?",
+      "Do you think long-distance friendships can remain close over time?"
+    ]
+  },
+  {
+    "slug": "p2b-broke-something",
+    "topic": "Mistakes",
+    "title": "Describe a time when you broke something valuable.",
+    "bullets": [
+      "who it belonged to",
+      "how it got broken",
+      "what you did afterwards"
+    ],
+    "explain": "and explain how you felt about breaking it.",
+    "followUps": [
+      "Was it possible to repair or replace it?"
+    ],
+    "p3Topics": [
+      "Caring for possessions",
+      "Repair and replacement"
+    ],
+    "p3": [
+      "What valuable objects do people in your country try especially hard to protect?",
+      "Why do some people become attached to particular possessions?",
+      "Do you think people can easily replace valuable objects that are broken?",
+      "Which valuable objects do people in your country most often try to repair?",
+      "What are the advantages of repairing damaged items instead of replacing them?",
+      "Do you think people today are less careful with their belongings than in the past?"
+    ]
+  },
+  {
+    "slug": "p2b-traffic-jam",
+    "topic": "Weather",
+    "title": "Describe a time when your plans were changed by the weather.",
+    "bullets": [
+      "what you had planned",
+      "where you were going to go",
+      "how the weather changed things"
+    ],
+    "explain": "and explain why your original plans mattered to you.",
+    "followUps": [
+      "Do you check the weather forecast before you go out?",
+      "What do you usually do when it rains?"
+    ],
+    "p3Topics": [
+      "Weather and plans",
+      "Weather and travel"
+    ],
+    "p3": [
+      "What kinds of weather often affect people's plans in your country?",
+      "Why do some people change their plans when the weather is poor?",
+      "Do you think people can plan outdoor activities reliably in your country?",
+      "What are the disadvantages for travellers in your country of bad weather?",
+      "Why do some travellers continue with their plans despite bad weather?",
+      "Do you think weather forecasts will become more accurate in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-learned-from-mistake",
+    "topic": "Mistakes",
+    "title": "Describe a mistake you made that taught you an important lesson.",
+    "bullets": [
+      "what the mistake was",
+      "when you made it",
+      "what happened as a result"
+    ],
+    "explain": "and explain what you learned from it.",
+    "followUps": [
+      "Have you ever made a similar mistake again?"
+    ],
+    "p3Topics": [
+      "Learning through experience",
+      "Mistakes at work and school"
+    ],
+    "p3": [
+      "What kinds of mistakes do young people in your country commonly make?",
+      "Why do some people learn more from mistakes than from advice?",
+      "Do you think people should admit their mistakes openly?",
+      "How do schools and workplaces in your country usually respond when people make mistakes?",
+      "What are the benefits of discussing mistakes in schools or workplaces?",
+      "Do you think making mistakes is necessary for success?"
+    ]
+  },
+  {
+    "slug": "p2b-taught-someone",
+    "topic": "Teaching",
+    "title": "Describe a time when you taught someone how to do something.",
+    "bullets": [
+      "who you taught",
+      "what you taught them",
+      "how long it took them to learn"
+    ],
+    "explain": "and explain how you felt about teaching this person.",
+    "followUps": [
+      "Would you like to be a teacher?"
+    ],
+    "p3Topics": [
+      "Teaching everyday skills",
+      "Learning in schools"
+    ],
+    "p3": [
+      "What skills do people in your country often teach to family members?",
+      "Why do some people enjoy teaching practical skills to others?",
+      "Do you think people learn better by watching someone or reading instructions?",
+      "What skills do students in your country often learn from one another?",
+      "What are the advantages of learning a skill from an experienced person?",
+      "Do you think online lessons can teach practical skills as well as lessons in person?"
+    ]
+  },
+  {
+    "slug": "p2b-very-busy-day",
+    "topic": "Work and study",
+    "title": "Describe a day when you were extremely busy.",
+    "bullets": [
+      "when this busy day took place",
+      "what tasks you had to complete",
+      "how you organised your time"
+    ],
+    "explain": "and explain how you felt during this busy day.",
+    "followUps": [
+      "How do you relax after a busy time?"
+    ],
+    "p3Topics": [
+      "Managing busy days",
+      "Work and free time"
+    ],
+    "p3": [
+      "What activities make people in your country especially busy during the week?",
+      "Why do some people choose to fill their days with many activities?",
+      "Do you think having a busy schedule is a sign of success?",
+      "Which duties take up most people's time in your country?",
+      "What are the disadvantages of being too busy to spend time with family?",
+      "Do you think people will have more free time in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-felt-bored",
+    "topic": "Emotions",
+    "title": "Describe a time when you felt bored.",
+    "bullets": [
+      "when and where it happened",
+      "what you were doing",
+      "how you passed the time"
+    ],
+    "explain": "and explain how you felt after the experience.",
+    "followUps": [
+      "Do you often get bored?"
+    ],
+    "p3Topics": [
+      "Boredom at home",
+      "Leisure and technology"
+    ],
+    "p3": [
+      "What do people in your country usually do when they have nothing to do?",
+      "Why do some people get bored more easily than others?",
+      "Do you think being bored can sometimes be useful?",
+      "What activities do people in your country choose to escape boredom?",
+      "What are the benefits of having quiet time without phones or screens?",
+      "Do you think people today have fewer chances to feel bored than in the past?"
+    ]
+  },
+  {
+    "slug": "p2b-teamwork-success",
+    "topic": "Teamwork",
+    "title": "Describe a time when you worked successfully with a team.",
+    "bullets": [
+      "what the team needed to achieve",
+      "who was in the team",
+      "what your role involved"
+    ],
+    "explain": "and explain how you felt about the team's achievement.",
+    "followUps": [
+      "Do you prefer working alone or in a team?"
+    ],
+    "p3Topics": [
+      "Teamwork at work",
+      "Teamwork in education"
+    ],
+    "p3": [
+      "What kinds of work in your country depend most on people working well in teams?",
+      "Why do some people find it easier to work in a team than alone?",
+      "Do you think good teamwork is more important than individual talent at work?",
+      "How do schools in your country help children learn to work with others?",
+      "What are the benefits of children doing group projects rather than individual tasks?",
+      "Do you think teamwork will become more important in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-competition",
+    "topic": "Competition",
+    "title": "Describe a competition that you took part in.",
+    "bullets": [
+      "what kind of competition it was",
+      "where the competition took place",
+      "how you prepared for it"
+    ],
+    "explain": "and explain how you felt about taking part.",
+    "followUps": [
+      "Would you enter a competition like this again?"
+    ],
+    "p3Topics": [
+      "Competition at school",
+      "Competition in society"
+    ],
+    "p3": [
+      "What types of competitions are common among students in your country?",
+      "Why do some people enjoy competing against others?",
+      "Do you think competition helps children achieve more at school?",
+      "In what situations do people in your country compete with one another as adults?",
+      "What are the advantages of competition in the workplace?",
+      "Do you think cooperation is more important than competition in society?"
+    ]
+  },
+  {
+    "slug": "p2b-public-speech",
+    "topic": "Communication",
+    "title": "Describe a time when you spoke in front of a group.",
+    "bullets": [
+      "when the speech took place",
+      "who was listening to you",
+      "what you talked about"
+    ],
+    "explain": "and explain how you prepared for the speech.",
+    "followUps": [
+      "Do you enjoy speaking in public?"
+    ],
+    "p3Topics": [
+      "Speaking at work",
+      "Speaking at school"
+    ],
+    "p3": [
+      "Do you think people in your country often have to speak in front of groups at work?",
+      "Why do some people feel nervous when speaking to an audience?",
+      "What are the qualities of an effective public speaker?",
+      "What kinds of occasions give schoolchildren in your country a chance to speak publicly?",
+      "How important is it for students to learn to speak confidently in public?",
+      "Do you think online presentations will replace many face-to-face speeches in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-had-to-be-polite",
+    "topic": "Manners",
+    "title": "Describe a time when you had to be polite despite your feelings.",
+    "bullets": [
+      "when and where it happened",
+      "who you were with",
+      "what the situation involved"
+    ],
+    "explain": "and explain why you decided to be polite.",
+    "followUps": [
+      "Was it difficult for you?"
+    ],
+    "p3Topics": [
+      "Politeness in daily life",
+      "Courtesy at work"
+    ],
+    "p3": [
+      "In what situations are people in your country especially careful to be polite?",
+      "Why do some people behave more politely with strangers than with friends?",
+      "Do you think politeness is always important? Why?",
+      "What forms of politeness are expected in workplaces in your country?",
+      "How do expectations of politeness at work compare with those at home?",
+      "Do you think people are less polite than they were in the past?"
+    ]
+  },
+  {
+    "slug": "p2b-made-complaint",
+    "topic": "Consumer issues",
+    "title": "Describe a time when you complained about something.",
+    "bullets": [
+      "what you complained about",
+      "who you complained to",
+      "when this happened"
+    ],
+    "explain": "and explain how you felt about the outcome.",
+    "followUps": [
+      "Do you complain often?"
+    ],
+    "p3Topics": [
+      "Complaining as customers",
+      "Responding to complaints"
+    ],
+    "p3": [
+      "Do you think people in your country complain more about services or products?",
+      "Why do some people avoid complaining even when they receive poor service?",
+      "What are the reasons people give when they complain about a purchase?",
+      "How do businesses in your country usually respond to customer complaints?",
+      "What are the benefits of complaining politely rather than saying nothing?",
+      "Do you think companies take customer complaints seriously?"
+    ]
+  },
+  {
+    "slug": "p2b-new-food",
+    "topic": "Food",
+    "title": "Describe a time when you tried a new food.",
+    "bullets": [
+      "what the food was",
+      "where you tried it",
+      "who you were with"
+    ],
+    "explain": "and explain whether you would eat it again.",
+    "followUps": [
+      "Do you enjoy trying new food?"
+    ],
+    "p3Topics": [
+      "Trying unfamiliar food",
+      "Food and culture"
+    ],
+    "p3": [
+      "What kinds of unfamiliar food do people in your country enjoy trying?",
+      "Why do some people prefer familiar meals to trying new dishes?",
+      "Do you think people are more willing to try new foods when eating with friends?",
+      "How has food culture changed in your country in recent years?",
+      "What are the advantages of introducing children to different cuisines?",
+      "Do you think traditional dishes will remain popular as international food spreads?"
+    ]
+  },
+  {
+    "slug": "p2b-skill-to-learn",
+    "topic": "Skills",
+    "title": "Describe a skill that you would like to learn.",
+    "bullets": [
+      "what the skill is",
+      "how you would learn it",
+      "who could help you"
+    ],
+    "explain": "and explain how this skill would be useful to you.",
+    "followUps": [
+      "Do you know anyone who already has this skill?"
+    ],
+    "p3Topics": [
+      "Learning new skills",
+      "Skills at work"
+    ],
+    "p3": [
+      "What skills do people in your country most often learn outside school?",
+      "Why do some people choose to learn practical skills in adulthood?",
+      "Do you think learning a new skill is easier online than in person?",
+      "What are the qualities that help someone learn a difficult skill?",
+      "How important is it for employees to keep developing their skills?",
+      "Do you think employers will value communication skills more in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-childhood-skill",
+    "topic": "Skills",
+    "title": "Describe a skill that you learned as a child.",
+    "bullets": [
+      "what the skill was",
+      "who taught you",
+      "how you learned it"
+    ],
+    "explain": "and explain how this skill has helped you in your life.",
+    "followUps": [
+      "Do you still use this skill today?"
+    ],
+    "p3Topics": [
+      "Skills learned at home",
+      "Skills learned at school"
+    ],
+    "p3": [
+      "What kinds of skills do children in your country usually learn at home?",
+      "Why do some children learn practical skills more quickly than others?",
+      "Do you think children learn better by watching adults or by trying things themselves?",
+      "How do schools help children develop skills beyond academic subjects?",
+      "What are the benefits of children learning creative skills at an early age?",
+      "Do you think skills learned in childhood influence people's choices as adults?"
+    ]
+  },
+  {
+    "slug": "p2b-difficult-decision",
+    "topic": "Decisions",
+    "title": "Describe a difficult decision that you have made.",
+    "bullets": [
+      "what the decision was",
+      "when you made it",
+      "who helped you decide"
+    ],
+    "explain": "and explain why the decision was difficult.",
+    "followUps": [
+      "Do you usually make decisions quickly?"
+    ],
+    "p3Topics": [
+      "Everyday decisions",
+      "Decisions about the future"
+    ],
+    "p3": [
+      "What kinds of difficult decisions do people in your country commonly face?",
+      "Why do some people find it hard to make decisions without advice?",
+      "Do you think people usually make better decisions alone or with others?",
+      "What are the most important things to consider when choosing a career?",
+      "How important is it for young people to make their own decisions?",
+      "Do you think experience makes people better at making difficult decisions?"
+    ]
+  },
+  {
+    "slug": "p2b-unachieved-goal",
+    "topic": "Goals",
+    "title": "Describe a goal that you have not yet achieved.",
+    "bullets": [
+      "what the goal is",
+      "when you set it",
+      "what you have done so far"
+    ],
+    "explain": "and explain how you would feel if you achieved it.",
+    "followUps": [
+      "When do you hope to achieve it?"
+    ],
+    "p3Topics": [
+      "Setting personal goals",
+      "Goals at work and school"
+    ],
+    "p3": [
+      "What kinds of goals are common among young adults in your country?",
+      "Why do some people find it difficult to stay committed to a goal?",
+      "Do you think people achieve more when they set goals for themselves? Why?",
+      "What are the benefits of goal setting for workers in your country?",
+      "How do personal goals compare with goals set by an employer or teacher?",
+      "Do you think people’s ambitions change as they get older?"
+    ]
+  },
+  {
+    "slug": "p2b-useful-advice",
+    "topic": "Advice",
+    "title": "Describe a piece of useful advice someone gave you.",
+    "bullets": [
+      "who gave you this advice",
+      "when you received it",
+      "how you used this advice"
+    ],
+    "explain": "and explain why you valued this advice.",
+    "followUps": [
+      "Have you passed this advice on to anyone else?"
+    ],
+    "p3Topics": [
+      "Advice in everyday life",
+      "Advice in education"
+    ],
+    "p3": [
+      "What kinds of advice do people in your country often ask their family for?",
+      "Why is it that some people prefer advice from friends to advice from older people?",
+      "Do you think people usually follow the advice they receive? Why?",
+      "What advice do teachers in your country often give students about their future?",
+      "How has advice from experts changed in your country in recent years?",
+      "Do you think online advice is as trustworthy as advice from professionals?"
+    ]
+  },
+  {
+    "slug": "p2b-useful-website",
+    "topic": "Media",
+    "title": "Describe a film that you have watched more than once.",
+    "bullets": [
+      "what the film was about",
+      "when you first watched it",
+      "who you watched it with"
+    ],
+    "explain": "and explain why you watched it again.",
+    "followUps": [
+      "Do you often watch films at home?",
+      "Would you recommend it to a friend?"
+    ],
+    "p3Topics": [
+      "Watching films",
+      "Making films"
+    ],
+    "p3": [
+      "What kinds of films do people in your country enjoy watching more than once?",
+      "Why do some people prefer familiar films to watching something new?",
+      "Do you think watching a film repeatedly can change how people understand it?",
+      "What are the main reasons some films remain popular for many years?",
+      "How do films today compare with those people watched in the past?",
+      "Do you think film-makers should focus more on stories than special effects?"
+    ]
+  },
+  {
+    "slug": "p2b-good-law",
+    "topic": "Law and society",
+    "title": "Describe a law in your country that you think is good.",
+    "bullets": [
+      "what the law requires",
+      "who it applies to",
+      "how it is enforced"
+    ],
+    "explain": "and explain why you consider it useful.",
+    "followUps": [
+      "Do most people in your country obey this law?"
+    ],
+    "p3Topics": [
+      "Laws in daily life",
+      "Laws and society"
+    ],
+    "p3": [
+      "What kinds of laws do people in your country notice most in everyday life?",
+      "Why do some people obey certain laws more readily than others?",
+      "Do you think people are more likely to follow a law they consider fair?",
+      "What are the benefits of consumer protection laws for people in your country?",
+      "How important is it for laws to change as society changes?",
+      "Do you think people will have more respect for laws in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-news-story",
+    "topic": "Media",
+    "title": "Describe a news story that caught your attention.",
+    "bullets": [
+      "what the story was about",
+      "when you heard about it",
+      "where you found the story"
+    ],
+    "explain": "and explain why it caught your attention.",
+    "followUps": [
+      "Did you follow the story afterwards?"
+    ],
+    "p3Topics": [
+      "Following the news",
+      "News and understanding"
+    ],
+    "p3": [
+      "What kinds of news stories attract people’s attention in your country?",
+      "Why do some people follow local news more closely than international news?",
+      "Do you think people trust news reports more when they recognise the source?",
+      "What are the advantages of people in your country getting news from several sources?",
+      "How has the way people share news changed in your country in recent years?",
+      "Do you think social media makes it easier for people to understand important events?"
+    ]
+  },
+  {
+    "slug": "p2b-good-habit",
+    "topic": "Habits",
+    "title": "Describe a good habit that you have developed.",
+    "bullets": [
+      "what the habit involves",
+      "when you started doing it",
+      "how often you practise it"
+    ],
+    "explain": "and explain how this habit helps you.",
+    "followUps": [
+      "Did anyone encourage you to start it?"
+    ],
+    "p3Topics": [
+      "Healthy daily habits",
+      "Habits in society"
+    ],
+    "p3": [
+      "What good habits are common among people in your country?",
+      "Why do some people find it easier to develop a habit than others?",
+      "Do you think small daily habits can make a big difference to people’s lives?",
+      "What are the benefits of healthy habits for workers in your country?",
+      "How important is it for children to learn good habits at home?",
+      "Do you think technology helps people maintain healthy habits?"
+    ]
+  },
+  {
+    "slug": "p2b-habit-to-change",
+    "topic": "Habits",
+    "title": "Describe a habit that you would like to change.",
+    "bullets": [
+      "what the habit is",
+      "how long you have had it",
+      "what you have tried so far"
+    ],
+    "explain": "and explain why you want to change it.",
+    "followUps": [
+      "Do other people in your family have the same habit?"
+    ],
+    "p3Topics": [
+      "Changing personal habits",
+      "Habits and daily life"
+    ],
+    "p3": [
+      "What habits do people in your country often try to change?",
+      "Why is it that people sometimes continue habits they know are unhealthy?",
+      "Do you think people can change a habit without help from others?",
+      "What are the benefits of reducing time-wasting habits for workers in your country?",
+      "How do people’s habits compare when they are young and when they are older?",
+      "Do you think modern technology encourages people to develop better habits?"
+    ]
+  },
+  {
+    "slug": "p2b-career-ambition",
+    "topic": "Work",
+    "title": "Describe an ambition you have for your career.",
+    "bullets": [
+      "what this ambition is",
+      "when you first had it",
+      "what steps you need to take"
+    ],
+    "explain": "and explain why this ambition is important to you.",
+    "followUps": [
+      "Does your family support this ambition?"
+    ],
+    "p3Topics": [
+      "Career choices",
+      "Career development"
+    ],
+    "p3": [
+      "What kinds of careers are young people in your country most interested in?",
+      "Why do some people choose a career for security rather than personal interest?",
+      "Do you think it is important for people to have clear career ambitions?",
+      "What are the advantages of changing careers for workers in your country?",
+      "How important is it for schools to help students choose a career?",
+      "Do you think people will change jobs more often in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-useful-invention",
+    "topic": "History",
+    "title": "Describe an important event in your country's history.",
+    "bullets": [
+      "what happened during this event",
+      "when it took place",
+      "how people responded to it"
+    ],
+    "explain": "and explain why this event is important to you.",
+    "followUps": [
+      "Did you learn about it at school?",
+      "Do you often read about history?"
+    ],
+    "p3Topics": [
+      "Remembering history",
+      "National identity"
+    ],
+    "p3": [
+      "What historical events do people in your country learn about at school?",
+      "Why do some people take a greater interest in their country's history?",
+      "Do you think young people should know about important events from the past?",
+      "What are the reasons people celebrate historical anniversaries?",
+      "How has the way people learn about history changed in your country in recent years?",
+      "Do you think films and television help people understand history?"
+    ]
+  },
+  {
+    "slug": "p2b-school-rule",
+    "topic": "Education",
+    "title": "Describe a subject you studied at school that you disliked.",
+    "bullets": [
+      "what the subject involved",
+      "when you studied it",
+      "how it was taught"
+    ],
+    "explain": "and explain why you did not enjoy it.",
+    "followUps": [
+      "Do you still use anything from this subject?",
+      "Which subject did you enjoy most?"
+    ],
+    "p3Topics": [
+      "School subjects",
+      "Teaching difficult subjects"
+    ],
+    "p3": [
+      "What subjects do students in your country tend to enjoy most at school?",
+      "Why do some students find science or mathematics difficult to learn?",
+      "Do you think students learn better when they can choose some subjects?",
+      "What are the benefits for students in your country of studying subjects they dislike?",
+      "Do you think teachers can make difficult subjects more interesting for young people?",
+      "How important is it for schools to teach a wide range of subjects?"
+    ]
+  },
+  {
+    "slug": "p2b-creative-idea",
+    "topic": "Photography",
+    "title": "Describe a photograph you took that you are pleased with.",
+    "bullets": [
+      "where you took this photograph",
+      "what it shows",
+      "when you took it"
+    ],
+    "explain": "and explain why you are pleased with it.",
+    "followUps": [
+      "Do you often take photographs?",
+      "Where do you keep your photographs?"
+    ],
+    "p3Topics": [
+      "Taking photographs",
+      "Photographs and memory"
+    ],
+    "p3": [
+      "What kinds of photographs do people in your country usually take on their phones?",
+      "Why do some people spend time taking photographs of ordinary places?",
+      "Do you think people take too many photographs instead of enjoying the moment?",
+      "What are the benefits for families in your country of keeping photographs from important events?",
+      "How have digital cameras changed the way people take photographs in recent years?",
+      "Do you think printed photographs will still be valued in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-new-hobby",
+    "topic": "Hobbies",
+    "title": "Describe a hobby that you started recently.",
+    "bullets": [
+      "what this hobby is",
+      "when you started it",
+      "where you usually do this hobby"
+    ],
+    "explain": "and explain what you enjoy about this hobby.",
+    "followUps": [
+      "Do you think you will continue with it?"
+    ],
+    "p3Topics": [
+      "Popular hobbies",
+      "Hobbies and society"
+    ],
+    "p3": [
+      "What kinds of hobbies are popular among people in your country?",
+      "Why do some people take up new hobbies as adults?",
+      "Do you think schools should encourage children to develop hobbies? Why?",
+      "How do hobbies today compare with those people enjoyed in the past?",
+      "What benefits can people get from sharing a hobby with others?",
+      "Do you think people will have more free time for hobbies in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-exercise-you-enjoy",
+    "topic": "Health",
+    "title": "Describe a time when you were ill and stayed at home.",
+    "bullets": [
+      "what illness you had",
+      "how long you stayed at home",
+      "who looked after you"
+    ],
+    "explain": "and explain how you felt during this time.",
+    "followUps": [
+      "Do you often get ill?",
+      "What do you usually do to feel better?"
+    ],
+    "p3Topics": [
+      "Staying home ill",
+      "Health and daily life"
+    ],
+    "p3": [
+      "What kinds of illnesses commonly keep people at home in your country?",
+      "Why do some people prefer to rest at home rather than see a doctor immediately?",
+      "Do you think people recover more quickly when they can rest properly?",
+      "What are the advantages of staying at home when someone is unwell?",
+      "How do people in your country usually manage work or study when they are ill?",
+      "Do you think people find it easier to rest at home nowadays?"
+    ]
+  },
+  {
+    "slug": "p2b-difficult-technology",
+    "topic": "Technology",
+    "title": "Describe a piece of technology that you find difficult to use.",
+    "bullets": [
+      "what this technology is",
+      "when you first used it",
+      "what makes it difficult to use"
+    ],
+    "explain": "and explain how you feel when you use it.",
+    "followUps": [
+      "Has anyone helped you learn how to use it?"
+    ],
+    "p3Topics": [
+      "Using technology",
+      "Digital skills"
+    ],
+    "p3": [
+      "What kinds of technology do people in your country find difficult to use?",
+      "Why do some people struggle with devices that others find simple?",
+      "Do you think technology is becoming easier for ordinary people to use?",
+      "What are the benefits of learning basic technology skills at school?",
+      "How do younger and older people compare in their use of new technology?",
+      "Do you think people will rely more on technology in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-useful-app",
+    "topic": "Games",
+    "title": "Describe a game that you enjoy playing.",
+    "bullets": [
+      "what kind of game it is",
+      "who you usually play it with",
+      "when you started playing it"
+    ],
+    "explain": "and explain why you enjoy playing it.",
+    "followUps": [
+      "Do you play it often?",
+      "Have you taught the game to anyone else?"
+    ],
+    "p3Topics": [
+      "Playing games",
+      "Games and learning"
+    ],
+    "p3": [
+      "What kinds of games are popular in your country?",
+      "Why do some people prefer playing games alone rather than with others?",
+      "Do you think playing games is a good way for people to relax? Why?",
+      "How are games used in schools in your country?",
+      "What are the advantages of using games to teach children?",
+      "Do you think digital games will have a greater role in education in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-subject-to-study",
+    "topic": "Education",
+    "title": "Describe a subject you would like to study in the future.",
+    "bullets": [
+      "what you know about this subject",
+      "where you would study it",
+      "how you would study it"
+    ],
+    "explain": "and explain why you would like to study it.",
+    "followUps": [
+      "Is this subject popular in your country?"
+    ],
+    "p3Topics": [
+      "Choosing subjects",
+      "Education and careers"
+    ],
+    "p3": [
+      "What subjects do people in your country commonly choose to study after school?",
+      "Why do some people choose subjects for interest rather than career prospects?",
+      "Do you think adults should continue studying throughout their lives?",
+      "What are the benefits of studying subjects outside one's job?",
+      "How do people's reasons for choosing a subject change as they get older?",
+      "Do you think online courses will make further study more accessible?"
+    ]
+  },
+  {
+    "slug": "p2b-local-change",
+    "topic": "Cities and change",
+    "title": "Describe a change in your local area.",
+    "bullets": [
+      "what the change involved",
+      "when it took place",
+      "how residents were affected"
+    ],
+    "explain": "and explain whether you think it was positive.",
+    "followUps": [
+      "Would you like to see any other changes in your area?"
+    ],
+    "p3Topics": [
+      "Changing neighbourhoods",
+      "Effects of development"
+    ],
+    "p3": [
+      "What changes are most noticeable in local areas in your country?",
+      "Why do some people welcome changes to their neighbourhood while others oppose them?",
+      "Do you think local areas are changing too quickly?",
+      "What are the advantages of having new facilities in a neighbourhood?",
+      "How has transport changed in local areas in recent years?",
+      "Do you think local communities will become more connected in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-online-video",
+    "topic": "Media",
+    "title": "Describe an online video that you found interesting.",
+    "bullets": [
+      "what the video was about",
+      "where you watched it",
+      "who made the video"
+    ],
+    "explain": "and explain why you found it interesting.",
+    "followUps": [
+      "Did you share it with anyone?"
+    ],
+    "p3Topics": [
+      "Watching videos",
+      "Online information"
+    ],
+    "p3": [
+      "What kinds of online videos do people in your country watch most often?",
+      "Why do some people prefer online videos to television programmes?",
+      "Do you think videos are an effective way to learn new things?",
+      "What are the advantages of sharing information through online videos?",
+      "How do online videos influence the way businesses reach customers?",
+      "Do you think online videos will replace some traditional forms of entertainment?"
+    ]
+  },
+  {
+    "slug": "p2b-family-tradition",
+    "topic": "Traditions",
+    "title": "Describe a tradition that your family follows.",
+    "bullets": [
+      "what the tradition involves",
+      "when it takes place",
+      "who takes part"
+    ],
+    "explain": "and explain what this tradition means to you.",
+    "followUps": [
+      "Will you continue this tradition in the future?"
+    ],
+    "p3Topics": [
+      "Family customs",
+      "Traditions over time"
+    ],
+    "p3": [
+      "What traditions are commonly followed by families in your country?",
+      "Why do some families keep traditions while others change them?",
+      "Do you think family traditions are important for children?",
+      "How have family traditions changed in your country in recent years?",
+      "What can younger people learn from older family members' traditions?",
+      "Do you think families will continue to celebrate traditional occasions in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-environmental-problem",
+    "topic": "Environment",
+    "title": "Describe an environmental problem in your local area.",
+    "bullets": [
+      "what the problem is",
+      "where it occurs",
+      "how it affects local residents"
+    ],
+    "explain": "and explain why you are concerned about it.",
+    "followUps": [
+      "Have you done anything personally to help?"
+    ],
+    "p3Topics": [
+      "Local environmental problems",
+      "Community action"
+    ],
+    "p3": [
+      "What kinds of environmental problems affect people in your country most directly?",
+      "Why do some people ignore pollution in their local area?",
+      "Do you think local environmental problems are becoming harder to solve?",
+      "Do you think people in your country notice environmental problems in their neighbourhoods?",
+      "What are the main reasons some environmental problems continue despite public concern?",
+      "How important is it for communities to work together to improve local environments?"
+    ]
+  },
+  {
+    "slug": "p2b-unnecessary-purchase",
+    "topic": "Money",
+    "title": "Describe a time when you bought something you did not need.",
+    "bullets": [
+      "what you bought",
+      "when you bought it",
+      "how you used it afterwards"
+    ],
+    "explain": "and explain how you felt about the purchase.",
+    "followUps": [
+      "Do you often buy things on impulse?"
+    ],
+    "p3Topics": [
+      "Buying everyday goods",
+      "Consumer habits"
+    ],
+    "p3": [
+      "What kinds of things do people in your country buy but rarely use?",
+      "Why do some people buy things they do not really need?",
+      "Do you think people are more careful about spending than they were in the past?",
+      "Do you think advertising affects what people choose to buy?",
+      "What are the disadvantages of buying things impulsively?",
+      "How do online shops compare with traditional shops in encouraging unnecessary purchases?"
+    ]
+  },
+  {
+    "slug": "p2b-time-alone",
+    "topic": "Lifestyle",
+    "title": "Describe a time when you enjoyed spending time alone.",
+    "bullets": [
+      "when this happened",
+      "where you were",
+      "what you did"
+    ],
+    "explain": "and explain why you valued this time.",
+    "followUps": [
+      "How often do you spend time alone?"
+    ],
+    "p3Topics": [
+      "Spending time alone",
+      "Solitude in society"
+    ],
+    "p3": [
+      "What kinds of activities do people in your country enjoy doing alone?",
+      "Why do some people prefer spending free time alone rather than with others?",
+      "Do you think people today have enough time to be alone?",
+      "Do you think spending time alone can help people manage stress?",
+      "What are the benefits of having time away from other people?",
+      "How important is it for children to learn to enjoy their own company?"
+    ]
+  },
+  {
+    "slug": "p2b-rule-disagreed",
+    "topic": "Rules",
+    "title": "Describe a rule that you disagreed with.",
+    "bullets": [
+      "what the rule required",
+      "where it applied",
+      "who introduced the rule"
+    ],
+    "explain": "and explain why you thought it was unfair.",
+    "followUps": [
+      "Do you think the rule should be changed?"
+    ],
+    "p3Topics": [
+      "Rules in daily life",
+      "Rules and society"
+    ],
+    "p3": [
+      "What rules do people in your country commonly have to follow at work or school?",
+      "Why do some people find everyday rules difficult to accept?",
+      "Do you think rules are usually fair to the people they affect?",
+      "Do you think rules help people live together peacefully?",
+      "What are the advantages of having clear rules in public places?",
+      "How do rules at work compare with rules at school?"
+    ]
+  },
+  {
+    "slug": "p2b-interesting-conversation",
+    "topic": "Communication",
+    "title": "Describe an interesting conversation you had with someone.",
+    "bullets": [
+      "who you spoke with",
+      "when the conversation took place",
+      "what you discussed"
+    ],
+    "explain": "and explain why you remember the conversation.",
+    "followUps": [
+      "Have you spoken to this person again since then?"
+    ],
+    "p3Topics": [
+      "Everyday conversations",
+      "Changing communication"
+    ],
+    "p3": [
+      "What kinds of topics do people in your country often discuss with friends?",
+      "Why do some people find it easier to talk to strangers than others?",
+      "Do you think face-to-face conversations are still important?",
+      "Do you think people communicate differently with older and younger people?",
+      "What are the qualities of someone who is interesting to talk to?",
+      "How has the way people have conversations changed in your country in recent years?"
+    ]
+  },
+  {
+    "slug": "p2b-future-challenge",
+    "topic": "Challenges",
+    "title": "Describe a sport or outdoor activity you would like to try.",
+    "bullets": [
+      "where you would do it",
+      "who you would do it with",
+      "what equipment you would need"
+    ],
+    "explain": "and explain why you would like to try it.",
+    "followUps": [
+      "Do you know anyone who has done something similar?"
+    ],
+    "p3Topics": [
+      "Outdoor activities",
+      "Sport and participation"
+    ],
+    "p3": [
+      "What kinds of outdoor activities do people in your country often enjoy?",
+      "Why do some people choose individual outdoor activities rather than team sports?",
+      "Do you think trying unfamiliar sports helps people stay interested in exercise?",
+      "What are the advantages of taking part in outdoor sports for people in your country?",
+      "How important is it for children to learn a range of physical activities?",
+      "Do you think more adults will take up outdoor activities in the future?"
+    ]
+  },
+  {
+    "slug": "p2b-happy-period-life",
+    "topic": "Life stages",
+    "title": "Describe a period of your life that you enjoyed.",
+    "bullets": [
+      "when it was",
+      "what you were doing",
+      "who you spent time with"
+    ],
+    "explain": "and explain why you enjoyed this period.",
+    "followUps": [
+      "Would you like to go back to that time?"
+    ],
+    "p3Topics": [
+      "Stages of life",
+      "Looking back"
+    ],
+    "p3": [
+      "What periods of life do people in your country often remember fondly?",
+      "Why do some people feel happier during childhood than adulthood?",
+      "Do you think people appreciate enjoyable periods more as they get older?",
+      "Do you think having a good social life makes people happier at different stages of life?",
+      "What are the main reasons people look back fondly on certain periods?",
+      "How do people's priorities change as they move through life?"
+    ]
+  },
+  {
+    "slug": "p2b-volunteer-activity",
+    "topic": "Community",
+    "title": "Describe a time when you did voluntary work.",
+    "bullets": [
+      "what the work involved",
+      "where you did the work",
+      "who you worked with"
+    ],
+    "explain": "and explain how you felt about doing this work.",
+    "followUps": [
+      "Would you like to do more voluntary work?"
+    ],
+    "p3Topics": [
+      "Voluntary work",
+      "Community benefits"
+    ],
+    "p3": [
+      "What kinds of voluntary work do people in your country commonly do?",
+      "Why do some people choose to volunteer in their free time?",
+      "Do you think young people are interested in volunteering?",
+      "Do you think volunteering can help people develop useful skills?",
+      "What are the benefits of volunteering for local communities?",
+      "How do voluntary organisations attract people to help them?"
+    ]
+  }
 ]
