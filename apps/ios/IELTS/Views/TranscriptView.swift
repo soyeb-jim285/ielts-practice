@@ -85,8 +85,8 @@ private struct TrModel {
     private static let short = Timeline.disfluencyShort
 
     init(_ r: AnalysisResult, _ timeline: Timeline) {
-        words = r.words ?? []
-        var tokens = (r.words ?? []).enumerated().map { TrToken(id: $0.offset, word: $0.element) }
+        words = trimStretched(r.words ?? [])
+        var tokens = words.enumerated().map { TrToken(id: $0.offset, word: $0.element) }
         for e in r.errors where e.start >= 0 && e.start < tokens.count {
             for i in e.start...min(max(e.start, e.end), tokens.count - 1) { tokens[i].errors.append(e) }
         }
@@ -153,6 +153,8 @@ struct TranscriptView: View {
     @State private var markDetail: String?
     /// Index of the word playing now (-1 for none). Updated by TrClock only when the word changes, so the 10 Hz clock does not rebuild the transcript.
     @State private var now = -1
+    /// Index of the word whose following pause is playing now (-1 for none).
+    @State private var nowPause = -1
 
     init(result: AnalysisResult, player: Player, timeline: Timeline, focus: Binding<String?>, lean: TextMetrics.Repeated? = nil, onSelect: @escaping (AnalysisError) -> Void) {
         self.result = result
@@ -176,7 +178,7 @@ struct TranscriptView: View {
         } else {
             ScrollViewReader { proxy in
                 VStack(alignment: .leading, spacing: 16) {
-                    TrClock(player: player, words: model.words, now: $now)
+                    TrClock(player: player, words: model.words, now: $now, nowPause: $nowPause)
                     filterBar
                     legend
                     if let markDetail { ResAlert(tone: .info, message: markDetail) }
@@ -319,7 +321,7 @@ struct TranscriptView: View {
                 .accessibilityHint(err != nil ? "Opens the explanation" : (player.isLoaded ? "Plays from this word" : ""))
                 .accessibilityAddTraits(.isButton)
                 .id("w\(t.id)")
-            if let p = t.pauseAfter, resIsLongPause(p) || filter == .pauses { pauseChip(p) }
+            if let p = t.pauseAfter, resIsLongPause(p) || filter == .pauses { pauseChip(p, active: nowPause == t.id) }
         }
     }
 
@@ -365,7 +367,7 @@ struct TranscriptView: View {
         .accessibilityLabel(m.detail)
     }
 
-    private func pauseChip(_ p: Pause) -> some View {
+    private func pauseChip(_ p: Pause, active: Bool) -> some View {
         let long = resIsLongPause(p)
         let color: Color = long ? .bad : .muted
         return Text("pause \(resPauseSec(p))s")
@@ -373,7 +375,7 @@ struct TranscriptView: View {
             .foregroundStyle(color)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(long ? Color.bad.opacity(0.12) : Color.surface2, in: Capsule())
-            .overlay(Capsule().strokeBorder(filter == .pauses ? color : Color.clear, lineWidth: 1))
+            .overlay(Capsule().strokeBorder(active ? Color.brand : filter == .pauses ? color : Color.clear, lineWidth: active ? 2 : 1))
             .onTapGesture { player.seek(to: max(0, p.start - 0.3)) }
             .accessibilityLabel("\(long ? "Long pause" : "Pause"), \(resPauseSec(p)) seconds")
     }
@@ -401,18 +403,18 @@ struct TranscriptView: View {
     }
 }
 
-/// Zero-size view that alone watches the 10 Hz playback clock and reports the playing word when it changes.
+/// Zero-size view that alone watches the playback clock and reports the playing word, or the word whose pause is playing, when that changes.
 private struct TrClock: View {
     let player: Player
     let words: [Word]
     @Binding var now: Int
+    @Binding var nowPause: Int
 
     var body: some View {
-        let t = player.currentTime
-        let i = player.isLoaded && player.isPlaying ? wordIndexAt(words, t) : -1
-        let playing = i >= 0 && t < words[i].end + 0.05 ? i : -1
+        let spot = player.isLoaded && player.isPlaying ? activeSpot(words, player.currentTime) : ActiveSpot(word: -1, pause: false)
         Color.clear.frame(width: 0, height: 0)
-            .onChange(of: playing) { _, v in now = v }
+            .onChange(of: spot.pause ? -1 : spot.word) { _, v in now = v }
+            .onChange(of: spot.pause ? spot.word : -1) { _, v in nowPause = v }
             .accessibilityHidden(true)
     }
 }

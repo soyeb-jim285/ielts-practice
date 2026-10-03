@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PAUSE_MS, repeatedLabel, roundBand, speakingOverall, tagDisfluencies, UNCLEAR_CONF,
+  alignWords, cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, frameMsOf, fuseDisfluencies, PAUSE_MS, reconcileFillers, repeatedLabel, roundBand, speakingOverall, tagDisfluencies, UNCLEAR_CONF,
   type FluencyFeatures, type SpeechMetrics, type Word,
 } from '@ielts/core';
 import type { Settings } from '../settings';
@@ -231,7 +231,8 @@ export async function analyzeSpeaking(i: {
   const stt = await transcribe({ model: models.stt, audio: i.audio, format: i.format, verbatim: true });
   const sttMs = Date.now() - t0;
   i.onStage?.('analyzing');
-  const words = dropHallucinations(stt.words.filter((w) => !SOUND_EVENT.test(w.w))); // "*Ding*", "[music]", "(coughs)"
+  const frameMs = frameMsOf(i.energy, i.durationMs);
+  const words = alignWords(dropHallucinations(stt.words.filter((w) => !SOUND_EVENT.test(w.w))), i.energy ?? undefined, frameMs); // sound events ("*Ding*", "[music]") out; word times trimmed to the voiced part, which the transcript highlight follows
   const questions = questionBoundaries(i.questions, words, i.marks);
   const noSpeech = (): AnalysisResult => ({
     v: 1, skill: 'speaking', part: i.part, overall: 0, overallRaw: 0, range: [0, 0], criteria: {}, topFixes: [], errors: [], vocabUpgrades: [],
@@ -241,7 +242,7 @@ export async function analyzeSpeaking(i: {
   if (isNoSpeech(words)) return noSpeech();
 
   const durationS = i.durationMs > 0 ? i.durationMs / 1000 : stt.duration;
-  const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs: 50 });
+  const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs });
 
   // Audio pronunciation pass and the text disfluency tagger are independent: run them together.
   const pronPass = async (): Promise<PronunciationLlm | undefined> => {
@@ -267,6 +268,7 @@ export async function analyzeSpeaking(i: {
   const pron = pronRaw && { ...pronRaw, words: confirmedWords(pronRaw, words, metrics) };
 
   const fused = fuseDisfluencies(metrics, pron?.disfluencies, 0.3, [...tagDisfluencies(words), ...llmTags]);
+  reconcileFillers(metrics, fused); // fillers/min, the transcript's "um"s and the fluency features count the same events
   const features = fluencyFeatures(metrics, fused);
   const composite = fluencyComposite(features);
   const clean = new Set(cleanTranscript(words, metrics));

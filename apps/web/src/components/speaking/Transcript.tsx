@@ -1,4 +1,4 @@
-import { formMatcher, type RepeatedWord } from '@ielts/core';
+import { activeAt, formMatcher, type RepeatedWord } from '@ielts/core';
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -23,6 +23,7 @@ const FILTER_TYPE: Partial<Record<TranscriptFilter, MarkerType>> = { grammar: 'g
 
 // Karaoke: the playing word gets this teal tint (set on the DOM directly, so a 10 Hz clock never re-renders the words).
 const NOW = ['bg-brand-soft', 'text-ink'];
+const NOW_PAUSE = ['ring-2', 'ring-brand'];
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Interactive transcript: click a word to hear it, open errors, filter by issue, follow playback. */
@@ -58,16 +59,30 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
     (filter === 'fluency' && (!!t.filler || !!t.disfluency)) ||
     (filter !== 'pauses' && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
 
-  // Karaoke highlight: toggle classes on the playing word's element.
-  const now = useRef<Element | null>(null);
+  // Karaoke highlight: toggle classes on the playing word, or on the pause chip while a pause plays. Driven by the audio element's exact clock
+  // (frame loop while playing, once when paused or seeked), not the 0.1 s display time, so words flash in step with the voice.
+  const now = useRef<Element[]>([]);
   useEffect(() => {
-    const i = wordAt(tokens, audio.time);
-    const el = i >= 0 && audio.time < tokens[i]!.end + 0.05 ? (root.current?.querySelector(`[data-w="${i}"]`) ?? null) : null;
-    if (el === now.current) return;
-    now.current?.classList.remove(...NOW);
-    el?.classList.add(...NOW);
-    now.current = el;
-  }, [audio.time, tokens]);
+    let raf = 0;
+    let last = '';
+    const paint = () => {
+      const a = activeAt(tokens, audio.now());
+      const key = `${a.word}:${a.pause}`;
+      if (key === last) return;
+      last = key;
+      const el = a.word < 0 ? null : root.current?.querySelector(a.pause ? `[data-p="${a.word}"]` : `[data-w="${a.word}"]`);
+      now.current.forEach((e) => e.classList.remove(...NOW, ...NOW_PAUSE));
+      now.current = el ? [el] : [];
+      el?.classList.add(...(a.pause ? NOW_PAUSE : NOW));
+    };
+    const loop = () => {
+      paint();
+      raf = requestAnimationFrame(loop);
+    };
+    if (audio.playing) loop();
+    else paint();
+    return () => cancelAnimationFrame(raf);
+  }, [audio.playing, audio.playing ? -1 : audio.time, audio.now, tokens, filter]);
 
   // A mistake picked elsewhere (chart, audio bar): bring its word into view.
   useEffect(() => {
@@ -140,6 +155,7 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
     if (!long && filter !== 'pauses') return null; // short pauses would break the reading flow; the Pauses filter shows them
     return (
       <span
+        data-p={t.i}
         onClick={() => audio.seek(p.start)}
         className={clsx(
           'type-num mx-0.5 inline-flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 align-middle font-sans text-xs font-medium',

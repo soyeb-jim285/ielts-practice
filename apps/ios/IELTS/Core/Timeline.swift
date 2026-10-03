@@ -176,3 +176,25 @@ func wordIndexAt(_ words: [Word], _ t: Double) -> Int {
     }
     return lo - 1
 }
+
+/// What the replay clock is on (core `activeAt`): the word being spoken, or the pause after `word`. A gap under `holdS` between words keeps the previous word lit.
+struct ActiveSpot: Equatable { var word: Int; var pause: Bool }
+func activeSpot(_ words: [Word], _ t: Double, holdS: Double = 0.25) -> ActiveSpot {
+    let i = wordIndexAt(words, t)
+    if i < 0 { return ActiveSpot(word: -1, pause: false) }
+    let w = words[i]
+    if t < w.end + 0.05 { return ActiveSpot(word: i, pause: false) }
+    if i + 1 < words.count, words[i + 1].start - w.end < holdS { return ActiveSpot(word: i, pause: false) }
+    return ActiveSpot(word: i, pause: true)
+}
+
+/// Core `alignWords` without the energy step: Whisper-style times run a word's start back over a pause it hid, so a 0.07 s "I" shows as 0.7 s.
+/// A word longer than max(0.7 s, 2x expected) gets its start moved up to end - expected. Older results were stored untrimmed.
+func trimStretched(_ words: [Word]) -> [Word] {
+    words.enumerated().map { i, w in
+        let letters = w.w.filter { $0.isLetter && $0.isASCII }.count
+        let expected = 0.07 * Double(letters)
+        if i == 0 || w.end - w.start <= max(0.7, 2 * expected) { return w }
+        return Word(w: w.w, start: w.end - expected, end: w.end, conf: w.conf)
+    }
+}

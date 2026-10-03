@@ -17,10 +17,14 @@ const ModelSchema = z
   })
   .openapi('Model');
 
+/** Transcription models our call cannot use: we ask for word timestamps (verbose_json), which gpt-*-transcribe, voxtral-small and qwen-asr-flash reject, and whisper-large-v3-turbo loops
+ *  on disfluent speech (.eval/stt-bakeoff; docs/stt-models.md). Hiding them keeps Settings to models that work. */
+const STT_UNUSABLE = /(^|\/)gpt-(4o-)?(mini-)?transcribe|^openai\/gpt-transcribe|voxtral-small|qwen3-asr-flash|whisper-large-v3-turbo/i;
+
 const FILTERS: Record<z.infer<typeof Capability>, (m: ModelInfo) => boolean> = {
   text: (m) => m.output.includes('text'),
   'audio-in': (m) => m.input.includes('audio'),
-  stt: (m) => m.output.includes('transcription') || /whisper|transcribe/i.test(m.id),
+  stt: (m) => (m.output.includes('transcription') || /whisper|transcribe/i.test(m.id)) && !STT_UNUSABLE.test(m.id),
   // /audio/speech models only; music (lyria) and chat-audio (gpt-audio) models output 'audio' and fail there. A voice is required by Settings.
   tts: (m) => m.output.includes('speech') && m.voices.length > 0,
 };

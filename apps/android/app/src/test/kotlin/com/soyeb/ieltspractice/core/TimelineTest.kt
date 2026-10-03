@@ -73,6 +73,22 @@ class TimelineTest {
         assertEquals(1, wordIndexAt(w, 99.0))
     }
 
+    @Test fun activeSpotHoldsShortGapsAndMarksPauses() {
+        val w = listOf(Word("a", 1.0, 1.3), Word("b", 1.4, 1.8), Word("c", 4.0, 4.4))
+        assertEquals(ActiveSpot(-1, false), activeSpot(w, 0.5))
+        assertEquals(ActiveSpot(0, false), activeSpot(w, 1.36)) // 0.1 s gap: no flicker
+        assertEquals(ActiveSpot(1, true), activeSpot(w, 2.5)) // mid-pause
+        assertEquals(ActiveSpot(2, false), activeSpot(w, 4.0)) // resumes at the next word
+        assertEquals(ActiveSpot(2, true), activeSpot(w, 9.0))
+    }
+
+    @Test fun trimStretchedMovesTheStartOfAWordThatHidAPause() {
+        val out = trimStretched(listOf(Word("call.", 10.0, 10.6), Word("I", 10.6, 12.3)))
+        assertEquals(10.0, out[0].start)
+        assertEquals(12.3 - 0.07, out[1].start, 1e-9)
+        assertEquals(out.map { it.start }, trimStretched(out).map { it.start })
+    }
+
     @Test fun longPauseIsOneSecondRoundedToATenth() {
         fun p(d: Double) = Pause(0.0, d, d, "between", false, false)
         assertEquals(false, isLongPause(p(0.94)))

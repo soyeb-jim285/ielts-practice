@@ -18,6 +18,7 @@ const QUESTION_BEFORE = new Set("do did if as that what how when don't dont".spl
 /** Whisper stretches word timestamps over the "um"s and silences it drops, hiding the pause: a word longer than max(STRETCH_MIN_S, 2x expected) holds one. */
 const MAX_ARTICULATION_WPM = 260;
 const S_PER_LETTER = 0.07, STRETCH_MIN_S = 0.7;
+const HELD_VOICE_MS = 500, VOICED_FILLER_MS = 1000;
 
 export function computeSpeechMetrics(
   words: Word[],
@@ -46,6 +47,21 @@ export function computeSpeechMetrics(
     return frames.length > 0 && frames.filter(e => e >= voiceThreshold).length / frames.length >= 0.4;
   };
 
+  // A filled pause heard only in the audio must look like a held vowel, not a breath, a lip smack or room noise: the gap is voiced for most of its frames,
+  // with one unbroken voiced stretch of 0.5 s or more. Breaths and noise bursts are short and broken up.
+  const isHeldVoice = (start: number, end: number) => {
+    const { energy, frameMs = 50, voiceThreshold = 60 } = opts;
+    if (!energy) return false;
+    const frames = energy.slice(Math.round((start * 1000) / frameMs), Math.round((end * 1000) / frameMs));
+    let run = 0, best = 0, voiced = 0;
+    for (const e of frames) {
+      if (e >= voiceThreshold) (voiced++, (best = Math.max(best, ++run)));
+      else run = 0;
+    }
+    return frames.length > 0 && voiced / frames.length >= 0.7 && best * frameMs >= HELD_VOICE_MS;
+  };
+  const heldGaps = new Set<number>(); // pause starts that pass isHeldVoice
+
   const pauses: Pause[] = [];
   for (let i = 1; i < n; i++) {
     const gap = gapBefore(i);
@@ -53,6 +69,7 @@ export function computeSpeechMetrics(
     const start = words[i - 1]!.end, end = words[i]!.start;
     // Only energy frames can tell a filled pause from silence; without them no gap is called voiced (a stretched word may hide either).
     const voiced = isVoiced(start, end);
+    if (voiced && isHeldVoice(start, end)) heldGaps.add(start);
     pauses.push({ start, end, dur: gap, kind: Math.round(gap * 1000) >= LONG_PAUSE_MS ? 'long' : 'short', midClause: !endsClause(i - 1), voiced });
   }
 
@@ -77,7 +94,9 @@ export function computeSpeechMetrics(
       isFillerAt[i] = true;
     }
   }
-  for (const p of pauses) if (p.voiced && p.dur * 1000 >= VOICED_GAP_MS) fillers.push({ word: '(voiced)', time: p.start, kind: 'voiced' });
+  // Audio-only filled pauses are rare in practice and breaths in short pauses look like them: counted here only for a gap of 1 s or more that is held voice.
+  // A shorter voiced gap becomes a filled pause only when the audio model also heard a filler there (fuseDisfluencies).
+  for (const p of pauses) if (heldGaps.has(p.start) && p.dur * 1000 >= VOICED_FILLER_MS) fillers.push({ word: '(voiced)', time: p.start, kind: 'voiced' });
   fillers.sort((a, b) => a.time - b.time);
 
   const clean = (from: number, to: number) => {
@@ -213,7 +232,26 @@ export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, to
       for (const s of e.sources) if (!same.sources.includes(s)) same.sources.push(s);
     } else out.push({ ...e, sources: [...e.sources] });
   }
-  return out;
+  // A filled pause the transcript did not show needs two sources: held voice in a 1 s+ gap (counted by computeSpeechMetrics), or the audio model's filler inside a voiced gap.
+  // The audio model alone (nothing in the energy) and short voiced gaps alone are dropped: breaths and noise were being typed as "um".
+  return out.filter(e => {
+    if (e.kind !== 'filled' || e.sources.some(s => s === 'stt' || s === 'rule' || s === 'llm') || e.sources.includes('voiced')) return true;
+    const gap = m.pauses.find(p => p.voiced && p.dur * 1000 >= VOICED_GAP_MS && e.start >= p.start - tol && e.start <= p.end + tol);
+    if (!gap) return false;
+    e.sources.unshift('voiced');
+    e.start = Math.min(e.start, gap.start);
+    e.end = Math.max(e.end, gap.end);
+    return true;
+  });
+}
+
+/** Makes the stored filler list agree with the fused events, so "fillers per minute", the transcript's "um"s and the fluency features count the same things:
+ *  lexical fillers stay, and every filled event the transcript did not show becomes one voiced entry (at the event's start). */
+export function reconcileFillers(m: SpeechMetrics, events: Disfluency[]): void {
+  const lexical = m.fillers.filter(f => f.kind === 'lexical');
+  const heard = events.filter(e => e.kind === 'filled' && !e.sources.includes('stt')).map((e): SpeechMetrics['fillers'][number] => ({ word: '(voiced)', time: e.start, kind: 'voiced' }));
+  m.fillers = [...lexical, ...heard].sort((a, b) => a.time - b.time);
+  m.fillersPerMin = m.fillers.length / (Math.max(m.durationS, 1) / 60);
 }
 
 /** Per-type counts (total, per minute of recording, per 100 spoken words), words between disfluencies and the share of events inside a clause (spec §5.1). */

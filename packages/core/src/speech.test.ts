@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, PROVISIONAL_FLUENCY_NORMS, type Word } from './speech';
+import { cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, reconcileFillers, PROVISIONAL_FLUENCY_NORMS, type Word } from './speech';
 const mk = (a: [string, number, number, number?][]): Word[] => a.map(([w, start, end, conf]) => ({ w, start, end, conf }));
 it('detects short and long pauses, mid-clause flag', () => {
   const m = computeSpeechMetrics(mk([['I', 0, 0.2], ['love', 0.25, 0.5], ['the', 0.9, 1.0], ['city.', 1.1, 1.5], ['It', 2.8, 3.0]]), { durationS: 3 });
@@ -12,10 +12,32 @@ it('lexical fillers and repetitions and self-correction', () => {
   expect(m.fillers.map(f => f.word)).toEqual(['um']);
   expect(m.repetitions.length).toBeGreaterThanOrEqual(1);
 });
-it('voiced gap from energy counts as filler', () => {
-  const energy = Array.from({ length: 40 }, (_, i) => (i >= 10 && i < 20 ? 200 : i < 10 || i >= 30 ? 150 : 0)); // 50ms frames
-  const m = computeSpeechMetrics(mk([['hello', 0, 0.45], ['there', 1.5, 1.9]]), { durationS: 2, energy, frameMs: 50, voiceThreshold: 60 });
+it('voiced gap from energy counts as filler only when it is 1 s+ of held voice', () => {
+  const held = Array.from({ length: 40 }, (_, i) => (i >= 10 && i < 30 ? 200 : 150)); // 50ms frames: voiced through the 1.05 s gap
+  const m = computeSpeechMetrics(mk([['hello', 0, 0.45], ['there', 1.5, 1.9]]), { durationS: 2, energy: held, frameMs: 50, voiceThreshold: 60 });
   expect(m.fillers.some(f => f.kind === 'voiced')).toBe(true);
+  // broken up (breaths, noise): voiced for 40% of the gap, no 0.5 s run
+  const choppy = Array.from({ length: 40 }, (_, i) => (i >= 10 && i < 30 && i % 5 < 2 ? 200 : i < 10 || i >= 30 ? 150 : 0));
+  const c = computeSpeechMetrics(mk([['hello', 0, 0.45], ['there', 1.5, 1.9]]), { durationS: 2, energy: choppy, frameMs: 50, voiceThreshold: 60 });
+  expect(c.pauses[0]!.voiced).toBe(true);
+  expect(c.fillers).toEqual([]);
+  // a steady voiced gap under 1 s is a candidate only: it is no filler here, and the audio model must agree for fusion to count it
+  const short = computeSpeechMetrics(mk([['hello', 0, 0.45], ['there', 1.2, 1.6]]), { durationS: 2, energy: new Array(40).fill(150), frameMs: 50, voiceThreshold: 60 });
+  expect(short.fillers).toEqual([]);
+  expect(fuseDisfluencies(short)).toEqual([]);
+  expect(fuseDisfluencies(short, { filledPauses: [], repetitions: [], falseStarts: [] })).toEqual([]);
+  expect(fuseDisfluencies(short, { filledPauses: [0.9], repetitions: [], falseStarts: [] }).map(e => [e.kind, e.sources.join('+')])).toEqual([['filled', 'voiced+audio']]);
+  expect(fuseDisfluencies(short, { filledPauses: [1.7], repetitions: [], falseStarts: [] }).length).toBe(0); // audio alone, not in the gap: dropped
+  // audio model alone, where the energy shows silence: dropped
+  const quiet = computeSpeechMetrics(mk([['hello', 0, 0.45], ['there', 1.2, 1.6]]), { durationS: 2, energy: new Array(40).fill(0), frameMs: 50, voiceThreshold: 60 });
+  expect(fuseDisfluencies(quiet, { filledPauses: [0.9], repetitions: [], falseStarts: [] })).toEqual([]);
+});
+it('reconcileFillers makes the filler count the fused count', () => {
+  const m = computeSpeechMetrics(mk([['I', 0, 0.3], ['um', 0.4, 0.6], ['went', 0.7, 1.0], ['home', 1.1, 1.4]]), { durationS: 60, energy: new Array(1200).fill(0), frameMs: 50 });
+  const ev = fuseDisfluencies(m, { filledPauses: [0.5, 30], repetitions: [], falseStarts: [] }); // 30 s: nothing in the energy there
+  reconcileFillers(m, ev);
+  expect(m.fillers.map(f => f.kind)).toEqual(['lexical']);
+  expect(m.fillersPerMin).toBe(1);
 });
 it('wpm series 10s windows 5s hop and unclear tiers', () => {
   const words = Array.from({ length: 60 }, (_, i) => ({ w: 'w', start: i * 0.5, end: i * 0.5 + 0.4, conf: i === 3 ? 0.3 : 0.95 }));
@@ -48,7 +70,9 @@ it('stretched word timestamps expose hidden (filled) pauses', () => {
   expect(m.fillers).toEqual([]);
   expect(m.mlr).toBe(2);
   const voicedGap = computeSpeechMetrics(mk([['there', 0, 0.3], ['are', 0.3, 0.5], ['many', 0.5, 1.5], ['jobs', 1.5, 1.8]]), { durationS: 2, energy: new Array(40).fill(90) });
-  expect(voicedGap.fillers.map(f => f.kind)).toEqual(['voiced']);
+  expect(voicedGap.fillers).toEqual([]); // 0.72 s of steady voice: a candidate, not a filler on its own
+  const long = computeSpeechMetrics(mk([['there', 0, 0.3], ['are', 0.3, 0.5], ['many', 0.5, 2.0], ['jobs', 2.0, 2.3]]), { durationS: 3, energy: new Array(60).fill(90) });
+  expect(long.fillers.map(f => f.kind)).toEqual(['voiced']); // 1.2 s held voice
   // a normal-length long word is untouched
   expect(computeSpeechMetrics(mk([['it', 0, 0.2], ['unfortunately', 0.2, 1.0]]), { durationS: 1 }).pauses).toEqual([]);
 });
@@ -69,11 +93,10 @@ it('fuses disfluencies by time: same-kind events within 0.3 s count once, source
     ['filled', 1.0, 'voiced+audio'], // audio 1.6 s falls inside the voiced gap
     ['repetition', 2.0, 'stt+audio'],
     ['false_start', 3.0, 'audio'],
-    ['filled', 3.5, 'audio'], // only the audio model heard it
-  ]);
+  ]); // the audio model's 3.5 s is dropped: nothing in the energy backs it
   expect(fuseDisfluencies(m).length).toBe(3); // without the audio model: um, voiced gap, "home home"
   const f = fluencyFeatures(m, ev);
-  expect(f.filledPausesPerMin).toBeCloseTo(3 / (4 / 60));
+  expect(f.filledPausesPerMin).toBeCloseTo(2 / (4 / 60));
   expect(f.repairsPer100w).toBeCloseTo(100 / m.wordCount);
   expect(f.repetitionsPer100w).toBeCloseTo(100 / m.wordCount);
 });

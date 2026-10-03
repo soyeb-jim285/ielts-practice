@@ -77,7 +77,7 @@ it('audio pronunciation pass runs first with input_audio', async () => {
   expect(r.pronunciation?.llm).toEqual({ ...pron, words: [] }); // "park" has no acoustic evidence (confident ASR word, audio model agrees with the transcript): dropped
   expect(r.criteria.p).toMatchObject({ band: 6, summary: 'Flat.' });
   const user = JSON.parse(chats.find((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content);
-  expect(user.metrics.disfluencies).toMatchObject({ filledPauses: 1, repetitions: 0, repairs: 0 });
+  expect(user.metrics.disfluencies).toMatchObject({ filledPauses: 0, repetitions: 0, repairs: 0 }); // the audio model's lone filler has no voiced gap behind it: not counted
   expect(user.metrics.lexical).toMatchObject({ mtld: expect.any(Number), lessCommonPct: expect.any(Number) });
 });
 
@@ -158,7 +158,7 @@ it('spoken forms the transcript repaired reach the examiner and anchor errors; d
   const r = await run(settings({ audioPronEnabled: true }));
   const user = JSON.parse(f.calls.find((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content);
   expect(user.spokenFormsDifferingFromTranscript).toEqual([{ i: 1, transcript: 'goes', spoken: 'go' }]);
-  expect(user.metrics.disfluencies.filledPauses).toBe(3); // 0.1 and 0.2 s are one event
+  expect(user.metrics.disfluencies.filledPauses).toBe(0); // no energy frames in this fixture, so no audio-only filler has a second source
   const gra = f.calls.find((c) => c.body?.messages?.[1]?.content?.includes?.('<criterion id="gra"'))!.body.messages[1].content;
   expect(gra).toContain('<spokenForms>[{"transcript":"goes","spoken":"go"}]</spokenForms>');
   expect(r.errors).toEqual([expect.objectContaining({ original: 'I go', start: 0, end: 1 })]); // the no-op "goes" -> "goes" is dropped

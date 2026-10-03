@@ -32,7 +32,7 @@ final class Player: NSObject, AVAudioPlayerDelegate {
         ticker?.cancel()
         ticker = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(40)) // the transcript highlight reads this clock
                 guard let self, let p = self.player else { return }
                 self.currentTime = p.currentTime
             }

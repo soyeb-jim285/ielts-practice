@@ -49,6 +49,9 @@ describe('modelOptions', () => {
     ]);
   });
   it('shows no per-use cost for speech models (they price per second/character)', () => {
-    expect(modelOptions([m('openai/whisper-large-v3')], 'stt', 'openai/whisper-large-v3')[0]!.description).toBe('openai/whisper-large-v3');
+    expect(modelOptions([m('some/stt-model')], 'stt', 'some/stt-model')[0]!.description).toBe('some/stt-model');
+  });
+  it('explains the known speech models in a line (um/uh handling, timing)', () => {
+    expect(modelOptions([m('elevenlabs/scribe_v2')], 'stt', 'elevenlabs/scribe_v2')[0]!.description).toMatch(/^elevenlabs\/scribe_v2 · keeps um\/uh/);
   });
 });

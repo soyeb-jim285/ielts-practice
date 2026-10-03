@@ -30,7 +30,7 @@ export const useModels = (capability: Capability) =>
 /** Well-known models per capability, listed first under "Recommended" (the default always joins them; ids missing from the catalogue are skipped). */
 export const RECOMMENDED: Record<Capability, string[]> = {
   text: ['openai/gpt-6-luna', 'google/gemini-3.8-flash', 'anthropic/claude-sonnet-5.5', 'deepseek/deepseek-v4-flash'],
-  stt: ['elevenlabs/scribe_v2', 'openai/whisper-large-v3', 'openai/whisper-large-v3-turbo'],
+  stt: ['elevenlabs/scribe_v2', 'openai/whisper-large-v3', 'nvidia/parakeet-tdt-0.6b-v3'],
   tts: ['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts'],
   'audio-in': ['google/gemini-2.5-flash', 'google/gemini-3.8-flash'],
 };
@@ -50,10 +50,18 @@ export function perUseCost(pricing: Model['pricing'], use: { in: number; out: nu
   return usd === 0 ? 'free' : usd < 0.01 ? '<1¢' : usd < 0.995 ? `~${Math.round(usd * 100)}¢` : `~$${usd.toFixed(2)}`;
 }
 
+/** What each speech-to-text model does with um/uh and timing, from our own tests (docs/stt-models.md). Unlisted models: no note. */
+export const STT_NOTES: Record<string, string> = {
+  'elevenlabs/scribe_v2': 'keeps um/uh and repetitions, most accurate word timing; needs the app\'s ElevenLabs key',
+  'openai/whisper-large-v3': 'cheapest; we prompt it to keep um/uh; word times can run early over pauses',
+  'nvidia/parakeet-tdt-0.6b-v3': 'fast and keeps um/uh, but word times are coarse and it corrects some grammar',
+};
+
 export const modelOption = (m: Model, capability: Capability, group?: string): ComboOption => {
   const use = PER_USE[capability];
   const cost = use && perUseCost(m.pricing, use);
-  return { value: m.id, label: m.name, description: cost ? `${m.id} · ${cost} per ${use.unit}` : m.id, group };
+  const note = capability === 'stt' ? STT_NOTES[m.id] : undefined;
+  return { value: m.id, label: m.name, description: note ? `${m.id} · ${note}` : cost ? `${m.id} · ${cost} per ${use.unit}` : m.id, group };
 };
 
 /**

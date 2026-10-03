@@ -123,7 +123,7 @@ function SettingsPage() {
                   <ModelPicker label="Examiner" capability="text" value={s.models.examiner} defaultValue={DEFAULT_MODELS.examiner} onChange={setModel('examiner')} hint="Asks the questions when the examiner waits for you to finish." />
                 </Row>
                 <Row>
-                  <ModelPicker label="Speech to text" capability="stt" value={s.models.stt} defaultValue={DEFAULT_MODELS.stt} onChange={setModel('stt')} hint="Needs word timestamps for fluency metrics." />
+                  <ModelPicker label="Speech to text" capability="stt" value={s.models.stt} defaultValue={DEFAULT_MODELS.stt} onChange={setModel('stt')} hint="Needs word timestamps. Scribe v2 and Whisper keep um/uh; most other models drop them, which hides hesitation from your fluency score." />
                 </Row>
                 <Row>
                   <TtsPicker value={s.models.tts} voice={s.models.ttsVoice} onChange={(models) => mutate({ models })} />

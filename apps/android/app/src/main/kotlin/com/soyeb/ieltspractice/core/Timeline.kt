@@ -100,6 +100,25 @@ fun wordIndexAt(words: List<Word>, t: Double): Int {
     return lo - 1
 }
 
+/** What the replay clock is on (web core `activeAt`): the word being spoken, or the pause after `word`. A gap under `holdS` between words keeps the previous word lit. */
+data class ActiveSpot(val word: Int, val pause: Boolean)
+
+fun activeSpot(words: List<Word>, t: Double, holdS: Double = 0.25): ActiveSpot {
+    val i = wordIndexAt(words, t)
+    if (i < 0) return ActiveSpot(-1, false)
+    val w = words[i]
+    if (t < w.end + 0.05) return ActiveSpot(i, false)
+    if (i + 1 < words.size && words[i + 1].start - w.end < holdS) return ActiveSpot(i, false)
+    return ActiveSpot(i, true)
+}
+
+/** Web core `alignWords` without the energy step: Whisper-style times run a word's start back over a pause it hid, so a 0.07 s "I" shows as 0.7 s.
+ *  A word longer than max(0.7 s, 2x expected) gets its start moved up to end - expected. Older results were stored untrimmed. */
+fun trimStretched(words: List<Word>): List<Word> = words.mapIndexed { i, w ->
+    val expected = 0.07 * w.w.count { it in 'a'..'z' || it in 'A'..'Z' }
+    if (i == 0 || w.end - w.start <= maxOf(0.7, 2 * expected)) w else w.copy(start = w.end - expected)
+}
+
 /** A pause counts as long from 1 s (rounded to a tenth, like the web). */
 fun isLongPause(p: Pause): Boolean = (p.dur * 10).roundToInt() >= 10
 

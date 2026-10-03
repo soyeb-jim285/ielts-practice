@@ -55,6 +55,9 @@ import com.soyeb.ieltspractice.core.categoryLabel
 import com.soyeb.ieltspractice.core.isLongPause
 import com.soyeb.ieltspractice.core.pauseSec
 import com.soyeb.ieltspractice.core.questionHead
+import com.soyeb.ieltspractice.core.ActiveSpot
+import com.soyeb.ieltspractice.core.activeSpot
+import com.soyeb.ieltspractice.core.trimStretched
 import com.soyeb.ieltspractice.core.wordIndexAt
 import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.AppText
@@ -99,7 +102,7 @@ private class TrSection(val id: Int, val n: Int?, val head: String, val rest: St
 
 /** Everything derived from the analysis, built once per result (the playback clock must not rebuild it). */
 private class TrModel(r: AnalysisResult, timeline: Timeline) {
-    val words: List<Word> = r.words.orEmpty()
+    val words: List<Word> = trimStretched(r.words.orEmpty())
     val tokens = words.mapIndexed { i, w -> TrToken(i, w) }
     val sections: List<TrSection>
     val unplaced: List<AnalysisError>
@@ -157,14 +160,12 @@ fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Time
     val leaned = remember(lean) { lean?.let(::formMatcher) }
     val firstLean = remember(lean, model) { leaned?.let { m -> model.tokens.indexOfFirst { m(it.word.w) } } ?: -1 }
     val colors = MarkerType.entries.map { it to it.color() }.toMap()
-    // Index of the word playing now (-1 for none). Derived, so the 10 Hz clock only recomposes the two words that change.
-    val now = remember(player, model) {
-        derivedStateOf {
-            val t = player.currentTime
-            val i = if (player.isLoaded && player.isPlaying) wordIndexAt(model.words, t) else -1
-            if (i >= 0 && t < model.words[i].end + 0.05) i else -1
-        }
+    // Index of the word playing now (-1 for none), and of the word whose pause is playing. Derived, so the clock only recomposes the words that change.
+    val spot = remember(player, model) {
+        derivedStateOf { if (player.isLoaded && player.isPlaying) activeSpot(model.words, player.currentTime) else ActiveSpot(-1, false) }
     }
+    val now = remember(spot) { derivedStateOf { if (spot.value.pause) -1 else spot.value.word } }
+    val nowPause = remember(spot) { derivedStateOf { if (spot.value.pause) spot.value.word else -1 } }
     val focusWord = focus?.let { id -> timeline.markers.firstOrNull { it.id == id } }?.let { max(wordIndexAt(model.words, it.t), 0) }
 
     if (model.tokens.isEmpty() && model.unplaced.isEmpty()) {
@@ -188,7 +189,7 @@ fun TranscriptPanel(result: AnalysisResult, player: ResultPlayer, timeline: Time
                     }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-                    for (i in s.range) WordView(model.tokens[i], filter, now, focusWord, colors, player, leaned, i == firstLean, onSelect) { d -> markDetail = if (markDetail == d) null else d }
+                    for (i in s.range) WordView(model.tokens[i], filter, now, nowPause, focusWord, colors, player, leaned, i == firstLean, onSelect) { d -> markDetail = if (markDetail == d) null else d }
                 }
             }
         }
@@ -280,7 +281,7 @@ private fun Underlined(text: String, dashes: FloatArray?, color: Color, modifier
 
 @Composable
 private fun WordView(
-    t: TrToken, filter: TrFilter, now: State<Int>, focusWord: Int?, colors: Map<MarkerType, Color>, player: ResultPlayer,
+    t: TrToken, filter: TrFilter, now: State<Int>, nowPause: State<Int>, focusWord: Int?, colors: Map<MarkerType, Color>, player: ResultPlayer,
     leaned: ((String) -> Boolean)?, scrollToLean: Boolean,
     onSelect: (AnalysisError) -> Unit, onMark: (String) -> Unit,
 ) {
@@ -334,7 +335,7 @@ private fun WordView(
             style = AppText.readingSm,
             color = e.ink,
         )
-        t.pauseAfter?.let { p -> if (isLongPause(p) || filter == TrFilter.Pauses) PauseChip(p, filter, player) }
+        t.pauseAfter?.let { p -> if (isLongPause(p) || filter == TrFilter.Pauses) PauseChip(p, filter, player, nowPause.value == t.id) }
     }
 }
 
@@ -379,14 +380,14 @@ private fun MarkChip(m: TrMark, filter: TrFilter, onMark: (String) -> Unit, play
 }
 
 @Composable
-private fun PauseChip(p: Pause, filter: TrFilter, player: ResultPlayer) {
+private fun PauseChip(p: Pause, filter: TrFilter, player: ResultPlayer, active: Boolean) {
     val e = MaterialTheme.ext
     val long = isLongPause(p)
     val color = if (long) e.badText else e.muted
     Text(
         "pause ${pauseSec(p)}s",
         Modifier.background(if (long) e.bad.copy(alpha = 0.12f) else e.surface2, CircleShape)
-            .then(if (filter == TrFilter.Pauses) Modifier.border(1.dp, color, CircleShape) else Modifier)
+            .then(if (active) Modifier.border(2.dp, e.brand, CircleShape) else if (filter == TrFilter.Pauses) Modifier.border(1.dp, color, CircleShape) else Modifier)
             .clickable(role = Role.Button) { player.seek(max(0.0, p.start - 0.3)) }
             .semantics { contentDescription = "${if (long) "Long pause" else "Pause"}, ${pauseSec(p)} seconds" }
             .padding(horizontal = 6.dp, vertical = 1.dp),

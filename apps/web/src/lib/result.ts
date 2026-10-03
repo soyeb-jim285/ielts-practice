@@ -1,6 +1,6 @@
 // Result helpers shared by the speaking and writing results pages.
 import { queryOptions } from '@tanstack/react-query';
-import { fuseDisfluencies, LONG_PAUSE_MS, speakingOverall, type Disfluency, type DisfluencyKind, type Pause, type SpeechMetrics } from '@ielts/core';
+import { alignWords, fuseDisfluencies, LONG_PAUSE_MS, speakingOverall, type Disfluency, type DisfluencyKind, type Pause, type SpeechMetrics } from '@ielts/core';
 import type { AnalysisError, AnalysisResult, CriterionKey, Fix } from '@server/ai/types';
 import { api } from './api';
 
@@ -58,7 +58,7 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
 /** Merges words, error spans (word indices, inclusive), pauses (attached to the preceding word), fillers and unclear tiers. */
 export function buildTokens(r: AnalysisResult): Token[] {
-  const words = r.words ?? [];
+  const words = alignWords(r.words ?? []); // older results kept the recogniser's stretched word times
   const tokens: Token[] = words.map((w, i) => ({ i, w: w.w, start: w.start, end: w.end, conf: w.conf, errorIds: [] }));
   for (const e of r.errors) {
     if (e.start < 0) continue;

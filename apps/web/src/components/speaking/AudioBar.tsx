@@ -7,6 +7,10 @@ import { markerLabel, MarkerShape } from './timeline';
 
 export type AudioControls = {
   time: number;
+  /** Exact playback position (the 0.1 s `time` is for display); read it from a frame loop, not from render. */
+  now: () => number;
+  /** Playing right now: a frame loop only runs then. */
+  playing: boolean;
   seek: (t: number, until?: number) => void;
   ready: boolean;
   /** The picked mistake (shared by the chart, audio bar and transcript), and the ways to pick or clear it. */
@@ -19,6 +23,7 @@ export type AudioControls = {
 export function useAudio() {
   const [el, setEl] = useState<HTMLAudioElement | null>(null);
   const [time, setTime] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const stopAt = useRef<number | null>(null);
 
@@ -34,18 +39,24 @@ export function useAudio() {
       }
       if (!el.paused) raf = requestAnimationFrame(loop);
     };
-    const onPlay = () => (raf = requestAnimationFrame(loop));
+    const onPlay = () => {
+      setPlaying(true);
+      raf = requestAnimationFrame(loop);
+    };
     const onPause = () => {
+      setPlaying(false);
       cancelAnimationFrame(raf);
       read();
     };
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
+    el.addEventListener('ended', onPause);
     el.addEventListener('seeked', read);
     return () => {
       cancelAnimationFrame(raf);
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
+      el.removeEventListener('ended', onPause);
       el.removeEventListener('seeked', read);
     };
   }, [el]);
@@ -67,7 +78,9 @@ export function useAudio() {
   }, [seek]);
   const clear = useCallback(() => setFocus(null), []);
 
-  return { ref: setEl, controls: { time, seek, ready: !!el, focus, pick, clear } satisfies AudioControls };
+  const now = useCallback(() => el?.currentTime ?? 0, [el]);
+
+  return { ref: setEl, controls: { time, now, playing, seek, ready: !!el, focus, pick, clear } satisfies AudioControls };
 }
 
 const SPEEDS = [

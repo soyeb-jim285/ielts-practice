@@ -49,7 +49,7 @@ class ResultPlayer(private val demoDuration: Double? = null) {
             currentTime = e.positionMs / 1000.0
             val d = e.durationMs / 1000.0
             if (d > 0) { duration = d; isLoaded = true } else if (!isLoaded && ++waited > 60) failed = true
-            delay(if (isPlaying) 100 else 250)
+            delay(if (isPlaying) 40 else 250) // the transcript highlight reads currentTime
         }
     }
 

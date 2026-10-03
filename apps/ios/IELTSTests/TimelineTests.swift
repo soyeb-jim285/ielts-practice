@@ -69,4 +69,21 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(wordIndexAt(w, 3), 1)
         XCTAssertEqual(wordIndexAt(w, 99), 1)
     }
+
+    func testActiveSpotHoldsShortGapsAndMarksPauses() {
+        let w = [Word(w: "a", start: 1, end: 1.3, conf: nil), Word(w: "b", start: 1.4, end: 1.8, conf: nil), Word(w: "c", start: 4, end: 4.4, conf: nil)]
+        XCTAssertEqual(activeSpot(w, 0.5), ActiveSpot(word: -1, pause: false))
+        XCTAssertEqual(activeSpot(w, 1.36), ActiveSpot(word: 0, pause: false)) // 0.1 s gap: no flicker
+        XCTAssertEqual(activeSpot(w, 2.5), ActiveSpot(word: 1, pause: true)) // mid-pause
+        XCTAssertEqual(activeSpot(w, 4.0), ActiveSpot(word: 2, pause: false)) // resumes at the next word
+        XCTAssertEqual(activeSpot(w, 9), ActiveSpot(word: 2, pause: true))
+    }
+
+    func testTrimStretchedMovesStartOfAWordThatHidAPause() {
+        let w = [Word(w: "call.", start: 10, end: 10.6, conf: nil), Word(w: "I", start: 10.6, end: 12.3, conf: nil)]
+        let out = trimStretched(w)
+        XCTAssertEqual(out[0].start, 10)
+        XCTAssertEqual(out[1].start, 12.3 - 0.07, accuracy: 1e-9)
+        XCTAssertEqual(trimStretched(out).map(\.start), out.map(\.start)) // idempotent
+    }
 }
