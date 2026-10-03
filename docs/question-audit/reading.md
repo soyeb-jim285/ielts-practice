@@ -114,3 +114,18 @@ Per-test details (issues found by an automated scan plus reading):
 - Section 2: two work-related texts (health-and-safety guidance, entitlements, job/training descriptions) 650-800 words in total; groups: notes (`AND/OR A NUMBER`), sentence completion, optionally table/matching.
 - Section 3: one general-interest article 750-900 words, lettered paragraphs if needed; MCQ, matching information, summary or headings.
 - Instructions say "the text" (`Do the following statements agree with the information given in the text?`, `from the text for each answer`).
+
+## 5. Rebuild result (gen-r-01..04, gen-rg-01..02)
+
+All six tests were rewritten by hand (no LLM writer) to this standard. Gates: `validateLrTest` clean; gap answers verbatim and within limit; no statement copies 6+ words of its passage; no 6-word run shared with any Cambridge passage/question other than stock stems ("What is the writer's view of ..."); independent re-solve by deepseek-v4.1-flash agrees on 40/40 in every test after fixing two ambiguous items (cost about 0.02 USD, logged in `data/lr-generated/cost.log`). Tool: `scripts/reading-gates.py`.
+
+| Test | P1 (words, groups) | P2 | P3 |
+|---|---|---|---|
+| R1 | coffee, 800, notes 5 + TFNG 8 | coral restoration, 793, matching info 5 + summary 4 + two choose-TWO | museum returns, 836, MCQ 5 + word box 4 + YNNG 5 |
+| R2 | cork, 729, TFNG 7 + table 6 | animal sleep, 732, headings 6 + sentences 4 + MCQ 3 | emotion AI, 804, matching features 5 + YNNG 5 + summary 4 |
+| R3 | salt, 723, TFNG 7 + summary 6 | beaver, 761, matching info 5 + matching features 4 + sentences 4 | science language, 790, MCQ 4 + endings 4 + YNNG 6 |
+| R4 | papermaking, 728, flow-chart 5 + TFNG 8 | bird navigation, 746, headings 6 + choose-TWO 2 + sentences 5 | high street, 787, matching features 5 + MCQ 4 + word box 5 |
+| RG1 | 630 (library rules, laptop reviews A-E): TFNG 6 + matching 8 | 650 (first aid, annual leave): notes 8 + sentences 5 | 561 (community gardens, A-H): MCQ 4 + matching 5 + summary 4 |
+| RG2 | 662 (cycle scheme, tent reviews A-F): TFNG 7 + matching 7 | 652 (difficult customers, volunteering A-G): sentences 6 + matching 7 | 660 (cooling cities, A-F): headings 6 + MCQ 4 + summary 3 |
+
+Known limits: Academic passages are 723-836 words (Cambridge median about 860, so slightly short, inside the Cambridge range); Cambridge GT section titles use markdown headings that this renderer shows literally, so GT text titles are plain short paragraphs; no diagram question was built (needs an image asset).
