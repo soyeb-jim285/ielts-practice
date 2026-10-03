@@ -275,6 +275,8 @@ export const lrAttempts = pgTable('lr_attempts', {
   total: integer('total'),
   band: numeric('band', { mode: 'number' }),
   marks: jsonb('marks').$type<import('@ielts/core').LrMark[]>(),
+  stats: jsonb('stats').$type<import('@ielts/core').LrStats>(), // runner pacing: seconds per part, answer changes, late answers
+  analysis: jsonb('analysis').$type<import('@ielts/core').LrAnalysis>(), // deterministic review of the submit (gap mistake labels, TFNG rows, accuracy by type)
 }, (t) => [
   index('lr_attempts_user_started_idx').on(t.userId, t.startedAt),
   index('lr_attempts_user_test_idx').on(t.userId, t.testId, t.status),

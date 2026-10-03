@@ -2247,6 +2247,12 @@
               ]
             }
           },
+          "stats": {
+            "$ref": "#/components/schemas/LrStats"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/LrAnalysis"
+          },
           "test": {
             "$ref": "#/components/schemas/LrTest"
           },
@@ -2271,6 +2277,8 @@
           "total",
           "band",
           "marks",
+          "stats",
+          "analysis",
           "test",
           "assets"
         ]
@@ -2281,6 +2289,150 @@
           "type": "string",
           "maxLength": 200
         }
+      },
+      "LrStats": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "partS": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 86400
+            }
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "late": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            },
+            "maxItems": 60
+          }
+        },
+        "required": [
+          "partS",
+          "changes",
+          "late"
+        ],
+        "description": "Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes"
+      },
+      "LrAnalysis": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LrGapMistake"
+            }
+          },
+          "tfng": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "n": {
+                  "type": "number"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "tfng",
+                    "ynng"
+                  ]
+                },
+                "chose": {
+                  "type": "string"
+                },
+                "answer": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "n",
+                "kind",
+                "chose",
+                "answer"
+              ]
+            }
+          },
+          "byType": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "right": {
+                  "type": "number"
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "label",
+                "right",
+                "total"
+              ]
+            }
+          }
+        },
+        "required": [
+          "gaps",
+          "tfng",
+          "byType"
+        ],
+        "description": "Deterministic review computed at submit (null for older attempts)"
+      },
+      "LrGapMistake": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "word": {
+            "type": "string"
+          },
+          "typed": {
+            "type": "string"
+          },
+          "before": {
+            "type": "number",
+            "description": "Times misspelt in earlier attempts"
+          }
+        },
+        "required": [
+          "n",
+          "kind",
+          "label",
+          "message"
+        ]
       },
       "LrTest": {
         "type": "object",
@@ -2333,6 +2485,45 @@
                 "transcript": {
                   "type": "string",
                   "description": "Only after submission"
+                },
+                "vocab": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "word": {
+                        "type": "string"
+                      },
+                      "meaning": {
+                        "type": "string"
+                      },
+                      "example": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word",
+                      "meaning"
+                    ]
+                  },
+                  "description": "Only after submission"
+                },
+                "timings": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "description": "Listening word timings [word, start s, end s]; only after submission"
                 },
                 "passage": {
                   "type": "object",
@@ -2459,6 +2650,9 @@
                                 "type": "string"
                               },
                               "description": "Only after submission"
+                            },
+                            "review": {
+                              "$ref": "#/components/schemas/LrQuestionReview"
                             }
                           },
                           "required": [
@@ -2494,6 +2688,37 @@
           "sections"
         ],
         "description": "Stripped (no answers, no transcript) until submitted"
+      },
+      "LrQuestionReview": {
+        "type": "object",
+        "properties": {
+          "evidence": {
+            "type": "string"
+          },
+          "at": {
+            "type": "number"
+          },
+          "why": {
+            "type": "string"
+          },
+          "wrong": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "paraphrase": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "[question wording, passage wording] pairs"
+          }
+        },
+        "description": "Only after submission"
       },
       "LrError": {
         "type": "object",
@@ -2598,6 +2823,244 @@
           "answered",
           "startedAt",
           "submittedAt"
+        ]
+      },
+      "LrProgress": {
+        "type": "object",
+        "properties": {
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attemptId": {
+                  "type": "string"
+                },
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "listening",
+                    "reading"
+                  ]
+                },
+                "date": {
+                  "type": "string"
+                },
+                "band": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "attemptId",
+                "skill",
+                "date",
+                "band"
+              ]
+            },
+            "description": "Last 30 submitted attempts per skill, oldest first"
+          },
+          "byType": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "listening",
+                    "reading"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "right": {
+                  "type": "number"
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "skill",
+                "label",
+                "right",
+                "total"
+              ]
+            }
+          },
+          "weakest": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "listening",
+                    "reading"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "right": {
+                  "type": "number"
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "skill",
+                "label",
+                "right",
+                "total"
+              ]
+            },
+            "description": "Up to 3 types with the lowest accuracy (at least 4 questions seen)"
+          },
+          "suggested": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "skill": {
+                "type": "string",
+                "enum": [
+                  "listening",
+                  "reading"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "count": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "skill",
+              "label",
+              "count"
+            ],
+            "description": "A test you have not done with the most questions of your weakest type"
+          },
+          "tfng": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "tfng",
+                      "ynng"
+                    ]
+                  },
+                  "answer": {
+                    "type": "string"
+                  },
+                  "chose": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number"
+                  },
+                  "of": {
+                    "type": "number"
+                  },
+                  "pct": {
+                    "type": "number"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "answer",
+                  "chose",
+                  "count",
+                  "of",
+                  "pct",
+                  "text"
+                ]
+              },
+              "rows": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pattern",
+              "rows"
+            ]
+          }
+        },
+        "required": [
+          "trend",
+          "byType",
+          "weakest",
+          "suggested",
+          "tfng"
+        ]
+      },
+      "LrSpelling": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "word": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "spelling",
+                    "plural"
+                  ]
+                },
+                "count": {
+                  "type": "number"
+                },
+                "typed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "lastAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "word",
+                "kind",
+                "count",
+                "typed",
+                "lastAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
         ]
       }
     },
@@ -4923,6 +5386,9 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 86400
+                  },
+                  "stats": {
+                    "$ref": "#/components/schemas/LrStats"
                   }
                 },
                 "required": [
@@ -5010,6 +5476,9 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 86400
+                  },
+                  "stats": {
+                    "$ref": "#/components/schemas/LrStats"
                   }
                 }
               }
@@ -5043,6 +5512,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/progress": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Listening & Reading trends: band per attempt, accuracy by question type, weakest 3 types, a suggested next test, TRUE/FALSE/NOT GIVEN pattern",
+        "responses": {
+          "200": {
+            "description": "Progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/spelling": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Words you misspelt (or pluralised wrongly) in Listening & Reading gap answers, with counts",
+        "responses": {
+          "200": {
+            "description": "Words, most frequent first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrSpelling"
                 }
               }
             }

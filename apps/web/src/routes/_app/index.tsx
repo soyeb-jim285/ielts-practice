@@ -8,6 +8,7 @@ import { listStyles, panelFooterStyles, PanelHeader, RowChevron, RowIcon, rowSty
 import { speakingSession, StartWritingButton, useStartWriting } from '@/components/bank/PracticeLink';
 import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/components/dashboard/criteria';
 import { GuestHome } from '@/components/dashboard/GuestHome';
+import { LrInsights } from '@/components/dashboard/LrInsights';
 import { Onboarding } from '@/components/dashboard/Onboarding';
 import { QuotaStrip } from '@/components/community/QuotaNote';
 import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
@@ -103,6 +104,7 @@ function Dashboard() {
             {showTrend && <Trend trend={p.trend} target={target} />}
           </>
         )}
+        <LrInsights target={target} />
 
         <div className={cn('stagger grid gap-x-12 gap-y-12', p.topMistakes.length > 0 && 'lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]')}>
           <section aria-labelledby="practise-h" className="min-w-0">

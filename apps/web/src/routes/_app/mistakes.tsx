@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, useMutation, useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, useMutation, useQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AccountGate } from '@/components/community/AccountGate';
 import { loadForAccount, useAccount } from '@/lib/query';
@@ -23,6 +23,8 @@ const mistakesQuery = (category?: string) =>
     getNextPageParam: nextPage,
   });
 
+const spellingQuery = queryOptions({ queryKey: ['lr-spelling'], queryFn: () => call(client.GET('/api/lr/spelling')), staleTime: 0 });
+
 export const Route = createFileRoute('/_app/mistakes')({
   validateSearch: (s: Record<string, unknown>): { category?: string } => ({ category: typeof s.category === 'string' && s.category ? s.category : undefined }),
   loaderDeps: ({ search }) => search,
@@ -42,9 +44,10 @@ function MistakesPage() {
   const groups = data.pages[0]?.groups ?? [];
   const all = groups.reduce((n, g) => n + g.count, 0);
   const items = data.pages.flatMap((p) => p.items);
+  const spelling = useQuery(spellingQuery).data?.items ?? [];
   const pick = (c?: string) => navigate({ search: c ? { category: c } : {}, replace: true });
 
-  if (all === 0)
+  if (all === 0 && spelling.length === 0)
     return (
       <PageContainer>
         <PageHeader title="Mistakes" description="Every correction from your results, grouped so patterns stand out." />
@@ -64,8 +67,9 @@ function MistakesPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Mistakes" description={`${plural(all, 'correction')} from your results, grouped so patterns stand out.`} />
-      <div
+      <PageHeader title="Mistakes" description={all ? `${plural(all, 'correction')} from your results, grouped so patterns stand out.` : 'Words you keep misspelling in Listening and Reading.'} />
+      {!category && <SpellingSection items={spelling} />}
+      {all > 0 && <div
         className="-mx-4 mb-8 flex snap-x snap-proximity scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] sm:-mx-6 sm:scroll-px-6 sm:px-6 md:mx-0 md:flex-wrap md:[mask-image:none] md:px-0"
         role="group"
         aria-label="Filter by category"
@@ -78,7 +82,7 @@ function MistakesPage() {
             {categoryLabel(g.category)} <span className="type-num opacity-70">{g.count}</span>
           </Chip>
         ))}
-      </div>
+      </div>}
       {/* One block per attempt: its prompt is named once, the corrections from it follow. */}
       {runs(items, (m) => m.attemptId).map((g) => (
         <AttemptGroup key={`${g.key}-${g.items[0]!.id}`} first={g.items[0]!}>
@@ -163,5 +167,40 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
         </Button>
       </div>
     </li>
+  );
+}
+
+/** Words misspelt (or wrongly pluralised) in Listening and Reading gap answers, most frequent first. Each also becomes a Review card. */
+function SpellingSection({ items }: { items: Schemas['LrSpelling']['items'] }) {
+  if (!items.length) return null;
+  return (
+    <section aria-labelledby="spell-h" className="mb-10">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-6">
+        <h2 id="spell-h" className="type-heading">Spelling and plurals</h2>
+        <Link to="/review" className="type-caption underline decoration-line underline-offset-4 hover:text-accent-text">Practise these in Review</Link>
+      </div>
+      <ul className={listStyles}>
+        {items.map((w) => (
+          <li key={`${w.kind}-${w.word}`} className="flex items-baseline justify-between gap-4 py-3.5">
+            <div className="min-w-0">
+              <p className="type-num font-semibold">{w.word}</p>
+              <p className="type-caption">
+                You wrote <span className="sr-only">: </span>
+                {w.typed.map((t, i) => (
+                  <span key={t}>
+                    {i > 0 && ', '}
+                    <del className="text-bad-text">{t}</del>
+                  </span>
+                ))}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Badge>{w.kind === 'plural' ? 'Plural' : 'Spelling'}</Badge>
+              <span className="type-num text-sm text-muted">{w.count}<span className="sr-only"> {w.count === 1 ? 'time' : 'times'}</span><span aria-hidden>×</span></span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

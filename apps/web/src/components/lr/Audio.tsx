@@ -29,7 +29,7 @@ function Volume({ el }: { el: RefObject<HTMLAudioElement | null> }) {
 }
 
 /** Practice / review player: play, scrub, ±5 s, speed 0.75-1.25x, restart the part. */
-export function PracticeAudio({ src, label, className }: { src: string; label: string; className?: string }) {
+export function PracticeAudio({ src, label, className, cue }: { src: string; label: string; className?: string; cue?: { from: number; to: number; id: number } | null }) {
   const el = useRef<HTMLAudioElement>(null);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(0);
@@ -38,7 +38,24 @@ export function PracticeAudio({ src, label, className }: { src: string; label: s
   useEffect(() => {
     if (el.current) el.current.playbackRate = +rate;
   }, [rate, src]);
+  // "Play from here": jump to cue.from, play, stop at cue.to
+  const stopAt = useRef<number | null>(null);
+  useEffect(() => {
+    const a = el.current;
+    if (!cue || !a) return;
+    const go = () => {
+      a.currentTime = cue.from;
+      stopAt.current = cue.to;
+      void a.play().catch(() => {});
+    };
+    if (a.readyState >= 1) go();
+    else {
+      a.addEventListener('loadedmetadata', go, { once: true });
+      return () => a.removeEventListener('loadedmetadata', go);
+    }
+  }, [cue?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const seek = (v: number) => {
+    stopAt.current = null;
     if (el.current) el.current.currentTime = Math.min(Math.max(0, v), dur || v);
   };
   return (
@@ -48,7 +65,13 @@ export function PracticeAudio({ src, label, className }: { src: string; label: s
         ref={el}
         src={src}
         preload="metadata"
-        onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
+        onTimeUpdate={(e) => {
+          setT(e.currentTarget.currentTime);
+          if (stopAt.current != null && e.currentTarget.currentTime >= stopAt.current) {
+            stopAt.current = null;
+            e.currentTarget.pause();
+          }
+        }}
         onLoadedMetadata={(e) => {
           setDur(e.currentTarget.duration);
           e.currentTarget.playbackRate = +rate;

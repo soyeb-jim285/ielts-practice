@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
+import { lrTypeLabel } from '@ielts/core';
 import { call, client, type Schemas } from './api';
 
 export type LrTest = Schemas['LrTest'];
@@ -13,6 +14,7 @@ export const lrTestsQuery = (skill: LrSkill) =>
   queryOptions({ queryKey: ['lr-tests', skill], queryFn: () => call(client.GET('/api/lr/tests', { params: { query: { skill } } })), staleTime: 0 });
 export const lrAttemptQuery = (id: string) =>
   queryOptions({ queryKey: ['lr-attempt', id], queryFn: () => call(client.GET('/api/lr/attempts/{id}', { params: { path: { id } } })), staleTime: Infinity });
+export const lrProgressQuery = queryOptions({ queryKey: ['lr-progress'], queryFn: () => call(client.GET('/api/lr/progress')), staleTime: 60_000 });
 export const lrAttemptsQuery = queryOptions({ queryKey: ['lr-attempts'], queryFn: () => call(client.GET('/api/lr/attempts')), staleTime: 0 });
 
 /** Reading is 60 minutes; Listening exam has 2 minutes to check answers after the last recording. */
@@ -25,32 +27,7 @@ export const flatQuestions = (t: LrTest): FlatQ[] => t.sections.flatMap((s) => s
 export const isAnswered = (r: LrResponses, n: number) => !!r[String(n)]?.trim();
 export const answeredCount = (r: LrResponses, t: LrTest) => flatQuestions(t).filter((f) => isAnswered(r, f.n)).length;
 
-/** "TRUE/FALSE/NOT GIVEN" etc: the heading a question type is reported under. */
-export function typeLabel(g: LrGroup): string {
-  switch (g.type) {
-    case 'tfng': return 'True / False / Not Given';
-    case 'ynng': return 'Yes / No / Not Given';
-    case 'mcq': return 'Multiple choice';
-    case 'mcq-multi': return 'Multiple choice (more than one)';
-    case 'match': {
-      if (g.image) return 'Labelling a map or diagram';
-      const roman = g.options?.some((o) => /^[ivx]+$/i.test(o.key));
-      return roman ? 'Matching headings' : 'Matching';
-    }
-    case 'gap': {
-      if (g.image) return 'Labelling a map or diagram';
-      if (g.options) return 'Summary with a word box';
-      const t = `${g.title ?? ''} ${g.instructions}`.toLowerCase();
-      if (/table/.test(t)) return 'Table completion';
-      if (/flow/.test(t)) return 'Flow-chart completion';
-      if (/summary/.test(t)) return 'Summary completion';
-      if (/form/.test(t)) return 'Form completion';
-      if (/notes/.test(t)) return 'Note completion';
-      if (/sentence/.test(t)) return 'Sentence completion';
-      return 'Completion';
-    }
-  }
-}
+export const typeLabel = (g: LrGroup): string => lrTypeLabel(g as Parameters<typeof lrTypeLabel>[0]);
 
 /** Accuracy per question type from the marks of a submitted attempt. */
 export function accuracyBy(t: LrTest, marks: { n: number; correct: boolean }[], key: (f: FlatQ) => string) {

@@ -16,7 +16,7 @@ export function useHighlights(key: string) {
 /** Passage text convention: a paragraph starting "### " is a text heading; "• " lines are bullets (newline separated, shown with pre-line). */
 export const headingOf = (text: string) => (text.startsWith('### ') ? text.slice(4).trim() : null);
 
-function Paragraph({ index, text, marks, onRemove }: { index: number; text: string; marks: Highlight[]; onRemove?: (h: Highlight) => void }) {
+function Paragraph({ index, text, marks, onRemove }: { index: number; text: string; marks: (Highlight & { evidence?: boolean })[]; onRemove?: (h: Highlight) => void }) {
   const parts: ReactNode[] = [];
   let at = 0;
   [...marks].sort((a, b) => a.s - b.s).forEach((m) => {
@@ -24,9 +24,10 @@ function Paragraph({ index, text, marks, onRemove }: { index: number; text: stri
     parts.push(
       <mark
         key={m.s}
-        onClick={() => onRemove?.(m)}
-        title={onRemove ? 'Click to remove highlight' : undefined}
-        className={cn('rounded-[3px] bg-warn-soft px-0.5 text-ink [box-decoration-break:clone]', onRemove && 'cursor-pointer hover:bg-warn/30')}
+        data-evidence={m.evidence ? '' : undefined}
+        onClick={() => !m.evidence && onRemove?.(m)}
+        title={m.evidence ? 'Where the answer is' : onRemove ? 'Click to remove highlight' : undefined}
+        className={cn('rounded-[3px] px-0.5 text-ink [box-decoration-break:clone]', m.evidence ? 'bg-accent-soft underline decoration-accent decoration-2 underline-offset-4' : 'bg-warn-soft', !m.evidence && onRemove && 'cursor-pointer hover:bg-warn/30')}
       >
         {text.slice(m.s, m.e)}
       </mark>,
@@ -41,7 +42,7 @@ function Paragraph({ index, text, marks, onRemove }: { index: number; text: stri
  * The reading passage in the book serif. Select text to highlight it (kept per attempt in localStorage), click a highlight to remove it.
  * Paragraph labels sit in a gutter outside the highlightable text so offsets stay plain character offsets.
  */
-export function Passage({ section, highlights, onAdd, onRemove }: { section: LrSection; highlights?: Highlight[]; onAdd?: (h: Highlight) => void; onRemove?: (h: Highlight) => void }) {
+export function Passage({ section, highlights, evidence, onAdd, onRemove }: { section: LrSection; highlights?: Highlight[]; /** review: the span holding the answer, scrolled into view */ evidence?: Highlight | null; onAdd?: (h: Highlight) => void; onRemove?: (h: Highlight) => void }) {
   const p = section.passage;
   const root = useRef<HTMLDivElement>(null);
   if (!p) return null;
@@ -83,7 +84,7 @@ export function Passage({ section, highlights, onAdd, onRemove }: { section: LrS
             )}
             <p className="type-reading max-w-[68ch] text-pretty selection:bg-warn-soft">
               {para.label && <span className="sr-only">Paragraph {para.label}. </span>}
-              <Paragraph index={i} text={para.text} marks={(highlights ?? []).filter((h) => h.p === i)} onRemove={onRemove} />
+              <Paragraph index={i} text={para.text} marks={[...(highlights ?? []).filter((h) => h.p === i), ...(evidence?.p === i ? [{ ...evidence, evidence: true }] : [])]} onRemove={onRemove} />
             </p>
           </div>
           );
@@ -131,6 +132,21 @@ export function Split({ left, right }: { left: ReactNode; right: ReactNode }) {
         <span aria-hidden className="absolute top-1/2 left-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-line-strong group-hover:bg-brand" />
       </div>
       <div className="min-h-0 overflow-y-auto px-6 py-6 lg:px-8">{right}</div>
+    </div>
+  );
+}
+
+/** Listening transcript, one paragraph per line, with the evidence span marked (results page). */
+export function Transcript({ text, evidence }: { text: string; evidence?: Highlight | null }) {
+  return (
+    <div className="space-y-3">
+      {text.split('\n').map((line, i) =>
+        line.trim() ? (
+          <p key={i}>
+            <Paragraph index={i} text={line} marks={evidence?.p === i ? [{ ...evidence, evidence: true }] : []} />
+          </p>
+        ) : null,
+      )}
     </div>
   );
 }

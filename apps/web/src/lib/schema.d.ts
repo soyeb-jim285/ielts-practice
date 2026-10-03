@@ -2105,6 +2105,7 @@ export interface paths {
                     "application/json": {
                         responses: components["schemas"]["LrResponses"];
                         elapsedS: number;
+                        stats?: components["schemas"]["LrStats"];
                     };
                 };
             };
@@ -2171,6 +2172,7 @@ export interface paths {
                     "application/json": {
                         responses?: components["schemas"]["LrResponses"];
                         elapsedS?: number;
+                        stats?: components["schemas"]["LrStats"];
                     };
                 };
             };
@@ -2204,6 +2206,78 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listening & Reading trends: band per attempt, accuracy by question type, weakest 3 types, a suggested next test, TRUE/FALSE/NOT GIVEN pattern */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrProgress"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/spelling": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Words you misspelt (or pluralised wrongly) in Listening & Reading gap answers, with counts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Words, most frequent first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrSpelling"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2779,6 +2853,8 @@ export interface components {
                 correct: boolean;
                 answer: string[];
             }[] | null;
+            stats: components["schemas"]["LrStats"];
+            analysis: components["schemas"]["LrAnalysis"];
             test: components["schemas"]["LrTest"];
             /** @description Asset key → presigned GET URL (audio supports Range) */
             assets: {
@@ -2787,6 +2863,42 @@ export interface components {
         };
         LrResponses: {
             [key: string]: string;
+        };
+        /** @description Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes */
+        LrStats: {
+            partS: {
+                [key: string]: number;
+            };
+            changes: {
+                [key: string]: number;
+            };
+            late: number[];
+        } | null;
+        /** @description Deterministic review computed at submit (null for older attempts) */
+        LrAnalysis: {
+            gaps: components["schemas"]["LrGapMistake"][];
+            tfng: {
+                n: number;
+                /** @enum {string} */
+                kind: "tfng" | "ynng";
+                chose: string;
+                answer: string;
+            }[];
+            byType: {
+                label: string;
+                right: number;
+                total: number;
+            }[];
+        } | null;
+        LrGapMistake: {
+            n: number;
+            kind: string;
+            label: string;
+            message: string;
+            word?: string;
+            typed?: string;
+            /** @description Times misspelt in earlier attempts */
+            before?: number;
         };
         /** @description Stripped (no answers, no transcript) until submitted */
         LrTest: {
@@ -2806,6 +2918,14 @@ export interface components {
                 audio?: string;
                 /** @description Only after submission */
                 transcript?: string;
+                /** @description Only after submission */
+                vocab?: {
+                    word: string;
+                    meaning: string;
+                    example?: string;
+                }[];
+                /** @description Listening word timings [word, start s, end s]; only after submission */
+                timings?: (string | number)[][];
                 passage?: {
                     title: string;
                     subtitle?: string;
@@ -2838,9 +2958,21 @@ export interface components {
                         }[];
                         /** @description Only after submission */
                         answer?: string[];
+                        review?: components["schemas"]["LrQuestionReview"];
                     }[];
                 }[];
             }[];
+        };
+        /** @description Only after submission */
+        LrQuestionReview: {
+            evidence?: string;
+            at?: number;
+            why?: string;
+            wrong?: {
+                [key: string]: string;
+            };
+            /** @description [question wording, passage wording] pairs */
+            paraphrase?: string[][];
         };
         LrError: {
             error: string;
@@ -2865,6 +2997,63 @@ export interface components {
             answered: number;
             startedAt: string;
             submittedAt: string | null;
+        };
+        LrProgress: {
+            /** @description Last 30 submitted attempts per skill, oldest first */
+            trend: {
+                attemptId: string;
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                date: string;
+                band: number;
+            }[];
+            byType: {
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                label: string;
+                right: number;
+                total: number;
+            }[];
+            /** @description Up to 3 types with the lowest accuracy (at least 4 questions seen) */
+            weakest: {
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                label: string;
+                right: number;
+                total: number;
+            }[];
+            /** @description A test you have not done with the most questions of your weakest type */
+            suggested: {
+                id: string;
+                title: string;
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                label: string;
+                count: number;
+            } | null;
+            tfng: {
+                pattern: {
+                    /** @enum {string} */
+                    kind: "tfng" | "ynng";
+                    answer: string;
+                    chose: string;
+                    count: number;
+                    of: number;
+                    pct: number;
+                    text: string;
+                } | null;
+                rows: number;
+            };
+        };
+        LrSpelling: {
+            items: {
+                word: string;
+                /** @enum {string} */
+                kind: "spelling" | "plural";
+                count: number;
+                typed: string[];
+                lastAt: string;
+            }[];
         };
     };
     responses: never;

@@ -83,7 +83,8 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   const listening = test.skill === 'listening';
   const phone = useIsMobile();
   const navigate = useNavigate();
-  const session = useLrSession(attempt);
+  const lateFrom = useRef(Infinity); // elapsed seconds after which answers count as last-minute (set once the playlist is known)
+  const session = useLrSession(attempt, lateFrom);
   const { responses, change, state, submit, submitting } = session;
   const sections = test.sections;
   const flat = useMemo(() => flatQuestions(test), [test]);
@@ -104,11 +105,20 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   // ---- clocks ----
   const playlist = useExamPlaylist(useMemo(() => (listening ? sections.map((s) => assets[s.audio ?? ''] ?? '') : []), [listening, sections, assets]), attempt.elapsedS);
   const examListening = listening && exam;
+  lateFrom.current = listening ? (exam && playlist.total ? playlist.total : Infinity) : READING_SECONDS - 300; // last 5 min of reading; exam listening: after the recording ends
   const wall = useWallClock(attempt.elapsedS, !examListening, session.elapsed);
   useEffect(() => {
     if (examListening && playlist.phase !== 'idle') session.elapsed.current = playlist.elapsed;
   }, [examListening, playlist.elapsed, playlist.phase, session.elapsed]);
   const started = !examListening || playlist.phase !== 'idle';
+  const partNo = section.part;
+  useEffect(() => {
+    if (!started) return;
+    const i = setInterval(() => {
+      if (document.visibilityState === 'visible') session.stats.current.partS[partNo] = (session.stats.current.partS[partNo] ?? 0) + 1;
+    }, 1000);
+    return () => clearInterval(i);
+  }, [started, partNo, session.stats]);
   const readingLeft = READING_SECONDS - wall;
   const timeUp = exam && (listening ? playlist.phase === 'review' && playlist.reviewLeft === 0 : readingLeft <= 0);
   const doSubmit = useCallback(async () => {
@@ -176,11 +186,18 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   // focus tracking: which question the cursor is in
   const onFocusCapture = (e: React.FocusEvent) => {
     const q = (e.target as HTMLElement).closest<HTMLElement>('[data-q]')?.dataset.q;
-    if (q) setCurrent(+q);
+    if (q) {
+      setCurrent(+q);
+      session.noteFocus(+q);
+    }
+  };
+  const onBlurCapture = (e: React.FocusEvent) => {
+    const q = (e.target as HTMLElement).closest<HTMLElement>('[data-q]')?.dataset.q;
+    if (q) session.noteBlur(+q);
   };
 
   const questions = (
-    <div onFocusCapture={onFocusCapture}>
+    <div onFocusCapture={onFocusCapture} onBlurCapture={onBlurCapture}>
       <p className="type-caption mb-5">
         {listening ? 'Part' : 'Passage'} {section.part}: Questions {section.groups[0]?.from} to {section.groups.at(-1)?.to}
       </p>

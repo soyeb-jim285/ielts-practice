@@ -185,3 +185,85 @@ describe('listening & reading tests', () => {
     });
   });
 });
+
+describe('listening & reading review', () => {
+  const enrich = (t: LrTest): LrTest => {
+    const c = structuredClone(t);
+    c.sections[0]!.groups[0]!.questions[0]!.review = { evidence: 'the secret evidence', why: 'because', wrong: { FALSE: 'no' }, paraphrase: [['a', 'b']] };
+    c.sections[0]!.vocab = [{ word: 'sediment', meaning: 'dregs' }];
+    if (c.skill === 'listening') c.sections[0]!.timings = [['Whitlock', 1, 2]];
+    return c;
+  };
+  const start = async (id: string, headers: Headers) => body(await req(`/api/lr/tests/${id}/attempts`, { headers, body: { mode: 'practice' } }));
+
+  it('review, vocab and timings never reach the client before submit, but do after', async () => {
+    const lid = await seed(enrich(fixture('listening')));
+    const rid = await seed(enrich(fixture('reading')));
+    const { headers } = await guestUser();
+    for (const id of [lid, rid]) {
+      const a = await start(id, headers);
+      for (const raw of [JSON.stringify(a), JSON.stringify(await body(await req(`/api/lr/tests/${id}`, { headers }))), JSON.stringify(await body(await req(`/api/lr/attempts/${a.id}`, { headers })))])
+        for (const k of ['"review"', '"vocab"', '"timings"', 'secret evidence', '"answer"']) expect(raw).not.toContain(k);
+      const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} }));
+      expect(s.test.sections[0].groups[0].questions[0].review).toMatchObject({ evidence: 'the secret evidence', why: 'because' });
+      expect(s.test.sections[0].vocab).toEqual([{ word: 'sediment', meaning: 'dregs' }]);
+    }
+    const a = await start(lid, headers);
+    const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} }));
+    expect(s.test.sections[0].timings).toEqual([['Whitlock', 1, 2]]);
+  });
+
+  it('persists stats on autosave and submit, and rejects malformed stats', async () => {
+    const rid = await seed(fixture('reading'));
+    const { headers } = await guestUser();
+    const a = await start(rid, headers);
+    const stats = { partS: { '1': 600, '2': 300 }, changes: { '7': 2 }, late: [38, 39] };
+    expect((await req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: {}, elapsedS: 9, stats } })).status).toBe(200);
+    expect((await body(await req(`/api/lr/attempts/${a.id}`, { headers }))).stats).toEqual(stats);
+    expect((await req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: {}, elapsedS: 9, stats: { partS: { x: 1 }, changes: {}, late: [] } } })).status).toBe(400);
+    const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { stats: { ...stats, late: [40] } } }));
+    expect(s.stats.late).toEqual([40]);
+  });
+
+  it('classifies slips, creates one spelling card per word, notes earlier misspellings', async () => {
+    const rid = await seed(fixture('reading'));
+    const { headers } = await testUser();
+    const run = async (typed: string) => {
+      const a = await start(rid, headers);
+      return body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: { '7': typed, '8': 'lochs', '9': 'sediments', '10': '' } } }));
+    };
+    const first = await run('castoreumm');
+    expect(first.analysis.gaps).toEqual(expect.arrayContaining([expect.objectContaining({ n: 7, kind: 'spelling', word: 'castoreum', before: 0 }), expect.objectContaining({ n: 9, kind: 'plural', word: 'sediment' }), expect.objectContaining({ n: 10, kind: 'blank' })]));
+    expect(first.analysis.byType.length).toBeGreaterThan(1);
+    const second = await run('castorium');
+    expect(second.analysis.gaps.find((g: any) => g.n === 7)).toMatchObject({ kind: 'spelling', before: 1 });
+    const due = await body(await req('/api/cards/due', { headers }));
+    expect(due.cards).toHaveLength(1);
+    expect(due.cards[0]).toMatchObject({ source: 'mistake' });
+    expect(due.cards[0].front).toContain("'cas___eum' (9 letters)");
+    expect(due.cards[0].back).toContain('castoreum');
+    const sp = await body(await req('/api/lr/spelling', { headers }));
+    expect(sp.items[0]).toMatchObject({ word: 'castoreum', kind: 'spelling', count: 2 });
+    expect(sp.items[0].typed.sort()).toEqual(['castorium', 'castoreumm'].sort());
+  });
+
+  it('progress: trend, accuracy by type, weakest types, a suggested untried test, tfng pattern; per user', async () => {
+    const rid = await seed(fixture('reading'));
+    const other = await seed({ ...fixture('reading'), slug: 'dev-reading-2', ref: 'G2', title: 'Second' });
+    const { headers } = await guestUser();
+    expect(await body(await req('/api/lr/progress', { headers }))).toMatchObject({ trend: [], weakest: [], suggested: null });
+    const a = await start(rid, headers);
+    // Q1-6 are TFNG: answer NOT GIVEN to all (all wrong or right)
+    const r: Record<string, string> = Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [n, 'NOT GIVEN']));
+    await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: r } });
+    const p = await body(await req('/api/lr/progress', { headers }));
+    expect(p.trend).toHaveLength(1);
+    expect(p.byType.find((t: any) => t.label === 'True / False / Not Given')).toMatchObject({ skill: 'reading', total: 6 });
+    expect(p.weakest.length).toBeGreaterThan(0);
+    expect(p.suggested).toMatchObject({ id: other, skill: 'reading' });
+    expect(p.tfng.rows).toBeGreaterThan(0);
+    expect((await body(await req('/api/lr/progress', { headers: (await guestUser()).headers }))).trend).toEqual([]);
+    expect((await req('/api/lr/progress')).status).toBe(401);
+    expect((await req('/api/lr/spelling')).status).toBe(401);
+  });
+});

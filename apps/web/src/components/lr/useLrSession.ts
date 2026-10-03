@@ -6,11 +6,15 @@ import type { LrAttempt, LrResponses } from '@/lib/lr';
 
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
 
+const roundStats = (s: LrStats): LrStats => ({ ...s, partS: Object.fromEntries(Object.entries(s.partS).map(([k, v]) => [k, Math.round(v)])) });
+
 /**
  * Answers of an in-progress attempt: local state, debounced autosave (~1 s), flush on blur / tab hide / page hide, a keep-alive save of the clock
  * every 15 s, and submit. `elapsed` is read through a ref so the clock never re-renders this hook.
  */
-export function useLrSession(attempt: LrAttempt) {
+export type LrStats = { partS: Record<string, number>; changes: Record<string, number>; late: number[] };
+
+export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) {
   const id = attempt.id;
   const [responses, setResponses] = useState<LrResponses>(attempt.responses);
   const [state, setState] = useState<SaveState>('saved');
@@ -18,6 +22,9 @@ export function useLrSession(attempt: LrAttempt) {
   const navigate = useNavigate();
   const latest = useRef(responses);
   const elapsed = useRef(attempt.elapsedS);
+  // pacing: seconds per part (the runner ticks it), answer changes per question, questions answered in the last 5 minutes
+  const stats = useRef<LrStats>(attempt.stats ? { ...attempt.stats, late: [...attempt.stats.late] } : { partS: {}, changes: {}, late: [] });
+  const focusVal = useRef<Record<string, string>>({});
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const busy = useRef(false);
@@ -27,7 +34,7 @@ export function useLrSession(attempt: LrAttempt) {
     async (beacon = false) => {
       clearTimeout(timer.current);
       if (done.current || (!dirty.current && !beacon)) return;
-      const body = JSON.stringify({ responses: latest.current, elapsedS: Math.floor(elapsed.current) });
+      const body = JSON.stringify({ responses: latest.current, elapsedS: Math.floor(elapsed.current), stats: roundStats(stats.current) });
       if (beacon) {
         // page is going away: a normal fetch may be cancelled
         void fetch(`/api/lr/attempts/${id}`, { method: 'PUT', credentials: 'include', keepalive: true, headers: { 'content-type': 'application/json' }, body }).catch(() => {});
@@ -57,6 +64,14 @@ export function useLrSession(attempt: LrAttempt) {
 
   const change = useCallback(
     (next: LrResponses) => {
+      const prev = latest.current;
+      const field = document.activeElement instanceof HTMLInputElement && document.activeElement.type === 'text' ? document.activeElement.dataset.q : undefined;
+      for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+        if ((prev[k] ?? '') === (next[k] ?? '')) continue;
+        // typing in a text gap counts once per visit (noteBlur); choosing / switching an option counts each time
+        if (prev[k] && field !== k) stats.current.changes[k] = (stats.current.changes[k] ?? 0) + 1;
+        if (next[k] && elapsed.current >= lateFrom.current && !stats.current.late.includes(+k)) stats.current.late.push(+k);
+      }
       latest.current = next;
       setResponses(next);
       dirty.current = true;
@@ -87,13 +102,22 @@ export function useLrSession(attempt: LrAttempt) {
     };
   }, [flush]);
 
+  const noteFocus = useCallback((n: number) => {
+    focusVal.current[n] = latest.current[String(n)] ?? '';
+  }, []);
+  const noteBlur = useCallback((n: number) => {
+    const before = focusVal.current[n];
+    if (before && (latest.current[String(n)] ?? '') !== before) stats.current.changes[n] = (stats.current.changes[n] ?? 0) + 1;
+    delete focusVal.current[n];
+  }, []);
+
   const submit = useCallback(async () => {
     if (done.current) return;
     done.current = true;
     clearTimeout(timer.current);
     setSubmitting(true);
     try {
-      const res = await api.post<LrAttempt>(`/lr/attempts/${id}/submit`, { responses: latest.current, elapsedS: Math.floor(elapsed.current) });
+      const res = await api.post<LrAttempt>(`/lr/attempts/${id}/submit`, { responses: latest.current, elapsedS: Math.floor(elapsed.current), stats: roundStats(stats.current) });
       queryClient.setQueryData(['lr-attempt', id], res);
       void queryClient.invalidateQueries({ queryKey: ['lr-tests'] });
       void queryClient.invalidateQueries({ queryKey: ['lr-attempts'] });
@@ -105,5 +129,5 @@ export function useLrSession(attempt: LrAttempt) {
     }
   }, [id, navigate]);
 
-  return { responses, change, state, elapsed, submit, submitting, flush };
+  return { responses, change, state, elapsed, submit, submitting, flush, stats, noteFocus, noteBlur };
 }
