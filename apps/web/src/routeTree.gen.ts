@@ -21,11 +21,15 @@ import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStyleguideRouteImport } from './routes/_app/styleguide'
+import { Route as AppListeningIndexRouteImport } from './routes/_app/listening/index'
+import { Route as AppReadingIndexRouteImport } from './routes/_app/reading/index'
 import { Route as AppSpeakingIndexRouteImport } from './routes/_app/speaking/index'
 import { Route as AppSpeakingLiveRouteImport } from './routes/_app/speaking/live'
 import { Route as AppSpeakingSessionRouteImport } from './routes/_app/speaking/session'
 import { Route as AppWritingIndexRouteImport } from './routes/_app/writing/index'
 import { Route as AppWritingFullRouteImport } from './routes/_app/writing/full'
+import { Route as AppLrResultAttemptIdRouteImport } from './routes/_app/lr/result.$attemptId'
+import { Route as AppLrRunAttemptIdRouteImport } from './routes/_app/lr/run.$attemptId'
 import { Route as AppSpeakingResultAttemptIdRouteImport } from './routes/_app/speaking/result.$attemptId'
 import { Route as AppWritingResultAttemptIdRouteImport } from './routes/_app/writing/result.$attemptId'
 import { Route as AppWritingTaskPromptIdRouteImport } from './routes/_app/writing/task.$promptId'
@@ -89,6 +93,16 @@ const AppStyleguideRoute = AppStyleguideRouteImport.update({
   path: '/styleguide',
   getParentRoute: () => AppRoute,
 } as any)
+const AppListeningIndexRoute = AppListeningIndexRouteImport.update({
+  id: '/listening/',
+  path: '/listening/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReadingIndexRoute = AppReadingIndexRouteImport.update({
+  id: '/reading/',
+  path: '/reading/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSpeakingIndexRoute = AppSpeakingIndexRouteImport.update({
   id: '/speaking/',
   path: '/speaking/',
@@ -112,6 +126,16 @@ const AppWritingIndexRoute = AppWritingIndexRouteImport.update({
 const AppWritingFullRoute = AppWritingFullRouteImport.update({
   id: '/writing/full',
   path: '/writing/full',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLrResultAttemptIdRoute = AppLrResultAttemptIdRouteImport.update({
+  id: '/lr/result/$attemptId',
+  path: '/lr/result/$attemptId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLrRunAttemptIdRoute = AppLrRunAttemptIdRouteImport.update({
+  id: '/lr/run/$attemptId',
+  path: '/lr/run/$attemptId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSpeakingResultAttemptIdRoute =
@@ -147,8 +171,12 @@ export interface FileRoutesByFullPath {
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
+  '/listening/': typeof AppListeningIndexRoute
+  '/reading/': typeof AppReadingIndexRoute
   '/speaking/': typeof AppSpeakingIndexRoute
   '/writing/': typeof AppWritingIndexRoute
+  '/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
+  '/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
@@ -168,8 +196,12 @@ export interface FileRoutesByTo {
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
+  '/listening': typeof AppListeningIndexRoute
+  '/reading': typeof AppReadingIndexRoute
   '/speaking': typeof AppSpeakingIndexRoute
   '/writing': typeof AppWritingIndexRoute
+  '/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
+  '/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
@@ -191,8 +223,12 @@ export interface FileRoutesById {
   '/_app/speaking/live': typeof AppSpeakingLiveRoute
   '/_app/speaking/session': typeof AppSpeakingSessionRoute
   '/_app/writing/full': typeof AppWritingFullRoute
+  '/_app/listening/': typeof AppListeningIndexRoute
+  '/_app/reading/': typeof AppReadingIndexRoute
   '/_app/speaking/': typeof AppSpeakingIndexRoute
   '/_app/writing/': typeof AppWritingIndexRoute
+  '/_app/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
+  '/_app/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/_app/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/_app/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/_app/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
@@ -214,8 +250,12 @@ export interface FileRouteTypes {
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
+    | '/listening/'
+    | '/reading/'
     | '/speaking/'
     | '/writing/'
+    | '/lr/result/$attemptId'
+    | '/lr/run/$attemptId'
     | '/speaking/result/$attemptId'
     | '/writing/result/$attemptId'
     | '/writing/task/$promptId'
@@ -235,8 +275,12 @@ export interface FileRouteTypes {
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
+    | '/listening'
+    | '/reading'
     | '/speaking'
     | '/writing'
+    | '/lr/result/$attemptId'
+    | '/lr/run/$attemptId'
     | '/speaking/result/$attemptId'
     | '/writing/result/$attemptId'
     | '/writing/task/$promptId'
@@ -257,8 +301,12 @@ export interface FileRouteTypes {
     | '/_app/speaking/live'
     | '/_app/speaking/session'
     | '/_app/writing/full'
+    | '/_app/listening/'
+    | '/_app/reading/'
     | '/_app/speaking/'
     | '/_app/writing/'
+    | '/_app/lr/result/$attemptId'
+    | '/_app/lr/run/$attemptId'
     | '/_app/speaking/result/$attemptId'
     | '/_app/writing/result/$attemptId'
     | '/_app/writing/task/$promptId'
@@ -358,6 +406,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStyleguideRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/listening/': {
+      id: '/_app/listening/'
+      path: '/listening'
+      fullPath: '/listening/'
+      preLoaderRoute: typeof AppListeningIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reading/': {
+      id: '/_app/reading/'
+      path: '/reading'
+      fullPath: '/reading/'
+      preLoaderRoute: typeof AppReadingIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/speaking/': {
       id: '/_app/speaking/'
       path: '/speaking'
@@ -391,6 +453,20 @@ declare module '@tanstack/react-router' {
       path: '/writing/full'
       fullPath: '/writing/full'
       preLoaderRoute: typeof AppWritingFullRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lr/result/$attemptId': {
+      id: '/_app/lr/result/$attemptId'
+      path: '/lr/result/$attemptId'
+      fullPath: '/lr/result/$attemptId'
+      preLoaderRoute: typeof AppLrResultAttemptIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lr/run/$attemptId': {
+      id: '/_app/lr/run/$attemptId'
+      path: '/lr/run/$attemptId'
+      fullPath: '/lr/run/$attemptId'
+      preLoaderRoute: typeof AppLrRunAttemptIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/speaking/result/$attemptId': {
@@ -428,8 +504,12 @@ interface AppRouteChildren {
   AppSpeakingLiveRoute: typeof AppSpeakingLiveRoute
   AppSpeakingSessionRoute: typeof AppSpeakingSessionRoute
   AppWritingFullRoute: typeof AppWritingFullRoute
+  AppListeningIndexRoute: typeof AppListeningIndexRoute
+  AppReadingIndexRoute: typeof AppReadingIndexRoute
   AppSpeakingIndexRoute: typeof AppSpeakingIndexRoute
   AppWritingIndexRoute: typeof AppWritingIndexRoute
+  AppLrResultAttemptIdRoute: typeof AppLrResultAttemptIdRoute
+  AppLrRunAttemptIdRoute: typeof AppLrRunAttemptIdRoute
   AppSpeakingResultAttemptIdRoute: typeof AppSpeakingResultAttemptIdRoute
   AppWritingResultAttemptIdRoute: typeof AppWritingResultAttemptIdRoute
   AppWritingTaskPromptIdRoute: typeof AppWritingTaskPromptIdRoute
@@ -446,8 +526,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppSpeakingLiveRoute: AppSpeakingLiveRoute,
   AppSpeakingSessionRoute: AppSpeakingSessionRoute,
   AppWritingFullRoute: AppWritingFullRoute,
+  AppListeningIndexRoute: AppListeningIndexRoute,
+  AppReadingIndexRoute: AppReadingIndexRoute,
   AppSpeakingIndexRoute: AppSpeakingIndexRoute,
   AppWritingIndexRoute: AppWritingIndexRoute,
+  AppLrResultAttemptIdRoute: AppLrResultAttemptIdRoute,
+  AppLrRunAttemptIdRoute: AppLrRunAttemptIdRoute,
   AppSpeakingResultAttemptIdRoute: AppSpeakingResultAttemptIdRoute,
   AppWritingResultAttemptIdRoute: AppWritingResultAttemptIdRoute,
   AppWritingTaskPromptIdRoute: AppWritingTaskPromptIdRoute,

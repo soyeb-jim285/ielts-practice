@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ChevronsUpDown, Ellipsis, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -25,11 +25,13 @@ import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { Logo, LogoMark } from './Logo';
 
-type NavItem = { to: '/' | '/speaking' | '/writing' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings'; label: string; short?: string; icon: LucideIcon };
+type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings'; label: string; short?: string; icon: LucideIcon };
 
 const DASHBOARD: NavItem = { to: '/', label: 'Dashboard', short: 'Home', icon: House };
 const SPEAKING: NavItem = { to: '/speaking', label: 'Speaking', short: 'Speak', icon: Mic };
 const WRITING: NavItem = { to: '/writing', label: 'Writing', short: 'Write', icon: PenLine };
+const LISTENING: NavItem = { to: '/listening', label: 'Listening', short: 'Listen', icon: Headphones };
+const READING: NavItem = { to: '/reading', label: 'Reading', short: 'Read', icon: BookOpen };
 const BANK: NavItem = { to: '/bank', label: 'Prompt bank', short: 'Bank', icon: LibraryBig };
 const MISTAKES: NavItem = { to: '/mistakes', label: 'Mistakes', icon: TriangleAlert };
 const REVIEW: NavItem = { to: '/review', label: 'Review', icon: Layers };
@@ -37,13 +39,14 @@ const HISTORY: NavItem = { to: '/history', label: 'History', icon: History };
 const SETTINGS: NavItem = { to: '/settings', label: 'Settings', icon: Settings };
 
 /** Sidebar groups: the dashboard on its own, then practise, then look back. Settings sits with the account at the bottom. */
-const GROUPS: { label?: string; items: NavItem[] }[] = [
+const groups = (lr: boolean): { label?: string; items: NavItem[] }[] => [
   { items: [DASHBOARD] },
-  { label: 'Practise', items: [SPEAKING, WRITING, BANK] },
+  { label: 'Practise', items: [SPEAKING, WRITING, ...(lr ? [LISTENING, READING] : []), BANK] },
   { label: 'Improve', items: [MISTAKES, REVIEW, HISTORY] },
 ];
 const TABS = [DASHBOARD, SPEAKING, WRITING, REVIEW];
-const MORE = [BANK, MISTAKES, HISTORY, SETTINGS];
+// Listening & Reading are for Cambridge-allow-listed accounts only (me.cambridgeAccess); nobody else sees them.
+const moreItems = (lr: boolean) => [...(lr ? [LISTENING, READING] : []), BANK, MISTAKES, HISTORY, SETTINGS];
 
 function useSignOut() {
   const navigate = useNavigate();
@@ -177,7 +180,8 @@ function SidebarBalance() {
 }
 
 function AppSidebar() {
-  const signedIn = !!useAccount();
+  const me = useAccount();
+  const signedIn = !!me;
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-3 pb-1">
@@ -185,7 +189,7 @@ function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="gap-0 px-2">
         <nav aria-label="Main">
-          {GROUPS.map((g, i) => (
+          {groups(!!me?.cambridgeAccess).map((g, i) => (
             <SidebarGroup key={i} className="px-0 py-1.5">
               {g.label && <SidebarGroupLabel className="h-7 px-2 text-caption font-medium">{g.label}</SidebarGroupLabel>}
               <SidebarGroupContent>
@@ -235,7 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const backTo = useBackTo();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // On a page that lives under More, the tab takes that page's icon and name so the bar still says where you are.
-  const here = MORE.find((n) => isCurrent(pathname, n.to));
+  const here = moreItems(!!me?.cambridgeAccess).find((n) => isCurrent(pathname, n.to));
   const MoreIcon = here?.icon ?? Ellipsis;
 
   return (
@@ -276,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email ?? 'Browsing as a guest'}>
         <nav aria-label="More" className="-mx-2 space-y-0.5">
-          {(me ? MORE : [BANK]).map((n) => { // a guest's only page under More is the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
+          {(me ? moreItems(!!me.cambridgeAccess) : [BANK]).map((n) => { // a guest's only page under More is the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
             const Icon = n.icon;
             return (
               <Link

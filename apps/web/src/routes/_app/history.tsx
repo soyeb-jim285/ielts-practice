@@ -1,7 +1,8 @@
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AccountGate } from '@/components/community/AccountGate';
-import { History, Mic, PenLine } from 'lucide-react';
+import { BookOpen, Headphones, History, Mic, PenLine } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
 import { dayBucket, runs } from '@/components/bank/group';
@@ -10,9 +11,12 @@ import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { loadForAccount, useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
+import { lrAttemptsQuery } from '@/lib/lr';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
+type Filter = Skill | 'listening' | 'reading';
+const isLr = (f?: Filter): f is 'listening' | 'reading' => f === 'listening' || f === 'reading';
 
 const historyQuery = (skill?: Skill) =>
   infiniteQueryOptions({
@@ -23,9 +27,9 @@ const historyQuery = (skill?: Skill) =>
   });
 
 export const Route = createFileRoute('/_app/history')({
-  validateSearch: (s: Record<string, unknown>): { skill?: Skill } => ({ skill: s.skill === 'speaking' || s.skill === 'writing' ? s.skill : undefined }),
+  validateSearch: (s: Record<string, unknown>): { skill?: Filter } => ({ skill: s.skill === 'speaking' || s.skill === 'writing' || s.skill === 'listening' || s.skill === 'reading' ? s.skill : undefined }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => loadForAccount(context.queryClient, () => context.queryClient.ensureInfiniteQueryData(historyQuery(deps.skill))),
+  loader: ({ context, deps }) => loadForAccount(context.queryClient, () => context.queryClient.ensureInfiniteQueryData(historyQuery(isLr(deps.skill) ? undefined : deps.skill))),
   component: GatedHistoryPage,
 });
 
@@ -50,8 +54,11 @@ function HistoryPage() {
   const { skill } = Route.useSearch();
   const navigate = Route.useNavigate();
   const target = useMe().data?.settings.targetBand ?? 7;
-  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseInfiniteQuery(historyQuery(skill));
-  const items = data.pages.flatMap((p) => p.items);
+  const lrOn = !!useAccount()?.cambridgeAccess; // Listening & Reading exist only for Cambridge-allow-listed accounts
+  const lr = useQuery({ ...lrAttemptsQuery, enabled: lrOn }).data?.items.filter((a) => !isLr(skill) || a.skill === skill) ?? [];
+  const showLr = lrOn && (!skill || isLr(skill));
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseInfiniteQuery(historyQuery(isLr(skill) ? undefined : skill));
+  const items = isLr(skill) ? [] : data.pages.flatMap((p) => p.items);
   const total = data.pages[0]?.total ?? 0;
 
   return (
@@ -69,11 +76,52 @@ function HistoryPage() {
               { value: 'all', label: 'All' },
               { value: 'speaking', label: 'Speaking' },
               { value: 'writing', label: 'Writing' },
+              ...(lrOn ? [{ value: 'listening' as const, label: 'Listening' }, { value: 'reading' as const, label: 'Reading' }] : []),
             ]}
           />
         }
       />
-      {items.length === 0 ? (
+      {showLr && lr.length > 0 && (
+        <section aria-label="Listening and Reading" className="mb-8">
+          <GroupHeading>Listening and Reading</GroupHeading>
+          <ul className={listStyles}>
+            {lr.slice(0, isLr(skill) ? undefined : 5).map((a) => {
+              const Icon = a.skill === 'listening' ? Headphones : BookOpen;
+              const done = a.status === 'submitted';
+              return (
+                <li key={a.id}>
+                  <Link to={done ? '/lr/result/$attemptId' : '/lr/run/$attemptId'} params={{ attemptId: a.id }} className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_7rem_5.5rem_4.5rem_1rem] md:gap-x-4')}>
+                    <RowIcon>
+                      <Icon />
+                    </RowIcon>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="type-subheading line-clamp-2 min-w-0 font-medium">{a.title}</span>
+                        {!done && <Badge tone="warn" className="shrink-0">In progress</Badge>}
+                      </span>
+                      <span className="type-caption mt-0.5 block md:hidden">{a.mode === 'exam' ? 'Exam' : 'Practice'}, {formatDate(a.startedAt)}{done ? `, ${a.raw}/${a.total}` : ''}</span>
+                    </span>
+                    <span className="type-caption hidden capitalize md:block">{a.skill}, {a.mode}</span>
+                    <span className="type-caption hidden md:block">{formatDate(a.startedAt)}</span>
+                    <span className={cn('type-band justify-self-end text-lg', done && a.band != null ? BAND_TEXT[bandColor(a.band, target)] : 'text-muted')}>
+                      <span className="sr-only">Band </span>
+                      {done ? formatBand(a.band) : <span aria-hidden>-</span>}
+                    </span>
+                    <RowChevron />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+      {isLr(skill) ? (
+        lr.length === 0 && (
+          <EmptyState icon={<History />} title={`No ${skill} attempts yet`} action={<Link to={skill === 'listening' ? '/listening' : '/reading'} className={buttonStyles()}>Start a test</Link>}>
+            Every {skill} test you take is listed here with its band.
+          </EmptyState>
+        )
+      ) : items.length === 0 && showLr && lr.length > 0 ? null : items.length === 0 ? (
         <EmptyState
           icon={<History />}
           title={skill ? `No ${skill} attempts yet` : 'Nothing practised yet'}

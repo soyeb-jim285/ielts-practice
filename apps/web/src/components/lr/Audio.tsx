@@ -1,0 +1,222 @@
+import { Headphones, Pause, Play, RotateCcw, RotateCw, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { Button, ProgressBar, Segmented } from '@/components/ui';
+import { formatClock } from '@/lib/format';
+import { LISTENING_REVIEW_SECONDS } from '@/lib/lr';
+
+const range = 'h-2 w-full cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed';
+
+function Volume({ el }: { el: RefObject<HTMLAudioElement | null> }) {
+  const [v, setV] = useState(1);
+  return (
+    <label className="flex items-center gap-2 text-muted">
+      <Volume2 className="size-4 shrink-0" aria-hidden />
+      <span className="sr-only">Volume</span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={v}
+        onChange={(e) => {
+          setV(+e.target.value);
+          if (el.current) el.current.volume = +e.target.value;
+        }}
+        className={`${range} w-20`}
+      />
+    </label>
+  );
+}
+
+/** Practice / review player: play, scrub, ±5 s, speed 0.75-1.25x, restart the part. */
+export function PracticeAudio({ src, label, className }: { src: string; label: string; className?: string }) {
+  const el = useRef<HTMLAudioElement>(null);
+  const [t, setT] = useState(0);
+  const [dur, setDur] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [rate, setRate] = useState('1');
+  useEffect(() => {
+    if (el.current) el.current.playbackRate = +rate;
+  }, [rate, src]);
+  const seek = (v: number) => {
+    if (el.current) el.current.currentTime = Math.min(Math.max(0, v), dur || v);
+  };
+  return (
+    <div role="group" aria-label={`${label} audio`} className={className ?? 'flex flex-wrap items-center gap-x-4 gap-y-2'}>
+      <audio
+        key={src}
+        ref={el}
+        src={src}
+        preload="metadata"
+        onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => {
+          setDur(e.currentTarget.duration);
+          e.currentTarget.playbackRate = +rate;
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" aria-label="Back 5 seconds" onClick={() => seek(t - 5)}>
+          <RotateCcw />
+        </Button>
+        <Button size="icon" aria-label={playing ? `Pause ${label}` : `Play ${label}`} onClick={() => (playing ? el.current?.pause() : void el.current?.play())}>
+          {playing ? <Pause /> : <Play />}
+        </Button>
+        <Button variant="ghost" size="icon" aria-label="Forward 5 seconds" onClick={() => seek(t + 5)}>
+          <RotateCw />
+        </Button>
+      </div>
+      <div className="flex min-w-48 flex-1 items-center gap-3">
+        <span className="type-num type-caption w-10 text-right">{formatClock(t)}</span>
+        <input type="range" aria-label="Seek" min={0} max={dur || 1} step={0.1} value={Math.min(t, dur || 1)} onChange={(e) => seek(+e.target.value)} className={range} />
+        <span className="type-num type-caption w-10">{formatClock(dur)}</span>
+      </div>
+      <Segmented
+        label="Playback speed"
+        size="sm"
+        value={rate}
+        onChange={setRate}
+        options={['0.75', '1', '1.25'].map((v) => ({ value: v, label: `${v}×`, 'aria-label': `${v} times speed` }))}
+      />
+      <Button variant="outline" size="sm" onClick={() => { seek(0); void el.current?.play(); }}>
+        Replay {label.toLowerCase()}
+      </Button>
+      <span className="max-md:hidden">
+        <Volume el={el} />
+      </span>
+    </div>
+  );
+}
+
+export type ExamPhase = 'idle' | 'audio' | 'review';
+
+/**
+ * Exam listening: the recordings of all parts play once, in order, with no pause or seek for the learner. The clock IS the audio position
+ * (so a resumed attempt picks the recording up where it was), then a 2-minute review countdown runs on the wall clock.
+ */
+export function useExamPlaylist(urls: string[], startElapsed: number) {
+  const el = useRef<HTMLAudioElement>(null);
+  const [durations, setDurations] = useState<number[] | null>(null);
+  const [error, setError] = useState(false);
+  const [phase, setPhase] = useState<ExamPhase>('idle');
+  const [idx, setIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(startElapsed);
+  const [stalled, setStalled] = useState(false);
+  const reviewStart = useRef(0);
+  const cur = useRef({ idx: 0, phase: 'idle' as ExamPhase });
+  cur.current = { idx, phase };
+
+  useEffect(() => {
+    let dead = false;
+    Promise.all(
+      urls.map(
+        (u) =>
+          new Promise<number>((res, rej) => {
+            const a = new Audio();
+            a.preload = 'metadata';
+            a.onloadedmetadata = () => res(a.duration);
+            a.onerror = () => rej(new Error('audio'));
+            a.src = u;
+          }),
+      ),
+    ).then((d) => !dead && setDurations(d), () => !dead && setError(true));
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls.join('|')]);
+
+  const starts = durations?.reduce<number[]>((acc, d, i) => [...acc, (acc[i] ?? 0) + d], [0]) ?? [0];
+  const total = durations ? starts[durations.length]! : 0;
+
+  const load = useCallback(
+    (i: number, offset: number) => {
+      const a = el.current;
+      if (!a) return;
+      a.src = urls[i]!;
+      a.onloadedmetadata = () => {
+        a.currentTime = offset;
+        a.onloadedmetadata = null;
+        void a.play().catch(() => setStalled(true));
+      };
+      setIdx(i);
+    },
+    [urls],
+  );
+
+  const start = () => {
+    if (!durations) return;
+    setStalled(false);
+    if (startElapsed >= total) {
+      reviewStart.current = Date.now() - (startElapsed - total) * 1000;
+      setPhase('review');
+      return;
+    }
+    let i = 0;
+    while (i < durations.length - 1 && startElapsed >= starts[i + 1]!) i++;
+    setPhase('audio');
+    load(i, startElapsed - starts[i]!);
+  };
+
+  const resume = () => {
+    setStalled(false);
+    void el.current?.play().catch(() => setStalled(true));
+  };
+
+  useEffect(() => {
+    const a = el.current;
+    if (!a) return;
+    const ended = () => {
+      if (cur.current.idx < urls.length - 1) load(cur.current.idx + 1, 0);
+      else {
+        reviewStart.current = Date.now();
+        setPhase('review');
+      }
+    };
+    const paused = () => cur.current.phase === 'audio' && !a.ended && setStalled(true); // the device paused it (headphones, call)
+    a.addEventListener('ended', ended);
+    a.addEventListener('pause', paused);
+    return () => {
+      a.removeEventListener('ended', ended);
+      a.removeEventListener('pause', paused);
+    };
+  }, [load, urls.length]);
+
+  useEffect(() => {
+    if (phase === 'idle') return;
+    const t = setInterval(() => {
+      if (cur.current.phase === 'audio') setElapsed(starts[cur.current.idx]! + (el.current?.currentTime ?? 0));
+      else setElapsed(total + (Date.now() - reviewStart.current) / 1000);
+    }, 250);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, total]);
+
+  const reviewLeft = Math.max(0, Math.ceil(LISTENING_REVIEW_SECONDS - (elapsed - total)));
+  return { el, durations, error, phase, idx, elapsed, total, start, resume, stalled, reviewLeft };
+}
+
+/** Exam recording bar: whole-test progress, which part is playing, volume. No transport controls on purpose. */
+export function ExamAudioBar({ playlist }: { playlist: ReturnType<typeof useExamPlaylist> }) {
+  const { phase, idx, elapsed, total, durations, stalled, resume, reviewLeft, el } = playlist;
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2" role="group" aria-label="Recording">
+      <Headphones className="size-5 shrink-0 text-accent-text" aria-hidden />
+      <div className="min-w-0 flex-1 basis-56">
+        <p className="type-num text-sm font-medium">
+          {phase === 'review' ? 'Recording finished. Check your answers.' : `Part ${idx + 1} of ${durations?.length ?? 4} is playing`}
+        </p>
+        <ProgressBar label="Recording progress" value={total ? Math.min(1, elapsed / total) : 0} className="mt-1.5 h-1.5" />
+      </div>
+      {phase === 'review' && <span className="type-num rounded-md bg-warn-soft px-2.5 py-1 text-sm font-semibold text-warn-text">{formatClock(reviewLeft)} left to review</span>}
+      {stalled && phase === 'audio' && (
+        <Button size="sm" onClick={resume}>
+          Resume audio
+        </Button>
+      )}
+      <Volume el={el} />
+    </div>
+  );
+}
