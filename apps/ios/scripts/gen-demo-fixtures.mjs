@@ -17,8 +17,8 @@ const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman',
 
 const p = (o) => ({ variant: null, type: null, topic: null, bullets: null, followUps: null, chart: null, imageUrl: null, groupId: null, done: false, source: 'generated', ...o });
 const sp1 = p({ id: 'sp1', skill: 'speaking', part: 1, topic: 'Hometown', title: 'Your hometown', body: 'Let\'s talk about where you grew up.', followUps: ['Where is your hometown?', 'What do you like most about it?', 'Has it changed much since you were a child?', 'Would you like to live there in the future?'] });
-const sp2 = p({ id: 'sp2', skill: 'speaking', part: 2, topic: 'Books', title: 'Describe a book that changed the way you think', body: 'You should say:', bullets: ['what the book was', 'when you read it', 'what it was about', 'and explain how it changed the way you think.'] });
-const sp3 = p({ id: 'sp3', skill: 'speaking', part: 3, topic: 'Reading', title: 'Reading habits', body: 'Let\'s discuss reading in society.', followUps: ['Why do fewer young people read books for pleasure?', 'Should schools make reading compulsory?', 'Will printed books disappear?'] });
+const sp2 = p({ id: 'sp2', skill: 'speaking', part: 2, topic: 'Books', title: 'Describe a book that changed the way you think.', body: 'Describe a book that changed the way you think.\nand explain how it changed the way you think.', bullets: ['what the book was', 'when you read it', 'what it was about'] });
+const sp3 = p({ id: 'sp3', skill: 'speaking', part: 3, topic: 'Reading', title: 'Reading habits', body: 'Let\'s discuss reading in society.', bullets: ['Reading habits', 'The future of books'], followUps: ['Why do fewer young people read books for pleasure?', 'Should schools make reading compulsory?', 'What makes a book worth rereading?', 'Will printed books disappear?', 'How might e-readers change the way we read?', 'Should libraries stay open if few people use them?'] });
 const w2 = p({ id: 'w2', skill: 'writing', part: 2, type: 'opinion', topic: 'Technology', title: 'Remote work', body: 'Some people believe that working from home benefits both employees and employers. Others think it harms productivity and teamwork. Discuss both views and give your own opinion.' });
 const w1a = p({ id: 'w1a', skill: 'writing', part: 1, variant: 'academic', type: 'line', topic: 'Energy', title: 'Renewable energy share',
   body: 'The graph below shows the percentage of electricity generated from renewable sources in three countries between 2000 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.',
@@ -260,6 +260,8 @@ mkdirSync(dirname(out), { recursive: true });
   const load = (f, o) => ({ ...JSON.parse(readFileSync(join(dir, f), 'utf8')), ...o });
   const L = load('lr-listening.json', { slug: 'original-listening-1', ref: 'Original L1', title: 'Original practice: Listening 1', source: 'generated' });
   const R = load('lr-reading.json', { slug: 'original-reading-1', ref: 'Original R1', title: 'Original practice: Reading 1', source: 'generated' });
+  // GT-style passage markup: a "### " heading paragraph and "• " bullets inside a paragraph
+  R.sections[0].passage.paragraphs.unshift({ text: '### Library holiday opening hours' }, { text: 'The library is open as follows:\n• Monday to Friday, 9 am to 8 pm\n• Saturday, 10 am to 4 pm' });
   const A = 'https://demo.ielts.local/lr-assets/';
   const assetsOf = (t) => Object.fromEntries(t.sections.flatMap((s) => [s.audio, ...s.groups.map((g) => g.image)]).filter(Boolean)
     .map((k) => [k, A + (k.endsWith('.svg') ? 'map.png' : k.split('/').pop())]));

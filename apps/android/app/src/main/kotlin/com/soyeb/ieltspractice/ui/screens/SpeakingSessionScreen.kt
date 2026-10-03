@@ -223,13 +223,19 @@ internal fun androidx.compose.foundation.layout.ColumnScope.Unavailable(title: S
 
 // MARK: Question
 
+/** Part 3 rows carry two sub-topic headings in bullets; the first half of the questions sits under the first. */
+private fun subTopic(p: Prompt, question: Int): String? {
+    val b = p.bullets
+    return if (p.part == 3 && b != null && b.size == 2 && p.questions.isNotEmpty()) b[minOf(1, question * 2 / p.questions.size)] else null
+}
+
 @Composable
 private fun QuestionHeader(p: Prompt, question: Int) {
     val e = MaterialTheme.ext
     val n = p.questions.size
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(p.topic ?: p.title, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = e.ink)
+            Text(subTopic(p, question) ?: p.topic ?: p.title, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = e.ink)
             if (n > 1) {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Question ${question + 1} of $n", style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)

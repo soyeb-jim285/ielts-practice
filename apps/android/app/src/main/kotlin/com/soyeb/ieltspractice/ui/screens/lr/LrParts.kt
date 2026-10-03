@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
@@ -62,16 +63,25 @@ fun PassageView(p: LrPassage, modifier: Modifier = Modifier) {
             p.subtitle?.let { Text(it, style = AppText.readingSm, color = e.muted, fontStyle = FontStyle.Italic) }
             val labelled = p.paragraphs.any { it.label != null }
             p.paragraphs.forEach { para ->
+                // "### " marks a text heading (GT reading); "• " lines are bullets
+                if (para.text.startsWith("### ")) {
+                    Text(para.text.removePrefix("### "), Modifier.semantics { heading() }.padding(top = 4.dp), style = AppText.reading.copy(fontWeight = FontWeight.SemiBold), color = e.ink)
+                    return@forEach
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (labelled) Box(Modifier.size(28.dp).padding(top = 3.dp), contentAlignment = Alignment.Center) {
                         if (para.label != null) Box(Modifier.size(24.dp).background(e.surface2, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                             Text(para.label, style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted)
                         }
                     }
-                    Text(
-                        para.text, Modifier.weight(1f).semantics { if (para.label != null) contentDescription = "Paragraph ${para.label}. ${para.text}" },
-                        style = AppText.reading, color = e.ink,
-                    )
+                    Column(Modifier.weight(1f).semantics { if (para.label != null) contentDescription = "Paragraph ${para.label}. ${para.text}" }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        para.text.split('\n').forEach { line ->
+                            if (line.startsWith("• ")) Row(Modifier.padding(start = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("•", style = AppText.reading, color = e.muted)
+                                Text(line.removePrefix("• "), Modifier.weight(1f), style = AppText.reading, color = e.ink)
+                            } else Text(line, style = AppText.reading, color = e.ink)
+                        }
+                    }
                 }
             }
         }

@@ -154,16 +154,23 @@ fun CueCard(p: Prompt, modifier: Modifier = Modifier) {
     AppCard(modifier, padding = 20.dp) {
         Text("Cue card", style = MaterialTheme.typography.labelMedium, color = e.muted)
         Text(p.title, style = MaterialTheme.typography.titleLarge, color = e.ink)
-        if (intro.isNotEmpty()) Text(intro, style = MaterialTheme.typography.bodyMedium, color = e.muted)
         val bullets = p.bullets.orEmpty()
         if (bullets.isNotEmpty()) {
-            Text("You should say", Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleSmall, color = e.ink)
+            Text("You should say:", Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleSmall, color = e.ink)
             bullets.forEach { b ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("•", style = AppText.readingSm, color = e.muted)
                     Text(b, style = AppText.readingSm, color = e.ink)
                 }
             }
+        }
+        // Cambridge layout: the "and explain ..." line closes the card, then the standard instruction.
+        if (intro.isNotEmpty()) Text(intro, style = AppText.readingSm, color = e.ink)
+        if (!p.body.contains("You will have to talk")) {
+            Text(
+                "You will have to talk about the topic for one to two minutes. You have one minute to think about what you are going to say. You can make some notes to help you if you wish.",
+                style = MaterialTheme.typography.bodySmall, color = e.muted,
+            )
         }
     }
 }

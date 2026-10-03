@@ -228,11 +228,17 @@ struct SpeakingSessionView: View {
         p.questions.indices.contains(question) ? p.questions[question] : (p.questions.last ?? p.title)
     }
 
+    /// Part 3 rows carry two sub-topic headings in bullets; the first half of the questions sits under the first.
+    private func subTopic(_ p: Prompt) -> String? {
+        guard p.part == 3, let b = p.bullets, b.count == 2, !p.questions.isEmpty else { return nil }
+        return b[min(1, question * 2 / p.questions.count)]
+    }
+
     private func questionHeader(_ p: Prompt) -> some View {
         let n = p.questions.count
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                Text(p.topic ?? p.title).font(.caption.weight(.medium)).foregroundStyle(.ink)
+                Text(subTopic(p) ?? p.topic ?? p.title).font(.caption.weight(.medium)).foregroundStyle(.ink)
                 Spacer(minLength: 8)
                 if n > 1 {
                     VStack(alignment: .trailing, spacing: 6) {
@@ -608,7 +614,7 @@ struct SpeakingSessionView: View {
         guard phase == .recording, let p = current else { return }
         let r = recorder.stop()
         let rec = PendingRecording(id: recId, promptId: p.id, part: p.part,
-                                   label: "\(label(index)): \(p.topic ?? p.title)", createdAt: Date(),
+                                   label: "\(label(index)): \((p.topic ?? p.title).trimmingCharacters(in: CharacterSet(charactersIn: ".")))", createdAt: Date(),
                                    durationMs: r.durationMs, energy: Array(r.energy.prefix(20000)), marks: Array(marks.prefix(200)),
                                    sessionId: isFull ? sessionId : nil, parentAttemptId: parent)
         store.add(rec)
@@ -735,15 +741,20 @@ struct CueCardView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Cue card").font(.caption).foregroundStyle(.muted)
             Text(prompt.title).font(.display(.title3)).foregroundStyle(.ink)
-            if !intro.isEmpty { Text(intro).foregroundStyle(.muted) }
             if !bullets.isEmpty {
-                Text("You should say").font(.subheadline.weight(.medium)).padding(.top, 6)
+                Text("You should say:").font(.subheadline.weight(.medium)).padding(.top, 6)
                 ForEach(Array(bullets.enumerated()), id: \.offset) { _, b in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("•").foregroundStyle(.muted)
                         Text(b).font(.system(.body, design: .serif))
                     }
                 }
+            }
+            // Cambridge layout: the "and explain ..." line closes the card, then the standard instruction.
+            if !intro.isEmpty { Text(intro).font(.system(.body, design: .serif)).foregroundStyle(.ink).padding(.top, 2) }
+            if !prompt.body.contains("You will have to talk") {
+                Text("You will have to talk about the topic for one to two minutes. You have one minute to think about what you are going to say. You can make some notes to help you if you wish.")
+                    .font(.caption).foregroundStyle(.muted).padding(.top, 4)
             }
         }
         .card(padding: 20)

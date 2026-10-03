@@ -13,6 +13,9 @@ export function useHighlights(key: string) {
   return { highlights: all, add: (h: Highlight) => update(addHighlight(all, h)), remove: (h: Highlight) => update(all.filter((x) => x !== h)) };
 }
 
+/** Passage text convention: a paragraph starting "### " is a text heading; "• " lines are bullets (newline separated, shown with pre-line). */
+export const headingOf = (text: string) => (text.startsWith('### ') ? text.slice(4).trim() : null);
+
 function Paragraph({ index, text, marks, onRemove }: { index: number; text: string; marks: Highlight[]; onRemove?: (h: Highlight) => void }) {
   const parts: ReactNode[] = [];
   let at = 0;
@@ -31,7 +34,7 @@ function Paragraph({ index, text, marks, onRemove }: { index: number; text: stri
     at = m.e;
   });
   if (at < text.length) parts.push(text.slice(at));
-  return <span data-p={index}>{parts}</span>;
+  return <span data-p={index} className="whitespace-pre-line">{parts}</span>;
 }
 
 /**
@@ -68,7 +71,10 @@ export function Passage({ section, highlights, onAdd, onRemove }: { section: LrS
         {p.subtitle && <p className="type-reading-sm mt-1 italic text-muted">{p.subtitle}</p>}
       </header>
       <div className="space-y-4">
-        {p.paragraphs.map((para, i) => (
+        {p.paragraphs.map((para, i) => {
+          const heading = headingOf(para.text);
+          if (heading !== null) return <h3 key={i} className="type-reading mt-2 font-semibold text-balance">{heading}</h3>;
+          return (
           <div key={i} className={labelled ? 'grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3' : undefined}>
             {labelled && (
               <span aria-hidden className={para.label ? 'type-num mt-1.5 grid size-7 place-items-center self-start rounded-md bg-surface-2 text-sm font-semibold text-muted' : undefined}>
@@ -80,7 +86,8 @@ export function Passage({ section, highlights, onAdd, onRemove }: { section: LrS
               <Paragraph index={i} text={para.text} marks={(highlights ?? []).filter((h) => h.p === i)} onRemove={onRemove} />
             </p>
           </div>
-        ))}
+          );
+        })}
       </div>
     </article>
   );

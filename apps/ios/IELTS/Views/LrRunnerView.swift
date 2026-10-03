@@ -512,13 +512,32 @@ struct LrPassageView: View {
                 Text(p.title).font(.title2.weight(.semibold)).fontDesign(.serif).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
                 if let s = p.subtitle { Text(s).font(.system(.subheadline, design: .serif).italic()).foregroundStyle(Color.muted) }
                 ForEach(Array(p.paragraphs.enumerated()), id: \.offset) { _, para in
+                    if para.text.hasPrefix("### ") {
+                        // "### " marks a text heading (GT reading); "• " lines are bullets
+                        Text(String(para.text.dropFirst(4))).font(.headline).fontDesign(.serif).foregroundStyle(Color.ink)
+                            .accessibilityAddTraits(.isHeader).padding(.top, 4)
+                    } else {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         if let l = para.label {
                             Text(l).font(.subheadline.weight(.bold).monospacedDigit()).foregroundStyle(Color.brand)
                                 .frame(minWidth: 22, alignment: .leading).accessibilityLabel("Paragraph \(l)")
                         }
-                        Text(para.text).font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(para.text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
+                                if line.hasPrefix("• ") {
+                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                        Text("•").foregroundStyle(Color.muted)
+                                        Text(String(line.dropFirst(2))).textSelection(.enabled)
+                                    }
+                                    .padding(.leading, 8)
+                                } else {
+                                    Text(line).textSelection(.enabled)
+                                }
+                            }
+                        }
+                        .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     }
                 }
             }
