@@ -87,7 +87,10 @@ def main():
     slug, only = rest[0], {int(p) for p in rest[1:]}
     CACHE.mkdir(parents=True, exist_ok=True)
     script = json.loads((OUT / f"scripts/{slug}.json").read_text())
-    tempo = script.get("tempo", 1)  # optional atempo for speech (e.g. 0.92 = slightly slower)
+    # Pace: v4 ignores voice speed settings and time-stretching sounds artificial, so slow it with a delivery tag
+    # ("[speaks slowly and clearly]" measured 116-118 wpm vs ~124 untagged; Cambridge recordings run ~118 wpm). Not spoken aloud.
+    delivery = script.get("delivery", "[speaks slowly and clearly]")
+    say = lambda t: f"{delivery} {t}" if delivery else t
     parts = [p for p in script["parts"] if not only or p["part"] in only]
     est = sum(len(t["text"]) for p in parts for t in p["turns"])
     left, tier = remaining()
@@ -106,10 +109,10 @@ def main():
                 ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", str(sec), str(s)); pieces.append(s)
             for blk, pause in blocks(p["turns"]):
                 if blk:
-                    inputs = [{"voice_id": p["voices"][t["speaker"]], "text": t["text"]} for t in blk]
+                    inputs = [{"voice_id": p["voices"][t["speaker"]], "text": say(t["text"])} for t in blk]
                     f, c = speech(inputs); spent += c
                     w = Path(td) / f"b{len(pieces)}.wav"
-                    ff("-i", str(f), "-ac", "1", "-ar", "44100", *(["-af", f"atempo={tempo}"] if tempo != 1 else []), str(w)); pieces.append(w)
+                    ff("-i", str(f), "-ac", "1", "-ar", "44100", str(w)); pieces.append(w)
                 add_silence(pause if pause else GAP)
             lst = Path(td) / "list.txt"
             lst.write_text("".join(f"file '{x}'\n" for x in pieces))
