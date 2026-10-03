@@ -90,7 +90,7 @@ private struct LrRunnerBody: View {
               set: { n, v in current = n; session.set(n, v) },
               replace: { session.replace($0) },
               assets: attempt.assets, review: nil, active: active,
-              onFocus: { current = $0 })
+              onFocus: { current = $0; session.noteFocus($0) }, onBlur: { session.noteBlur($0) })
     }
 
     var body: some View {
@@ -139,6 +139,12 @@ private struct LrRunnerBody: View {
         .onChange(of: current) { _, n in session.remember(part: partIdx, n: n) }
         .onChange(of: playlist?.idx) { _, i in if examListening, let i, playlist?.phase == .audio { goPart(i) } }
         .task { await examLoop() }
+        .task(id: partIdx) { // pacing: one second per tick on the part on screen, while the app is in the foreground
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                if started, scenePhase == .active { session.tick(part: test.sections[min(partIdx, test.sections.count - 1)].part) }
+            }
+        }
     }
 
     // MARK: Setup and clocks
@@ -152,6 +158,7 @@ private struct LrRunnerBody: View {
         } else {
             current = flat.first?.n ?? 1
         }
+        session.lateFrom = listening ? .infinity : 3300
         switch Demo.screen { // demo screenshots
         case "lr-reading-questions": tab = .questions
         case "lr-reading-p2": goPart(1); tab = .questions
@@ -171,6 +178,7 @@ private struct LrRunnerBody: View {
             try? await Task.sleep(for: .milliseconds(500))
             guard let pl = playlist, pl.phase != .idle else { continue }
             session.elapsed = pl.elapsed
+            if pl.total > 0 { session.lateFrom = pl.total }
             if pl.finishedReview { await submit(); return }
         }
     }
@@ -505,13 +513,15 @@ struct LrPracticeBar: View {
 
 struct LrPassageView: View {
     let section: LrSection
+    /// Review: the span holding the answer (paragraph index and UTF-16 offsets into that paragraph's text).
+    var evidence: LrReview.Span?
 
     var body: some View {
         if let p = section.passage {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.title).font(.title2.weight(.semibold)).fontDesign(.serif).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
                 if let s = p.subtitle { Text(s).font(.system(.subheadline, design: .serif).italic()).foregroundStyle(Color.muted) }
-                ForEach(Array(p.paragraphs.enumerated()), id: \.offset) { _, para in
+                ForEach(Array(p.paragraphs.enumerated()), id: \.offset) { pi, para in
                     if para.text.hasPrefix("### ") {
                         // "### " marks a text heading (GT reading); "• " lines are bullets
                         Text(String(para.text.dropFirst(4))).font(.headline).fontDesign(.serif).foregroundStyle(Color.ink)
@@ -522,6 +532,12 @@ struct LrPassageView: View {
                             Text(l).font(.subheadline.weight(.bold).monospacedDigit()).foregroundStyle(Color.brand)
                                 .frame(minWidth: 22, alignment: .leading).accessibilityLabel("Paragraph \(l)")
                         }
+                        if let ev = evidence, ev.p == pi {
+                            Text(lrMarked(para.text, ev)).textSelection(.enabled).id("ev")
+                                .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityHint("Contains where the answer is")
+                        } else {
                         VStack(alignment: .leading, spacing: 6) {
                             ForEach(Array(para.text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
                                 if line.hasPrefix("• ") {
@@ -537,6 +553,7 @@ struct LrPassageView: View {
                         }
                         .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                     }
                 }

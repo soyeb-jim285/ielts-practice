@@ -10,6 +10,7 @@ struct MistakesView: View {
     @Environment(APIClient.self) private var api
     @State private var groups: [ProgressData.CategoryCount] = []
     @State private var items: [Mistake] = []
+    @State private var spelling: [LrSpelling.Item] = []
     @State private var total = 0
     @State private var page = 1
     @State private var loading = true
@@ -39,6 +40,7 @@ struct MistakesView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 Text(all > 0 ? "\(all) \(all == 1 ? "correction" : "corrections") from your results, grouped so patterns stand out." : "Every correction from your results, grouped so patterns stand out.")
                     .font(.subheadline).foregroundStyle(.muted)
+                if category == nil { spellingSection }
                 if !groups.isEmpty { chips }
                 if let error {
                     VStack(alignment: .leading, spacing: 8) {
@@ -55,7 +57,7 @@ struct MistakesView: View {
         }
         .demoScroll()
         .overlay {
-            if !loading && groups.isEmpty && error == nil {
+            if !loading && groups.isEmpty && spelling.isEmpty && error == nil {
                 ContentUnavailableView {
                     Label("Your error log is empty", systemImage: "exclamationmark.triangle")
                 } description: {
@@ -82,6 +84,38 @@ struct MistakesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load(reset: true) }
         .task(id: category) { await load(reset: true) }
+        .task { if let r: LrSpelling = try? await api.get("/api/lr/spelling") { spelling = r.items } }
+    }
+
+    // MARK: Spelling and plurals (Listening and Reading gap answers)
+
+    @ViewBuilder private var spellingSection: some View {
+        if !spelling.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                SectionTitle("Spelling and plurals")
+                Text("Words you misspelt or put in the wrong form in Listening and Reading. Each also becomes a card in Review.").font(.footnote).foregroundStyle(.muted)
+                VStack(spacing: 0) {
+                    ForEach(Array(spelling.enumerated()), id: \.element.id) { i, w in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(w.word).font(.body.weight(.semibold)).foregroundStyle(.ink)
+                                (Text("You wrote ").foregroundStyle(.muted) + Text(w.typed.joined(separator: ", ")).strikethrough().foregroundStyle(.bad))
+                                    .font(.footnote)
+                            }
+                            Spacer(minLength: 8)
+                            Chip(text: w.kind == "plural" ? "Plural" : "Spelling")
+                            Text("\(w.count)×").font(.subheadline.monospacedDigit()).foregroundStyle(.muted)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 12).frame(minHeight: 44)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(w.word), \(w.kind == "plural" ? "plural" : "spelling"). You wrote \(w.typed.joined(separator: ", ")). \(w.count) \(w.count == 1 ? "time" : "times").")
+                        if i < spelling.count - 1 { Divider().overlay(Color.line) }
+                    }
+                }
+                .card(padding: 0)
+            }
+            .padding(.bottom, 4)
+        }
     }
 
     // MARK: Filter chips

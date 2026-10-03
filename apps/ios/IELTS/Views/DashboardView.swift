@@ -73,12 +73,16 @@ struct DashboardView: View {
     @State private var trends: [String: ProgressData] = [:]
     @State private var trendSkill = "speaking"
     @State private var due: DueResponse?
+    @State private var lr: LrProgress?
+    @State private var lrBusy = false
+    @State private var lrStarted: String?
     @State private var error: String?
     @State private var targetDraft = 7.0
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 16) {
                 if let p = progress {
@@ -92,6 +96,7 @@ struct DashboardView: View {
                         predictedCard(p)
                         trendCard
                     }
+                    lrCard.id("lr")
                     practiseCard
                     if !p.topMistakes.isEmpty { mistakesCard(p.topMistakes) }
                 } else if let error {
@@ -110,6 +115,10 @@ struct DashboardView: View {
             .padding(.vertical, 12)
         }
         .demoScroll()
+        .task(id: lr?.trend.count) { // demo: bring the Listening & Reading section into view
+            if Demo.screen == "dashboard-lr", lr != nil { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("lr", anchor: .top) }
+        }
+        }
         .background(Color.canvas)
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
@@ -117,6 +126,82 @@ struct DashboardView: View {
         .task { await load() }
         .task { await api.loadQuota() }
         .onAppear { targetDraft = target }
+        .navigationDestination(item: $lrStarted) { LrAttemptScreen(id: $0) }
+    }
+
+    // MARK: Listening and Reading (web LrInsights)
+
+    @ViewBuilder private var lrCard: some View {
+        if let d = lr, !d.trend.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Listening and Reading").font(.display(.title3)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+                ForEach(["listening", "reading"], id: \.self) { k in
+                    let rows = d.trend.filter { $0.skill == k }
+                    if let last = rows.last {
+                        let name = k == "listening" ? "Listening" : "Reading"
+                        HStack(alignment: .center, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("\(name), latest of \(rows.count)").font(.caption).foregroundStyle(.muted)
+                                Text(fmt(last.band)).font(.system(size: 34, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(last.band, target))
+                            }
+                            Spacer(minLength: 8)
+                            Chart {
+                                RuleMark(y: .value("Target", target)).foregroundStyle(Color.line).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                                ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+                                    LineMark(x: .value("Attempt", i), y: .value("Band", r.band)).foregroundStyle(Color.brand).interpolationMethod(.monotone)
+                                    PointMark(x: .value("Attempt", i), y: .value("Band", r.band)).foregroundStyle(Color.brand).symbolSize(i == rows.count - 1 ? 50 : 18)
+                                }
+                            }
+                            .chartYScale(domain: 0...9).chartXAxis(.hidden).chartYAxis(.hidden)
+                            .frame(width: 150, height: 52)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(name) band over \(rows.count) attempts, latest \(fmt(last.band)). Dashed line is your \(fmt(target)) target.")
+                        }
+                    }
+                }
+                Divider().overlay(Color.line)
+                Text("Weakest question types").font(.headline).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+                if d.weakest.isEmpty {
+                    Text("Your weak spots appear after a few more answered questions.").font(.subheadline).foregroundStyle(.muted)
+                } else {
+                    ForEach(d.weakest) { w in
+                        let r = Double(w.right) / Double(max(1, w.total))
+                        VStack(spacing: 6) {
+                            HStack {
+                                (Text(w.label).foregroundStyle(.ink) + Text(" (\(w.skill == "listening" ? "Listening" : "Reading"))").font(.caption).foregroundStyle(.muted)).font(.body)
+                                Spacer(minLength: 8)
+                                Text("\(Int((r * 100).rounded()))%").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(r < 0.5 ? Color.bad : Color.warnText)
+                            }
+                            ProgressView(value: r).tint(r >= 0.75 ? .good : r >= 0.5 ? .warn : .bad)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(w.label), \(w.skill): \(w.right) of \(w.total) correct")
+                    }
+                }
+                if let sg = d.suggested {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Suggested next test").font(.caption).foregroundStyle(.muted)
+                            Text(sg.title).font(.body.weight(.medium)).foregroundStyle(.ink)
+                            Text("\(sg.count) \(sg.label.lowercased()) questions").font(.caption).foregroundStyle(.muted)
+                        }
+                        Spacer(minLength: 8)
+                        Button { Task { await startLr(sg.id) } } label: { if lrBusy { ProgressView() } else { Text("Practise") } }
+                            .primaryButton().controlSize(.large).disabled(lrBusy)
+                            .accessibilityLabel("Practise \(sg.title)")
+                    }
+                    .padding(12)
+                    .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+            .card()
+        }
+    }
+
+    private func startLr(_ testId: String) async {
+        lrBusy = true
+        defer { lrBusy = false }
+        if let a: LrAttempt = try? await api.send("POST", "/api/lr/tests/\(testId)/attempts", ["mode": "practice"]) { lrStarted = a.id }
     }
 
     private func load() async {
@@ -128,6 +213,7 @@ struct DashboardView: View {
             let first = progress == nil
             progress = try await p
             due = try? await d
+            lr = try? await api.get("/api/lr/progress")
             var t: [String: ProgressData] = [:]
             t["speaking"] = try? await sp
             t["writing"] = try? await wr

@@ -19,21 +19,28 @@ final class LrPracticePlayer {
     @ObservationIgnored private var player: AVPlayer?
     @ObservationIgnored private var observer: Any?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
+    /// "Play from here": play [from, to] and pause at `to`. Held until the recording has loaded.
+    @ObservationIgnored private var stopAt: Double?
+    @ObservationIgnored private var pending: (from: Double, to: Double)?
 
     func load(_ url: URL?) {
+        let keep = pending
         teardown()
+        pending = keep
         guard let url else { failed = true; return }
         failed = false
         let item = AVPlayerItem(url: url)
         let p = AVPlayer(playerItem: item)
         player = p
-        observer = p.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main) { [weak self] t in
+        observer = p.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main) { [weak self] t in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.time = t.seconds.isFinite ? t.seconds : 0
                 let d = item.duration.seconds
                 if d.isFinite, d > 0 { self.duration = d }
                 self.failed = item.status == .failed
+                if let stop = self.stopAt, self.time >= stop { self.stopAt = nil; self.player?.pause(); self.playing = false }
+                if let c = self.pending, self.duration > 0 { self.pending = nil; self.play(from: c.from, to: c.to) }
             }
         }
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
@@ -46,7 +53,17 @@ final class LrPracticePlayer {
         if playing { p.pause(); playing = false } else { activatePlayback(); p.rate = rate; playing = true }
     }
 
+    func play(from: Double, to: Double) {
+        guard let p = player, duration > 0 else { pending = (from, to); return }
+        seek(to: from)
+        stopAt = to
+        activatePlayback()
+        p.rate = rate
+        playing = true
+    }
+
     func seek(to t: Double) {
+        stopAt = nil
         let target = max(0, duration > 0 ? min(t, duration) : t)
         time = target
         player?.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
@@ -68,7 +85,7 @@ final class LrPracticePlayer {
         observer = nil; endObserver = nil
         player?.pause()
         player = nil
-        playing = false; time = 0; duration = 0
+        playing = false; time = 0; duration = 0; stopAt = nil; pending = nil
     }
 }
 

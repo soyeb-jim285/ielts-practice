@@ -9,6 +9,7 @@ struct LrCtx {
     var review: [Int: LrMark]?
     var active: Int?
     var onFocus: (Int) -> Void = { _ in }
+    var onBlur: (Int) -> Void = { _ in }
 
     func value(_ n: Int) -> String { responses[String(n)] ?? "" }
     func mark(_ n: Int) -> LrMark? { review?[n] }
@@ -88,7 +89,7 @@ struct LrGapField: View {
                 .background(markFill(m), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(m, active: ctx.active == n || focused), lineWidth: m != nil || ctx.active == n || focused ? 2 : 1))
                 .accessibilityLabel("Question \(n)" + (wordLimit.map { ", \($0.lowercased())" } ?? ""))
-                .onChange(of: focused) { _, on in if on { ctx.onFocus(n) } }
+                .onChange(of: focused) { _, on in if on { ctx.onFocus(n) } else { ctx.onBlur(n) } }
             LrStatus(mark: m)
             LrExpected(mark: m)
         }

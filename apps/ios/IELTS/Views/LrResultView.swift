@@ -8,8 +8,12 @@ struct LrResultView: View {
     @State private var wrongOnly = false
     @State private var partIdx = 0
     @State private var active: Int?
-    @State private var scrollTo: Int?
+    @State private var scrollTo: AnyHashable?
+    @State private var scrollAnchor = UnitPoint.top
     @State private var scrollStamp = 0
+    @State private var selected: Int?
+    @State private var dictOpen = false
+    @State private var tfngPattern: String?
     @State private var busy = false
     @State private var failed = false
     @State private var retakeId: String?
@@ -24,6 +28,14 @@ struct LrResultView: View {
     private var section: LrSection { test.sections[min(partIdx, test.sections.count - 1)] }
     private var band: Double { attempt.band ?? 0 }
     private var raw: Int { attempt.raw ?? 0 }
+    private var entries: [Int: LrGapEntry] { Dictionary((attempt.analysis?.gaps ?? []).map { ($0.n, $0) }, uniquingKeysWith: { a, _ in a }) }
+    private var sel: LrFlatQ? { selected.flatMap { n in test.flat.first { $0.n == n } } }
+    private var selSection: LrSection? { sel.flatMap { f in test.sections.first { $0.part == f.part } } }
+    /// Evidence of the selected question, when it lies in the part on screen.
+    private var span: LrReview.Span? {
+        guard let f = sel, let ss = selSection, ss.part == section.part else { return nil }
+        return LrReview.evidenceSpan(LrReview.sectionParagraphs(ss), f.q, gap: f.group.type == "gap")
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -32,6 +44,11 @@ struct LrResultView: View {
                     header
                     score
                     accuracy
+                    if let st = attempt.stats {
+                        LrPacingPanel(stats: st, parts: test.sections.map { (part: $0.part, questions: $0.groups.flatMap { $0.questions.map(\.n) }) }, noun: test.partNoun,
+                                      totalS: listening ? nil : 3600, marks: marks, blank: test.flat.filter { marks[$0.n]?.given.isEmpty ?? true }.map(\.n)).id("pace")
+                    }
+                    LrTfngPanel(rows: attempt.analysis?.tfng ?? [], pattern: tfngPattern)
                     answers
                     context
                 }
@@ -41,8 +58,8 @@ struct LrResultView: View {
             }
             .task(id: scrollStamp) {
                 guard let n = scrollTo else { return }
-                try? await Task.sleep(for: .milliseconds(350))
-                withAnimation { proxy.scrollTo(n, anchor: .center) }
+                try? await Task.sleep(for: .milliseconds(450))
+                withAnimation { proxy.scrollTo(n, anchor: scrollAnchor) }
             }
         }
         .demoScroll()
@@ -52,8 +69,20 @@ struct LrResultView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Retake") { Task { await retake() } }.disabled(busy).fontWeight(.semibold) } }
         .navigationDestination(item: $retakeId) { LrAttemptScreen(id: $0) }
         .alert("Could not start a new attempt", isPresented: $failed) { Button("OK", role: .cancel) {} }
+        .sheet(isPresented: $dictOpen) {
+            if let f = sel, let ss = selSection { LrDictationSheet(q: f.q, section: ss, url: Lr.assetURL(attempt.assets[ss.audio ?? ""])) }
+        }
+        .task { if let p: LrProgress = try? await api.get("/api/lr/progress") { tfngPattern = p.tfng.pattern?.text } }
         .onAppear {
-            if Demo.screen == "lr-result-p2", test.sections.count > 1 { partIdx = 1 }
+            switch Demo.screen {
+            case "lr-result-p2": if test.sections.count > 1 { partIdx = 1 }
+            case "lr-result-detail": select(9)
+            case "lr-result-evidence": select(9); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
+            case "lr-result-detail-listening": select(28)
+            case "lr-dictation": select(28); Task { try? await Task.sleep(for: .seconds(1)); dictOpen = true }
+            case "lr-result-pacing": scrollTo = "pace"; scrollAnchor = .top; scrollStamp += 1
+            default: break
+            }
         }
         .onDisappear { practice.teardown() }
     }
@@ -160,6 +189,7 @@ struct LrResultView: View {
                     if m?.correct != true {
                         Text("Correct: \((m?.answer ?? []).joined(separator: " / "))").font(.subheadline.weight(.medium)).foregroundStyle(Color.goodText)
                     }
+                    if let e = entries[n] { Chip(text: e.label, color: .warnText) }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: m?.correct == true ? "checkmark.circle.fill" : "xmark.circle.fill").foregroundStyle(m?.correct == true ? Color.goodText : Color.bad)
@@ -169,31 +199,39 @@ struct LrResultView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")")
-        .accessibilityHint("Shows the question in context")
+        .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")" + (entries[n].map { " \($0.label)." } ?? ""))
+        .accessibilityValue(selected == n ? "Selected" : "")
+        .accessibilityHint("Explains the question and shows where the answer is")
     }
 
     private var context: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionTitle(listening ? "Transcript and questions" : "Passage and questions")
-            Text("Tap a number above to jump to that question.").font(.footnote).foregroundStyle(Color.muted)
+            Text("Pick a question above to explain it and mark where the answer is.").font(.footnote).foregroundStyle(Color.muted)
             Picker(test.partNoun, selection: $partIdx) {
                 ForEach(Array(test.sections.enumerated()), id: \.offset) { i, s in Text("\(test.partNoun) \(s.part)").tag(i) }
             }
             .pickerStyle(.segmented)
+            if let f = sel, let ss = selSection {
+                let win = ss.audio != nil ? LrReview.audioWindow(ss.timings, f.q) : nil
+                LrQuestionDetail(q: f.q, mark: marks[f.n], entry: entries[f.n], listening: listening, window: win,
+                                 canDictate: win?.exact == true && !(ss.timings ?? []).isEmpty && marks[f.n]?.correct == false,
+                                 onShow: show, onPlay: { play(f.n) }, onDictate: { dictOpen = true }, onClose: { selected = nil })
+                    .id("detail")
+            }
+            if let v = section.vocab { LrVocabList(vocab: v) }
             if listening {
                 LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate)
                     .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 if let t = section.transcript {
                     DisclosureGroup("Transcript", isExpanded: $passageOpen) {
-                        Text(t).font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                        LrTranscriptView(text: t, evidence: span).textSelection(.enabled).padding(.top, 8)
                     }
                     .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
                 }
             } else if section.passage != nil {
                 DisclosureGroup("Passage", isExpanded: $passageOpen) {
-                    LrPassageView(section: section).padding(.top, 8)
+                    LrPassageView(section: section, evidence: span).padding(.top, 8)
                 }
                 .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()
             }
@@ -206,13 +244,39 @@ struct LrResultView: View {
         }
     }
 
+    /// Tap a question: explain it (detail card above the passage), mark the evidence in the passage or transcript, open both.
     private func jump(_ n: Int) {
+        if selected == n { selected = nil; return }
+        select(n)
+    }
+
+    private func select(_ n: Int) {
         guard let si = test.section(of: n) else { return }
         partIdx = si
+        selected = n
         active = n
-        scrollTo = n
+        passageOpen = true
+        scrollTo = "detail"; scrollAnchor = .top
         scrollStamp += 1
         Task { try? await Task.sleep(for: .seconds(3)); if active == n { active = nil } }
+    }
+
+    /// "Show in passage": scroll to the marked evidence.
+    private func show() {
+        passageOpen = true
+        scrollTo = "ev"; scrollAnchor = .center
+        scrollStamp += 1
+    }
+
+    /// "Play from here": the recording from 2 s before the evidence to 0.5 s after it.
+    private func play(_ n: Int) {
+        guard let f = test.flat.first(where: { $0.n == n }), let si = test.section(of: n),
+              let w = LrReview.audioWindow(test.sections[si].timings, f.q) else { return }
+        partIdx = si
+        practice.rate = rate
+        practice.play(from: w.from, to: w.to)
+        scrollTo = "detail"; scrollAnchor = .top
+        scrollStamp += 1
     }
 
     private func retake() async {

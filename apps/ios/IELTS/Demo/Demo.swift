@@ -21,7 +21,7 @@ enum Demo {
         switch screen {
         case "bank": [.bank(skill: "speaking")]
         case "history": [.history(skill: nil)]
-        case "mistakes": [.mistakes(category: nil)]
+        case "mistakes", "mistakes-spelling": [.mistakes(category: nil)]
         case "result-speaking": [.result(["as1"])]
         case "result-writing": [.result(["aw1"])]
         case "result-session": [.result(["as1", "as2"])]
@@ -42,8 +42,8 @@ enum Demo {
         case "lr-reading", "lr-reading-questions", "lr-reading-p2", "lr-navigator", "lr-submit": [.lrAttempt(id: "lra-r")]
         case "lr-listening": [.lrAttempt(id: "lra-l")]
         case "lr-listening-exam": [.lrAttempt(id: "lra-le")]
-        case "lr-result", "lr-result-p2": [.lrAttempt(id: "lra-rs")]
-        case "lr-result-listening": [.lrAttempt(id: "lra-ls")]
+        case "lr-result", "lr-result-p2", "lr-result-detail", "lr-result-evidence", "lr-result-pacing": [.lrAttempt(id: "lra-rs")]
+        case "lr-result-listening", "lr-result-detail-listening", "lr-dictation": [.lrAttempt(id: "lra-ls")]
         default: []
         }
     }

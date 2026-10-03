@@ -15,6 +15,12 @@ final class LrSession {
     private(set) var submitting = false
     /// Seconds spent on the attempt (wall clock, or the audio position in exam listening); saved with the answers.
     var elapsed: Double
+    /// Pacing: seconds per part (the runner ticks it), answer changes per question, questions answered late (after `lateFrom` elapsed seconds).
+    var stats: LrStats
+    /// Reading: the last 5 minutes (3300 s); exam listening: once the recordings end; practice listening: never.
+    var lateFrom: Double = .infinity
+    @ObservationIgnored private var focusVal: [Int: String] = [:]
+    @ObservationIgnored private var focusedText: Int?
 
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private var dirty = false
@@ -28,6 +34,7 @@ final class LrSession {
         self.api = api
         responses = attempt.responses
         elapsed = Double(attempt.elapsedS)
+        stats = attempt.stats ?? LrStats()
         flagged = Set((UserDefaults.standard.array(forKey: "lr:\(attempt.id):flags") as? [Int]) ?? [])
         keepAlive = Task { [weak self] in
             while !Task.isCancelled {
@@ -55,7 +62,23 @@ final class LrSession {
         replace(next)
     }
 
+    /// A text gap got focus: typing in it counts as one change per visit (noteBlur), not per keystroke.
+    func noteFocus(_ n: Int) { focusedText = n; focusVal[n] = value(n) }
+    func noteBlur(_ n: Int) {
+        if let before = focusVal[n], !before.isEmpty, value(n) != before { stats.changes[String(n), default: 0] += 1 }
+        focusVal[n] = nil
+        if focusedText == n { focusedText = nil }
+    }
+    func tick(part: Int) { stats.partS[String(part), default: 0] += 1 }
+
+    private var statsBody: [String: Any] { ["partS": stats.partS.mapValues { Int($0.rounded()) }, "changes": stats.changes, "late": stats.late] }
+
     func replace(_ next: [String: String]) {
+        for k in Set(responses.keys).union(next.keys) where (responses[k] ?? "") != (next[k] ?? "") {
+            guard let n = Int(k) else { continue }
+            if !(responses[k] ?? "").isEmpty, focusedText != n { stats.changes[k, default: 0] += 1 }
+            if !(next[k] ?? "").isEmpty, elapsed >= lateFrom, !stats.late.contains(n) { stats.late.append(n) }
+        }
         responses = next
         dirty = true
         save = .dirty
@@ -85,7 +108,7 @@ final class LrSession {
         save = .saving
         defer { busy = false }
         do {
-            let _: Empty = try await api.send("PUT", "/api/lr/attempts/\(attempt.id)", ["responses": responses, "elapsedS": Int(elapsed)] as [String: Any])
+            let _: Empty = try await api.send("PUT", "/api/lr/attempts/\(attempt.id)", ["responses": responses, "elapsedS": Int(elapsed), "stats": statsBody] as [String: Any])
             save = dirty ? .dirty : .saved
         } catch is CancellationError {
             dirty = true
@@ -106,7 +129,7 @@ final class LrSession {
         submitting = true
         defer { submitting = false }
         do {
-            let a: LrAttempt = try await api.send("POST", "/api/lr/attempts/\(attempt.id)/submit", ["responses": responses, "elapsedS": Int(elapsed)] as [String: Any])
+            let a: LrAttempt = try await api.send("POST", "/api/lr/attempts/\(attempt.id)/submit", ["responses": responses, "elapsedS": Int(elapsed), "stats": statsBody] as [String: Any])
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):flags")
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):pos")
             return a

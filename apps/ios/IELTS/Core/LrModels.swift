@@ -9,6 +9,29 @@ struct LrQuestion: Codable, Hashable {
     let text: String?
     let options: [LrOption]?
     let answer: [String]? // only after submission
+    var review: LrQuestionReview? = nil // only after submission
+}
+
+/// Review-only notes, precomputed per test (evidence quote, approximate audio second, why, why each wrong option is wrong, wording pairs).
+struct LrQuestionReview: Codable, Hashable {
+    var evidence: String?
+    var at: Double?
+    var why: String?
+    var wrong: [String: String]?
+    var paraphrase: [[String]]?
+}
+
+struct LrVocab: Codable, Hashable { let word: String; let meaning: String; let example: String? }
+
+/// One word timing row, sent as the array [word, start, end].
+struct LrWord: Codable, Hashable {
+    let w: String, s: Double, e: Double
+    init(w: String, s: Double, e: Double) { self.w = w; self.s = s; self.e = e }
+    init(from d: Decoder) throws {
+        var c = try d.unkeyedContainer()
+        w = try c.decode(String.self); s = try c.decode(Double.self); e = try c.decode(Double.self)
+    }
+    func encode(to e: Encoder) throws { var c = e.unkeyedContainer(); try c.encode(w); try c.encode(s); try c.encode(self.e) }
 }
 
 struct LrGroup: Codable, Hashable, Identifiable {
@@ -38,6 +61,8 @@ struct LrSection: Codable, Hashable, Identifiable {
     let title: String?
     let audio: String?
     let transcript: String? // only after submission
+    var vocab: [LrVocab]? = nil // only after submission
+    var timings: [LrWord]? = nil // listening, only after submission
     let passage: LrPassage?
     let groups: [LrGroup]
     var id: Int { part }
@@ -76,9 +101,42 @@ struct LrAttempt: Codable {
     let total: Int?
     let band: Double?
     let marks: [LrMark]?
+    var stats: LrStats? = nil
+    var analysis: LrAnalysis? = nil // null for old attempts
     let test: LrTest
     let assets: [String: String]
     var isExam: Bool { mode == "exam" }
+}
+
+/// What the runner measured: seconds per part, answer changes per question, questions answered in the final 5 minutes.
+struct LrStats: Codable, Hashable {
+    var partS: [String: Double] = [:]
+    var changes: [String: Int] = [:]
+    var late: [Int] = []
+}
+
+struct LrGapEntry: Codable, Hashable { let n: Int; let kind: String; let label: String; let message: String; let word: String?; let typed: String?; let before: Int? }
+struct LrTfngRow: Codable, Hashable { let n: Int; let kind: String; let chose: String; let answer: String }
+struct LrTypeAcc: Codable, Hashable { let label: String; let right: Int; let total: Int }
+struct LrAnalysis: Codable, Hashable { let gaps: [LrGapEntry]; let tfng: [LrTfngRow]; let byType: [LrTypeAcc] }
+
+/// GET /api/lr/progress
+struct LrProgress: Codable {
+    struct Trend: Codable, Identifiable { let attemptId: String; let skill: String; let date: String; let band: Double; var id: String { attemptId } }
+    struct Weak: Codable, Identifiable { let skill: String; let label: String; let right: Int; let total: Int; var id: String { skill + label } }
+    struct Suggested: Codable { let id: String; let title: String; let skill: String; let label: String; let count: Int }
+    struct Pattern: Codable { let text: String }
+    struct Tfng: Codable { let pattern: Pattern?; let rows: Int }
+    let trend: [Trend]
+    let weakest: [Weak]
+    let suggested: Suggested?
+    let tfng: Tfng
+}
+
+/// GET /api/lr/spelling
+struct LrSpelling: Codable {
+    struct Item: Codable, Identifiable { let word: String; let kind: String; let count: Int; let typed: [String]; let lastAt: String; var id: String { kind + word } }
+    let items: [Item]
 }
 
 struct LrTestItem: Codable, Identifiable, Hashable {
