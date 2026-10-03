@@ -21,3 +21,5 @@ __pycache__/
 data/scoring-gold/
 .playwright-mcp/
 apps/web/.tanstack/
+data/cambridge-lr/
+data/lr-generated/
