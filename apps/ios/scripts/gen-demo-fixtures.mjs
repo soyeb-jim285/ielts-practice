@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Synthetic API responses for the iOS demo mode (`-demo` launch argument), used by the screenshot workflow.
 // Invented data only — no real accounts. Keys are "path" or "path?k=v&…" (query keys sorted), as DemoURLProtocol looks them up.
-// Run: node apps/ios/scripts/gen-demo-fixtures.mjs  → apps/ios/IELTS/Demo/fixtures.json
+// Run: bun apps/ios/scripts/gen-demo-fixtures.mjs   (bun: it imports the L/R review analysis from packages/core, so the demo analysis is the server's)
+// Old: node apps/ios/scripts/gen-demo-fixtures.mjs  → apps/ios/IELTS/Demo/fixtures.json
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { analyseAttempt, tfngPattern } from '../../../packages/core/src/lr-review.ts';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), '../IELTS/Demo/fixtures.json');
 const day = (n) => new Date(Date.UTC(2026, 8, 30 - n, 9, 30)).toISOString();
@@ -265,8 +267,80 @@ mkdirSync(dirname(out), { recursive: true });
   const A = 'https://demo.ielts.local/lr-assets/';
   const assetsOf = (t) => Object.fromEntries(t.sections.flatMap((s) => [s.audio, ...s.groups.map((g) => g.image)]).filter(Boolean)
     .map((k) => [k, A + (k.endsWith('.svg') ? 'map.png' : k.split('/').pop())]));
-  const strip = (t) => ({ ...t, sections: t.sections.map(({ transcript, ...s }) => ({ ...s, groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer, ...q }) => q) })) })) });
+  const strip = (t) => ({ ...t, sections: t.sections.map(({ transcript, vocab, timings, ...s }) => ({ ...s, groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer, review, ...q }) => q) })) })) });
   const flatQ = (t) => t.sections.flatMap((s) => s.groups.flatMap((g) => g.questions.map((q) => ({ q, g }))));
+
+  // ---- review enrichment (what the server adds after submit): per-question evidence / why / wrong / paraphrase, vocab, word timings ----
+  const WRONG = { reading: { 8: 'loch', 9: 'sedement', 32: 'sourse', 36: 'harshley' }, listening: { 4: 'eighty five pounds', 5: 'aprone', 8: '5 pm', 9: 'Elana', 26: 'terrase', 27: 'suit', 28: 'wieght', 32: 'nests', 36: 'ten metres' } };
+  const REVIEW = {
+    reading: {
+      1: { evidence: 'prized for their fur and for castoreum, a secretion once used in medicine and perfume', why: 'Castoreum is a product other than fur, so the statement is TRUE.', paraphrase: [['products other than their fur', 'castoreum, a secretion once used in medicine and perfume']] },
+      2: { evidence: 'four families of beavers from Norway were released', why: 'The animals came from Norway, not Scotland.', paraphrase: [['born in Scotland', 'from Norway']] },
+      3: { evidence: 'In 2009 a small trial began in Knapdale, Scotland', why: 'The Knapdale release (2009) came before the Tay population was found (2012).' },
+      4: { evidence: 'although some villagers remained unconvinced', why: 'Only some villagers were unconvinced; "all were convinced" is the opposite of that.', wrong: { TRUE: '"All" is too strong. The passage says some villagers stayed unconvinced.' }, paraphrase: [['All the villagers', 'some villagers']] },
+      5: { evidence: 'the evidence for trout is less certain', why: 'The passage says the evidence for trout is uncertain. It never says dams prevent trout migrating.' },
+      6: { evidence: 'only as a last resort are animals moved', why: 'Moving animals is the last resort, so it is not the first measure.' },
+      7: { evidence: 'prized for their fur and for castoreum, a secretion once used in medicine and perfume' },
+      8: { evidence: 'a chain of lochs', why: 'Look for the word after "a chain of".' },
+      9: { evidence: 'the ponds behind them trap sediment that would otherwise cloud the river', paraphrase: [['catch', 'trap'], ['make the river cloudy', 'cloud the river']] },
+      10: { evidence: 'it can be modified with a pipe that lowers the pond level' },
+      12: { evidence: 'Farmers on low-lying land report that burrows weaken riverbanks and that felled trees block drainage ditches.', why: 'The farmers complain about damage to banks and blocked drains.', wrong: { A: 'Anglers, not farmers, worried about salmon.', B: 'This is the benefit described in paragraph C, not the farmers\' complaint.' } },
+      19: { evidence: 'a time chosen long before anyone studied adolescent sleep', why: 'The start time was chosen before anyone studied adolescent sleep.' },
+      20: { evidence: 'Grades rose by about four per cent in biology', why: 'Grades rose in biology, so at least one subject improved.', wrong: { NO: 'The passage reports a four per cent rise in biology.' }, paraphrase: [['higher grades', 'Grades rose'], ['The Seattle change', 'moved their start time']] },
+      21: { why: 'Parents are only mentioned as worrying. There is no statement about most of them.' },
+      31: { evidence: 'a city has a "soundscape" in the same way that it has a skyline' },
+      32: { evidence: 'people who could identify the source of a sound tolerated it better', paraphrase: [['knew their', 'could identify the']] },
+    },
+    listening: {
+      1: { evidence: "It's Whitlock, W-H-I-T-L-O-C-K" },
+      2: { evidence: 'The class meets on Thursday evenings' },
+      3: { evidence: 'starting at six thirty' },
+      4: { evidence: "It's eighty-five pounds for eight weeks", why: 'The form asks for one word or number. Write the figure only.' },
+      5: { evidence: 'Just an apron' },
+      8: { evidence: 'Parking is free after five pm' },
+      9: { evidence: 'Your tutor is Elena' },
+      10: { evidence: 'the course ends with a small exhibition of your work' },
+      26: { evidence: 'First, we select a sunny terrace for the hives' },
+      27: { evidence: 'Second, buy protective suits' },
+      28: { evidence: 'record the weight of each hive every week' },
+      31: { evidence: 'a fatty structure called an elaiosome' },
+      32: { evidence: 'Ants carry the seed to their nest' },
+      36: { evidence: 'Ants typically move seeds no more than ten metres', why: 'The gap needs the number only, so "metres" makes it too long.' },
+      37: { evidence: 'most common in heathland' },
+    },
+  };
+  const VOCAB = {
+    reading: { 1: [{ word: 'castoreum', meaning: 'an oily secretion from beavers, once used in medicine and perfume', example: 'Beavers were prized for castoreum as well as their fur.' }, { word: 'sediment', meaning: 'small pieces of soil and stone that settle at the bottom of water', example: 'Ponds trap sediment that would cloud the river.' }, { word: 'unconvinced', meaning: 'not persuaded that something is true or good' }], 3: [{ word: 'soundscape', meaning: 'the mix of sounds that make up the character of a place', example: 'A city has a soundscape in the same way it has a skyline.' }] },
+    listening: { 1: [{ word: 'apron', meaning: 'a garment worn over clothes to keep them clean', example: 'Just an apron, we provide everything else.' }], 4: [{ word: 'elaiosome', meaning: 'a fatty body on a seed that attracts ants' }, { word: 'dispersal', meaning: 'the spreading of something over a wide area', example: 'Seed dispersal by ants.' }] },
+  };
+  /** [word, start, end] rows as the timings importer writes them: ~2.7 words a second, short pauses at sentence ends and lines. */
+  const timingsOf = (text) => {
+    let t = 0.6;
+    const rows = [];
+    for (const line of text.split('\n')) {
+      for (const w of line.split(/\s+/).filter(Boolean)) {
+        const d = 0.18 + 0.035 * w.replace(/[^\p{L}\p{N}]/gu, '').length;
+        rows.push([w, +t.toFixed(2), +(t + d).toFixed(2)]);
+        t += d + (/[.?!]$/.test(w) ? 0.45 : 0.06);
+      }
+      t += 0.5;
+    }
+    return rows;
+  };
+  const enrich = (t, withAnswers = true) => ({
+    ...t,
+    sections: t.sections.map((s) => ({
+      ...s,
+      ...(VOCAB[t.skill][s.part] ? { vocab: VOCAB[t.skill][s.part] } : {}),
+      ...(s.transcript ? { timings: timingsOf(s.transcript) } : {}),
+      groups: s.groups.map((g) => ({ ...g, questions: g.questions.map((q) => {
+        const base = REVIEW[t.skill][q.n] ? { ...REVIEW[t.skill][q.n] } : g.type === 'mcq' || g.type === 'match' ? { why: undefined } : {};
+        // a "why this option is wrong" note for every wrong option of a choice question
+        if ((g.type === 'mcq' || g.type === 'match') && !base.wrong) base.wrong = Object.fromEntries((q.options ?? g.options ?? []).filter((o) => !q.answer.includes(o.key)).map((o) => [o.key, `"${o.text}" is not supported by the text; look again at what the question asks.`]));
+        return Object.keys(base).length ? { ...q, review: JSON.parse(JSON.stringify(base)) } : q;
+      }) })),
+    })),
+  });
   // Mirrors packages/core lrBand (listening / academic reading tables).
   const TL = [[39, 9], [37, 8.5], [35, 8], [32, 7.5], [30, 7], [26, 6.5], [23, 6], [18, 5.5], [16, 5], [13, 4.5], [10, 4], [8, 3.5], [6, 3], [4, 2.5], [2, 2], [1, 1]];
   const TR = [[39, 9], [37, 8.5], [35, 8], [33, 7.5], [30, 7], [27, 6.5], [23, 6], [19, 5.5], [15, 5], [13, 4.5], [10, 4], [8, 3.5], [6, 3], [4, 2.5], [2, 2], [1, 1]];
@@ -283,8 +357,9 @@ mkdirSync(dirname(out), { recursive: true });
       else if (g.type === 'ynng') r[q.n] = good === 'YES' ? 'NO' : 'YES';
       else if (g.type === 'mcq') r[q.n] = (q.options.find((o) => o.key !== good) ?? q.options[0]).key;
       else if (g.options) r[q.n] = g.options.find((o) => o.key !== good)?.key ?? 'A';
-      else r[q.n] = 'harbour';
+      else r[q.n] = WRONG[t.skill][q.n] ?? 'harbour';
     }
+    for (const [n, v] of Object.entries(WRONG[t.skill])) if (+n % 4 && +n % 9 && !flatQ(t).find((x) => x.q.n === +n).g.options) r[n] = v; // wrong on purpose: the review shows why
     return r;
   };
   const marks = (t, r) => flatQ(t).map(({ q, g }) => {
@@ -294,9 +369,15 @@ mkdirSync(dirname(out), { recursive: true });
     return { n: q.n, given, correct: ok, answer: q.answer };
   });
   const attempt = (id, testId, t, mode, extra = {}) => ({ id, testId, mode, status: 'in_progress', responses: {}, elapsedS: 0, startedAt: day(1), submittedAt: null, raw: null, total: null, band: null, marks: null, test: strip(t), assets: assetsOf(t), ...extra });
+  const STATS = {
+    reading: { partS: { 1: 1180, 2: 1010, 3: 930 }, changes: { 4: 2, 12: 1, 20: 2, 24: 1, 36: 1 }, late: [33, 34, 36, 38, 39, 40] },
+    listening: { partS: { 1: 610, 2: 560, 3: 540, 4: 560 }, changes: { 8: 1, 27: 1 }, late: [] },
+  };
+  const BEFORE = { sediment: 2, weight: 1, terrace: 0 };
   const submitted = (id, testId, t, mode) => {
-    const responses = answers(t), ms = marks(t, responses), raw = ms.filter((m) => m.correct).length;
-    return attempt(id, testId, t, mode, { status: 'submitted', responses, elapsedS: t.skill === 'reading' ? 3120 : 2400, submittedAt: day(1), raw, total: 40, band: bandOf(t, raw), marks: ms, test: t });
+    const responses = answers(t), ms = marks(t, responses), raw = ms.filter((m) => m.correct).length, full = enrich(t);
+    const analysis = analyseAttempt(full, ms, responses, (w) => BEFORE[w.toLowerCase()] ?? 0);
+    return attempt(id, testId, t, mode, { status: 'submitted', responses, elapsedS: t.skill === 'reading' ? 3120 : 2400, submittedAt: day(1), raw, total: 40, band: bandOf(t, raw), marks: ms, test: full, stats: STATS[t.skill], analysis });
   };
   const partial = (t, upto) => Object.fromEntries(Object.entries(answers(t)).filter(([n]) => +n <= upto));
   const lraR = attempt('lra-r', 'lt-r1', R, 'exam', { responses: partial(R, 16), elapsedS: 1260 });
@@ -319,6 +400,23 @@ mkdirSync(dirname(out), { recursive: true });
   fx['/api/lr/tests?skill=listening'] = { items: [...camRef('listening'), item('lt-l1', L, { status: 'submitted', bestBand: lraLs.band, attempts: 1 })] };
   fx['/api/lr/attempts'] = { items: [lrItem(lraR, R), lrItem(lraLs, L), lrItem(lraRs, R)].map((x, i) => ({ ...x, startedAt: day(i + 1), submittedAt: x.submittedAt && day(i + 1) })) };
   for (const a of [lraR, lraL, lraLe, lraRs, lraLs]) fx[`/api/lr/attempts/${a.id}`] = a;
+
+  // /api/lr/progress and /api/lr/spelling (the server aggregates submitted attempts; these are what it would say for this demo account)
+  const tfRows = [lraRs, lraLs].flatMap((a) => a.analysis.tfng);
+  fx['/api/lr/progress'] = {
+    trend: [['listening', 6, 6], ['listening', 5, 6.5], ['listening', 4, 6.5], ['listening', 1, lraLs.band], ['reading', 7, 5.5], ['reading', 5, 6], ['reading', 3, 6.5], ['reading', 1, lraRs.band]].map(([skill, d, band], i) => ({ attemptId: `lt-${i}`, skill, date: day(d), band })),
+    byType: [...lraRs.analysis.byType.map((x) => ({ skill: 'reading', ...x })), ...lraLs.analysis.byType.map((x) => ({ skill: 'listening', ...x }))],
+    weakest: [{ skill: 'reading', label: 'True / False / Not Given', right: 3, total: 6 }, { skill: 'listening', label: 'Note completion', right: 4, total: 10 }, { skill: 'reading', label: 'Matching headings', right: 3, total: 5 }],
+    suggested: { id: 'lt-r2', title: 'Original practice: Reading 2', skill: 'reading', label: 'True / False / Not Given', count: 6 },
+    tfng: { pattern: tfngPattern([...tfRows, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }]), rows: tfRows.length + 3 },
+  };
+  fx['/api/lr/spelling'] = { items: [
+    { word: 'sediment', kind: 'spelling', count: 3, typed: ['sedement', 'sediments'], lastAt: day(1) },
+    { word: 'accommodation', kind: 'spelling', count: 2, typed: ['accomodation'], lastAt: day(4) },
+    { word: 'weight', kind: 'spelling', count: 2, typed: ['wieght', 'wait'], lastAt: day(1) },
+    { word: 'lochs', kind: 'plural', count: 1, typed: ['loch'], lastAt: day(1) },
+    { word: 'suits', kind: 'plural', count: 1, typed: ['suit'], lastAt: day(1) },
+  ] };
   // Mutations are answered by "METHOD path" keys (DemoURLProtocol): start/resume returns the in-progress attempt, submit the scored one.
   for (const [t, a] of [['lt-r1', lraR], ['lt-r2', lraR], ['lt-l1', lraL]]) fx[`POST /api/lr/tests/${t}/attempts`] = a;
   fx['POST /api/lr/attempts/lra-r/submit'] = lraRs;
