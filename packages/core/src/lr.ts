@@ -91,7 +91,8 @@ const TFNG: Record<string, string> = { t: 'true', f: 'false', y: 'yes', n: 'no',
 export function isCorrect(given: string, accepted: string[]): boolean {
   let g = norm(given ?? '');
   if (!g) return false;
-  g = TFNG[g] ?? g;
+  // short forms (t/f/ng…) only where the key is a TRUE/FALSE/YES/NO/NOT GIVEN word, so option letter F stays F
+  if (accepted.some((a) => /^(true|false|yes|no|not given)$/i.test(a.trim()))) g = TFNG[g] ?? g;
   return accepted.some((a) => expandAnswer(a).includes(g));
 }
 

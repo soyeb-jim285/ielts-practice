@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { lrBand, scoreLr, stripAnswers, type LrResponses, type LrTest } from '@ielts/core';
+import { scoreLr, stripAnswers, type LrTest } from '@ielts/core';
 import { and, desc, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { currentUser, requireCambridge, requireUser } from '../auth';
@@ -325,7 +325,7 @@ export function register(app: App) {
       if (a.status !== 'in_progress') throw new HTTPException(409, { message: 'Attempt already submitted' });
       const body = c.req.valid('json') ?? {};
       const responses = cleanResponses(body.responses ?? (a.responses as Record<string, string>), scoreTotal(t.data));
-      const score = scoreAttempt(t.data, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])));
+      const score = scoreLr(t.data, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])));
       // status guard in WHERE: two concurrent submits cannot both score
       const [row] = await db
         .update(lrAttempts)
@@ -340,21 +340,3 @@ export function register(app: App) {
 
 const scoreTotal = (t: LrTest) => t.sections.reduce((n, s) => n + s.groups.reduce((m, g) => m + g.questions.length, 0), 0);
 
-/** scoreLr, plus a fix for letter options: core's isCorrect reads a lone "F"/"N"/"Y"/"T" as FALSE/NO/YES/TRUE, so a correct option letter F (or N, Y, T) is marked wrong in match/mcq groups.
- *  ponytail: patched here because packages/core/src/lr.ts is owned elsewhere; the one-line fix is to apply the TFNG mapping only when an accepted answer is a TRUE/FALSE/YES/NO word. */
-function scoreAttempt(test: LrTest, responses: LrResponses) {
-  const score = scoreLr(test, responses);
-  const letterTypes = new Set(test.sections.flatMap((s) => s.groups).filter((g) => g.type !== 'tfng' && g.type !== 'ynng').flatMap((g) => g.questions.map((q) => q.n)));
-  const seen = new Set<string>();
-  for (const m of score.marks) {
-    const g = (m.given ?? '').trim().toUpperCase();
-    if (m.correct || !letterTypes.has(m.n) || !['T', 'F', 'Y', 'N'].includes(g)) continue;
-    // mcq-multi marks list the whole correct set as the answer; a letter counts once
-    const ok = m.answer.some((a) => a.toUpperCase() === g) && !seen.has(`${m.answer.join()}|${g}`);
-    if (ok) m.correct = true;
-  }
-  for (const m of score.marks) if (m.correct) seen.add(`${m.answer.join()}|${(m.given ?? '').trim().toUpperCase()}`);
-  score.raw = score.marks.filter((m) => m.correct).length;
-  score.band = lrBand(test.skill, test.variant, score.raw, score.total);
-  return score;
-}

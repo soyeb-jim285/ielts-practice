@@ -11,6 +11,8 @@ describe('answer matching', () => {
     ['ng', ['NOT GIVEN'], true],
     ['', ['x'], false],
     ['b', ['B'], true],
+    ['F', ['F'], true],
+    ['f', ['FALSE'], true],
   ])('%s vs %j → %s', (g, a, ok) => expect(isCorrect(g, a)).toBe(ok));
 });
 
