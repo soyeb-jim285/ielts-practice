@@ -12,7 +12,7 @@ Resumable: every speech block is cached in data/lr-generated/.el-cache/<sha1(mod
 Every API call appends its `character-cost` header to data/lr-generated/elevenlabs-cost.log.
 Blocks: consecutive turns without a long pause are one text-to-dialogue request (split at turn boundaries, <= 9000 chars).
 """
-import hashlib, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import base64, hashlib, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -66,14 +66,37 @@ def blocks(turns):
 
 
 def speech(inputs):
+    """Audio for one block plus its word timings ([word, start, end], seconds from the block start).
+    Uses the with-timestamps endpoint (same credit cost), so timings never need a separate STT pass."""
     key = hashlib.sha1(json.dumps([MODEL, inputs], sort_keys=True).encode()).hexdigest()
-    f = CACHE / f"{key}.mp3"
-    if f.exists(): return f, 0
-    data, h = api("/v1/text-to-dialogue?output_format=mp3_44100_128", {"model_id": MODEL, "inputs": inputs})
+    f, fa = CACHE / f"{key}.mp3", CACHE / f"{key}.words.json"
+    if f.exists() and fa.exists(): return f, json.loads(fa.read_text()), 0
+    data, h = api("/v1/text-to-dialogue/with-timestamps?output_format=mp3_44100_128", {"model_id": MODEL, "inputs": inputs})
+    d = json.loads(data)
     cost = int(h.get("character-cost") or sum(len(i["text"]) for i in inputs))
     with LOG.open("a") as L: L.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {key[:10]} chars={sum(len(i['text']) for i in inputs)} cost={cost}\n")
-    f.write_bytes(data)
-    return f, cost
+    f.write_bytes(base64.b64decode(d["audio_base64"]))
+    words = align_words(d.get("alignment") or {})
+    fa.write_text(json.dumps(words))
+    return f, words, cost
+
+
+def align_words(a):
+    """Character alignment -> words; [delivery/performance tags] are dropped (they are not spoken)."""
+    chars, st, en = a.get("characters", []), a.get("character_start_times_seconds", []), a.get("character_end_times_seconds", [])
+    words, cur, t0, t1, tag = [], "", 0.0, 0.0, False
+    for c, s0, s1 in zip(chars, st, en):
+        if c == "[": tag = True
+        if tag:
+            if c == "]": tag = False
+            continue
+        if c.isspace():
+            if cur: words.append([cur, round(t0, 2), round(t1, 2)]); cur = ""
+            continue
+        if not cur: t0 = s0
+        cur += c; t1 = s1
+    if cur: words.append([cur, round(t0, 2), round(t1, 2)])
+    return words
 
 
 def ff(*a): subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *a], check=True)
@@ -102,21 +125,29 @@ def main():
         out = OUT / f"assets/lr/gen/{slug}-p{p['part']}.mp3"
         out.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory() as td:
-            pieces = []
+            pieces, words, clock = [], [], 0.0  # clock = start of the next piece in the final file
+            def dur(x): return float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(x)]))
             def add_silence(sec):
+                nonlocal clock
                 if sec <= 0: return
                 s = Path(td) / f"s{len(pieces)}.wav"
-                ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", str(sec), str(s)); pieces.append(s)
+                ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", str(sec), str(s)); pieces.append(s); clock += dur(s)
             for blk, pause in blocks(p["turns"]):
                 if blk:
                     inputs = [{"voice_id": p["voices"][t["speaker"]], "text": say(t["text"])} for t in blk]
-                    f, c = speech(inputs); spent += c
+                    f, ws, c = speech(inputs); spent += c
                     w = Path(td) / f"b{len(pieces)}.wav"
                     ff("-i", str(f), "-ac", "1", "-ar", "44100", str(w)); pieces.append(w)
+                    words += [[x, round(a + clock, 2), round(b + clock, 2)] for x, a, b in ws]
+                    clock += dur(w)
                 add_silence(pause if pause else GAP)
             lst = Path(td) / "list.txt"
             lst.write_text("".join(f"file '{x}'\n" for x in pieces))
             ff("-f", "concat", "-safe", "0", "-i", str(lst), "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ac", "1", "-ar", "44100", "-b:a", "64k", str(out))
+        # word timings sidecar (merged into section.timings by scripts/lr-import.ts)
+        tf = OUT / f"timings/{slug}.json"; tf.parent.mkdir(parents=True, exist_ok=True)
+        side = json.loads(tf.read_text()) if tf.exists() else {"slug": slug, "sections": {}}
+        side["sections"][str(p["part"])] = words; tf.write_text(json.dumps(side))
         d = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)]))
         print(f"{slug} part {p['part']}: {d:.0f}s, credits so far {spent}", flush=True)
         if spent > cap: sys.exit("credit cap reached")
