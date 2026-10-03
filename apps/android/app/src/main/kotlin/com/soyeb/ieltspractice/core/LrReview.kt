@@ -164,13 +164,59 @@ val LrSection.timingRows: List<Timing>
 
 data class Phrase(val start: Double, val end: Double)
 
+private fun noCurrency(s: String) = s.map { if (it in "£$€¥") ' ' else it }.joinToString("")
+private val UNIT_WORDS = mapOf("zero" to 0, "oh" to 0, "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9, "ten" to 10, "eleven" to 11, "twelve" to 12, "thirteen" to 13, "fourteen" to 14, "fifteen" to 15, "sixteen" to 16, "seventeen" to 17, "eighteen" to 18, "nineteen" to 19)
+private val TENS_WORDS = mapOf("twenty" to 20, "thirty" to 30, "forty" to 40, "fifty" to 50, "sixty" to 60, "seventy" to 70, "eighty" to 80, "ninety" to 90)
+private val ORDINALS = mapOf("first" to "one", "second" to "two", "third" to "three", "fifth" to "five", "eighth" to "eight", "ninth" to "nine", "twelfth" to "twelve")
+private fun cardinal(w: String): String = ORDINALS[w] ?: when {
+    w.endsWith("ieth") -> w.dropLast(4) + "y"
+    w.endsWith("th") && (w.dropLast(2) in UNIT_WORDS || w.dropLast(2) in TENS_WORDS) -> w.dropLast(2)
+    else -> w
+}
+private fun numberWord(raw: String): Pair<Int, Boolean>? { val w = cardinal(raw); return UNIT_WORDS[w]?.let { it to false } ?: TENS_WORDS[w]?.let { it to true } }
+private val ORDINAL_DIGITS = Regex("^(\\d+)(st|nd|rd|th)$")
+
+/** Numbers spoken as words become digits ("eleven thirty" = "11.30", "thirty five" = 35, "five hundred" = 500, "fifteenth" = 15); same rules as web `canon`. */
+private fun canonTokens(t: List<Triple<String, Double, Double>>): List<Triple<String, Double, Double>> {
+    val out = ArrayList<Triple<String, Double, Double>>()
+    var i = 0
+    while (i < t.size) {
+        val x = t[i]
+        val n = numberWord(x.first)
+        if (n == null) { out.add(Triple(x.first.replace(ORDINAL_DIGITS, "$1"), x.second, x.third)); i++; continue }
+        val nx = t.getOrNull(i + 1)?.let { numberWord(it.first) }
+        if (n.second && nx != null && !nx.second && nx.first < 10) { out.add(Triple((n.first + nx.first).toString(), x.second, t[i + 1].third)); i += 2 }
+        else if (!n.second && n.first < 10 && t.getOrNull(i + 1)?.first == "hundred") { out.add(Triple((n.first * 100).toString(), x.second, t[i + 1].third)); i += 2 }
+        else { out.add(Triple(n.first.toString(), x.second, x.third)); i++ }
+    }
+    return out
+}
+
+/** Groups moments within `gap` (a fraction of the recording) of the previous one, so crowded scrubber markers can fold into one. */
+fun <T> clusterMoments(items: List<T>, duration: Double, gap: Double = 0.08, at: (T) -> Double): List<List<T>> {
+    val out = ArrayList<MutableList<T>>()
+    for (m in items.sortedBy(at)) {
+        val last = out.lastOrNull()?.last()
+        if (duration > 0 && last != null && (at(m) - at(last)) / duration < gap) out.last().add(m) else out.add(mutableListOf(m))
+    }
+    return out
+}
+
 /** Finds a phrase in the word timings (normalised token alignment): exact run first, else the best window with at least 60% of its words. */
 fun locatePhrase(timings: List<Timing>?, phrase: String): Phrase? {
     if (timings.isNullOrEmpty()) return null
-    val tk = timings.flatMap { t -> lrWords(t.w).map { Triple(it, t.s, t.e) } }
-    val p = lrWords(phrase)
+    val tk = canonTokens(timings.flatMap { t -> lrWords(noCurrency(t.w)).map { Triple(it, t.s, t.e) } })
+    val p = canonTokens(lrWords(noCurrency(phrase)).map { Triple(it, 0.0, 0.0) }).map { it.first }
     if (p.isEmpty() || p.size > tk.size) return null
     for (i in 0..tk.size - p.size) if (p.indices.all { k -> tk[i + k].first == p[k] }) return Phrase(tk[i].second, tk[i + p.size - 1].third)
+    // spelled out letter by letter or digit by digit ("RH12 3TL" = R H one two three T L)
+    val ps = p.joinToString("")
+    if (ps.length >= 3) for (i in tk.indices) {
+        var acc = ""
+        var k = i
+        while (k < tk.size && tk[k].first.length <= 2 && ps.startsWith(acc + tk[k].first)) { acc += tk[k].first; k++ }
+        if (acc == ps && k - i >= 2) return Phrase(tk[i].second, tk[k - 1].third)
+    }
     if (p.size < 4) return null
     val want = HashMap<String, Int>()
     p.forEach { want[it] = (want[it] ?: 0) + 1 }
@@ -198,7 +244,7 @@ data class AudioWin(val from: Double, val to: Double, val start: Double, val end
 fun audioWindow(timings: List<Timing>?, q: LrQuestion): AudioWin? {
     val ev = q.review?.evidence
     val hit = (if (!ev.isNullOrEmpty()) locatePhrase(timings, ev) else null)
-        ?: variantsOf(q.answer.orEmpty()).firstNotNullOfOrNull { locatePhrase(timings, it) }
+        ?: q.answer.orEmpty().flatMap(::expandAnswer).distinct().filter { it.length >= 3 || (it.length >= 2 && it.any(Char::isDigit)) }.sortedByDescending { it.length }.firstNotNullOfOrNull { locatePhrase(timings, it) }
     if (hit != null) return AudioWin(maxOf(0.0, hit.start - 2), hit.end + 0.5, hit.start, hit.end, true)
     val at = q.review?.at ?: return null
     return AudioWin(maxOf(0.0, at - 2), at + 6, at, at + 6, false)

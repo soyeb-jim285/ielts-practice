@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LrTest, LrTimings } from './lr';
-import { analyseAttempt, answerSentence, audioWindow, questionMoments, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
+import { analyseAttempt, answerSentence, audioWindow, clusterMoments, questionMoments, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
 
 describe('wordLimitOf', () => {
   it.each([['ONE WORD ONLY', 1], ['NO MORE THAN TWO WORDS AND/OR A NUMBER', 2], ['Write THREE WORDS', 3], ['ONE WORD AND/OR A NUMBER', 1], ['A NUMBER', null], [undefined, null]])('%s', (s, n) => expect(wordLimitOf(s as string)).toBe(n));
@@ -98,6 +98,25 @@ describe('locatePhrase', () => {
     expect(audioWindow({ timings: t }, { answer: ['coat'] })).toMatchObject({ exact: true, from: 5.1 });
     expect(audioWindow({}, { review: { at: 1 } })).toMatchObject({ from: 0, to: 7, exact: false });
     expect(audioWindow({}, { answer: ['x'] })).toBeNull();
+  });
+});
+
+describe('locatePhrase: numbers spoken as words', () => {
+  const sp = (words: string): LrTimings => words.split(' ').map((w, i) => [w, i, i + 0.9] as [string, number, number]);
+  it('time: 11.30 = eleven thirty', () => expect(locatePhrase(sp('we finish at eleven thirty sharp'), '11.30')).toEqual({ start: 3, end: 4.9 }));
+  it('money: £35 = thirty-five pounds', () => expect(locatePhrase(sp('it costs thirty five pounds an hour'), '£35')).toEqual({ start: 2, end: 3.9 }));
+  it('ordinal: 15th = fifteenth, hundred', () => {
+    expect(locatePhrase(sp('on the fifteenth of june'), '15th')).toMatchObject({ start: 2 });
+    expect(locatePhrase(sp('about five hundred people'), '500')).toMatchObject({ start: 1, end: 2.9 });
+  });
+  it('postcode spelled out', () => expect(locatePhrase(sp('it is R H one two three T L thanks'), 'RH12 3TL')).toEqual({ start: 2, end: 8.9 }));
+  it('audioWindow finds a two-digit answer', () => expect(audioWindow({ timings: sp('it costs thirty five pounds') }, { answer: ['35'] })).toMatchObject({ exact: true }));
+});
+
+describe('clusterMoments', () => {
+  it('folds close markers, keeps far ones apart', () => {
+    const g = clusterMoments([{ at: 100, n: 6 }, { at: 102, n: 7 }, { at: 104, n: 8 }, { at: 200, n: 9 }], 400);
+    expect(g.map((x) => x.map((m) => m.n))).toEqual([[6, 7, 8], [9]]);
   });
 });
 

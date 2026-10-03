@@ -134,14 +134,57 @@ enum LrReview {
     // MARK: Listening: word timings
 
     private struct Tok { let w: String; let s: Double; let e: Double }
-    private static func tokens(_ t: [LrWord]) -> [Tok] { t.flatMap { r in words(r.w).map { Tok(w: $0, s: r.s, e: r.e) } } }
+    private static func tokens(_ t: [LrWord]) -> [Tok] { canon(t.flatMap { r in words(noCurrency(r.w)).map { Tok(w: $0, s: r.s, e: r.e) } }) }
+    private static func noCurrency(_ s: String) -> String { String(s.map { "£$€¥".contains($0) ? " " : $0 }) }
+
+    private static let units: [String: Int] = ["zero": 0, "oh": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19]
+    private static let tensWords: [String: Int] = ["twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90]
+    private static let ordinals = ["first": "one", "second": "two", "third": "three", "fifth": "five", "eighth": "eight", "ninth": "nine", "twelfth": "twelve"]
+    private static func cardinal(_ w: String) -> String {
+        if let o = ordinals[w] { return o }
+        if w.hasSuffix("ieth") { return String(w.dropLast(4)) + "y" }
+        if w.hasSuffix("th") { let b = String(w.dropLast(2)); if units[b] != nil || tensWords[b] != nil { return b } }
+        return w
+    }
+    private static func numberWord(_ raw: String) -> (v: Int, tens: Bool)? {
+        let w = cardinal(raw)
+        if let v = units[w] { return (v, false) }
+        if let v = tensWords[w] { return (v, true) }
+        return nil
+    }
+    /// Numbers spoken as words become digits ("eleven thirty" = "11.30", "thirty five" = 35, "five hundred" = 500, "fifteenth" = 15); same rules as web `canon`.
+    private static func canon(_ t: [Tok]) -> [Tok] {
+        var out: [Tok] = []
+        var i = 0
+        while i < t.count {
+            let x = t[i]
+            defer { i += 1 }
+            guard let n = numberWord(x.w) else {
+                out.append(Tok(w: x.w.replacingOccurrences(of: "^(\\d+)(st|nd|rd|th)$", with: "$1", options: .regularExpression), s: x.s, e: x.e)); continue
+            }
+            let nx = i + 1 < t.count ? numberWord(t[i + 1].w) : nil
+            if n.tens, let nx, !nx.tens, nx.v < 10 { out.append(Tok(w: String(n.v + nx.v), s: x.s, e: t[i + 1].e)); i += 1 }
+            else if !n.tens, n.v < 10, i + 1 < t.count, t[i + 1].w == "hundred" { out.append(Tok(w: String(n.v * 100), s: x.s, e: t[i + 1].e)); i += 1 }
+            else { out.append(Tok(w: String(n.v), s: x.s, e: x.e)) }
+        }
+        return out
+    }
 
     /// Finds a phrase in the word timings: exact run first, else the best window with at least 60% of its words.
     static func locatePhrase(_ timings: [LrWord]?, _ phrase: String) -> (start: Double, end: Double)? {
         guard let timings, !timings.isEmpty else { return nil }
-        let T = tokens(timings), P = words(phrase)
+        let T = tokens(timings), P = canon(words(noCurrency(phrase)).map { Tok(w: $0, s: 0, e: 0) }).map(\.w)
         if P.isEmpty || P.count > T.count { return nil }
         for i in 0...(T.count - P.count) where P.indices.allSatisfy({ T[i + $0].w == P[$0] }) { return (T[i].s, T[i + P.count - 1].e) }
+        // spelled out letter by letter or digit by digit ("RH12 3TL" = R H one two three T L)
+        let ps = P.joined()
+        if ps.count >= 3 {
+            for i in T.indices {
+                var acc = "", k = i
+                while k < T.count, T[k].w.count <= 2, ps.hasPrefix(acc + T[k].w) { acc += T[k].w; k += 1 }
+                if acc == ps, k - i >= 2 { return (T[i].s, T[k - 1].e) }
+            }
+        }
         if P.count < 4 { return nil }
         var want: [String: Int] = [:]
         P.forEach { want[$0, default: 0] += 1 }
@@ -167,13 +210,22 @@ enum LrReview {
         var hit = q.review?.evidence.flatMap { locatePhrase(timings, $0) }
         if hit == nil {
             var seen = Set<String>()
-            let vs = (q.answer ?? []).flatMap(expandAnswer).filter { $0.utf16.count >= 3 && seen.insert($0).inserted }
+            let vs = (q.answer ?? []).flatMap(expandAnswer).filter { ($0.utf16.count >= 3 || ($0.utf16.count >= 2 && $0.contains(where: \.isNumber))) && seen.insert($0).inserted }
             hit = vs.enumerated().sorted { $0.element.utf16.count != $1.element.utf16.count ? $0.element.utf16.count > $1.element.utf16.count : $0.offset < $1.offset }
                 .lazy.compactMap { locatePhrase(timings, $0.element) }.first
         }
         if let h = hit { return AudioWindow(from: max(0, h.start - 2), to: h.end + 0.5, start: h.start, end: h.end, exact: true) }
         if let at = q.review?.at { return AudioWindow(from: max(0, at - 2), to: at + 6, start: at, end: at + 6, exact: false) }
         return nil
+    }
+
+    /// Groups moments within `gap` (a fraction of the recording) of the previous one, so crowded scrubber markers can fold into one.
+    static func clusterMoments<T>(_ items: [T], duration: Double, gap: Double = 0.08, at: (T) -> Double) -> [[T]] {
+        var out: [[T]] = []
+        for m in items.sorted(by: { at($0) < at($1) }) {
+            if duration > 0, let last = out.last?.last, (at(m) - at(last)) / duration < gap { out[out.count - 1].append(m) } else { out.append([m]) }
+        }
+        return out
     }
 
     struct QuestionMoment: Equatable { let n: Int, at: Double, from: Double, to: Double, exact: Bool }

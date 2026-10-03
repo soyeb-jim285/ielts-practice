@@ -67,6 +67,7 @@ import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.audio.AudioPlayer
 import com.soyeb.ieltspractice.core.LISTENING_REVIEW_SECONDS
 import com.soyeb.ieltspractice.core.clock
+import com.soyeb.ieltspractice.core.clusterMoments
 import com.soyeb.ieltspractice.core.LrAudioState
 import com.soyeb.ieltspractice.ui.screens.shell.Segmented
 import com.soyeb.ieltspractice.ui.theme.AppText
@@ -222,16 +223,32 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
             Box(Modifier.weight(1f))
             TextButton(player::replay, Modifier.heightIn(min = 48.dp)) { Text("Replay ${label.lowercase()}", color = e.brand, style = MaterialTheme.typography.labelLarge) }
         }
+        var openGroup by remember { mutableStateOf<Int?>(null) } // first question of the crowded marker group that is open
         if (pins.isNotEmpty() && player.duration > 0) Row(Modifier.fillMaxWidth().height(26.dp)) {
             Spacer(Modifier.width(48.dp))
             BoxWithConstraints(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 10.dp).clearAndSetSemantics { }) { // visual twin of the strip below, which is the accessible one
-                pins.forEach { p ->
-                    PinChip(p, pinned == p.n, { onPin(p.n) }, Modifier.offset(x = maxWidth * (p.at / player.duration).toFloat().coerceIn(0f, 1f) - 11.dp).size(22.dp)) {
-                        Text("${p.n}", style = MaterialTheme.typography.labelSmall.merge(AppText.num), fontWeight = FontWeight.Bold)
+                clusterMoments(pins, player.duration) { it.at }.forEach { g ->
+                    val x = maxWidth * (g[0].at / player.duration).toFloat().coerceIn(0f, 1f)
+                    if (g.size == 1) PinChip(g[0], pinned == g[0].n, { onPin(g[0].n) }, Modifier.offset(x = x - 11.dp).size(22.dp)) {
+                        Text("${g[0].n}", style = MaterialTheme.typography.labelSmall.merge(AppText.num), fontWeight = FontWeight.Bold)
+                    } else {
+                        val ns = g.map { it.n }.sorted()
+                        Box(
+                            Modifier.offset(x = x - 22.dp).defaultMinSize(minWidth = 44.dp, minHeight = 22.dp)
+                                .background(MaterialTheme.ext.surface2, RoundedCornerShape(6.dp)).border(if (openGroup == ns[0]) 2.5.dp else 1.dp, MaterialTheme.ext.muted, RoundedCornerShape(6.dp))
+                                .clickable(role = Role.Button) { openGroup = if (openGroup == ns[0]) null else ns[0] },
+                            contentAlignment = Alignment.Center,
+                        ) { Text("${ns.first()}\u2013${ns.last()}", style = MaterialTheme.typography.labelSmall.merge(AppText.num), fontWeight = FontWeight.Bold, color = MaterialTheme.ext.ink) }
                     }
                 }
             }
             Spacer(Modifier.width(48.dp))
+        }
+        openGroup?.let { og ->
+            val g = clusterMoments(pins, player.duration) { it.at }.firstOrNull { grp -> grp.minOf { it.n } == og }
+            if (g != null) Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                g.sortedBy { it.n }.forEach { p -> PinChip(p, pinned == p.n, { openGroup = null; onPin(p.n) }, Modifier.size(36.dp)) { Text("${p.n}", style = MaterialTheme.typography.labelMedium.merge(AppText.num), fontWeight = FontWeight.Bold) } }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(clock(player.position.toInt()), Modifier.widthIn(min = 40.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.muted, textAlign = TextAlign.End)

@@ -29,6 +29,7 @@ struct SpeakingHomeView: View {
             VStack(alignment: .leading, spacing: 28) {
                 Text("Record your answers and get a band for each criterion, with every mistake and pause located in your transcript.")
                     .foregroundStyle(.muted)
+                GuestRecentView(skill: "speaking")
                 if fresh { partsSection }
                 pendingSection
                 modesSection

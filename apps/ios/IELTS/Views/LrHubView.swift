@@ -52,6 +52,10 @@ struct LrHubView: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            if api.isGuest {
+                Section { GuestRecentView(skill: listening ? "listening" : "reading") }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+            }
             if let error {
                 Section { ErrorLine(message: error); Button("Try again") { Task { await load() } } }
             }

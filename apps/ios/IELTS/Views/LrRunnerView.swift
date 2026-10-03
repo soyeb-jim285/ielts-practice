@@ -484,6 +484,17 @@ struct LrPracticeBar: View {
     var pins: [LrAudioPin] = []
     var pinned: Int?
     var onPin: (Int) -> Void = { _ in }
+    @State private var openGroup: Int? // first question of the crowded marker group that is open
+
+    /// Right = circle, wrong = rounded square, approximate = dashed outline; the number is always shown.
+    private func pinMark(_ p: LrAudioPin, size: CGFloat = 20) -> some View {
+        let shape: AnyShape = p.correct ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 4))
+        return Text("\(p.n)").font(.caption2.weight(.bold).monospacedDigit())
+            .foregroundStyle(p.correct ? Color.goodText : Color.bad)
+            .frame(minWidth: size, minHeight: size)
+            .background((p.correct ? Color.good : Color.bad).opacity(0.15), in: shape)
+            .overlay(shape.stroke(p.correct ? Color.good : Color.bad, style: StrokeStyle(lineWidth: pinned == p.n ? 2.5 : 1, dash: p.approx ? [2, 2] : [])))
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -495,19 +506,30 @@ struct LrPracticeBar: View {
                 .accessibilityLabel(player.playing ? "Pause" : "Play")
                 VStack(spacing: 2) {
                     if !pins.isEmpty, player.duration > 0 {
+                        let groups = LrReview.clusterMoments(pins, duration: player.duration) { $0.at }
                         GeometryReader { g in
-                            ForEach(pins, id: \.n) { p in
-                                Text("\(p.n)").font(.caption2.weight(.bold).monospacedDigit())
-                                    .foregroundStyle(p.correct ? Color.goodText : Color.bad)
-                                    .frame(minWidth: 20, minHeight: 20)
-                                    .background((p.correct ? Color.good : Color.bad).opacity(0.15), in: p.correct ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 4)))
-                                    .overlay((p.correct ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 4))).stroke(p.correct ? Color.good : Color.bad, style: StrokeStyle(lineWidth: pinned == p.n ? 2.5 : 1, dash: p.approx ? [2, 2] : [])))
-                                    .position(x: 10 + (g.size.width - 20) * min(1, p.at / player.duration), y: 10)
-                                    .onTapGesture { onPin(p.n) }
-                                    .accessibilityHidden(true) // the strip below is the accessible, 44 pt version
+                            ForEach(groups, id: \.first!.n) { grp in
+                                let x = 10 + (g.size.width - 20) * min(1, grp[0].at / player.duration)
+                                if grp.count == 1, let p = grp.first {
+                                    pinMark(p).position(x: x, y: 10).onTapGesture { onPin(p.n) }.accessibilityHidden(true) // the strip below is the accessible, 44 pt version
+                                } else {
+                                    let ns = grp.map(\.n).sorted()
+                                    Text("\(ns.first!)\u{2013}\(ns.last!)").font(.caption2.weight(.bold).monospacedDigit()).foregroundStyle(Color.ink)
+                                        .padding(.horizontal, 6).frame(minHeight: 20)
+                                        .background(Color.surface2, in: RoundedRectangle(cornerRadius: 6))
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.muted, lineWidth: openGroup == ns.first ? 2.5 : 1))
+                                        .position(x: x, y: 10)
+                                        .onTapGesture { openGroup = openGroup == ns.first ? nil : ns.first }
+                                        .accessibilityHidden(true)
+                                }
                             }
                         }
                         .frame(height: 22)
+                        if let og = openGroup, let grp = groups.first(where: { $0.map(\.n).min() == og }) {
+                            HStack(spacing: 8) { ForEach(grp.sorted { $0.n < $1.n }, id: \.n) { p in pinMark(p, size: 32).onTapGesture { openGroup = nil; onPin(p.n) } } }
+                                .frame(maxWidth: .infinity)
+                                .accessibilityHidden(true)
+                        }
                     }
                     Slider(value: Binding(get: { player.time }, set: { player.seek(to: $0) }), in: 0...max(player.duration, 1))
                         .tint(.brand)

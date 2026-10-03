@@ -46,6 +46,7 @@ struct GuestDashboardView: View {
                     }
                     .buttonStyle(.borderless).font(.subheadline).frame(minHeight: 44)
                 }
+                GuestRecentView()
                 CommunityCard()
 
                 VStack(alignment: .leading, spacing: 14) {

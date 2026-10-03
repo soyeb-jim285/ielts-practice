@@ -54,6 +54,18 @@ final class LrReviewTests: XCTestCase {
         XCTAssertNil(LrReview.audioWindow(nil, q(answer: ["x"])))
     }
 
+    func testNumbersSpokenAsWords() {
+        func sp(_ w: String) -> [LrWord] { w.split(separator: " ").enumerated().map { LrWord(w: String($1), s: Double($0), e: Double($0) + 0.9) } }
+        XCTAssertEqual(LrReview.locatePhrase(sp("we finish at eleven thirty sharp"), "11.30")?.start, 3)
+        XCTAssertEqual(LrReview.locatePhrase(sp("it costs thirty five pounds an hour"), "£35")?.start, 2)
+        XCTAssertEqual(LrReview.locatePhrase(sp("on the fifteenth of june"), "15th")?.start, 2)
+        XCTAssertEqual(LrReview.locatePhrase(sp("about five hundred people"), "500")?.start, 1)
+        XCTAssertEqual(LrReview.locatePhrase(sp("it is R H one two three T L thanks"), "RH12 3TL")?.end ?? 0, 8.9, accuracy: 1e-9)
+        XCTAssertEqual(LrReview.audioWindow(sp("it costs thirty five pounds"), q(answer: ["35"]))?.exact, true)
+        let g = LrReview.clusterMoments([100.0, 102, 104, 200], duration: 400) { $0 }
+        XCTAssertEqual(g, [[100, 102, 104], [200]])
+    }
+
     func testQuestionMoments() {
         func qq(_ n: Int, _ answer: [String], at: Double? = nil) -> LrQuestion {
             LrQuestion(n: n, text: nil, options: nil, answer: answer, review: at.map { LrQuestionReview(evidence: nil, at: $0) })

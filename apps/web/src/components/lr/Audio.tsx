@@ -1,3 +1,4 @@
+import { clusterMoments } from '@ielts/core';
 import { Headphones, Pause, Play, RotateCcw, RotateCw, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Button, ProgressBar, Segmented } from '@/components/ui';
@@ -48,6 +49,7 @@ export function PracticeAudio({ src, label, className, cue, resume, pins, pinned
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [group, setGroup] = useState<number | null>(null); // the open cluster of crowded markers, by its first question
   const [rate, setRate] = useState(String(resume?.rate ?? 1));
   const [resumedAt, setResumedAt] = useState(0); // set while the player sits at a restored position and has not been played yet
   const r = useRef(resume);
@@ -143,20 +145,37 @@ export function PracticeAudio({ src, label, className, cue, resume, pins, pinned
         <span className="type-num type-caption w-10 text-right">{formatClock(t)}</span>
         <div className={cn('relative min-w-0 flex-1', !!pins?.length && 'pt-6 max-md:pt-0')}>
           <input type="range" aria-label="Seek" min={0} max={dur || 1} step={0.1} value={Math.min(t, dur || 1)} onChange={(e) => seek(+e.target.value)} className={range} />
-          {dur > 0 && pins?.map((p) => (
-            <button
-              key={p.n}
-              type="button"
-              aria-label={pinLabel(p)}
-              title={pinLabel(p)}
-              aria-current={pinned === p.n || undefined}
-              onClick={() => onPin?.(p.n)}
-              style={{ left: `${Math.min(100, (p.at / dur) * 100)}%` }}
-              className={cn(pinStyle(p, pinned === p.n), 'absolute top-0 h-5 min-w-5 -translate-x-1/2 px-1 text-[11px] max-md:hidden')}
-            >
-              {p.n}
-            </button>
-          ))}
+          {dur > 0 && clusterMoments(pins ?? [], dur).map((g) => {
+            const left = `${Math.min(100, (g[0]!.at / dur) * 100)}%`;
+            if (g.length === 1) {
+              const p = g[0]!;
+              return (
+                <button key={p.n} type="button" aria-label={pinLabel(p)} title={pinLabel(p)} aria-current={pinned === p.n || undefined} onClick={() => onPin?.(p.n)} style={{ left }} className={cn(pinStyle(p, pinned === p.n), 'absolute top-0 h-5 min-w-5 -translate-x-1/2 px-1 text-[11px] max-md:hidden')}>
+                  {p.n}
+                </button>
+              );
+            }
+            const ns = g.map((p) => p.n).sort((a, b) => a - b);
+            const wrong = g.filter((p) => !p.correct).length;
+            const label = `Questions ${ns.join(', ')} are heard close together${wrong ? `, ${wrong} wrong` : ''}. Open the list`;
+            const key = ns[0]!;
+            return (
+              <div key={key} style={{ left }} onKeyDown={(e) => e.key === "Escape" && setGroup(null)} className="absolute top-0 -translate-x-1/2 max-md:hidden">
+                <button type="button" aria-label={label} title={label} aria-expanded={group === key} onClick={() => setGroup(group === key ? null : key)} className="type-num inline-flex h-5 cursor-pointer items-center justify-center rounded-md border border-line-strong bg-card px-1.5 text-[11px] font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                  {ns[0]}–{ns[ns.length - 1]}
+                </button>
+                {group === key && (
+                  <div role="group" aria-label={`Questions ${ns[0]} to ${ns[ns.length - 1]}`} className="absolute top-full left-1/2 z-20 mt-2 flex -translate-x-1/2 gap-1 rounded-lg border border-line bg-card p-1.5 shadow-card">
+                    {g.map((p) => (
+                      <button key={p.n} type="button" aria-label={pinLabel(p)} title={pinLabel(p)} aria-current={pinned === p.n || undefined} onClick={() => { setGroup(null); onPin?.(p.n); }} className={cn(pinStyle(p, pinned === p.n), 'h-8 min-w-8 px-1.5 text-xs')}>
+                        {p.n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         <span className="type-num type-caption w-10">{formatClock(dur)}</span>
       </div>

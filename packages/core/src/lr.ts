@@ -110,6 +110,13 @@ const UNITS: Record<string, number> = { zero: 0, oh: 0, one: 1, two: 2, three: 3
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 const ORD: Record<string, string> = { first: 'one', second: 'two', third: 'three', fifth: 'five', eighth: 'eight', ninth: 'nine', twelfth: 'twelve' };
 const cardinal = (w: string) => ORD[w] ?? (/(ieth)$/.test(w) ? w.replace(/ieth$/, 'y') : /th$/.test(w) && (UNITS[w.slice(0, -2)] ?? TENS[w.slice(0, -2)]) !== undefined ? w.slice(0, -2) : w);
+/** A spoken number word: its value and whether it is a "tens" word (twenty..ninety) or a unit / teen. Null for any other word. */
+export function numberWord(raw: string): { v: number; tens: boolean } | null {
+  const w = cardinal(raw);
+  if (Object.hasOwn(UNITS, w)) return { v: UNITS[w]!, tens: false };
+  if (Object.hasOwn(TENS, w)) return { v: TENS[w]!, tens: true };
+  return null;
+}
 function numbersToDigits(s: string): string {
   const out: string[] = [];
   let total = 0, cur = 0, inNum = false;

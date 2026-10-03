@@ -70,6 +70,21 @@ class LrReviewTest {
         assertEquals(20.0, m[1].at, 1e-9); assertEquals(false, m[1].exact)
     }
 
+    @Test fun locateNumbersSpokenAsWords() {
+        fun sp(w: String) = w.split(' ').mapIndexed { i, x -> Timing(x, i.toDouble(), i + 0.9) }
+        assertEquals(3.0, locatePhrase(sp("we finish at eleven thirty sharp"), "11.30")!!.start, 1e-9)
+        assertEquals(2.0, locatePhrase(sp("it costs thirty five pounds an hour"), "£35")!!.start, 1e-9)
+        assertEquals(2.0, locatePhrase(sp("on the fifteenth of june"), "15th")!!.start, 1e-9)
+        assertEquals(1.0, locatePhrase(sp("about five hundred people"), "500")!!.start, 1e-9)
+        assertEquals(8.9, locatePhrase(sp("it is R H one two three T L thanks"), "RH12 3TL")!!.end, 1e-9)
+        assertTrue(audioWindow(sp("it costs thirty five pounds"), q(answer = listOf("35")))!!.exact)
+    }
+
+    @Test fun clusterMomentsFoldsCloseMarkers() {
+        val g = clusterMoments(listOf(100.0, 102.0, 104.0, 200.0), 400.0) { it }
+        assertEquals(listOf(listOf(100.0, 102.0, 104.0), listOf(200.0)), g)
+    }
+
     @Test fun dictationPerfect() = assertTrue(dictationDiff("half past six", "Half past six.").all { it.status == DictStatus.Correct })
 
     @Test fun dictationWrongMissingExtra() {

@@ -2,7 +2,7 @@
  * Listening & Reading review helpers: mistake classification for gap answers, TRUE/FALSE/NOT GIVEN analysis, answer location
  * in a passage / transcript / word timings, dictation diff and the per-attempt analysis. All deterministic, no AI.
  */
-import { expandAnswer, type LrGroup, type LrMark, type LrResponses, type LrTest } from './lr';
+import { expandAnswer, numberWord, type LrGroup, type LrMark, type LrResponses, type LrTest } from './lr';
 
 const fold = (s: string) =>
   s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
@@ -274,15 +274,43 @@ export const sectionParagraphs = (s: { passage?: { paragraphs: { text: string }[
 /** Word timings as the API sends them: [word, start, end] rows (typed loosely because the OpenAPI tuple is). */
 export type TimingRows = readonly (readonly (string | number)[])[];
 interface Tok { w: string; s: number; e: number }
-const tokens = (t: TimingRows): Tok[] => t.flatMap(([w, s, e]) => words(String(w)).map((x) => ({ w: x, s: Number(s), e: Number(e) })));
+const tokens = (t: TimingRows): Tok[] => canon(t.flatMap(([w, s, e]) => words(String(w).replace(CUR, ' ')).map((x) => ({ w: x, s: Number(s), e: Number(e) }))));
+const CUR = /[£$€¥]/g;
+/**
+ * Numbers spoken as words become digits so "eleven thirty" lines up with "11.30" and "thirty-five pounds" with "£35":
+ * a tens word joins a following unit ("thirty five" = 35), "five hundred" = 500, anything else stays one number per word
+ * (so a time keeps its two parts). Ordinals drop their ending ("15th", "fifteenth" = 15).
+ */
+function canon(t: Tok[]): Tok[] {
+  const out: Tok[] = [];
+  for (let i = 0; i < t.length; i++) {
+    const x = t[i]!;
+    const n = numberWord(x.w);
+    if (!n) { out.push({ ...x, w: x.w.replace(/^(\d+)(st|nd|rd|th)$/, '$1') }); continue; }
+    const nx = t[i + 1] && numberWord(t[i + 1]!.w);
+    if (n.tens && nx && !nx.tens && nx.v < 10) { out.push({ w: String(n.v + nx.v), s: x.s, e: t[i + 1]!.e }); i++; }
+    else if (!n.tens && n.v < 10 && t[i + 1]?.w === 'hundred') { out.push({ w: String(n.v * 100), s: x.s, e: t[i + 1]!.e }); i++; }
+    else out.push({ ...x, w: String(n.v) });
+  }
+  return out;
+}
 
 /** Finds a phrase in the word timings (normalised token alignment): exact run first, else the best window with ≥60% of its words. */
 export function locatePhrase(timings: TimingRows | undefined, phrase: string): { start: number; end: number } | null {
   if (!timings?.length) return null;
   const T = tokens(timings);
-  const P = words(phrase);
+  const P = canon(words(phrase.replace(CUR, ' ')).map((w) => ({ w, s: 0, e: 0 }))).map((x) => x.w);
   if (!P.length || P.length > T.length) return null;
   for (let i = 0; i + P.length <= T.length; i++) if (P.every((w, k) => T[i + k]!.w === w)) return { start: T[i]!.s, end: T[i + P.length - 1]!.e };
+  // spelled out, letter by letter or digit by digit ("RH12 3TL" = R H one two three T L)
+  const ps = P.join('');
+  if (ps.length >= 3) {
+    for (let i = 0; i < T.length; i++) {
+      let acc = '', k = i;
+      while (k < T.length && T[k]!.w.length <= 2 && ps.startsWith(acc + T[k]!.w)) acc += T[k++]!.w;
+      if (acc === ps && k - i >= 2) return { start: T[i]!.s, end: T[k - 1]!.e };
+    }
+  }
   if (P.length < 4) return null;
   const want = new Map<string, number>();
   P.forEach((w) => want.set(w, (want.get(w) ?? 0) + 1));
@@ -310,7 +338,7 @@ export function locatePhrase(timings: TimingRows | undefined, phrase: string): {
 export function audioWindow(section: { timings?: TimingRows }, q: ReviewLike): { from: number; to: number; start: number; end: number; exact: boolean } | null {
   const ev = q.review?.evidence;
   const hit = (ev && locatePhrase(section.timings, ev))
-    || [...new Set((q.answer ?? []).flatMap(expandAnswer))].filter((v) => v.length >= 3).sort((a, b) => b.length - a.length).map((v) => locatePhrase(section.timings, v)).find(Boolean);
+    || [...new Set((q.answer ?? []).flatMap(expandAnswer))].filter((v) => v.length >= 3 || (v.length >= 2 && /\d/.test(v))).sort((a, b) => b.length - a.length).map((v) => locatePhrase(section.timings, v)).find(Boolean);
   if (hit) return { from: Math.max(0, hit.start - 2), to: hit.end + 0.5, start: hit.start, end: hit.end, exact: true };
   const at = q.review?.at;
   return at != null ? { from: Math.max(0, at - 2), to: at + 6, start: at, end: at + 6, exact: false } : null;
@@ -323,6 +351,17 @@ export function questionMoments(section: { timings?: TimingRows; groups: { quest
     const w = audioWindow(section, q);
     return w ? [{ n: q.n, at: w.start, from: w.from, to: w.to, exact: w.exact }] : [];
   })).sort((a, b) => a.at - b.at || a.n - b.n);
+}
+
+/** Groups moments that sit within `gap` (a fraction of the recording) of the previous one, so crowded scrubber markers can fold into one. */
+export function clusterMoments<T extends { at: number }>(items: readonly T[], duration: number, gap = 0.08): T[][] {
+  const out: T[][] = [];
+  for (const m of [...items].sort((a, b) => a.at - b.at)) {
+    const g = out[out.length - 1];
+    if (g && duration > 0 && (m.at - g[g.length - 1]!.at) / duration < gap) g.push(m);
+    else out.push([m]);
+  }
+  return out;
 }
 
 /** The recording's words between two instants, as spoken (for the dictation drill). */
