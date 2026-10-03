@@ -78,6 +78,7 @@ import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.Chip
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
 import com.soyeb.ieltspractice.ui.theme.SecondaryButton
+import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.SectionTitle
 import com.soyeb.ieltspractice.ui.community.QuotaSummary
 import com.soyeb.ieltspractice.ui.theme.ext
@@ -430,7 +431,10 @@ private fun LrInsights(target: Double, nav: AppNav) {
     // screenshots: the `LR` demo tab scrolls to this section
     if (com.soyeb.ieltspractice.LocalDemo.current?.tab == "LR") androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(500); runCatching { req.bringIntoView() } }
     Column(Modifier.bringIntoViewRequester(req), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("Listening and Reading")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Listening and Reading", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.titleLarge, color = e.ink)
+            LinkButton("All results", { nav.go(History("listening")) })
+        }
         AppCard {
             listOf("listening", "reading").forEach { k ->
                 val rows = p.trend.filter { it.skill == k }
@@ -440,6 +444,13 @@ private fun LrInsights(target: Double, nav: AppNav) {
                     Column(Modifier.weight(1f)) {
                         Text("${LR_SKILL[k]}, latest of ${rows.size}", style = MaterialTheme.typography.bodySmall, color = e.muted)
                         BigNumber(fmt(last.band))
+                        if (rows.size > 1) {
+                            val d = last.band - rows.first().band
+                            Text(
+                                if (d == 0.0) "Same as your first" else "${if (d > 0) "Up" else "Down"} ${fmt(kotlin.math.abs(d))} from your first",
+                                style = MaterialTheme.typography.bodySmall.merge(AppText.num), color = e.muted,
+                            )
+                        }
                     }
                     LrSpark(rows, target, "${LR_SKILL[k]} band over ${rows.size} attempts, latest ${fmt(last.band)}; dashed line is your ${fmt(target)} target", Modifier.size(width = 150.dp, height = 56.dp))
                 }

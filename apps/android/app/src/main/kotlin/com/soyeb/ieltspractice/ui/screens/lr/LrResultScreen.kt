@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -70,6 +74,7 @@ import com.soyeb.ieltspractice.ui.nav.LrResult
 import com.soyeb.ieltspractice.ui.nav.LrRun
 import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.screens.shell.BandBar
+import com.soyeb.ieltspractice.ui.screens.shell.LinkButton
 import com.soyeb.ieltspractice.ui.screens.shell.Segmented
 import com.soyeb.ieltspractice.ui.screens.shell.ShellDate
 import com.soyeb.ieltspractice.ui.theme.AppCard
@@ -101,21 +106,21 @@ fun LrResultScreen(route: LrResult, nav: AppNav) {
 @Composable
 private fun ratioColor(r: Double) = with(MaterialTheme.ext) { if (r >= 0.75) good else if (r >= 0.5) warn else bad }
 
+/** One list, worst first. Each row has the score as text and a bar; colour only repeats what the numbers say. */
 @Composable
-private fun AccuracyBlock(title: String, rows: List<Accuracy>, modifier: Modifier = Modifier) {
+private fun AccuracyList(rows: List<Accuracy>) {
     val e = MaterialTheme.ext
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionTitle(title)
-        rows.forEach { r ->
+    AppCard(padding = 0.dp) {
+        rows.sortedBy { if (it.total > 0) it.right.toDouble() / it.total else 0.0 }.forEachIndexed { i, r ->
             val ratio = if (r.total > 0) r.right.toDouble() / r.total else 0.0
-            Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (i > 0) HorizontalDivider(color = e.line)
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row {
                     Text(r.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = e.ink)
                     Text("${r.right}/${r.total}", style = MaterialTheme.typography.titleSmall.merge(AppText.num), color = e.ink)
                 }
                 BandBar(ratio, "${r.label}: ${r.right} of ${r.total} correct", fill = ratioColor(ratio), height = 6.dp)
             }
-            HorizontalDivider(color = e.line)
         }
     }
 }
@@ -129,13 +134,26 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     val scope = rememberCoroutineScope()
     val test = a.test
     val listening = test.listening
-    val wide = LocalConfiguration.current.screenWidthDp >= 840
     val marks = remember(a) { (a.marks ?: emptyList()).associateBy { it.n } }
     val flat = remember(test) { test.flat() }
-    var wrongOnly by remember { mutableStateOf(false) }
+    val firstWrong = flat.firstOrNull { marks[it.n]?.correct != true }?.n
     val demoScreen = LocalDemo.current?.screen
-    // demo screens open with a question selected (and the dictation sheet for lr-dictation)
-    val demoSel = when (demoScreen) { "lr-result-detail" -> 9; "lr-result-detail-listening", "lr-result-timestamps", "lr-dictation" -> 28; else -> null }
+    // demo screens open on a tab with a question selected (and the dictation sheet for lr-dictation)
+    val demoSel = when (demoScreen) {
+        "lr-result-detail" -> 9
+        "lr-result-detail-listening", "lr-result-timestamps", "lr-dictation" -> 28
+        "lr-result-answers", "lr-result-transcript" -> firstWrong
+        else -> null
+    }
+    var tab by remember {
+        mutableStateOf(when (demoScreen) {
+            "lr-result-detail", "lr-result-detail-listening", "lr-dictation", "lr-result-answers" -> "answers"
+            "lr-result-p2", "lr-result-timestamps", "lr-result-transcript" -> "context"
+            else -> "summary"
+        })
+    }
+    var by by remember { mutableStateOf("type") }
+    var wrongOnly by remember { mutableStateOf(demoSel?.let { marks[it]?.correct != true } ?: true) }
     var partIdx by remember { mutableIntStateOf(if (demoScreen == "lr-result-p2") 1 else demoSel?.let { n -> test.sections.indexOfFirst { s -> s.groups.any { n in it.from..it.to } }.coerceAtLeast(0) } ?: 0) }
     var active by remember { mutableStateOf<Int?>(null) }
     var selected by remember { mutableStateOf(demoSel) }
@@ -143,7 +161,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     var cue by remember { mutableStateOf<Pair<Int, AudioCue>?>(null) }
     var cueId by remember { mutableIntStateOf(0) }
     var dict by remember { mutableStateOf(if (demoScreen == "lr-dictation") demoSel else null) }
-    val ctxReq = remember { BringIntoViewRequester() }
+    val tabsReq = remember { BringIntoViewRequester() }
     val paceReq = remember { BringIntoViewRequester() }
     val audioReq = remember { BringIntoViewRequester() }
     val insights = rememberLoad { runCatching { api.get<LrProgress>("/api/lr/progress") }.getOrNull() }
@@ -161,23 +179,34 @@ private fun Results(a: LrAttempt, nav: AppNav) {
         Accuracy("$noun ${s.part}", qs.count { it?.correct == true }, qs.size)
     }
     val byType = accuracyBy(test, a.marks ?: emptyList()) { typeLabel(it.group) }
+    val wrongCount = flat.count { marks[it.n]?.correct != true }
+    val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
+    val slips = (a.analysis?.gaps ?: emptyList()).count { it.kind == "spelling" || it.kind == "plural" }
+    val weak = byType.filter { it.total >= 3 && it.right < it.total }.minByOrNull { it.right.toDouble() / it.total }
+    val takeaways = listOfNotNull(
+        weak?.let { "Weakest: ${it.label.lowercase()}, ${it.right} of ${it.total} right." },
+        if (slips > 0) "$slips ${if (slips == 1) "answer was" else "answers were"} the right word with a spelling or plural slip." else null,
+        if (blank.isNotEmpty()) "${blank.size} left blank. There is no penalty for guessing." else null,
+        if (wrongCount == 0) "Every answer was correct." else null,
+    ).take(3)
 
-    fun jump(n: Int) {
+    fun go(t: String) { tab = t; scope.launch { delay(60); runCatching { tabsReq.bringIntoView() } } }
+    fun focus(n: Int) {
         val f = flat.firstOrNull { it.n == n } ?: return
-        if (selected == n) { selected = null; return }
         partIdx = test.sections.indexOfFirst { it.part == f.part }
         selected = n
         scrollKey++
         active = n
-        scope.launch { delay(150); runCatching { ctxReq.bringIntoView() }; delay(3000); if (active == n) active = null }
+        scope.launch { delay(3000); if (active == n) active = null }
     }
+    fun toggle(n: Int) { if (selected == n) selected = null else { val f = flat.firstOrNull { it.n == n }; if (f != null) { partIdx = test.sections.indexOfFirst { it.part == f.part }; selected = n } } }
     fun play(n: Int) {
         val f = flat.firstOrNull { it.n == n } ?: return
         val s = test.sections.firstOrNull { it.part == f.part } ?: return
         val w = audioWindow(s.timingRows, f.q) ?: return
         partIdx = test.sections.indexOf(s)
         cue = s.part to AudioCue(w.from, w.to, ++cueId)
-        scope.launch { delay(150); runCatching { ctxReq.bringIntoView() } }
+        go("context")
     }
     val sel = selected?.let { n -> flat.firstOrNull { it.n == n } }
     val selSection = sel?.let { f -> test.sections.firstOrNull { it.part == f.part } }
@@ -191,8 +220,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
             section.groups.flatMap { g -> g.questions.mapNotNull { q -> evidenceSpan(paras, q, g.type == "gap")?.let { QPin(it.p, it.s, q.n, marks[q.n]?.correct == true) } } }
         }
     }
-    fun pick(n: Int) { selected = null; jump(n); play(n) }
-    val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
+    fun pick(n: Int) { focus(n); play(n) }
     LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-timestamps") { delay(1500); runCatching { audioReq.bringIntoView() } } }
     LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-pacing") { delay(400); runCatching { paceReq.bringIntoView() } } }
     fun retake() {
@@ -206,6 +234,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
         }
     }
 
+    // ---- hero: the verdict, what to do about it, one action ----
     val time = a.elapsedS.takeIf { it > 0 }?.let { ShellDate.duration(it * 1000) }
     Text(
         "${if (listening) "Listening" else "Reading"}, ${if (test.variant == "academic") "Academic" else "General Training"}, ${a.mode} mode, ${ShellDate.date(a.submittedAt ?: a.startedAt)}${time?.let { ", $it" }.orEmpty()}",
@@ -229,77 +258,85 @@ private fun Results(a: LrAttempt, nav: AppNav) {
                 )
             }
         }
-        PrimaryButton("Retake", ::retake, Modifier.fillMaxWidth(), loading = busy)
+        if (takeaways.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            takeaways.forEach { t ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.padding(top = 9.dp).size(6.dp).background(e.brand, CircleShape))
+                    Text(t, style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                }
+            }
+        }
+        if (wrongCount > 0) {
+            PrimaryButton("See your $wrongCount ${if (wrongCount == 1) "mistake" else "mistakes"}", { wrongOnly = true; go("answers") }, Modifier.fillMaxWidth())
+            SecondaryButton("Retake", ::retake, Modifier.fillMaxWidth(), enabled = !busy)
+        } else PrimaryButton("Retake", ::retake, Modifier.fillMaxWidth(), loading = busy)
         error?.let { ErrorLine(it) }
     }
 
-    if (wide) Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-        AccuracyBlock("By ${noun.lowercase()}", byPart, Modifier.weight(1f))
-        AccuracyBlock("By question type", byType, Modifier.weight(1f))
-    } else {
-        AccuracyBlock("By ${noun.lowercase()}", byPart)
-        AccuracyBlock("By question type", byType)
+    Column(Modifier.bringIntoViewRequester(tabsReq)) {
+        Segmented(listOf("summary" to "Summary", "answers" to if (wrongCount > 0) "Answers ($wrongCount)" else "Answers", "context" to if (listening) "Transcript" else "Passage"), tab, { go(it) })
     }
 
-    // ---- pacing and TRUE / FALSE / NOT GIVEN ----
-    Column(Modifier.bringIntoViewRequester(paceReq), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        a.stats?.let {
-            PacingPanel(it, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else READING_SECONDS.toDouble(), marks, blank)
-        }
-        val pattern = (insights.state as? Load.Ready)?.value?.tfng?.pattern
-        TfngPanel(a.analysis?.tfng.orEmpty(), pattern)
-    }
-
-    // ---- your answers ----
-    SectionTitle("Your answers")
-    val wrong = flat.count { marks[it.n]?.correct != true }
-    Segmented(listOf("all" to "All ${flat.size}", "wrong" to "Wrong only ($wrong)"), if (wrongOnly) "wrong" else "all", { wrongOnly = it == "wrong" })
-    val rows = flat.filter { !wrongOnly || marks[it.n]?.correct != true }
-    if (rows.isEmpty()) Text("Nothing wrong. Every answer was correct.", style = MaterialTheme.typography.bodyLarge, color = e.muted)
-    else AppCard(padding = 0.dp) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("No.", Modifier.width(44.dp), style = MaterialTheme.typography.labelMedium, color = e.muted)
-            Text("Your answer", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = e.muted)
-            Text("Correct answer", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = e.muted)
-            if (listening) Text("Heard", Modifier.width(56.dp), style = MaterialTheme.typography.labelMedium, color = e.muted)
-            Spacer(Modifier.width(24.dp))
-        }
-        rows.forEach { f ->
-            HorizontalDivider(color = e.line)
-            AnswerRow(listening, f.n, marks[f.n], moments[f.n], f.part, { jump(f.n) }) { pick(f.n) }
-        }
-    }
-
-    // ---- in context ----
-    Column(Modifier.bringIntoViewRequester(ctxReq), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle(if (listening) "Transcript and questions" else "Passage and questions")
-        Text("Tap a number above to explain that question and mark where the answer is.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-    }
-    if (sel != null && selSection != null) QuestionDetail(
-        sel, selSection, marks[sel.n], entries[sel.n], onClose = { selected = null },
-        onPlay = { play(sel.n) }, onDictate = { dict = sel.n },
-    )
-    PrimaryTabRow(test.sections.indexOf(section), containerColor = e.bg, contentColor = e.brand, divider = { HorizontalDivider(color = e.line) }) {
-        test.sections.forEachIndexed { i, s ->
-            Tab(i == test.sections.indexOf(section), { partIdx = i }, Modifier.heightIn(min = 48.dp), selectedContentColor = e.brand, unselectedContentColor = e.muted) {
-                Text("$noun ${s.part}", Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+    when (tab) {
+        "summary" -> {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                SectionTitle("Where you lost marks")
+            }
+            Segmented(listOf("type" to "Question type", "part" to noun), by, { by = it })
+            AccuracyList(if (by == "type") byType else byPart)
+            val st = a.stats
+            if (st != null && (st.partS.values.sum() >= 5 || st.changes.isNotEmpty())) Column(Modifier.bringIntoViewRequester(paceReq)) {
+                Disclose("How you used your time", "Minutes per ${noun.lowercase()}, answers you changed, last-minute answers", initiallyOpen = demoScreen == "lr-result-pacing") {
+                    PacingPanel(st, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else READING_SECONDS.toDouble(), marks, blank)
+                }
+            }
+            val tfng = a.analysis?.tfng.orEmpty()
+            if (tfng.any { it.kind == "tfng" || it.kind == "ynng" }) Disclose("True / False / Not Given", "Which statements you mix up, and the rule for each") {
+                TfngPanel(tfng, (insights.state as? Load.Ready)?.value?.tfng?.pattern)
             }
         }
-    }
-    androidx.compose.runtime.key(section.part) {
-        VocabList(section.vocab.orEmpty())
-        if (listening) {
-            AppCard(Modifier.bringIntoViewRequester(audioReq)) { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second, pins = pins, pinned = selected, onPin = ::pick) }
-            section.transcript?.let { Transcript(it, evidence, scrollKey, tpins) { n -> selected = n; scrollKey++ } }
-            QuestionsBlock(section, ctx)
-        } else if (wide) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                AppCard(Modifier.weight(1f)) { Column(Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState())) { SectionPassage(section, evidence = evidence, scrollKey = scrollKey) } }
-                Column(Modifier.weight(1f).heightIn(max = 640.dp).verticalScroll(rememberScrollState())) { QuestionsBlock(section, ctx) }
+        "answers" -> {
+            Segmented(listOf("wrong" to "Wrong only ($wrongCount)", "all" to "All ${flat.size}"), if (wrongOnly) "wrong" else "all", { wrongOnly = it == "wrong" })
+            val rows = flat.filter { !wrongOnly || marks[it.n]?.correct != true }
+            if (rows.isEmpty()) Text("Nothing wrong. Every answer was correct.", style = MaterialTheme.typography.bodyLarge, color = e.muted)
+            else AppCard(padding = 0.dp) {
+                rows.forEachIndexed { i, f ->
+                    if (i > 0) HorizontalDivider(color = e.line)
+                    val open = selected == f.n
+                    AnswerRow(f.n, marks[f.n], moments[f.n], f.part, open, { toggle(f.n) }) { pick(f.n) }
+                    val sec = test.sections.firstOrNull { it.part == f.part }
+                    if (open && sec != null) Column(Modifier.fillMaxWidth().background(e.surface2.copy(alpha = 0.5f)).padding(16.dp)) {
+                        QuestionDetail(f, sec, marks[f.n], entries[f.n], onShow = { focus(f.n); go("context") }, onPlay = { pick(f.n) }, onDictate = { dict = f.n })
+                    }
+                }
             }
-        } else {
-            AppCard { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) { SectionPassage(section, evidence = evidence, scrollKey = scrollKey) } }
-            QuestionsBlock(section, ctx)
+        }
+        else -> {
+            Text(
+                if (listening) "Pick a question in Answers to mark where its answer is in the transcript. Tap a Q pill to open it." else "Pick a question in Answers to mark where its answer is in the passage.",
+                style = MaterialTheme.typography.bodyMedium, color = e.muted,
+            )
+            if (sel != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Showing question ${sel.n}", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = e.ink)
+                LinkButton("Clear", { selected = null })
+            }
+            PrimaryTabRow(test.sections.indexOf(section), containerColor = e.bg, contentColor = e.brand, divider = { HorizontalDivider(color = e.line) }) {
+                test.sections.forEachIndexed { i, s ->
+                    Tab(i == test.sections.indexOf(section), { partIdx = i }, Modifier.heightIn(min = 48.dp), selectedContentColor = e.brand, unselectedContentColor = e.muted) {
+                        Text("$noun ${s.part}", Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    }
+                }
+            }
+            androidx.compose.runtime.key(section.part) {
+                if (listening) {
+                    AppCard(Modifier.bringIntoViewRequester(audioReq)) { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second, pins = pins, pinned = selected, onPin = ::pick) }
+                }
+                VocabList(section.vocab.orEmpty())
+                if (listening) section.transcript?.let { Transcript(it, evidence, scrollKey, tpins) { n -> selected = n; scrollKey++ } }
+                else AppCard { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) { SectionPassage(section, evidence = evidence, scrollKey = scrollKey) } }
+                SectionTitle("Questions")
+                QuestionsBlock(section, ctx)
+            }
         }
     }
     if (dict != null && sel != null && sel.n == dict && selSection != null) DictationSheet(
@@ -342,33 +379,39 @@ private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int, pins: 
     }
 }
 
+/** One answer: icon plus number (never colour alone), what you wrote, the answer when wrong, an optional listen chip, and a chevron that opens the explanation. */
 @Composable
-private fun AnswerRow(listening: Boolean, n: Int, m: LrMark?, moment: com.soyeb.ieltspractice.core.QuestionMoment?, part: Int, onClick: () -> Unit, onPlay: () -> Unit) {
+private fun AnswerRow(n: Int, m: LrMark?, moment: com.soyeb.ieltspractice.core.QuestionMoment?, part: Int, open: Boolean, onClick: () -> Unit, onPlay: () -> Unit) {
     val e = MaterialTheme.ext
     val given = m?.given.orEmpty()
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp)
-            .semantics(mergeDescendants = true) {
-                contentDescription = "Question $n, ${if (m?.correct == true) "correct" else "wrong"}. Your answer: ${given.ifEmpty { "none" }}. Correct answer: ${m?.answer?.joinToString(" or ").orEmpty()}"
-            },
-        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.width(44.dp).heightIn(min = 48.dp).clickable(role = Role.Button, onClickLabel = "Show question $n in context", onClick = onClick), contentAlignment = Alignment.CenterStart) {
-            Text("$n", style = MaterialTheme.typography.titleSmall.merge(AppText.num), color = e.brand)
+    val right = m?.correct == true
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.weight(1f).heightIn(min = 56.dp).clickable(role = Role.Button, onClickLabel = if (open) "Hide explanation" else "Explain question $n", onClick = onClick)
+                .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Question $n, ${if (right) "correct" else "wrong"}. Your answer: ${given.ifEmpty { "none" }}." + (if (right) "" else " Correct answer: ${m?.answer?.joinToString(" or ").orEmpty()}.") + (if (open) " Expanded" else " Collapsed")
+                },
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (right) Icon(Icons.Filled.Check, null, Modifier.size(20.dp), tint = e.goodText) else Icon(Icons.Filled.Close, null, Modifier.size(20.dp), tint = e.badText)
+            Text("$n", Modifier.width(28.dp), style = MaterialTheme.typography.titleSmall.merge(AppText.num), color = e.ink)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    given.ifEmpty { "No answer" }, style = MaterialTheme.typography.bodyMedium,
+                    color = if (given.isEmpty()) e.muted else e.ink, fontStyle = if (given.isEmpty()) FontStyle.Italic else FontStyle.Normal,
+                )
+                if (!right) Text("Answer: ${m?.answer?.joinToString(" / ").orEmpty()}", style = MaterialTheme.typography.bodySmall, color = e.goodText, fontWeight = FontWeight.Medium)
+            }
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = e.muted)
         }
-        Text(
-            given.ifEmpty { "No answer" }, Modifier.weight(1f).padding(vertical = 6.dp), style = MaterialTheme.typography.bodyMedium,
-            color = if (m?.correct == true) e.ink else if (given.isEmpty()) e.muted else e.badText, fontStyle = if (given.isEmpty()) FontStyle.Italic else FontStyle.Normal,
-        )
-        Text(m?.answer?.joinToString(" / ").orEmpty(), Modifier.weight(1f).padding(vertical = 6.dp), style = MaterialTheme.typography.bodyMedium, color = e.ink, fontWeight = FontWeight.Medium)
         if (moment != null) Box(
-            Modifier.width(56.dp).heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onPlay)
-                .semantics { contentDescription = "Question $n: play from Part $part at ${clock(moment.at.toInt())}${if (moment.exact) "" else ", approximate"}" },
+            Modifier.heightIn(min = 48.dp).widthIn(min = 56.dp).clickable(role = Role.Button, onClick = onPlay)
+                .semantics { contentDescription = "Question $n: listen from Part $part at ${clock(moment.at.toInt())}${if (moment.exact) "" else ", approximate"}" },
             contentAlignment = Alignment.Center,
         ) {
             Text("${if (moment.exact) "" else "~"}${clock(moment.at.toInt())}", Modifier.background(e.surface2, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand)
         }
-        else if (listening) Spacer(Modifier.width(56.dp))
-        if (m?.correct == true) Icon(Icons.Filled.Check, null, Modifier.size(20.dp), tint = e.goodText) else Icon(Icons.Filled.Close, null, Modifier.size(20.dp), tint = e.badText)
+        Spacer(Modifier.width(8.dp))
     }
 }

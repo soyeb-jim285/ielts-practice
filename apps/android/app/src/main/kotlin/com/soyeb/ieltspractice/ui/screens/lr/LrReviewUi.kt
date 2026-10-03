@@ -2,6 +2,7 @@ package com.soyeb.ieltspractice.ui.screens.lr
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -81,7 +88,6 @@ import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.Chip
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
 import com.soyeb.ieltspractice.ui.theme.SecondaryButton
-import com.soyeb.ieltspractice.ui.theme.SectionTitle
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -140,15 +146,15 @@ fun EvidenceText(text: String, span: TextSpan?, style: TextStyle, color: Color, 
 @Composable
 private fun DetailBlock(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title.uppercase(), Modifier.semantics { heading() }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.ext.muted)
+        Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.ext.ink)
         content()
     }
 }
 
-/** What went wrong and where to look, for the selected question. */
+/** What went wrong and where to look, for one question; sits inline under its row in Answers. Verdict first, then why, evidence, reworded phrases (collapsed), actions. */
 @Composable
 fun QuestionDetail(
-    f: FlatQ, section: LrSection, mark: LrMark?, entry: LrGapEntry?, onClose: () -> Unit, onPlay: () -> Unit, onDictate: () -> Unit, modifier: Modifier = Modifier,
+    f: FlatQ, section: LrSection, mark: LrMark?, entry: LrGapEntry?, onShow: () -> Unit, onPlay: () -> Unit, onDictate: () -> Unit, modifier: Modifier = Modifier,
 ) {
     val e = MaterialTheme.ext
     val q = f.q
@@ -158,17 +164,14 @@ fun QuestionDetail(
     val win = if (listening) remember(q, timings) { audioWindow(timings, q) } else null
     val canDictate = listening && timings.isNotEmpty() && win?.exact == true && mark != null && !mark.correct
     val wrong = if (mark != null && !mark.correct) wrongNote(q, mark.given) else null
-    AppCard(modifier.semantics { contentDescription = "Question ${q.n} review" }) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Question ${q.n}", Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge, color = e.ink)
-                if (mark != null) Text(
-                    if (mark.correct) "Correct" else "You wrote ${mark.given.ifEmpty { "nothing" }}, the answer is ${mark.answer.joinToString(" / ")}",
-                    style = MaterialTheme.typography.bodyMedium, color = if (mark.correct) e.goodText else e.badText,
-                )
-            }
-            LinkButton("Close", onClose)
-        }
+    var reworded by remember { mutableStateOf(false) }
+    Column(modifier.fillMaxWidth().semantics { contentDescription = "Question ${q.n} review" }, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (mark != null) Text(
+            if (mark.correct) "You got this one right. The answer is ${mark.answer.joinToString(" / ")}."
+            else if (mark.given.isEmpty()) "You left it blank. The answer is ${mark.answer.joinToString(" / ")}."
+            else "You wrote ${mark.given}. The answer is ${mark.answer.joinToString(" / ")}.",
+            style = MaterialTheme.typography.bodyLarge, color = e.ink, fontWeight = FontWeight.Medium,
+        )
         if (entry != null) Column(
             Modifier.fillMaxWidth().background(e.warn.copy(alpha = 0.12f), RoundedCornerShape(10.dp)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -189,38 +192,64 @@ fun QuestionDetail(
             if (before > 0 && entry.kind == "spelling") Text("You've misspelt '${entry.word}' ${timesText(before)} before.", style = MaterialTheme.typography.bodyMedium, color = e.warnText, fontWeight = FontWeight.Medium)
             if (before > 0 && entry.kind == "plural") Text("You've slipped on the ending of '${entry.word}' ${timesText(before)} before.", style = MaterialTheme.typography.bodyMedium, color = e.warnText, fontWeight = FontWeight.Medium)
         }
-        r?.why?.let { DetailBlock("Why") { Text(it, style = MaterialTheme.typography.bodyMedium, color = e.ink) } }
+        r?.why?.let { DetailBlock("Why this is the answer") { Text(it, style = MaterialTheme.typography.bodyMedium, color = e.ink) } }
         if (wrong != null && mark != null) {
             val g = mark.given.uppercase()
             DetailBlock("Why ${if (g.length <= 3) g else "\"${mark.given}\""} is wrong") { Text(wrong, style = MaterialTheme.typography.bodyMedium, color = e.ink) }
         }
-        if (!r?.paraphrase.isNullOrEmpty()) DetailBlock("Same idea, different words") {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                r!!.paraphrase!!.filter { it.size >= 2 }.forEach { (a, b) ->
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(a, Modifier.background(e.surface2, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.bodyMedium, color = e.ink)
-                        Text("=", Modifier.clearAndSetSemantics { contentDescription = "means" }, color = e.muted)
-                        Text(b, Modifier.background(e.brandSoft, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.bodyMedium, color = e.brand)
-                    }
-                }
-            }
-        }
         r?.evidence?.let { ev ->
-            DetailBlock(if (listening) "In the recording" else "In the passage") {
+            DetailBlock(if (listening) "What the speaker says" else "What the passage says") {
                 Row(Modifier.height(IntrinsicSize.Min)) {
                     Box(Modifier.width(2.dp).fillMaxHeight().background(e.brand))
                     Text(ev, Modifier.padding(start = 10.dp), style = AppText.readingSm, color = e.ink)
                 }
             }
         }
-        if (win != null) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Play from ${clock(win.from.toInt())}", onPlay)
-                Text("Answer heard at ${clock(win.start.toInt())}${if (win.exact) "" else " (approx.)"}", Modifier.align(Alignment.CenterVertically), style = MaterialTheme.typography.bodySmall.merge(AppText.num), color = e.muted)
-                if (canDictate) SecondaryButton("Dictation", onDictate)
+        val para = r?.paraphrase?.filter { it.size >= 2 }.orEmpty()
+        if (para.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { reworded = !reworded }
+                    .semantics { contentDescription = "How the question is reworded, ${if (reworded) "expanded" else "collapsed"}" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("How the question is reworded", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = e.ink)
+                Icon(if (reworded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = e.muted)
+            }
+            if (reworded) para.forEach { (a, b) ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(a, Modifier.background(e.surface2, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                    Text("=", Modifier.clearAndSetSemantics { contentDescription = "means" }, color = e.muted)
+                    Text(b, Modifier.background(e.brandSoft, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.bodyMedium, color = e.brand)
+                }
             }
         }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(if (listening) "Show in transcript" else "Show in passage", onShow)
+            if (win != null) SecondaryButton("Listen from ${if (win.exact) "" else "~"}${clock(win.from.toInt())}", onPlay)
+            if (canDictate) SecondaryButton("Dictation", onDictate)
+        }
         if (r == null && entry == null && win == null) Text("No extra notes for this question.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+    }
+}
+
+/** A collapsed row with a title and a one-line hint; opens to [content]. */
+@Composable
+fun Disclose(title: String, hint: String, initiallyOpen: Boolean = false, content: @Composable () -> Unit) {
+    val e = MaterialTheme.ext
+    var open by remember { mutableStateOf(initiallyOpen) }
+    AppCard(padding = 0.dp) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { open = !open }.padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics { contentDescription = "$title. $hint. ${if (open) "Expanded" else "Collapsed"}" },
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, color = e.ink)
+                Text(hint, style = MaterialTheme.typography.bodySmall, color = e.muted)
+            }
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = e.muted)
+        }
+        if (open) Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
     }
 }
 
@@ -295,7 +324,6 @@ fun TfngPanel(rows: List<LrTfngRow>, pattern: LrTfngPattern?) {
     val kinds = listOf("tfng", "ynng").filter { k -> rows.any { it.kind == k } }
     if (kinds.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("True / False / Not Given")
         if (pattern != null && pattern.text.isNotEmpty()) Text(
             "${pattern.text} Across all your attempts.", Modifier.fillMaxWidth().background(e.warn.copy(alpha = 0.12f), RoundedCornerShape(10.dp)).padding(12.dp),
             style = MaterialTheme.typography.bodyMedium, color = e.warnText, fontWeight = FontWeight.Medium,
@@ -304,7 +332,7 @@ fun TfngPanel(rows: List<LrTfngRow>, pattern: LrTfngPattern?) {
             val rules = TFNG_RULES.getValue(k)
             val vals = rules.map { it.value }
             val mine = rows.filter { it.kind == k }
-            AppCard {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     "${if (k == "tfng") "True / False / Not Given" else "Yes / No / Not Given"}: the answer (rows) against what you chose (columns)",
                     style = MaterialTheme.typography.bodySmall, color = e.muted,
@@ -331,7 +359,7 @@ fun TfngPanel(rows: List<LrTfngRow>, pattern: LrTfngPattern?) {
                     }
                 }
             }
-            AppCard {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 rules.forEach { r ->
                     Column(Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(r.value, style = MaterialTheme.typography.titleSmall, color = e.ink)
@@ -357,8 +385,7 @@ fun PacingPanel(stats: LrStats, parts: List<Pair<Int, List<Int>>>, noun: String,
     fun list(ns: List<Int>) = ns.sorted().joinToString(", ")
     fun dur(s: Double) = ShellDate.duration((s * 1000).toInt())
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("Pacing")
-        AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Time per ${noun.lowercase()}${split?.let { ", against ${dur(it)} each" }.orEmpty()}", style = MaterialTheme.typography.bodySmall, color = e.muted)
             times.forEach { (part, s) ->
                 val over = split != null && s > split * 1.15
@@ -372,7 +399,7 @@ fun PacingPanel(stats: LrStats, parts: List<Pair<Int, List<Int>>>, noun: String,
             }
             if (split != null) Text("The marker is an even split of the 60 minutes.", style = MaterialTheme.typography.bodySmall, color = e.muted)
         }
-        AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Fact("Answers you changed") {
                 if (changed.isNotEmpty()) {
                     Text(buildAnnotatedString {
@@ -416,11 +443,10 @@ fun VocabList(vocab: List<LrVocab>) {
     var added by remember { mutableStateOf(setOf<String>()) }
     var busy by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    AppCard(padding = 0.dp) {
-        Text("Key vocabulary", Modifier.padding(16.dp).semantics { heading() }, style = MaterialTheme.typography.titleMedium, color = e.ink)
-        vocab.forEach { v ->
-            HorizontalDivider(color = e.line)
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+    Disclose("Key vocabulary", "${vocab.size} useful ${if (vocab.size == 1) "word" else "words"} from this part, with meanings") {
+        vocab.forEachIndexed { i, v ->
+            if (i > 0) HorizontalDivider(color = e.line)
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(v.word, style = MaterialTheme.typography.titleSmall, color = e.ink)
                     Text(v.meaning, style = MaterialTheme.typography.bodyMedium, color = e.ink)
@@ -444,6 +470,6 @@ fun VocabList(vocab: List<LrVocab>) {
                 }
             }
         }
-        error?.let { Text(it, Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = e.badText) }
+        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = e.badText) }
     }
 }

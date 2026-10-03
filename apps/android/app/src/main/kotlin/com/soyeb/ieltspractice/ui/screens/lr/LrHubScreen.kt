@@ -98,6 +98,7 @@ private fun HubContent(skill: String, target: Double, nav: AppNav) {
     val listening = skill == "listening"
     val load = rememberLoad(skill) { api.getList<LrTestItem>("/api/lr/tests", mapOf("skill" to skill)) }
     var variant by remember { mutableStateOf("all") }
+    var show by remember { mutableStateOf("all") }
     var pick by remember { mutableStateOf<LrTestItem?>(null) }
     val state = load.state
     LaunchedEffect(state) { if (demo?.screen == "lr-mode" && state is Load.Ready) pick = state.value.firstOrNull { it.attemptId == null } }
@@ -112,7 +113,13 @@ private fun HubContent(skill: String, target: Double, nav: AppNav) {
             if (all.isEmpty()) EmptyState("No ${skill} tests yet", "Tests appear here once they are imported.")
             else {
                 if (all.map { it.variant }.toSet().size > 1) Segmented(listOf("all" to "All", "academic" to "Academic", "general" to "General Training"), variant, { variant = it })
-                val items = all.filter { variant == "all" || it.variant == variant }
+                val done = all.count { it.status == "submitted" }
+                if (done > 0) {
+                    Text("$done of ${all.size} done", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
+                    Segmented(listOf("all" to "All", "todo" to "To do", "done" to "Done"), show, { show = it })
+                }
+                val items = all.filter { (variant == "all" || it.variant == variant) && (show == "all" || (show == "done") == (it.status == "submitted")) }
+                if (items.isEmpty()) Text("No tests match this filter.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.ext.muted)
                 lrHubGroups(items).forEach { g ->
                     Column(Modifier.fillMaxWidth()) {
                         GroupHeader(g.heading)
@@ -137,7 +144,7 @@ private fun TestRow(t: LrTestItem, listening: Boolean, target: Double, onClick: 
     val name = r?.let { "Test ${it.second}" } ?: t.title
     val sub = when {
         t.attemptId != null -> "Resume in ${t.mode} mode"
-        t.status == "submitted" -> "Retake or review"
+        t.status == "submitted" -> "Retake this test"
         else -> "${t.total} questions"
     }
     val statusText = when {

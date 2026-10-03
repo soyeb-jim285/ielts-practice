@@ -177,12 +177,18 @@ private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit) 
             Text(a.title, style = MaterialTheme.typography.titleSmall, color = e.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!done) Chip("In progress", color = e.warnText)
             Text(
-                "${if (a.mode == "exam") "Exam" else "Practice"}, ${ShellDate.date(a.startedAt)}" + if (done) ", ${a.raw}/${a.total}" else "",
+                "${if (a.mode == "exam") "Exam" else "Practice"}, ${ShellDate.date(a.startedAt)}",
                 style = MaterialTheme.typography.bodySmall, color = e.muted,
             )
         }
         val b = a.band
-        if (done && b != null) Text(fmt(b), Modifier.clearAndSetSemantics { contentDescription = "Band ${fmt(b)}" }, style = AppText.band(20), color = bandTextColor(b, target))
+        if (done && b != null) Row(
+            Modifier.clearAndSetSemantics { contentDescription = "Score ${a.raw} of ${a.total}, band ${fmt(b)}" },
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom,
+        ) {
+            Text("${a.raw}/${a.total}", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall.merge(AppText.num), color = e.muted)
+            Text(fmt(b), style = AppText.band(20), color = bandTextColor(b, target))
+        }
     }
 }
 

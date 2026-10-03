@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -240,10 +241,26 @@ private fun MistakeRow(m: Mistake, showCategory: Boolean, onAdd: () -> Unit) {
 @Composable
 private fun SpellingSection(items: List<LrSpellingItem>, onReview: () -> Unit) {
     val e = MaterialTheme.ext
+    var kind by remember { mutableStateOf("all") }
+    var more by remember { mutableStateOf(false) }
+    val nPlural = items.count { it.kind == "plural" }
+    val repeats = items.count { it.count > 1 }
+    val shown = items.filter { kind == "all" || it.kind == kind }
+    val list = if (more) shown else shown.take(8)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle("Spelling and plurals")
+        Text(
+            "${items.size} ${if (items.size == 1) "word" else "words"}: ${items.size - nPlural} spelling, $nPlural plural" +
+                (if (repeats > 0) ". $repeats came up more than once, start with those." else "."),
+            style = MaterialTheme.typography.bodyMedium, color = e.muted,
+        )
+        Row(Modifier.semantics { contentDescription = "Filter by kind" }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("all" to "All", "spelling" to "Spelling", "plural" to "Plural").forEach { (k, l) ->
+                FilterChip(l, items.count { k == "all" || it.kind == k }, kind == k) { kind = k; more = false }
+            }
+        }
         AppCard(padding = 0.dp) {
-            items.forEachIndexed { i, w ->
+            list.forEachIndexed { i, w ->
                 if (i > 0) RowDivider()
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
@@ -253,7 +270,10 @@ private fun SpellingSection(items: List<LrSpellingItem>, onReview: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(w.word, style = MaterialTheme.typography.titleMedium.merge(AppText.num), color = e.ink)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                            Text(w.word, style = MaterialTheme.typography.titleMedium.merge(AppText.num), color = e.ink)
+                            Text(if (w.kind == "plural") "plural" else "spelling", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = e.muted)
+                        }
                         Text(
                             buildAnnotatedString {
                                 append("You wrote ")
@@ -265,11 +285,11 @@ private fun SpellingSection(items: List<LrSpellingItem>, onReview: () -> Unit) {
                             style = MaterialTheme.typography.bodySmall, color = e.muted,
                         )
                     }
-                    Chip(if (w.kind == "plural") "Plural" else "Spelling")
-                    Text("${w.count}\u00d7", style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = e.muted)
+                    Text("${w.count}\u00d7", style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = if (w.count > 1) e.warnText else e.muted, fontWeight = if (w.count > 1) FontWeight.SemiBold else FontWeight.Normal)
                 }
             }
         }
+        if (shown.size > 8) LinkButton(if (more) "Show fewer" else "Show all ${shown.size}", { more = !more })
         LinkButton("Practise these in Review  \u2192", onReview)
     }
 }
