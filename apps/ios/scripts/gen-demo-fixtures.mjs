@@ -66,7 +66,7 @@ const at = (w) => words.find((x) => x.w === w).start;
 const widx = (w) => words.findIndex((x) => x.w === w);
 const pauses = [[3.1, 3.9, 'between'], [12.6, 13.9, 'within'], [27.2, 28.0, 'between'], [44.5, 45.9, 'within']]
   .map(([s, e, k]) => ({ start: s, end: e, dur: +(e - s).toFixed(2), kind: k, midClause: k === 'within', voiced: false }));
-const fillers = words.filter((w) => w.w === 'um' || w.w === 'uh').map((w) => ({ word: w.w, time: w.start, kind: 'filled' }));
+const fillers = words.filter((w) => w.w === 'um' || w.w === 'uh').map((w) => ({ word: w.w, time: w.start, kind: 'lexical' }));
 const wpmSeries = Array.from({ length: Math.floor(dur / 5) }, (_, i) => ({ t: (i + 1) * 5, wpm: [118, 132, 104, 141, 137, 126, 150, 129, 135, 143, 121, 138, 131, 127][i % 14] }));
 const crit = (band, descriptor, summary, evidence) => ({ band, range: [band - 0.5, band + 0.5], descriptor, evidence, summary });
 const speakingAnalysis = {
@@ -99,7 +99,8 @@ const speakingAnalysis = {
     wpmSeries, wpmStdDev: 12.8,
     fluency: {
       events: [
-        ...fillers.map((f) => ({ kind: 'filled', start: f.time, end: f.time + 0.35, sources: ['asr'] })),
+        ...fillers.map((f) => ({ kind: 'filled', start: f.time, end: f.time + 0.35, sources: ['stt'] })),
+        { kind: 'filled', start: at('ideas') - 0.7, end: at('ideas') - 0.35, sources: ['acoustic'] }, // heard in the audio only
         { kind: 'repetition', start: at('thought') - 0.5, end: at('thought'), sources: ['asr', 'llm'] },
         { kind: 'repair', start: at('mean') - 0.4, end: at('mean') + 0.3, sources: ['asr', 'llm'] },
       ],

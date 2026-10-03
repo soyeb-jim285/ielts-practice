@@ -37,8 +37,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
+
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soyeb.ieltspractice.core.AnalysisError
@@ -83,8 +84,8 @@ private fun group(e: AnalysisError): TrFilter = when (MarkerType.of(e.category))
 /** A task or relevance note on a whole stretch (8+ words): drawn as a sentence tint, only when its filter is on. */
 private fun isSentenceNote(e: AnalysisError) = group(e) == TrFilter.Other && e.end - e.start >= 7
 
-/** A typed tag before the word where a repeat, repair, false start, cut-off or held sound happens. */
-private class TrMark(val short: String, val detail: String, val time: Double)
+/** A typed tag (or, for a filler only heard in the audio, an inline italic "um") before the word where a repeat, repair, false start, cut-off or held sound happens. */
+private class TrMark(val short: String, val detail: String, val time: Double, val typed: Boolean = false)
 
 private class TrToken(val id: Int, val word: Word) {
     val errors = mutableListOf<AnalysisError>()
@@ -120,11 +121,12 @@ private class TrModel(r: AnalysisResult, timeline: Timeline) {
             }
             for (u in m.unclear) if (u.wordIdx in tokens.indices) tokens[u.wordIdx].unclearTier = u.tier
             for (e in m.fluency?.events.orEmpty()) {
-                if (e.kind == "filled" && "stt" in e.sources) continue // already struck through on its word
+                if (e.kind == "filled" && "stt" in e.sources) continue // already marked on its word
                 if (tokens.isEmpty()) break
                 val i = tokens.indexOfFirst { it.word.end > e.start - 0.02 }.takeIf { it >= 0 } ?: tokens.lastIndex
-                val what = DisfluencyKinds.all.firstOrNull { it.key == e.kind }?.what ?: "Disfluency"
-                tokens[i].marks += TrMark(Timeline.disfluencyShort[e.kind] ?: e.kind, what, e.start)
+                val filled = e.kind == "filled"
+                val what = if (filled) "Filler (um, uh, er) heard in the audio here; speech recognition left it out" else DisfluencyKinds.all.firstOrNull { it.key == e.kind }?.what ?: "Disfluency"
+                tokens[i].marks += TrMark(Timeline.disfluencyShort[e.kind] ?: e.kind, what, e.start, filled)
             }
         }
         unplaced = r.errors.filter { it.start !in tokens.indices }
@@ -225,10 +227,10 @@ private fun Legend(model: TrModel, timeline: Timeline, loaded: Boolean, colors: 
                 }
             }
         }
-        if (model.tokens.any { it.filler }) LegendItem("filler") {
-            Text("um", style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.LineThrough), color = e.muted)
+        if (model.tokens.any { it.filler || it.marks.any { m -> m.typed } }) LegendItem("filler (italic when only heard in the audio)") {
+            Underlined("um", MarkerType.Fluency.underlineDashes(), colors.getValue(MarkerType.Fluency))
         }
-        if (model.tokens.any { it.marks.isNotEmpty() }) LegendItem("tap a tag for the detail") { TagChip("repeat") }
+        if (model.tokens.any { it.marks.any { m -> !m.typed } }) LegendItem("tap a tag for the detail") { TagChip("repeat") }
         LegendItem("long pause; short ones show under Pauses") { PauseSample() }
         if (model.hasSentenceNotes) LegendItem("task note (select Task & other)") {
             Text("…", Modifier.background(e.warn.copy(alpha = 0.14f), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = e.ink)
@@ -288,6 +290,7 @@ private fun WordView(
     val sentence = err?.let(::isSentenceNote) ?: false
     var type = err?.let { MarkerType.of(it.category) }
     if (err == null && t.unclearTier != null && !t.filler) type = MarkerType.Pronunciation
+    if (err == null && t.filler) type = MarkerType.Fluency // fillers stay in the text with the fluency underline
     val underlineColor: Color? = if (sentence) null else (type?.let { colors.getValue(it) } ?: if (err != null) e.muted else null)
     val isNow by remember(t.id) { derivedStateOf { now.value == t.id } }
     val picked = t.id == focusWord
@@ -309,7 +312,7 @@ private fun WordView(
     }
     val dashes = type?.underlineDashes()
     Row(bring, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        t.marks.forEach { m -> MarkChip(m, filter, onMark, player) }
+        t.marks.forEach { m -> if (m.typed) TypedFiller(m, filter, onMark, player, colors.getValue(MarkerType.Fluency)) else MarkChip(m, filter, onMark, player) }
         val label = if (err == null) t.word.w else "${t.word.w}, ${categoryLabel(err.category)} mistake"
         Text(
             t.word.w,
@@ -328,11 +331,32 @@ private fun WordView(
                 .clickable(role = Role.Button) { if (err != null) onSelect(err) else player.seek(max(0.0, t.word.start - 0.3)) }
                 .semantics { contentDescription = label }
                 .padding(horizontal = 2.dp),
-            style = AppText.readingSm.copy(textDecoration = if (t.filler) TextDecoration.LineThrough else null),
-            color = if (t.filler) e.muted else e.ink,
+            style = AppText.readingSm,
+            color = e.ink,
         )
         t.pauseAfter?.let { p -> if (isLongPause(p) || filter == TrFilter.Pauses) PauseChip(p, filter, player) }
     }
+}
+
+/** A filled pause the recogniser dropped, typed where it was heard: italic "um" with the fluency underline; tap to hear it. */
+@Composable
+private fun TypedFiller(m: TrMark, filter: TrFilter, onMark: (String) -> Unit, player: ResultPlayer, color: Color) {
+    val dashes = MarkerType.Fluency.underlineDashes()
+    Text(
+        "um",
+        Modifier.alpha(if (filter == TrFilter.All || filter == TrFilter.Fluency) 1f else 0.35f)
+            .drawBehind {
+                val y = size.height - 2.dp.toPx()
+                drawLine(
+                    color, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), 1.5.dp.toPx(),
+                    pathEffect = dashes?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { i -> d[i].dp.toPx() }) },
+                )
+            }
+            .clickable(role = Role.Button) { onMark(m.detail); player.seek(max(0.0, m.time - 0.3)) }
+            .semantics { contentDescription = m.detail }
+            .padding(horizontal = 2.dp),
+        style = AppText.readingSm.copy(fontStyle = FontStyle.Italic), color = MaterialTheme.ext.ink,
+    )
 }
 
 @Composable

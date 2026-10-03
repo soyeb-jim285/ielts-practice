@@ -50,6 +50,8 @@ private struct TrMark {
     let short: String
     let detail: String
     let time: Double
+    /// A filled pause only heard in the audio: typed inline as an italic "um" instead of a tag.
+    var typed = false
 }
 
 private struct TrToken: Identifiable {
@@ -100,11 +102,12 @@ private struct TrModel {
             }
             for u in m.unclear where u.wordIdx >= 0 && u.wordIdx < tokens.count { tokens[u.wordIdx].unclearTier = u.tier }
             for e in m.fluency?.events ?? [] {
-                if e.kind == "filled" && e.sources.contains("stt") { continue } // already struck through on its word
+                if e.kind == "filled" && e.sources.contains("stt") { continue } // already marked on its word
                 guard !tokens.isEmpty else { break }
                 let i = tokens.firstIndex { $0.word.end > e.start - 0.02 } ?? (tokens.count - 1)
-                let what = Disfluency.kinds.first { $0.key == e.kind }?.what ?? "Disfluency"
-                tokens[i].marks.append(TrMark(short: Self.short[e.kind] ?? e.kind, detail: what, time: e.start))
+                let filled = e.kind == "filled"
+                let what = filled ? "Filler (um, uh, er) heard in the audio here; speech recognition left it out" : (Disfluency.kinds.first { $0.key == e.kind }?.what ?? "Disfluency")
+                tokens[i].marks.append(TrMark(short: Self.short[e.kind] ?? e.kind, detail: what, time: e.start, typed: filled))
             }
         }
         self.tokens = tokens
@@ -225,10 +228,10 @@ struct TranscriptView: View {
                     }
                 }
             }
-            if model.tokens.contains(where: \.filler) {
-                legendItem("filler") { Text("um").strikethrough(true, color: Color.muted).foregroundStyle(Color.muted) }
+            if model.tokens.contains(where: { $0.filler || $0.marks.contains(where: \.typed) }) {
+                legendItem("filler (italic when only heard in the audio)") { Text("um").underline(true, pattern: MarkerType.fluency.underline, color: MarkerType.fluency.color) }
             }
-            if model.tokens.contains(where: { !$0.marks.isEmpty }) {
+            if model.tokens.contains(where: { $0.marks.contains { !$0.typed } }) {
                 legendItem("tap a tag for the detail") { Text("repeat").font(.caption2.weight(.medium)).padding(.horizontal, 6).padding(.vertical, 2).background(Color.surface2, in: Capsule()) }
             }
             legendItem("long pause; short ones show under Pauses") {
@@ -291,6 +294,7 @@ struct TranscriptView: View {
         // Underline in the mistake's type colour and pattern; task notes and other categories stay neutral.
         var type = err.flatMap { MarkerType.of(category: $0.category) }
         if err == nil, t.unclearTier != nil, !t.filler { type = .pronunciation }
+        if err == nil, t.filler { type = .fluency } // fillers stay in the text with the fluency underline
         let underlineColor: Color? = sentence ? nil : (type?.color ?? (err != nil ? Color.muted : nil))
         let isNow = t.id == now
         let picked = t.id == focusWord
@@ -301,9 +305,8 @@ struct TranscriptView: View {
             ForEach(Array(t.marks.enumerated()), id: \.offset) { _, m in markChip(m) }
             Text(t.word.w)
                 .font(.system(.body, design: .serif))
-                .strikethrough(t.filler, color: Color.muted)
                 .underline(underlineColor != nil, pattern: type?.underline ?? .solid, color: underlineColor)
-                .foregroundStyle(t.filler ? Color.muted : Color.ink)
+                .foregroundStyle(Color.ink)
                 .padding(.horizontal, 2)
                 .background(background, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(picked ? Color.ink : Color.clear, lineWidth: 1.5))
@@ -325,7 +328,27 @@ struct TranscriptView: View {
         return "\(t.word.w), \(resCategoryLabel(err.category)) mistake"
     }
 
-    private func markChip(_ m: TrMark) -> some View {
+    @ViewBuilder private func markChip(_ m: TrMark) -> some View {
+        if m.typed { typedFiller(m) } else { tagChip(m) }
+    }
+
+    private func typedFiller(_ m: TrMark) -> some View {
+        Button {
+            markDetail = markDetail == m.detail ? nil : m.detail
+            player.seek(to: max(0, m.time - 0.3))
+        } label: {
+            Text("um").italic()
+                .font(.system(.body, design: .serif))
+                .underline(true, pattern: MarkerType.fluency.underline, color: MarkerType.fluency.color)
+                .foregroundStyle(Color.ink)
+                .padding(.horizontal, 2)
+                .opacity(filter == .all || filter == .fluency ? 1 : 0.35)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(m.detail)
+    }
+
+    private func tagChip(_ m: TrMark) -> some View {
         Button {
             markDetail = markDetail == m.detail ? nil : m.detail
             player.seek(to: max(0, m.time - 0.3))
