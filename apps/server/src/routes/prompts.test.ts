@@ -101,11 +101,25 @@ describe('speaking test + seed', () => {
     const t = await body(await req('/api/speaking/test', { headers }));
     expect(t.part1).toHaveLength(3);
     expect(t.part1.every((p: any) => p.part === 1 && p.followUps.length === 4)).toBe(true);
+    expect(t.part1[0].type).toBe('p1-intro');
+    expect(t.part1.slice(1).every((p: any) => p.type === 'p1-topic')).toBe(true);
     expect(t.part2.type).toBe('cue-card');
     expect(t.part2.bullets.length).toBeGreaterThan(0);
     expect(t.part3.part).toBe(3);
     expect(t.part3.groupId).toBe(t.part2.groupId);
     expect((await req('/api/speaking/test?source=cambridge', { headers })).status).toBe(404);
+  });
+
+  it('re-seeding updates the questions of an existing slug in place (attempt FKs stay valid)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bank-'));
+    const write = (q: string) => writeFile(join(dir, 'speaking-p1.json'), JSON.stringify([{ slug: 'p1-x', topic: 'x', frame: 'intro', questions: [q] }]));
+    await write('Old question?');
+    await seedBank(db, dir);
+    const [before] = await db.select().from(prompts);
+    await write('New question?');
+    await seedBank(db, dir);
+    const [after] = await db.select().from(prompts);
+    expect([after!.id, after!.type, after!.followUps]).toEqual([before!.id, 'p1-intro', ['New question?']]);
   });
 
   it('skips invalid entries and unknown files with a warning', async () => {

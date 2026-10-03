@@ -23,7 +23,7 @@ export const P3_MAX_QUESTIONS = 6;
 const P1_MAX_QUESTIONS = 12;
 
 export const LINES = {
-  intro: "Hello. My name is Alex, and I'll be your examiner today. Could you tell me your full name, please?",
+  intro: "Hello. My name is Alex, and I'll be your examiner today. Could you tell me your full name, please, and where you are from?",
   prep: (topic: string) =>
     `Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here's your topic: ${topic}.`,
   prepMore: 'You still have a little time to prepare.',

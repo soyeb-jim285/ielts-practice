@@ -40,8 +40,9 @@ const firstSentence = (s: string) => {
 export const BANK_KINDS: { prefix: string; schema: z.ZodType; rows: (e: any) => Row[] }[] = [
   {
     prefix: 'speaking-p1',
-    schema: Base.extend({ questions: strs }),
-    rows: (e) => [{ slug: e.slug, skill: 'speaking', part: 1, type: 'p1-topic', topic: e.topic, title: e.topic, body: e.questions[0], followUps: e.questions }],
+    // frame: 'intro' = opening frame (hometown, home, work/study) every full test starts with; 'branch' = work/study variants, standalone practice only.
+    schema: Base.extend({ questions: strs, frame: z.enum(['intro', 'branch']).optional() }),
+    rows: (e) => [{ slug: e.slug, skill: 'speaking', part: 1, type: e.frame ? `p1-${e.frame}` : 'p1-topic', topic: e.topic, title: e.topic, body: e.questions[0], followUps: e.questions }],
   },
   {
     prefix: 'speaking-p2',
