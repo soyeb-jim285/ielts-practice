@@ -1,0 +1,517 @@
+{
+ "slug": "dev-listening-1",
+ "skill": "listening",
+ "variant": "academic",
+ "source": "generated",
+ "ref": "Dev L1",
+ "title": "Dev fixture: Listening test 1",
+ "sections": [
+  {
+   "part": 1,
+   "title": "Part 1",
+   "audio": "dev-l1/part1.mp3",
+   "transcript": "Receptionist: Riverside Arts Centre, how can I help?\nCaller: Hello, I'd like to join the beginners' pottery course.\nReceptionist: Of course. Can I take your surname?\nCaller: It's Whitlock, W-H-I-T-L-O-C-K.\nReceptionist: Thank you. The class meets on Thursday evenings, starting at six thirty.\nCaller: And how much is the course?\nReceptionist: It's eighty-five pounds for eight weeks, clay included.\nCaller: Do I need to bring anything?\nReceptionist: Just an apron. We provide everything else. The studio is number fourteen, behind the library.\nCaller: Is there a dress code?\nReceptionist: You must wear closed shoes because of the heavy tools. Parking is free after five pm. Your tutor is Elena, and the course ends with a small exhibition of your work.",
+   "groups": [
+    {
+     "from": 1,
+     "to": 6,
+     "type": "gap",
+     "instructions": "Questions 1-6. Complete the form below. Write ONE WORD AND/OR A NUMBER for each answer.",
+     "wordLimit": "ONE WORD AND/OR A NUMBER",
+     "title": "Course booking form",
+     "content": "| Item | Detail |\n|---|---|\n| Course | Beginners' pottery |\n| Surname | {{1}} |\n| Day | {{2}} evenings |\n| Start time | {{3}} pm |\n| Fee | £{{4}} |\n| Bring | an {{5}} |\n| Studio number | {{6}} |",
+     "questions": [
+      {
+       "n": 1,
+       "answer": [
+        "Whitlock"
+       ]
+      },
+      {
+       "n": 2,
+       "answer": [
+        "Thursday"
+       ]
+      },
+      {
+       "n": 3,
+       "answer": [
+        "6.30",
+        "6:30",
+        "six thirty"
+       ]
+      },
+      {
+       "n": 4,
+       "answer": [
+        "85",
+        "eighty-five"
+       ]
+      },
+      {
+       "n": 5,
+       "answer": [
+        "apron"
+       ]
+      },
+      {
+       "n": 6,
+       "answer": [
+        "14",
+        "fourteen"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 7,
+     "to": 10,
+     "type": "gap",
+     "instructions": "Questions 7-10. Complete the sentences. Write ONE WORD AND/OR A NUMBER for each answer.",
+     "wordLimit": "ONE WORD AND/OR A NUMBER",
+     "questions": [
+      {
+       "n": 7,
+       "text": "Students must wear {{7}} shoes.",
+       "answer": [
+        "closed"
+       ]
+      },
+      {
+       "n": 8,
+       "text": "Parking is free after {{8}} pm.",
+       "answer": [
+        "5",
+        "five"
+       ]
+      },
+      {
+       "n": 9,
+       "text": "The tutor is called {{9}}.",
+       "answer": [
+        "Elena"
+       ]
+      },
+      {
+       "n": 10,
+       "text": "The course ends with an {{10}} of work.",
+       "answer": [
+        "exhibition"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "part": 2,
+   "title": "Part 2",
+   "audio": "dev-l1/part2.mp3",
+   "transcript": "Guide: Welcome to Millbank Riverside Park. It was a rail yard until the 1990s, which is why the paths are so straight. This year two facilities are new: the bike hire stand and the boat tours that leave from the jetty. The cafe and the playground have been here for years.\nNow, to find your way: the visitor centre is the building next to the main gate, marked C on your map. The cafe is on the corner by the river, A. Bike hire is at the far end of the lawn, E, and the toilets are beside the playground, F.\nVolunteers do most of the planting, usually on Saturdays. The park is busiest in summer, but the best time for birdwatching is early morning. Tours last forty minutes, and the only thing you cannot do in the park is light a barbecue.",
+   "groups": [
+    {
+     "from": 11,
+     "to": 12,
+     "type": "mcq-multi",
+     "instructions": "Questions 11 and 12. Choose TWO letters, A-E. Which TWO facilities are new this year?",
+     "options": [
+      {
+       "key": "A",
+       "text": "the cafe"
+      },
+      {
+       "key": "B",
+       "text": "the bike hire stand"
+      },
+      {
+       "key": "C",
+       "text": "the playground"
+      },
+      {
+       "key": "D",
+       "text": "the boat tours"
+      },
+      {
+       "key": "E",
+       "text": "the visitor centre"
+      }
+     ],
+     "questions": [
+      {
+       "n": 11,
+       "text": "Which TWO facilities are new this year?",
+       "answer": [
+        "B",
+        "D"
+       ]
+      },
+      {
+       "n": 12,
+       "answer": [
+        "B",
+        "D"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 13,
+     "to": 16,
+     "type": "match",
+     "instructions": "Questions 13-16. Label the map. Write the correct letter, A-F, next to Questions 13-16.",
+     "reusable": false,
+     "image": "dev-l1/map.svg",
+     "title": "Millbank Riverside Park",
+     "options": [
+      {
+       "key": "A",
+       "text": ""
+      },
+      {
+       "key": "B",
+       "text": ""
+      },
+      {
+       "key": "C",
+       "text": ""
+      },
+      {
+       "key": "D",
+       "text": ""
+      },
+      {
+       "key": "E",
+       "text": ""
+      },
+      {
+       "key": "F",
+       "text": ""
+      }
+     ],
+     "questions": [
+      {
+       "n": 13,
+       "text": "Visitor centre",
+       "answer": [
+        "C"
+       ]
+      },
+      {
+       "n": 14,
+       "text": "Cafe",
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 15,
+       "text": "Bike hire",
+       "answer": [
+        "E"
+       ]
+      },
+      {
+       "n": 16,
+       "text": "Toilets",
+       "answer": [
+        "F"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 17,
+     "to": 20,
+     "type": "mcq",
+     "instructions": "Questions 17-20. Choose the correct letter, A, B or C.",
+     "questions": [
+      {
+       "n": 17,
+       "text": "Before it became a park, the site was",
+       "options": [
+        {
+         "key": "A",
+         "text": "a factory"
+        },
+        {
+         "key": "B",
+         "text": "a rail yard"
+        },
+        {
+         "key": "C",
+         "text": "a market"
+        }
+       ],
+       "answer": [
+        "B"
+       ]
+      },
+      {
+       "n": 18,
+       "text": "Most of the planting is done by",
+       "options": [
+        {
+         "key": "A",
+         "text": "volunteers"
+        },
+        {
+         "key": "B",
+         "text": "council staff"
+        },
+        {
+         "key": "C",
+         "text": "schoolchildren"
+        }
+       ],
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 19,
+       "text": "The best time for birdwatching is",
+       "options": [
+        {
+         "key": "A",
+         "text": "at dusk"
+        },
+        {
+         "key": "B",
+         "text": "at midday"
+        },
+        {
+         "key": "C",
+         "text": "early in the morning"
+        }
+       ],
+       "answer": [
+        "C"
+       ]
+      },
+      {
+       "n": 20,
+       "text": "Visitors are not allowed to",
+       "options": [
+        {
+         "key": "A",
+         "text": "light a barbecue"
+        },
+        {
+         "key": "B",
+         "text": "hire a bike"
+        },
+        {
+         "key": "C",
+         "text": "take photographs"
+        }
+       ],
+       "answer": [
+        "A"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "part": 3,
+   "title": "Part 3",
+   "audio": "dev-l1/part3.mp3",
+   "transcript": "Priya: So our project is rooftop beekeeping. Who's doing what?\nMarcus: I'll contact the council about permits. You're better at the survey, Priya.\nPriya: Fine, I'll design the questionnaire. And we should both visit the apiary on campus next week.\nMarcus: Agreed. Then you write the introduction and I'll prepare the slides.\nPriya: Now the stages. First, we select a sunny terrace for the hives.\nMarcus: Second, buy protective suits. Third, record the weight of each hive every week.\nPriya: Then compare honey yield between seasons.\nMarcus: And finally present everything in a poster rather than slides at the fair.",
+   "groups": [
+    {
+     "from": 21,
+     "to": 25,
+     "type": "match",
+     "instructions": "Questions 21-25. Who will do each task? Choose the correct letter, A, B or C.",
+     "reusable": true,
+     "options": [
+      {
+       "key": "A",
+       "text": "Priya"
+      },
+      {
+       "key": "B",
+       "text": "Marcus"
+      },
+      {
+       "key": "C",
+       "text": "Both students"
+      }
+     ],
+     "questions": [
+      {
+       "n": 21,
+       "text": "Contact the council about permits",
+       "answer": [
+        "B"
+       ]
+      },
+      {
+       "n": 22,
+       "text": "Design the questionnaire",
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 23,
+       "text": "Visit the campus apiary",
+       "answer": [
+        "C"
+       ]
+      },
+      {
+       "n": 24,
+       "text": "Write the introduction",
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 25,
+       "text": "Prepare the slides",
+       "answer": [
+        "B"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 26,
+     "to": 30,
+     "type": "gap",
+     "instructions": "Questions 26-30. Complete the flow-chart. Write ONE WORD ONLY for each answer.",
+     "wordLimit": "ONE WORD ONLY",
+     "title": "Project stages",
+     "content": "1. Select a sunny {{26}} on campus\n2. Buy protective {{27}}\n3. Record the {{28}} of each hive weekly\n4. Compare honey yield between {{29}}\n5. Present the results on a {{30}}",
+     "questions": [
+      {
+       "n": 26,
+       "answer": [
+        "terrace"
+       ]
+      },
+      {
+       "n": 27,
+       "answer": [
+        "suits"
+       ]
+      },
+      {
+       "n": 28,
+       "answer": [
+        "weight"
+       ]
+      },
+      {
+       "n": 29,
+       "answer": [
+        "seasons"
+       ]
+      },
+      {
+       "n": 30,
+       "answer": [
+        "poster"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "part": 4,
+   "title": "Part 4",
+   "audio": "dev-l1/part4.mp3",
+   "transcript": "Lecturer: Today, seed dispersal by ants, or myrmecochory. Many plants attach a fatty structure called an elaiosome to their seeds. Ants carry the seed to their nest, eat the fat and discard the seed on a waste heap. This protects it from seed-eating beetles, and the soil around the nest is rich in nutrients. Ants typically move seeds no more than ten metres.\nIn Australia the practice is most common in heathland. Researchers marked seeds with paint to follow them. A problem is that some invasive ants eat the seeds instead of burying them, so conservationists now place seeds close to the nests of native ants.",
+   "groups": [
+    {
+     "from": 31,
+     "to": 36,
+     "type": "gap",
+     "instructions": "Questions 31-36. Complete the notes. Write ONE WORD AND/OR A NUMBER for each answer.",
+     "wordLimit": "ONE WORD AND/OR A NUMBER",
+     "title": "Ant-assisted seed dispersal",
+     "content": "- Seeds carry a fatty structure called an {{31}}\n- Ants carry the seed to their {{32}}\n- The seed is left on a {{33}} heap\n- Seeds are safe from seed-eating {{34}}\n- Soil near the nest is rich in {{35}}\n- Seeds are moved up to {{36}} metres",
+     "questions": [
+      {
+       "n": 31,
+       "answer": [
+        "elaiosome"
+       ]
+      },
+      {
+       "n": 32,
+       "answer": [
+        "nest"
+       ]
+      },
+      {
+       "n": 33,
+       "answer": [
+        "waste"
+       ]
+      },
+      {
+       "n": 34,
+       "answer": [
+        "beetles"
+       ]
+      },
+      {
+       "n": 35,
+       "answer": [
+        "nutrients"
+       ]
+      },
+      {
+       "n": 36,
+       "answer": [
+        "10",
+        "ten"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 37,
+     "to": 40,
+     "type": "gap",
+     "instructions": "Questions 37-40. Complete the sentences. Write ONE WORD ONLY for each answer.",
+     "wordLimit": "ONE WORD ONLY",
+     "questions": [
+      {
+       "n": 37,
+       "text": "In Australia the practice is most common in {{37}}.",
+       "answer": [
+        "heathland"
+       ]
+      },
+      {
+       "n": 38,
+       "text": "Researchers marked seeds with {{38}} to follow them.",
+       "answer": [
+        "paint"
+       ]
+      },
+      {
+       "n": 39,
+       "text": "Some invasive ants eat seeds instead of {{39}} them.",
+       "answer": [
+        "burying"
+       ]
+      },
+      {
+       "n": 40,
+       "text": "Conservationists place seeds close to {{40}} of native ants.",
+       "answer": [
+        "nests"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

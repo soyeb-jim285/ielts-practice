@@ -58,10 +58,10 @@ export function createApp() {
 
   // Dev-only: serves localDisk storage's signed URLs when R2 isn't configured (never in production — env.ts enforces R2 there).
   if (!R2_CONFIGURED) {
-    const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg', png: 'image/png', jpg: 'image/jpeg' };
+    const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml' };
     // /api/local-storage is what presigned URLs use (covered by the web dev proxy); /local-storage stays for URLs issued earlier.
     app.on(['GET', 'PUT', 'OPTIONS'], ['/api/local-storage/*', '/local-storage/*'], async (c) => {
-      const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, PUT', 'Access-Control-Allow-Headers': 'Content-Type' };
+      const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, PUT', 'Access-Control-Allow-Headers': 'Content-Type, Range', 'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length' };
       if (c.req.method === 'OPTIONS') return c.body(null, 204, cors);
       const key = decodeURIComponent(c.req.path.replace(/^(\/api)?\/local-storage\//, ''));
       const method = c.req.method as 'GET' | 'PUT';
@@ -75,7 +75,16 @@ export function createApp() {
       const size = await storage.size(key);
       if (size == null) return c.text('Not found', 404, cors);
       const data = await storage.get(key);
-      return c.body(data as unknown as ArrayBuffer, 200, { ...cors, 'Content-Type': MIME[key.split('.').pop() ?? ''] ?? 'application/octet-stream', 'Accept-Ranges': 'none' });
+      const headers = { ...cors, 'Content-Type': MIME[key.split('.').pop() ?? ''] ?? 'application/octet-stream', 'Accept-Ranges': 'bytes' };
+      // HTTP Range so <audio> can seek (Listening practice mode); R2's presigned URLs support it natively.
+      const m = /^bytes=(\d*)-(\d*)$/.exec(c.req.header('range') ?? '');
+      if (m && (m[1] || m[2])) {
+        const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+        const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+        if (start > end || start >= size) return c.body(null, 416, { ...headers, 'Content-Range': `bytes */${size}` });
+        return c.body(data.slice(start, end + 1) as unknown as ArrayBuffer, 206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) });
+      }
+      return c.body(data as unknown as ArrayBuffer, 200, headers);
     });
   }
 

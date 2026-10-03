@@ -144,6 +144,14 @@ export const requireAccount = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
+/** Listening & Reading: every test (ours too) is for Cambridge-allow-listed users only. */
+export const requireCambridge = createMiddleware<AppEnv>(async (c, next) => {
+  const u = c.get('user');
+  if (!u) throw new HTTPException(401, { message: 'Sign in required' });
+  if (!isCambridgeAllowed(u)) throw new ApiError(403, { error: 'Listening and Reading tests are not available for this account.', code: 'cambridge_required' });
+  await next();
+});
+
 /** Use inside handlers after requireUser. */
 export const currentUser = (c: { get: (k: 'user') => AppEnv['Variables']['user'] }) => {
   const u = c.get('user');

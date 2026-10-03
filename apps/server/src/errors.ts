@@ -8,6 +8,7 @@ export type ErrorCode =
   | 'too_many_requests' // 429
   | 'live_requires_own_key' // 403
   | 'account_required' // 403
+  | 'cambridge_required' // 403: Listening & Reading are for Cambridge-allow-listed users
   | 'keys_unavailable' // 503
   | 'invalid_key' // 400
   | 'key_check_failed'; // 502

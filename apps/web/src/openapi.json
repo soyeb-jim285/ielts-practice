@@ -720,6 +720,7 @@
               "too_many_requests",
               "live_requires_own_key",
               "account_required",
+              "cambridge_required",
               "keys_unavailable",
               "invalid_key",
               "key_check_failed"
@@ -2057,6 +2058,546 @@
         },
         "required": [
           "key"
+        ]
+      },
+      "LrTestListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "listening",
+              "reading"
+            ]
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "academic",
+              "general"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cambridge",
+              "generated"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "in_progress",
+              "submitted"
+            ],
+            "description": "From the latest attempt"
+          },
+          "attemptId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The in-progress attempt, when there is one"
+          },
+          "mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "exam",
+              "practice",
+              null
+            ],
+            "description": "Mode of the in-progress attempt"
+          },
+          "answered": {
+            "type": "number",
+            "description": "Answered questions in the in-progress attempt"
+          },
+          "bestBand": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "attempts": {
+            "type": "number",
+            "description": "Submitted attempts"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "skill",
+          "variant",
+          "source",
+          "ref",
+          "title",
+          "total",
+          "status",
+          "attemptId",
+          "mode",
+          "answered",
+          "bestBand",
+          "attempts"
+        ]
+      },
+      "LrError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "LrAttempt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "testId": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "practice"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "submitted"
+            ]
+          },
+          "responses": {
+            "$ref": "#/components/schemas/LrResponses"
+          },
+          "elapsedS": {
+            "type": "number"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "total": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "band": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "marks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "n": {
+                  "type": "number"
+                },
+                "given": {
+                  "type": "string"
+                },
+                "correct": {
+                  "type": "boolean"
+                },
+                "answer": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "n",
+                "given",
+                "correct",
+                "answer"
+              ]
+            }
+          },
+          "test": {
+            "$ref": "#/components/schemas/LrTest"
+          },
+          "assets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Asset key → presigned GET URL (audio supports Range)"
+          }
+        },
+        "required": [
+          "id",
+          "testId",
+          "mode",
+          "status",
+          "responses",
+          "elapsedS",
+          "startedAt",
+          "submittedAt",
+          "raw",
+          "total",
+          "band",
+          "marks",
+          "test",
+          "assets"
+        ]
+      },
+      "LrResponses": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "LrTest": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "listening",
+              "reading"
+            ]
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "academic",
+              "general"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cambridge",
+              "generated"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "part": {
+                  "type": "number"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "audio": {
+                  "type": "string",
+                  "description": "Asset key; see `assets` for the URL"
+                },
+                "transcript": {
+                  "type": "string",
+                  "description": "Only after submission"
+                },
+                "passage": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "subtitle": {
+                      "type": "string"
+                    },
+                    "paragraphs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "text"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "paragraphs"
+                  ]
+                },
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "number"
+                      },
+                      "to": {
+                        "type": "number"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "gap",
+                          "mcq",
+                          "mcq-multi",
+                          "tfng",
+                          "ynng",
+                          "match"
+                        ]
+                      },
+                      "instructions": {
+                        "type": "string"
+                      },
+                      "wordLimit": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "text"
+                          ]
+                        }
+                      },
+                      "reusable": {
+                        "type": "boolean"
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "questions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "n": {
+                              "type": "number"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "options": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "text": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "text"
+                                ]
+                              }
+                            },
+                            "answer": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Only after submission"
+                            }
+                          },
+                          "required": [
+                            "n"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "from",
+                      "to",
+                      "type",
+                      "instructions",
+                      "questions"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "part",
+                "groups"
+              ]
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "skill",
+          "variant",
+          "source",
+          "ref",
+          "title",
+          "sections"
+        ],
+        "description": "Stripped (no answers, no transcript) until submitted"
+      },
+      "LrAttemptListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "testId": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "listening",
+              "reading"
+            ]
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "academic",
+              "general"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "practice"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "submitted"
+            ]
+          },
+          "raw": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "total": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "band": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "answered": {
+            "type": "number"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "testId",
+          "skill",
+          "variant",
+          "ref",
+          "title",
+          "mode",
+          "status",
+          "raw",
+          "total",
+          "band",
+          "answered",
+          "startedAt",
+          "submittedAt"
         ]
       }
     },
@@ -4045,6 +4586,542 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/tests": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List Listening & Reading tests with your latest status and best band",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "listening",
+                "reading"
+              ]
+            },
+            "required": false,
+            "name": "skill",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "academic",
+                "general"
+              ]
+            },
+            "required": false,
+            "name": "variant",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cambridge",
+                "generated"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LrTestListItem"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/tests/{id}/attempts": {
+      "post": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start an attempt, or resume the in-progress one for this test",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "exam",
+                      "practice"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attempt (resumed or new). Test is stripped.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrAttempt"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/tests/{id}": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A test without answers or transcripts, with presigned asset URLs",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stripped test",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "test": {
+                      "$ref": "#/components/schemas/LrTest"
+                    },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "test",
+                    "assets"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/attempts": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My Listening & Reading attempts, newest first",
+        "responses": {
+          "200": {
+            "description": "Attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LrAttemptListItem"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/attempts/{id}": {
+      "get": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "An attempt: stripped test + responses while in progress; full test, marks and transcripts once submitted",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrAttempt"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Autosave responses and elapsed seconds",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "responses": {
+                    "$ref": "#/components/schemas/LrResponses"
+                  },
+                  "elapsedS": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  }
+                },
+                "required": [
+                  "responses",
+                  "elapsedS"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "savedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "savedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lr/attempts/{id}/submit": {
+      "post": {
+        "tags": [
+          "Listening & Reading"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit and score (objective, no AI, no quota)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "responses": {
+                    "$ref": "#/components/schemas/LrResponses"
+                  },
+                  "elapsedS": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Scored attempt with the full test",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrAttempt"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "cambridge_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
                 }
               }
             }

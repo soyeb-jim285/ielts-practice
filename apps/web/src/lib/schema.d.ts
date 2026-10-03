@@ -1855,6 +1855,433 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lr/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Listening & Reading tests with your latest status and best band */
+        get: {
+            parameters: {
+                query?: {
+                    skill?: "listening" | "reading";
+                    variant?: "academic" | "general";
+                    source?: "cambridge" | "generated";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tests */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["LrTestListItem"][];
+                        };
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/tests/{id}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start an attempt, or resume the in-progress one for this test */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        mode: "exam" | "practice";
+                    };
+                };
+            };
+            responses: {
+                /** @description Attempt (resumed or new). Test is stripped. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrAttempt"];
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/tests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A test without answers or transcripts, with presigned asset URLs */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stripped test */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            id: string;
+                            test: components["schemas"]["LrTest"];
+                            assets: {
+                                [key: string]: string;
+                            };
+                        };
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Listening & Reading attempts, newest first */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Attempts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["LrAttemptListItem"][];
+                        };
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/attempts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An attempt: stripped test + responses while in progress; full test, marks and transcripts once submitted */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Attempt */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrAttempt"];
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        /** Autosave responses and elapsed seconds */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        responses: components["schemas"]["LrResponses"];
+                        elapsedS: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            savedAt: string;
+                        };
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Already submitted */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lr/attempts/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit and score (objective, no AI, no quota) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        responses?: components["schemas"]["LrResponses"];
+                        elapsedS?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Scored attempt with the full test */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrAttempt"];
+                    };
+                };
+                /** @description cambridge_required */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+                /** @description Already submitted */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2038,7 +2465,7 @@ export interface components {
             /** @description Friendly, safe to show */
             error: string;
             /** @enum {string} */
-            code: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | "too_many_requests" | "live_requires_own_key" | "account_required" | "keys_unavailable" | "invalid_key" | "key_check_failed";
+            code: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | "too_many_requests" | "live_requires_own_key" | "account_required" | "cambridge_required" | "keys_unavailable" | "invalid_key" | "key_check_failed";
             /**
              * @description quota_exceeded
              * @enum {string}
@@ -2373,6 +2800,143 @@ export interface components {
         };
         PutApiKey: {
             key: string;
+        };
+        LrTestListItem: {
+            id: string;
+            slug: string;
+            /** @enum {string} */
+            skill: "listening" | "reading";
+            /** @enum {string} */
+            variant: "academic" | "general";
+            /** @enum {string} */
+            source: "cambridge" | "generated";
+            ref: string;
+            title: string;
+            total: number;
+            /**
+             * @description From the latest attempt
+             * @enum {string}
+             */
+            status: "new" | "in_progress" | "submitted";
+            /** @description The in-progress attempt, when there is one */
+            attemptId: string | null;
+            /**
+             * @description Mode of the in-progress attempt
+             * @enum {string|null}
+             */
+            mode: "exam" | "practice" | null;
+            /** @description Answered questions in the in-progress attempt */
+            answered: number;
+            bestBand: number | null;
+            /** @description Submitted attempts */
+            attempts: number;
+        };
+        LrError: {
+            error: string;
+            code?: string;
+        };
+        LrAttempt: {
+            id: string;
+            testId: string;
+            /** @enum {string} */
+            mode: "exam" | "practice";
+            /** @enum {string} */
+            status: "in_progress" | "submitted";
+            responses: components["schemas"]["LrResponses"];
+            elapsedS: number;
+            startedAt: string;
+            submittedAt: string | null;
+            raw: number | null;
+            total: number | null;
+            band: number | null;
+            marks: {
+                n: number;
+                given: string;
+                correct: boolean;
+                answer: string[];
+            }[] | null;
+            test: components["schemas"]["LrTest"];
+            /** @description Asset key → presigned GET URL (audio supports Range) */
+            assets: {
+                [key: string]: string;
+            };
+        };
+        LrResponses: {
+            [key: string]: string;
+        };
+        /** @description Stripped (no answers, no transcript) until submitted */
+        LrTest: {
+            slug: string;
+            /** @enum {string} */
+            skill: "listening" | "reading";
+            /** @enum {string} */
+            variant: "academic" | "general";
+            /** @enum {string} */
+            source: "cambridge" | "generated";
+            ref: string;
+            title: string;
+            sections: {
+                part: number;
+                title?: string;
+                /** @description Asset key; see `assets` for the URL */
+                audio?: string;
+                /** @description Only after submission */
+                transcript?: string;
+                passage?: {
+                    title: string;
+                    subtitle?: string;
+                    paragraphs: {
+                        label?: string;
+                        text: string;
+                    }[];
+                };
+                groups: {
+                    from: number;
+                    to: number;
+                    /** @enum {string} */
+                    type: "gap" | "mcq" | "mcq-multi" | "tfng" | "ynng" | "match";
+                    instructions: string;
+                    wordLimit?: string;
+                    title?: string;
+                    content?: string;
+                    options?: {
+                        key: string;
+                        text: string;
+                    }[];
+                    reusable?: boolean;
+                    image?: string;
+                    questions: {
+                        n: number;
+                        text?: string;
+                        options?: {
+                            key: string;
+                            text: string;
+                        }[];
+                        /** @description Only after submission */
+                        answer?: string[];
+                    }[];
+                }[];
+            }[];
+        };
+        LrAttemptListItem: {
+            id: string;
+            testId: string;
+            /** @enum {string} */
+            skill: "listening" | "reading";
+            /** @enum {string} */
+            variant: "academic" | "general";
+            ref: string;
+            title: string;
+            /** @enum {string} */
+            mode: "exam" | "practice";
+            /** @enum {string} */
+            status: "in_progress" | "submitted";
+            raw: number | null;
+            total: number | null;
+            band: number | null;
+            answered: number;
+            startedAt: string;
+            submittedAt: string | null;
         };
     };
     responses: never;

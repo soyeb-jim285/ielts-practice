@@ -10,7 +10,7 @@ import type { App } from '../types';
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 
-const Code = z.enum(['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests', 'live_requires_own_key', 'account_required', 'keys_unavailable', 'invalid_key', 'key_check_failed']);
+const Code = z.enum(['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests', 'live_requires_own_key', 'account_required', 'cambridge_required', 'keys_unavailable', 'invalid_key', 'key_check_failed']);
 export const CodedError = z
   .object({
     error: z.string().openapi({ description: 'Friendly, safe to show' }),

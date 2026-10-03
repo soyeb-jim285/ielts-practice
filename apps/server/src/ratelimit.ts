@@ -39,3 +39,9 @@ export const anonSignInOk = (ipHash: string) => take(ipBuckets, `anon:${ipHash}`
 /** Key checks (PUT /api/keys) per client address: each one makes an outbound call to a provider with a key the caller typed, so without this the server is a key-testing oracle. 5 at once, then 1 per 30 s.
  *  `key` is the IP hash, or the user id when the address is unknown. */
 export const keyCheckOk = (key: string) => take(ipBuckets, `keys:${key}`, 5, 30_000);
+
+/** Autosave of an in-progress Listening/Reading attempt: the client debounces to ~1 s, so 30 tokens + 1 per 2 s never blocks a real session. Use after requireUser. */
+export const lrSaveLimit = createMiddleware<AppEnv>(async (c, next) => {
+  if (!take(buckets, `lr:${currentUser(c).id}`, 30, 2_000)) throw new HTTPException(429, { message: 'Too many requests, slow down' });
+  await next();
+});

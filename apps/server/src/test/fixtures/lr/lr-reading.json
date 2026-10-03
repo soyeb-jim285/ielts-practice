@@ -1,0 +1,647 @@
+{
+ "slug": "dev-reading-1",
+ "skill": "reading",
+ "variant": "academic",
+ "source": "generated",
+ "ref": "Dev R1",
+ "title": "Dev fixture: Reading test 1",
+ "sections": [
+  {
+   "part": 1,
+   "title": "Reading Passage 1",
+   "passage": {
+    "title": "The return of the beaver",
+    "subtitle": "After four centuries, a lost engineer is back on British rivers.",
+    "paragraphs": [
+     {
+      "label": "A",
+      "text": "Beavers were hunted out of Britain by the sixteenth century, prized for their fur and for castoreum, a secretion once used in medicine and perfume. For four hundred years the rivers of England and Scotland flowed without the dams and wetlands these animals build."
+     },
+     {
+      "label": "B",
+      "text": "In 2009 a small trial began in Knapdale, Scotland, where four families of beavers from Norway were released into a chain of lochs. Scientists monitored them for five years. A separate and unplanned population was found on the River Tay in 2012, probably descended from escaped captive animals, and the government decided to let it stay."
+     },
+     {
+      "label": "C",
+      "text": "The benefits became clear quickly. Dams slow the flow of water, which reduces flooding downstream, and the ponds behind them trap sediment that would otherwise cloud the river. In a trial in Devon, a wetland created by two adults held back much of the water during storms that threatened a nearby village, although some villagers remained unconvinced."
+     },
+     {
+      "label": "D",
+      "text": "Not everyone welcomes the animals. Farmers on low-lying land report that burrows weaken riverbanks and that felled trees block drainage ditches. Anglers once feared that dams would stop salmon from migrating upstream, but studies suggest that fish pass over the structures during high water; the evidence for trout is less certain."
+     },
+     {
+      "label": "E",
+      "text": "Wildlife managers now favour a licensing approach: where a dam causes serious damage it can be modified with a pipe that lowers the pond level, and only as a last resort are animals moved. Supporters argue that the cost of these measures is small compared with the expense of building artificial flood defences."
+     }
+    ]
+   },
+   "groups": [
+    {
+     "from": 1,
+     "to": 6,
+     "type": "tfng",
+     "instructions": "Questions 1-6. Do the following statements agree with the information given in Reading Passage 1? Write TRUE, FALSE or NOT GIVEN.",
+     "questions": [
+      {
+       "n": 1,
+       "text": "Beavers were hunted for products other than their fur.",
+       "answer": [
+        "TRUE"
+       ]
+      },
+      {
+       "n": 2,
+       "text": "The beavers released at Knapdale were born in Scotland.",
+       "answer": [
+        "FALSE"
+       ]
+      },
+      {
+       "n": 3,
+       "text": "Beavers were reintroduced to Scotland before an unplanned population was found on the Tay.",
+       "answer": [
+        "TRUE"
+       ]
+      },
+      {
+       "n": 4,
+       "text": "All the villagers near the Devon wetland were convinced by the results.",
+       "answer": [
+        "FALSE"
+       ]
+      },
+      {
+       "n": 5,
+       "text": "Evidence shows that dams prevent trout from migrating.",
+       "answer": [
+        "NOT GIVEN"
+       ]
+      },
+      {
+       "n": 6,
+       "text": "Moving beavers is the first measure managers try when a dam causes damage.",
+       "answer": [
+        "FALSE"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 7,
+     "to": 10,
+     "type": "gap",
+     "instructions": "Questions 7-10. Complete the sentences below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+     "wordLimit": "NO MORE THAN TWO WORDS",
+     "questions": [
+      {
+       "n": 7,
+       "text": "Beavers were once valued for their fur and for a secretion called {{7}}.",
+       "answer": [
+        "castoreum"
+       ]
+      },
+      {
+       "n": 8,
+       "text": "The Knapdale beavers were released into a chain of {{8}}.",
+       "answer": [
+        "lochs"
+       ]
+      },
+      {
+       "n": 9,
+       "text": "Ponds behind dams catch {{9}} that would otherwise make the river cloudy.",
+       "answer": [
+        "sediment"
+       ]
+      },
+      {
+       "n": 10,
+       "text": "Where a dam causes serious damage, a {{10}} can be fitted to lower the water level.",
+       "answer": [
+        "pipe"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 11,
+     "to": 13,
+     "type": "mcq",
+     "instructions": "Questions 11-13. Choose the correct letter, A, B, C or D.",
+     "questions": [
+      {
+       "n": 11,
+       "text": "What is the main purpose of paragraph C?",
+       "options": [
+        {
+         "key": "A",
+         "text": "To describe problems caused by beavers"
+        },
+        {
+         "key": "B",
+         "text": "To outline the benefits of beaver dams"
+        },
+        {
+         "key": "C",
+         "text": "To explain how dams are built"
+        },
+        {
+         "key": "D",
+         "text": "To criticise the Devon trial"
+        }
+       ],
+       "answer": [
+        "B"
+       ]
+      },
+      {
+       "n": 12,
+       "text": "What is the farmers' main complaint?",
+       "options": [
+        {
+         "key": "A",
+         "text": "Beavers eat crops"
+        },
+        {
+         "key": "B",
+         "text": "Burrows weaken riverbanks"
+        },
+        {
+         "key": "C",
+         "text": "Beavers kill fish"
+        },
+        {
+         "key": "D",
+         "text": "Dams flood fields"
+        }
+       ],
+       "answer": [
+        "B"
+       ]
+      },
+      {
+       "n": 13,
+       "text": "Supporters of the licensing approach argue that",
+       "options": [
+        {
+         "key": "A",
+         "text": "artificial defences are unnecessary"
+        },
+        {
+         "key": "B",
+         "text": "beavers should never be moved"
+        },
+        {
+         "key": "C",
+         "text": "managing beavers is cheaper than building flood defences"
+        },
+        {
+         "key": "D",
+         "text": "farmers should receive compensation"
+        }
+       ],
+       "answer": [
+        "C"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "part": 2,
+   "title": "Reading Passage 2",
+   "passage": {
+    "title": "Rethinking the school timetable",
+    "paragraphs": [
+     {
+      "label": "A",
+      "text": "Most schools start lessons at around eight in the morning, a time chosen long before anyone studied adolescent sleep. During puberty the body clock shifts: teenagers tend to fall asleep later and wake later, so a pupil who rises at six-thirty may be functioning on the equivalent of a middle-of-the-night alarm."
+     },
+     {
+      "label": "B",
+      "text": "In 2014 a group of schools in Seattle moved their start time from 7.50 to 8.45. Researchers found that pupils slept an average of 34 minutes longer each night, and that attendance improved. Grades rose by about four per cent in biology, the subject taught first thing."
+     },
+     {
+      "label": "C",
+      "text": "Critics point to practical problems. Later finishes collide with sports practice and part-time jobs, and bus companies that serve several schools in sequence must redraw their routes at considerable cost. Some parents also worry that children will simply stay up later, cancelling any gain."
+     },
+     {
+      "label": "D",
+      "text": "A few schools have tried compromises. One in Ohio keeps the early start but replaces the first lesson with a supervised study period in which pupils can doze, eat breakfast or catch up on homework. Staff report calmer mornings, though the school has not published figures on results."
+     },
+     {
+      "label": "E",
+      "text": "The debate is therefore less about whether sleep matters than about who should bear the cost of change. Education authorities that have made the switch tend to describe it as an investment, but the full benefits may take years to measure, and few budgets are set with such patience."
+     }
+    ]
+   },
+   "groups": [
+    {
+     "from": 14,
+     "to": 18,
+     "type": "match",
+     "instructions": "Questions 14-18. Reading Passage 2 has five paragraphs, A-E. Choose the correct heading for each paragraph from the list of headings below. Write the correct number, i-viii.",
+     "reusable": false,
+     "options": [
+      {
+       "key": "i",
+       "text": "A trial with measurable results"
+      },
+      {
+       "key": "ii",
+       "text": "A mismatch between timetable and biology"
+      },
+      {
+       "key": "iii",
+       "text": "Opposition on practical grounds"
+      },
+      {
+       "key": "iv",
+       "text": "A middle path that lacks evidence"
+      },
+      {
+       "key": "v",
+       "text": "The question of who pays"
+      },
+      {
+       "key": "vi",
+       "text": "Teachers resist the change"
+      },
+      {
+       "key": "vii",
+       "text": "A decline in sports participation"
+      },
+      {
+       "key": "viii",
+       "text": "Why homework should be reduced"
+      }
+     ],
+     "questions": [
+      {
+       "n": 14,
+       "text": "Paragraph A",
+       "answer": [
+        "ii"
+       ]
+      },
+      {
+       "n": 15,
+       "text": "Paragraph B",
+       "answer": [
+        "i"
+       ]
+      },
+      {
+       "n": 16,
+       "text": "Paragraph C",
+       "answer": [
+        "iii"
+       ]
+      },
+      {
+       "n": 17,
+       "text": "Paragraph D",
+       "answer": [
+        "iv"
+       ]
+      },
+      {
+       "n": 18,
+       "text": "Paragraph E",
+       "answer": [
+        "v"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 19,
+     "to": 22,
+     "type": "ynng",
+     "instructions": "Questions 19-22. Do the following statements agree with the claims of the writer in Reading Passage 2? Write YES, NO or NOT GIVEN.",
+     "questions": [
+      {
+       "n": 19,
+       "text": "The traditional start time was set with adolescent sleep in mind.",
+       "answer": [
+        "NO"
+       ]
+      },
+      {
+       "n": 20,
+       "text": "The Seattle change led to higher grades in at least one subject.",
+       "answer": [
+        "YES"
+       ]
+      },
+      {
+       "n": 21,
+       "text": "Most parents support a later start to the school day.",
+       "answer": [
+        "NOT GIVEN"
+       ]
+      },
+      {
+       "n": 22,
+       "text": "Bus companies would find it easy to adapt to later starts.",
+       "answer": [
+        "NO"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 23,
+     "to": 26,
+     "type": "gap",
+     "instructions": "Questions 23-26. Complete the summary using the list of words, A-H, below. Write the correct letter, A-H.",
+     "title": "Summary",
+     "content": "Schools that moved to a later start reported that teenagers got more {{23}} and that attendance tended to {{24}}. However, later finishes can disrupt {{25}} practice and part-time work, and changing bus routes is {{26}}.",
+     "options": [
+      {
+       "key": "A",
+       "text": "sleep"
+      },
+      {
+       "key": "B",
+       "text": "expensive"
+      },
+      {
+       "key": "C",
+       "text": "improve"
+      },
+      {
+       "key": "D",
+       "text": "sports"
+      },
+      {
+       "key": "E",
+       "text": "homework"
+      },
+      {
+       "key": "F",
+       "text": "cheap"
+      },
+      {
+       "key": "G",
+       "text": "decline"
+      },
+      {
+       "key": "H",
+       "text": "breakfast"
+      }
+     ],
+     "questions": [
+      {
+       "n": 23,
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 24,
+       "answer": [
+        "C"
+       ]
+      },
+      {
+       "n": 25,
+       "answer": [
+        "D"
+       ]
+      },
+      {
+       "n": 26,
+       "answer": [
+        "B"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "part": 3,
+   "title": "Reading Passage 3",
+   "passage": {
+    "title": "The sounds of the city",
+    "paragraphs": [
+     {
+      "label": "A",
+      "text": "For decades, city planners treated noise as a nuisance to be measured in decibels and reduced. In the 1990s, however, the acoustician Helen Varga proposed that a city has a \"soundscape\" in the same way that it has a skyline, and that its quality cannot be captured by a single loudness figure. A fountain and a motorway may register the same level, yet people describe the first as restful and the second as stressful."
+     },
+     {
+      "label": "B",
+      "text": "Varga's team asked residents of four European cities to record the sounds they valued most. Church bells, street musicians and children in playgrounds ranked highly; the hum of ventilation systems did not. Importantly, people who could identify the source of a sound tolerated it better than those who could not, which suggests that familiarity matters as much as volume."
+     },
+     {
+      "label": "C",
+      "text": "Such findings have begun to influence design. In Lyon, tram operators fitted rubber pads to rails in residential districts, while a Copenhagen housing scheme was arranged around a courtyard so that bedroom windows face away from the road. Designers also use sound deliberately: a water feature can mask traffic more pleasantly than a wall of the same cost."
+     },
+     {
+      "label": "D",
+      "text": "Not all attempts have succeeded. A plan to play recorded birdsong in a Berlin shopping street was withdrawn after complaints that it sounded artificial, and shopkeepers said it made their customers uneasy. Planners concluded that sounds imposed from above are judged more harshly than those that arise from everyday activity."
+     },
+     {
+      "label": "E",
+      "text": "Measurement is also being transformed. Low-cost sensors mounted on lamp posts now record not only loudness but the type of noise, using software trained to tell a siren from a drill. Critics worry about privacy, although the devices capture only sound patterns and not speech, and the data are discarded after analysis."
+     },
+     {
+      "label": "F",
+      "text": "Varga herself remains cautious. She notes that a quiet street is not always a pleasant one, and that the loneliest districts are often the most silent. The aim, she says, is not a quieter city but one whose sounds tell residents that other people are nearby."
+     }
+    ]
+   },
+   "groups": [
+    {
+     "from": 27,
+     "to": 28,
+     "type": "mcq-multi",
+     "instructions": "Questions 27 and 28. Choose TWO letters, A-E. Which TWO findings of Varga's research are mentioned in the passage?",
+     "options": [
+      {
+       "key": "A",
+       "text": "People tolerate sounds more easily when they can identify them."
+      },
+      {
+       "key": "B",
+       "text": "Church bells were disliked by most residents."
+      },
+      {
+       "key": "C",
+       "text": "Fountains and motorways are equally stressful."
+      },
+      {
+       "key": "D",
+       "text": "Residents valued the voices of children."
+      },
+      {
+       "key": "E",
+       "text": "Ventilation systems were ranked highly."
+      }
+     ],
+     "questions": [
+      {
+       "n": 27,
+       "text": "Which TWO findings of Varga's research are mentioned in the passage?",
+       "answer": [
+        "A",
+        "D"
+       ]
+      },
+      {
+       "n": 28,
+       "answer": [
+        "A",
+        "D"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 29,
+     "to": 30,
+     "type": "mcq",
+     "instructions": "Questions 29 and 30. Choose the correct letter, A, B, C or D.",
+     "questions": [
+      {
+       "n": 29,
+       "text": "What do the Lyon and Copenhagen examples show?",
+       "options": [
+        {
+         "key": "A",
+         "text": "Design can reduce residents' exposure to noise"
+        },
+        {
+         "key": "B",
+         "text": "Trams are the main source of urban noise"
+        },
+        {
+         "key": "C",
+         "text": "Expensive solutions work best"
+        },
+        {
+         "key": "D",
+         "text": "Residents want completely silent streets"
+        }
+       ],
+       "answer": [
+        "A"
+       ]
+      },
+      {
+       "n": 30,
+       "text": "Why was the Berlin birdsong plan withdrawn?",
+       "options": [
+        {
+         "key": "A",
+         "text": "It was too expensive"
+        },
+        {
+         "key": "B",
+         "text": "People found it artificial"
+        },
+        {
+         "key": "C",
+         "text": "Shopkeepers wanted louder music"
+        },
+        {
+         "key": "D",
+         "text": "It attracted too many birds"
+        }
+       ],
+       "answer": [
+        "B"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 31,
+     "to": 34,
+     "type": "gap",
+     "instructions": "Questions 31-34. Complete the sentences below. Choose ONE WORD ONLY from the passage for each answer.",
+     "wordLimit": "ONE WORD ONLY",
+     "questions": [
+      {
+       "n": 31,
+       "text": "Helen Varga compared a city's soundscape to its {{31}}.",
+       "answer": [
+        "skyline"
+       ]
+      },
+      {
+       "n": 32,
+       "text": "Residents tolerated sounds better when they knew their {{32}}.",
+       "answer": [
+        "source"
+       ]
+      },
+      {
+       "n": 33,
+       "text": "In Copenhagen, bedroom windows face away from the {{33}}.",
+       "answer": [
+        "road"
+       ]
+      },
+      {
+       "n": 34,
+       "text": "Sensors use software to tell a siren from a {{34}}.",
+       "answer": [
+        "drill"
+       ]
+      }
+     ]
+    },
+    {
+     "from": 35,
+     "to": 40,
+     "type": "gap",
+     "instructions": "Questions 35-40. Complete the table below. Choose ONE WORD ONLY from the passage for each answer.",
+     "wordLimit": "ONE WORD ONLY",
+     "title": "Urban sound: key points",
+     "content": "| Topic | Detail |\n|---|---|\n| Berlin plan | Recorded {{35}} was played in a shopping street. |\n| Planners' conclusion | Sounds imposed from above are judged more {{36}}. |\n| Sensors | Critics raise concerns about {{37}}, and recordings are {{38}} after analysis. |\n| Varga's view | The loneliest districts are often the most {{39}}; sounds should show that other {{40}} are nearby. |",
+     "questions": [
+      {
+       "n": 35,
+       "answer": [
+        "birdsong"
+       ]
+      },
+      {
+       "n": 36,
+       "answer": [
+        "harshly"
+       ]
+      },
+      {
+       "n": 37,
+       "answer": [
+        "privacy"
+       ]
+      },
+      {
+       "n": 38,
+       "answer": [
+        "discarded"
+       ]
+      },
+      {
+       "n": 39,
+       "answer": [
+        "silent"
+       ]
+      },
+      {
+       "n": 40,
+       "answer": [
+        "people"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

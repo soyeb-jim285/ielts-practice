@@ -43,6 +43,13 @@
       "when": 1790972322186,
       "tag": "0005_quota_members_refunds",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791000237965,
+      "tag": "0006_lr_tests",
+      "breakpoints": true
     }
   ]
 }

@@ -246,3 +246,36 @@ export const quotaUsage = pgTable('quota_usage', {
   index('quota_usage_ip_idx').on(t.ipHash, t.skill, t.createdAt),
   index('quota_usage_created_idx').on(t.createdAt),
 ]);
+
+// ---------- Listening & Reading tests (Cambridge-allow-listed users only; objective scoring, no AI) ----------
+export const lrTests = pgTable('lr_tests', {
+  id: id(),
+  slug: text('slug').notNull().unique(),
+  skill: text('skill').$type<'listening' | 'reading'>().notNull(),
+  variant: text('variant').$type<'academic' | 'general'>().notNull(),
+  source: text('source').$type<'cambridge' | 'generated'>().notNull(),
+  ref: text('ref').notNull(),
+  title: text('title').notNull(),
+  data: jsonb('data').$type<import('@ielts/core').LrTest>().notNull(), // LrTest with answers + transcripts: never sent unstripped before submit
+  restricted: boolean('restricted').notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [index('lr_tests_skill_source_idx').on(t.skill, t.source)]);
+
+export const lrAttempts = pgTable('lr_attempts', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  testId: text('test_id').notNull().references(() => lrTests.id),
+  mode: text('mode').$type<'exam' | 'practice'>().notNull(),
+  status: text('status').$type<'in_progress' | 'submitted'>().notNull().default('in_progress'),
+  responses: jsonb('responses').$type<import('@ielts/core').LrResponses>().notNull().default({}),
+  elapsedS: integer('elapsed_s').notNull().default(0),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  raw: integer('raw'),
+  total: integer('total'),
+  band: numeric('band', { mode: 'number' }),
+  marks: jsonb('marks').$type<import('@ielts/core').LrMark[]>(),
+}, (t) => [
+  index('lr_attempts_user_started_idx').on(t.userId, t.startedAt),
+  index('lr_attempts_user_test_idx').on(t.userId, t.testId, t.status),
+]);
