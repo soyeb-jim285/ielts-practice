@@ -2320,6 +2320,45 @@
               "maximum": 60
             },
             "maxItems": 60
+          },
+          "audio": {
+            "type": "object",
+            "properties": {
+              "pos": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3600
+                },
+                "description": "Practice listening: saved playback position (seconds) per part"
+              },
+              "rate": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "enum": [
+                      0.75
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      1
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      1.25
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "pos"
+            ]
           }
         },
         "required": [
@@ -2327,7 +2366,7 @@
           "changes",
           "late"
         ],
-        "description": "Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes"
+        "description": "Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes; audio = practice playback resume state"
       },
       "LrAnalysis": {
         "type": [

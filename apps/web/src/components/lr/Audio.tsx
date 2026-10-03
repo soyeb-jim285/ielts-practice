@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { Button, ProgressBar, Segmented } from '@/components/ui';
 import { formatClock } from '@/lib/format';
 import { LISTENING_REVIEW_SECONDS } from '@/lib/lr';
+import { resumePosition, type AudioResume } from '@/lib/audioPos';
 
 const range = 'h-2 w-full cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed';
 
@@ -29,12 +30,31 @@ function Volume({ el }: { el: RefObject<HTMLAudioElement | null> }) {
 }
 
 /** Practice / review player: play, scrub, ±5 s, speed 0.75-1.25x, restart the part. */
-export function PracticeAudio({ src, label, className, cue }: { src: string; label: string; className?: string; cue?: { from: number; to: number; id: number } | null }) {
+export function PracticeAudio({ src, label, className, cue, resume }: { src: string; label: string; className?: string; cue?: { from: number; to: number; id: number } | null; resume?: AudioResume }) {
   const el = useRef<HTMLAudioElement>(null);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState('1');
+  const [rate, setRate] = useState(String(resume?.rate ?? 1));
+  const [resumedAt, setResumedAt] = useState(0); // set while the player sits at a restored position and has not been played yet
+  const r = useRef(resume);
+  r.current = resume;
+  const rateRef = useRef(rate);
+  rateRef.current = rate;
+  const ready = useRef(false); // until the saved position is applied, currentTime is 0 and must not overwrite it (StrictMode remounts, early unload)
+  const persist = (a: HTMLAudioElement | null) => {
+    if (a && ready.current) r.current?.set(a.currentTime, +rateRef.current);
+    r.current?.save();
+  };
+  // save every ~5 s while playing, and on unmount (leaving the runner or switching part remounts this player)
+  useEffect(() => {
+    const a = el.current;
+    const id = setInterval(() => a && !a.paused && persist(a), 5000);
+    return () => {
+      clearInterval(id);
+      persist(a);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (el.current) el.current.playbackRate = +rate;
   }, [rate, src]);
@@ -67,17 +87,32 @@ export function PracticeAudio({ src, label, className, cue }: { src: string; lab
         preload="metadata"
         onTimeUpdate={(e) => {
           setT(e.currentTarget.currentTime);
+          if (ready.current) r.current?.set(e.currentTarget.currentTime, +rateRef.current);
           if (stopAt.current != null && e.currentTarget.currentTime >= stopAt.current) {
             stopAt.current = null;
             e.currentTarget.pause();
           }
         }}
         onLoadedMetadata={(e) => {
-          setDur(e.currentTarget.duration);
-          e.currentTarget.playbackRate = +rate;
+          const a = e.currentTarget;
+          setDur(a.duration);
+          a.playbackRate = +rate;
+          const at = resumePosition(resume?.start ?? 0, a.duration);
+          if (at > 0 && !cue) {
+            a.currentTime = at;
+            setT(at);
+            setResumedAt(at);
+          }
+          ready.current = true;
         }}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlay={() => {
+          setPlaying(true);
+          setResumedAt(0);
+        }}
+        onPause={(e) => {
+          setPlaying(false);
+          persist(e.currentTarget);
+        }}
         onEnded={() => setPlaying(false)}
       />
       <div className="flex items-center gap-1">
@@ -100,12 +135,17 @@ export function PracticeAudio({ src, label, className, cue }: { src: string; lab
         label="Playback speed"
         size="sm"
         value={rate}
-        onChange={setRate}
+        onChange={(v) => {
+          setRate(v);
+          rateRef.current = v;
+          persist(el.current);
+        }}
         options={['0.75', '1', '1.25'].map((v) => ({ value: v, label: `${v}×`, 'aria-label': `${v} times speed` }))}
       />
       <Button variant="outline" size="sm" onClick={() => { seek(0); void el.current?.play(); }}>
         Replay {label.toLowerCase()}
       </Button>
+      {resumedAt > 0 && <span className="type-caption type-num text-muted">Resume from {formatClock(resumedAt)}</span>}
       <span className="max-md:hidden">
         <Volume el={el} />
       </span>

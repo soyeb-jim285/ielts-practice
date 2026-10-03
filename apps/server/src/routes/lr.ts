@@ -44,8 +44,16 @@ const Stats = z
     partS: z.record(z.string().regex(/^\d$/), z.number().min(0).max(86400)),
     changes: z.record(z.string().regex(/^\d{1,2}$/), z.number().int().min(0).max(500)),
     late: z.array(z.number().int().min(1).max(60)).max(60),
+    audio: z
+      .object({
+        pos: z.record(z.string().regex(/^\d$/), z.number().min(0).max(3600)).openapi({ description: 'Practice listening: saved playback position (seconds) per part' }),
+        rate: z.union([z.literal(0.75), z.literal(1), z.literal(1.25)]).optional(),
+      })
+      .optional(),
   })
-  .openapi('LrStats', { description: 'Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes' });
+  .openapi('LrStats', { description: 'Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes; audio = practice playback resume state' });
+/** Clients that do not know `audio` (older apps) must not wipe it: keep the stored one when the incoming stats omit it. */
+const keepAudio = (next: z.infer<typeof Stats>, old: z.infer<typeof Stats> | null) => (next.audio || !old?.audio ? next : { ...next, audio: old.audio });
 const GapEntrySchema = z
   .object({ n: z.number(), kind: z.string(), label: z.string(), message: z.string(), word: z.string().optional(), typed: z.string().optional(), before: z.number().optional().openapi({ description: 'Times misspelt in earlier attempts' }) })
   .openapi('LrGapMistake');
@@ -341,7 +349,7 @@ export function register(app: App) {
       const { responses, elapsedS, stats } = c.req.valid('json');
       await db
         .update(lrAttempts)
-        .set({ responses: cleanResponses(responses, scoreTotal(t.data)), elapsedS, ...(stats && { stats }) })
+        .set({ responses: cleanResponses(responses, scoreTotal(t.data)), elapsedS, ...(stats && { stats: keepAudio(stats, a.stats) }) })
         .where(and(eq(lrAttempts.id, a.id), eq(lrAttempts.status, 'in_progress')));
       return c.json({ savedAt: new Date().toISOString() }, 200);
     },
@@ -371,7 +379,7 @@ export function register(app: App) {
       // status guard in WHERE: two concurrent submits cannot both score
       const [row] = await db
         .update(lrAttempts)
-        .set({ status: 'submitted', responses, elapsedS: body.elapsedS ?? a.elapsedS, submittedAt: new Date(), raw: score.raw, total: score.total, band: score.band, marks: score.marks, analysis, stats: body.stats ?? a.stats })
+        .set({ status: 'submitted', responses, elapsedS: body.elapsedS ?? a.elapsedS, submittedAt: new Date(), raw: score.raw, total: score.total, band: score.band, marks: score.marks, analysis, stats: body.stats ? keepAudio(body.stats, a.stats) : a.stats })
         .where(and(eq(lrAttempts.id, a.id), eq(lrAttempts.status, 'in_progress')))
         .returning();
       if (!row) throw new HTTPException(409, { message: 'Attempt already submitted' });

@@ -1,18 +1,19 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/query';
+import { cleanAudio, loadAudio, saveAudioLocal, type AudioState } from '@/lib/audioPos';
 import type { LrAttempt, LrResponses } from '@/lib/lr';
 
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
 
-const roundStats = (s: LrStats): LrStats => ({ ...s, partS: Object.fromEntries(Object.entries(s.partS).map(([k, v]) => [k, Math.round(v)])) });
+const roundStats = (s: LrStats): LrStats => ({ ...s, partS: Object.fromEntries(Object.entries(s.partS).map(([k, v]) => [k, Math.round(v)])), ...(s.audio && { audio: cleanAudio(s.audio) }) });
 
 /**
  * Answers of an in-progress attempt: local state, debounced autosave (~1 s), flush on blur / tab hide / page hide, a keep-alive save of the clock
  * every 15 s, and submit. `elapsed` is read through a ref so the clock never re-renders this hook.
  */
-export type LrStats = { partS: Record<string, number>; changes: Record<string, number>; late: number[] };
+export type LrStats = { partS: Record<string, number>; changes: Record<string, number>; late: number[]; audio?: AudioState };
 
 export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) {
   const id = attempt.id;
@@ -23,7 +24,8 @@ export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) 
   const latest = useRef(responses);
   const elapsed = useRef(attempt.elapsedS);
   // pacing: seconds per part (the runner ticks it), answer changes per question, questions answered in the last 5 minutes
-  const stats = useRef<LrStats>(attempt.stats ? { ...attempt.stats, late: [...attempt.stats.late] } : { partS: {}, changes: {}, late: [] });
+  const stats = useRef<LrStats>({ ...(attempt.stats ?? { partS: {}, changes: {}, late: [] }), late: [...(attempt.stats?.late ?? [])] });
+  if (!stats.current.audio) stats.current.audio = loadAudio(id, attempt.stats?.audio);
   const focusVal = useRef<Record<string, string>>({});
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -102,6 +104,26 @@ export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) 
     };
   }, [flush]);
 
+  // practice audio position: `set` is hot (timeupdate, memory only); `save` persists locally and queues a server save now
+  const audio = useMemo(
+    () => ({
+      start: (part: number) => stats.current.audio?.pos[part] ?? 0,
+      get rate() {
+        return stats.current.audio?.rate;
+      },
+      set: (part: number, pos: number, rate: number) => {
+        stats.current.audio = { pos: { ...stats.current.audio?.pos, [part]: pos }, rate };
+      },
+      save: () => {
+        if (!stats.current.audio || done.current) return;
+        saveAudioLocal(id, stats.current.audio);
+        dirty.current = true;
+        void flush();
+      },
+    }),
+    [id, flush],
+  );
+
   const noteFocus = useCallback((n: number) => {
     focusVal.current[n] = latest.current[String(n)] ?? '';
   }, []);
@@ -129,5 +151,5 @@ export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) 
     }
   }, [id, navigate]);
 
-  return { responses, change, state, elapsed, submit, submitting, flush, stats, noteFocus, noteBlur };
+  return { responses, change, state, elapsed, submit, submitting, flush, stats, audio, noteFocus, noteBlur };
 }

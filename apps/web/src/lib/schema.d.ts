@@ -2864,7 +2864,7 @@ export interface components {
         LrResponses: {
             [key: string]: string;
         };
-        /** @description Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes */
+        /** @description Runner pacing: seconds per part, answer changes per question, questions answered in the final 5 minutes; audio = practice playback resume state */
         LrStats: {
             partS: {
                 [key: string]: number;
@@ -2873,6 +2873,13 @@ export interface components {
                 [key: string]: number;
             };
             late: number[];
+            audio?: {
+                /** @description Practice listening: saved playback position (seconds) per part */
+                pos: {
+                    [key: string]: number;
+                };
+                rate?: 0.75 | 1 | 1.25;
+            };
         } | null;
         /** @description Deterministic review computed at submit (null for older attempts) */
         LrAnalysis: {

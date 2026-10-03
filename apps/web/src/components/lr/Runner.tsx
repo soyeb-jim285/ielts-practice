@@ -231,7 +231,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
       <div className="h-full overflow-y-auto px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-[46rem]">
           <div className="sticky top-0 z-20 -mx-2 mb-6 rounded-lg border border-line bg-card px-4 py-3 shadow-card">
-            {exam ? <ExamAudioBar playlist={playlist} /> : <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} />}
+            {exam ? <ExamAudioBar playlist={playlist} /> : <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} resume={{ start: session.audio.start(section.part), rate: session.audio.rate, set: (p, r) => session.audio.set(section.part, p, r), save: session.audio.save }} />}
           </div>
           {questions}
         </div>

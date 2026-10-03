@@ -225,6 +225,22 @@ describe('listening & reading review', () => {
     expect(s.stats.late).toEqual([40]);
   });
 
+  it('stores practice audio resume state, validates it, and keeps it when a client omits it', async () => {
+    const rid = await seed(fixture('listening'));
+    const { headers } = await guestUser();
+    const a = await start(rid, headers);
+    const base = { partS: {}, changes: {}, late: [] };
+    const audio = { pos: { '1': 205.5, '3': 12 }, rate: 1.25 };
+    const put = (stats: unknown) => req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: {}, elapsedS: 9, stats } });
+    expect((await put({ ...base, audio })).status).toBe(200);
+    expect((await body(await req(`/api/lr/attempts/${a.id}`, { headers }))).stats.audio).toEqual(audio);
+    expect((await put({ ...base, audio: { pos: { '1': -1 } } })).status).toBe(400);
+    expect((await put({ ...base, audio: { pos: { '1': 4000 } } })).status).toBe(400);
+    expect((await put({ ...base, audio: { pos: {}, rate: 2 } })).status).toBe(400);
+    expect((await put(base)).status).toBe(200); // older client without audio
+    expect((await body(await req(`/api/lr/attempts/${a.id}`, { headers }))).stats.audio).toEqual(audio);
+  });
+
   it('classifies slips, creates one spelling card per word, notes earlier misspellings', async () => {
     const rid = await seed(fixture('reading'));
     const { headers } = await testUser();
