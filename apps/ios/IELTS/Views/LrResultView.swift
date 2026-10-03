@@ -92,6 +92,7 @@ struct LrResultView: View {
             case "lr-result-detail": select(9)
             case "lr-result-evidence": select(9); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
             case "lr-result-detail-listening": select(28)
+            case "lr-result-timestamps": select(28); Task { try? await Task.sleep(for: .seconds(1.5)); scrollTo = "audio"; scrollAnchor = .top; scrollStamp += 1 }
             case "lr-dictation": select(28); Task { try? await Task.sleep(for: .seconds(1)); dictOpen = true }
             case "lr-result-pacing": scrollTo = "pace"; scrollAnchor = .top; scrollStamp += 1
             default: break
@@ -246,7 +247,7 @@ struct LrResultView: View {
             if let v = section.vocab { LrVocabList(vocab: v) }
             if listening {
                 LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, onPin: { select($0); play($0) })
-                    .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous)).id("audio")
                 if let t = section.transcript {
                     DisclosureGroup("Transcript", isExpanded: $passageOpen) {
                         LrTranscriptView(text: t, evidence: span, pins: transcriptPins, onPin: { select($0) }).textSelection(.enabled).padding(.top, 8)

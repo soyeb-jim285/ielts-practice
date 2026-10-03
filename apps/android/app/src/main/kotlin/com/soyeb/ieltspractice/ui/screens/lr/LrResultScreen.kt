@@ -135,7 +135,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     var wrongOnly by remember { mutableStateOf(false) }
     val demoScreen = LocalDemo.current?.screen
     // demo screens open with a question selected (and the dictation sheet for lr-dictation)
-    val demoSel = when (demoScreen) { "lr-result-detail" -> 9; "lr-result-detail-listening", "lr-dictation" -> 28; else -> null }
+    val demoSel = when (demoScreen) { "lr-result-detail" -> 9; "lr-result-detail-listening", "lr-result-timestamps", "lr-dictation" -> 28; else -> null }
     var partIdx by remember { mutableIntStateOf(if (demoScreen == "lr-result-p2") 1 else demoSel?.let { n -> test.sections.indexOfFirst { s -> s.groups.any { n in it.from..it.to } }.coerceAtLeast(0) } ?: 0) }
     var active by remember { mutableStateOf<Int?>(null) }
     var selected by remember { mutableStateOf(demoSel) }
@@ -145,6 +145,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     var dict by remember { mutableStateOf(if (demoScreen == "lr-dictation") demoSel else null) }
     val ctxReq = remember { BringIntoViewRequester() }
     val paceReq = remember { BringIntoViewRequester() }
+    val audioReq = remember { BringIntoViewRequester() }
     val insights = rememberLoad { runCatching { api.get<LrProgress>("/api/lr/progress") }.getOrNull() }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -192,6 +193,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     }
     fun pick(n: Int) { selected = null; jump(n); play(n) }
     val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
+    LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-timestamps") { delay(1500); runCatching { audioReq.bringIntoView() } } }
     LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-pacing") { delay(400); runCatching { paceReq.bringIntoView() } } }
     fun retake() {
         busy = true; error = null
@@ -287,7 +289,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     androidx.compose.runtime.key(section.part) {
         VocabList(section.vocab.orEmpty())
         if (listening) {
-            AppCard { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second, pins = pins, pinned = selected, onPin = ::pick) }
+            AppCard(Modifier.bringIntoViewRequester(audioReq)) { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second, pins = pins, pinned = selected, onPin = ::pick) }
             section.transcript?.let { Transcript(it, evidence, scrollKey, tpins) { n -> selected = n; scrollKey++ } }
             QuestionsBlock(section, ctx)
         } else if (wide) {

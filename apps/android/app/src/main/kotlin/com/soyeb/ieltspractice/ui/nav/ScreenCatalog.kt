@@ -103,6 +103,7 @@ val screenCatalog: List<ScreenSpec> = listOf(
     // Review and analysis: a question selected in the result (evidence marked in the passage / transcript), the dictation sheet, pacing, spelling, dashboard.
     ScreenSpec("lr-result-detail", LrResult("lra-rs")),
     ScreenSpec("lr-result-detail-listening", LrResult("lra-ls")),
+    ScreenSpec("lr-result-timestamps", LrResult("lra-ls")),
     ScreenSpec("lr-dictation", LrResult("lra-ls")),
     ScreenSpec("lr-result-pacing", LrResult("lra-rs")),
     ScreenSpec("mistakes-spelling", Mistakes()),

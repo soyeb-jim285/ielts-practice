@@ -43,7 +43,7 @@ enum Demo {
         case "lr-listening": [.lrAttempt(id: "lra-l")]
         case "lr-listening-exam": [.lrAttempt(id: "lra-le")]
         case "lr-result", "lr-result-p2", "lr-result-detail", "lr-result-evidence", "lr-result-pacing": [.lrAttempt(id: "lra-rs")]
-        case "lr-result-listening", "lr-result-detail-listening", "lr-dictation": [.lrAttempt(id: "lra-ls")]
+        case "lr-result-listening", "lr-result-detail-listening", "lr-result-timestamps", "lr-dictation": [.lrAttempt(id: "lra-ls")]
         default: []
         }
     }
