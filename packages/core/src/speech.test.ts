@@ -146,3 +146,13 @@ it('a gap that touches a question transition is not a pause, a long pause or a v
   const inside = computeSpeechMetrics([...words.slice(0, 2), w('tea', 2.6, 3), ...words.slice(3)], { durationS: 7, transitions: [[4.5, 4.5]] });
   expect(inside.pauses.map((p) => p.dur)).toEqual([2]);
 });
+
+it('does not flag emphasis, sentence edges, parallel clauses or "kind of" as disfluency', () => {
+  const at = (ws: string[], gap = 0.1) => ws.map((w, i) => ({ w, start: i * (0.3 + gap), end: i * (0.3 + gap) + 0.3 }));
+  const m = (ws: string[], gap?: number) => computeSpeechMetrics(at(ws, gap), { durationS: 10 });
+  expect(m(['it', 'was', 'very', 'very', 'good']).repetitions).toEqual([]);
+  expect(m(['I', 'like', 'it.', 'It', 'is', 'fun']).repetitions).toEqual([]);
+  expect(m(['I', 'agree,', 'I', 'think', 'so'], 0.4).selfCorrections).toEqual([]);
+  expect(m(['I', 'went', 'I', 'go', 'there'], 0.4).selfCorrections.map(s => s.wordIdx)).toEqual([2]);
+  expect(m(['what', 'kind', 'of', 'music']).fillers).toEqual([]);
+});

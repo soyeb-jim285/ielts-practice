@@ -15,6 +15,10 @@ const LIKE_VERB_BEFORE = new Set("i we you they he she who people to would do do
 const LIKE_OBJECT_AFTER = new Set('it them him her me us to'.split(' '));
 /** "do you know, …" is a question, not the discourse marker. */
 const QUESTION_BEFORE = new Set("do did if as that what how when don't dont".split(' '));
+/** Doubled words that are emphasis or grammar ("very very", "that that is", "had had"), not repetitions. */
+const DOUBLE_OK = new Set('very so no many much really bye that had'.split(' '));
+/** The word ends a sentence or clause in the transcript: "I agree, I think" restarts a new clause, not a repair. */
+const ENDS_PHRASE = /[.!?,;:]$/;
 /** Whisper stretches word timestamps over the "um"s and silences it drops, hiding the pause: a word longer than max(STRETCH_MIN_S, 2x expected) holds one. */
 const MAX_ARTICULATION_WPM = 260;
 const S_PER_LETTER = 0.07, STRETCH_MIN_S = 0.7;
@@ -89,7 +93,8 @@ export function computeSpeechMetrics(
   const isYouKnow = (i: number) => (comma(i - 1) && comma(i + 1) && !QUESTION_BEFORE.has(norm[i - 1] ?? '')) || !weak(i, 2);
   for (let i = 0; i < n; i++) {
     if (i + 1 < n && BIGRAM_FILLERS.has(`${norm[i]} ${norm[i + 1]}`)) {
-      if (norm[i] === 'you' && !isYouKnow(i)) continue;
+      // "what kind of music", "I mean it": the bigram is a filler only when set off, by commas or pauses on both sides
+      if (norm[i] === 'you' ? !isYouKnow(i) : !((comma(i - 1) && comma(i + 1)) || !weak(i, 2))) continue;
       fillers.push({ word: `${norm[i]} ${norm[i + 1]}`, time: orig[i]!.start, kind: 'lexical' });
       isFillerAt[i] = isFillerAt[i + 1] = true;
       i++;
@@ -115,6 +120,7 @@ export function computeSpeechMetrics(
       if (!clean(i, i + 2 * len)) continue;
       const a = norm.slice(i, i + len).join(' ');
       if (a !== norm.slice(i + len, i + 2 * len).join(' ')) continue;
+      if (/[.!?]$/.test(words[i + len - 1]!.w) || (len === 1 && DOUBLE_OK.has(a))) continue; // "like it. It is", "very very"
       repetitions.push({ phrase: a, time: orig[i]!.start, wordIdx: i });
       i += len - 1; // loop's i++ completes the skip of n
       break;
@@ -128,6 +134,7 @@ export function computeSpeechMetrics(
     for (let j = i + 2; j <= i + 4 && j < n; j++) {
       if (norm[i] !== norm[j] || norm[i + 1] === norm[j + 1] || !clean(i, i + 2) || !clean(j, j + 1) || (j + 1 < n && isFillerAt[j + 1])) continue;
       if (gapBefore(j) * 1000 < PAUSE_MS && !isFillerAt[j - 1]) continue;
+      if (ENDS_PHRASE.test(words[j - 1]!.w)) continue; // "very good, very cheap", "I agree. I think": parallel clauses
       selfCorrections.push({ time: orig[j]!.start, wordIdx: j });
       i = j - 1; // loop's i++ lands on j
       break;
