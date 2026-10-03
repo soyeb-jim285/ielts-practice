@@ -427,6 +427,12 @@ struct DashboardView: View {
             Divider()
             practiseRow("Task 2 essay", "40 min, at least 250 words", "pencil.line", .writing(.task2))
             Divider()
+            if api.me?.cambridgeAccess == true {
+                practiseRow("Listening test", "Four recordings, 40 questions", "headphones", .lrHub(skill: "listening"))
+                Divider()
+                practiseRow("Reading test", "Three passages, 40 questions, 60 min", "book", .lrHub(skill: "reading"))
+                Divider()
+            }
             practiseRow("Review deck", reviewMeta, "rectangle.on.rectangle.angled", .review, badge: (due?.dueTotal ?? 0) > 0 ? "\(due?.dueTotal ?? 0) due" : nil)
             Divider().padding(.bottom, 4)
             // One row when it fits without wrapping; a vertical list on narrow or large-text screens.

@@ -48,6 +48,8 @@ enum Route: Hashable {
     case history(skill: String?)
     case mistakes(category: String?)
     case review
+    case lrHub(skill: String)
+    case lrAttempt(id: String)
 }
 
 extension View {
@@ -63,6 +65,8 @@ extension View {
             case let .bank(skill): BankView(skill: skill)
             case let .history(skill): SignInGate(icon: "clock.arrow.circlepath", title: "Your history", reason: "Sign in to see every attempt and its band.") { HistoryView(skill: skill ?? "") }
             case let .mistakes(category): SignInGate(icon: "exclamationmark.triangle", title: "Your mistake log", reason: "Sign in to see the errors you repeat, grouped by type.") { MistakesView(category: category) }
+            case let .lrHub(skill): LrGate { LrHubView(skill: skill) }
+            case let .lrAttempt(id): LrGate { LrAttemptScreen(id: id) }
             case .review: SignInGate(icon: "rectangle.on.rectangle.angled", title: "Your review deck", reason: "Sign in to turn your corrections into flashcards.") { ReviewView() }
             }
         }

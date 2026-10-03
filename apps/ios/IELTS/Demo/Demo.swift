@@ -37,6 +37,13 @@ enum Demo {
         case "fair-use", "guest-fair-use", "quota-exhausted", "guest-quota-exhausted", "balance-exhausted": [.speaking(.full)]
         case "writing-quota-exhausted": [.writing(.task2)]
         case "guest-result": [.result(["as1"])]
+        case "lr-hub", "lr-mode": [.lrHub(skill: "reading")]
+        case "lr-hub-listening": [.lrHub(skill: "listening")]
+        case "lr-reading", "lr-reading-questions", "lr-reading-p2", "lr-navigator", "lr-submit": [.lrAttempt(id: "lra-r")]
+        case "lr-listening": [.lrAttempt(id: "lra-l")]
+        case "lr-listening-exam": [.lrAttempt(id: "lra-le")]
+        case "lr-result", "lr-result-p2": [.lrAttempt(id: "lra-rs")]
+        case "lr-result-listening": [.lrAttempt(id: "lra-ls")]
         default: []
         }
     }

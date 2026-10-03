@@ -58,6 +58,10 @@ private struct HistoryItem: Decodable, Identifiable {
     let createdAt: String
     let durationMs: Int?
     let flag: String? // offTopic | tooShort
+    /// Listening & Reading attempts (GET /api/lr/attempts) share the list; they open the L/R runner or result.
+    var lr = false
+    var lrDetail: String? = nil
+    enum CodingKeys: String, CodingKey { case id, promptTitle, skill, part, status, overall, createdAt, durationMs, flag }
 
     /// Editor time under a minute is a pasted or abandoned essay, not a meaningful duration; speaking recordings are short by design.
     var shownDuration: String? {
@@ -67,6 +71,15 @@ private struct HistoryItem: Decodable, Identifiable {
 }
 
 private struct HistoryPage: Decodable { let items: [HistoryItem]; let total: Int }
+private struct LrHistoryPage: Decodable { let items: [LrAttemptItem] }
+
+private extension HistoryItem {
+    init(_ a: LrAttemptItem) {
+        self.init(id: a.id, promptTitle: a.title, skill: a.skill, part: 0, status: a.status == "submitted" ? "done" : "recording", overall: a.band,
+                  createdAt: a.submittedAt ?? a.startedAt, durationMs: nil, flag: nil, lr: true,
+                  lrDetail: [a.mode.capitalized, a.raw.map { "\($0)/\(a.total ?? 40)" }].compactMap { $0 }.joined(separator: ", "))
+    }
+}
 
 /// Every attempt, newest first, grouped by day bucket, 30 per page (GET /api/attempts).
 struct HistoryView: View {
@@ -75,11 +88,23 @@ struct HistoryView: View {
     init(skill: String = "") { _skill = State(initialValue: skill) }
     @State private var items: [HistoryItem] = []
     @State private var total = 0
+    @State private var lrItems: [HistoryItem] = []
     @State private var page = 1
     @State private var loading = true
     @State private var error: String?
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
+    private var hasLr: Bool { api.me?.cambridgeAccess == true }
+    private var lrOnly: Bool { skill == "listening" || skill == "reading" }
+
+    /// What the list shows: speaking/writing pages merged with the Listening & Reading attempts (newest first) once those are in range.
+    private var shown: [HistoryItem] {
+        if lrOnly { return lrItems.filter { $0.skill == skill } }
+        guard skill.isEmpty, hasLr else { return items }
+        let oldest = items.count < total ? items.last.flatMap { ShellDate.parse($0.createdAt) } : nil
+        let extra = lrItems.filter { oldest == nil || (ShellDate.parse($0.createdAt) ?? .distantFuture) >= oldest! }
+        return (items + extra).sorted { (ShellDate.parse($0.createdAt) ?? .distantPast) > (ShellDate.parse($1.createdAt) ?? .distantPast) }
+    }
 
     private struct DayGroup: Identifiable {
         let key: String
@@ -90,7 +115,7 @@ struct HistoryView: View {
     /// Consecutive runs that share a bucket, so a page boundary never splits a heading.
     private var groups: [DayGroup] {
         var out: [(key: String, items: [HistoryItem])] = []
-        for a in items {
+        for a in shown {
             let k = ShellDate.bucket(a.createdAt)
             if out.last?.key == k { out[out.count - 1].items.append(a) } else { out.append((k, [a])) }
         }
@@ -104,10 +129,14 @@ struct HistoryView: View {
                     Text("All").tag("")
                     Text("Speaking").tag("speaking")
                     Text("Writing").tag("writing")
+                    if hasLr {
+                        Text("Listening").tag("listening")
+                        Text("Reading").tag("reading")
+                    }
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                Text(total > 0 ? "\(total) \(total == 1 ? "attempt" : "attempts"), newest first" : "Every answer you record and essay you submit.")
+                Text(shown.count > 0 ? "\(shown.count) \(shown.count == 1 ? "attempt" : "attempts"), newest first" : "Every answer you record and essay you submit.")
             }
             if let error {
                 Section {
@@ -118,7 +147,7 @@ struct HistoryView: View {
             ForEach(groups) { g in
                 Section {
                     ForEach(g.items) { a in
-                        NavigationLink(value: Route.result([a.id])) { HistoryRow(a: a, target: target) }
+                        NavigationLink(value: a.lr ? Route.lrAttempt(id: a.id) : Route.result([a.id])) { HistoryRow(a: a, target: target) }
                             .listRowBackground(Color.surface)
                             .onAppear { if a.id == items.last?.id && items.count < total { Task { await load(reset: false) } } }
                     }
@@ -135,13 +164,13 @@ struct HistoryView: View {
         .overlay {
             if loading && items.isEmpty {
                 ProgressView()
-            } else if items.isEmpty && error == nil {
+            } else if shown.isEmpty && error == nil {
                 ContentUnavailableView {
                     Label(skill.isEmpty ? "Nothing practised yet" : "No \(skill) attempts yet", systemImage: "clock.arrow.circlepath")
                 } description: {
                     Text("Each answer you record and essay you submit is listed here with its band, newest first, so you can see the trend.")
                 } actions: {
-                    NavigationLink(value: skill == "writing" ? Route.writing(.task2) : Route.speaking(.full)) { Text("Start practising") }
+                    NavigationLink(value: lrOnly ? Route.lrHub(skill: skill) : skill == "writing" ? Route.writing(.task2) : Route.speaking(.full)) { Text("Start practising") }
                         .primaryButton()
                 }
                 .padding(.top, 80)
@@ -158,6 +187,8 @@ struct HistoryView: View {
         if reset { page = 1 }
         loading = true
         defer { loading = false }
+        if reset, hasLr, skill.isEmpty || lrOnly, let r: LrHistoryPage = try? await api.get("/api/lr/attempts") { lrItems = r.items.map(HistoryItem.init) }
+        if lrOnly { items = []; total = 0; error = nil; return }
         do {
             let p: HistoryPage = try await api.get("/api/attempts", query: ["skill": skill.isEmpty ? nil : skill, "page": String(page)])
             items = reset ? p.items : items + p.items
@@ -195,12 +226,12 @@ private struct HistoryRow: View {
     }
 
     private var meta: String {
-        ["\(a.skill == "speaking" ? "Part" : "Task") \(a.part)", ShellDate.date(a.createdAt), a.shownDuration].compactMap { $0 }.joined(separator: ", ")
+        [a.lr ? a.lrDetail : "\(a.skill == "speaking" ? "Part" : "Task") \(a.part)", ShellDate.date(a.createdAt), a.shownDuration].compactMap { $0 }.joined(separator: ", ")
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: a.skill == "speaking" ? "mic" : "pencil").foregroundStyle(.muted).frame(width: 24).padding(.top, 2)
+            Image(systemName: a.skill == "speaking" ? "mic" : a.skill == "listening" ? "headphones" : a.skill == "reading" ? "book" : "pencil").foregroundStyle(.muted).frame(width: 24).padding(.top, 2)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(a.promptTitle).font(.body.weight(.medium)).lineLimit(2)
