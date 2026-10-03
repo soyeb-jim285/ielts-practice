@@ -261,7 +261,7 @@ class MicRecorder {
     var soft by mutableIntStateOf(0); private set
 
     /** Start metering (and recording into [file] when given). False when the microphone could not start. [dt] callback gets (level, seconds). */
-    fun start(file: File? = null, onLevel: ((Double, Double) -> Unit)? = null, startPaused: Boolean = false): Boolean {
+    fun start(file: File? = null, startPaused: Boolean = false, onLevel: ((Double, Double) -> Unit)? = null): Boolean {
         stop()
         paused = startPaused
         meter = Meter(rate)
