@@ -30,6 +30,13 @@ describe('QuestionDetail', () => {
     expect(screen.getByText('founded')).toBeTruthy();
     expect(screen.getByText('It was founded in 1895.')).toBeTruthy();
   });
+  it('leads with the verdict: what you wrote and the answer, or that it was left blank', () => {
+    const { rerender } = wrap(<QuestionDetail q={q} group={{} as any} section={section} mark={mark} />);
+    expect(screen.getByText('B')).toBeTruthy();
+    expect(screen.getByText('A')).toBeTruthy();
+    rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={q} group={{} as any} section={section} mark={{ ...mark, given: '' }} /></QueryClientProvider>);
+    expect(screen.getByText(/You left it blank/)).toBeTruthy();
+  });
   it('shows the spelling label, correction and the misspelt-before note', () => {
     const entry: any = { n: 7, kind: 'spelling', label: 'Spelling slip', message: 'Learn it.', word: 'accommodation', typed: 'acommodation', before: 2 };
     wrap(<QuestionDetail q={{ n: 7 } as any} group={{} as any} section={section} mark={mark} entry={entry} />);
@@ -41,12 +48,12 @@ describe('QuestionDetail', () => {
     const { rerender } = wrap(<QuestionDetail q={q} group={{} as any} section={ls} mark={mark} onPlay={() => {}} onDictate={() => {}} />);
     expect(screen.getByRole('button', { name: /Play from 0:00/ })).toBeTruthy();
     expect(screen.getByText(/Answer heard at 0:01/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dictation' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Dictation/ })).toBeTruthy();
     rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={q} group={{} as any} section={ls} mark={{ ...mark, correct: true }} onPlay={() => {}} onDictate={() => {}} /></QueryClientProvider>);
-    expect(screen.queryByRole('button', { name: 'Dictation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Dictation/ })).toBeNull();
     rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={{ n: 7 } as any} group={{} as any} section={{ ...ls, timings: undefined }} mark={mark} onPlay={() => {}} onDictate={() => {}} /></QueryClientProvider>);
     expect(screen.queryByRole('button', { name: /Play from 0:00/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Dictation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Dictation/ })).toBeNull();
   });
 });
 

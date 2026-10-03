@@ -90,7 +90,7 @@ function HistoryPage() {
               const done = a.status === 'submitted';
               return (
                 <li key={a.id}>
-                  <Link to={done ? '/lr/result/$attemptId' : '/lr/run/$attemptId'} params={{ attemptId: a.id }} className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_7rem_5.5rem_4.5rem_1rem] md:gap-x-4')}>
+                  <Link to={done ? '/lr/result/$attemptId' : '/lr/run/$attemptId'} params={{ attemptId: a.id }} className={cn(rowStyles, 'md:grid md:grid-cols-[1.25rem_minmax(0,1fr)_7rem_5.5rem_6rem_1rem] md:gap-x-4')}>
                     <RowIcon>
                       <Icon />
                     </RowIcon>
@@ -103,9 +103,12 @@ function HistoryPage() {
                     </span>
                     <span className="type-caption hidden capitalize md:block">{a.skill}, {a.mode}</span>
                     <span className="type-caption hidden md:block">{formatDate(a.startedAt)}</span>
-                    <span className={cn('type-band justify-self-end text-lg', done && a.band != null ? BAND_TEXT[bandColor(a.band, target)] : 'text-muted')}>
-                      <span className="sr-only">Band </span>
-                      {done ? formatBand(a.band) : <span aria-hidden>-</span>}
+                    <span className="flex items-baseline justify-end gap-2 justify-self-end">
+                      {done && <span className="type-caption type-num hidden md:inline"><span className="sr-only">Score </span>{a.raw}/{a.total}</span>}
+                      <span className={cn('type-band text-lg', done && a.band != null ? BAND_TEXT[bandColor(a.band, target)] : 'text-muted')}>
+                        <span className="sr-only">Band </span>
+                        {done ? formatBand(a.band) : <span aria-hidden>-</span>}
+                      </span>
                     </span>
                     <RowChevron />
                   </Link>

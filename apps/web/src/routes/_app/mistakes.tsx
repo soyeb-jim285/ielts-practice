@@ -12,6 +12,7 @@ import { Badge, Button, buttonStyles, Chip, EmptyState, PageContainer, PageHeade
 import { call, client, type Schemas } from '@/lib/api';
 import { formatClock, formatRelative, plural } from '@/lib/format';
 import { categoryLabel } from '@/lib/result';
+import { cn } from '@/lib/utils';
 
 type Mistake = Schemas['Mistake'];
 
@@ -172,18 +173,36 @@ function MistakeItem({ m, showCategory }: { m: Mistake; showCategory: boolean })
 
 /** Words misspelt (or wrongly pluralised) in Listening and Reading gap answers, most frequent first. Each also becomes a Review card. */
 function SpellingSection({ items }: { items: Schemas['LrSpelling']['items'] }) {
+  const [kind, setKind] = useState<'all' | 'spelling' | 'plural'>('all');
+  const [more, setMore] = useState(false);
   if (!items.length) return null;
+  const nPlural = items.filter((w) => w.kind === 'plural').length;
+  const shown = items.filter((w) => kind === 'all' || w.kind === kind);
+  const list = more ? shown : shown.slice(0, 8);
+  const repeats = items.filter((w) => w.count > 1).length;
   return (
     <section aria-labelledby="spell-h" className="mb-10">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-6">
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-6">
         <h2 id="spell-h" className="type-heading">Spelling and plurals</h2>
         <Link to="/review" className="type-caption underline decoration-line underline-offset-4 hover:text-accent-text">Practise these in Review</Link>
       </div>
-      <ul className={listStyles}>
-        {items.map((w) => (
-          <li key={`${w.kind}-${w.word}`} className="flex items-baseline justify-between gap-4 py-3.5">
+      <p className="type-caption mb-3">
+        {plural(items.length, 'word')}: {items.length - nPlural} spelling, {nPlural} plural{repeats > 0 && `. ${repeats} came up more than once, start with those`}.
+      </p>
+      <div className="mb-2 flex gap-2" role="group" aria-label="Filter by kind">
+        {(['all', 'spelling', 'plural'] as const).map((k) => (
+          <Chip key={k} selected={kind === k} onClick={() => { setKind(k); setMore(false); }}>
+            {k === 'all' ? 'All' : k === 'spelling' ? 'Spelling' : 'Plural'}
+          </Chip>
+        ))}
+      </div>
+      <ul className="grid gap-x-10 border-t border-line md:grid-cols-2">
+        {list.map((w) => (
+          <li key={`${w.kind}-${w.word}`} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
             <div className="min-w-0">
-              <p className="type-num font-semibold">{w.word}</p>
+              <p className="type-num font-semibold">
+                {w.word} <span className="type-caption font-normal">{w.kind === 'plural' ? 'plural' : 'spelling'}</span>
+              </p>
               <p className="type-caption">
                 You wrote <span className="sr-only">: </span>
                 {w.typed.map((t, i) => (
@@ -194,13 +213,15 @@ function SpellingSection({ items }: { items: Schemas['LrSpelling']['items'] }) {
                 ))}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <Badge>{w.kind === 'plural' ? 'Plural' : 'Spelling'}</Badge>
-              <span className="type-num text-sm text-muted">{w.count}<span className="sr-only"> {w.count === 1 ? 'time' : 'times'}</span><span aria-hidden>×</span></span>
-            </div>
+            <span className={cn('type-num shrink-0 text-sm', w.count > 1 ? 'font-semibold text-warn-text' : 'text-muted')}>{w.count}<span className="sr-only"> {w.count === 1 ? 'time' : 'times'}</span><span aria-hidden>×</span></span>
           </li>
         ))}
       </ul>
+      {shown.length > 8 && (
+        <Button variant="ghost" size="sm" className="mt-2 max-md:min-h-11" onClick={() => setMore(!more)} aria-expanded={more}>
+          {more ? 'Show fewer' : `Show all ${shown.length}`}
+        </Button>
+      )}
     </section>
   );
 }

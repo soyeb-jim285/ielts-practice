@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { audioWindow, dictationDiff, dictationScore, TFNG_RULES, tfngValue, wordsBetween, type GapEntry, type LrTimings, type TfngPattern, type TfngRow, type LrStats } from '@ielts/core';
-import { Check, Ear, Plus, Play, Volume2 } from 'lucide-react';
+import { Check, ChevronRight, Ear, Plus, Play, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Badge, Button, Dialog, Textarea, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
@@ -27,7 +27,7 @@ export const timesText = (n: number) => (n === 1 ? 'once' : n === 2 ? '2 times' 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h4 className="type-caption mb-1 font-medium uppercase tracking-wide">{title}</h4>
+      <h4 className="type-caption mb-1 font-semibold text-ink">{title}</h4>
       {children}
     </div>
   );
@@ -44,12 +44,17 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
   const canDictate = listening && !!timingsOf(section)?.length && win?.exact && mark && !mark.correct;
   const nothing = !r && !entry && !win;
   return (
-    <section id={`detail-${q.n}`} aria-label={`Question ${q.n} review`} className="space-y-4 rounded-lg border border-line bg-card px-4 py-4 text-body shadow-card">
+    <section id={`detail-${q.n}`} aria-label={`Question ${q.n} review`} className="space-y-4 rounded-lg border border-line bg-card px-4 py-4 text-body">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="type-subheading">
-          Question {q.n}
-          {mark && <span className={cn('ml-3 type-num text-sm font-normal', mark.correct ? 'text-good-text' : 'text-bad-text')}>{mark.correct ? 'Correct' : `You wrote ${mark.given || 'nothing'}, the answer is ${mark.answer.join(' / ')}`}</span>}
-        </h3>
+        <div className="min-w-0 space-y-1">
+          <h3 className="type-subheading">Question {q.n}</h3>
+          {mark && (
+            <p className={cn('type-num flex items-start gap-1.5 font-medium', mark.correct ? 'text-good-text' : 'text-bad-text')}>
+              {mark.correct ? <Check className="mt-1 size-4 shrink-0" aria-hidden /> : <X className="mt-1 size-4 shrink-0" aria-hidden />}
+              <span>{mark.correct ? 'Correct' : <>{mark.given ? <>You wrote <span className="rounded bg-bad-soft px-1">{mark.given}</span></> : 'You left it blank'}<span className="text-ink">, the answer is <span className="rounded bg-good-soft px-1 font-semibold text-good-text">{mark.answer.join(' / ')}</span></span></>}</span>
+            </p>
+          )}
+        </div>
         {onClose && (
           <Button size="sm" variant="ghost" className="-mr-2 -mt-1 shrink-0" onClick={onClose}>
             Close
@@ -73,18 +78,19 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
         </div>
       )}
       {r?.why && (
-        <Block title="Why">
+        <Block title="Why this is the answer">
           <p className="max-w-[68ch] text-pretty">{r.why}</p>
         </Block>
       )}
       {wrong && (
-        <Block title={`Why ${mark!.given.toUpperCase().length <= 3 ? mark!.given.toUpperCase() : `"${mark!.given}"`} is wrong`}>
+        <Block title={`Why ${mark!.given.toUpperCase().length <= 3 ? mark!.given.toUpperCase() : `"${mark!.given}"`} is not right`}>
           <p className="max-w-[68ch] text-pretty">{wrong}</p>
         </Block>
       )}
       {!!r?.paraphrase?.length && (
-        <Block title="Same idea, different words">
-          <ul className="space-y-1">
+        <details className="group/p">
+          <summary className="type-caption flex min-h-9 cursor-pointer select-none items-center gap-1 font-semibold text-ink"><ChevronRight className="size-4 transition-transform group-open/p:rotate-90" aria-hidden />How the question is reworded ({r.paraphrase.length})</summary>
+          <ul className="mt-1 space-y-1">
             {r.paraphrase.map(([a, b], i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-2">
                 <span className="rounded bg-surface-2 px-1.5 py-0.5">{a}</span>
@@ -93,10 +99,10 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
               </li>
             ))}
           </ul>
-        </Block>
+        </details>
       )}
       {r?.evidence && (
-        <Block title={listening ? 'In the recording' : 'In the passage'}>
+        <Block title={listening ? 'What the speaker says' : 'What the passage says'}>
           <blockquote className="type-reading-sm max-w-[68ch] border-l-2 border-accent pl-3 text-pretty">{r.evidence}</blockquote>
         </Block>
       )}
@@ -120,7 +126,7 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
           )}
           {canDictate && onDictate && (
             <Button size="sm" variant="outline" icon={<Ear />} onClick={onDictate}>
-              Dictation
+              Dictation: type what you hear
             </Button>
           )}
         </div>
@@ -244,8 +250,8 @@ export function TfngPanel({ rows, pattern }: { rows: TfngRow[]; pattern?: TfngPa
   const kinds = (['tfng', 'ynng'] as const).filter((k) => rows.some((r) => r.kind === k));
   if (!kinds.length) return null;
   return (
-    <section aria-labelledby="tfng-h" className="mb-12">
-      <h2 id="tfng-h" className="type-heading mb-3">
+    <section aria-labelledby="tfng-h">
+      <h2 id="tfng-h" className="sr-only">
         True / False / Not Given
       </h2>
       {pattern && <p className="mb-4 rounded-md bg-warn-soft px-3 py-2.5 font-medium text-warn-text">{pattern.text} <span className="font-normal">Across all your attempts.</span></p>}
@@ -314,8 +320,8 @@ export function PacingPanel({ stats, parts, noun, totalS, marks, blank }: {
   const lateWrong = stats.late.filter((n) => marks.get(n) && !marks.get(n)!.correct);
   const list = (ns: readonly number[]) => ns.slice().sort((a, b) => a - b).join(', ');
   return (
-    <section aria-labelledby="pace-h" className="mb-12">
-      <h2 id="pace-h" className="type-heading mb-3">
+    <section aria-labelledby="pace-h" className="pb-6">
+      <h2 id="pace-h" className="sr-only">
         Pacing
       </h2>
       <div className="grid gap-x-12 gap-y-8 md:grid-cols-2">
@@ -395,9 +401,12 @@ export function VocabList({ section }: { section: LrSection }) {
   });
   if (!section.vocab?.length) return null;
   return (
-    <section className="mb-8" aria-label="Key vocabulary">
-      <h3 className="type-subheading mb-2">Key vocabulary</h3>
-      <ul className="divide-y divide-line border-y border-line">
+    <details className="group/v mb-6 rounded-lg border border-line bg-card" aria-label="Key vocabulary">
+      <summary className="type-subheading flex min-h-11 cursor-pointer select-none items-center gap-1 px-4">
+        <ChevronRight className="size-4 transition-transform group-open/v:rotate-90" aria-hidden />
+        Key vocabulary <span className="flex-1" /><span className="type-caption font-normal">{section.vocab.length} words</span>
+      </summary>
+      <ul className="divide-y divide-line border-t border-line px-4">
         {section.vocab.map((v) => (
           <li key={v.word} className="flex items-start justify-between gap-4 py-3">
             <div className="min-w-0">
@@ -414,6 +423,6 @@ export function VocabList({ section }: { section: LrSection }) {
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }

@@ -105,11 +105,13 @@ export function LrHub({ skill }: { skill: LrSkill }) {
   const target = useMe().data?.settings.targetBand ?? 7;
   const navigate = useNavigate();
   const [variant, setVariant] = useState<'all' | 'academic' | 'general'>('all');
+  const [state, setState] = useState<'all' | 'todo' | 'done'>('all');
   const [pick, setPick] = useState<Item | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
   const c = COPY[skill];
-  const items = data.items.filter((t) => variant === 'all' || t.variant === variant);
+  const items = data.items.filter((t) => (variant === 'all' || t.variant === variant) && (state === 'all' || (state === 'done' ? t.status === 'submitted' : t.status !== 'submitted')));
+  const done = data.items.filter((t) => t.status === 'submitted').length;
   const variants = new Set(data.items.map((t) => t.variant));
 
   const open = (a: string) => navigate({ to: '/lr/run/$attemptId', params: { attemptId: a } });
@@ -144,7 +146,15 @@ export function LrHub({ skill }: { skill: LrSkill }) {
         }
       />
       <GuestRecent skill={skill} />
-      {items.length === 0 ? (
+      {done > 0 && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="type-caption">{done} of {data.items.length} done</p>
+          <Segmented label="Show" size="sm" value={state} onChange={setState} options={[{ value: 'all', label: 'All' }, { value: 'todo', label: 'To do' }, { value: 'done', label: 'Done' }]} />
+        </div>
+      )}
+      {items.length === 0 && data.items.length > 0 ? (
+        <p className="type-lede border-t border-line pt-4">No tests match this filter.</p>
+      ) : items.length === 0 ? (
         <EmptyState icon={<c.icon />} title={`No ${skill} tests yet`}>
           Tests appear here once they are imported. Run the importer, then reload this page.
         </EmptyState>
@@ -167,7 +177,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
                           {t.skill === 'reading' && <Badge tone={t.variant === 'academic' ? 'neutral' : 'info'}>{t.variant === 'academic' ? 'Academic' : 'General Training'}</Badge>}
                         </span>
                         <span className="type-caption mt-0.5 block">
-                          {t.attemptId ? `Resume in ${t.mode} mode` : t.status === 'submitted' ? 'Retake or review' : '40 questions'}
+                          {t.attemptId ? `Resume in ${t.mode} mode` : t.status === 'submitted' ? 'Retake this test' : '40 questions'}
                         </span>
                       </span>
                       <Status t={t} target={target} />

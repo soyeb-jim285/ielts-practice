@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button, ProgressBar, type Tone } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
@@ -46,7 +46,10 @@ export function LrInsights({ target }: { target: number }) {
   };
   return (
     <section aria-labelledby="lr-h" className="border-t border-line pt-8">
-      <h2 id="lr-h" className="type-heading mb-5">Listening and Reading</h2>
+      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6">
+        <h2 id="lr-h" className="type-heading">Listening and Reading</h2>
+        <Link to="/history" search={{ skill: 'listening' }} className="type-caption underline decoration-line underline-offset-4 hover:text-accent-text">All results</Link>
+      </div>
       <div className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
         <div className="space-y-5">
           {(['listening', 'reading'] as const).map((k) => {
@@ -58,6 +61,12 @@ export function LrInsights({ target }: { target: number }) {
                 <div>
                   <p className="type-caption">{SKILL[k]}, latest of {rows.length}</p>
                   <p className="type-band text-4xl">{formatBand(last.band)}</p>
+                  {rows.length > 1 && (
+                    <p className="type-caption type-num">
+                      {rows[0]!.band === last.band ? 'Same as your first' : `${last.band > rows[0]!.band ? 'Up' : 'Down'} ${formatBand(Math.abs(last.band - rows[0]!.band))} from your first`}
+                      <span className="sr-only">. </span>
+                    </p>
+                  )}
                 </div>
                 <Spark rows={rows} target={target} label={`${SKILL[k]} band over ${rows.length} attempts, latest ${formatBand(last.band)}; dashed line is your ${formatBand(target)} target`} />
               </div>
