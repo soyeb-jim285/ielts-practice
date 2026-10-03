@@ -334,6 +334,7 @@ enum AuthText {
         if e.code == "INVALID_OTP" { return "That code isn't right. Check it and try again." }
         if e.code == "OTP_EXPIRED" { return "That code has expired. Request a new one." }
         if e.code == "TOO_MANY_ATTEMPTS" { return "Too many wrong tries. Request a new code." }
+        if e.code == "otp_locked" { return e.message.isEmpty ? "Too many wrong codes. Try again later." : e.message } // the server says how many minutes
         if e.status == 429 { return "Too many requests. Wait a minute, then try again." }
         return e.message.isEmpty ? "Something went wrong. Try again." : e.message
     }

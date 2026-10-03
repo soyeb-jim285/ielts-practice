@@ -52,3 +52,6 @@ export const authStatusOk = (ipHash: string) => take(ipBuckets, `authstatus:${ip
 /** Code-sending endpoints (sign-up, send code, password reset), per client address. Deliberately NOT per target address: a bucket keyed by the victim's email would let anyone lock
  *  the victim out of their own code. Inbox bombing is capped by the atomic 30 s cooldown per address+purpose (auth-email.ts). Same for real and unknown addresses. */
 export const codeRequestOk = (ipHash: string) => take(ipBuckets, `code-ip:${ipHash}`, 30, 3_000);
+
+/** Code checks (verify-email, reset-password, ...) per client address, on top of the per-email wrong-code budget. A person types a code a few times; 20 at once, then 1 per 6 s. */
+export const codeCheckOk = (ipHash: string) => take(ipBuckets, `code-check:${ipHash}`, 20, 6_000);

@@ -246,6 +246,7 @@ fun otpError(status: Int, code: String?, message: String): String = when {
     code == "INVALID_OTP" -> "That code isn't right. Check it and try again."
     code == "OTP_EXPIRED" -> "That code has expired. Request a new one."
     code == "TOO_MANY_ATTEMPTS" -> "Too many wrong tries. Request a new code."
+    code == "otp_locked" -> message.ifEmpty { "Too many wrong codes. Try again later." } // the server says how many minutes
     status == 429 -> "Too many requests. Wait a minute, then try again."
     else -> message.ifEmpty { "Something went wrong. Try again." }
 }

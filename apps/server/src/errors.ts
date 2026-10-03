@@ -6,6 +6,7 @@ export type ErrorCode =
   | 'community_balance_exhausted' // 402
   | 'community_busy' // 503
   | 'too_many_requests' // 429
+  | 'otp_locked' // 429: too many wrong email codes for this address (auth-email.ts); `retryAfterSeconds` says when to try again
   | 'live_requires_own_key' // 403
   | 'account_required' // 403
   | 'cambridge_required' // 403: Listening & Reading are for Cambridge-allow-listed users

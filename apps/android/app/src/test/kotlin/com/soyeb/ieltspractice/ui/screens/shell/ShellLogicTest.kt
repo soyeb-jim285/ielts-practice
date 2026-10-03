@@ -172,6 +172,7 @@ class ShellLogicTest {
         assertEquals("That code has expired. Request a new one.", otpError(400, "OTP_EXPIRED", ""))
         assertEquals("Too many wrong tries. Request a new code.", otpError(400, "TOO_MANY_ATTEMPTS", ""))
         assertEquals("Too many requests. Wait a minute, then try again.", otpError(429, null, "x"))
+        assertEquals("Too many wrong codes. Try again in 12 minutes.", otpError(429, "otp_locked", "Too many wrong codes. Try again in 12 minutes."))
         assertEquals("Offline", otpError(0, null, "Offline"))
         assertEquals("Something went wrong. Try again.", otpError(500, null, ""))
         assertEquals("123456", otpDigits("12 34-56 78"))

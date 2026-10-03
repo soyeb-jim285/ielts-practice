@@ -127,3 +127,30 @@ export async function emailStatus(token: string | undefined | null): Promise<Ema
   if (failure) return { ...out, status: 'failed', error: failure as ErrorKind };
   return { ...out, status: 'sent', sentAt: last.createdAt.toISOString(), resendAvailableIn: left(last.createdAt), alreadySent: rows.some((r) => r.status === 'skipped_cooldown' && r.createdAt > last.createdAt) };
 }
+
+// ---------- Wrong-code budget ----------
+// Better Auth allows 5 guesses per code, but a new code (and 5 more guesses) can be requested every 30 s from any address, so the budget is per EMAIL across codes and purposes,
+// kept in email_log (purpose 'verify', status 'wrong_code') so it survives restarts and works across instances. It limits guessing only: sending codes is never blocked.
+// Counted for any address, real or not, so a lock reveals nothing.
+export const WRONG_CODE_BUDGET = { perHour: 10, perDay: 20 };
+
+/** Atomically counts this attempt against the address's budget BEFORE the code is checked (so parallel guesses cannot overshoot).
+ *  Returns { wait } seconds when the budget is spent, else { id } of the reserved row (delete it with [releaseAttempt] unless the guess was wrong). */
+export async function reserveAttempt(raw: string): Promise<{ wait: number; id?: undefined } | { id: string; wait?: undefined }> {
+  const email = raw.trim().toLowerCase();
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`verify:${email}`}, 0))`);
+    const rows = (await tx.execute(sql`select extract(epoch from now() - created_at)::float as age from email_log
+      where email = ${email} and purpose = 'verify' and status = 'wrong_code' and created_at > now() - interval '24 hours' order by created_at desc limit 20`)) as unknown as { age: number }[];
+    const ages = rows.map((r) => r.age);
+    const inHour = ages.filter((a) => a < 3600);
+    const wait = Math.max(
+      inHour.length >= WRONG_CODE_BUDGET.perHour ? 3600 - inHour[WRONG_CODE_BUDGET.perHour - 1]! : 0,
+      ages.length >= WRONG_CODE_BUDGET.perDay ? 86400 - ages[WRONG_CODE_BUDGET.perDay - 1]! : 0,
+    );
+    if (wait > 0) return { wait: Math.ceil(wait) };
+    const [row] = await tx.insert(emailLog).values({ userId: null, email, purpose: 'verify', status: 'wrong_code', attempts: 0 }).returning({ id: emailLog.id });
+    return { id: row!.id };
+  });
+}
+export const releaseAttempt = (id: string) => db.delete(emailLog).where(eq(emailLog.id, id));

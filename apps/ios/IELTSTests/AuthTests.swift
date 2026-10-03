@@ -13,6 +13,7 @@ final class AuthTests: XCTestCase {
         XCTAssertTrue(AuthText.otpError(APIError(status: 400, message: "", code: "OTP_EXPIRED")).contains("expired"))
         XCTAssertTrue(AuthText.otpError(APIError(status: 403, message: "", code: "TOO_MANY_ATTEMPTS")).contains("new code"))
         XCTAssertTrue(AuthText.otpError(APIError(status: 429, message: "slow down")).contains("Too many requests"))
+        XCTAssertEqual(AuthText.otpError(APIError(status: 429, message: "Too many wrong codes. Try again in 12 minutes.", code: "otp_locked")), "Too many wrong codes. Try again in 12 minutes.")
         XCTAssertEqual(AuthText.otpError(APIError(status: 500, message: "Boom")), "Boom")
     }
 
