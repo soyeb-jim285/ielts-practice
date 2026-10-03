@@ -66,6 +66,8 @@ final class DemoURLProtocol: URLProtocol {
             let screen = Demo.screen ?? ""
             let keys = ["\(full)#\(screen)", "\(url.path)#\(screen)"] + (Demo.isGuest ? ["\(url.path)#guest"] : []) + [full, url.path]
             if let d = keys.lazy.compactMap({ Demo.fixtures[$0] }).first { body = Self.fillDates(d) } else { status = 404 }
+        } else if let d = Demo.fixtures["\(request.httpMethod ?? "") \(url.path)"] {
+            body = d // mutations with a canned answer ("POST /api/lr/attempts/x/submit"); every other write succeeds with {}
         }
         let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json", "set-auth-token": "demo"])!
         client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)

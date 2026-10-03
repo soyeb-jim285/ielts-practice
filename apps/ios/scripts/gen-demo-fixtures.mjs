@@ -2,7 +2,7 @@
 // Synthetic API responses for the iOS demo mode (`-demo` launch argument), used by the screenshot workflow.
 // Invented data only — no real accounts. Keys are "path" or "path?k=v&…" (query keys sorted), as DemoURLProtocol looks them up.
 // Run: node apps/ios/scripts/gen-demo-fixtures.mjs  → apps/ios/IELTS/Demo/fixtures.json
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +13,7 @@ const settings = {
   models: { analysis: 'openai/gpt-6-luna', examiner: 'openai/gpt-6-luna', stt: 'elevenlabs/scribe_v2', tts: 'google/gemini-3.8-flash-tts', ttsVoice: 'Charon', audioPron: 'google/gemini-2.5-flash' },
   audioPronEnabled: true, liveProvider: 'turn', targetBand: 7, writingAutoSubmit: true, blockPaste: true,
 };
-const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true, isAnonymous: false }, settings, cambridgeAccess: false, gptLiveAvailable: true, geminiLiveAvailable: true };
+const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true, isAnonymous: false }, settings, cambridgeAccess: true, gptLiveAvailable: true, geminiLiveAvailable: true };
 
 const p = (o) => ({ variant: null, type: null, topic: null, bullets: null, followUps: null, chart: null, imageUrl: null, groupId: null, done: false, source: 'generated', ...o });
 const sp1 = p({ id: 'sp1', skill: 'speaking', part: 1, topic: 'Hometown', title: 'Your hometown', body: 'Let\'s talk about where you grew up.', followUps: ['Where is your hometown?', 'What do you like most about it?', 'Has it changed much since you were a child?', 'Would you like to live there in the future?'] });
@@ -251,5 +251,78 @@ fx['/api/keys#keys-settings'] = { keys: [
 fx['/api/community/balance'] = bal(12.4);
 for (const x of [w2, w1a, w1g, w1b, w1p, w1t, w1pr, w1m]) fx[`/api/prompts/${x.id}`] = x; // the editor and the prompt bank open a task by id
 mkdirSync(dirname(out), { recursive: true });
+
+// ---- Listening & Reading (cambridge-gated; /api/lr/*). Original text from the server dev fixtures (apps/server/src/test/fixtures/lr). ----
+// Asset URLs are placeholders: the iOS demo maps them to bundled files (IELTS/Demo/demo-audio.mp3, demo-map.png); Android may do the same.
+{
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '../../server/src/test/fixtures/lr');
+  const load = (f, o) => ({ ...JSON.parse(readFileSync(join(dir, f), 'utf8')), ...o });
+  const L = load('lr-listening.json', { slug: 'original-listening-1', ref: 'Original L1', title: 'Original practice: Listening 1', source: 'generated' });
+  const R = load('lr-reading.json', { slug: 'original-reading-1', ref: 'Original R1', title: 'Original practice: Reading 1', source: 'generated' });
+  const A = 'https://demo.ielts.local/lr-assets/';
+  const assetsOf = (t) => Object.fromEntries(t.sections.flatMap((s) => [s.audio, ...s.groups.map((g) => g.image)]).filter(Boolean)
+    .map((k) => [k, A + (k.endsWith('.svg') ? 'map.png' : k.split('/').pop())]));
+  const strip = (t) => ({ ...t, sections: t.sections.map(({ transcript, ...s }) => ({ ...s, groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer, ...q }) => q) })) })) });
+  const flatQ = (t) => t.sections.flatMap((s) => s.groups.flatMap((g) => g.questions.map((q) => ({ q, g }))));
+  // Mirrors packages/core lrBand (listening / academic reading tables).
+  const TL = [[39, 9], [37, 8.5], [35, 8], [32, 7.5], [30, 7], [26, 6.5], [23, 6], [18, 5.5], [16, 5], [13, 4.5], [10, 4], [8, 3.5], [6, 3], [4, 2.5], [2, 2], [1, 1]];
+  const TR = [[39, 9], [37, 8.5], [35, 8], [33, 7.5], [30, 7], [27, 6.5], [23, 6], [19, 5.5], [15, 5], [13, 4.5], [10, 4], [8, 3.5], [6, 3], [4, 2.5], [2, 2], [1, 1]];
+  const bandOf = (t, raw) => (t.skill === 'listening' ? TL : TR).find(([m]) => raw >= m)?.[1] ?? 0;
+  // Deterministic answers: every 4th (and 9th) question is wrong, every 13th left blank.
+  const answers = (t) => {
+    const r = {};
+    for (const { q, g } of flatQ(t)) {
+      if (q.n % 13 === 0) continue;
+      const bad = q.n % 4 === 0 || q.n % 9 === 0;
+      const good = q.answer[0];
+      if (!bad) r[q.n] = g.type === 'mcq-multi' ? q.answer[q.n % q.answer.length] : good;
+      else if (g.type === 'tfng') r[q.n] = good === 'TRUE' ? 'FALSE' : 'TRUE';
+      else if (g.type === 'ynng') r[q.n] = good === 'YES' ? 'NO' : 'YES';
+      else if (g.type === 'mcq') r[q.n] = (q.options.find((o) => o.key !== good) ?? q.options[0]).key;
+      else if (g.options) r[q.n] = g.options.find((o) => o.key !== good)?.key ?? 'A';
+      else r[q.n] = 'harbour';
+    }
+    return r;
+  };
+  const marks = (t, r) => flatQ(t).map(({ q, g }) => {
+    const given = r[q.n] ?? '';
+    const norm = (x) => x.toLowerCase().trim();
+    const ok = !!given && (g.type === 'mcq-multi' ? q.answer.map(norm).includes(norm(given)) : q.answer.some((a) => norm(a) === norm(given)));
+    return { n: q.n, given, correct: ok, answer: q.answer };
+  });
+  const attempt = (id, testId, t, mode, extra = {}) => ({ id, testId, mode, status: 'in_progress', responses: {}, elapsedS: 0, startedAt: day(1), submittedAt: null, raw: null, total: null, band: null, marks: null, test: strip(t), assets: assetsOf(t), ...extra });
+  const submitted = (id, testId, t, mode) => {
+    const responses = answers(t), ms = marks(t, responses), raw = ms.filter((m) => m.correct).length;
+    return attempt(id, testId, t, mode, { status: 'submitted', responses, elapsedS: t.skill === 'reading' ? 3120 : 2400, submittedAt: day(1), raw, total: 40, band: bandOf(t, raw), marks: ms, test: t });
+  };
+  const partial = (t, upto) => Object.fromEntries(Object.entries(answers(t)).filter(([n]) => +n <= upto));
+  const lraR = attempt('lra-r', 'lt-r1', R, 'exam', { responses: partial(R, 16), elapsedS: 1260 });
+  const lraL = attempt('lra-l', 'lt-l1', L, 'practice', { responses: partial(L, 12), elapsedS: 420 });
+  const lraLe = attempt('lra-le', 'lt-l1', L, 'exam');
+  const lraRs = submitted('lra-rs', 'lt-r1', R, 'exam');
+  const lraLs = submitted('lra-ls', 'lt-l1', L, 'practice');
+  const item = (id, t, o) => ({ id, slug: t.slug, skill: t.skill, variant: t.variant, source: t.source, ref: t.ref, title: t.title, total: 40, status: 'new', attemptId: null, mode: null, answered: 0, bestBand: null, attempts: 0, ...o });
+  const cam = (skill, ref, variant, o) => item(`c-${skill[0]}-${ref.replace(/\W/g, '')}`, { slug: `c-${ref}`, skill, variant, source: 'cambridge', ref, title: `Cambridge IELTS ${ref}` }, o);
+  const camRef = (skill) => [
+    cam(skill, 'C17 T1', 'academic', { status: 'submitted', bestBand: 7, attempts: 2 }),
+    cam(skill, 'C17 T2', 'academic', { status: 'in_progress', answered: 14, mode: 'practice', attemptId: skill === 'reading' ? 'lra-r' : 'lra-l' }),
+    cam(skill, 'C17 T3', 'academic', {}),
+    cam(skill, 'C17 T4', 'academic', {}),
+    cam(skill, 'C16 T1', 'academic', { status: 'submitted', bestBand: 6, attempts: 1 }),
+    cam(skill, 'C16 T2', 'academic', {}),
+  ];
+  const lrItem = (a, t) => ({ id: a.id, testId: a.testId, skill: t.skill, variant: t.variant, ref: t.ref, title: t.title, mode: a.mode, status: a.status, raw: a.raw, total: a.total, band: a.band, answered: Object.keys(a.responses).length, startedAt: a.startedAt, submittedAt: a.submittedAt });
+  fx['/api/lr/tests?skill=reading'] = { items: [...camRef('reading'), item('lt-r1', R, { status: 'in_progress', answered: 16, mode: 'exam', attemptId: 'lra-r' }), item('lt-r2', { ...R, slug: 'original-reading-2', ref: 'Original R2', title: 'Original practice: Reading 2', variant: 'general' }, {})] };
+  fx['/api/lr/tests?skill=listening'] = { items: [...camRef('listening'), item('lt-l1', L, { status: 'submitted', bestBand: lraLs.band, attempts: 1 })] };
+  fx['/api/lr/attempts'] = { items: [lrItem(lraR, R), lrItem(lraLs, L), lrItem(lraRs, R)].map((x, i) => ({ ...x, startedAt: day(i + 1), submittedAt: x.submittedAt && day(i + 1) })) };
+  for (const a of [lraR, lraL, lraLe, lraRs, lraLs]) fx[`/api/lr/attempts/${a.id}`] = a;
+  // Mutations are answered by "METHOD path" keys (DemoURLProtocol): start/resume returns the in-progress attempt, submit the scored one.
+  for (const [t, a] of [['lt-r1', lraR], ['lt-r2', lraR], ['lt-l1', lraL]]) fx[`POST /api/lr/tests/${t}/attempts`] = a;
+  fx['POST /api/lr/attempts/lra-r/submit'] = lraRs;
+  fx['POST /api/lr/attempts/lra-l/submit'] = lraLs;
+  fx['POST /api/lr/attempts/lra-le/submit'] = lraLs;
+  fx['PUT /api/lr/attempts/lra-r'] = fx['PUT /api/lr/attempts/lra-l'] = fx['PUT /api/lr/attempts/lra-le'] = { savedAt: day(0) };
+}
+
 writeFileSync(out, JSON.stringify(fx));
 console.log(`wrote ${Object.keys(fx).length} fixtures (${(JSON.stringify(fx).length / 1024).toFixed(0)} KB) → ${out}`);
