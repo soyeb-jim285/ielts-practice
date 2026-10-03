@@ -50,6 +50,11 @@ import com.soyeb.ieltspractice.core.resScore
 import com.soyeb.ieltspractice.core.speakingSessionOverall
 import com.soyeb.ieltspractice.core.writingSessionOverall
 import com.soyeb.ieltspractice.ui.ScreenScaffold
+import com.soyeb.ieltspractice.ui.screens.shell.ConfirmRemoveDialog
+import com.soyeb.ieltspractice.ui.screens.shell.RemovalTarget
+import com.soyeb.ieltspractice.ui.screens.shell.RemoveMenuAction
+import com.soyeb.ieltspractice.ui.screens.shell.removeAttempt
+import kotlinx.coroutines.CancellationException
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.Login
@@ -85,12 +90,27 @@ fun ResultScreen(route: AttemptResult, nav: AppNav) {
     val api = LocalApp.current.api
     val token by api.token.collectAsState()
     val account by api.hasAccount.collectAsState()
-    ScreenScaffold("Results", onBack = nav::back, scroll = false) {
+    val scope = rememberCoroutineScope()
+    var current by remember { mutableStateOf<RemovalTarget?>(null) }
+    var asking by remember { mutableStateOf<RemovalTarget?>(null) }
+    var removeError by remember { mutableStateOf<String?>(null) }
+    ScreenScaffold("Results", onBack = nav::back, scroll = false, actions = { RemoveMenuAction(current?.let { t -> { asking = t } }) }) {
+        asking?.let { t ->
+            ConfirmRemoveDialog(t, onConfirm = {
+                asking = null
+                scope.launch {
+                    try { removeAttempt(api, t); nav.back() } catch (x: CancellationException) { throw x } catch (x: Exception) {
+                        removeError = "Couldn't remove it: ${(x as? ApiError)?.message ?: "try again."}"
+                    }
+                }
+            }, onDismiss = { asking = null })
+        }
+        removeError?.let { ErrorLine(it) }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (token == null) {
                 ResUnavailable("Sign in to continue", "Sign in to see your results.") { PrimaryButton("Sign in or create account", { nav.go(Login) }) }
             } else {
-                ResultContainer(route.idList, nav)
+                ResultContainer(route.idList, nav) { current = it }
             }
         }
         // A guest can read their own result now; it is kept for 30 days unless they make an account.
@@ -100,7 +120,7 @@ fun ResultScreen(route: AttemptResult, nav: AppNav) {
 
 /** Polls every attempt until its analysis finishes, then shows the selected one. */
 @Composable
-private fun ResultContainer(ids: List<String>, nav: AppNav) {
+private fun ResultContainer(ids: List<String>, nav: AppNav, onCurrent: (RemovalTarget?) -> Unit) {
     val api = LocalApp.current.api
     val demo = LocalDemo.current != null
     val scope = rememberCoroutineScope()
@@ -151,6 +171,9 @@ private fun ResultContainer(ids: List<String>, nav: AppNav) {
     val parts = ids.map { fetched[it]?.attempt?.part }
     val ordered = if (parts.all { it != null }) ids.withIndex().sortedWith(compareBy({ parts[it.index] }, { it.index })).map { it.value } else ids
     val index = selected.coerceIn(0, (ids.size - 1).coerceAtLeast(0))
+
+    val shownAttempt = fetched[ordered.getOrNull(index)]?.attempt
+    LaunchedEffect(shownAttempt?.id) { onCurrent(shownAttempt?.let { RemovalTarget(it.id, it.prompt.title, false) }) }
 
     when {
         ids.isEmpty() -> ResUnavailable("Nothing to score", "No answers were recorded.")

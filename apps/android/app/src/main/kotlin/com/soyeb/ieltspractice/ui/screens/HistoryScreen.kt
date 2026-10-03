@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,7 +33,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.R
+import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.fmt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import com.soyeb.ieltspractice.ui.screens.shell.ConfirmRemoveDialog
+import com.soyeb.ieltspractice.ui.screens.shell.RemovableRow
+import com.soyeb.ieltspractice.ui.screens.shell.RemovalTarget
+import com.soyeb.ieltspractice.ui.screens.shell.removeAttempt
 import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
@@ -90,7 +98,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
     val lrOn = me != null
     val isLr = skill == "listening" || skill == "reading"
     val lrLoad = rememberLoad(lrOn) { if (lrOn) api.getList<LrAttemptItem>("/api/lr/attempts") else emptyList() }
-    val lr = ((lrLoad.state as? Load.Ready)?.value ?: emptyList()).filter { !isLr || it.skill == skill }
+    // Removed rows leave at once; a refused delete puts them back.
+    val gone = remember { mutableStateListOf<String>() }
+    var asking by remember { mutableStateOf<RemovalTarget?>(null) }
+    var removeError by remember { mutableStateOf<String?>(null) }
+    val lr = ((lrLoad.state as? Load.Ready)?.value ?: emptyList()).filter { (!isLr || it.skill == skill) && it.id !in gone }
     val paged = remember {
         Paged(scope) { page ->
             if (skill == "listening" || skill == "reading") return@Paged PageResult(emptyList(), 0)
@@ -99,8 +111,22 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
         }
     }
     LaunchedEffect(skill) { paged.reset() }
-    val groups = runsBy(paged.items) { ShellDate.bucket(it.createdAt) }
-    val total = paged.total ?: 0
+    val shownItems = paged.items.filter { it.id !in gone }
+    val groups = runsBy(shownItems) { ShellDate.bucket(it.createdAt) }
+    val total = ((paged.total ?: 0) - (paged.items.size - shownItems.size)).coerceAtLeast(0)
+    asking?.let { t ->
+        ConfirmRemoveDialog(t, onConfirm = {
+            asking = null
+            removeError = null
+            gone += t.id
+            scope.launch {
+                try { removeAttempt(api, t) } catch (x: CancellationException) { throw x } catch (x: Exception) {
+                    gone -= t.id
+                    removeError = "Couldn't remove it: ${(x as? ApiError)?.message ?: "try again."}"
+                }
+            }
+        }, onDismiss = { asking = null })
+    }
 
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -115,6 +141,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
                 )
             }
         }
+        removeError?.let { msg -> item { AppCard { ErrorLine(msg) } } }
         paged.error?.let { msg ->
             item { AppCard { ErrorLine(msg); SecondaryButton("Try again", { paged.reset() }) } }
         }
@@ -124,7 +151,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
                 AppCard(padding = 0.dp) {
                     lr.take(if (isLr) lr.size else 5).forEachIndexed { i, a ->
                         if (i > 0) RowDivider()
-                        LrHistoryRow(a, target) { nav.go(if (a.status == "submitted") LrResult(a.id) else LrRun(a.id)) }
+                        LrHistoryRow(a, target, { nav.go(if (a.status == "submitted") LrResult(a.id) else LrRun(a.id)) }) { asking = RemovalTarget(a.id, a.title, true) }
                     }
                 }
             }
@@ -132,7 +159,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
         if (isLr && lr.isEmpty() && lrLoad.state is Load.Ready) item {
             EmptyState("No $skill attempts yet", "Every $skill test you take is listed here with its band.", action = "Start a test", onAction = { nav.go(LrHub(skill)) })
         }
-        if (!isLr && !(lrOn && lr.isNotEmpty()) && paged.items.isEmpty() && paged.error == null) {
+        if (!isLr && !(lrOn && lr.isNotEmpty()) && shownItems.isEmpty() && paged.error == null) {
             item {
                 if (paged.loading) Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
                 else EmptyState(
@@ -150,7 +177,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
                     AppCard(padding = 0.dp) {
                         list.forEachIndexed { i, a ->
                             if (i > 0) RowDivider()
-                            HistoryRow(a, target) { nav.go(AttemptResult.of(a.id)) }
+                            HistoryRow(a, target, { nav.go(AttemptResult.of(a.id)) }) { asking = RemovalTarget(a.id, a.promptTitle, false) }
                         }
                     }
                 }
@@ -165,11 +192,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
 
 /** One Listening or Reading attempt: skill icon, title, mode and date (or "In progress"), then the band. */
 @Composable
-private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit) {
+private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit, onRemove: () -> Unit) {
     val e = MaterialTheme.ext
     val done = a.status == "submitted"
+    RemovableRow(onClick, onRemove) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
     ) {
         Icon(painterResource(if (a.skill == "listening") R.drawable.ic_sp_headphones else R.drawable.ic_lr_book), null, Modifier.padding(top = 2.dp).size(20.dp), tint = e.muted)
@@ -190,16 +218,18 @@ private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit) 
             Text(fmt(b), style = AppText.band(20), color = bandTextColor(b, target))
         }
     }
+    }
 }
 
 /** One attempt: skill icon, prompt, status or flag badge, part, date and duration, then the band. */
 @Composable
-private fun HistoryRow(a: HistoryItem, target: Double, onClick: () -> Unit) {
+private fun HistoryRow(a: HistoryItem, target: Double, onClick: () -> Unit, onRemove: () -> Unit) {
     val e = MaterialTheme.ext
     val status = historyStatus(a.status)
     val flag = historyFlag(a.flag)
+    RemovableRow(onClick, onRemove) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
     ) {
         Icon(painterResource(if (a.skill == "speaking") R.drawable.ic_mic else R.drawable.ic_edit), null, Modifier.padding(top = 2.dp).size(20.dp), tint = e.muted)
@@ -220,5 +250,5 @@ private fun HistoryRow(a: HistoryItem, target: Double, onClick: () -> Unit) {
                 style = AppText.band(20), color = bandTextColor(o, target),
             )
         }
-    }
+    }    }
 }

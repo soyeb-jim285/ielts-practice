@@ -69,6 +69,12 @@ import com.soyeb.ieltspractice.core.fmt
 import com.soyeb.ieltspractice.core.typeLabel
 import com.soyeb.ieltspractice.ui.Load
 import com.soyeb.ieltspractice.ui.ScreenScaffold
+import com.soyeb.ieltspractice.core.ApiError
+import kotlinx.coroutines.CancellationException
+import com.soyeb.ieltspractice.ui.screens.shell.ConfirmRemoveDialog
+import com.soyeb.ieltspractice.ui.screens.shell.RemovalTarget
+import com.soyeb.ieltspractice.ui.screens.shell.RemoveMenuAction
+import com.soyeb.ieltspractice.ui.screens.shell.removeAttempt
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.LrResult
 import com.soyeb.ieltspractice.ui.nav.LrRun
@@ -99,7 +105,26 @@ fun LrResultScreen(route: LrResult, nav: AppNav) {
     when (val s = load.state) {
         Load.Loading -> ScreenScaffold("Result", onBack = nav::back) { Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() } }
         is Load.Failed -> ScreenScaffold("Result", onBack = nav::back) { ErrorLine(s.message); SecondaryButton("Retry", load.reload) }
-        is Load.Ready -> ScreenScaffold(s.value.test.title, onBack = nav::back) { Results(s.value, nav) }
+        is Load.Ready -> {
+            val scope = rememberCoroutineScope()
+            var asking by remember { mutableStateOf<RemovalTarget?>(null) }
+            var removeError by remember { mutableStateOf<String?>(null) }
+            val t = RemovalTarget(s.value.id, s.value.test.title, true)
+            ScreenScaffold(s.value.test.title, onBack = nav::back, actions = { RemoveMenuAction { asking = t } }) {
+                asking?.let { a ->
+                    ConfirmRemoveDialog(a, onConfirm = {
+                        asking = null
+                        scope.launch {
+                            try { removeAttempt(api, a); nav.back() } catch (x: CancellationException) { throw x } catch (x: Exception) {
+                                removeError = "Couldn't remove it: ${(x as? ApiError)?.message ?: "try again."}"
+                            }
+                        }
+                    }, onDismiss = { asking = null })
+                }
+                removeError?.let { ErrorLine(it) }
+                Results(s.value, nav)
+            }
+        }
     }
 }
 

@@ -15,7 +15,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -53,7 +60,10 @@ fun GuestRecentSection(nav: AppNav, skill: String = "") {
     val token by api.token.collectAsState()
     val account by api.hasAccount.collectAsState()
     val guest = token != null && !account
-    val rows by produceState(emptyList<Recent>(), guest, skill) {
+    val scope = rememberCoroutineScope()
+    val gone = remember { mutableStateListOf<String>() }
+    var asking by remember { mutableStateOf<RemovalTarget?>(null) }
+    val all by produceState(emptyList<Recent>(), guest, skill) {
         if (!guest) { value = emptyList(); return@produceState }
         val sp = skill == "speaking" || skill == "writing"
         val out = mutableListOf<Recent>()
@@ -67,7 +77,15 @@ fun GuestRecentSection(nav: AppNav, skill: String = "") {
             }
         value = out.sortedByDescending { it.at }.take(5)
     }
+    val rows = all.filter { it.id !in gone }
     if (!guest || rows.isEmpty()) return
+    asking?.let { t ->
+        ConfirmRemoveDialog(t, onConfirm = {
+            asking = null
+            gone += t.id
+            scope.launch { try { removeAttempt(api, t) } catch (x: CancellationException) { throw x } catch (x: Exception) { gone -= t.id } } // a refused delete brings the row back
+        }, onDismiss = { asking = null })
+    }
     val e = MaterialTheme.ext
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("Your recent tests")
@@ -75,9 +93,9 @@ fun GuestRecentSection(nav: AppNav, skill: String = "") {
             rows.forEachIndexed { i, r ->
                 if (i > 0) HorizontalDivider(Modifier.padding(start = 16.dp), color = e.line)
                 val lr = r.skill == "listening" || r.skill == "reading"
+                RemovableRow({ nav.go(if (lr) (if (r.state == "open") LrRun(r.id) else LrResult(r.id)) else AttemptResult.of(r.id)) }, { asking = RemovalTarget(r.id, r.title, lr) }) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .clickable(role = Role.Button) { nav.go(if (lr) (if (r.state == "open") LrRun(r.id) else LrResult(r.id)) else AttemptResult.of(r.id)) }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
                 ) {
@@ -98,6 +116,7 @@ fun GuestRecentSection(nav: AppNav, skill: String = "") {
                         "failed" -> Chip("Scoring failed", color = e.bad)
                         else -> r.band?.let { b -> Text(Band.format(b), Modifier.clearAndSetSemantics { contentDescription = "Band ${Band.format(b)}" }, style = AppText.band(20), color = e.ink) }
                     }
+                }
                 }
             }
         }
