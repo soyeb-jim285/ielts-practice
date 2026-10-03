@@ -11,7 +11,7 @@ class LrLogicTest {
     private val fixtures = DemoFixtures.parse(File("../../ios/IELTS/Demo/fixtures.json").readText())
 
     @Test fun fixturesDecode() {
-        val attempts = fixtures.keys.filter { Regex("^/api/lr/attempts/[a-z]+$").matches(it) }.map { AppJson.decodeFromString(LrAttempt.serializer(), fixtures.getValue(it)) }
+        val attempts = fixtures.keys.filter { Regex("^/api/lr/attempts/[a-z-]+$").matches(it) }.map { AppJson.decodeFromString(LrAttempt.serializer(), fixtures.getValue(it)) }
         assertTrue(attempts.size >= 5, "expected the lr attempt fixtures")
         attempts.forEach { assertEquals(40, it.test.flat().size, it.id) }
         val done = attempts.first { it.id == "lra-rs" }
