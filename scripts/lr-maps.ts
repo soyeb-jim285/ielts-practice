@@ -173,7 +173,7 @@ H = Maintenance yard (not asked, never mention): south of the east path.`,
       path('M450 560 V 330 M450 330 H 200 M200 330 V 140 M450 330 V 110 M450 330 H 835 M835 330 V 240') +
       N(60, 480, 230, 60, 'CAR PARK', '#e4e4ee') +
       L(335, 470, 95, 65, 'A') + N(475, 470, 150, 65, 'VISITOR\nCENTRE', '#f0e0c8') +
-      L(305, 345, 110, 65, 'B', '#c6e0a8') + L(305, 245, 110, 70, 'C') +
+      L(305, 345, 110, 65, 'B') + L(305, 245, 110, 70, 'C') +
       L(150, 75, 100, 65, 'D') + L(335, 150, 100, 65, 'F') + L(400, 48, 100, 60, 'E') +
       L(790, 160, 90, 80, 'G') + L(630, 380, 130, 70, 'H') +
       `<path d="M450 640 L 450 590" stroke="#111" stroke-width="4"/><path d="M438 602 L 450 588 L 462 602 Z" fill="#111"/>` + txt(450, 654, 'ENTRANCE', 17, 'font-weight="700"'),
@@ -247,7 +247,7 @@ const aldwick: LrMap = {
   letters: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
   asked: [['A', 'Old brewery'], ['C', 'Wool hall'], ['D', 'Corn Exchange'], ['F', 'Museum'], ['G', 'Old grammar school']],
   facts: `Orientation: the walk starts at TOURIST INFORMATION at the bottom (south) of the plan and goes north along BRIDGE STREET over the OLD BRIDGE; "left" = west, "right" = east while walking north.
-Printed: TOURIST INFORMATION (left of Bridge Street at the bottom), RIVER ASH (east-west band across the plan), OLD BRIDGE, BRIDGE STREET, MILL LANE (leaves Bridge Street to the right/east between the bridge and the square), MARKET SQUARE, HIGH STREET (north from the square), TOWN HALL (left/west side of High Street), ST MARY'S CHURCH (top, end of High Street), CAR PARK (south of the river, east of the brewery).
+Printed: TOURIST INFORMATION (left of Bridge Street at the bottom), RIVER ASH (east-west band across the plan), OLD BRIDGE, BRIDGE STREET, TANNER LANE (leaves Bridge Street to the right/east between the bridge and the square), MARKET SQUARE, HIGH STREET (north from the square), TOWN HALL (left/west side of High Street), ST MARY'S CHURCH (top, end of High Street), CAR PARK (south of the river, east of the brewery).
 Lettered locations (names NOT printed):
 A = Old brewery: south of the river, on the right of Bridge Street just before the bridge.
 B = Almshouses (never mention): south of the river, on the left of Bridge Street, opposite A.
@@ -256,7 +256,7 @@ H = Bookshop (never mention): on the left of Bridge Street between the bridge an
 D = Corn Exchange: on the west (left) side of Market Square.
 E = Coaching inn (may be mentioned only as the building on the east side of the square that people mistake for the Corn Exchange).
 F = Museum: on the right (east) of High Street, directly opposite the Town Hall.
-G = Old grammar school: behind (north of) the Town Hall, on the left of High Street at the top, directly across the street from the church.`,
+G = Old grammar school: just past the Town Hall on the same side of the street, almost opposite the church.`,
   svg: wrap(
     'Aldwick: heritage walk',
     grass(30, 40, 840, 400) +
@@ -265,7 +265,7 @@ G = Old grammar school: behind (north of) the Town Hall, on the left of High Str
       `<text transform="translate(466,562) rotate(-90)" font-size="12" text-anchor="middle" fill="#222" font-weight="700">BRIDGE STREET</text>` +
       `<text transform="translate(466,160) rotate(-90)" font-size="14" text-anchor="middle" fill="#222" font-weight="700">HIGH STREET</text>` +
       `<rect x="434" y="452" width="52" height="51" fill="#d9d2b8" stroke="#222" stroke-width="2"/>` + txt(530, 478, 'OLD BRIDGE', 12) +
-      road(480, 385, 290, 30, 'MILL LANE') +
+      road(480, 385, 290, 30, 'TANNER LANE') +
       `<rect x="330" y="255" width="260" height="95" fill="#e9e2d0" stroke="#222" stroke-width="2"/>` + txt(460, 308, 'MARKET SQUARE', 15, 'font-weight="700"') +
       N(170, 570, 130, 50, 'TOURIST\nINFORMATION', '#e4e4ee') + L(490, 520, 110, 80, 'A') + L(330, 520, 100, 80, 'B') + N(640, 520, 130, 80, 'CAR PARK', '#e4e4ee') +
       L(300, 380, 130, 60, 'H') + L(770, 365, 95, 70, 'C') +
