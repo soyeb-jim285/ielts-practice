@@ -222,8 +222,9 @@ struct LrResultView: View {
     }
 
     private func fold<C: View>(_ title: String, hint: String, @ViewBuilder _ content: () -> C) -> some View {
-        DisclosureGroup {
-            content().padding(.top, 12)
+        let body = content()
+        return DisclosureGroup {
+            body.padding(.top, 12)
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline).foregroundStyle(Color.ink)
