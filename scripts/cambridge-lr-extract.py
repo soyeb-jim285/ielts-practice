@@ -331,7 +331,9 @@ def do_test(b, t, pages, key):
         kf = pages[t["key"][0]]["file"] if t.get("key") else None
         kt = key["files"].get(kf, {}).get("tests", {}).get(str(tn), {})
         # ---- listening (General Training books repeat the Academic recordings: skip)
-        if t.get("listening") and len(t["listening"]) == 4 and variant != "general":
+        if t.get("listening") and len(t["listening"]) == 4 and variant != "general" and not has_audio(b, tn):
+            print(f"  C{b} T{tn}: listening skipped, no audio recording in the book's files", flush=True)
+        elif t.get("listening") and len(t["listening"]) == 4 and variant != "general":
             f = OUT / f"C{b}-T{tn}-listening.json"
             secs, bad, n0 = [], [], 1
             for part in "1234":
@@ -339,7 +341,7 @@ def do_test(b, t, pages, key):
                 st = structure_section(f"C{b}T{tn}-L{part}", SYS_LISTEN, f"Book {b}, Test {tn}, LISTENING SECTION {part}. Structure the questions of Section {part} only.\n\n" + span(pages, a, z), (n0, n0 + 9))
                 n0 += 10
                 tr = None
-                if t.get("audioscript", {}).get(part):
+                if t.get("audioscript"):
                     # sections start/end mid-page and the locator's ranges are tight: give the whole test's audioscript (+1 page each side)
                     rng = list(t["audioscript"].values())
                     ta, tz = min(r[0] for r in rng) - 1, max(r[1] for r in rng) + 1
@@ -351,17 +353,18 @@ def do_test(b, t, pages, key):
             gt = variant == "general"
             f = OUT / f"C{b}-T{tn}-reading{'-gt' if gt else ''}.json"
             secs = []
-            bounds = [(1, 14), (15, 26), (27, 40)] if gt else [(1, 13), (14, 26), (27, 40)]
-            for part, (lo, hi) in zip("123", bounds):
+            lo = 1
+            for part in "123":
                 a, z = t["reading"][part]
-                st = structure_reading(b, tn, part, gt, pages, a, z, bounds)
+                st = structure_reading(b, tn, part, gt, pages, a, z, lo)
+                nums = [q["n"] for g in st["groups"] for q in g.get("questions", [])]
+                lo = (nums[-1] + 1) if nums else lo + 13  # next passage starts after this one's last question (passage splits vary: 13/13/14, 14/12/14 ...)
                 secs.append({"part": int(part), "passage": st["passage"], "groups": st["groups"], "_err": st.get("_errors")})
             write_test(b, tn, "reading", "general" if gt else "academic", secs, kt.get("reading_gt" if gt else "reading", kt.get("reading", {})), f)
 
 
-def structure_reading(b, tn, part, gt, pages, a, z, bounds):
+def structure_reading(b, tn, part, gt, pages, a, z, lo):
     """Reading sections do not always split 13/13/14: take the expected first number from the previous section when known."""
-    lo, hi = bounds[int(part) - 1]
     # try the standard split first, then accept any contiguous range that starts at lo
     user = f"Book {b}, Test {tn}, {'GENERAL TRAINING READING SECTION' if gt else 'READING PASSAGE'} {part}. Passage and its questions only. Question numbers use the printed numbers (the section starts at {lo}).\n\n" + span(pages, a, z)
     out = llm(f"C{b}T{tn}-R{part}{'g' if gt else ''}", SYS_READ, user)
@@ -459,10 +462,13 @@ def audio_sources(b: int) -> dict[tuple[int, int], tuple[Path, float | None, flo
             nums, sec = re.findall(r"section(\d)", p.name)[:1], re.findall(r"part(\d)", p.name)
         if p.suffix.lower() == ".mp3" and nums and sec:
             m[(int(nums[0]), int(sec[0]))] = (p, None, None)
-    if b == 14:  # "Test 2 Section 4.mp3" = T2S4 + end-of-test notice + T1S1 (the missing file), found by silence + STT spot checks
-        f = d / "Test 2 Section 4.mp3"
-        m[(2, 4)], m[(1, 1)] = (f, 0.0, 471.5), (f, 577.5, 1035.5)
+    if b == 14:  # "Test 2 Section 4.mp3" = T2S4 + end-of-test notice + a duplicate of T3S1 (STT spot checks): keep only T2S4; T1S1 is not on the disc
+        m[(2, 4)] = (d / "Test 2 Section 4.mp3", 0.0, 471.5)
     return m
+
+
+def has_audio(b: int, tn: int) -> bool:
+    return b in (1, 2, 3) or all((tn, p) in audio_sources(b) for p in range(1, 5))
 
 
 def split_by_silence(p: Path) -> list[tuple[float, float]]:
@@ -497,7 +503,7 @@ def stage_audio(b: int):
 
 
 # ---------------------------------------------------------------- figures (maps / plans / diagrams)
-VLM = "qwen/qwen3.8-flash"
+VLMS = ["qwen/qwen3.7-flash", "qwen/qwen3.6-flash", "qwen/qwen3.8-flash"]
 SYS_BBOX = 'You locate a figure on a scanned test page. Reply JSON {"bbox":[x0,y0,x1,y1]} with coordinates normalised to 0-1000 (x right, y down) of the tight box around the figure (map, plan or diagram including its letters, numbers and labels, and the box of label words if the questions are about it) that belongs to the given questions. Exclude the instructions, question list text, page number, watermark and footer.'
 
 
@@ -515,7 +521,17 @@ def stage_figs(b: int):
                 doc = docs.setdefault(pg["file"], pymupdf.open(book_dir(b) / pg["file"]))
                 page = doc[pg["page"]]
                 png = page.get_pixmap(dpi=100).tobytes("png")
-                bb = llm(f"C{b}T{tn}-bbox{g['from']}", SYS_BBOX, f"Questions {g['from']}-{g['to']}: {g.get('instructions', '')[:200]}", model=VLM, images=[png])["bbox"]
+                bb = None
+                for m in VLMS:  # the cheap vision models are sometimes rate-limited upstream
+                    try:
+                        bb = llm(f"C{b}T{tn}-bbox{g['from']}", SYS_BBOX, f"Questions {g['from']}-{g['to']}: {g.get('instructions', '')[:200]}", model=m, images=[png])
+                        bb = bb.get("bbox") or bb.get("bbox_2d") if isinstance(bb, dict) else bb
+                        if isinstance(bb, list) and bb and isinstance(bb[0], (list, dict)): bb = bb[0].get("bbox_2d") or bb[0].get("bbox") if isinstance(bb[0], dict) else bb[0]
+                        if not (isinstance(bb, list) and len(bb) == 4): raise ValueError(f"bad bbox {bb}")
+                        break
+                    except Exception as e:
+                        print("  bbox failed with", m, str(e)[:80], flush=True)
+                if bb is None: continue
                 x0, y0, x1, y1 = [max(0, min(1000, float(v))) / 1000 for v in bb]
                 pad = 0.01
                 r = pymupdf.Rect(max(0, x0 - pad) * page.rect.width, max(0, y0 - pad) * page.rect.height, min(1, x1 + pad) * page.rect.width, min(1, y1 + pad) * page.rect.height)
