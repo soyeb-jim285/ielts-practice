@@ -175,7 +175,7 @@ class SessionModel(
         prepJob?.cancel()
         micCheck.stop()
         store.prepare()
-        val ok = recorder.start(store.audioFile(recId), paused = current?.part != 2)
+        val ok = recorder.start(store.audioFile(recId), startPaused = current?.part != 2)
         starting = false
         if (!ok) {
             startError = "Couldn't start recording. Is another app using the microphone?"
