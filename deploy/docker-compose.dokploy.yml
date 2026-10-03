@@ -8,6 +8,8 @@
 # Settings → CORS policy: AllowedOrigins ["https://ielts.soyebjim.me"], AllowedMethods [GET, PUT, HEAD], AllowedHeaders
 # [content-type, range], ExposeHeaders [ETag, Content-Length, Content-Range, Accept-Ranges]. Without it uploads fail with
 # "Couldn't reach the server" (the preflight gets 403).
+# Deploys: CI (.github/workflows/ci.yml) pushes the image, then calls the DOKPLOY_DEPLOY_WEBHOOK repo secret; keep Dokploy's
+# own Autodeploy off so it doesn't redeploy the old image before the build finishes.
 # Memory caps keep this app from squeezing other projects on the same VPS.
 services:
   db:
