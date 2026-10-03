@@ -99,3 +99,11 @@ Cambridge maps are realistic site plans or floor plans: a labelled entrance or "
 | Audio | 20 s / 30 s / 30 s silences, loudness even | Kokoro 82M local voices, 2-5 minute parts, no direction | ElevenLabs Eleven v4 Turbo multi-speaker dialogue, real silences, -16 LUFS |
 
 Per-test notes (before): gen-l-01 P1 1161 words and "Hargreaves" spelled twice; gen-l-02 P1 repeats name/phone/date/fee; gen-l-03 P1 repeats phone, date, street, fee and P4 uses a Latin name; all three P4 use 2-3 word limits with multiword technical answers; all P2 maps are 3x3 grids.
+
+## 8. Answer order and narrator segments (hard gate)
+Cambridge speaks every answer strictly in question order, and each answer falls inside the stretch the narrator announced for it ("First you have some time to look at questions 1 to 5" ... "Now listen and answer questions 1 to 5" ... break ... "Now listen and answer questions 6 to 10"). Rules, enforced by `scripts/lr-structure-check.ts` (deterministic, no AI):
+- The narrator break sits just before the first fact of the next question set. No answer of set 2 (not even a distractor that is the final value, e.g. "three of us - sorry, four") may come before it; nothing from set 1 after it.
+- Answers come in non-decreasing question order; two answers may share a sentence (and Choose-TWO pairs may swap) but never go backwards. Map/matching items are described in question order.
+- The example is fully spoken before the first "answer questions" line and its answer is not asked again.
+- Every question's review `evidence` (enrich sidecar) is an exact substring of the script and lies inside its segment; the word timings confirm the answer word is heard between the narrator lines.
+- Gate points: `gen-lr-listening.ts` (retries the part), `gen-lr-elevenlabs.py` (refuses to render, no credits spent), and `pnpm tsx scripts/lr-structure-check.ts [slug]` after rendering (adds the timing check).

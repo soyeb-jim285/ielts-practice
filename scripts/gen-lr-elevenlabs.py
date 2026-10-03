@@ -3,6 +3,7 @@
 
 Usage: python3 scripts/gen-lr-elevenlabs.py <slug> [part ...] [--dry] [--max-credits N]
 Needs ELEVENLABS_API_KEY in .env and ffmpeg on PATH. Python stdlib only.
+Refuses to render a part whose script fails scripts/lr-structure-check.ts (answers out of order / outside the narrator segment).
 
 Reads  data/lr-generated/scripts/<slug>.json
          {"parts":[{"part":1,"voices":{LABEL: voice_id},"turns":[{"speaker":LABEL,"text":"...[tags] allowed","pause":seconds_of_silence_after?}]}]}
@@ -115,6 +116,9 @@ def main():
     delivery = script.get("delivery", "[speaks slowly and clearly]")
     say = lambda t: f"{delivery} {t}" if delivery else t
     parts = [p for p in script["parts"] if not only or p["part"] in only]
+    # structure gate (answers in question order, each inside its announced narrator segment): never spend credits on a broken script
+    chk = subprocess.run(["pnpm", "-s", "tsx", "scripts/lr-structure-check.ts", slug, "--parts", ",".join(str(p["part"]) for p in parts), "--lenient", "--no-timings"], cwd=ROOT, capture_output=True, text=True)
+    if chk.returncode: sys.exit(f"refusing to render: script fails scripts/lr-structure-check.ts\n{chk.stdout}{chk.stderr}")
     est = sum(len(t["text"]) for p in parts for t in p["turns"])
     left, tier = remaining()
     print(f"{slug}: {est} chars (~{est // 2} credits at 0.5/char), account {tier}, {left} credits left", flush=True)

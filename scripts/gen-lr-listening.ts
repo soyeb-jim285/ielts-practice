@@ -5,8 +5,9 @@
 // -> independent solver (different model) -> arbiter -> assemble + validate -> TTS script for scripts/gen-lr-elevenlabs.py.
 // Add a test = add an entry to PLANS below (and a map to scripts/lr-maps.ts if a part uses one). Budget log: data/lr-generated/cost-listening.log.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkPart, qinfos } from './lr-structure-check';
 import { expandAnswer, isCorrect, validateLrTest, type LrGroup, type LrSection, type LrTest } from '../packages/core/src/lr';
 import { MAPS } from './lr-maps';
 
@@ -306,6 +307,7 @@ ${i === 1 ? `Part 2 specifics: speaker is addressing a live audience ("Welcome",
 ${i === 2 ? `Part 3 specifics: the speakers disagree, hesitate, change their minds, refer to what was said in feedback or lectures; the tutor suggests rather than instructs. ${qinfo}` : ''}
 ${i === 3 ? `Part 4 specifics: a lecture with a clear opening ("Today I'd like to talk about..."), signposting ("There are three main factors..."), concrete nouns a listener can note down; ten key words (single common words, not technical jargon or Latin names) each said once with natural emphasis; at most one self-correction. ${qinfo}` : ''}
 ${mapFacts ? `MAP FACTS (the candidates see only the plan, never the facts below):\n${mapFacts}\nIn the walk-through the speaker names each ASKED place and says where it is using only relative position and printed landmarks, never the letters, and in the stated order. Do not mention places marked "not asked". Positions must follow the facts exactly.` : ''}
+ANSWER ORDER (hard gate, a script that breaks it is thrown away): the answers are spoken STRICTLY in question order, and every answer is spoken only inside the stretch the narrator announces for it${p.chunks[1] ? ` (questions ${p.chunks[0][0]}-${p.chunks[0][1]} before the narrator break, questions ${p.chunks[1][0]}-${p.chunks[1][1]} after it)` : ''}. Plan the break position FIRST: no fact for the second question set may be said before the break (not even a distractor that is the final answer), and nothing the first set asks may come after it. Two answers may share a sentence only if they are said in question order. Matching/map items are described in question order.
 Output ONLY JSON: {"title":string,"speakers":[{"label":"UPPERCASE name or role",${mono ? '' : '"gender":"female|male"'}${mono ? '"gender":"female|male"' : ''}}],"turns":[{"speaker":label,"text":string,"cue"?:string}],"breakAfter":int,"exampleEnd":int}.
 "cue" is an OPTIONAL performance direction from this list only: ${CUES}; use it on 4-7 turns in conversations and at most 3 in a monologue, only where a person would really hesitate, think, laugh or sigh; most turns have none. Never put a cue inside "text".
 "breakAfter" = index of the last turn that belongs to the first question set (${p.chunks[0][0]}-${p.chunks[0][1]})${p.chunks[1] ? `; the facts for questions ${p.chunks[1][0]}-${p.chunks[1][1]} begin only after it; both halves are about equally long.` : ' (no break: single stretch, use -1).'}${i === 0 ? '\n"exampleEnd" = index of the last turn of the opening example exchange.' : '\nUse "exampleEnd": -1.'}`;
@@ -418,7 +420,18 @@ async function main() {
     const num = +slug.match(/(\d+)$/)![1];
     let n = 1;
     const starts = PLANS[slug].map((p) => { const a = n; n += p.groups.reduce((x, g) => x + g.n, 0); return a; });
-    const parts = await Promise.all(PLANS[slug].map((p, i) => listeningPart(slug, i, p, starts[i])));
+    // hard gate (scripts/lr-structure-check.ts): answers in question order, each inside its announced narrator segment.
+    // A failing part is regenerated (fresh script) up to 3 times; nothing reaches ElevenLabs before it passes.
+    const parts = await Promise.all(PLANS[slug].map(async (p, i) => {
+      for (let a = 0; ; a++) {
+        const x = await listeningPart(slug, i, p, starts[i]);
+        const probs = checkPart(ttsPart(slug, i, p, x.script, num).turns, qinfos(x.section), { lenient: true });
+        if (!probs.length) return x;
+        console.warn(`  [${slug}-p${i + 1}] structure gate failed (attempt ${a + 1}): ${probs.join('; ')}`);
+        if (a >= 2) throw new Error(`${slug}-p${i + 1}: answers out of order / outside narrator segment: ${probs.join('; ')}`);
+        for (const f of readdirSync(CACHE)) if (f.startsWith(`${slug}-p${i + 1}-`)) rmSync(join(CACHE, f)); // drop cached script/questions so the retry is fresh
+      }
+    }));
     const test: LrTest = { slug, skill: 'listening', variant: 'academic', source: 'generated', ref: `Original L${num}`, title: `Original practice · Listening ${num}`, sections: parts.map((x) => x.section) };
     for (const [i, x] of parts.entries()) x.script.intro = PLANS[slug][i].intro;
     const errs = validateLrTest(test);
