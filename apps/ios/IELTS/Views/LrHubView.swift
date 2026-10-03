@@ -76,6 +76,7 @@ struct LrHubView: View {
             }
         }
         .navigationTitle(listening ? "Listening" : "Reading")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .onAppear { Task { await load() } }
         .navigationDestination(item: $runId) { LrAttemptScreen(id: $0) }
@@ -161,7 +162,7 @@ struct LrModeSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(test.title).font(.display(.title2)).foregroundStyle(Color.ink)
+                Text(Lr.parseRef(test.ref).map { "Cambridge IELTS \($0.book), Test \($0.test)" } ?? test.title).font(.display(.title2)).foregroundStyle(Color.ink)
                 Text("Choose how to take this test.").font(.subheadline).foregroundStyle(Color.muted)
             }
             ForEach(modes, id: \.key) { m in

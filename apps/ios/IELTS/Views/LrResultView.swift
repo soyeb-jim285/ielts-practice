@@ -186,7 +186,7 @@ struct LrResultView: View {
                     .padding(14).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 if let t = section.transcript {
                     DisclosureGroup("Transcript", isExpanded: $passageOpen) {
-                        Text(t).font(.system(.body, design: .serif)).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
+                        Text(t).font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                     }
                     .font(.headline).foregroundStyle(Color.ink).tint(.brand).card()

@@ -102,6 +102,7 @@ private struct LrRunnerBody: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { if started { bottomBar } }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button { if exam { confirmLeave = true } else { dismiss() } } label: { Image(systemName: "xmark") }
@@ -330,8 +331,8 @@ private struct LrRunnerBody: View {
                 HStack(spacing: 10) {
                     Image(systemName: "square.grid.3x3").foregroundStyle(Color.brand)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("Question \(current) of \(total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink)
-                        Text("\(answeredN) answered").font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                        Text("Question \(current) of \(total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.7)
+                        Text("\(answeredN) answered").font(.caption.monospacedDigit()).foregroundStyle(Color.muted).lineLimit(1)
                     }
                     Spacer(minLength: 0)
                 }
@@ -343,14 +344,14 @@ private struct LrRunnerBody: View {
             Button(action: toggleFlag) {
                 Image(systemName: flaggedNow ? "flag.fill" : "flag").foregroundStyle(flaggedNow ? Color.warn : Color.ink).frame(width: 30, height: 30)
             }
-            .secondaryButton().buttonBorderShape(.circle).controlSize(.large)
+            .secondaryButton().buttonBorderShape(.circle).controlSize(.regular)
             .accessibilityLabel(flaggedNow ? "Remove flag from this question" : "Flag this question for review")
             .accessibilityAddTraits(flaggedNow ? .isSelected : [])
             Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: 30, height: 30) }
-                .secondaryButton().buttonBorderShape(.circle).controlSize(.large)
+                .secondaryButton().buttonBorderShape(.circle).controlSize(.regular)
                 .disabled(index <= 0).accessibilityLabel("Previous question")
             Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: 30, height: 30) }
-                .primaryButton().buttonBorderShape(.circle).controlSize(.large)
+                .primaryButton().buttonBorderShape(.circle).controlSize(.regular)
                 .disabled(index >= total - 1).accessibilityLabel("Next question")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -508,7 +509,7 @@ struct LrPassageView: View {
     var body: some View {
         if let p = section.passage {
             VStack(alignment: .leading, spacing: 14) {
-                Text(p.title).font(.display(.title2)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
+                Text(p.title).font(.title2.weight(.semibold)).fontDesign(.serif).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
                 if let s = p.subtitle { Text(s).font(.system(.subheadline, design: .serif).italic()).foregroundStyle(Color.muted) }
                 ForEach(Array(p.paragraphs.enumerated()), id: \.offset) { _, para in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -516,7 +517,7 @@ struct LrPassageView: View {
                             Text(l).font(.subheadline.weight(.bold).monospacedDigit()).foregroundStyle(Color.brand)
                                 .frame(minWidth: 22, alignment: .leading).accessibilityLabel("Paragraph \(l)")
                         }
-                        Text(para.text).font(.system(.body, design: .serif)).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
+                        Text(para.text).font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink).textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
