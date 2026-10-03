@@ -105,3 +105,12 @@ describe('email OTP', () => {
     expect(mail).not.toHaveBeenCalled();
   });
 });
+
+describe('hard-coded owner', () => {
+  it('is an owner only once the email is verified (sign-up spoofing gets nothing)', async () => {
+    const { isCambridgeAllowed } = await import('./auth');
+    expect(isCambridgeAllowed({ email: 'Soyeb.Jim@gmail.com', emailVerified: true })).toBe(true);
+    expect(isCambridgeAllowed({ email: 'soyeb.jim@gmail.com', emailVerified: false })).toBe(false);
+    expect(isCambridgeAllowed({ email: 'someone@gmail.com', emailVerified: true })).toBe(false);
+  });
+});

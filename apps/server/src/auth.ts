@@ -80,9 +80,13 @@ export const auth = betterAuth({
   ],
 });
 
-/** Cambridge content is licensed to specific owners: allow-listed AND verified email (prevents sign-up spoofing). */
+/** The app owner: always an owner (Cambridge access, no test limits, server keys for live), whatever CAMBRIDGE_ALLOWED_EMAILS says. */
+export const OWNER_EMAILS = ['soyeb.jim@gmail.com'];
+
+/** Cambridge content is licensed to specific owners: allow-listed (or the hard-coded owner) AND verified email (prevents sign-up spoofing).
+ *  Also the "owner" flag in quota.ts: exempt from test limits. */
 export const isCambridgeAllowed = (u: { email: string; emailVerified: boolean } | null | undefined) =>
-  !!u && u.emailVerified && env.CAMBRIDGE_ALLOWED_EMAILS.includes(u.email.toLowerCase());
+  !!u && u.emailVerified && (OWNER_EMAILS.includes(u.email.toLowerCase()) || env.CAMBRIDGE_ALLOWED_EMAILS.includes(u.email.toLowerCase()));
 
 // Bearer (iOS) has no cookie cache: keep token → user for 30 s.
 // ponytail: per-process, cleared wholesale on any session-ending auth call (see app.ts); other processes may honour a revoked token for up to 30 s.
