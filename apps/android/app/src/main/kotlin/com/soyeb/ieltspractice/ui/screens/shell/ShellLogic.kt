@@ -80,7 +80,7 @@ private val typeLabels = mapOf(
     "adv-disadv" to "Advantages & disadvantages", "problem-solution" to "Problem & solution", "two-part" to "Two-part question",
     "letter-formal" to "Formal letter", "letter-semi" to "Semi-formal letter", "letter-informal" to "Informal letter",
     "line" to "Line graph", "bar" to "Bar chart", "pie" to "Pie chart", "mixed" to "Mixed charts",
-    "p1-topic" to "Part 1 topic", "cue-card" to "Cue card", "p3-linked" to "Part 3 (linked to cue card)", "p3-discussion" to "Part 3 discussion",
+    "p1-topic" to "Part 1 topic", "p1-intro" to "Part 1 opening topic", "p1-branch" to "Part 1 work / study", "cue-card" to "Cue card", "p3-linked" to "Part 3 (linked to cue card)", "p3-discussion" to "Part 3 discussion",
 )
 
 /** Web lib/writing.ts typeLabel. */

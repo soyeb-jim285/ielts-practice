@@ -34,7 +34,7 @@ private func bankTypeLabel(_ t: String) -> String {
         "adv-disadv": "Advantages & disadvantages", "problem-solution": "Problem & solution", "two-part": "Two-part question",
         "letter-formal": "Formal letter", "letter-semi": "Semi-formal letter", "letter-informal": "Informal letter",
         "line": "Line graph", "bar": "Bar chart", "pie": "Pie chart", "mixed": "Mixed charts",
-        "p1-topic": "Part 1 topic", "cue-card": "Cue card", "p3-linked": "Part 3 (linked to cue card)", "p3-discussion": "Part 3 discussion",
+        "p1-topic": "Part 1 topic", "p1-intro": "Part 1 opening topic", "p1-branch": "Part 1 work / study", "cue-card": "Cue card", "p3-linked": "Part 3 (linked to cue card)", "p3-discussion": "Part 3 discussion",
     ]
     return labels[t] ?? (t.prefix(1).uppercased() + t.dropFirst()).replacingOccurrences(of: "-", with: " ")
 }

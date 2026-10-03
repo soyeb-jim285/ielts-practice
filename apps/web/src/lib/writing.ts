@@ -21,6 +21,8 @@ const TYPE_LABEL: Record<string, string> = {
   pie: 'Pie chart',
   mixed: 'Mixed charts',
   'p1-topic': 'Part 1 topic',
+  'p1-intro': 'Part 1 opening topic',
+  'p1-branch': 'Part 1 work / study',
   'cue-card': 'Cue card',
   'p3-linked': 'Part 3 (linked to cue card)',
   'p3-discussion': 'Part 3 discussion',
