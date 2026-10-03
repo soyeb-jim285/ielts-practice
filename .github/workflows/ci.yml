@@ -62,4 +62,8 @@ jobs:
           HOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
         run: |
           if [ -z "$HOOK" ]; then echo "DOKPLOY_DEPLOY_WEBHOOK not set, skipping deploy"; exit 0; fi
-          curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' -d '{}' > /dev/null && echo "deploy triggered"
+          # Dokploy checks the branch the way it does for a GitHub push event, so send that shape.
+          body=$(jq -nc --arg ref "$GITHUB_REF" --arg sha "$GITHUB_SHA" '{ref: $ref, after: $sha, head_commit: {id: $sha, message: "ci deploy"}}')
+          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "$HOOK" -H 'Content-Type: application/json' -H 'X-GitHub-Event: push' -d "$body")
+          echo "Dokploy webhook: HTTP $code"; head -c 300 resp.txt; echo
+          [ "$code" -lt 300 ]
