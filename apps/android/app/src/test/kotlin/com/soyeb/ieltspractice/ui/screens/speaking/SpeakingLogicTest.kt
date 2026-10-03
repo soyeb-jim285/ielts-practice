@@ -80,6 +80,6 @@ class SpeakingLogicTest {
         val p2 = AppJson.decodeFromString(Prompt.serializer(), fx.getValue("/api/prompts/random?part=2&skill=speaking"))
         assertEquals(2, p2.part)
         assertEquals(listOf(p2.title), p2.questions)
-        assertEquals("", cueIntro(p2))
+        assertEquals("and explain how it changed the way you think.", cueIntro(p2))
     }
 }
