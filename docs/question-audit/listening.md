@@ -13,14 +13,17 @@ House standard for every generated Listening test (`gen-l-NN`). Measured on 51 o
 
 Each recording is played once. Difficulty rises through the test. Answers come in the order of the questions, and the script gives a few seconds of "air" between answers.
 
-### Length (measured)
-- Script words per part, mean (max): P1 600 (865), P2 595 (925), P3 715 (975), P4 650 (865). Audio per part 380-490 s including the narrator and pauses.
-- Our target scripts: P1 650-800, P2 750-850, P3 800-950, P4 700-800 words.
+### Length (measured on the recordings, books 7-19)
+- Script words per part, median (range): P1 675 (417-865), P2 674 (372-789), P3 784 (626-973), P4 697 (474-863).
+- Audio per part including narrator and silences, median (range): P1 7.8 min (6.4-10.3), P2 6.8 (5.3-7.9), P3 7.0 (5.2-8.5), P4 7.8 (5.8-9.3); whole test median 29.3 min (24.5-33.0).
+- Speech only, median: P1 5.7 min, P2 5.0, P3 5.3, P4 6.0. Planned silence is about 24-25% of each part (100-110 s), 7-10 gaps of 3 s or more.
+- Our target scripts: P1 620-760, P2 680-800, P3 760-900, P4 650-780 words.
 
 ### Silences in the recordings (measured with silence detection)
-- Start of part: narrator about 5-15 s, then 20 s to read the first set of questions (about 50 s in Part 4, ten questions).
+- Start of part: narrator 5-15 s, then 20 s to read the first set of questions (about 50 s in Part 4, which has one long pre-read and no mid-part break).
 - Break inside a part between the two question sets: 30-35 s.
 - End of Parts 1-3: 30 s to check. Part 4 runs straight into the end of the test; we give one minute to check at the end.
+- Longest gap about 30 s in Parts 1-3, about 50 s in Part 4.
 
 ## 2. Narrator lines (house wording)
 

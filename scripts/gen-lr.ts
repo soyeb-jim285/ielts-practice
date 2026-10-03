@@ -1,9 +1,9 @@
 // @ts-nocheck -- one-off generator over untyped LLM JSON; strict indexed-access checks add noise, not safety
-// Generates original IELTS Listening/Reading tests (LrTest JSON) into data/lr-generated/ (gitignored).
+// Generates original IELTS Reading tests (LrTest JSON) into data/lr-generated/ (gitignored). Listening: scripts/gen-lr-listening.ts.
 // Usage: pnpm tsx scripts/gen-lr.ts [slug ...]   (default: all; resumable, every LLM step is cached in data/lr-generated/.cache)
 // Pipeline per section: write passage/script -> write questions -> gates (structure, verbatim answers, word limits)
 // -> independent solver (different model) -> arbiter on disagreements -> fix/regenerate -> assemble + validate.
-// TTS for the scripts is a separate step: scripts/gen-lr-tts.py. Budget is hard-capped via data/lr-generated/cost.log.
+// Budget is hard-capped via data/lr-generated/cost.log.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -90,28 +90,6 @@ const READ: Record<string, ReadSec[]> = {
     { gt: 'one longer general-interest article, 750-850 words', topic: 'the history of the bicycle', plan: [['headings', 5], ['tfng', 4], ['summary', 4]] },
   ],
 };
-interface ListenPart { topic: string; brief: string; plan: Plan; chunks: [number, number][] }
-const LISTEN: Record<string, ListenPart[]> = {
-  'gen-l-01': [
-    { topic: 'a person booking a holiday cottage by phone', brief: 'Part 1: everyday conversation between a customer and a booking agent. The agent fills in a booking form.', plan: [['form', 5], ['form', 5]], chunks: [[1, 5], [6, 10]] },
-    { topic: 'a welcome talk for visitors to a small local history museum, with a site map', brief: 'Part 2: monologue by a guide in a social context (orientation talk).', plan: [['mcq', 5], ['map', 5]], chunks: [[11, 15], [16, 20]] },
-    { topic: 'two students and their tutor discussing a marine biology assignment on coral bleaching', brief: 'Part 3: academic discussion, two students and a tutor.', plan: [['mcq', 3], ['mcqmulti', 2], ['matchlist', 5]], chunks: [[21, 25], [26, 30]] },
-    { topic: 'a university lecture on glass-making in ancient Rome', brief: 'Part 4: academic lecture, one speaker, no interruptions.', plan: [['notes', 10]], chunks: [[31, 40]] },
-  ],
-  'gen-l-02': [
-    { topic: 'a person enrolling in an evening language course by phone', brief: 'Part 1: everyday conversation between a caller and a college administrator who fills in an enrolment form.', plan: [['form', 5], ['form', 5]], chunks: [[1, 5], [6, 10]] },
-    { topic: 'a guided tour introduction at a working farm park, with a site map', brief: 'Part 2: monologue by a farm-park guide in a social context.', plan: [['mcq', 5], ['map', 5]], chunks: [[11, 15], [16, 20]] },
-    { topic: 'two students and a lecturer discussing a psychology experiment on sleep and memory', brief: 'Part 3: academic discussion, two students and a lecturer.', plan: [['mcq', 3], ['mcqmulti', 2], ['matchlist', 5]], chunks: [[21, 25], [26, 30]] },
-    { topic: 'a university lecture on urban heat islands', brief: 'Part 4: academic lecture, one speaker.', plan: [['notes', 10]], chunks: [[31, 40]] },
-  ],
-  'gen-l-03': [
-    { topic: 'a person reporting a lost bag to a railway station lost-property clerk', brief: 'Part 1: everyday conversation; the clerk fills in a lost-property report.', plan: [['form', 5], ['form', 5]], chunks: [[1, 5], [6, 10]] },
-    { topic: 'an introduction to the facilities of a newly refurbished town library, with a floor map', brief: 'Part 2: monologue by a librarian in a social context.', plan: [['mcq', 5], ['map', 5]], chunks: [[11, 15], [16, 20]] },
-    { topic: 'two students and their tutor planning a business report on renewable energy for small companies', brief: 'Part 3: academic discussion, two students and a tutor.', plan: [['mcq', 3], ['mcqmulti', 2], ['matchlist', 5]], chunks: [[21, 25], [26, 30]] },
-    { topic: 'a university lecture on the migration of Arctic terns', brief: 'Part 4: academic lecture, one speaker.', plan: [['notes', 10]], chunks: [[31, 40]] },
-  ],
-};
-
 // ---------- question-kind docs ----------
 const GROUP_SHAPE = `Each group is a JSON object: {"from":int,"to":int,"type":"gap|mcq|mcq-multi|tfng|ynng|match","instructions":string,"wordLimit"?:string,"title"?:string,"content"?:string,"options"?:[{"key","text"}],"reusable"?:bool,"questions":[{"n":int,"text"?:string,"options"?:[{"key","text"}],"answer":[string]}]}. "instructions" reads like the real exam, e.g. "Questions 1-6. Complete the notes below. Write NO MORE THAN TWO WORDS from the passage for each answer." Optional words in an answer go in parentheses "(the) harbour"; genuinely acceptable alternatives are extra array entries.`;
 const KIND: Record<Kind, string> = {
@@ -311,112 +289,10 @@ const READ_START: Record<string, number[]> = {};
 for (const [slug, secs] of Object.entries(READ)) { let n = 1; READ_START[slug] = secs.map((s) => { const a = n; n += s.plan.reduce((x, [, c]) => x + c, 0); return a; }); }
 const log: string[] = [];
 
-// ---------- listening ----------
-interface Script { title: string; intro: string; speakers: { label: string; gender: 'female' | 'male' }[]; turns: { speaker: string; text: string }[]; breakAfter?: number; map?: MapSpec }
-interface MapSpec { title: string; cells: { letter: string; name: string; row: number; col: number; shown: boolean }[]; askedOrder: string[] }
-const LETTERS = 'ABCDEFGHI'.split('');
-function mapProblems(m?: MapSpec): string[] {
-  if (!m?.cells) return ['map missing'];
-  const p: string[] = [];
-  if (m.cells.length !== 9 || new Set(m.cells.map((c) => c.letter)).size !== 9 || m.cells.some((c) => !LETTERS.includes(c.letter))) p.push('map needs 9 cells with unique letters A-I');
-  if (new Set(m.cells.map((c) => `${c.row}${c.col}`)).size !== 9 || m.cells.some((c) => ![1, 2, 3].includes(c.row) || ![1, 2, 3].includes(c.col))) p.push('map cells need unique row/col in 1..3');
-  if (m.cells.filter((c) => c.shown).length !== 4) p.push('exactly 4 cells must have shown=true');
-  const hidden = m.cells.filter((c) => !c.shown).map((c) => c.letter).sort().join();
-  if ([...(m.askedOrder ?? [])].sort().join() !== hidden) p.push('askedOrder must list exactly the shown=false letters');
-  return p;
-}
-const mapText = (m: MapSpec) => `MAP (the candidate sees this 3x3 plan; the entrance is at the bottom edge, row 3 is nearest the entrance, row 1 furthest; col 1 left, col 3 right):\n${m.cells.sort((a, b) => a.row - b.row || a.col - b.col).map((c) => `row ${c.row} col ${c.col}: letter ${c.letter}${c.shown ? ` (printed name: ${c.name})` : ''}`).join('\n')}`;
-
-function mapSvg(m: MapSpec): string {
-  const W = 760, H = 640, cw = 200, ch = 150, gx = 40, gy = 40, x0 = 40, y0 = 30;
-  const cell = (c: MapSpec['cells'][0]) => {
-    const x = x0 + (c.col - 1) * (cw + gx), y = y0 + (c.row - 1) * (ch + gy);
-    return `<rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="8" fill="#eef3f8" stroke="#33414e" stroke-width="3"/>` +
-      `<text x="${x + 16}" y="${y + 40}" font-size="34" font-weight="700" fill="#10202e">${c.letter}</text>` +
-      (c.shown ? `<text x="${x + cw / 2}" y="${y + ch / 2 + 22}" font-size="22" text-anchor="middle" fill="#33414e">${esc(c.name)}</text>` : '');
-  };
-  const ex = x0 + 1 * (cw + gx) + cw / 2;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="DejaVu Sans, Arial, sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>` +
-    `<text x="${W / 2}" y="22" font-size="20" text-anchor="middle" fill="#10202e" font-weight="700">${esc(m.title)}</text>` +
-    `<g transform="translate(0,12)">${m.cells.map(cell).join('')}</g>` +
-    `<path d="M ${ex} ${H - 62} L ${ex} ${y0 + 3 * ch + 2 * gy + 22}" stroke="#33414e" stroke-width="4" stroke-dasharray="10 8"/>` +
-    `<path d="M ${ex - 14} ${y0 + 3 * ch + 2 * gy + 38} L ${ex} ${y0 + 3 * ch + 2 * gy + 18} L ${ex + 14} ${y0 + 3 * ch + 2 * gy + 38}" fill="none" stroke="#33414e" stroke-width="4"/>` +
-    `<text x="${ex}" y="${H - 20}" font-size="22" text-anchor="middle" font-weight="700" fill="#10202e">ENTRANCE</text></svg>`;
-}
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-
-async function listeningPart(slug: string, i: number, p: ListenPart, start: number): Promise<{ section: LrSection; script: Script }> {
-  const id = `${slug}-p${i + 1}`;
-  const hasMap = p.plan.some(([k]) => k === 'map');
-  let script!: Script;
-  for (let a = 0; a < 3; a++) {
-    script = await step(`${id}-script-a${a}`, () => llm(WRITER, 'You write original IELTS Listening recordings as scripts. Output ONLY JSON.',
-      `Write the script. ${p.brief} Topic: ${p.topic}. British English, natural spoken register (contractions, fillers like "well", "right", "hmm" sparingly), 650-800 words in total.
-Output {"title":string,"intro":"a sentence starting 'You will hear ...' naming who speaks about what","speakers":[{"label":"UPPERCASE role/name label e.g. RECEPTIONIST, MAN, STUDENT 1, TUTOR, GUIDE, LECTURER","gender":"female|male"}],"turns":[{"speaker":label,"text":string}],"breakAfter":int${hasMap ? ',"map":{"title":string,"cells":[{"letter":"A","name":string,"row":1,"col":1,"shown":false}],"askedOrder":["C","F",...]}' : ''}}.
-Rules: ${p.chunks.length > 1 ? `"breakAfter" = index of the last turn belonging to the first half (questions ${p.chunks[0][0]}-${p.chunks[0][1]}); the second half (questions ${p.chunks[1][0]}-${p.chunks[1][1]}) follows. Both halves carry roughly equal information.` : 'monologue; split into paragraphs of 80-120 words as separate turns by the same speaker; breakAfter = -1.'}
-${i === 0 ? 'Conversation convey, in this order: customer surname SPELLED letter by letter in capitals with hyphens (e.g. "It\'s Hargreaves, H-A-R-G-R-E-A-V-E-S"), a phone number or postcode in digits, dates, prices, a street name, preferences and requirements. At least 4 self-corrections/distractors where a first value is replaced ("Tuesday... no, sorry, Wednesday").' : ''}
-${hasMap ? 'The speaker gives 5 spoken facts first (opening times, prices, rules, a booking tip, a safety point) with at least two distractors, then walks round a site plan. The map has 3x3 grid cells A-I (row 1 is furthest from the ENTRANCE at the bottom edge, row 3 nearest; col 1 left, col 3 right). 4 cells have shown=true (their name is printed on the map, e.g. "Car park"); 5 cells have shown=false and are described ONLY by position in the speech relative to printed places/entrance/each other ("opposite the car park", "to the left of the entrance as you walk in") without giving the letter. askedOrder = the 5 hidden letters in the order the speaker describes them. Positions described must be consistent with the grid. The speech must say each hidden place\'s name (e.g. "the gift shop") and its location.' : ''}
-${i === 2 ? 'Discussion: speakers disagree, change their minds, mention options then reject them (at least 3 clear distractors), discuss 5 stages/options/sources in turn with distinct opinions, and two things the student is told to do/avoid (for a choose-TWO question). Tutor/lecturer guides.' : ''}
-${i === 3 ? 'Lecture: signposted, with 10+ concrete key terms, numbers and technical nouns a student would note down; include one or two self-corrections ("about forty... sorry, fifty years"). Single speaker label LECTURER.' : ''}
-Every concrete fact must be stated explicitly in the text.`));
-    const probs = [...(hasMap ? mapProblems(script.map) : []), ...(words(script.turns.map((t) => t.text).join(' ')) < 450 ? ['script too short'] : []), ...(script.turns.some((t) => !script.speakers.some((s) => s.label === t.speaker)) ? ['turn with unknown speaker'] : [])];
-    if (!probs.length) break;
-    console.warn(`  [${id}] script attempt ${a} rejected: ${probs.join('; ')}`);
-    if (a === 2) throw new Error(`${id}: script failed gates`);
-  }
-  const transcript = script.turns.map((t) => `${t.speaker}: ${t.text}`).join('\n\n');
-  const c: Ctx = { id, label: 'TRANSCRIPT', text: transcript, extra: script.map ? mapText(script.map) : '', part: String(start), sectionHint: 'Listening' };
-  const codeGroups: Record<number, LrGroup> = {};
-  let from = start;
-  for (const [kind, cnt] of p.plan) {
-    if (kind === 'map' && script.map) {
-      const byL = new Map(script.map.cells.map((x) => [x.letter, x]));
-      codeGroups[from] = {
-        from, to: from + cnt - 1, type: 'match', instructions: `Questions ${from}-${from + cnt - 1}. Label the plan below. Write the correct letter, A-I, next to Questions ${from}-${from + cnt - 1}.`,
-        reusable: false, image: `lr/gen/img/${slug}-q${from}.png`, options: LETTERS.map((k) => ({ key: k, text: k })),
-        questions: script.map.askedOrder.map((l, k) => ({ n: from + k, text: byL.get(l)!.name, answer: [l] })),
-      };
-      writeFileSync(join(CACHE, `${slug}-q${from}.svg`), mapSvg(script.map));
-      execFileSync('rsvg-convert', ['-w', '1000', '-o', join(OUT, `assets/lr/gen/img/${slug}-q${from}.png`), join(CACHE, `${slug}-q${from}.svg`)]);
-    }
-    from += cnt;
-  }
-  const { groups, agree } = await refine(c, p.plan, [], codeGroups);
-  log.push(`${slug} listening part ${i + 1}: solver agreement ${agree}`);
-  return { section: { part: i + 1, title: `Part ${i + 1}`, audio: `lr/gen/${slug}-p${i + 1}.mp3`, transcript, groups }, script };
-}
-
-// ---------- TTS script (rubric + turns) ----------
-const FEMALE = ['bf_emma', 'bf_isabella', 'bf_alice', 'bf_lily'];
-const MALE = ['bm_george', 'bm_lewis', 'bm_fable'];
-const NARRATOR = 'bm_daniel';
-const pauseFor = (nq: number) => Math.min(30, 4 * nq);
-function ttsPart(slug: string, i: number, p: ListenPart, s: Script, voiceShift: number) {
-  const pool = { female: FEMALE, male: MALE };
-  const used = { female: 0, male: 0 };
-  const voices: Record<string, string> = {};
-  for (const sp of s.speakers) { const g = sp.gender === 'male' ? 'male' : 'female'; voices[sp.label] = pool[g][(used[g]++ + voiceShift + i) % pool[g].length]; }
-  const N = (text: string, pause?: number) => ({ speaker: 'NARRATOR', voice: NARRATOR, text, ...(pause ? { pause } : {}) });
-  const q = ([a, b]: [number, number]) => `questions ${a} to ${b}`;
-  const out: { speaker: string; voice: string; text: string; pause?: number }[] = [];
-  if (i === 0) out.push(N('This is the IELTS Listening practice test. You will hear a number of different recordings and you will have to answer questions on what you hear. There will be time for you to read the instructions and questions, and you will have a chance to check your work. All the recordings will be played once only. The test is in four parts.', 2));
-  out.push(N(`Part ${i + 1}. ${s.intro.replace(/\.?$/, '.')} First you have some time to look at ${q(p.chunks[0])}.`, pauseFor(p.chunks[0][1] - p.chunks[0][0] + 1)));
-  out.push(N(`Now listen carefully and answer ${q(p.chunks[0])}.`, 1));
-  s.turns.forEach((t, k) => {
-    out.push({ speaker: t.speaker, voice: voices[t.speaker], text: t.text });
-    if (p.chunks[1] && k === s.breakAfter) {
-      out.push(N(`Before you hear the rest of the ${i === 0 || i === 2 ? 'conversation' : 'talk'}, you have some time to look at ${q(p.chunks[1])}.`, pauseFor(p.chunks[1][1] - p.chunks[1][0] + 1)));
-      out.push(N(`Now listen and answer ${q(p.chunks[1])}.`, 1));
-    }
-  });
-  out.push(i === 3 ? N('That is the end of Part 4. You now have half a minute to check your answers.', 30) : N(`That is the end of Part ${i + 1}.`, 2));
-  return { part: i + 1, voices: { NARRATOR: NARRATOR, ...voices }, turns: out };
-}
-
 // ---------- main ----------
 async function main() {
   const want = process.argv.slice(2);
-  const slugs = [...Object.keys(LISTEN), ...Object.keys(READ)].filter((s) => !want.length || want.includes(s));
+  const slugs = Object.keys(READ).filter((s) => !want.length || want.includes(s));
   for (const slug of slugs) {
     const final = join(OUT, `${slug}.json`);
     if (existsSync(join(OUT, 'unrendered', `${slug}.json`))) continue; // held back: no audio rendered (slow CPU)
@@ -424,13 +300,7 @@ async function main() {
     console.log(`== ${slug} (spent $${spent.toFixed(4)})`);
     const num = +slug.match(/(\d+)$/)![1];
     let test: LrTest;
-    if (LISTEN[slug]) {
-      let n = 1;
-      const starts = LISTEN[slug].map((p) => { const a = n; n += p.plan.reduce((x, [, c]) => x + c, 0); return a; });
-      const parts = await Promise.all(LISTEN[slug].map((p, i) => listeningPart(slug, i, p, starts[i])));
-      test = { slug, skill: 'listening', variant: 'academic', source: 'generated', ref: `Original L${num}`, title: `Original practice · Listening ${num}`, sections: parts.map((x) => x.section) };
-      writeFileSync(join(OUT, 'scripts', `${slug}.json`), JSON.stringify({ slug, parts: parts.map((x, i) => ttsPart(slug, i, LISTEN[slug][i], x.script, num)) }, null, 2));
-    } else {
+    {
       const gt = slug.startsWith('gen-rg');
       const sections = await Promise.all(READ[slug].map((s, i) => readingSection(slug, i, s)));
       test = { slug, skill: 'reading', variant: gt ? 'general' : 'academic', source: 'generated', ref: `Original ${gt ? 'RG' : 'R'}${num}`, title: `Original practice · ${gt ? 'General Training ' : ''}Reading ${num}`, sections };
