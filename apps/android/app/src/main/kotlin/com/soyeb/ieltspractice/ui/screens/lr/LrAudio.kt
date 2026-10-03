@@ -77,6 +77,7 @@ class LrPlayer(private val demo: Boolean) {
     var failed by mutableStateOf(false)
         private set
     private var engine: AudioPlayer? = null
+    private var stopAt: Double? = null
 
     fun load(context: Context, url: String) {
         if (demo || engine != null) return
@@ -89,6 +90,7 @@ class LrPlayer(private val demo: Boolean) {
         while (true) {
             playing = e.playing.value
             position = e.positionMs / 1000.0
+            stopAt?.let { if (position >= it) { e.pause(); playing = false; stopAt = null } }
             val d = e.durationMs / 1000.0
             if (d > 0) duration = d else if (duration == 0.0 && ++waited > 80) failed = true
             delay(if (playing) 200 else 400)
@@ -96,7 +98,16 @@ class LrPlayer(private val demo: Boolean) {
     }
 
     fun toggle() { if (playing) { engine?.pause(); playing = false } else { engine?.play(); if (engine != null) playing = true } }
+    /** "Play from here": jump to [from], play, stop at [to]. */
+    fun playWindow(from: Double, to: Double) {
+        seek(from)
+        stopAt = to
+        if (demo) { playing = false; return }
+        engine?.play()
+        if (engine != null) playing = true
+    }
     fun seek(t: Double) {
+        stopAt = null
         val v = t.coerceIn(0.0, if (duration > 0) duration else max(t, 0.0))
         position = v
         engine?.seekTo((v * 1000).toLong())
@@ -124,15 +135,20 @@ private fun SkipButton(text: String, label: String, onClick: () -> Unit) {
     ) { Text(text, style = MaterialTheme.typography.labelLarge.merge(AppText.num), color = MaterialTheme.ext.ink) }
 }
 
+/** A segment to play in review: [id] changes on every tap so the same segment can be replayed. */
+data class AudioCue(val from: Double, val to: Double, val id: Int)
+
 /** Practice and review player: play, scrub, 5 s back and forward, speed 0.75 / 1 / 1.25, replay the part. */
 @Composable
-fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier) {
+fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue: AudioCue? = null) {
     val e = MaterialTheme.ext
     val context = LocalContext.current
     val demo = LocalDemo.current != null
     val player = remember(src) { LrPlayer(demo) }
     LaunchedEffect(player) { if (src.isNotEmpty()) { player.load(context, src); player.poll() } }
     DisposableEffect(player) { onDispose { player.release() } }
+    // review: "Play from here" jumps to the cue and stops at its end
+    LaunchedEffect(cue?.id) { if (cue != null) player.playWindow(cue.from, cue.to) }
     Column(modifier.fillMaxWidth().semantics { contentDescription = "$label audio" }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             SkipButton("-5", "Back 5 seconds") { player.seek(player.position - 5) }

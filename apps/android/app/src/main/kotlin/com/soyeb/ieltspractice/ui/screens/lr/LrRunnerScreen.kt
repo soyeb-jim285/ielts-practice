@@ -150,6 +150,13 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     val readingLeft = READING_SECONDS - wall.toInt()
     val timeUp = demo == null && exam && (if (listening) playlist.phase == ExamPhase.Review && playlist.reviewLeft == 0 else readingLeft <= 0)
     var leaving by remember { mutableStateOf(false) }
+    // pacing: late = the last 5 minutes of reading; in the exam listening, after the recordings end
+    session.lateFrom = if (listening) (if (exam && playlist.total > 0) playlist.total else Double.POSITIVE_INFINITY) else READING_SECONDS - 300.0
+    var foreground by remember { mutableStateOf(true) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { foreground = true }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { foreground = false }
+    val partNo = section.part
+    LaunchedEffect(started, partNo) { if (started && demo == null) while (true) { delay(1000); if (foreground) session.tickPart(partNo) } }
 
     fun submit() {
         leaving = true
@@ -176,7 +183,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     BackHandler(enabled = !leaving) { if (exam) leave = true else exit() }
 
     // ---- moving about ----
-    val ctx = QCtx(responses, session::change, attempt.assets, active = active, onFocus = { current = it }, reg = reg)
+    val ctx = QCtx(responses, session::change, attempt.assets, active = active, onFocus = { current = it }, onText = { n, on -> if (on) session.noteFocus(n) else session.noteBlur(n) }, reg = reg)
     fun goPart(i: Int) { partIdx = i; current = sections[i].groups.firstOrNull()?.from ?: current }
     LaunchedEffect(examListening, playlist.phase, playlist.idx) { if (examListening && playlist.phase == ExamPhase.Audio) goPart(playlist.idx.coerceIn(0, sections.lastIndex)) }
     fun jump(n: Int) {

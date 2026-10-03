@@ -15,7 +15,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 
 enum class SaveState(val label: String) { Saved("Saved"), Dirty("Unsaved changes"), Saving("Saving"), Error("Offline, retrying") }
@@ -34,12 +36,39 @@ class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val 
         private set
     @Volatile var elapsed: Double = attempt.elapsedS.toDouble()
 
+    // Pacing (web useLrSession): seconds per part (the runner ticks it), answer changes per question, questions answered late.
+    /** Elapsed seconds after which an answer counts as late: reading 3300, exam listening the end of the recordings, otherwise never. */
+    @Volatile var lateFrom: Double = Double.POSITIVE_INFINITY
+    private val partS = HashMap<String, Double>(attempt.stats?.partS.orEmpty())
+    private val changes = HashMap<String, Int>(attempt.stats?.changes.orEmpty())
+    private val late = LinkedHashSet<Int>(attempt.stats?.late.orEmpty())
+    private val focusVal = HashMap<Int, String>()
+    private var textField: Int? = null
+
+    fun tickPart(part: Int) { partS[part.toString()] = (partS[part.toString()] ?: 0.0) + 1 }
+
+    /** A text gap got the cursor: remember its value so the change counts once per visit (on [noteBlur]). */
+    fun noteFocus(n: Int) { focusVal[n] = responses[n.toString()].orEmpty(); textField = n }
+    fun noteBlur(n: Int) {
+        val before = focusVal.remove(n)
+        if (!before.isNullOrEmpty() && responses[n.toString()].orEmpty() != before) changes[n.toString()] = (changes[n.toString()] ?: 0) + 1
+        if (textField == n) textField = null
+    }
+
     private var dirty = false
     private var done = false
     private var debounce: Job? = null
     private val lock = Mutex()
 
     fun change(next: Map<String, String>) {
+        val prev = responses
+        for (k in prev.keys + next.keys) {
+            if (prev[k].orEmpty() == next[k].orEmpty()) continue
+            // typing in a text gap counts once per visit (noteBlur); choosing or switching an option counts each time
+            if (!prev[k].isNullOrEmpty() && textField?.toString() != k) changes[k] = (changes[k] ?: 0) + 1
+            val n = k.toIntOrNull()
+            if (!next[k].isNullOrEmpty() && n != null && elapsed >= lateFrom) late.add(n)
+        }
         responses = next
         dirty = true
         state = SaveState.Dirty
@@ -74,6 +103,11 @@ class LrSession(val attempt: LrAttempt, private val api: ApiClient, private val 
     private fun body(): JsonObject = buildJsonObject {
         put("responses", JsonObject(responses.mapValues { JsonPrimitive(it.value) }))
         put("elapsedS", elapsed.toInt())
+        put("stats", buildJsonObject {
+            put("partS", JsonObject(partS.mapValues { JsonPrimitive(it.value.toInt()) }))
+            put("changes", JsonObject(changes.filterValues { it > 0 }.mapValues { JsonPrimitive(it.value) }))
+            put("late", buildJsonArray { late.forEach { add(it) } })
+        })
     }
 
     /** Scores the attempt. Throws the ApiError on failure (the answers stay saved and the caller may try again). */

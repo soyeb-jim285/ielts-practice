@@ -116,6 +116,8 @@ class QCtx(
     /** The question to ring (jumped to from the navigator or the answers table). */
     val active: Int? = null,
     val onFocus: (Int) -> Unit = {},
+    /** A text gap gained (true) or lost (false) the cursor: pacing counts a typed change once per visit. */
+    val onText: (Int, Boolean) -> Unit = { _, _ -> },
     val reg: QRegistry = QRegistry(),
 ) {
     fun requester(n: Int) = reg.requester(n)
@@ -183,7 +185,7 @@ private fun GapField(n: Int, ctx: QCtx, wordLimit: String?) {
         value, { ctx.set(n, it) },
         Modifier.fillMaxSize().padding(vertical = 2.dp)
             .focusRequester(ctx.focuser(n)).bringIntoViewRequester(ctx.requester(n))
-            .onFocusChanged { focused = it.isFocused; if (it.isFocused) ctx.onFocus(n) }
+            .onFocusChanged { focused = it.isFocused; if (it.isFocused) ctx.onFocus(n); ctx.onText(n, it.isFocused) }
             .semantics {
                 contentDescription = "Question $n" + (wordLimit?.let { ", ${it.lowercase()}" } ?: "")
                 if (mark != null) stateDescription = if (mark.correct) "Correct" else "Wrong"

@@ -47,6 +47,7 @@ import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.LrPassage
 import com.soyeb.ieltspractice.core.LrSection
+import com.soyeb.ieltspractice.core.TextSpan
 import com.soyeb.ieltspractice.core.clock
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.ext
@@ -55,18 +56,18 @@ import com.soyeb.ieltspractice.ui.theme.ext
 
 /** The reading passage in the book serif. Paragraph letters sit in a gutter. Long-press selects text to copy. */
 @Composable
-fun PassageView(p: LrPassage, modifier: Modifier = Modifier) {
+fun PassageView(p: LrPassage, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0) {
     val e = MaterialTheme.ext
     SelectionContainer {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(p.title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = e.ink)
             p.subtitle?.let { Text(it, style = AppText.readingSm, color = e.muted, fontStyle = FontStyle.Italic) }
             val labelled = p.paragraphs.any { it.label != null }
-            p.paragraphs.forEach { para ->
+            p.paragraphs.forEachIndexed { pi, para ->
                 // "### " marks a text heading (GT reading); "• " lines are bullets
                 if (para.text.startsWith("### ")) {
                     Text(para.text.removePrefix("### "), Modifier.semantics { heading() }.padding(top = 4.dp), style = AppText.reading.copy(fontWeight = FontWeight.SemiBold), color = e.ink)
-                    return@forEach
+                    return@forEachIndexed
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (labelled) Box(Modifier.size(28.dp).padding(top = 3.dp), contentAlignment = Alignment.Center) {
@@ -75,7 +76,8 @@ fun PassageView(p: LrPassage, modifier: Modifier = Modifier) {
                         }
                     }
                     Column(Modifier.weight(1f).semantics { if (para.label != null) contentDescription = "Paragraph ${para.label}. ${para.text}" }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        para.text.split('\n').forEach { line ->
+                        if (evidence?.p == pi) EvidenceText(para.text, evidence, AppText.reading, e.ink, scrollKey)
+                        else para.text.split('\n').forEach { line ->
                             if (line.startsWith("• ")) Row(Modifier.padding(start = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("•", style = AppText.reading, color = e.muted)
                                 Text(line.removePrefix("• "), Modifier.weight(1f), style = AppText.reading, color = e.ink)
@@ -180,4 +182,4 @@ fun LrSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
 
 /** The passage of a section, or nothing when it has none. */
 @Composable
-fun SectionPassage(s: LrSection, modifier: Modifier = Modifier) { s.passage?.let { PassageView(it, modifier) } }
+fun SectionPassage(s: LrSection, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0) { s.passage?.let { PassageView(it, modifier, evidence, scrollKey) } }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
@@ -147,6 +148,7 @@ private fun Dashboard(d: DashData, target: Double, nav: AppNav) {
         PredictedCard(p, target, nav)
         TrendCard(d.trends, target)
     }
+    LrInsights(target, nav)
     PractiseCard(d.due, nav)
     if (p.topMistakes.isNotEmpty()) MistakesCard(p.topMistakes, nav)
 }
@@ -395,3 +397,84 @@ private fun MistakesCard(m: List<com.soyeb.ieltspractice.core.CategoryCount>, na
         LinkButton("Open error log  →", { nav.go(Mistakes()) })
     }
 }
+
+// ---- Listening & Reading (web components/dashboard/LrInsights.tsx) ----
+
+private val LR_SKILL = mapOf("listening" to "Listening", "reading" to "Reading")
+
+/** Band per attempt as a small line, with the target as a dashed rule. */
+@Composable
+private fun LrSpark(rows: List<com.soyeb.ieltspractice.core.LrTrendPoint>, target: Double, label: String, modifier: Modifier = Modifier) {
+    val e = MaterialTheme.ext
+    androidx.compose.foundation.Canvas(modifier.semantics { contentDescription = label }) {
+        val pad = 6.dp.toPx()
+        fun x(i: Int) = if (rows.size < 2) size.width / 2 else pad + i * (size.width - 2 * pad) / (rows.size - 1)
+        fun y(b: Double) = size.height - pad - (b.coerceIn(0.0, 9.0) / 9).toFloat() * (size.height - 2 * pad)
+        drawLine(e.line, androidx.compose.ui.geometry.Offset(0f, y(target)), androidx.compose.ui.geometry.Offset(size.width, y(target)), 1.5.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 10f)))
+        for (i in 1 until rows.size) drawLine(e.brand, androidx.compose.ui.geometry.Offset(x(i - 1), y(rows[i - 1].band)), androidx.compose.ui.geometry.Offset(x(i), y(rows[i].band)), 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        rows.forEachIndexed { i, r -> drawCircle(e.brand, if (i == rows.lastIndex) 4.dp.toPx() else 2.5.dp.toPx(), androidx.compose.ui.geometry.Offset(x(i), y(r.band))) }
+    }
+}
+
+/** Band trends, accuracy of your weakest question types, and a test to practise them on. Hidden until a test has been scored. */
+@Composable
+private fun LrInsights(target: Double, nav: AppNav) {
+    val e = MaterialTheme.ext
+    val api = LocalApp.current.api
+    val scope = rememberCoroutineScope()
+    val data = rememberLoad { runCatching { api.get<com.soyeb.ieltspractice.core.LrProgress>("/api/lr/progress") }.getOrNull() }
+    val p = (data.state as? com.soyeb.ieltspractice.ui.Load.Ready)?.value ?: return
+    if (p.trend.isEmpty()) return
+    var busy by remember { mutableStateOf(false) }
+    val req = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    // screenshots: the `LR` demo tab scrolls to this section
+    if (com.soyeb.ieltspractice.LocalDemo.current?.tab == "LR") androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(500); runCatching { req.bringIntoView() } }
+    Column(Modifier.bringIntoViewRequester(req), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Listening and Reading")
+        AppCard {
+            listOf("listening", "reading").forEach { k ->
+                val rows = p.trend.filter { it.skill == k }
+                if (rows.isEmpty()) return@forEach
+                val last = rows.last()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${LR_SKILL[k]}, latest of ${rows.size}", style = MaterialTheme.typography.bodySmall, color = e.muted)
+                        BigNumber(fmt(last.band))
+                    }
+                    LrSpark(rows, target, "${LR_SKILL[k]} band over ${rows.size} attempts, latest ${fmt(last.band)}; dashed line is your ${fmt(target)} target", Modifier.size(width = 150.dp, height = 56.dp))
+                }
+            }
+        }
+        AppCard {
+            Text("Weakest question types", style = MaterialTheme.typography.titleSmall, color = e.ink)
+            if (p.weakest.isEmpty()) Text("Your weak spots appear after a few more answered questions.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+            p.weakest.forEach { w ->
+                val r = if (w.total > 0) w.right.toDouble() / w.total else 0.0
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("${w.label} (${LR_SKILL[w.skill]})", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                        Text("${Math.round(r * 100)}%", style = MaterialTheme.typography.titleSmall, color = if (r < 0.5) e.badText else e.warnText)
+                    }
+                    BandBar(r, "${w.label}: ${w.right} of ${w.total} correct", fill = if (r >= 0.75) e.good else if (r >= 0.5) e.warn else e.bad, height = 6.dp)
+                }
+            }
+        }
+        p.suggested?.let { sg ->
+            AppCard {
+                Text("Suggested next test", style = MaterialTheme.typography.bodySmall, color = e.muted)
+                Text("${sg.title} has ${sg.count} ${sg.label.lowercase()} questions", style = MaterialTheme.typography.bodyLarge, color = e.ink)
+                PrimaryButton("Practise", {
+                    busy = true
+                    scope.launch {
+                        try {
+                            val a = api.send<com.soyeb.ieltspractice.core.LrAttempt>("POST", "/api/lr/tests/${sg.id}/attempts", kotlinx.serialization.json.buildJsonObject { put("mode", kotlinx.serialization.json.JsonPrimitive("practice")) })
+                            nav.go(com.soyeb.ieltspractice.ui.nav.LrRun(a.id))
+                        } catch (_: Exception) {}
+                        busy = false
+                    }
+                }, Modifier.fillMaxWidth(), loading = busy)
+            }
+        }
+    }
+}
+

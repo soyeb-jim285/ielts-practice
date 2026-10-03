@@ -28,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +49,14 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.core.Accuracy
 import com.soyeb.ieltspractice.core.LrAttempt
+import com.soyeb.ieltspractice.core.READING_SECONDS
 import com.soyeb.ieltspractice.core.LrMark
+import com.soyeb.ieltspractice.core.LrProgress
+import com.soyeb.ieltspractice.core.audioWindow
+import com.soyeb.ieltspractice.core.evidenceSpan
+import com.soyeb.ieltspractice.core.sectionParagraphs
+import com.soyeb.ieltspractice.core.timingRows
+import com.soyeb.ieltspractice.core.TextSpan
 import com.soyeb.ieltspractice.core.accuracyBy
 import com.soyeb.ieltspractice.core.flat
 import com.soyeb.ieltspractice.core.fmt
@@ -122,13 +132,24 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     val flat = remember(test) { test.flat() }
     var wrongOnly by remember { mutableStateOf(false) }
     val demoScreen = LocalDemo.current?.screen
-    var partIdx by remember { mutableIntStateOf(if (demoScreen == "lr-result-p2") 1 else 0) }
+    // demo screens open with a question selected (and the dictation sheet for lr-dictation)
+    val demoSel = when (demoScreen) { "lr-result-detail" -> 9; "lr-result-detail-listening", "lr-dictation" -> 28; else -> null }
+    var partIdx by remember { mutableIntStateOf(if (demoScreen == "lr-result-p2") 1 else demoSel?.let { n -> test.sections.indexOfFirst { s -> s.groups.any { n in it.from..it.to } }.coerceAtLeast(0) } ?: 0) }
     var active by remember { mutableStateOf<Int?>(null) }
+    var selected by remember { mutableStateOf(demoSel) }
+    var scrollKey by remember { mutableIntStateOf(if (demoSel != null) 1 else 0) }
+    var cue by remember { mutableStateOf<Pair<Int, AudioCue>?>(null) }
+    var cueId by remember { mutableIntStateOf(0) }
+    var dict by remember { mutableStateOf(if (demoScreen == "lr-dictation") demoSel else null) }
+    val ctxReq = remember { BringIntoViewRequester() }
+    val paceReq = remember { BringIntoViewRequester() }
+    val insights = rememberLoad { runCatching { api.get<LrProgress>("/api/lr/progress") }.getOrNull() }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val reg = remember { QRegistry() }
     val ctx = QCtx(a.responses, {}, a.assets, marks = marks, active = active, reg = reg)
     val section = test.sections[partIdx.coerceIn(0, test.sections.lastIndex)]
+    val entries = remember(a) { (a.analysis?.gaps ?: emptyList()).associateBy { it.n } }
     val band = a.band ?: 0.0
     val gap = target - band
     val noun = if (listening) "Part" else "Passage"
@@ -140,10 +161,27 @@ private fun Results(a: LrAttempt, nav: AppNav) {
 
     fun jump(n: Int) {
         val f = flat.firstOrNull { it.n == n } ?: return
+        if (selected == n) { selected = null; return }
         partIdx = test.sections.indexOfFirst { it.part == f.part }
+        selected = n
+        scrollKey++
         active = n
-        scope.launch { delay(200); ctx.reveal(n, false); delay(3000); if (active == n) active = null }
+        scope.launch { delay(150); runCatching { ctxReq.bringIntoView() }; delay(3000); if (active == n) active = null }
     }
+    fun play(n: Int) {
+        val f = flat.firstOrNull { it.n == n } ?: return
+        val s = test.sections.firstOrNull { it.part == f.part } ?: return
+        val w = audioWindow(s.timingRows, f.q) ?: return
+        partIdx = test.sections.indexOf(s)
+        cue = s.part to AudioCue(w.from, w.to, ++cueId)
+        scope.launch { delay(150); runCatching { ctxReq.bringIntoView() } }
+    }
+    val sel = selected?.let { n -> flat.firstOrNull { it.n == n } }
+    val selSection = sel?.let { f -> test.sections.firstOrNull { it.part == f.part } }
+    val span = remember(sel, selSection) { if (sel != null && selSection != null) evidenceSpan(sectionParagraphs(selSection), sel.q, sel.group.type == "gap") else null }
+    val evidence = if (span != null && selSection?.part == section.part) span else null
+    val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
+    LaunchedEffect(demoScreen) { if (demoScreen == "lr-result-pacing") { delay(400); runCatching { paceReq.bringIntoView() } } }
     fun retake() {
         busy = true; error = null
         scope.launch {
@@ -190,6 +228,15 @@ private fun Results(a: LrAttempt, nav: AppNav) {
         AccuracyBlock("By question type", byType)
     }
 
+    // ---- pacing and TRUE / FALSE / NOT GIVEN ----
+    Column(Modifier.bringIntoViewRequester(paceReq), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        a.stats?.let {
+            PacingPanel(it, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else READING_SECONDS.toDouble(), marks, blank)
+        }
+        val pattern = (insights.state as? Load.Ready)?.value?.tfng?.pattern
+        TfngPanel(a.analysis?.tfng.orEmpty(), pattern)
+    }
+
     // ---- your answers ----
     SectionTitle("Your answers")
     val wrong = flat.count { marks[it.n]?.correct != true }
@@ -210,8 +257,14 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     }
 
     // ---- in context ----
-    SectionTitle(if (listening) "Transcript and questions" else "Passage and questions")
-    Text("Tap a number above to jump to that question.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+    Column(Modifier.bringIntoViewRequester(ctxReq), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(if (listening) "Transcript and questions" else "Passage and questions")
+        Text("Tap a number above to explain that question and mark where the answer is.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+    }
+    if (sel != null && selSection != null) QuestionDetail(
+        sel, selSection, marks[sel.n], entries[sel.n], onClose = { selected = null },
+        onPlay = { play(sel.n) }, onDictate = { dict = sel.n },
+    )
     PrimaryTabRow(test.sections.indexOf(section), containerColor = e.bg, contentColor = e.brand, divider = { HorizontalDivider(color = e.line) }) {
         test.sections.forEachIndexed { i, s ->
             Tab(i == test.sections.indexOf(section), { partIdx = i }, Modifier.heightIn(min = 48.dp), selectedContentColor = e.brand, unselectedContentColor = e.muted) {
@@ -220,20 +273,24 @@ private fun Results(a: LrAttempt, nav: AppNav) {
         }
     }
     androidx.compose.runtime.key(section.part) {
+        VocabList(section.vocab.orEmpty())
         if (listening) {
-            AppCard { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}") }
-            section.transcript?.let { Transcript(it) }
+            AppCard { PracticeAudio(a.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", cue = cue?.takeIf { it.first == section.part }?.second) }
+            section.transcript?.let { Transcript(it, evidence, scrollKey) }
             QuestionsBlock(section, ctx)
         } else if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                AppCard(Modifier.weight(1f)) { Column(Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState())) { SectionPassage(section) } }
+                AppCard(Modifier.weight(1f)) { Column(Modifier.heightIn(max = 640.dp).verticalScroll(rememberScrollState())) { SectionPassage(section, evidence = evidence, scrollKey = scrollKey) } }
                 Column(Modifier.weight(1f).heightIn(max = 640.dp).verticalScroll(rememberScrollState())) { QuestionsBlock(section, ctx) }
             }
         } else {
-            AppCard { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) { SectionPassage(section) } }
+            AppCard { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) { SectionPassage(section, evidence = evidence, scrollKey = scrollKey) } }
             QuestionsBlock(section, ctx)
         }
     }
+    if (dict != null && sel != null && sel.n == dict && selSection != null) DictationSheet(
+        a.assets[selSection.audio.orEmpty()].orEmpty(), selSection, sel, if (demoScreen == "lr-dictation") "record the wait of each hive" else "", onClose = { dict = null },
+    )
 }
 
 @Composable
@@ -245,7 +302,7 @@ private fun QuestionsBlock(section: com.soyeb.ieltspractice.core.LrSection, ctx:
 }
 
 @Composable
-private fun Transcript(text: String) {
+private fun Transcript(text: String, evidence: TextSpan?, scrollKey: Int) {
     val e = MaterialTheme.ext
     var open by remember { mutableStateOf(true) }
     AppCard(padding = 0.dp) {
@@ -260,7 +317,12 @@ private fun Transcript(text: String) {
         if (open) {
             HorizontalDivider(color = e.line)
             androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(text, Modifier.padding(16.dp), style = AppText.reading, color = e.ink)
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // one paragraph per line; the evidence span's index counts every line, blank ones too
+                    text.split('\n').forEachIndexed { i, line ->
+                        if (line.isNotBlank()) EvidenceText(line, evidence?.takeIf { it.p == i }, AppText.reading, e.ink, scrollKey)
+                    }
+                }
             }
         }
     }

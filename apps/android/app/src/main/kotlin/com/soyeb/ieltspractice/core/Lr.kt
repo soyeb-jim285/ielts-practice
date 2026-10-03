@@ -1,6 +1,7 @@
 package com.soyeb.ieltspractice.core
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 // Listening & Reading tests (cambridge-gated). Wire types for /api/lr/*, plus the pure logic ported from apps/web/src/lib/lr.ts.
 // Decode with `AppJson`. Rules for answers and bands live on the server (packages/core/src/lr.ts); the app only displays them.
@@ -10,7 +11,17 @@ const val READING_SECONDS = 3600
 const val LISTENING_REVIEW_SECONDS = 120
 
 @Serializable data class LrOption(val key: String, val text: String = "")
-@Serializable data class LrQuestion(val n: Int, val text: String? = null, val options: List<LrOption>? = null, val answer: List<String>? = null)
+/** Review-only enrichment of a question (after submit): where the answer is, why, why each wrong pick is wrong, wording pairs. */
+@Serializable data class LrReview(
+    val evidence: String? = null,
+    val at: Double? = null,
+    val why: String? = null,
+    val wrong: Map<String, String>? = null,
+    /** `[question wording, passage wording]` pairs */
+    val paraphrase: List<List<String>>? = null,
+)
+@Serializable data class LrQuestion(val n: Int, val text: String? = null, val options: List<LrOption>? = null, val answer: List<String>? = null, val review: LrReview? = null)
+@Serializable data class LrVocab(val word: String, val meaning: String = "", val example: String? = null)
 @Serializable data class LrGroup(
     val from: Int,
     val to: Int,
@@ -34,6 +45,10 @@ const val LISTENING_REVIEW_SECONDS = 120
     val title: String? = null,
     val audio: String? = null,
     val transcript: String? = null,
+    /** After submit: key words of the part */
+    val vocab: List<LrVocab>? = null,
+    /** After submit, listening: `[word, start s, end s]` rows (see [timingRows]) */
+    val timings: List<List<JsonElement>>? = null,
     val passage: LrPassage? = null,
     val groups: List<LrGroup> = emptyList(),
 )
@@ -49,6 +64,31 @@ const val LISTENING_REVIEW_SECONDS = 120
     val listening get() = skill == "listening"
 }
 @Serializable data class LrMark(val n: Int, val given: String = "", val correct: Boolean = false, val answer: List<String> = emptyList())
+
+/** What the runner measured: seconds per part, answer changes per question, questions answered in the final 5 minutes (or after the recordings, in the exam). */
+@Serializable data class LrStats(val partS: Map<String, Double> = emptyMap(), val changes: Map<String, Int> = emptyMap(), val late: List<Int> = emptyList())
+/** A wrong gap answer with a deterministic reason (server `analysis.gaps`). */
+@Serializable data class LrGapEntry(val n: Int, val kind: String, val label: String, val message: String, val word: String? = null, val typed: String? = null, val before: Int? = null)
+@Serializable data class LrTfngRow(val n: Int, val kind: String, val chose: String, val answer: String)
+@Serializable data class LrTypeAcc(val label: String, val right: Int, val total: Int)
+@Serializable data class LrAnalysis(val gaps: List<LrGapEntry> = emptyList(), val tfng: List<LrTfngRow> = emptyList(), val byType: List<LrTypeAcc> = emptyList())
+
+/** `GET /api/lr/progress` */
+@Serializable data class LrTrendPoint(val attemptId: String = "", val skill: String, val date: String, val band: Double)
+@Serializable data class LrTypeStat(val skill: String, val label: String, val right: Int, val total: Int)
+@Serializable data class LrSuggested(val id: String, val title: String, val skill: String, val label: String, val count: Int)
+@Serializable data class LrTfngPattern(val kind: String = "tfng", val answer: String = "", val chose: String = "", val count: Int = 0, val of: Int = 0, val pct: Int = 0, val text: String = "")
+@Serializable data class LrTfngSummary(val pattern: LrTfngPattern? = null, val rows: Int = 0)
+@Serializable data class LrProgress(
+    val trend: List<LrTrendPoint> = emptyList(),
+    val byType: List<LrTypeStat> = emptyList(),
+    val weakest: List<LrTypeStat> = emptyList(),
+    val suggested: LrSuggested? = null,
+    val tfng: LrTfngSummary = LrTfngSummary(),
+)
+/** `GET /api/lr/spelling`: words misspelt (or wrongly pluralised) in gap answers, most frequent first. */
+@Serializable data class LrSpellingItem(val word: String, val kind: String = "spelling", val count: Int = 1, val typed: List<String> = emptyList(), val lastAt: String = "")
+@Serializable data class LrSpelling(val items: List<LrSpellingItem> = emptyList())
 
 /** `GET/POST /api/lr/attempts...`: the stripped test while in progress, the full test, marks and transcripts once submitted. */
 @Serializable data class LrAttempt(
@@ -67,6 +107,9 @@ const val LISTENING_REVIEW_SECONDS = 120
     val test: LrTest,
     /** Asset key to presigned GET URL (audio supports Range). */
     val assets: Map<String, String> = emptyMap(),
+    val stats: LrStats? = null,
+    /** Null for attempts submitted before the analysis existed. */
+    val analysis: LrAnalysis? = null,
 ) {
     val submitted get() = status == "submitted"
     val exam get() = mode == "exam"

@@ -42,6 +42,8 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.CategoryCount
 import com.soyeb.ieltspractice.core.Empty
+import com.soyeb.ieltspractice.core.LrSpelling
+import com.soyeb.ieltspractice.core.LrSpellingItem
 import com.soyeb.ieltspractice.core.Mistake
 import com.soyeb.ieltspractice.core.MistakeLog
 import com.soyeb.ieltspractice.core.categoryLabel
@@ -64,6 +66,7 @@ import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.Chip
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
+import com.soyeb.ieltspractice.ui.theme.SectionTitle
 import com.soyeb.ieltspractice.ui.theme.SecondaryButton
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.delay
@@ -88,6 +91,8 @@ private fun ColumnScope.MistakeLogList(route: Mistakes, nav: AppNav) {
     var category by remember { mutableStateOf(route.category) }
     var groups by remember { mutableStateOf(emptyList<CategoryCount>()) }
     var toast by remember { mutableStateOf<String?>(null) }
+    var spelling by remember { mutableStateOf(emptyList<LrSpellingItem>()) }
+    LaunchedEffect(Unit) { spelling = runCatching { api.get<LrSpelling>("/api/lr/spelling").items }.getOrDefault(emptyList()) }
     val paged = remember {
         Paged(scope) { page ->
             val log = api.get<MistakeLog>("/api/mistakes", mapOf("category" to category, "page" to page.toString()))
@@ -121,11 +126,12 @@ private fun ColumnScope.MistakeLogList(route: Mistakes, nav: AppNav) {
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
                 )
             }
+            if (category == null && spelling.isNotEmpty()) item { SpellingSection(spelling) { nav.openTab(com.soyeb.ieltspractice.ui.nav.Tab.Review) } }
             if (groups.isNotEmpty()) item { CategoryChips(groups, all, category) { category = it } }
             paged.error?.let { msg ->
                 item { AppCard { ErrorLine(msg); SecondaryButton("Try again", { paged.reset() }) } }
             }
-            if (paged.items.isEmpty() && paged.error == null) {
+            if (paged.items.isEmpty() && paged.error == null && spelling.isEmpty()) {
                 item {
                     if (paged.loading) Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
                     else EmptyState(
@@ -227,5 +233,43 @@ private fun MistakeRow(m: Mistake, showCategory: Boolean, onAdd: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             SecondaryButton(if (m.inDeck) "✓  In deck" else "+  Add to deck", onAdd, enabled = !m.inDeck)
         }
+    }
+}
+
+/** Words misspelt (or wrongly pluralised) in Listening and Reading gap answers, most frequent first. Each also becomes a Review card. */
+@Composable
+private fun SpellingSection(items: List<LrSpellingItem>, onReview: () -> Unit) {
+    val e = MaterialTheme.ext
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle("Spelling and plurals")
+        AppCard(padding = 0.dp) {
+            items.forEachIndexed { i, w ->
+                if (i > 0) RowDivider()
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = "${w.word}, ${if (w.kind == "plural") "plural" else "spelling"}, ${w.count} ${if (w.count == 1) "time" else "times"}. You wrote ${w.typed.joinToString(", ")}"
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(w.word, style = MaterialTheme.typography.titleMedium.merge(AppText.num), color = e.ink)
+                        Text(
+                            buildAnnotatedString {
+                                append("You wrote ")
+                                w.typed.forEachIndexed { k, t ->
+                                    if (k > 0) append(", ")
+                                    withStyle(SpanStyle(color = e.badText, textDecoration = TextDecoration.LineThrough)) { append(t) }
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall, color = e.muted,
+                        )
+                    }
+                    Chip(if (w.kind == "plural") "Plural" else "Spelling")
+                    Text("${w.count}\u00d7", style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = e.muted)
+                }
+            }
+        }
+        LinkButton("Practise these in Review  \u2192", onReview)
     }
 }
