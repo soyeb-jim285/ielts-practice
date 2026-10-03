@@ -41,8 +41,8 @@ final class Recorder {
         try s.setActive(true)
     }
 
-    /// Returns false when mic permission is denied.
-    func start(to url: URL) async throws -> Bool {
+    /// `paused`: open the file but hold the clock until `resume()` (the examiner is still asking). Returns false when mic permission is denied.
+    func start(to url: URL, paused startPaused: Bool = false) async throws -> Bool {
         #if DEBUG
         if DemoTour.name != nil { return startScripted() }
         #endif
@@ -56,6 +56,7 @@ final class Recorder {
         ])
         r.isMeteringEnabled = true
         guard r.record() else { throw APIError(status: 0, message: "Couldn't start recording. Is another app using the microphone?") }
+        if startPaused { r.pause() }
         recorder = r
         energy = []
         silence = 0
@@ -119,6 +120,12 @@ final class Recorder {
         levels.append(l)
         liveWpm = Self.estimateWpm(energy)
     }
+
+    /// The recording clock in seconds: it stands still while paused, so it matches the audio and the energy frames.
+    var clock: TimeInterval { recorder?.currentTime ?? elapsed }
+
+    func pause() { recorder?.pause() }
+    func resume() { _ = recorder?.record() }
 
     /// Stops and returns the duration in ms and the energy timeline.
     func stop() -> (durationMs: Int, energy: [Int]) {

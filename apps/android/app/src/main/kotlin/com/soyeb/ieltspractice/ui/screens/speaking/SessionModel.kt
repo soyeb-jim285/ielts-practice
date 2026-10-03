@@ -8,7 +8,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.soyeb.ieltspractice.AppContainer
+import com.soyeb.ieltspractice.audio.AudioPlayer
 import com.soyeb.ieltspractice.audio.MicRecorder
+import com.soyeb.ieltspractice.core.AnswerWindow
+import com.soyeb.ieltspractice.core.AudioLine
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.DemoConfig
 import com.soyeb.ieltspractice.core.PendingRecording
@@ -24,11 +27,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.max
 
 enum class Phase { Loading, Ready, Prep, Recording, Finishing, Empty, Failed }
+
+/** The examiner reading a question (microphone held), then the "Speak now" cue. */
+enum class Examiner { Idle, Asking, Cue }
 
 class UploadItem(val id: String, val label: String)
 
@@ -46,6 +54,7 @@ class SessionModel(
     var index by mutableIntStateOf(0); private set
     var question by mutableIntStateOf(0); private set
     var questionStart by mutableDoubleStateOf(0.0); private set
+    var examiner by mutableStateOf(Examiner.Idle); private set
     var prepLeft by mutableIntStateOf(PREP_SECONDS); private set
     var notes by mutableStateOf("")
     var uploads by mutableStateOf<List<UploadItem>>(emptyList()); private set
@@ -59,7 +68,11 @@ class SessionModel(
     private val store get() = app.pending
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val prefs = context.applicationContext.getSharedPreferences("ielts", Context.MODE_PRIVATE)
-    private var marks = mutableListOf(0)
+    /** Answer window of each question on the recording clock. */
+    private var windows = mutableListOf<AnswerWindow>()
+    private val player by lazy { AudioPlayer(context.applicationContext) }
+    private var askJob: Job? = null
+    private var introduced = -1
     private var recId = newSessionId()
     private val sessionId = newSessionId()
     private var parent: String? = null
@@ -89,7 +102,7 @@ class SessionModel(
                 else -> { items = listOf(api.get<Prompt>("/api/prompts/${route.promptId}")); parent = route.parentId }
             }
             phase = Phase.Ready
-            if (demo != null) applyDemo(demo.screen)
+            if (demo != null) applyDemo(demo.screen) else introduce()
         } catch (e: CancellationException) {
             throw e
         } catch (e: ApiError) {
@@ -97,6 +110,43 @@ class SessionModel(
         } catch (e: Exception) {
             failMessage = e.message ?: "Something went wrong."; phase = Phase.Failed
         }
+    }
+
+    // MARK: Examiner
+
+    private fun lineFor(p: Prompt, text: String) = p.audio?.questions?.firstOrNull { it.text == text }
+
+    /**
+     * The examiner reads [lines] (microphone held meanwhile, so the recording holds only the candidate), then the answer window opens
+     * with a "Speak now" cue. No pause, seek or speed. A line without audio, a bad URL or a stalled load never blocks the test.
+     */
+    private fun ask(lines: List<AudioLine?>, resume: Boolean = true) {
+        askJob?.cancel()
+        askJob = scope.launch {
+            val urls = lines.mapNotNull { it?.url }
+            if (urls.isNotEmpty()) {
+                examiner = Examiner.Asking
+                recorder.paused = true
+                for (u in urls) {
+                    player.load(u); player.play()
+                    withTimeoutOrNull(60_000) { player.ended.first { it } }
+                }
+            }
+            if (!resume) { examiner = Examiner.Idle; return@launch }
+            recorder.paused = false
+            questionStart = recorder.elapsed
+            examiner = Examiner.Cue
+            delay(2500)
+            if (examiner == Examiner.Cue) examiner = Examiner.Idle
+        }
+    }
+
+    /** P2: the examiner introduces the card while the screen waits for the preparation tap. Part 1 and 3 after the first start by themselves (the mic permission is already granted). */
+    private fun introduce() {
+        val p = current ?: return
+        if (introduced == index || (index == 0 && p.part != 2)) return
+        introduced = index
+        if (p.part == 2) ask(listOf(p.audio?.lead, lineFor(p, p.questions[0])), resume = false) else startRecording()
     }
 
     // MARK: Actions
@@ -125,7 +175,7 @@ class SessionModel(
         prepJob?.cancel()
         micCheck.stop()
         store.prepare()
-        val ok = recorder.start(store.audioFile(recId))
+        val ok = recorder.start(store.audioFile(recId), paused = current?.part != 2)
         starting = false
         if (!ok) {
             startError = "Couldn't start recording. Is another app using the microphone?"
@@ -134,10 +184,18 @@ class SessionModel(
         }
         runCatching { prefs.edit().putBoolean("micHintSeen", true).apply() }
         hintSeen = true
-        marks = mutableListOf(0)
+        windows = mutableListOf()
         question = 0
         questionStart = 0.0
         phase = Phase.Recording
+        val p = current ?: return
+        if (p.part == 2) {
+            examiner = Examiner.Cue // the card was introduced before the preparation minute
+            askJob?.cancel()
+            askJob = scope.launch { delay(2500); if (examiner == Examiner.Cue) examiner = Examiner.Idle }
+        } else {
+            ask(listOf(if (index == 0 && p.part == 1 && items.size > 1) p.audio?.intro else null, p.audio?.lead, lineFor(p, p.questions[0])))
+        }
     }
 
     /** True when the recording must stop now: P2 hard stop at 2:00, the 15 min cap for any part. */
@@ -147,15 +205,20 @@ class SessionModel(
     }
 
     fun nextQuestion() {
-        marks.add((recorder.elapsed * 1000).toInt())
-        questionStart = recorder.elapsed
+        if (examiner == Examiner.Asking) return
+        windows.add(AnswerWindow(question, (questionStart * 1000).toInt(), (recorder.elapsed * 1000).toInt()))
         question += 1
+        current?.let { p -> ask(listOf(lineFor(p, p.questions[question]))) }
     }
 
     /** Stops, keeps the recording on disk, uploads it in the background and moves on. */
     fun finishPart() {
         if (phase != Phase.Recording) return
         val p = current ?: return
+        if (examiner == Examiner.Asking) return
+        windows.add(AnswerWindow(question, (questionStart * 1000).toInt(), (recorder.elapsed * 1000).toInt()))
+        askJob?.cancel()
+        examiner = Examiner.Idle
         val r = recorder.stop()
         if (!store.audioFile(recId).exists()) {
             startError = "Nothing was recorded. Check your microphone and try again."
@@ -164,7 +227,7 @@ class SessionModel(
         }
         val rec = PendingRecording(
             id = recId, promptId = p.id, part = p.part, label = "${partLabel(items, index)}: ${p.topic ?: p.title}",
-            createdAt = System.currentTimeMillis(), durationMs = r.durationMs, energy = r.energy.take(20000), marks = marks.take(200),
+            createdAt = System.currentTimeMillis(), durationMs = r.durationMs, energy = r.energy.take(20000), marks = windows.map { it.startMs }.take(200), segments = windows.take(200),
             sessionId = if (isFull) sessionId else null, parentAttemptId = parent,
         )
         store.add(rec)
@@ -176,6 +239,7 @@ class SessionModel(
             notes = ""
             recId = newSessionId()
             phase = Phase.Ready
+            introduce()
         } else {
             phase = Phase.Finishing
         }
@@ -188,6 +252,9 @@ class SessionModel(
     /** Drop a recording in progress (it was never kept) and the mic test. */
     fun discardLive() {
         prepJob?.cancel()
+        askJob?.cancel()
+        runCatching { player.pause() }
+        examiner = Examiner.Idle
         if (recorder.isRecording) {
             recorder.stop()
             store.audioFile(recId).delete()
@@ -197,6 +264,7 @@ class SessionModel(
 
     override fun onCleared() {
         discardLive()
+        runCatching { player.release() }
         scope.cancel()
     }
 

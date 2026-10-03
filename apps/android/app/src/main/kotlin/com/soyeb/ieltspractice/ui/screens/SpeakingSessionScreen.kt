@@ -70,6 +70,7 @@ import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
 import com.soyeb.ieltspractice.ui.screens.speaking.ConfirmDialog
 import com.soyeb.ieltspractice.ui.screens.speaking.CueCard
+import com.soyeb.ieltspractice.ui.screens.speaking.Examiner
 import com.soyeb.ieltspractice.ui.screens.speaking.ListCard
 import com.soyeb.ieltspractice.ui.screens.speaking.MicAccess
 import com.soyeb.ieltspractice.ui.screens.speaking.MicDeniedDialog
@@ -286,8 +287,8 @@ private fun ReadyPanel(vm: SessionModel, p: Prompt, access: MicAccess, onDenied:
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Press to start recording", style = MaterialTheme.typography.titleMedium, color = e.ink)
                     Text(
-                        if (p.part == 1) "Short answers about you. One recording covers every question. Press Next question as you go."
-                        else "A discussion linked to Part 2. Develop each answer with reasons and examples. Press Next question as you go.",
+                        if (p.part == 1) "Short answers about you. The examiner reads each question aloud, then you speak. Press Next question when you have answered."
+                        else "A discussion linked to Part 2. The examiner reads each question aloud. Develop each answer with reasons and examples, then press Next question.",
                         style = MaterialTheme.typography.bodySmall, color = e.muted,
                     )
                 }
@@ -347,10 +348,15 @@ private fun RecordingPanel(vm: SessionModel, p: Prompt) {
     val rec = vm.recorder
     val seconds = (if (p.part == 2) rec.elapsed else rec.elapsed - vm.questionStart).coerceAtLeast(0.0)
     val whole = seconds.toInt()
+    if (vm.examiner == Examiner.Asking) {
+        Text("The examiner is asking the question", Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.titleMedium, color = e.brand)
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(Modifier.semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(10.dp).background(e.bad, CircleShape))
             Text("Recording", style = MaterialTheme.typography.titleSmall, color = e.badText)
+            if (vm.examiner == Examiner.Cue) Chip("Speak now", color = e.goodText)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
             TimerRing(
@@ -444,15 +450,15 @@ private fun Controls(vm: SessionModel, p: Prompt, access: MicAccess, onEarly: ()
         Phase.Recording ->
             if (p.part != 2 && vm.question + 1 < p.questions.size) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SecondaryButton("Finish part early", onEarly, Modifier.weight(1f))
-                    PrimaryButton("Next question", vm::nextQuestion, Modifier.weight(1f))
+                    SecondaryButton("Finish part early", onEarly, Modifier.weight(1f), enabled = vm.examiner != Examiner.Asking)
+                    PrimaryButton("Next question", vm::nextQuestion, Modifier.weight(1f), enabled = vm.examiner != Examiner.Asking)
                 }
             } else {
-                PrimaryButton(if (vm.index + 1 < vm.items.size) "Finish and continue" else "Finish", vm::finishPart, Modifier.fillMaxWidth())
+                PrimaryButton(if (vm.index + 1 < vm.items.size) "Finish and continue" else "Finish", vm::finishPart, Modifier.fillMaxWidth(), enabled = vm.examiner != Examiner.Asking)
             }
         Phase.Prep -> PrimaryButton("Start speaking now", vm::startRecording, Modifier.fillMaxWidth())
         Phase.Ready -> if (p.part == 2) {
-            PrimaryButton("Start 1-minute preparation", { access.ask { ok -> if (ok) vm.beginPrep() else onDenied() } }, Modifier.fillMaxWidth())
+            PrimaryButton("Start 1-minute preparation", { access.ask { ok -> if (ok) vm.beginPrep() else onDenied() } }, Modifier.fillMaxWidth(), enabled = vm.examiner != Examiner.Asking)
         }
         else -> {}
     }

@@ -57,6 +57,11 @@ import kotlinx.serialization.json.doubleOrNull
 
 // MARK: - Prompts
 
+/** One rendered examiner line; [url] is null where the line has no audio (the test then runs silently for that line). */
+@Serializable data class AudioLine(val text: String, val url: String? = null)
+/** Examiner audio of a generated speaking prompt: [intro] = greeting before the first Part 1 topic of a full test, [lead] = topic or part transition, [questions] align with followUps. */
+@Serializable data class PromptAudio(val intro: AudioLine? = null, val lead: AudioLine? = null, val questions: List<AudioLine> = emptyList())
+
 @Serializable data class Prompt(
     val id: String,
     val skill: String,
@@ -74,6 +79,7 @@ import kotlinx.serialization.json.doubleOrNull
     val groupId: String? = null,
     val done: Boolean? = null,
     val source: String? = null,
+    val audio: PromptAudio? = null,
 ) {
     /** Questions asked in this prompt's recording (P2: the cue card title). */
     val questions: List<String>

@@ -248,6 +248,8 @@ class MicRecorder {
     private var meter = Meter(rate)
     private var writer: AacWriter? = null
     private var onLevel: ((Double, Double) -> Unit)? = null
+    /** While true the microphone stays open but nothing is written or measured, so the recording clock ([elapsed]) stands still (the examiner is talking). */
+    @Volatile var paused = false
 
     var isRecording by mutableStateOf(false); private set
     var elapsed by mutableDoubleStateOf(0.0); private set
@@ -259,25 +261,28 @@ class MicRecorder {
     var soft by mutableIntStateOf(0); private set
 
     /** Start metering (and recording into [file] when given). False when the microphone could not start. [dt] callback gets (level, seconds). */
-    fun start(file: File? = null, onLevel: ((Double, Double) -> Unit)? = null): Boolean {
+    fun start(file: File? = null, onLevel: ((Double, Double) -> Unit)? = null, startPaused: Boolean = false): Boolean {
         stop()
+        paused = startPaused
         meter = Meter(rate)
         writer = file?.let { runCatching { AacWriter(it, rate) }.getOrNull() ?: return false }
         this.onLevel = onLevel
         elapsed = 0.0; silence = 0.0; liveWpm = 0; loud = 0; soft = 0; level = 0.0
         levels = List(48) { 0.0 }
         capture.onPcm = { pcm, n ->
-            writer?.write(pcm, n)
-            meter.feed(pcm, n)
-            val dt = n.toDouble() / rate
-            val l = meter.level
-            level = l
-            elapsed = meter.samples.toDouble() / rate
-            silence = if (l < 0.3) silence + dt else 0.0
-            levels = levels.drop(1) + l
-            liveWpm = meter.liveWpm
-            loud = meter.loud; soft = meter.soft
-            this.onLevel?.invoke(l, dt)
+            if (!paused) {
+                writer?.write(pcm, n)
+                meter.feed(pcm, n)
+                val dt = n.toDouble() / rate
+                val l = meter.level
+                level = l
+                elapsed = meter.samples.toDouble() / rate
+                silence = if (l < 0.3) silence + dt else 0.0
+                levels = levels.drop(1) + l
+                liveWpm = meter.liveWpm
+                loud = meter.loud; soft = meter.soft
+                this.onLevel?.invoke(l, dt)
+            }
         }
         if (!capture.start()) { writer?.finish(); writer = null; return false }
         isRecording = true

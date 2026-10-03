@@ -404,10 +404,11 @@ class ApiClient(
 }
 
 /** The body of `POST /api/attempts/{id}/submit` (energy and marks are capped like the server expects). */
-fun submitBody(durationMs: Int, energy: List<Int>, marks: List<Int>): JsonObject = buildJsonObject {
+fun submitBody(durationMs: Int, energy: List<Int>, marks: List<Int>, segments: List<AnswerWindow> = emptyList()): JsonObject = buildJsonObject {
     put("durationMs", durationMs)
     putJsonArray("energy") { energy.take(20000).forEach { add(JsonPrimitive(it)) } }
     putJsonArray("marks") { marks.take(200).forEach { add(JsonPrimitive(it)) } }
+    if (segments.isNotEmpty()) putJsonArray("segments") { segments.take(200).forEach { add(buildJsonObject { put("q", it.q); put("startMs", it.startMs); put("endMs", it.endMs) }) } }
 }
 
 private suspend fun Call.await(): Response = suspendCancellableCoroutine { c ->

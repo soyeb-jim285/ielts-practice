@@ -4,6 +4,9 @@ import Observation
 /// A finished speaking recording that has not reached the server yet. The m4a and this metadata live in
 /// Application Support from the moment recording stops until the upload is confirmed, so a failed upload,
 /// a relaunch or a killed app never loses it (web: hooks/pendingRecordings.ts).
+/// When one question's answer window ran, in ms on the recording clock (which stands still while the examiner talks).
+struct AnswerWindow: Codable, Equatable { let q: Int; let startMs: Int; let endMs: Int }
+
 struct PendingRecording: Codable, Identifiable, Equatable {
     let id: String
     let promptId: String
@@ -13,6 +16,7 @@ struct PendingRecording: Codable, Identifiable, Equatable {
     let durationMs: Int
     let energy: [Int]
     let marks: [Int]
+    var segments: [AnswerWindow]? = nil
     let sessionId: String?
     let parentAttemptId: String?
     // Upload progress, so a retry resumes at the step that failed.
@@ -117,7 +121,8 @@ final class PendingStore {
                 write(p)
             }
             do {
-                let body: [String: Any] = ["durationMs": p.durationMs, "energy": Array(p.energy.prefix(20000)), "marks": Array(p.marks.prefix(200))]
+                var body: [String: Any] = ["durationMs": p.durationMs, "energy": Array(p.energy.prefix(20000)), "marks": Array(p.marks.prefix(200))]
+                if let s = p.segments, !s.isEmpty { body["segments"] = s.prefix(200).map { ["q": $0.q, "startMs": $0.startMs, "endMs": $0.endMs] } }
                 try await api.raw("POST", "/api/attempts/\(attemptId)/submit", body)
             } catch let e as APIError where e.status == 409 {
                 // An earlier submit already went through and only its response was lost.

@@ -17,6 +17,9 @@ import java.io.File
  * moment recording stops until the upload is confirmed, so a failed upload, a relaunch or a killed app never loses it
  * (port of iOS PendingUploads.swift; web: hooks/pendingRecordings.ts).
  */
+/** When one question's answer window ran, in ms on the recording clock (which stands still while the examiner talks). */
+@Serializable data class AnswerWindow(val q: Int, val startMs: Int, val endMs: Int)
+
 @Serializable data class PendingRecording(
     val id: String,
     val promptId: String,
@@ -26,6 +29,7 @@ import java.io.File
     val durationMs: Int,
     val energy: List<Int>,
     val marks: List<Int>,
+    val segments: List<AnswerWindow> = emptyList(),
     val sessionId: String? = null,
     val parentAttemptId: String? = null,
     // Upload progress, so a retry resumes at the step that failed.
@@ -124,7 +128,7 @@ class PendingStore(private val dir: File, private val scope: CoroutineScope) {
                 p = p.copy(uploaded = true).also(::write)
             }
             try {
-                api.raw("POST", "/api/attempts/$attemptId/submit", submitBody(p.durationMs, p.energy, p.marks))
+                api.raw("POST", "/api/attempts/$attemptId/submit", submitBody(p.durationMs, p.energy, p.marks, p.segments))
             } catch (e: ApiError) {
                 // 409: an earlier submit already went through and only its response was lost.
                 if (e.status != 409) throw e

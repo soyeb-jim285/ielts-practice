@@ -17,6 +17,15 @@ class CoreTest {
 
     private fun <T> decode(s: KSerializer<T>, key: String): T = AppJson.decodeFromString(s, fixtures.getValue(key))
 
+    @Test fun submitBodyCarriesAnswerWindowsAndPromptAudioDecodes() {
+        val body = submitBody(9000, listOf(1, 2), listOf(0, 4000), listOf(AnswerWindow(0, 0, 4000), AnswerWindow(1, 4000, 9000)))
+        assertEquals(2, body.getValue("segments").toString().split("startMs").size - 1)
+        assertNull(submitBody(1, emptyList(), emptyList())["segments"])
+        val p = AppJson.decodeFromString(Prompt.serializer(), """{"id":"p","skill":"speaking","part":1,"title":"t","body":"b","audio":{"intro":null,"lead":{"text":"Let's talk","url":null},"questions":[{"text":"q","url":"https://x/a.mp3"}]}}""")
+        assertEquals("https://x/a.mp3", p.audio?.questions?.single()?.url)
+        assertNull(p.audio?.lead?.url)
+    }
+
     @Test fun meDecodes() {
         val me = decode(Me.serializer(), "/api/me")
         assertEquals("Maya Rahman", me.user.name)

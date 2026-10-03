@@ -27,6 +27,7 @@ class AudioPlayer(context: Context) {
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) { _playing.value = isPlaying }
             override fun onPlaybackStateChanged(state: Int) { _ended.value = state == Player.STATE_ENDED }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) { _ended.value = true } // callers waiting for the end must not hang on a bad URL
         })
     }
 
@@ -34,6 +35,7 @@ class AudioPlayer(context: Context) {
     val durationMs: Long get() = player.duration.takeIf { it >= 0 } ?: 0L
 
     fun load(uri: String) {
+        _ended.value = false
         player.setMediaItem(MediaItem.fromUri(uri))
         player.prepare()
     }

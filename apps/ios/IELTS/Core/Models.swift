@@ -107,6 +107,12 @@ struct Empty: Decodable {}
 
 // openapi: Prompt
 
+/// One rendered examiner line; `url` is nil where the line has no audio (the test then runs silently for that line).
+struct AudioLine: Decodable { let text: String; let url: String? }
+/// Examiner audio of a generated speaking prompt: `intro` = greeting before the first Part 1 topic of a full test, `lead` = topic or part
+/// transition, `questions` align with followUps.
+struct PromptAudio: Decodable { let intro: AudioLine?; let lead: AudioLine?; let questions: [AudioLine]? }
+
 struct Prompt: Decodable, Identifiable {
     let id: String
     let skill: String
@@ -123,6 +129,7 @@ struct Prompt: Decodable, Identifiable {
     let groupId: String?
     let done: Bool?
     let source: String?
+    let audio: PromptAudio?
 
     /// Questions asked in this prompt's recording (P2: the cue card title).
     var questions: [String] {

@@ -6,6 +6,7 @@ import SwiftUI
 struct SpeakingSessionView: View {
     let mode: SpeakingMode
 
+    private enum Examiner { case idle, asking, cue }
     private enum Phase: Equatable { case loading, ready, prep, recording, finishing, empty, failed(String) }
     private struct UploadItem: Identifiable { let id: String; let label: String }
 
@@ -19,7 +20,11 @@ struct SpeakingSessionView: View {
     @State private var index = 0
     @State private var question = 0
     @State private var questionStart: TimeInterval = 0
-    @State private var marks: [Int] = [0]
+    @State private var windows: [AnswerWindow] = []
+    @State private var examinerState: Examiner = .idle
+    @State private var examinerPlayer = Player()
+    @State private var askGen = 0
+    @State private var introduced = -1
     @State private var phase: Phase = .loading
     @State private var recorder = Recorder()
     @State private var micRecorder = Recorder()
@@ -39,6 +44,7 @@ struct SpeakingSessionView: View {
     private var store: PendingStore { .shared }
     private var current: Prompt? { items.indices.contains(index) ? items[index] : nil }
     private var recording: Bool { phase == .recording }
+    private var asking: Bool { examinerState == .asking }
     private var isFull: Bool {
         switch mode {
         case .full: return true
@@ -217,6 +223,13 @@ struct SpeakingSessionView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Color.canvas)
         .safeAreaInset(edge: .bottom) { controls(p) }
+        // Part 2 is introduced as soon as its screen shows; Part 1 and 3 after the first start by themselves (the mic tap of the first part is the gesture).
+        .task(id: "\(index)-\(phase == .ready)") {
+            guard phase == .ready, introduced != index, index > 0 || p.part == 2 else { return }
+            introduced = index
+            // unstructured: this task is cancelled when the phase changes, which must not cut the examiner off
+            Task { if p.part == 2 { await ask([p.audio?.lead, line(p, p.questions[0])], resume: false) } else { await startRecording() } }
+        }
         .onChange(of: recorder.elapsed) { _, e in
             // P2 hard stop at 2:00; 15 min caps the energy timeline (20k × 50 ms) for any part.
             guard phase == .recording, let cur = current else { return }
@@ -292,8 +305,8 @@ struct SpeakingSessionView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Press to start recording").font(.headline)
                         Text(p.part == 1
-                             ? "Short answers about you. One recording covers every question. Press Next question as you go."
-                             : "A discussion linked to Part 2. Develop each answer with reasons and examples. Press Next question as you go.")
+                             ? "Short answers about you. The examiner reads each question aloud, then you speak. Press Next question when you have answered."
+                             : "A discussion linked to Part 2. The examiner reads each question aloud. Develop each answer with reasons and examples, then press Next question.")
                             .font(.caption).foregroundStyle(.muted)
                     }
                 }
@@ -349,7 +362,18 @@ struct SpeakingSessionView: View {
 
     // MARK: Recording
 
+    @ViewBuilder
     private func recordingPanel(_ p: Prompt) -> some View {
+        if examinerState == .asking {
+            Label("The examiner is asking the question", systemImage: "speaker.wave.2.fill")
+                .font(.headline).foregroundStyle(Color.brand)
+                .accessibilityAddTraits(.updatesFrequently)
+        } else {
+            recordingBody(p)
+        }
+    }
+
+    private func recordingBody(_ p: Prompt) -> some View {
         let seconds = max(0, p.part == 2 ? recorder.elapsed : recorder.elapsed - questionStart)
         let whole = Int(seconds)
         let maxSeconds: Double = p.part == 2 ? Self.p2Max : p.part == 3 ? 60 : 40
@@ -357,6 +381,7 @@ struct SpeakingSessionView: View {
             HStack(spacing: 8) {
                 Circle().fill(Color.bad).frame(width: 10, height: 10)
                 Text("Recording").font(.subheadline.weight(.medium)).foregroundStyle(Color.bad)
+                if examinerState == .cue { Chip(text: "Speak now", color: .goodText) }
             }
             .accessibilityElement(children: .combine)
 
@@ -452,6 +477,7 @@ struct SpeakingSessionView: View {
                 controlBar {
                     Button { earlyOpen = true } label: { Text("Finish part early").frame(maxWidth: .infinity) }
                         .buttonStyle(.bordered)
+                        .disabled(asking)
                         .confirmationDialog("Finish with \(question + 1) of \(p.questions.count) answered?", isPresented: $earlyOpen, titleVisibility: .visible) {
                             Button("Finish now") { finishPart() }
                             Button("Keep going", role: .cancel) {}
@@ -461,6 +487,7 @@ struct SpeakingSessionView: View {
                         }
                     Button { nextQuestion() } label: { Text("Next question").frame(maxWidth: .infinity) }
                         .buttonStyle(.borderedProminent)
+                        .disabled(asking)
                 }
             } else {
                 controlBar {
@@ -468,6 +495,7 @@ struct SpeakingSessionView: View {
                         Label(index + 1 < items.count ? "Finish and continue" : "Finish", systemImage: "checkmark").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(asking)
                 }
             }
         case .prep:
@@ -483,6 +511,7 @@ struct SpeakingSessionView: View {
                     phase = .prep
                 } label: { Text("Start 1-minute preparation").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
+                    .disabled(asking)
             }
         default:
             EmptyView()
@@ -587,16 +616,24 @@ struct SpeakingSessionView: View {
         if micRecorder.isRecording { _ = micRecorder.stop() }
         store.prepare()
         do {
-            guard try await recorder.start(to: store.audioURL(recId)) else {
+            guard try await recorder.start(to: store.audioURL(recId), paused: current?.part != 2) else {
                 micDenied = true
                 phase = .ready
                 return
             }
             hintSeen = true
-            marks = [0]
+            windows = []
             question = 0
             questionStart = 0
             phase = .recording
+            guard let p = current else { return }
+            if p.part == 2 {
+                examinerState = .cue // the card was introduced before the preparation minute
+                Task { try? await Task.sleep(for: .seconds(2.5)); if examinerState == .cue { examinerState = .idle } }
+            } else {
+                let greeting = index == 0 && p.part == 1 && items.count > 1 ? p.audio?.intro : nil
+                await ask([greeting, p.audio?.lead, line(p, p.questions[0])])
+            }
         } catch {
             startError = error.localizedDescription
             phase = .ready
@@ -604,18 +641,49 @@ struct SpeakingSessionView: View {
     }
 
     private func nextQuestion() {
-        marks.append(Int(recorder.elapsed * 1000))
-        questionStart = recorder.elapsed
+        guard !asking, let p = current else { return }
+        windows.append(AnswerWindow(q: question, startMs: Int(questionStart * 1000), endMs: Int(recorder.clock * 1000)))
         question += 1
+        let next = line(p, p.questions[min(question, p.questions.count - 1)])
+        Task { await ask([next]) }
+    }
+
+    private func line(_ p: Prompt, _ text: String) -> AudioLine? { p.audio?.questions?.first { $0.text == text } }
+
+    /// The examiner reads `lines` (microphone held meanwhile, so the recording holds only the candidate), then the answer window opens
+    /// with a "Speak now" cue. No pause, seek or speed. A line without audio, a failed download or a bad file never blocks the test.
+    private func ask(_ lines: [AudioLine?], resume: Bool = true) async {
+        askGen += 1
+        let gen = askGen
+        examinerPlayer.stop()
+        let urls = lines.compactMap { $0?.url }.compactMap(URL.init(string:))
+        if !urls.isEmpty {
+            examinerState = .asking
+            recorder.pause()
+            for u in urls {
+                guard gen == askGen else { return }
+                if let (data, _) = try? await URLSession.shared.data(from: u) { await examinerPlayer.playToEnd(data) }
+            }
+        }
+        guard gen == askGen else { return }
+        guard resume else { examinerState = .idle; return }
+        recorder.resume()
+        questionStart = recorder.clock
+        examinerState = .cue
+        try? await Task.sleep(for: .seconds(2.5))
+        if gen == askGen, examinerState == .cue { examinerState = .idle }
     }
 
     /// Stops, keeps the recording on disk, uploads it in the background and moves on.
     private func finishPart() {
-        guard phase == .recording, let p = current else { return }
+        guard phase == .recording, !asking, let p = current else { return }
+        windows.append(AnswerWindow(q: question, startMs: Int(questionStart * 1000), endMs: Int(recorder.clock * 1000)))
+        askGen += 1
+        examinerState = .idle
         let r = recorder.stop()
         let rec = PendingRecording(id: recId, promptId: p.id, part: p.part,
                                    label: "\(label(index)): \((p.topic ?? p.title).trimmingCharacters(in: CharacterSet(charactersIn: ".")))", createdAt: Date(),
-                                   durationMs: r.durationMs, energy: Array(r.energy.prefix(20000)), marks: Array(marks.prefix(200)),
+                                   durationMs: r.durationMs, energy: Array(r.energy.prefix(20000)), marks: Array(windows.map(\.startMs).prefix(200)), segments: windows,
                                    sessionId: isFull ? sessionId : nil, parentAttemptId: parent)
         store.add(rec)
         uploads.append(UploadItem(id: rec.id, label: rec.label))
@@ -633,6 +701,9 @@ struct SpeakingSessionView: View {
 
     /// Drop a recording in progress (it was never kept) and the mic test.
     private func discardLive() {
+        askGen += 1
+        examinerPlayer.stop()
+        examinerState = .idle
         if recorder.isRecording {
             _ = recorder.stop()
             try? FileManager.default.removeItem(at: store.audioURL(recId))
