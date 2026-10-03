@@ -70,13 +70,18 @@ struct LrGapField: View {
     let n: Int
     let ctx: LrCtx
     var wordLimit: String?
+    /// Blank `part` of `of` of one question ("from {{7}} to {{7}}"); the answer is stored as "part / part".
+    var part = 0
+    var of = 1
     @FocusState private var focused: Bool
     @ScaledMetric private var unit: CGFloat = 9
 
+    private var text: String { of > 1 ? Lr.gapPart(ctx.value(n), part) : ctx.value(n) }
+
     var body: some View {
-        let v = ctx.value(n), m = ctx.mark(n)
+        let v = text, m = ctx.mark(n), last = part == of - 1
         HStack(spacing: 6) {
-            TextField("", text: Binding(get: { ctx.value(n) }, set: { ctx.set(n, $0) }), prompt: Text("\(n)").foregroundStyle(Color.muted))
+            TextField("", text: Binding(get: { text }, set: { ctx.set(n, of > 1 ? Lr.setGapPart(ctx.value(n), part, of, $0) : $0) }), prompt: Text("\(n)").foregroundStyle(Color.muted))
                 .focused($focused)
                 .font(.body.weight(.medium))
                 .multilineTextAlignment(.center)
@@ -88,12 +93,15 @@ struct LrGapField: View {
                 .frame(width: max(84, min(230, CGFloat(v.count + 3) * unit)), height: 40 * max(1, unit / 9))
                 .background(markFill(m), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(m, active: ctx.active == n || focused), lineWidth: m != nil || ctx.active == n || focused ? 2 : 1))
-                .accessibilityLabel("Question \(n)" + (wordLimit.map { ", \($0.lowercased())" } ?? ""))
+                .accessibilityLabel("Question \(n)" + (of > 1 ? ", blank \(part + 1) of \(of)" : "") + (wordLimit.map { ", \($0.lowercased())" } ?? ""))
                 .onChange(of: focused) { _, on in if on { ctx.onFocus(n) } else { ctx.onBlur(n) } }
-            LrStatus(mark: m)
-            LrExpected(mark: m)
+            if last {
+                LrStatus(mark: m)
+                LrExpected(mark: m)
+            }
         }
-        .id(n)
+        // Only the first blank is the scroll anchor; later blanks get their own ids so the fields never share an identity.
+        .id(part == 0 ? AnyHashable(n) : AnyHashable("\(n).\(part)"))
     }
 }
 
@@ -142,19 +150,19 @@ struct LrPick: View {
 
 // MARK: Inline content with gaps (words flow like text, gaps are fields)
 
-/// Text that wraps like a paragraph with {{n}} placeholders replaced by `gap(n)`.
+/// Text that wraps like a paragraph with {{n}} placeholders replaced by `gap(n, part, of)`.
 struct LrInline<Gap: View>: View {
     let items: [Lr.Inline]
     var bold = false
-    @ViewBuilder let gap: (Int) -> Gap
+    @ViewBuilder let gap: (Int, Int, Int) -> Gap
 
-    private enum Tok: Hashable { case word(String, bold: Bool, label: String?, hidden: Bool), gap(Int) }
+    private enum Tok: Hashable { case word(String, bold: Bool, label: String?, hidden: Bool), gap(Int, Int, Int) }
 
     private var tokens: [Tok] {
         var out: [Tok] = []
         for it in items {
             switch it {
-            case let .gap(n): out.append(.gap(n))
+            case let .gap(n, part, of): out.append(.gap(n, part, of))
             case let .text(t), let .bold(t):
                 var isBold = bold
                 if case .bold = it { isBold = true }
@@ -173,7 +181,7 @@ struct LrInline<Gap: View>: View {
                     // VoiceOver reads each run of words once (on its first word) instead of word by word.
                     Text(w).font(.body.weight(b ? .bold : .regular)).foregroundStyle(Color.ink)
                         .accessibilityLabel(label ?? w).accessibilityHidden(hidden)
-                case let .gap(n): gap(n)
+                case let .gap(n, part, of): gap(n, part, of)
                 }
             }
         }
@@ -182,19 +190,19 @@ struct LrInline<Gap: View>: View {
 
 private struct LrContent: View {
     let blocks: [Lr.Block]
-    let gap: (Int) -> AnyView
+    let gap: (Int, Int, Int) -> AnyView
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, b in
                 switch b {
-                case let .p(items): LrInline(items: items) { gap($0) }
+                case let .p(items): LrInline(items: items) { gap($0, $1, $2) }
                 case let .list(ordered, items):
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.offset) { i, it in
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text(ordered ? "\(i + 1)." : "•").font(.body.weight(.semibold)).foregroundStyle(Color.muted)
-                                LrInline(items: it) { gap($0) }
+                                LrInline(items: it) { gap($0, $1, $2) }
                             }
                         }
                     }
@@ -225,7 +233,7 @@ private struct LrContent: View {
     private func row(_ cells: [[Lr.Inline]], bold: Bool = false, firstBold: Bool = false) -> some View {
         HStack(alignment: .center, spacing: 0) {
             ForEach(Array(cells.enumerated()), id: \.offset) { i, c in
-                LrInline(items: c, bold: bold || (firstBold && i == 0)) { gap($0) }
+                LrInline(items: c, bold: bold || (firstBold && i == 0)) { gap($0, $1, $2) }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12).padding(.vertical, 10)
             }
@@ -309,13 +317,13 @@ struct LrGroupView: View {
     }
 
     private func gapItems(_ q: LrQuestion) -> [Lr.Inline] {
-        var items = Lr.parseInline(q.text ?? "")
+        var items = Lr.parseInline(Lr.numberGapParts(q.text ?? ""))
         if q.text?.contains("{{\(q.n)}}") != true { items.append(.gap(q.n)) }
         return items
     }
 
-    private func gapNode(_ n: Int) -> AnyView {
-        wordBox ? AnyView(LrPick(n: n, options: group.options ?? [], ctx: ctx)) : AnyView(LrGapField(n: n, ctx: ctx, wordLimit: group.wordLimit))
+    private func gapNode(_ n: Int, _ part: Int, _ of: Int) -> AnyView {
+        wordBox ? AnyView(LrPick(n: n, options: group.options ?? [], ctx: ctx)) : AnyView(LrGapField(n: n, ctx: ctx, wordLimit: group.wordLimit, part: part, of: of))
     }
 
     @ViewBuilder private var bodyView: some View {
@@ -329,7 +337,7 @@ struct LrGroupView: View {
                         let items = gapItems(q)
                         HStack(alignment: .top, spacing: 10) {
                             LrQNum(n: q.n, done: !ctx.value(q.n).isEmpty, mark: ctx.mark(q.n))
-                            LrInline(items: items) { gapNode($0) }
+                            LrInline(items: items) { gapNode($0, $1, $2) }
                         }
                         .padding(6).background(ctx.active == q.n ? Color.brandSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }

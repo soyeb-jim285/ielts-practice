@@ -31,3 +31,17 @@ describe('choose-N slots', () => {
 });
 
 it('parseRef', () => expect(parseRef('C17 T2')).toEqual({ book: 17, test: 2 }));
+
+describe('multi-blank questions', () => {
+  it('gives each blank of one question its own slot', async () => {
+    const { numberGapParts, gapPart, setGapPart } = await import('./lr');
+    expect(numberGapParts('from {{7}} to {{7}}, {{8}}')).toBe('from {{7:0:2}} to {{7:1:2}}, {{8}}');
+    const b = parseContent('from {{7}} to {{7}}');
+    expect(b[0]).toMatchObject({ inline: [{ text: 'from ' }, { n: 7, part: 0, of: 2 }, { text: ' to ' }, { n: 7, part: 1, of: 2 }] });
+    let v = setGapPart('', 1, 2, '4.30');
+    expect(v).toBe(' / 4.30');
+    v = setGapPart(v, 0, 2, '10 ');
+    expect([gapPart(v, 0), gapPart(v, 1)]).toEqual(['10 ', '4.30']);
+    expect(setGapPart(' / x', 1, 2, '')).toBe('');
+  });
+});

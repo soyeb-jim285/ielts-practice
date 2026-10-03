@@ -249,21 +249,52 @@ enum Lr {
 
     // MARK: Gap content: a small markdown subset (tables, lists, paragraphs, **bold**) with {{n}} placeholders (web parseContent)
 
-    enum Inline: Hashable { case text(String), bold(String), gap(Int) }
+    /// A gap is blank `part` of `of` of question n ("from {{7}} to {{7}}"); of = 1 is a plain gap.
+    enum Inline: Hashable { case text(String), bold(String), gap(Int, part: Int = 0, of: Int = 1) }
     enum Block: Hashable {
         case p([Inline])
         case list(ordered: Bool, items: [[Inline]])
         case table(head: [[Inline]], rows: [[[Inline]]])
     }
 
+    /// One question with two blanks ("from {{7}} to {{7}}") becomes "{{7:0:2}} ... {{7:1:2}}", so each blank gets its own field (web numberGapParts).
+    static func numberGapParts(_ md: String) -> String {
+        let re = try! NSRegularExpression(pattern: #"\{\{(\d+)\}\}"#)
+        let ns = md as NSString
+        let ms = re.matches(in: md, range: NSRange(location: 0, length: ns.length))
+        var total: [String: Int] = [:], seen: [String: Int] = [:]
+        for m in ms { total[ns.substring(with: m.range(at: 1)), default: 0] += 1 }
+        var out = "", at = 0
+        for m in ms {
+            let n = ns.substring(with: m.range(at: 1)), of = total[n] ?? 1
+            out += ns.substring(with: NSRange(location: at, length: m.range.location - at))
+            if of > 1 { out += "{{\(n):\(seen[n, default: 0]):\(of)}}"; seen[n, default: 0] += 1 } else { out += ns.substring(with: m.range) }
+            at = m.range.location + m.range.length
+        }
+        return out + ns.substring(from: at)
+    }
+
+    /// The answer to a multi-blank question is stored as "part / part"; marking folds "/" to a space.
+    static func gapPart(_ v: String, _ part: Int) -> String {
+        let parts = v.components(separatedBy: " / ")
+        return part < parts.count ? parts[part] : ""
+    }
+    static func setGapPart(_ v: String, _ part: Int, _ of: Int, _ text: String) -> String {
+        let parts = (0..<of).map { $0 == part ? text : gapPart(v, $0) }
+        return parts.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ? parts.joined(separator: " / ") : ""
+    }
+
     static func parseInline(_ s: String) -> [Inline] {
         var out: [Inline] = []
         var rest = Substring(s)
         while !rest.isEmpty {
-            if let r = rest.range(of: #"\{\{\d+\}\}|\*\*[^*]+\*\*"#, options: .regularExpression) {
+            if let r = rest.range(of: #"\{\{\d+(:\d+:\d+)?\}\}|\*\*[^*]+\*\*"#, options: .regularExpression) {
                 if r.lowerBound > rest.startIndex { out.append(.text(String(rest[rest.startIndex..<r.lowerBound]))) }
                 let tok = rest[r]
-                if tok.hasPrefix("{{") { out.append(.gap(Int(tok.dropFirst(2).dropLast(2)) ?? 0)) } else { out.append(.bold(String(tok.dropFirst(2).dropLast(2)))) }
+                if tok.hasPrefix("{{") {
+                    let f = tok.dropFirst(2).dropLast(2).split(separator: ":").map { Int($0) ?? 0 }
+                    out.append(f.count == 3 ? .gap(f[0], part: f[1], of: f[2]) : .gap(f.first ?? 0))
+                } else { out.append(.bold(String(tok.dropFirst(2).dropLast(2)))) }
                 rest = rest[r.upperBound...]
             } else {
                 out.append(.text(String(rest)))
@@ -274,7 +305,7 @@ enum Lr {
     }
 
     static func parseContent(_ md: String) -> [Block] {
-        let lines = md.components(separatedBy: "\n")
+        let lines = numberGapParts(md).components(separatedBy: "\n")
         var blocks: [Block] = []
         var i = 0
         let listRe = #"^([-•*]|\d+[.)])\s"#

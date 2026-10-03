@@ -42,6 +42,19 @@ class LrLogicTest {
         assertEquals(2, l.items.size)
     }
 
+    @Test fun multiBlankQuestionGetsOneSlotPerBlank() {
+        assertEquals("from {{7:0:2}} to {{7:1:2}}, {{8}}", numberGapParts("from {{7}} to {{7}}, {{8}}"))
+        assertEquals(
+            listOf(Inline.Text("from "), Inline.Gap(7, 0, 2), Inline.Text(" to "), Inline.Gap(7, 1, 2)),
+            (parseContent("from {{7}} to {{7}}")[0] as Block.P).inline,
+        )
+        var v = setGapPart("", 1, 2, "4.30")
+        assertEquals(" / 4.30", v)
+        v = setGapPart(v, 0, 2, "10 ")
+        assertEquals(listOf("10 ", "4.30"), listOf(gapPart(v, 0), gapPart(v, 1)))
+        assertEquals("", setGapPart(" / x", 1, 2, ""))
+    }
+
     @Test fun hubGroupsByBookNewestFirst() {
         fun t(ref: String, source: String = "cambridge") = LrTestItem(id = ref, skill = "reading", ref = ref, title = ref, source = source)
         val g = lrHubGroups(listOf(t("C16 T2"), t("Own 1", "generated"), t("C17 T3"), t("C17 T1"), t("C16 T1")))

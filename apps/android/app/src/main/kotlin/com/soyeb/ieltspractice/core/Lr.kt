@@ -237,7 +237,8 @@ fun setMultiPicks(g: LrGroup, r: Map<String, String>, picks: List<String>): Map<
 sealed interface Inline {
     data class Text(val text: String) : Inline
     data class Bold(val text: String) : Inline
-    data class Gap(val n: Int) : Inline
+    /** [part] of [of] blanks of one question ("from {{7}} to {{7}}"); of = 1 is a plain gap. */
+    data class Gap(val n: Int, val part: Int = 0, val of: Int = 1) : Inline
 }
 sealed interface Block {
     data class P(val inline: List<Inline>) : Block
@@ -245,10 +246,29 @@ sealed interface Block {
     data class Table(val head: List<List<Inline>>, val rows: List<List<List<Inline>>>) : Block
 }
 
-private val INLINE = Regex("""(\{\{\d+\}\}|\*\*[^*]+\*\*)""")
-private val GAP = Regex("""^\{\{(\d+)\}\}$""")
+private val INLINE = Regex("""(\{\{\d+(?::\d+:\d+)?\}\}|\*\*[^*]+\*\*)""")
+private val GAP = Regex("""^\{\{(\d+)(?::(\d+):(\d+))?\}\}$""")
+private val PLAIN_GAP = Regex("""\{\{(\d+)\}\}""")
 private val LIST_ITEM = Regex("""^([-•*]|\d+[.)])\s""")
 private val RULE = Regex("""^:?-{2,}:?$""")
+
+/** One question with two blanks ("from {{7}} to {{7}}") becomes "{{7:0:2}} ... {{7:1:2}}", so each blank gets its own field (web numberGapParts). */
+fun numberGapParts(md: String): String {
+    val total = PLAIN_GAP.findAll(md).groupingBy { it.groupValues[1] }.eachCount()
+    val seen = HashMap<String, Int>()
+    return PLAIN_GAP.replace(md) { m ->
+        val n = m.groupValues[1]
+        val of = total.getValue(n)
+        if (of > 1) { val k = seen.getOrDefault(n, 0); seen[n] = k + 1; "{{$n:$k:$of}}" } else m.value
+    }
+}
+
+/** The answer to a multi-blank question is stored as "part / part"; marking folds "/" to a space. */
+fun gapPart(v: String, part: Int): String = v.split(" / ").getOrElse(part) { "" }
+fun setGapPart(v: String, part: Int, of: Int, text: String): String {
+    val parts = List(of) { if (it == part) text else gapPart(v, it) }
+    return if (parts.any { it.isNotBlank() }) parts.joinToString(" / ") else ""
+}
 
 fun parseInline(s: String): List<Inline> {
     val out = mutableListOf<Inline>()
@@ -256,7 +276,7 @@ fun parseInline(s: String): List<Inline> {
     for (m in INLINE.findAll(s)) {
         if (m.range.first > at) out += Inline.Text(s.substring(at, m.range.first))
         val g = GAP.matchEntire(m.value)
-        out += if (g != null) Inline.Gap(g.groupValues[1].toInt()) else Inline.Bold(m.value.removeSurrounding("**"))
+        out += if (g != null) Inline.Gap(g.groupValues[1].toInt(), g.groupValues[2].toIntOrNull() ?: 0, g.groupValues[3].toIntOrNull() ?: 1) else Inline.Bold(m.value.removeSurrounding("**"))
         at = m.range.last + 1
     }
     if (at < s.length) out += Inline.Text(s.substring(at))
@@ -264,7 +284,7 @@ fun parseInline(s: String): List<Inline> {
 }
 
 fun parseContent(md: String): List<Block> {
-    val lines = md.split('\n')
+    val lines = numberGapParts(md).split('\n')
     val blocks = mutableListOf<Block>()
     var i = 0
     while (i < lines.size) {

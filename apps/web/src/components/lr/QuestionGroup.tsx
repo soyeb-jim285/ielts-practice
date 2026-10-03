@@ -1,7 +1,7 @@
 import { Check, X } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { controlStyles } from '@/components/ui';
-import { multiPicks, parseContent, parseInline, setMultiPicks, type Block, type Inline, type LrGroup, type LrQuestion, type LrResponses } from '@/lib/lr';
+import { gapPart, multiPicks, numberGapParts, parseContent, parseInline, setGapPart, setMultiPicks, type Block, type Inline, type LrGroup, type LrQuestion, type LrResponses } from '@/lib/lr';
 import { cn } from '@/lib/utils';
 
 export type Mark = { n: number; given: string; correct: boolean; answer: string[] };
@@ -55,11 +55,12 @@ function Status({ mark }: { mark?: Mark }) {
 }
 
 // ---------- gap: inline text input, sized to its content ----------
-export function GapInput({ n, value, onChange, mark, active, wordLimit }: { n: number; value: string; onChange: (v: string) => void; mark?: Mark; active?: boolean; wordLimit?: string }) {
+export function GapInput({ n, value, onChange, mark, active, wordLimit, part }: { n: number; value: string; onChange: (v: string) => void; mark?: Mark; active?: boolean; wordLimit?: string; part?: { i: number; of: number } }) {
+  const last = !part || part.i === part.of - 1;
   return (
     <span className="inline-flex items-center gap-1.5 align-baseline">
       <input
-        id={`q-${n}`}
+        id={part && part.i > 0 ? undefined : `q-${n}`}
         data-q={n}
         type="text"
         value={value}
@@ -67,15 +68,15 @@ export function GapInput({ n, value, onChange, mark, active, wordLimit }: { n: n
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
         placeholder={String(n)}
-        aria-label={`Question ${n}${wordLimit ? `, ${wordLimit.toLowerCase()}` : ''}`}
+        aria-label={`Question ${n}${part ? `, blank ${part.i + 1} of ${part.of}` : ''}${wordLimit ? `, ${wordLimit.toLowerCase()}` : ''}`}
         autoComplete="off"
         autoCapitalize="off"
         spellCheck={false}
         style={{ width: `${Math.min(28, Math.max(8, value.length + 3))}ch` }}
         className={cn(controlStyles, 'type-num mx-0.5 h-8 px-2 text-center font-medium max-md:h-10', stateRing(mark, !!active))}
       />
-      {mark && <Status mark={mark} />}
-      <Expected mark={mark} />
+      {mark && last && <Status mark={mark} />}
+      {last && <Expected mark={mark} />}
     </span>
   );
 }
@@ -154,17 +155,17 @@ export function ChoiceGroup({ name, label, choices, value, onChange, layout, mar
 }
 
 // ---------- gap content: markdown with {{n}} placeholders ----------
-function Inlines({ inline, render }: { inline: Inline[]; render: (n: number) => ReactNode }) {
+function Inlines({ inline, render }: { inline: Inline[]; render: (n: number, part?: { i: number; of: number }) => ReactNode }) {
   return (
     <>
       {inline.map((p, i) =>
-        p.kind === 'gap' ? <Fragment key={i}>{render(p.n)}</Fragment> : p.kind === 'bold' ? <strong key={i}>{p.text}</strong> : <Fragment key={i}>{p.text}</Fragment>,
+        p.kind === 'gap' ? <Fragment key={i}>{render(p.n, p.of ? { i: p.part!, of: p.of } : undefined)}</Fragment> : p.kind === 'bold' ? <strong key={i}>{p.text}</strong> : <Fragment key={i}>{p.text}</Fragment>,
       )}
     </>
   );
 }
 
-function Content({ blocks, render }: { blocks: Block[]; render: (n: number) => ReactNode }) {
+function Content({ blocks, render }: { blocks: Block[]; render: (n: number, part?: { i: number; of: number }) => ReactNode }) {
   return (
     <div className="space-y-3">
       {blocks.map((b, i) => {
@@ -255,8 +256,10 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
   const opts = g.options ?? [];
   const wordBox = g.type === 'gap' && opts.length > 0;
 
-  const gapNode = (n: number) =>
-    wordBox ? (
+  const gapNode = (n: number, part?: { i: number; of: number }) =>
+    part && !wordBox ? (
+      <GapInput n={n} part={part} value={gapPart(val(n), part.i)} onChange={(v) => set(n, setGapPart(val(n), part.i, part.of, v))} mark={mark(n)} active={act(n)} wordLimit={g.wordLimit} />
+    ) : wordBox ? (
       <MatchSelect n={n} value={val(n)} options={opts} onChange={(v) => set(n, v)} mark={mark(n)} active={act(n)} />
     ) : (
       <GapInput n={n} value={val(n)} onChange={(v) => set(n, v)} mark={mark(n)} active={act(n)} wordLimit={g.wordLimit} />
@@ -271,7 +274,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
         {g.questions.map((q) => (
           <Row key={q.n} q={q} done={!!val(q.n)} mark={mark(q.n)} active={act(q.n)}>
             <p className="type-body min-w-0 flex-1 leading-10 max-md:leading-[3rem]">
-              {q.text?.includes(`{{${q.n}}}`) ? <Inlines inline={parseInline(q.text)} render={gapNode} /> : (<>{q.text} {gapNode(q.n)}</>)}
+              {q.text?.includes(`{{${q.n}}}`) ? <Inlines inline={parseInline(numberGapParts(q.text))} render={gapNode} /> : (<>{q.text} {gapNode(q.n)}</>)}
             </p>
           </Row>
         ))}

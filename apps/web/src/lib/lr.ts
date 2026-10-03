@@ -58,25 +58,40 @@ export function setMultiPicks(g: LrGroup, r: LrResponses, picks: string[]): LrRe
 
 // ---- gap content markup: a small markdown subset (tables, lists, paragraphs, **bold**) with {{n}} placeholders ----
 
-export type Inline = { kind: 'text'; text: string } | { kind: 'bold'; text: string } | { kind: 'gap'; n: number };
+export type Inline = { kind: 'text'; text: string } | { kind: 'bold'; text: string } | { kind: 'gap'; n: number; part?: number; of?: number };
 export type Block =
   | { kind: 'p'; inline: Inline[] }
   | { kind: 'list'; ordered: boolean; items: Inline[][] }
   | { kind: 'table'; head: Inline[][]; rows: Inline[][][] };
 
+/** One question with two blanks ("from {{7}} to {{7}}") → "{{7:0:2}} … {{7:1:2}}", so each blank gets its own input. */
+export function numberGapParts(md: string): string {
+  const total: Record<string, number> = {};
+  for (const [, n] of md.matchAll(/\{\{(\d+)\}\}/g)) total[n!] = (total[n!] ?? 0) + 1;
+  const seen: Record<string, number> = {};
+  return md.replace(/\{\{(\d+)\}\}/g, (m, n: string) => (total[n]! > 1 ? `{{${n}:${(seen[n] = (seen[n] ?? -1) + 1)}:${total[n]}}}` : m));
+}
+
+/** The answer to a multi-blank question is stored as "part / part"; marking folds "/" to a space. */
+export const gapPart = (v: string, part: number) => v.split(' / ')[part] ?? '';
+export function setGapPart(v: string, part: number, of: number, text: string): string {
+  const parts = Array.from({ length: of }, (_, i) => (i === part ? text : gapPart(v, i)));
+  return parts.some((p) => p.trim()) ? parts.join(' / ') : '';
+}
+
 export function parseInline(s: string): Inline[] {
   return s
-    .split(/(\{\{\d+\}\}|\*\*[^*]+\*\*)/)
+    .split(/(\{\{\d+(?::\d+:\d+)?\}\}|\*\*[^*]+\*\*)/)
     .filter(Boolean)
     .map((p): Inline => {
-      const g = /^\{\{(\d+)\}\}$/.exec(p);
-      if (g) return { kind: 'gap', n: +g[1]! };
+      const g = /^\{\{(\d+)(?::(\d+):(\d+))?\}\}$/.exec(p);
+      if (g) return g[2] ? { kind: 'gap', n: +g[1]!, part: +g[2], of: +g[3]! } : { kind: 'gap', n: +g[1]! };
       return p.startsWith('**') ? { kind: 'bold', text: p.slice(2, -2) } : { kind: 'text', text: p };
     });
 }
 
 export function parseContent(md: string): Block[] {
-  const lines = md.split('\n');
+  const lines = numberGapParts(md).split('\n');
   const blocks: Block[] = [];
   for (let i = 0; i < lines.length; ) {
     const line = lines[i]!.trim();

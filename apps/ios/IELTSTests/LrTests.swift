@@ -14,6 +14,16 @@ final class LrTests: XCTestCase {
         XCTAssertEqual(rows[1][1], [.gap(2), .text(" evenings")])
     }
 
+    func testMultiBlankQuestion() {
+        XCTAssertEqual(Lr.numberGapParts("from {{7}} to {{7}}, {{8}}"), "from {{7:0:2}} to {{7:1:2}}, {{8}}")
+        XCTAssertEqual(Lr.parseContent("from {{7}} to {{7}}").first, Lr.Block.p([.text("from "), .gap(7, part: 0, of: 2), .text(" to "), .gap(7, part: 1, of: 2)]))
+        var v = Lr.setGapPart("", 1, 2, "4.30")
+        XCTAssertEqual(v, " / 4.30")
+        v = Lr.setGapPart(v, 0, 2, "10 ")
+        XCTAssertEqual([Lr.gapPart(v, 0), Lr.gapPart(v, 1)], ["10 ", "4.30"])
+        XCTAssertEqual(Lr.setGapPart(" / x", 1, 2, ""), "")
+    }
+
     func testParseRef() {
         XCTAssertEqual(Lr.parseRef("C17 T2")?.book, 17)
         XCTAssertEqual(Lr.parseRef("C17 T2")?.test, 2)

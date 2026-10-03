@@ -88,9 +88,12 @@ import com.soyeb.ieltspractice.core.LrGroup
 import com.soyeb.ieltspractice.core.LrMark
 import com.soyeb.ieltspractice.core.LrOption
 import com.soyeb.ieltspractice.core.LrQuestion
+import com.soyeb.ieltspractice.core.gapPart
 import com.soyeb.ieltspractice.core.multiPicks
+import com.soyeb.ieltspractice.core.numberGapParts
 import com.soyeb.ieltspractice.core.parseContent
 import com.soyeb.ieltspractice.core.parseInline
+import com.soyeb.ieltspractice.core.setGapPart
 import com.soyeb.ieltspractice.core.setMultiPicks
 import com.soyeb.ieltspractice.core.withAnswer
 import com.soyeb.ieltspractice.ui.theme.AppText
@@ -174,20 +177,21 @@ private fun Expected(mark: LrMark?) {
 // ---------- gap: a text field inside the text ----------
 
 @Composable
-private fun GapField(n: Int, ctx: QCtx, wordLimit: String?) {
+private fun GapField(n: Int, ctx: QCtx, wordLimit: String?, part: Int = 0, of: Int = 1) {
     val e = MaterialTheme.ext
-    val value = ctx.value(n)
+    val value = if (of > 1) gapPart(ctx.value(n), part) else ctx.value(n)
     val mark = ctx.mark(n)
     var focused by remember { mutableStateOf(false) }
     val border = ringColor(ctx, n, focused)
     val width = if (focused || ctx.active == n) 2.dp else 1.dp
     BasicTextField(
-        value, { ctx.set(n, it) },
+        value, { ctx.set(n, if (of > 1) setGapPart(ctx.value(n), part, of, it) else it) },
         Modifier.fillMaxSize().padding(vertical = 2.dp)
-            .focusRequester(ctx.focuser(n)).bringIntoViewRequester(ctx.requester(n))
+            // Only the first blank of a multi-blank question is the jump target: a requester can sit on one node.
+            .then(if (part == 0) Modifier.focusRequester(ctx.focuser(n)).bringIntoViewRequester(ctx.requester(n)) else Modifier)
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) ctx.onFocus(n); ctx.onText(n, it.isFocused) }
             .semantics {
-                contentDescription = "Question $n" + (wordLimit?.let { ", ${it.lowercase()}" } ?: "")
+                contentDescription = "Question $n" + (if (of > 1) ", blank ${part + 1} of $of" else "") + (wordLimit?.let { ", ${it.lowercase()}" } ?: "")
                 if (mark != null) stateDescription = if (mark.correct) "Correct" else "Wrong"
             },
         readOnly = mark != null, singleLine = true,
@@ -238,6 +242,9 @@ private fun ChoiceDropdown(n: Int, ctx: QCtx, options: List<LrOption>, modifier:
     }
 }
 
+/** Inline-content key: blanks of one question must not share a key. */
+private fun gapKey(p: Inline.Gap) = if (p.of > 1) "q${p.n}_${p.part}" else "q${p.n}"
+
 /** Text with `{{n}}` gaps as inline fields (or dropdowns for a word box). The line grows to fit the 44sp field. */
 @Composable
 private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, modifier: Modifier = Modifier, wordBox: Boolean = g.type == "gap" && !g.options.isNullOrEmpty()) {
@@ -248,16 +255,17 @@ private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, modifier: Modi
             is Inline.Text -> append(p.text)
             is Inline.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(p.text) }
             is Inline.Gap -> {
-                appendInlineContent("q${p.n}", "${p.n}")
+                appendInlineContent(gapKey(p), "${p.n}")
                 val m = ctx.mark(p.n)
-                if (m != null && !m.correct) withStyle(SpanStyle(color = e.goodText, fontWeight = FontWeight.SemiBold)) { append(" ${m.answer.joinToString(" / ")}") }
+                if (m != null && !m.correct && p.part == p.of - 1) withStyle(SpanStyle(color = e.goodText, fontWeight = FontWeight.SemiBold)) { append(" ${m.answer.joinToString(" / ")}") }
             }
         }
     }
     val content = inline.filterIsInstance<Inline.Gap>().associate { gap ->
-        val w = if (wordBox) 80 else (96 + 9 * ctx.value(gap.n).length).coerceIn(112, 240)
-        "q${gap.n}" to InlineTextContent(Placeholder(w.sp, 44.sp, PlaceholderVerticalAlign.Center)) {
-            if (wordBox) ChoiceDropdown(gap.n, ctx, g.options.orEmpty(), Modifier.fillMaxSize().padding(vertical = 2.dp)) else GapField(gap.n, ctx, g.wordLimit)
+        val typed = if (gap.of > 1) gapPart(ctx.value(gap.n), gap.part) else ctx.value(gap.n)
+        val w = if (wordBox) 80 else (96 + 9 * typed.length).coerceIn(112, 240)
+        gapKey(gap) to InlineTextContent(Placeholder(w.sp, 44.sp, PlaceholderVerticalAlign.Center)) {
+            if (wordBox) ChoiceDropdown(gap.n, ctx, g.options.orEmpty(), Modifier.fillMaxSize().padding(vertical = 2.dp)) else GapField(gap.n, ctx, g.wordLimit, gap.part, gap.of)
         }
     }
     Text(
@@ -458,7 +466,7 @@ fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         QNum(q.n, ctx.value(q.n).isNotBlank(), ctx.mark(q.n), Modifier.padding(top = 10.dp))
                         val t = q.text.orEmpty()
-                        RichText(if (t.contains("{{${q.n}}}")) parseInline(t) else parseInline(t) + Inline.Text(" ") + Inline.Gap(q.n), ctx, g, Modifier.weight(1f))
+                        RichText(if (t.contains("{{${q.n}}}")) parseInline(numberGapParts(t)) else parseInline(t) + Inline.Text(" ") + Inline.Gap(q.n), ctx, g, Modifier.weight(1f))
                     }
                 }
             }

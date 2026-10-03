@@ -285,9 +285,10 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                       const mo = moments.get(f.n);
                       return (
                         <Fragment key={f.n}>
-                          <tr id={`qrow-${f.n}`} className={cn('hover:bg-hover', open && 'bg-accent-soft/40')}>
+                          {/* ponytail: whole row toggles via click bubbling; the No. button is the keyboard/AT control */}
+                          <tr id={`qrow-${f.n}`} onClick={() => setSelected(open ? null : f.n)} className={cn('cursor-pointer hover:bg-hover', open && 'bg-accent-soft/40')}>
                             <td className="py-0">
-                              <button type="button" onClick={() => setSelected(open ? null : f.n)} aria-expanded={open} aria-label={`Question ${f.n}, ${m?.correct ? 'correct' : 'wrong'}: explain`} className="type-num flex h-11 w-full items-center gap-1.5 font-semibold text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                              <button type="button" aria-expanded={open} aria-controls={`qdetail-${f.n}`} aria-label={`Question ${f.n}, ${m?.correct ? 'correct' : 'wrong'}: explain`} className="type-num flex h-11 w-full items-center gap-1.5 font-semibold text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                                 {m?.correct ? <Check className="size-4 shrink-0 text-good-text" aria-hidden /> : <X className="size-4 shrink-0 text-bad-text" aria-hidden />}
                                 {f.n}
                               </button>
@@ -297,7 +298,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                             {listening && (
                               <td className="py-0 pr-1">
                                 {mo && (
-                                  <button type="button" onClick={() => pickQ(f.n)} aria-label={`Question ${f.n}: play from Part ${f.part} at ${formatClock(mo.at)}${mo.exact ? '' : ', approximate'}`} className="type-num inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-sm font-medium text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); pickQ(f.n); }} aria-label={`Question ${f.n}: play from Part ${f.part} at ${formatClock(mo.at)}${mo.exact ? '' : ', approximate'}`} className="type-num inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-sm font-medium text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                                     <Play className="size-3 fill-current" aria-hidden />
                                     <span className="max-sm:hidden">Part {f.part} · </span>{mo.exact ? '' : '~'}{formatClock(mo.at)}
                                   </button>
@@ -306,7 +307,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                             )}
                           </tr>
                           {open && (
-                            <tr>
+                            <tr id={`qdetail-${f.n}`}>
                               <td colSpan={listening ? 4 : 3} className="bg-surface-2/40 px-0 py-3 sm:px-3">
                                 <QuestionDetail q={f.q} group={f.group} section={fs} mark={m} entry={entries.get(f.n)} onClose={() => setSelected(null)} onShow={() => jump(f.n)} onPlay={() => play(f.n)} onDictate={() => setDict(f.n)} />
                               </td>
