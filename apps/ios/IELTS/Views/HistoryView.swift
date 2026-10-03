@@ -210,7 +210,7 @@ private struct HistoryRow: View {
 
     private var status: (label: String, color: Color)? {
         switch a.status {
-        case "recording": ("Not submitted", Color.warnText)
+        case "recording": a.lr ? ("In progress", Color.brand) : ("Not submitted", Color.warnText)
         case "analyzing": ("Scoring", Color.brand)
         case "failed": ("Scoring failed", Color.bad)
         default: nil
