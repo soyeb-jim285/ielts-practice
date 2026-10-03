@@ -483,6 +483,7 @@ struct LrPracticeBar: View {
     var resume: LrResume?
     var pins: [LrAudioPin] = []
     var pinned: Int?
+    var showChips = true // the row of question-time chips under the scrubber
     var onPin: (Int) -> Void = { _ in }
     @State private var openGroup: Int? // first question of the crowded marker group that is open
 
@@ -544,7 +545,7 @@ struct LrPracticeBar: View {
                     .font(.caption.monospacedDigit())
                 }
             }
-            if !pins.isEmpty {
+            if !pins.isEmpty && showChips {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(pins.sorted { $0.at < $1.at }, id: \.n) { p in

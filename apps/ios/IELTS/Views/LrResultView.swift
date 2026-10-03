@@ -9,6 +9,7 @@ struct LrResultView: View {
     @State private var tab: Tab = .summary
     @State private var wrongOnly = true
     @State private var byPart = false
+    @State private var chipsOpen = Demo.screen == "lr-result-timestamps"
     @State private var partIdx = 0
     @State private var active: Int?
     @State private var scrollTo: AnyHashable?
@@ -77,7 +78,7 @@ struct LrResultView: View {
                         Text("Answers\(wrongCount > 0 ? " (\(wrongCount))" : "")").tag(Tab.answers)
                         Text(listening ? "Transcript" : "Passage").tag(Tab.context)
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.segmented).id("tabs")
                     switch tab {
                     case .summary: summary
                     case .answers: answers
@@ -101,7 +102,15 @@ struct LrResultView: View {
             // "Listen from" can start it from Answers.
             if listening {
                 let on = tab == .context
-                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, onPin: { select($0); play($0) })
+                VStack(spacing: 4) {
+                if !audioPins.isEmpty {
+                    Button { withAnimation { chipsOpen.toggle() } } label: {
+                        Label(chipsOpen ? "Hide question times" : "Question times", systemImage: chipsOpen ? "chevron.down" : "chevron.up").font(.footnote.weight(.medium)).frame(minHeight: 32)
+                    }
+                    .buttonStyle(.plain).foregroundStyle(Color.brand)
+                }
+                LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, showChips: chipsOpen, onPin: { select($0); play($0) })
+                }
                     .padding(12).glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .padding(.horizontal, 12).padding(.bottom, 4)
                     .opacity(on ? 1 : 0).frame(height: on ? nil : 0).clipped().accessibilityHidden(!on)
@@ -134,11 +143,11 @@ struct LrResultView: View {
             switch Demo.screen {
             case "lr-result-p2": if test.sections.count > 1 { partIdx = 1 }
             case "lr-result-detail": tab = .answers; select(9)
-            case "lr-result-answers": tab = .answers
-            case "lr-result-passage": tab = .context
+            case "lr-result-answers": tab = .answers; goTabs()
+            case "lr-result-passage": tab = .context; goTabs()
             case "lr-result-evidence": tab = .answers; select(9); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
             case "lr-result-detail-listening": tab = .answers; select(28)
-            case "lr-result-transcript": tab = .context; select(28)
+            case "lr-result-transcript": tab = .context; select(28); goTabs()
             case "lr-result-timestamps": tab = .context; select(28); Task { try? await Task.sleep(for: .seconds(1.2)); show() }
             case "lr-dictation": tab = .answers; select(28); Task { try? await Task.sleep(for: .seconds(1)); dictOpen = true }
             case "lr-result-pacing": tab = .summary
@@ -147,6 +156,8 @@ struct LrResultView: View {
         }
         .onDisappear { practice.teardown() }
     }
+
+    private func goTabs() { scrollTo = "tabs"; scrollAnchor = .top; scrollStamp += 1 }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
