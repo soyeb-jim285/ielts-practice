@@ -2198,7 +2198,8 @@
             "type": "string"
           },
           "total": {
-            "type": "number"
+            "type": "number",
+            "description": "Questions in the in-progress attempt (only its parts), else 40"
           },
           "status": {
             "type": "string",
@@ -2228,6 +2229,18 @@
             ],
             "description": "Mode of the in-progress attempt"
           },
+          "parts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "description": "Parts of the in-progress attempt (null = whole test or none)"
+          },
           "answered": {
             "type": "number",
             "description": "Answered questions in the in-progress attempt"
@@ -2236,11 +2249,12 @@
             "type": [
               "number",
               "null"
-            ]
+            ],
+            "description": "Best band of a whole-test attempt (partial attempts have no band)"
           },
           "attempts": {
             "type": "number",
-            "description": "Submitted attempts"
+            "description": "Submitted attempts (whole and partial)"
           }
         },
         "required": [
@@ -2255,6 +2269,7 @@
           "status",
           "attemptId",
           "mode",
+          "parts",
           "answered",
           "bestBand",
           "attempts"
@@ -2275,6 +2290,18 @@
               "exam",
               "practice"
             ]
+          },
+          "parts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "description": "Chosen parts (listening 1–4, reading passages 1–3); null = the whole test. Partial attempts are scored raw/total with no band."
           },
           "status": {
             "type": "string",
@@ -2314,7 +2341,8 @@
             "type": [
               "number",
               "null"
-            ]
+            ],
+            "description": "Null while in progress and for partial attempts"
           },
           "marks": {
             "type": [
@@ -2369,6 +2397,7 @@
           "id",
           "testId",
           "mode",
+          "parts",
           "status",
           "responses",
           "elapsedS",
@@ -2827,7 +2856,7 @@
           "title",
           "sections"
         ],
-        "description": "Stripped (no answers, no transcript) until submitted"
+        "description": "Only the chosen parts; stripped (no answers, no transcript) until submitted"
       },
       "LrQuestionReview": {
         "type": "object",
@@ -2910,6 +2939,18 @@
               "practice"
             ]
           },
+          "parts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "description": "Chosen parts (listening 1–4, reading passages 1–3); null = the whole test. Partial attempts are scored raw/total with no band."
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -2956,6 +2997,7 @@
           "ref",
           "title",
           "mode",
+          "parts",
           "status",
           "raw",
           "total",
@@ -2997,7 +3039,7 @@
                 "band"
               ]
             },
-            "description": "Last 30 submitted attempts per skill, oldest first"
+            "description": "Last 30 submitted whole-test attempts per skill, oldest first"
           },
           "byType": {
             "type": "array",
@@ -5283,6 +5325,7 @@
           }
         ],
         "summary": "Start an attempt, or resume the in-progress one for this test",
+        "description": "Without `fresh`, an in-progress attempt of this test is resumed whatever mode/parts are asked. With `fresh: true` any in-progress attempt of this test is discarded and a new one starts.",
         "parameters": [
           {
             "schema": {
@@ -5306,6 +5349,21 @@
                       "exam",
                       "practice"
                     ]
+                  },
+                  "parts": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "description": "Take only these parts; omit for the whole test"
+                  },
+                  "fresh": {
+                    "type": "boolean",
+                    "description": "Discard the in-progress attempt of this test (if any) and start a new one"
                   }
                 },
                 "required": [
@@ -5322,6 +5380,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LrAttempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A part this test does not have",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LrError"
                 }
               }
             }

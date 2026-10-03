@@ -1,0 +1,1 @@
+ALTER TABLE "lr_attempts" ADD COLUMN "parts" jsonb;

@@ -20,6 +20,14 @@ export const lrAttemptsQuery = queryOptions({ queryKey: ['lr-attempts'], queryFn
 /** Reading is 60 minutes; Listening exam has 2 minutes to check answers after the last recording. */
 export const READING_SECONDS = 3600;
 export const LISTENING_REVIEW_SECONDS = 120;
+/** Exam reading clock: 60 minutes for the whole test, 20 per passage when taking only some. */
+export const readingSeconds = (parts?: number[] | null) => (parts?.length ? 1200 * parts.length : READING_SECONDS);
+
+// ponytail: every test has 4 listening parts / 3 reading passages; the server rejects a part a test lacks
+export const LR_PARTS: Record<LrSkill, number[]> = { listening: [1, 2, 3, 4], reading: [1, 2, 3] };
+/** "Part 2", "Passages 1, 3", or "Full test" when parts is null. */
+export const partsLabel = (skill: LrSkill, parts?: number[] | null) =>
+  parts?.length ? `${skill === 'listening' ? 'Part' : 'Passage'}${parts.length > 1 ? 's' : ''} ${parts.join(', ')}` : 'Full test';
 
 export type FlatQ = { n: number; part: number; group: LrGroup; q: LrQuestion };
 export const flatQuestions = (t: LrTest): FlatQ[] => t.sections.flatMap((s) => s.groups.flatMap((g) => g.questions.map((q) => ({ n: q.n, part: s.part, group: g, q }))));

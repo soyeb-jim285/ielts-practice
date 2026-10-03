@@ -10,6 +10,17 @@ import kotlinx.serialization.json.JsonElement
 const val READING_SECONDS = 3600
 const val LISTENING_REVIEW_SECONDS = 120
 
+/** Exam reading clock: 60 minutes for the whole test, 20 per passage when taking only some. */
+fun readingSeconds(parts: List<Int>?) = if (!parts.isNullOrEmpty()) 1200 * parts.size else READING_SECONDS
+
+// ponytail: every test has 4 listening parts / 3 reading passages; the server rejects a part a test lacks
+fun lrParts(skill: String) = if (skill == "listening") listOf(1, 2, 3, 4) else listOf(1, 2, 3)
+
+/** "Part 2", "Passages 1, 3", or "Full test" when parts is null. */
+fun partsLabel(skill: String, parts: List<Int>?): String =
+    if (parts.isNullOrEmpty()) "Full test"
+    else "${if (skill == "listening") "Part" else "Passage"}${if (parts.size > 1) "s" else ""} ${parts.joinToString(", ")}"
+
 @Serializable data class LrOption(val key: String, val text: String = "")
 /** Review-only enrichment of a question (after submit): where the answer is, why, why each wrong pick is wrong, wording pairs. */
 @Serializable data class LrReview(
@@ -114,6 +125,8 @@ const val LISTENING_REVIEW_SECONDS = 120
     val id: String,
     val testId: String = "",
     val mode: String = "practice",
+    /** Chosen parts; null = the whole test. Partial attempts have no band. */
+    val parts: List<Int>? = null,
     val status: String = "in_progress",
     val responses: Map<String, String> = emptyMap(),
     val elapsedS: Int = 0,
@@ -147,6 +160,8 @@ const val LISTENING_REVIEW_SECONDS = 120
     val status: String = "new",
     val attemptId: String? = null,
     val mode: String? = null,
+    /** Parts of the in-progress attempt (null = whole test or none). */
+    val parts: List<Int>? = null,
     val answered: Int = 0,
     val bestBand: Double? = null,
     val attempts: Int = 0,
@@ -160,6 +175,7 @@ const val LISTENING_REVIEW_SECONDS = 120
     val ref: String = "",
     val title: String,
     val mode: String = "practice",
+    val parts: List<Int>? = null,
     val status: String = "in_progress",
     val raw: Int? = null,
     val total: Int? = null,

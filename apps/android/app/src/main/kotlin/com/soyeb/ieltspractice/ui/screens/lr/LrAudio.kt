@@ -366,13 +366,13 @@ class ExamPlaylist(private val urls: List<String>, private val startElapsed: Dou
 
 /** Exam recording bar: which part is playing and the whole-test progress. No transport controls on purpose. */
 @Composable
-fun ExamAudioBar(p: ExamPlaylist, modifier: Modifier = Modifier) {
+fun ExamAudioBar(p: ExamPlaylist, modifier: Modifier = Modifier, parts: List<Int>? = null) {
     val e = MaterialTheme.ext
     Row(modifier.fillMaxWidth().semantics { contentDescription = "Recording" }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(painterResource(R.drawable.ic_sp_headphones), null, Modifier.size(24.dp), tint = e.brand)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                if (p.phase == ExamPhase.Review) "Recording finished. Check your answers." else "Part ${p.idx + 1} of ${p.durations?.size ?: 4} is playing",
+                if (p.phase == ExamPhase.Review) "Recording finished. Check your answers." else if (parts != null) "Part ${parts.getOrNull(p.idx) ?: (p.idx + 1)} is playing" else "Part ${p.idx + 1} of ${p.durations?.size ?: 4} is playing",
                 style = MaterialTheme.typography.titleSmall, color = e.ink,
             )
             LinearProgressIndicator(
@@ -387,13 +387,13 @@ fun ExamAudioBar(p: ExamPlaylist, modifier: Modifier = Modifier) {
 
 /** The start gate of a listening exam: nothing plays until the learner is ready. */
 @Composable
-fun ExamGate(p: ExamPlaylist, resumed: Boolean, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun ExamGate(p: ExamPlaylist, resumed: Boolean, onBack: () -> Unit, modifier: Modifier = Modifier, parts: List<Int> = listOf(1, 2, 3, 4)) {
     val e = MaterialTheme.ext
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(painterResource(R.drawable.ic_sp_headphones), null, Modifier.size(32.dp), tint = e.brand)
         Text(if (resumed) "Ready to continue?" else "Ready to listen?", style = MaterialTheme.typography.headlineSmall, color = e.ink)
         Text(
-            "The recording plays once, from Part 1 to Part 4, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.",
+            "The recording plays once, ${if (parts.size > 1) "from Part ${parts.first()} to Part ${parts.last()}" else "Part ${parts.firstOrNull()} only"}, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.",
             style = MaterialTheme.typography.bodyLarge, color = e.ink,
         )
         Text("Check your volume first. Use headphones if you can.", style = MaterialTheme.typography.bodyMedium, color = e.muted)

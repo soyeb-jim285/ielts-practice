@@ -160,7 +160,7 @@ private struct LrRunnerBody: View {
         } else {
             current = flat.first?.n ?? 1
         }
-        session.lateFrom = listening ? .infinity : 3300
+        session.lateFrom = listening ? .infinity : Double(Lr.readingLimit(attempt.parts) - 300)
         switch Demo.screen { // demo screenshots
         case "lr-reading-questions": tab = .questions
         case "lr-reading-p2": goPart(1); tab = .questions
@@ -189,7 +189,7 @@ private struct LrRunnerBody: View {
         if examListening {
             if let pl = playlist, pl.phase == .review { LrReviewPill(playlist: pl) }
         } else {
-            LrWallClock(session: session, countdown: exam ? Lr.readingSeconds : nil) { Task { await submit() } }
+            LrWallClock(session: session, countdown: exam ? Lr.readingLimit(attempt.parts) : nil) { Task { await submit() } }
         }
     }
 
@@ -300,7 +300,7 @@ private struct LrRunnerBody: View {
     @ViewBuilder private var audioBar: some View {
         Group {
             if examListening, let pl = playlist {
-                LrExamBar(playlist: pl)
+                LrExamBar(playlist: pl, parts: attempt.parts == nil ? nil : test.sections.map(\.part))
             } else {
                 LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, resume: LrResume(start: session.audioStart(section.part), track: { session.noteAudio(part: section.part, pos: $0) }, persist: { session.saveAudio() }))
             }
@@ -309,12 +309,18 @@ private struct LrRunnerBody: View {
         .glassBar(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
+    /// "from Part 1 to Part 4", or "Part 2 only" for a single part
+    private var partSpan: String {
+        let ps = test.sections.map(\.part)
+        return ps.count > 1 ? "from Part \(ps.first ?? 1) to Part \(ps.last ?? 4)" : "Part \(ps.first ?? 1) only"
+    }
+
     private var gate: some View {
         VStack(alignment: .leading, spacing: 14) {
             Spacer()
             Image(systemName: "headphones").font(.system(size: 34)).foregroundStyle(Color.brand).accessibilityHidden(true)
             Text(attempt.elapsedS > 0 ? "Ready to continue?" : "Ready to listen?").font(.display(.title)).foregroundStyle(Color.ink)
-            Text("The recording plays once, from Part 1 to Part 4, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.")
+            Text("The recording plays once, \(partSpan), with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.")
                 .font(.body).foregroundStyle(Color.ink)
             Text("Check your volume first. Use headphones if you can.").font(.subheadline).foregroundStyle(Color.muted)
             if playlist?.error == true { ErrorLine(message: "The recording could not be loaded. Check your connection and try again.") }
@@ -446,11 +452,16 @@ private struct LrSaveIndicator: View {
 /// Exam recording bar: whole-test progress and which part is playing. No transport controls on purpose.
 private struct LrExamBar: View {
     let playlist: LrExamPlaylist
+    var parts: [Int]? = nil // a partial attempt plays only these parts
+    private var playing: String {
+        if let p = parts, !p.isEmpty { return "Part \(p[min(playlist.idx, p.count - 1)]) is playing" }
+        return "Part \(playlist.idx + 1) of \(playlist.durations?.count ?? 4) is playing"
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: "headphones").foregroundStyle(Color.brand)
-                Text(playlist.phase == .review ? "Recording finished. Check your answers." : "Part \(playlist.idx + 1) of \(playlist.durations?.count ?? 4) is playing")
+                Text(playlist.phase == .review ? "Recording finished. Check your answers." : playing)
                     .font(.subheadline.weight(.medium).monospacedDigit()).foregroundStyle(Color.ink)
                 Spacer(minLength: 0)
             }

@@ -53,7 +53,8 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.core.Accuracy
 import com.soyeb.ieltspractice.core.LrAttempt
-import com.soyeb.ieltspractice.core.READING_SECONDS
+import com.soyeb.ieltspractice.core.partsLabel
+import com.soyeb.ieltspractice.core.readingSeconds
 import com.soyeb.ieltspractice.core.LrMark
 import com.soyeb.ieltspractice.core.LrProgress
 import com.soyeb.ieltspractice.core.audioWindow
@@ -93,8 +94,10 @@ import com.soyeb.ieltspractice.ui.theme.bandTextColor
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 
 // Mirrors: web components/lr/Results.tsx, routes/_app/lr/result.$attemptId.tsx
 
@@ -252,7 +255,10 @@ private fun Results(a: LrAttempt, nav: AppNav) {
         busy = true; error = null
         scope.launch {
             try {
-                val r = api.send<LrAttempt>("POST", "/api/lr/tests/${a.testId}/attempts", buildJsonObject { put("mode", a.mode) })
+                val r = api.send<LrAttempt>("POST", "/api/lr/tests/${a.testId}/attempts", buildJsonObject {
+                    put("mode", a.mode)
+                    a.parts?.let { ps -> putJsonArray("parts") { ps.forEach { add(JsonPrimitive(it)) } } }
+                })
                 nav.go(LrRun(r.id))
             } catch (ex: Exception) { error = "Could not start a new attempt. Try again." }
             busy = false
@@ -262,11 +268,20 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     // ---- hero: the verdict, what to do about it, one action ----
     val time = a.elapsedS.takeIf { it > 0 }?.let { ShellDate.duration(it * 1000) }
     Text(
-        "${if (listening) "Listening" else "Reading"}, ${if (test.variant == "academic") "Academic" else "General Training"}, ${a.mode} mode, ${ShellDate.date(a.submittedAt ?: a.startedAt)}${time?.let { ", $it" }.orEmpty()}",
+        "${if (listening) "Listening" else "Reading"}, ${if (test.variant == "academic") "Academic" else "General Training"}, ${a.parts?.let { "${partsLabel(test.skill, it)}, " }.orEmpty()}${a.mode} mode, ${ShellDate.date(a.submittedAt ?: a.startedAt)}${time?.let { ", $it" }.orEmpty()}",
         style = MaterialTheme.typography.bodyMedium, color = e.muted,
     )
     AppCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
+        val parts = a.parts
+        // a part on its own has no band: IELTS bands only map from all 40 questions
+        if (parts != null) Column(Modifier.semantics(mergeDescendants = true) {}) {
+            Text("Score", style = MaterialTheme.typography.bodySmall, color = e.muted)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("${a.raw ?: 0}", style = AppText.band(64), color = e.ink)
+                Text("/${a.total ?: flat.size}", style = AppText.band(64), color = e.muted)
+            }
+            Text("${partsLabel(test.skill, parts)} only. Take the full test for a band score.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.semantics(mergeDescendants = true) { contentDescription = "Band ${fmt(band)}" }) {
                 Text("Band", style = MaterialTheme.typography.bodySmall, color = e.muted)
                 Text(fmt(band), style = AppText.band(64), color = bandTextColor(band, target))
@@ -312,7 +327,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
             val st = a.stats
             if (st != null && (st.partS.values.sum() >= 5 || st.changes.isNotEmpty())) Column(Modifier.bringIntoViewRequester(paceReq)) {
                 Disclose("How you used your time", "Minutes per ${noun.lowercase()}, answers you changed, last-minute answers", initiallyOpen = demoScreen == "lr-result-pacing") {
-                    PacingPanel(st, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else READING_SECONDS.toDouble(), marks, blank)
+                    PacingPanel(st, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else readingSeconds(a.parts).toDouble(), marks, blank)
                 }
             }
             val tfng = a.analysis?.tfng.orEmpty()

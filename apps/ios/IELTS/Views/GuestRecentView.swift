@@ -96,7 +96,7 @@ struct GuestRecentView: View {
         }
         if skill.isEmpty || skill == "listening" || skill == "reading", let p: LrPage = try? await api.get("/api/lr/attempts") {
             out += p.items.filter { skill.isEmpty || $0.skill == skill }.map {
-                Row(id: $0.id, skill: $0.skill, title: $0.title, part: $0.skill == "listening" ? "Listening" : "Reading", mode: $0.mode, at: $0.startedAt, band: $0.band, state: $0.status == "submitted" ? "done" : "open")
+                Row(id: $0.id, skill: $0.skill, title: $0.title, part: ($0.skill == "listening" ? "Listening" : "Reading") + ($0.parts == nil ? "" : ", " + Lr.partsLabel($0.skill, $0.parts)), mode: $0.mode, at: $0.startedAt, band: $0.band, state: $0.status == "submitted" ? "done" : "open")
             }
         }
         rows = Array(out.sorted { (ShellDate.parse($0.at) ?? .distantPast) > (ShellDate.parse($1.at) ?? .distantPast) }.prefix(5))

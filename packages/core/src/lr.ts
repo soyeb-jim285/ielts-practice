@@ -191,6 +191,11 @@ export function lrBand(skill: LrSkill, variant: 'academic' | 'general', raw: num
   return roundBand(table.find(([min]) => r >= min)?.[1] ?? 0);
 }
 
+/** Only the chosen parts (listening 1–4, reading passages 1–3); null / empty = the whole test. Question numbers keep their place (Part 2 is 11–20). */
+export function pickParts(test: LrTest, parts?: number[] | null): LrTest {
+  return parts?.length ? { ...test, sections: test.sections.filter((s) => parts.includes(s.part)) } : test;
+}
+
 /** Copy safe to send before submission: no answers, no transcript. */
 export function stripAnswers(test: LrTest): LrTest {
   return {

@@ -8,7 +8,7 @@ import { Alert, Badge, Button, Dialog, EmptyState, PageContainer, PageHeader, Pr
 import { call, client, type Schemas } from '@/lib/api';
 import { ensureSession } from '@/lib/auth';
 import { formatBand } from '@/lib/format';
-import { lrTestsQuery, parseRef, READING_SECONDS, type LrSkill } from '@/lib/lr';
+import { LR_PARTS, lrTestsQuery, parseRef, partsLabel, readingSeconds, type LrSkill } from '@/lib/lr';
 import { useMe } from '@/lib/query';
 import { bandColor } from '@/lib/result';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,7 @@ function Status({ t, target }: { t: Item; target: number }) {
   if (t.status === 'in_progress')
     return (
       <span className="flex w-36 flex-col items-end gap-1.5 max-sm:w-28">
-        <span className="type-caption type-num font-medium text-accent-text">In progress, {t.answered}/{t.total}</span>
+        <span className="type-caption type-num font-medium text-accent-text">{t.parts ? partsLabel(t.skill, t.parts) : 'In progress'}, {t.answered}/{t.total}</span>
         <ProgressBar label={`${t.answered} of ${t.total} answered`} value={t.answered / t.total} className="h-1.5" />
       </span>
     );
@@ -55,44 +55,72 @@ function Status({ t, target }: { t: Item; target: number }) {
         <span className="type-caption">{t.attempts === 1 ? '1 attempt' : `${t.attempts} attempts`}</span>
       </span>
     );
+  if (t.status === 'submitted') return <span className="type-caption">{t.attempts === 1 ? '1 attempt' : `${t.attempts} attempts`}</span>; // only parts taken: no band yet
   return <span className="type-caption">Not started</span>;
 }
 
 const MODES = {
-  exam: { label: 'Exam', hint: (s: LrSkill) => (s === 'reading' ? `${READING_SECONDS / 60}-minute countdown. Submits itself when time is up.` : 'The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself.') },
-  practice: { label: 'Practice', hint: (s: LrSkill) => (s === 'reading' ? 'No time limit. A clock counts up so you can see your pace.' : 'Pause, rewind, slow down to 0.75× and replay any part. No time limit.') },
+  exam: { label: 'Exam', hint: (s: LrSkill, parts: number[] | null) => (s === 'reading' ? `${readingSeconds(parts) / 60}-minute countdown. Submits itself when time is up.` : 'The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself.') },
+  practice: { label: 'Practice', hint: (s: LrSkill, _parts: number[] | null) => (s === 'reading' ? 'No time limit. A clock counts up so you can see your pace.' : 'Pause, rewind, slow down to 0.75× and replay any part. No time limit.') },
 } as const;
 
-function ModeDialog({ test, onClose, onStart, busy, error }: { test: Item | null; onClose: () => void; onStart: (mode: 'exam' | 'practice') => void; busy: boolean; error: boolean }) {
+/** Starting a test: mode and whole test or one part. A test with an unfinished attempt first offers to continue it; starting new discards it. */
+export function StartDialog({ test, onClose, onStart, onContinue, busy, error }: { test: Item | null; onClose: () => void; onStart: (mode: 'exam' | 'practice', parts: number[] | null) => void; onContinue: (id: string) => void; busy: boolean; error: boolean }) {
   const [mode, setMode] = useState<'exam' | 'practice'>('exam');
+  const [part, setPart] = useState('all');
+  const [startNew, setStartNew] = useState(false);
+  const parts = part === 'all' ? null : [+part];
+  const resume = !!test?.attemptId && !startNew;
+  const noun = test?.skill === 'listening' ? 'Part' : 'Passage';
   return (
     <Dialog
       open={!!test}
       onClose={onClose}
       title={test ? test.title : ''}
-      description="Choose how to take this test."
+      description={
+        resume && test
+          ? `You have an unfinished ${test.mode} attempt (${partsLabel(test.skill, test.parts).toLowerCase()}, ${test.answered} of ${test.total} answered). Continue where you left off, or start again.`
+          : 'Choose how to take this test.'
+      }
       footer={
-        <>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button loading={busy} onClick={() => onStart(mode)}>
-            Start {MODES[mode].label.toLowerCase()} test
-          </Button>
-        </>
+        resume && test ? (
+          <>
+            <Button variant="outline" onClick={() => setStartNew(true)}>
+              Start new
+            </Button>
+            <Button onClick={() => onContinue(test.attemptId!)}>Continue</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button loading={busy} onClick={() => onStart(mode, parts)}>
+              Start {MODES[mode].label.toLowerCase()} {parts ? `${noun.toLowerCase()} ${parts[0]}` : 'test'}
+            </Button>
+          </>
+        )
       }
     >
-      {test && (
-        <div role="radiogroup" aria-label="Mode" className="grid gap-2">
-          {(Object.keys(MODES) as (keyof typeof MODES)[]).map((m) => (
-            <label key={m} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-card p-3.5 transition-colors duration-[120ms] hover:border-input has-[:checked]:border-brand has-[:checked]:bg-accent-soft has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
-              <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} className="mt-1 size-4 accent-[var(--accent)]" />
-              <span>
-                <span className="type-subheading block">{MODES[m].label}</span>
-                <span className="type-caption mt-0.5 block">{MODES[m].hint(test.skill)}</span>
-              </span>
-            </label>
-          ))}
+      {test && !resume && (
+        <div className="grid gap-4">
+          <div role="radiogroup" aria-label="Mode" className="grid gap-2">
+            {(Object.keys(MODES) as (keyof typeof MODES)[]).map((m) => (
+              <label key={m} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-card p-3.5 transition-colors duration-[120ms] hover:border-input has-[:checked]:border-brand has-[:checked]:bg-accent-soft has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
+                <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} className="mt-1 size-4 accent-[var(--accent)]" />
+                <span>
+                  <span className="type-subheading block">{MODES[m].label}</span>
+                  <span className="type-caption mt-0.5 block">{MODES[m].hint(test.skill, parts)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div>
+            <p className="type-subheading mb-2">{noun}</p>
+            <Segmented label={noun} className="w-full" value={part} onChange={setPart} options={[{ value: 'all', label: 'All' }, ...LR_PARTS[test.skill].map((p) => ({ value: String(p), label: String(p) }))]} />
+            <p className="type-caption mt-1.5">{parts ? `Only ${noun.toLowerCase()} ${parts[0]}. Scored out of its questions, with no band.` : 'The full test, scored as a band.'}</p>
+          </div>
+          {test.attemptId && <p className="type-caption">Your unfinished attempt will be discarded.</p>}
           {error && <Alert tone="bad">Could not start the test. Try again.</Alert>}
         </div>
       )}
@@ -115,12 +143,13 @@ export function LrHub({ skill }: { skill: LrSkill }) {
   const variants = new Set(data.items.map((t) => t.variant));
 
   const open = (a: string) => navigate({ to: '/lr/run/$attemptId', params: { attemptId: a } });
-  const start = async (t: Item, mode: 'exam' | 'practice') => {
+  const start = async (t: Item, mode: 'exam' | 'practice', parts: number[] | null) => {
     setBusy(true);
     setErr(false);
     try {
       await ensureSession(); // a visitor gets a guest session on the first test; no AI cost, so no fair-use dialog
-      const a = await call(client.POST('/api/lr/tests/{id}/attempts', { params: { path: { id: t.id } }, body: { mode } }));
+      // fresh: an unfinished attempt of this test is discarded (the user chose "Start new")
+      const a = await call(client.POST('/api/lr/tests/{id}/attempts', { params: { path: { id: t.id } }, body: { mode, ...(parts && { parts }), fresh: true } }));
       await open(a.id);
     } catch {
       setErr(true);
@@ -167,7 +196,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
                 const r = t.source === 'cambridge' ? parseRef(t.ref) : null;
                 return (
                   <li key={t.id}>
-                    <button type="button" className={rowStyles} onClick={() => (t.attemptId ? void open(t.attemptId) : setPick(t))}>
+                    <button type="button" className={rowStyles} onClick={() => setPick(t)}>
                       <RowIcon>
                         <c.icon />
                       </RowIcon>
@@ -177,7 +206,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
                           {t.skill === 'reading' && <Badge tone={t.variant === 'academic' ? 'neutral' : 'info'}>{t.variant === 'academic' ? 'Academic' : 'General Training'}</Badge>}
                         </span>
                         <span className="type-caption mt-0.5 block">
-                          {t.attemptId ? `Resume in ${t.mode} mode` : t.status === 'submitted' ? 'Retake this test' : '40 questions'}
+                          {t.attemptId ? `Resume in ${t.mode} mode` : t.status === 'submitted' ? 'Retake this test' : `40 questions, or one ${t.skill === 'listening' ? 'part' : 'passage'} at a time`}
                         </span>
                       </span>
                       <Status t={t} target={target} />
@@ -190,7 +219,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
           </section>
         ))
       )}
-      <ModeDialog test={pick} onClose={() => { setPick(null); setErr(false); }} onStart={(m) => pick && void start(pick, m)} busy={busy} error={err} />
+      <StartDialog key={pick?.id} test={pick} onClose={() => { setPick(null); setErr(false); }} onStart={(m, p) => pick && void start(pick, m, p)} onContinue={(id) => void open(id)} busy={busy} error={err} />
     </PageContainer>
   );
 }

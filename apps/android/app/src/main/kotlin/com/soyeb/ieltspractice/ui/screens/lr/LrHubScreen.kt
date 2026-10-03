@@ -46,6 +46,9 @@ import com.soyeb.ieltspractice.core.LrAttempt
 import com.soyeb.ieltspractice.core.LrTestItem
 import com.soyeb.ieltspractice.core.fmt
 import com.soyeb.ieltspractice.core.lrHubGroups
+import com.soyeb.ieltspractice.core.lrParts
+import com.soyeb.ieltspractice.core.partsLabel
+import com.soyeb.ieltspractice.core.readingSeconds
 import com.soyeb.ieltspractice.core.parseRef
 import com.soyeb.ieltspractice.ui.Load
 import com.soyeb.ieltspractice.ui.ScreenScaffold
@@ -67,8 +70,10 @@ import com.soyeb.ieltspractice.ui.theme.SecondaryButton
 import com.soyeb.ieltspractice.ui.theme.bandTextColor
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 
 // Mirrors: web components/lr/Hub.tsx, routes/_app/listening and reading
 
@@ -126,7 +131,7 @@ private fun HubContent(skill: String, target: Double, nav: AppNav) {
                         AppCard(padding = 0.dp) {
                             g.tests.forEachIndexed { i, t ->
                                 if (i > 0) RowDivider()
-                                TestRow(t, listening, target) { if (t.attemptId != null) nav.go(LrRun(t.attemptId)) else pick = t }
+                                TestRow(t, listening, target) { pick = t }
                             }
                         }
                     }
@@ -145,11 +150,13 @@ private fun TestRow(t: LrTestItem, listening: Boolean, target: Double, onClick: 
     val sub = when {
         t.attemptId != null -> "Resume in ${t.mode} mode"
         t.status == "submitted" -> "Retake this test"
-        else -> "${t.total} questions"
+        else -> "40 questions, or one ${if (listening) "part" else "passage"} at a time"
     }
+    val progress = if (t.parts != null) partsLabel(t.skill, t.parts) else "In progress"
     val statusText = when {
-        t.status == "in_progress" -> "In progress, ${t.answered} of ${t.total} answered"
+        t.status == "in_progress" -> "$progress, ${t.answered} of ${t.total} answered"
         t.status == "submitted" && t.bestBand != null -> "Best band ${fmt(t.bestBand)}, ${t.attempts} ${if (t.attempts == 1) "attempt" else "attempts"}"
+        t.status == "submitted" -> "${t.attempts} ${if (t.attempts == 1) "attempt" else "attempts"}"
         else -> "Not started"
     }
     Row(
@@ -166,40 +173,54 @@ private fun TestRow(t: LrTestItem, listening: Boolean, target: Double, onClick: 
         Column(Modifier.widthIn(min = 72.dp, max = 124.dp).clearAndSetSemantics {}, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             when {
                 t.status == "in_progress" -> {
-                    Text("In progress, ${t.answered}/${t.total}", style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand, textAlign = TextAlign.End)
+                    Text("$progress, ${t.answered}/${t.total}", style = MaterialTheme.typography.labelMedium.merge(AppText.num), color = e.brand, textAlign = TextAlign.End)
                     BandBar(t.answered.toDouble() / t.total.coerceAtLeast(1), "${t.answered} of ${t.total} answered", height = 6.dp)
                 }
                 t.status == "submitted" && t.bestBand != null -> {
                     Text(fmt(t.bestBand), style = AppText.band(20), color = bandTextColor(t.bestBand, target))
                     Text("${t.attempts} ${if (t.attempts == 1) "attempt" else "attempts"}", style = MaterialTheme.typography.bodySmall, color = e.muted)
                 }
+                // only parts taken: no band yet
+                t.status == "submitted" -> Text("${t.attempts} ${if (t.attempts == 1) "attempt" else "attempts"}", style = MaterialTheme.typography.bodySmall, color = e.muted)
                 else -> Text("Not started", style = MaterialTheme.typography.bodySmall, color = e.muted)
             }
         }
     }
 }
 
-private class ModeInfo(val key: String, val label: String, val reading: String, val listening: String)
+private class ModeInfo(val key: String, val label: String, val reading: (List<Int>?) -> String, val listening: String)
 
 private val modes = listOf(
-    ModeInfo("exam", "Exam", "60-minute countdown. Submits itself when time is up.", "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself."),
-    ModeInfo("practice", "Practice", "No time limit. A clock counts up so you can see your pace.", "Pause, rewind, slow down to 0.75× and replay any part. No time limit."),
+    ModeInfo("exam", "Exam", { p -> "${readingSeconds(p) / 60}-minute countdown. Submits itself when time is up." }, "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself."),
+    ModeInfo("practice", "Practice", { _ -> "No time limit. A clock counts up so you can see your pace." }, "Pause, rewind, slow down to 0.75× and replay any part. No time limit."),
 )
 
-/** Exam or Practice: a bottom sheet with the two modes and a Start button. */
+/**
+ * Exam or Practice and whole test or one part: a bottom sheet with a Start button. A test with an unfinished attempt first offers
+ * Continue (resume it) or Start new (the chooser; starting discards the unfinished attempt).
+ */
 @Composable
 private fun ModeSheet(t: LrTestItem, nav: AppNav, onClose: () -> Unit) {
     val e = MaterialTheme.ext
     val api = LocalApp.current.api
     val scope = rememberCoroutineScope()
     var mode by remember { mutableStateOf("exam") }
+    var part by remember { mutableStateOf("all") }
+    var startNew by remember { mutableStateOf(false) }
+    val parts = if (part == "all") null else listOf(part.toInt())
+    val noun = if (t.skill == "listening") "Part" else "Passage"
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     fun start() {
         busy = true; error = null
         scope.launch {
             try {
-                val a = api.send<LrAttempt>("POST", "/api/lr/tests/${t.id}/attempts", buildJsonObject { put("mode", mode) })
+                // fresh: an unfinished attempt of this test is discarded (the user chose Start new)
+                val a = api.send<LrAttempt>("POST", "/api/lr/tests/${t.id}/attempts", buildJsonObject {
+                    put("mode", mode)
+                    parts?.let { ps -> putJsonArray("parts") { ps.forEach { add(JsonPrimitive(it)) } } }
+                    put("fresh", true)
+                })
                 onClose()
                 nav.go(LrRun(a.id))
             } catch (ex: ApiError) {
@@ -213,26 +234,42 @@ private fun ModeSheet(t: LrTestItem, nav: AppNav, onClose: () -> Unit) {
     }
     LrSheet(onClose) {
         Text(t.title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = e.ink)
-        Text("Choose how to take this test.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
-        modes.forEach { m ->
-            val on = mode == m.key
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 64.dp).background(if (on) e.brandSoft else e.surface, RoundedCornerShape(12.dp))
-                    .border(if (on) 2.dp else 1.dp, if (on) e.brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                    .selectable(on, role = Role.RadioButton) { mode = m.key }.padding(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
-            ) {
-                Box(Modifier.padding(top = 2.dp).size(20.dp).border(2.dp, if (on) e.brand else e.muted, CircleShape), contentAlignment = Alignment.Center) {
-                    if (on) Box(Modifier.size(10.dp).background(e.brand, CircleShape))
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(m.label, style = MaterialTheme.typography.titleSmall, color = e.ink)
-                    Text(if (t.skill == "reading") m.reading else m.listening, style = MaterialTheme.typography.bodySmall, color = e.muted)
+        if (t.attemptId != null && !startNew) {
+            Text(
+                "You have an unfinished ${t.mode ?: "practice"} attempt (${partsLabel(t.skill, t.parts).lowercase()}, ${t.answered} of ${t.total} answered). Continue where you left off, or start again.",
+                style = MaterialTheme.typography.bodyMedium, color = e.muted,
+            )
+            PrimaryButton("Continue", { onClose(); nav.go(LrRun(t.attemptId)) }, Modifier.fillMaxWidth())
+            SecondaryButton("Start new", { startNew = true }, Modifier.fillMaxWidth())
+        } else {
+            Text("Choose how to take this test.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+            modes.forEach { m ->
+                val on = mode == m.key
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 64.dp).background(if (on) e.brandSoft else e.surface, RoundedCornerShape(12.dp))
+                        .border(if (on) 2.dp else 1.dp, if (on) e.brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .selectable(on, role = Role.RadioButton) { mode = m.key }.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
+                ) {
+                    Box(Modifier.padding(top = 2.dp).size(20.dp).border(2.dp, if (on) e.brand else e.muted, CircleShape), contentAlignment = Alignment.Center) {
+                        if (on) Box(Modifier.size(10.dp).background(e.brand, CircleShape))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(m.label, style = MaterialTheme.typography.titleSmall, color = e.ink)
+                        Text(if (t.skill == "reading") m.reading(parts) else m.listening, style = MaterialTheme.typography.bodySmall, color = e.muted)
+                    }
                 }
             }
+            Text(noun, style = MaterialTheme.typography.titleSmall, color = e.ink)
+            Segmented(listOf("all" to "All") + lrParts(t.skill).map { "$it" to "$it" }, part, { part = it })
+            Text(
+                if (parts != null) "Only ${noun.lowercase()} ${parts[0]}. Scored out of its questions, with no band." else "The full test, scored as a band.",
+                style = MaterialTheme.typography.bodySmall, color = e.muted,
+            )
+            if (t.attemptId != null) Text("Your unfinished attempt will be discarded.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+            error?.let { ErrorLine(it) }
+            PrimaryButton("Start $mode ${if (parts != null) "${noun.lowercase()} ${parts[0]}" else "test"}", ::start, Modifier.fillMaxWidth(), loading = busy)
+            SecondaryButton("Cancel", onClose, Modifier.fillMaxWidth())
         }
-        error?.let { ErrorLine(it) }
-        PrimaryButton("Start ${mode} test", ::start, Modifier.fillMaxWidth(), loading = busy)
-        SecondaryButton("Cancel", onClose, Modifier.fillMaxWidth())
     }
 }

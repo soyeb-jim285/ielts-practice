@@ -78,7 +78,7 @@ private extension HistoryItem {
     init(_ a: LrAttemptItem) {
         self.init(id: a.id, promptTitle: a.title, skill: a.skill, part: 0, status: a.status == "submitted" ? "done" : "recording", overall: a.band,
                   createdAt: a.submittedAt ?? a.startedAt, durationMs: nil, flag: nil, lr: true,
-                  lrDetail: a.mode.capitalized, lrScore: a.raw.map { "\($0)/\(a.total ?? 40)" })
+                  lrDetail: a.parts == nil ? a.mode.capitalized : "\(a.mode.capitalized), \(Lr.partsLabel(a.skill, a.parts))", lrScore: a.raw.map { "\($0)/\(a.total ?? 40)" })
     }
 }
 

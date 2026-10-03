@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { analyseAttempt, lrTypeLabel, maskWord, scoreLr, stripAnswers, tfngPattern, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
+import { analyseAttempt, lrTypeLabel, maskWord, pickParts, scoreLr, stripAnswers, tfngPattern, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
 import { and, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { currentUser, isCambridgeAllowed, requireUser } from '../auth';
@@ -18,6 +18,7 @@ const Variant = z.enum(['academic', 'general']);
 const Source = z.enum(['cambridge', 'generated']);
 const Mode = z.enum(['exam', 'practice']);
 const Status = z.enum(['in_progress', 'submitted']);
+const Parts = z.array(z.number().int().min(1).max(4)).nullable().openapi({ description: 'Chosen parts (listening 1–4, reading passages 1–3); null = the whole test. Partial attempts are scored raw/total with no band.' });
 
 const ErrorSchema = z.object({ error: z.string(), code: z.string().optional() }).openapi('LrError');
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
@@ -112,13 +113,14 @@ const TestListItem = z
     source: Source,
     ref: z.string(),
     title: z.string(),
-    total: z.number(),
+    total: z.number().openapi({ description: 'Questions in the in-progress attempt (only its parts), else 40' }),
     status: z.enum(['new', 'in_progress', 'submitted']).openapi({ description: 'From the latest attempt' }),
     attemptId: z.string().nullable().openapi({ description: 'The in-progress attempt, when there is one' }),
     mode: Mode.nullable().openapi({ description: 'Mode of the in-progress attempt' }),
+    parts: Parts.openapi({ description: 'Parts of the in-progress attempt (null = whole test or none)' }),
     answered: z.number().openapi({ description: 'Answered questions in the in-progress attempt' }),
-    bestBand: z.number().nullable(),
-    attempts: z.number().openapi({ description: 'Submitted attempts' }),
+    bestBand: z.number().nullable().openapi({ description: 'Best band of a whole-test attempt (partial attempts have no band)' }),
+    attempts: z.number().openapi({ description: 'Submitted attempts (whole and partial)' }),
   })
   .openapi('LrTestListItem');
 
@@ -128,6 +130,7 @@ const AttemptSchema = z
     id: z.string(),
     testId: z.string(),
     mode: Mode,
+    parts: Parts,
     status: Status,
     responses: Responses,
     elapsedS: z.number(),
@@ -135,11 +138,11 @@ const AttemptSchema = z
     submittedAt: z.string().nullable(),
     raw: z.number().nullable(),
     total: z.number().nullable(),
-    band: z.number().nullable(),
+    band: z.number().nullable().openapi({ description: 'Null while in progress and for partial attempts' }),
     marks: z.array(MarkSchema).nullable(),
     stats: Stats.nullable(),
     analysis: AnalysisSchema.nullable().openapi({ description: 'Deterministic review computed at submit (null for older attempts)' }),
-    test: LrTestSchema.openapi({ description: 'Stripped (no answers, no transcript) until submitted' }),
+    test: LrTestSchema.openapi({ description: 'Only the chosen parts; stripped (no answers, no transcript) until submitted' }),
     assets: z.record(z.string(), z.string()).openapi({ description: 'Asset key → presigned GET URL (audio supports Range)' }),
   })
   .openapi('LrAttempt');
@@ -153,6 +156,7 @@ const AttemptListItem = z
     ref: z.string(),
     title: z.string(),
     mode: Mode,
+    parts: Parts,
     status: Status,
     raw: z.number().nullable(),
     total: z.number().nullable(),
@@ -165,9 +169,11 @@ const AttemptListItem = z
 
 const answered = (r: Record<string, string>) => Object.values(r).filter((v) => v.trim()).length;
 
-/** Drops junk keys/blank values; only 1..N question numbers of this test survive. */
-const cleanResponses = (r: Record<string, string>, total: number) =>
-  Object.fromEntries(Object.entries(r).filter(([k, v]) => +k >= 1 && +k <= total && v.trim()).map(([k, v]) => [k, v.slice(0, 200)]));
+/** Drops junk keys/blank values; only question numbers of this (possibly partial) test survive. */
+const cleanResponses = (r: Record<string, string>, t: LrTest) => {
+  const ns = new Set(t.sections.flatMap((s) => s.groups.flatMap((g) => g.questions.map((q) => String(q.n)))));
+  return Object.fromEntries(Object.entries(r).filter(([k, v]) => ns.has(k) && v.trim()).map(([k, v]) => [k, v.slice(0, 200)]));
+};
 
 async function assetUrls(test: LrTest) {
   const keys = new Set<string>();
@@ -189,10 +195,12 @@ async function ownAttempt(id: string, user: { id: string; email: string; emailVe
 type AttemptRow = typeof lrAttempts.$inferSelect;
 async function toAttempt(a: AttemptRow, t: typeof lrTests.$inferSelect) {
   const done = a.status === 'submitted';
+  const test = pickParts(t.data, a.parts);
   return {
     id: a.id,
     testId: a.testId,
     mode: a.mode,
+    parts: a.parts ?? null,
     status: a.status,
     responses: a.responses as Record<string, string>,
     elapsedS: a.elapsedS,
@@ -204,8 +212,8 @@ async function toAttempt(a: AttemptRow, t: typeof lrTests.$inferSelect) {
     marks: a.marks,
     stats: a.stats ?? null,
     analysis: a.analysis ?? null,
-    test: done ? t.data : stripAnswers(t.data),
-    assets: await assetUrls(t.data),
+    test: done ? test : stripAnswers(test),
+    assets: await assetUrls(test),
   };
 }
 
@@ -224,25 +232,30 @@ export function register(app: App) {
       const user = c.get('user');
       const q = c.req.valid('query');
       const rows = await db
-        .select({ id: lrTests.id, slug: lrTests.slug, skill: lrTests.skill, variant: lrTests.variant, source: lrTests.source, ref: lrTests.ref, title: lrTests.title })
+        .select({
+          id: lrTests.id, slug: lrTests.slug, skill: lrTests.skill, variant: lrTests.variant, source: lrTests.source, ref: lrTests.ref, title: lrTests.title,
+          // questions per part, for the total of a partial in-progress attempt
+          sizes: sql<Record<string, number>>`(select jsonb_object_agg(s->>'part', (select count(*) from jsonb_array_elements(s->'groups') g, jsonb_array_elements(g->'questions'))) from jsonb_array_elements(${lrTests.data}->'sections') s)`,
+        })
         .from(lrTests)
         .where(and(visibleWhere(user), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
         .orderBy(lrTests.ref);
       const mine = user ? await db.select().from(lrAttempts).where(eq(lrAttempts.userId, user.id)).orderBy(desc(lrAttempts.startedAt)) : [];
       const byTest = new Map<string, typeof mine>();
       for (const a of mine) byTest.set(a.testId, [...(byTest.get(a.testId) ?? []), a]);
-      const items = rows.map((t) => {
+      const items = rows.map(({ sizes, ...t }) => {
         const as = byTest.get(t.id) ?? [];
         const open = as.find((a) => a.status === 'in_progress');
         const subs = as.filter((a) => a.status === 'submitted');
         return {
           ...t,
-          total: 40,
+          total: open?.parts ? open.parts.reduce((n, p) => n + Number(sizes?.[p] ?? 0), 0) : 40,
           status: (as[0] ? as[0].status : 'new') as 'new' | 'in_progress' | 'submitted',
           attemptId: open?.id ?? null,
           mode: open?.mode ?? null,
+          parts: open?.parts ?? null,
           answered: open ? answered(open.responses as Record<string, string>) : 0,
-          bestBand: subs.length ? Math.max(...subs.map((a) => a.band ?? 0)) : null,
+          bestBand: subs.some((a) => a.band != null) ? Math.max(...subs.map((a) => a.band ?? 0)) : null,
           attempts: subs.length,
         };
       });
@@ -256,15 +269,37 @@ export function register(app: App) {
       path: '/api/lr/tests/{id}/attempts',
       ...common,
       summary: 'Start an attempt, or resume the in-progress one for this test',
-      request: { params: z.object({ id: z.string() }), body: { content: { 'application/json': { schema: z.object({ mode: Mode }) } }, required: true } },
-      responses: { 200: json(AttemptSchema, 'Attempt (resumed or new). Test is stripped.'), ...errors },
+      description: 'Without `fresh`, an in-progress attempt of this test is resumed whatever mode/parts are asked. With `fresh: true` any in-progress attempt of this test is discarded and a new one starts.',
+      request: {
+        params: z.object({ id: z.string() }),
+        body: {
+          content: {
+            'application/json': {
+              schema: z.object({
+                mode: Mode,
+                parts: z.array(z.number().int().min(1).max(4)).min(1).max(4).optional().openapi({ description: 'Take only these parts; omit for the whole test' }),
+                fresh: z.boolean().optional().openapi({ description: 'Discard the in-progress attempt of this test (if any) and start a new one' }),
+              }),
+            },
+          },
+          required: true,
+        },
+      },
+      responses: { 200: json(AttemptSchema, 'Attempt (resumed or new). Test is stripped.'), 400: json(ErrorSchema, 'A part this test does not have'), ...errors },
     }),
     async (c) => {
       const user = currentUser(c);
       const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
       if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
-      const open = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')) });
-      const a = open ?? (await db.insert(lrAttempts).values({ userId: user.id, testId: t.id, mode: c.req.valid('json').mode }).returning())[0]!;
+      const { mode, parts, fresh } = c.req.valid('json');
+      const have = t.data.sections.map((s) => s.part);
+      if (parts?.some((p) => !have.includes(p))) throw new HTTPException(400, { message: 'This test has no such part' });
+      // every part chosen = the whole test (keeps the band)
+      const chosen = parts && have.some((p) => !parts.includes(p)) ? [...new Set(parts)].sort((x, y) => x - y) : null;
+      const mineOpen = and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress'));
+      if (fresh) await db.delete(lrAttempts).where(mineOpen);
+      const open = fresh ? undefined : await db.query.lrAttempts.findFirst({ where: mineOpen });
+      const a = open ?? (await db.insert(lrAttempts).values({ userId: user.id, testId: t.id, mode, parts: chosen }).returning())[0]!;
       return c.json(await toAttempt(a, t), 200);
     },
   );
@@ -305,7 +340,7 @@ export function register(app: App) {
       return c.json(
         {
           items: rows.map(({ a, ...t }) => ({
-            id: a.id, testId: a.testId, ...t, mode: a.mode, status: a.status, raw: a.raw, total: a.total, band: a.band,
+            id: a.id, testId: a.testId, ...t, mode: a.mode, parts: a.parts ?? null, status: a.status, raw: a.raw, total: a.total, band: a.band,
             answered: answered(a.responses as Record<string, string>),
             startedAt: a.startedAt.toISOString(), submittedAt: a.submittedAt?.toISOString() ?? null,
           })),
@@ -349,7 +384,7 @@ export function register(app: App) {
       const { responses, elapsedS, stats } = c.req.valid('json');
       await db
         .update(lrAttempts)
-        .set({ responses: cleanResponses(responses, scoreTotal(t.data)), elapsedS, ...(stats && { stats: keepAudio(stats, a.stats) }) })
+        .set({ responses: cleanResponses(responses, pickParts(t.data, a.parts)), elapsedS, ...(stats && { stats: keepAudio(stats, a.stats) }) })
         .where(and(eq(lrAttempts.id, a.id), eq(lrAttempts.status, 'in_progress')));
       return c.json({ savedAt: new Date().toISOString() }, 200);
     },
@@ -371,15 +406,16 @@ export function register(app: App) {
       const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c));
       if (a.status !== 'in_progress') throw new HTTPException(409, { message: 'Attempt already submitted' });
       const body = c.req.valid('json') ?? {};
-      const responses = cleanResponses(body.responses ?? (a.responses as Record<string, string>), scoreTotal(t.data));
-      const score = scoreLr(t.data, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])));
+      const test = pickParts(t.data, a.parts);
+      const responses = cleanResponses(body.responses ?? (a.responses as Record<string, string>), test);
+      const score = scoreLr(test, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])));
       const user = currentUser(c);
       const prior = await priorGaps(user.id);
-      const analysis = analyseAttempt(t.data, score.marks, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])), (w) => prior.filter((g) => g.word === w).length);
+      const analysis = analyseAttempt(test, score.marks, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])), (w) => prior.filter((g) => g.word === w).length);
       // status guard in WHERE: two concurrent submits cannot both score
       const [row] = await db
         .update(lrAttempts)
-        .set({ status: 'submitted', responses, elapsedS: body.elapsedS ?? a.elapsedS, submittedAt: new Date(), raw: score.raw, total: score.total, band: score.band, marks: score.marks, analysis, stats: body.stats ? keepAudio(body.stats, a.stats) : a.stats })
+        .set({ status: 'submitted', responses, elapsedS: body.elapsedS ?? a.elapsedS, submittedAt: new Date(), raw: score.raw, total: score.total, band: a.parts ? null : score.band, marks: score.marks, analysis, stats: body.stats ? keepAudio(body.stats, a.stats) : a.stats })
         .where(and(eq(lrAttempts.id, a.id), eq(lrAttempts.status, 'in_progress')))
         .returning();
       if (!row) throw new HTTPException(409, { message: 'Attempt already submitted' });
@@ -399,7 +435,7 @@ export function register(app: App) {
         200: json(
           z
             .object({
-              trend: z.array(z.object({ attemptId: z.string(), skill: Skill, date: z.string(), band: z.number() })).openapi({ description: 'Last 30 submitted attempts per skill, oldest first' }),
+              trend: z.array(z.object({ attemptId: z.string(), skill: Skill, date: z.string(), band: z.number() })).openapi({ description: 'Last 30 submitted whole-test attempts per skill, oldest first' }),
               byType: z.array(z.object({ skill: Skill, label: z.string(), right: z.number(), total: z.number() })),
               weakest: z.array(z.object({ skill: Skill, label: z.string(), right: z.number(), total: z.number() })).openapi({ description: 'Up to 3 types with the lowest accuracy (at least 4 questions seen)' }),
               suggested: z.object({ id: z.string(), title: z.string(), skill: Skill, label: z.string(), count: z.number() }).nullable().openapi({ description: 'A test you have not done with the most questions of your weakest type' }),
@@ -419,7 +455,8 @@ export function register(app: App) {
         .where(and(eq(lrAttempts.userId, user.id), eq(lrAttempts.status, 'submitted')))
         .orderBy(desc(lrAttempts.submittedAt))
         .limit(300);
-      const trend = Skills.flatMap((k) => rows.filter((r) => r.skill === k).slice(0, 30).reverse()).map((r) => ({ attemptId: r.id, skill: r.skill as 'listening' | 'reading', date: (r.at ?? new Date()).toISOString(), band: r.band ?? 0 }));
+      // partial attempts have no band: they count towards accuracy by type, not the band trend
+      const trend = Skills.flatMap((k) => rows.filter((r) => r.skill === k && r.band != null).slice(0, 30).reverse()).map((r) => ({ attemptId: r.id, skill: r.skill as 'listening' | 'reading', date: (r.at ?? new Date()).toISOString(), band: r.band! }));
       const acc = new Map<string, { skill: 'listening' | 'reading'; label: string; right: number; total: number }>();
       for (const r of rows) for (const t of r.analysis?.byType ?? []) {
         const e = acc.get(`${r.skill}|${t.label}`) ?? { skill: r.skill as 'listening' | 'reading', label: t.label, right: 0, total: 0 };
@@ -435,7 +472,7 @@ export function register(app: App) {
               from jsonb_array_elements(t.data->'sections') s, jsonb_array_elements(s->'groups') g) as groups
             from lr_tests t
             where t.skill = ${weakest[0].skill} ${isCambridgeAllowed(user) ? sql`` : sql`and t.restricted = false`}
-              and not exists (select 1 from lr_attempts a where a.test_id = t.id and a.user_id = ${user.id} and a.status = 'submitted')
+              and not exists (select 1 from lr_attempts a where a.test_id = t.id and a.user_id = ${user.id} and a.status = 'submitted' and a.parts is null)
           `)) as unknown as { id: string; title: string; groups: { type: 'gap'; title?: string; instructions: string; options?: unknown; image?: unknown; n: number }[] }[])
         : [];
       const w = weakest[0];
@@ -509,6 +546,4 @@ async function spellingCards(userId: string, skill: 'listening' | 'reading', ana
   if (!fresh.length) return;
   await insertCards(userId, fresh.map((g) => ({ front: `${head(g.word!)} (${g.word!.length} letters)`, back: `${g.word}\nYou wrote: ${g.typed}`, source: 'mistake' as const })));
 }
-
-const scoreTotal = (t: LrTest) => t.sections.reduce((n, s) => n + s.groups.reduce((m, g) => m + g.questions.length, 0), 0);
 

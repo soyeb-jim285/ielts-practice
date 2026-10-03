@@ -168,6 +168,45 @@ describe('listening & reading tests', () => {
       expect((await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'nope' } })).status).toBe(400);
     });
 
+    it('a single part: only its questions are sent, saved and scored, with no band; trend and best band skip it', async () => {
+      const a = await body(await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'exam', parts: [2] } }));
+      expect(a.parts).toEqual([2]);
+      expect(a.test.sections.map((s: any) => s.part)).toEqual([2]);
+      expect(JSON.stringify(a)).not.toContain('"answer"');
+      await req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: { '1': 'TRUE', '14': 'A' }, elapsedS: 5 } });
+      expect((await body(await req(`/api/lr/attempts/${a.id}`, { headers }))).responses).toEqual({ '14': 'A' });
+      const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: perfect(fixture('reading')) } }));
+      expect([s.raw, s.total, s.band, s.parts]).toEqual([13, 13, null, [2]]);
+      expect(s.marks.map((m: any) => m.n)).toEqual([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
+      expect(s.test.sections[0].groups[0].questions[0].answer).toBeTruthy();
+      const item = (await body(await req('/api/lr/tests?skill=reading', { headers }))).items[0];
+      expect([item.status, item.bestBand, item.attempts]).toEqual(['submitted', null, 1]);
+      expect((await body(await req('/api/lr/attempts', { headers }))).items[0]).toMatchObject({ parts: [2], band: null, raw: 13, total: 13 });
+      expect((await body(await req('/api/lr/progress', { headers }))).trend).toEqual([]);
+    });
+
+    it('every part chosen is the whole test; a part the test lacks is 400', async () => {
+      const a = await body(await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'practice', parts: [3, 1, 2] } }));
+      expect(a.parts).toBeNull();
+      expect(a.test.sections).toHaveLength(3);
+      expect((await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'practice', parts: [4], fresh: true } })).status).toBe(400);
+      expect((await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'exam', parts: [4] } })).status).toBe(200);
+    });
+
+    it('fresh discards the in-progress attempt of that test and starts a new one', async () => {
+      const a = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'exam' } }));
+      await req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: { '1': 'x' }, elapsedS: 9 } });
+      const item = (await body(await req('/api/lr/tests?skill=listening', { headers }))).items[0];
+      expect([item.attemptId, item.mode, item.parts, item.answered, item.total]).toEqual([a.id, 'exam', null, 1, 40]);
+      const b = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice', parts: [1], fresh: true } }));
+      expect(b.id).not.toBe(a.id);
+      expect([b.mode, b.parts, b.responses, b.elapsedS]).toEqual(['practice', [1], {}, 0]);
+      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(404);
+      expect((await body(await req('/api/lr/attempts', { headers }))).items.map((x: any) => x.id)).toEqual([b.id]);
+      const again = (await body(await req('/api/lr/tests?skill=listening', { headers }))).items[0];
+      expect([again.attemptId, again.parts, again.total]).toEqual([b.id, [1], 10]);
+    });
+
     it("cannot read, save or submit another user's attempt", async () => {
       const a = await body(await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'practice' } }));
       const other = (await testUser('jim.second@x.com')).headers;

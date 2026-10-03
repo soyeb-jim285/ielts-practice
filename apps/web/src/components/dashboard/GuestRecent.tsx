@@ -6,6 +6,7 @@ import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/compo
 import { Badge, buttonStyles } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate } from '@/lib/format';
+import { partsLabel } from '@/lib/lr';
 import { useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +32,7 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
 
   const rows: Row[] = [
     ...(a.data?.items ?? []).map((x): Row => ({ id: x.id, skill: x.skill, title: x.promptTitle, part: `${x.skill === 'speaking' ? 'Part' : 'Task'} ${x.part}`, mode: x.mode, at: x.createdAt, band: x.overall, state: x.status === 'done' ? 'done' : x.status === 'recording' ? 'open' : x.status === 'failed' ? 'failed' : 'scoring' })),
-    ...(l.data?.items ?? []).filter((x) => !skill || x.skill === skill).map((x): Row => ({ id: x.id, skill: x.skill, title: x.title, part: x.skill === 'listening' ? 'Listening' : 'Reading', mode: x.mode, at: x.startedAt, band: x.band, state: x.status === 'submitted' ? 'done' : 'open' })),
+    ...(l.data?.items ?? []).filter((x) => !skill || x.skill === skill).map((x): Row => ({ id: x.id, skill: x.skill, title: x.title, part: `${x.skill === 'listening' ? 'Listening' : 'Reading'}${x.parts ? `, ${partsLabel(x.skill, x.parts)}` : ''}`, mode: x.mode, at: x.startedAt, band: x.band, state: x.status === 'submitted' ? 'done' : 'open' })),
   ]
     .sort((p, q) => q.at.localeCompare(p.at))
     .slice(0, 5);

@@ -1909,7 +1909,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start an attempt, or resume the in-progress one for this test */
+        /**
+         * Start an attempt, or resume the in-progress one for this test
+         * @description Without `fresh`, an in-progress attempt of this test is resumed whatever mode/parts are asked. With `fresh: true` any in-progress attempt of this test is discarded and a new one starts.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1924,6 +1927,10 @@ export interface paths {
                     "application/json": {
                         /** @enum {string} */
                         mode: "exam" | "practice";
+                        /** @description Take only these parts; omit for the whole test */
+                        parts?: number[];
+                        /** @description Discard the in-progress attempt of this test (if any) and start a new one */
+                        fresh?: boolean;
                     };
                 };
             };
@@ -1935,6 +1942,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["LrAttempt"];
+                    };
+                };
+                /** @description A part this test does not have */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LrError"];
                     };
                 };
                 /** @description Not found (also for a Cambridge test this user may not open) */
@@ -2874,6 +2890,7 @@ export interface components {
             source: "cambridge" | "generated";
             ref: string;
             title: string;
+            /** @description Questions in the in-progress attempt (only its parts), else 40 */
             total: number;
             /**
              * @description From the latest attempt
@@ -2887,10 +2904,13 @@ export interface components {
              * @enum {string|null}
              */
             mode: "exam" | "practice" | null;
+            /** @description Parts of the in-progress attempt (null = whole test or none) */
+            parts: number[] | null;
             /** @description Answered questions in the in-progress attempt */
             answered: number;
+            /** @description Best band of a whole-test attempt (partial attempts have no band) */
             bestBand: number | null;
-            /** @description Submitted attempts */
+            /** @description Submitted attempts (whole and partial) */
             attempts: number;
         };
         LrAttempt: {
@@ -2898,6 +2918,8 @@ export interface components {
             testId: string;
             /** @enum {string} */
             mode: "exam" | "practice";
+            /** @description Chosen parts (listening 1–4, reading passages 1–3); null = the whole test. Partial attempts are scored raw/total with no band. */
+            parts: number[] | null;
             /** @enum {string} */
             status: "in_progress" | "submitted";
             responses: components["schemas"]["LrResponses"];
@@ -2906,6 +2928,7 @@ export interface components {
             submittedAt: string | null;
             raw: number | null;
             total: number | null;
+            /** @description Null while in progress and for partial attempts */
             band: number | null;
             marks: {
                 n: number;
@@ -2967,7 +2990,7 @@ export interface components {
             /** @description Times misspelt in earlier attempts */
             before?: number;
         };
-        /** @description Stripped (no answers, no transcript) until submitted */
+        /** @description Only the chosen parts; stripped (no answers, no transcript) until submitted */
         LrTest: {
             slug: string;
             /** @enum {string} */
@@ -3056,6 +3079,8 @@ export interface components {
             title: string;
             /** @enum {string} */
             mode: "exam" | "practice";
+            /** @description Chosen parts (listening 1–4, reading passages 1–3); null = the whole test. Partial attempts are scored raw/total with no band. */
+            parts: number[] | null;
             /** @enum {string} */
             status: "in_progress" | "submitted";
             raw: number | null;
@@ -3066,7 +3091,7 @@ export interface components {
             submittedAt: string | null;
         };
         LrProgress: {
-            /** @description Last 30 submitted attempts per skill, oldest first */
+            /** @description Last 30 submitted whole-test attempts per skill, oldest first */
             trend: {
                 attemptId: string;
                 /** @enum {string} */

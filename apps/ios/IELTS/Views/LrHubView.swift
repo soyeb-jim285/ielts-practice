@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Listening or Reading hub (web components/lr/Hub.tsx): tests grouped by Cambridge book, then our own tests; status, progress and best band;
-/// tapping a test starts it (mode sheet) or resumes the attempt in progress.
+/// tapping a test opens the mode sheet, which first offers to continue an unfinished attempt.
 struct LrHubView: View {
     @Environment(APIClient.self) private var api
     let skill: String // listening | reading
@@ -84,7 +84,7 @@ struct LrHubView: View {
             ForEach(groups) { g in
                 Section {
                     ForEach(g.tests) { t in
-                        Button { if let a = t.attemptId { runId = a } else { pick = t } } label: { row(t) }
+                        Button { pick = t } label: { row(t) }
                             .listRowBackground(Color.surface)
                     }
                 } header: {
@@ -108,7 +108,7 @@ struct LrHubView: View {
         .navigationDestination(item: $runId) { LrAttemptScreen(id: $0) }
         .sheet(item: $pick) { t in
             LrModeSheet(test: t) { runId = $0 }
-                .presentationDetents([.height(420), .large])
+                .presentationDetents([.height(540), .large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -138,7 +138,7 @@ struct LrHubView: View {
                 if t.skill == "reading" {
                     Chip(text: t.variant == "academic" ? "Academic" : "General Training", color: t.variant == "academic" ? .muted : .sky)
                 }
-                Text(t.attemptId != nil ? "Resume in \(t.mode ?? "practice") mode" : t.status == "submitted" ? "Retake this test" : "40 questions")
+                Text(t.attemptId != nil ? "Resume in \(t.mode ?? "practice") mode" : t.status == "submitted" ? "Retake this test" : listening ? "40 questions, or one part at a time" : "40 questions, or one passage at a time")
                     .font(.caption).foregroundStyle(Color.muted)
             }
             Spacer(minLength: 8)
@@ -154,7 +154,7 @@ struct LrHubView: View {
     @ViewBuilder private func status(_ t: LrTestItem) -> some View {
         if t.status == "in_progress" {
             VStack(alignment: .trailing, spacing: 6) {
-                Text("In progress, \(t.answered)/\(t.total)").font(.caption.weight(.medium).monospacedDigit()).foregroundStyle(Color.brand)
+                Text("\(t.parts == nil ? "In progress" : Lr.partsLabel(t.skill, t.parts)), \(t.answered)/\(t.total)").font(.caption.weight(.medium).monospacedDigit()).foregroundStyle(Color.brand)
                 ProgressView(value: Double(t.answered), total: Double(max(t.total, 1))).frame(width: 90).tint(.brand)
                     .accessibilityLabel("\(t.answered) of \(t.total) answered")
             }
@@ -163,32 +163,65 @@ struct LrHubView: View {
                 Text(fmt(b)).font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(bandTextColor(b, target)).accessibilityLabel("Best band \(fmt(b))")
                 Text(t.attempts == 1 ? "1 attempt" : "\(t.attempts) attempts").font(.caption).foregroundStyle(Color.muted)
             }
+        } else if t.status == "submitted" { // only parts taken: no band yet
+            Text(t.attempts == 1 ? "1 attempt" : "\(t.attempts) attempts").font(.caption).foregroundStyle(Color.muted)
         } else {
             Text("Not started").font(.caption).foregroundStyle(Color.muted)
         }
     }
 }
 
-/// Exam or Practice (same rules as the web dialog), then Start.
+/// Exam or Practice and the whole test or one part (same rules as the web dialog), then Start.
+/// A test with an unfinished attempt first offers Continue or Start new; starting new discards it.
 struct LrModeSheet: View {
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
     let test: LrTestItem
     let onStart: (String) -> Void
     @State private var mode = "exam"
+    @State private var part = 0 // 0 = the whole test
+    @State private var startNew = false
     @State private var busy = false
     @State private var failed = false
 
     private var listening: Bool { test.skill == "listening" }
+    private var noun: String { listening ? "Part" : "Passage" }
+    private var parts: [Int]? { part == 0 ? nil : [part] }
     private var modes: [(key: String, title: String, hint: String, icon: String)] {
-        [("exam", "Exam", listening ? "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself." : "60-minute countdown. Submits itself when time is up.", "timer"),
+        [("exam", "Exam", listening ? "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself." : "\(Lr.readingLimit(parts) / 60)-minute countdown. Submits itself when time is up.", "timer"),
          ("practice", "Practice", listening ? "Pause, rewind, slow down to 0.75× and replay any part. No time limit." : "No time limit. A clock counts up so you can see your pace.", "slider.horizontal.3")]
     }
 
+    private var heading: some View {
+        Text(Lr.parseRef(test.ref).map { "Cambridge IELTS \($0.book), Test \($0.test)" } ?? test.title).font(.display(.title2)).foregroundStyle(Color.ink)
+    }
+
     var body: some View {
+        if let open = test.attemptId, !startNew {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    heading
+                    Text("You have an unfinished \(test.mode ?? "practice") attempt (\(Lr.partsLabel(test.skill, test.parts).lowercased()), \(test.answered) of \(test.total) answered). Continue where you left off, or start again.")
+                        .font(.subheadline).foregroundStyle(Color.muted)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 12) {
+                    Button("Start new") { startNew = true }.secondaryButton().controlSize(.large)
+                    Button { dismiss(); onStart(open) } label: { Text("Continue").frame(maxWidth: .infinity) }
+                        .primaryButton().controlSize(.large)
+                }
+            }
+            .padding(20)
+            .background(Color.canvas)
+        } else {
+            chooser
+        }
+    }
+
+    private var chooser: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(Lr.parseRef(test.ref).map { "Cambridge IELTS \($0.book), Test \($0.test)" } ?? test.title).font(.display(.title2)).foregroundStyle(Color.ink)
+                heading
                 Text("Choose how to take this test.").font(.subheadline).foregroundStyle(Color.muted)
             }
             ForEach(modes, id: \.key) { m in
@@ -208,12 +241,23 @@ struct LrModeSheet: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(mode == m.key ? .isSelected : [])
             }
+            VStack(alignment: .leading, spacing: 6) {
+                Picker(noun, selection: $part) {
+                    Text("All").tag(0)
+                    ForEach(Lr.partNumbers(test.skill), id: \.self) { Text("\($0)").tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel(noun)
+                Text(part == 0 ? "The full test, scored as a band." : "Only \(noun.lowercased()) \(part). Scored out of its questions, with no band.")
+                    .font(.caption).foregroundStyle(Color.muted)
+            }
+            if test.attemptId != nil { Text("Your unfinished attempt will be discarded.").font(.caption).foregroundStyle(Color.muted) }
             if failed { ErrorLine(message: "Could not start the test. Try again.") }
             Spacer(minLength: 0)
             HStack(spacing: 12) {
                 Button("Cancel") { dismiss() }.secondaryButton().controlSize(.large)
                 Button { Task { await start() } } label: {
-                    HStack { if busy { ProgressView() }; Text("Start \(mode) test") }.frame(maxWidth: .infinity)
+                    HStack { if busy { ProgressView() }; Text(part == 0 ? "Start \(mode) test" : "Start \(mode) \(noun.lowercased()) \(part)") }.frame(maxWidth: .infinity)
                 }
                 .primaryButton().controlSize(.large).disabled(busy)
             }
@@ -226,7 +270,10 @@ struct LrModeSheet: View {
         busy = true; failed = false
         defer { busy = false }
         do {
-            let a: LrAttempt = try await api.send("POST", "/api/lr/tests/\(test.id)/attempts", ["mode": mode])
+            // fresh: an unfinished attempt of this test is discarded (the user chose Start new)
+            var body: [String: Any] = ["mode": mode, "fresh": true]
+            if let p = parts { body["parts"] = p }
+            let a: LrAttempt = try await api.send("POST", "/api/lr/tests/\(test.id)/attempts", body)
             dismiss()
             onStart(a.id)
         } catch {

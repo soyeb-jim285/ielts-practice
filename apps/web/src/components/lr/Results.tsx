@@ -7,7 +7,7 @@ import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { Badge, Button, buttonStyles, CountUp, PageContainer, PageHeader, ProgressBar, Segmented, Tabs, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatClock, formatDate, formatDuration } from '@/lib/format';
-import { accuracyBy, flatQuestions, lrProgressQuery, typeLabel, type LrAttempt } from '@/lib/lr';
+import { accuracyBy, flatQuestions, lrProgressQuery, partsLabel, readingSeconds, typeLabel, type LrAttempt } from '@/lib/lr';
 import { useMe } from '@/lib/query';
 import { bandColor } from '@/lib/result';
 import { cn } from '@/lib/utils';
@@ -99,7 +99,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   const retake = async () => {
     setBusy(true);
     try {
-      const a = await call(client.POST('/api/lr/tests/{id}/attempts', { params: { path: { id: attempt.testId } }, body: { mode: attempt.mode } }));
+      const a = await call(client.POST('/api/lr/tests/{id}/attempts', { params: { path: { id: attempt.testId } }, body: { mode: attempt.mode, ...(attempt.parts && { parts: attempt.parts }) } }));
       await navigate({ to: '/lr/run/$attemptId', params: { attemptId: a.id } });
     } finally {
       setBusy(false);
@@ -165,7 +165,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
           </Link>
         }
         title={test.title}
-        description={`${listening ? 'Listening' : 'Reading'}, ${test.variant === 'academic' ? 'Academic' : 'General Training'}, ${attempt.mode} mode, ${formatDate(attempt.submittedAt ?? attempt.startedAt)}${time ? `, ${time}` : ''}`}
+        description={`${listening ? 'Listening' : 'Reading'}, ${test.variant === 'academic' ? 'Academic' : 'General Training'}, ${attempt.parts ? `${partsLabel(test.skill, attempt.parts)}, ` : ''}${attempt.mode} mode, ${formatDate(attempt.submittedAt ?? attempt.startedAt)}${time ? `, ${time}` : ''}`}
         actions={
           <>
             <Button icon={<RotateCcw />} loading={busy} onClick={retake}>
@@ -177,25 +177,37 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
       />
 
       <div className="mb-8 border-y border-line py-5 sm:py-6">
-        <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+        {attempt.parts ? (
+          // a part on its own has no band: IELTS bands only map from all 40 questions
           <div>
-            <p className="type-caption">Band</p>
+            <p className="type-caption">Score</p>
             <p className="type-band text-6xl sm:text-7xl">
-              <span className="sr-only">Band </span>
-              <CountUp value={band} decimals={1} />
-            </p>
-          </div>
-          <div className="space-y-1.5 pb-1">
-            <p className="type-band text-3xl">
               {attempt.raw}
               <span className="text-muted">/{attempt.total}</span>
-              <span className="type-caption ml-2 font-normal">correct</span>
             </p>
-            <p className="type-lede type-num">
-              <span className={cn('font-medium', TONE_TEXT[bandColor(band, target)])}>{gap <= 0 ? 'At or above' : `${formatBand(gap)} below`}</span> your {formatBand(target)} target
-            </p>
+            <p className="type-lede mt-1.5">{partsLabel(test.skill, attempt.parts)} only. Take the full test for a band score.</p>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+            <div>
+              <p className="type-caption">Band</p>
+              <p className="type-band text-6xl sm:text-7xl">
+                <span className="sr-only">Band </span>
+                <CountUp value={band} decimals={1} />
+              </p>
+            </div>
+            <div className="space-y-1.5 pb-1">
+              <p className="type-band text-3xl">
+                {attempt.raw}
+                <span className="text-muted">/{attempt.total}</span>
+                <span className="type-caption ml-2 font-normal">correct</span>
+              </p>
+              <p className="type-lede type-num">
+                <span className={cn('font-medium', TONE_TEXT[bandColor(band, target)])}>{gap <= 0 ? 'At or above' : `${formatBand(gap)} below`}</span> your {formatBand(target)} target
+              </p>
+            </div>
+          </div>
+        )}
         {wrongCount > 0 && (
           <Button className="mt-5" onClick={() => { setWrongOnly(true); setTab('answers'); }}>
             See your {wrongCount} {wrongCount === 1 ? 'mistake' : 'mistakes'}
@@ -241,7 +253,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                   stats={attempt.stats}
                   parts={test.sections.map((s) => ({ part: s.part, questions: s.groups.flatMap((g) => g.questions.map((q) => q.n)) }))}
                   noun={noun}
-                  totalS={listening ? undefined : 3600}
+                  totalS={listening ? undefined : readingSeconds(attempt.parts)}
                   marks={marks}
                   blank={blank}
                 />

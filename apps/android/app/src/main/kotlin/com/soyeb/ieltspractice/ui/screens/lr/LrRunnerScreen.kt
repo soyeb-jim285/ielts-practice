@@ -60,7 +60,8 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.LrAttempt
-import com.soyeb.ieltspractice.core.READING_SECONDS
+import com.soyeb.ieltspractice.core.partsLabel
+import com.soyeb.ieltspractice.core.readingSeconds
 import com.soyeb.ieltspractice.core.answeredCount
 import com.soyeb.ieltspractice.core.flat
 import com.soyeb.ieltspractice.core.isAnswered
@@ -151,11 +152,13 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     }
     LaunchedEffect(playlist.elapsed) { if (examListening && playlist.phase != ExamPhase.Idle) session.elapsed = playlist.elapsed }
     val started = !examListening || playlist.phase != ExamPhase.Idle
-    val readingLeft = READING_SECONDS - wall.toInt()
+    val modeNote = attempt.parts?.let { ", ${partsLabel(test.skill, it)}" }.orEmpty()
+    val limit = readingSeconds(attempt.parts) // 20 minutes per passage when taking only some
+    val readingLeft = limit - wall.toInt()
     val timeUp = demo == null && exam && (if (listening) playlist.phase == ExamPhase.Review && playlist.reviewLeft == 0 else readingLeft <= 0)
     var leaving by remember { mutableStateOf(false) }
     // pacing: late = the last 5 minutes of reading; in the exam listening, after the recordings end
-    session.lateFrom = if (listening) (if (exam && playlist.total > 0) playlist.total else Double.POSITIVE_INFINITY) else READING_SECONDS - 300.0
+    session.lateFrom = if (listening) (if (exam && playlist.total > 0) playlist.total else Double.POSITIVE_INFINITY) else limit - 300.0
     var foreground by remember { mutableStateOf(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { foreground = true }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { foreground = false }
@@ -240,24 +243,24 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
                     }
                 }
                 when {
-                    !started -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp)) { ExamGate(playlist, attempt.elapsedS > 0, ::exit) }
+                    !started -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp)) { ExamGate(playlist, attempt.elapsedS > 0, ::exit, parts = sections.map { it.part }) }
                     listening -> {
                         Surface2 {
-                            if (exam) ExamAudioBar(playlist)
+                            if (exam) ExamAudioBar(playlist, parts = attempt.parts?.let { sections.map { s -> s.part } })
                             else androidx.compose.runtime.key(section.audio) { PracticeAudio(attempt.assets[section.audio.orEmpty()].orEmpty(), "Part ${section.part}", resume = LrResume(session.audioStart(section.part), session.audioRate, { session.noteAudio(section.part, it) }, session::saveAudio, session::noteRate)) }
                         }
-                        QuestionsPane(section, ctx, exam, true, Modifier.weight(1f).fillMaxWidth())
+                        QuestionsPane(section, ctx, exam, true, Modifier.weight(1f).fillMaxWidth(), modeNote)
                     }
                     wide -> Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) { SectionPassage(section) }
-                        QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxSize())
+                        QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxSize(), modeNote)
                     }
                     else -> {
                         Segmented(listOf("passage" to "Passage", "questions" to "Questions"), tab, { tab = it })
                         if (tab == "passage") Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
                             SectionPassage(section)
                             Text("Press and hold to select text and copy it.", Modifier.padding(top = 16.dp, bottom = 16.dp), style = MaterialTheme.typography.bodySmall, color = e.muted)
-                        } else QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxWidth())
+                        } else QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxWidth(), modeNote)
                     }
                 }
             }
@@ -348,12 +351,12 @@ private fun Surface2(content: @Composable ColumnScope.() -> Unit) {
 
 /** The groups of one section, scrolling. Keyed by part so every part keeps its own scroll position. */
 @Composable
-private fun QuestionsPane(section: com.soyeb.ieltspractice.core.LrSection, ctx: QCtx, exam: Boolean, listening: Boolean, modifier: Modifier) {
+private fun QuestionsPane(section: com.soyeb.ieltspractice.core.LrSection, ctx: QCtx, exam: Boolean, listening: Boolean, modifier: Modifier, note: String = "") {
     val e = MaterialTheme.ext
     androidx.compose.runtime.key(section.part) {
         Column(modifier.verticalScroll(rememberScrollState()).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Text(
-                "${if (listening) "Part" else "Passage"} ${section.part}: Questions ${section.groups.firstOrNull()?.from} to ${section.groups.lastOrNull()?.to}  ·  ${if (exam) "Exam" else "Practice"} mode",
+                "${if (listening) "Part" else "Passage"} ${section.part}: Questions ${section.groups.firstOrNull()?.from} to ${section.groups.lastOrNull()?.to}  ·  ${if (exam) "Exam" else "Practice"} mode$note",
                 style = MaterialTheme.typography.bodySmall, color = e.muted,
             )
             section.groups.forEach { QuestionGroup(it, ctx) }

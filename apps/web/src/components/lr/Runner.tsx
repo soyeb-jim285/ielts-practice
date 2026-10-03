@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Dialog, Segmented, Sheet, Tabs, toast } from '@/components/ui';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatClock, plural } from '@/lib/format';
-import { flatQuestions, isAnswered, lsGet, lsSet, READING_SECONDS, type LrAttempt, type LrSection } from '@/lib/lr';
+import { flatQuestions, isAnswered, lsGet, lsSet, partsLabel, readingSeconds, type LrAttempt, type LrSection } from '@/lib/lr';
 import { cn } from '@/lib/utils';
 import { ExamAudioBar, PracticeAudio, useExamPlaylist } from './Audio';
 import { Navigator, type NavPart } from './Navigator';
@@ -86,7 +86,8 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   const lateFrom = useRef(Infinity); // elapsed seconds after which answers count as last-minute (set once the playlist is known)
   const session = useLrSession(attempt, lateFrom);
   const { responses, change, state, submit, submitting } = session;
-  const sections = test.sections;
+  const sections = test.sections; // only the chosen parts of a partial attempt
+  const limit = readingSeconds(attempt.parts);
   const flat = useMemo(() => flatQuestions(test), [test]);
   const total = flat.length;
   const posKey = `lr:${attempt.id}:pos`;
@@ -105,7 +106,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   // ---- clocks ----
   const playlist = useExamPlaylist(useMemo(() => (listening ? sections.map((s) => assets[s.audio ?? ''] ?? '') : []), [listening, sections, assets]), attempt.elapsedS);
   const examListening = listening && exam;
-  lateFrom.current = listening ? (exam && playlist.total ? playlist.total : Infinity) : READING_SECONDS - 300; // last 5 min of reading; exam listening: after the recording ends
+  lateFrom.current = listening ? (exam && playlist.total ? playlist.total : Infinity) : limit - 300; // last 5 min of reading; exam listening: after the recording ends
   const wall = useWallClock(attempt.elapsedS, !examListening, session.elapsed);
   useEffect(() => {
     if (examListening && playlist.phase !== 'idle') session.elapsed.current = playlist.elapsed;
@@ -119,7 +120,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
     }, 1000);
     return () => clearInterval(i);
   }, [started, partNo, session.stats]);
-  const readingLeft = READING_SECONDS - wall;
+  const readingLeft = limit - wall;
   const timeUp = exam && (listening ? playlist.phase === 'review' && playlist.reviewLeft === 0 : readingLeft <= 0);
   const doSubmit = useCallback(async () => {
     leaving.current = true;
@@ -213,7 +214,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
       <div className="mx-auto max-w-lg px-4 py-14">
         <Headphones className="mb-4 size-7 text-accent-text" aria-hidden />
         <h2 className="type-title-sm">{attempt.elapsedS > 0 ? 'Ready to continue?' : 'Ready to listen?'}</h2>
-        <p className="type-lede mt-2">The recording plays once, from Part 1 to Part 4, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.</p>
+        <p className="type-lede mt-2">The recording plays once, {sections.length > 1 ? `from Part ${sections[0]!.part} to Part ${sections.at(-1)!.part}` : `Part ${sections[0]?.part} only`}, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.</p>
         <p className="type-caption mt-3">Check your volume first. Use headphones if you can.</p>
         {playlist.error && <Alert tone="bad" className="mt-4">The recording could not be loaded. Check your connection and reload.</Alert>}
         <div className="mt-6 flex gap-2">
@@ -231,7 +232,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
       <div className="h-full overflow-y-auto px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-[46rem]">
           <div className="sticky top-0 z-20 -mx-2 mb-6 rounded-lg border border-line bg-card px-4 py-3 shadow-card">
-            {exam ? <ExamAudioBar playlist={playlist} /> : <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} resume={{ start: session.audio.start(section.part), rate: session.audio.rate, set: (p, r) => session.audio.set(section.part, p, r), save: session.audio.save }} />}
+            {exam ? <ExamAudioBar playlist={playlist} parts={attempt.parts ? sections.map((s) => s.part) : undefined} /> : <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} resume={{ start: session.audio.start(section.part), rate: session.audio.rate, set: (p, r) => session.audio.set(section.part, p, r), save: session.audio.save }} />}
           </div>
           {questions}
         </div>
@@ -268,7 +269,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
         </Button>
         <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight max-sm:hidden">
           {test.title}
-          <span className="ml-2 font-normal text-muted">{exam ? 'Exam mode' : 'Practice mode'}</span>
+          <span className="ml-2 font-normal text-muted">{exam ? 'Exam mode' : 'Practice mode'}{attempt.parts ? `, ${partsLabel(test.skill, attempt.parts)}` : ''}</span>
         </div>
         <div className="ml-auto flex items-center gap-3">
           <SaveIndicator state={state} />

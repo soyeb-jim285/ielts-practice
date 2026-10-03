@@ -12,7 +12,7 @@ import { call, client } from '@/lib/api';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { loadForAccount, useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
-import { lrAttemptsQuery } from '@/lib/lr';
+import { lrAttemptsQuery, partsLabel } from '@/lib/lr';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
@@ -97,7 +97,7 @@ function HistoryPage() {
                     </RowIcon>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="type-subheading line-clamp-2 min-w-0 font-medium">{a.title}</span>
+                        <span className="type-subheading line-clamp-2 min-w-0 font-medium">{a.title}{a.parts ? `, ${partsLabel(a.skill, a.parts)}` : ''}</span>
                         {!done && <Badge tone="warn" className="shrink-0">In progress</Badge>}
                       </span>
                       <span className="type-caption mt-0.5 block md:hidden">{a.mode === 'exam' ? 'Exam' : 'Practice'}, {formatDate(a.startedAt)}{done ? `, ${a.raw}/${a.total}` : ''}</span>

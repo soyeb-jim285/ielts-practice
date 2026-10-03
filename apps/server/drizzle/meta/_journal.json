@@ -71,6 +71,13 @@
       "when": 1791062785776,
       "tag": "0009_speaking_segments",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791071258714,
+      "tag": "0010_lr_parts",
+      "breakpoints": true
     }
   ]
 }

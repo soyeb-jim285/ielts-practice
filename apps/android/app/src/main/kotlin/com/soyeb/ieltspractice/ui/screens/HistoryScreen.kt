@@ -48,6 +48,7 @@ import com.soyeb.ieltspractice.ui.nav.History
 import com.soyeb.ieltspractice.ui.nav.LrHub
 import com.soyeb.ieltspractice.ui.nav.LrResult
 import com.soyeb.ieltspractice.ui.nav.LrRun
+import com.soyeb.ieltspractice.core.partsLabel
 import com.soyeb.ieltspractice.core.LrAttemptItem
 import com.soyeb.ieltspractice.ui.Load
 import com.soyeb.ieltspractice.ui.rememberLoad
@@ -205,7 +206,7 @@ private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit, 
             Text(a.title, style = MaterialTheme.typography.titleSmall, color = e.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!done) Chip("In progress", color = e.warnText)
             Text(
-                "${if (a.mode == "exam") "Exam" else "Practice"}, ${ShellDate.date(a.startedAt)}",
+                "${if (a.mode == "exam") "Exam" else "Practice"}, ${a.parts?.let { "${partsLabel(a.skill, it)}, " }.orEmpty()}${ShellDate.date(a.startedAt)}",
                 style = MaterialTheme.typography.bodySmall, color = e.muted,
             )
         }
@@ -217,6 +218,7 @@ private fun LrHistoryRow(a: LrAttemptItem, target: Double, onClick: () -> Unit, 
             Text("${a.raw}/${a.total}", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall.merge(AppText.num), color = e.muted)
             Text(fmt(b), style = AppText.band(20), color = bandTextColor(b, target))
         }
+        else if (done) Text("${a.raw}/${a.total}", Modifier.clearAndSetSemantics { contentDescription = "Score ${a.raw} of ${a.total}" }, style = AppText.band(20), color = e.ink) // partial: a score, no band
     }
     }
 }

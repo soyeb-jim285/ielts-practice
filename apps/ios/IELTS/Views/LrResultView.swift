@@ -183,21 +183,32 @@ struct LrResultView: View {
     private var hero: some View {
         let gap = target - band
         return VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .bottom, spacing: 24) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Band").font(.subheadline).foregroundStyle(Color.muted)
-                    Text(fmt(band)).font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(band, target))
-                        .contentTransition(.numericText()).accessibilityLabel("Band \(fmt(band))")
+            if let parts = attempt.parts {
+                // a part on its own has no band: IELTS bands only map from all 40 questions
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Score").font(.subheadline).foregroundStyle(Color.muted)
+                    (Text("\(raw)").foregroundStyle(Color.ink) + Text("/\(attempt.total ?? 0)").foregroundStyle(Color.muted))
+                        .font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit())
+                        .accessibilityLabel("\(raw) of \(attempt.total ?? 0) correct")
+                    Text("\(Lr.partsLabel(test.skill, parts)) only. Take the full test for a band score.").font(.subheadline).foregroundStyle(Color.muted)
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    (Text("\(raw)").foregroundStyle(Color.ink) + Text("/\(attempt.total ?? 40)").foregroundStyle(Color.muted) + Text("  correct").font(.subheadline).foregroundStyle(Color.muted))
-                        .font(.system(size: 28, weight: .bold, design: .serif).monospacedDigit())
-                        .accessibilityLabel("\(raw) of \(attempt.total ?? 40) correct")
-                    Text(gap <= 0 ? "At or above your \(fmt(target)) target" : "\(fmt(gap)) below your \(fmt(target)) target")
-                        .font(.subheadline.weight(.medium)).foregroundStyle(bandTextColor(band, target))
+            } else {
+                HStack(alignment: .bottom, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Band").font(.subheadline).foregroundStyle(Color.muted)
+                        Text(fmt(band)).font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(band, target))
+                            .contentTransition(.numericText()).accessibilityLabel("Band \(fmt(band))")
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        (Text("\(raw)").foregroundStyle(Color.ink) + Text("/\(attempt.total ?? 40)").foregroundStyle(Color.muted) + Text("  correct").font(.subheadline).foregroundStyle(Color.muted))
+                            .font(.system(size: 28, weight: .bold, design: .serif).monospacedDigit())
+                            .accessibilityLabel("\(raw) of \(attempt.total ?? 40) correct")
+                        Text(gap <= 0 ? "At or above your \(fmt(target)) target" : "\(fmt(gap)) below your \(fmt(target)) target")
+                            .font(.subheadline.weight(.medium)).foregroundStyle(bandTextColor(band, target))
+                    }
+                    .padding(.bottom, 8)
+                    Spacer(minLength: 0)
                 }
-                .padding(.bottom, 8)
-                Spacer(minLength: 0)
             }
             if wrongCount > 0 {
                 Button { wrongOnly = true; tab = .answers } label: { Text("See your \(wrongCount) \(wrongCount == 1 ? "mistake" : "mistakes")").frame(maxWidth: .infinity) }
@@ -231,7 +242,7 @@ struct LrResultView: View {
             if let st = attempt.stats {
                 fold("How you used your time", hint: "Minutes per \(test.partNoun.lowercased()), answers you changed, last-minute answers.") {
                     LrPacingPanel(stats: st, parts: test.sections.map { (part: $0.part, questions: $0.groups.flatMap { $0.questions.map(\.n) }) }, noun: test.partNoun,
-                                  totalS: listening ? nil : 3600, marks: marks, blank: blankNs)
+                                  totalS: listening ? nil : Lr.readingLimit(attempt.parts), marks: marks, blank: blankNs)
                 }
             }
             if !(attempt.analysis?.tfng ?? []).isEmpty {
@@ -421,7 +432,9 @@ struct LrResultView: View {
         busy = true
         defer { busy = false }
         do {
-            let a: LrAttempt = try await api.send("POST", "/api/lr/tests/\(attempt.testId)/attempts", ["mode": attempt.mode])
+            var body: [String: Any] = ["mode": attempt.mode]
+            if let p = attempt.parts { body["parts"] = p }
+            let a: LrAttempt = try await api.send("POST", "/api/lr/tests/\(attempt.testId)/attempts", body)
             retakeId = a.id
         } catch {
             failed = true

@@ -24,6 +24,16 @@ final class LrTests: XCTestCase {
         XCTAssertEqual(Lr.setGapPart(" / x", 1, 2, ""), "")
     }
 
+    func testPartialAttempts() {
+        XCTAssertEqual(Lr.readingLimit(nil), 3600)
+        XCTAssertEqual(Lr.readingLimit([2]), 1200)
+        XCTAssertEqual(Lr.partsLabel("listening", [3]), "Part 3")
+        XCTAssertEqual(Lr.partsLabel("reading", [1, 3]), "Passages 1, 3")
+        XCTAssertEqual(Lr.partsLabel("reading", nil), "Full test")
+        let item = try! JSONDecoder().decode(LrTestItem.self, from: Data(#"{"id":"t","slug":"s","skill":"reading","variant":"academic","source":"generated","ref":"G1","title":"T","total":13,"status":"in_progress","attemptId":"a","mode":"exam","parts":[2],"answered":1,"bestBand":null,"attempts":0}"#.utf8))
+        XCTAssertEqual(item.parts, [2])
+    }
+
     func testParseRef() {
         XCTAssertEqual(Lr.parseRef("C17 T2")?.book, 17)
         XCTAssertEqual(Lr.parseRef("C17 T2")?.test, 2)

@@ -55,6 +55,14 @@ class LrLogicTest {
         assertEquals("", setGapPart(" / x", 1, 2, ""))
     }
 
+    @Test fun partialAttemptsScaleTheClockAndLabel() {
+        assertEquals(3600, readingSeconds(null))
+        assertEquals(1200, readingSeconds(listOf(2)))
+        assertEquals("Full test", partsLabel("reading", null))
+        assertEquals("Part 2", partsLabel("listening", listOf(2)))
+        assertEquals("Passages 1, 3", partsLabel("reading", listOf(1, 3)))
+    }
+
     @Test fun hubGroupsByBookNewestFirst() {
         fun t(ref: String, source: String = "cambridge") = LrTestItem(id = ref, skill = "reading", ref = ref, title = ref, source = source)
         val g = lrHubGroups(listOf(t("C16 T2"), t("Own 1", "generated"), t("C17 T3"), t("C17 T1"), t("C16 T1")))

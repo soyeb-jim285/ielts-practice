@@ -322,14 +322,14 @@ export function useExamPlaylist(urls: string[], startElapsed: number) {
 }
 
 /** Exam recording bar: whole-test progress, which part is playing, volume. No transport controls on purpose. */
-export function ExamAudioBar({ playlist }: { playlist: ReturnType<typeof useExamPlaylist> }) {
+export function ExamAudioBar({ playlist, parts }: { playlist: ReturnType<typeof useExamPlaylist>; parts?: number[] }) {
   const { phase, idx, elapsed, total, durations, stalled, resume, reviewLeft, el } = playlist;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2" role="group" aria-label="Recording">
       <Headphones className="size-5 shrink-0 text-accent-text" aria-hidden />
       <div className="min-w-0 flex-1 basis-56">
         <p className="type-num text-sm font-medium">
-          {phase === 'review' ? 'Recording finished. Check your answers.' : `Part ${idx + 1} of ${durations?.length ?? 4} is playing`}
+          {phase === 'review' ? 'Recording finished. Check your answers.' : parts ? `Part ${parts[idx]} is playing` : `Part ${idx + 1} of ${durations?.length ?? 4} is playing`}
         </p>
         <ProgressBar label="Recording progress" value={total ? Math.min(1, elapsed / total) : 0} className="mt-1.5 h-1.5" />
       </div>

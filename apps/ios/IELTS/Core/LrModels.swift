@@ -92,6 +92,7 @@ struct LrAttempt: Codable {
     let id: String
     let testId: String
     let mode: String // exam | practice
+    var parts: [Int]? = nil // chosen parts; nil = the whole test (partial attempts have no band)
     var status: String // in_progress | submitted
     var responses: [String: String]
     var elapsedS: Int
@@ -184,8 +185,9 @@ struct LrTestItem: Codable, Identifiable, Hashable {
     let status: String // new | in_progress | submitted
     let attemptId: String?
     let mode: String?
+    var parts: [Int]? = nil // parts of the in-progress attempt; nil = whole test
     let answered: Int
-    let bestBand: Double?
+    let bestBand: Double? // whole-test attempts only
     let attempts: Int
 }
 
@@ -197,6 +199,7 @@ struct LrAttemptItem: Codable, Identifiable {
     let ref: String
     let title: String
     let mode: String
+    var parts: [Int]? = nil
     let status: String
     let raw: Int?
     let total: Int?
@@ -208,6 +211,15 @@ struct LrAttemptItem: Codable, Identifiable {
 
 enum Lr {
     static let readingSeconds = 3600
+    /// Exam reading clock: 60 minutes for the whole test, 20 per passage when taking only some.
+    static func readingLimit(_ parts: [Int]?) -> Int { guard let p = parts, !p.isEmpty else { return readingSeconds }; return 1200 * p.count }
+    /// Every test has 4 listening parts / 3 reading passages; the server rejects a part a test lacks.
+    static func partNumbers(_ skill: String) -> [Int] { skill == "listening" ? [1, 2, 3, 4] : [1, 2, 3] }
+    /// "Part 2", "Passages 1, 3", or "Full test" when parts is nil.
+    static func partsLabel(_ skill: String, _ parts: [Int]?) -> String {
+        guard let p = parts, !p.isEmpty else { return "Full test" }
+        return "\(skill == "listening" ? "Part" : "Passage")\(p.count > 1 ? "s" : "") \(p.map { String($0) }.joined(separator: ", "))"
+    }
     static let listeningReviewSeconds = 120
 
     /// The heading a question type is reported under (web typeLabel).

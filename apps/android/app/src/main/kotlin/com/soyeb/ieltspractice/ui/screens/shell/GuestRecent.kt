@@ -36,6 +36,7 @@ import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.AttemptPage
 import com.soyeb.ieltspractice.core.Band
 import com.soyeb.ieltspractice.core.LrAttemptItem
+import com.soyeb.ieltspractice.core.partsLabel
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
 import com.soyeb.ieltspractice.ui.nav.LrResult
@@ -73,7 +74,7 @@ fun GuestRecentSection(nav: AppNav, skill: String = "") {
         }
         if (skill.isEmpty() || skill == "listening" || skill == "reading") runCatching { api.getList<LrAttemptItem>("/api/lr/attempts") }.getOrNull()
             ?.filter { skill.isEmpty() || it.skill == skill }?.forEach {
-                out += Recent(it.id, it.skill, it.title, if (it.skill == "listening") "Listening" else "Reading", it.mode, it.startedAt, it.band, if (it.status == "submitted") "done" else "open")
+                out += Recent(it.id, it.skill, it.title, (if (it.skill == "listening") "Listening" else "Reading") + it.parts?.let { p -> ", ${partsLabel(it.skill, p)}" }.orEmpty(), it.mode, it.startedAt, it.band, if (it.status == "submitted") "done" else "open")
             }
         value = out.sortedByDescending { it.at }.take(5)
     }
