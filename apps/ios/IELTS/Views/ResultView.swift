@@ -408,6 +408,9 @@ struct ResultView: View {
     @State private var selected = 0
     @State private var poll = 0
     @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var removing: RemovalTarget?
+    @State private var removeFailed = false
     @State private var retryNote: String? // a refused retry (no test left, balance used up); the attempt stays as it was
 
     /// Parts in part order (web sorts the same way), once every part has loaded; the given order until then.
@@ -443,6 +446,20 @@ struct ResultView: View {
         .safeAreaInset(edge: .top, spacing: 0) { banners }
         .navigationTitle("Results")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !ids.isEmpty, let f = fetched[ordered[index]] {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) { removing = RemovalTarget(id: f.attempt.id, title: f.attempt.prompt.title, lr: false) } label: { Label("Remove from history", systemImage: "trash") }
+                    } label: { Image(systemName: "ellipsis.circle") }
+                        .accessibilityLabel("More actions")
+                }
+            }
+        }
+        .confirmRemoval($removing) { t in
+            Task { do { try await AttemptRemoval.remove(api, id: t.id, lr: false); dismiss() } catch { removeFailed = true } }
+        }
+        .alert("Could not remove this result", isPresented: $removeFailed) { Button("OK", role: .cancel) {} }
         .task(id: poll) { await pollUntilDone() }
         .task { await api.loadQuota() }
     }

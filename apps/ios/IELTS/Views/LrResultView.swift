@@ -18,6 +18,9 @@ struct LrResultView: View {
     @State private var dictOpen = false
     @State private var tfngPattern: String?
     @State private var busy = false
+    @State private var removing: RemovalTarget?
+    @State private var removeFailed = false
+    @Environment(\.dismiss) private var dismiss
     @State private var failed = false
     @State private var retakeId: String?
     @State private var vocabOpen = false
@@ -107,7 +110,19 @@ struct LrResultView: View {
         .onChange(of: tab) { _, t in if t != .context, practice.playing { practice.toggle() } }
         .navigationTitle(listening ? "Listening result" : "Reading result")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Retake") { Task { await retake() } }.disabled(busy).fontWeight(.semibold) } }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { Button("Retake") { Task { await retake() } }.disabled(busy).fontWeight(.semibold) }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(role: .destructive) { removing = RemovalTarget(id: attempt.id, title: attempt.test.title, lr: true) } label: { Label("Remove from history", systemImage: "trash") }
+                } label: { Image(systemName: "ellipsis.circle") }
+                    .accessibilityLabel("More actions")
+            }
+        }
+        .confirmRemoval($removing) { t in
+            Task { do { try await AttemptRemoval.remove(api, id: t.id, lr: true); dismiss() } catch { removeFailed = true } }
+        }
+        .alert("Could not remove this test", isPresented: $removeFailed) { Button("OK", role: .cancel) {} }
         .navigationDestination(item: $retakeId) { LrAttemptScreen(id: $0) }
         .alert("Could not start a new attempt", isPresented: $failed) { Button("OK", role: .cancel) {} }
         .sheet(isPresented: $dictOpen) {

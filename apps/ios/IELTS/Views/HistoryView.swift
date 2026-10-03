@@ -93,6 +93,7 @@ struct HistoryView: View {
     @State private var page = 1
     @State private var loading = true
     @State private var error: String?
+    @State private var removing: RemovalTarget?
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
     private var hasLr: Bool { api.me != nil }
@@ -150,6 +151,13 @@ struct HistoryView: View {
                     ForEach(g.items) { a in
                         NavigationLink(value: a.lr ? Route.lrAttempt(id: a.id) : Route.result([a.id])) { HistoryRow(a: a, target: target) }
                             .listRowBackground(Color.surface)
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) { removing = RemovalTarget(id: a.id, title: a.promptTitle, lr: a.lr) } label: { Label("Remove", systemImage: "trash") }
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) { removing = RemovalTarget(id: a.id, title: a.promptTitle, lr: a.lr) } label: { Label("Remove from history", systemImage: "trash") }
+                            }
+                            .accessibilityAction(named: "Remove from history") { removing = RemovalTarget(id: a.id, title: a.promptTitle, lr: a.lr) }
                             .onAppear { if a.id == items.last?.id && items.count < total { Task { await load(reset: false) } } }
                     }
                 } header: {
@@ -180,7 +188,20 @@ struct HistoryView: View {
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load(reset: true) }
+        .confirmRemoval($removing) { t in Task { await remove(t) } }
         .task(id: skill) { await load(reset: true) }
+    }
+
+    /// Drops the row at once; if the server refuses, the lists reload and the error shows.
+    private func remove(_ t: RemovalTarget) async {
+        withAnimation {
+            if t.lr { lrItems.removeAll { $0.id == t.id } } else if items.contains(where: { $0.id == t.id }) { items.removeAll { $0.id == t.id }; total = max(0, total - 1) }
+        }
+        do { try await AttemptRemoval.remove(api, id: t.id, lr: t.lr) } catch {
+            let msg = "Couldn't remove it: \(error.localizedDescription)"
+            await load(reset: true)
+            self.error = msg
+        }
     }
 
     private func load(reset: Bool) async {

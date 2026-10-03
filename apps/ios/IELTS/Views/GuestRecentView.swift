@@ -7,6 +7,7 @@ struct GuestRecentView: View {
     /// "" = every skill (Home), or speaking | writing | listening | reading for that hub.
     var skill = ""
     @State private var rows: [Row] = []
+    @State private var removing: RemovalTarget?
 
     struct Row: Identifiable {
         let id: String
@@ -24,6 +25,7 @@ struct GuestRecentView: View {
     var body: some View {
         if api.isGuest {
             content.task(id: skill) { await load() }
+                .confirmRemoval($removing) { t in Task { await remove(t) } }
         }
     }
 
@@ -36,6 +38,10 @@ struct GuestRecentView: View {
                         if i > 0 { Divider().padding(.leading, 52) }
                         NavigationLink(value: r.skill == "listening" || r.skill == "reading" ? Route.lrAttempt(id: r.id) : Route.result([r.id])) { row(r) }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) { removing = RemovalTarget(id: r.id, title: r.title, lr: r.skill == "listening" || r.skill == "reading") } label: { Label("Remove from history", systemImage: "trash") }
+                            }
+                            .accessibilityAction(named: "Remove from history") { removing = RemovalTarget(id: r.id, title: r.title, lr: r.skill == "listening" || r.skill == "reading") }
                     }
                 }
                 .background(Color.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -73,6 +79,12 @@ struct GuestRecentView: View {
         .frame(minHeight: 56)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private func remove(_ t: RemovalTarget) async {
+        withAnimation { rows.removeAll { $0.id == t.id } }
+        try? await AttemptRemoval.remove(api, id: t.id, lr: t.lr)
+        await load() // a refused delete brings the row back
     }
 
     private func load() async {
