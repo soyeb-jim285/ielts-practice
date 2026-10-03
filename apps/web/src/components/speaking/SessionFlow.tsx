@@ -193,7 +193,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
             </>
           ) : (
             <div className="space-y-4">
-              <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} n={multiQ ? qIdx + 1 : undefined} total={seg.questions.length} />
+              <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} n={multiQ ? qIdx + 1 : undefined} heading={seg.part === 3 && seg.prompt.bullets?.length === 2 ? seg.prompt.bullets[Math.floor((qIdx * 2) / seg.questions.length)] : undefined} total={seg.questions.length} />
               <h1 key={qIdx} className="type-title motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
                 {seg.questions[qIdx]}
               </h1>
@@ -397,7 +397,8 @@ function MicCheckStep() {
 }
 
 /** Topic (+ part on phones, where the top bar title is hidden in a multi-part test) and a segmented track showing which question you are on. */
-function PartMeta({ seg, p1Pos, p1Count, multi, n, total }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean; n?: number; total: number }) {
+/** heading: the Part 3 sub-topic the current question belongs to (Cambridge groups Part 3 into two headed sub-topics) */
+function PartMeta({ seg, p1Pos, p1Count, multi, n, total, heading }: { seg: Segment; p1Pos: number; p1Count: number; multi: boolean; n?: number; total: number; heading?: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
       <p className="type-caption type-num flex flex-wrap items-center gap-x-2">
@@ -407,7 +408,7 @@ function PartMeta({ seg, p1Pos, p1Count, multi, n, total }: { seg: Segment; p1Po
             {seg.part === 1 && p1Count > 1 && `, ${p1Pos}/${p1Count}`}
           </span>
         )}
-        <span className="font-medium text-ink">{seg.prompt.topic || seg.prompt.title}</span>
+        <span className="font-medium text-ink">{heading ?? (seg.prompt.topic || seg.prompt.title)}</span>
       </p>
       {n != null && (
         <p className="type-caption type-num flex items-center gap-2.5">

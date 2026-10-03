@@ -107,6 +107,9 @@ describe('speaking test + seed', () => {
     expect(t.part2.bullets.length).toBeGreaterThan(0);
     expect(t.part3.part).toBe(3);
     expect(t.part3.groupId).toBe(t.part2.groupId);
+    // Cambridge shape: 3 bullets, a full-stop title; Part 3 = two headed sub-topics of 3 questions (headings in bullets)
+    expect([t.part2.bullets.length, t.part2.title.endsWith('.')]).toEqual([3, true]);
+    expect([t.part3.followUps.length, t.part3.bullets.length, t.part3.title.endsWith('.')]).toEqual([6, 2, false]);
     expect((await req('/api/speaking/test?source=cambridge', { headers })).status).toBe(404);
   });
 
@@ -120,6 +123,19 @@ describe('speaking test + seed', () => {
     await seedBank(db, dir);
     const [after] = await db.select().from(prompts);
     expect([after!.id, after!.type, after!.followUps]).toEqual([before!.id, 'p1-intro', ['New question?']]);
+  });
+
+  it('stores Part 3 sub-topic headings on the linked set and on standalone sets, updating them on re-seed', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bank-'));
+    const card = (h: string) => ({ slug: 'p2x-a', topic: 'x', title: 'Describe a hotel.', bullets: ['a', 'b', 'c'], explain: 'and explain why.', followUps: ['q?'], p3: ['1?', '2?', '3?', '4?', '5?', '6?'], p3Topics: [h, 'Two'] });
+    await writeFile(join(dir, 'speaking-p2-x.json'), JSON.stringify([card('One')]));
+    await writeFile(join(dir, 'speaking-p3.json'), JSON.stringify([{ slug: 'p3-y', topic: 'y', subtopics: ['A', 'B'], questions: ['1?', '2?'] }]));
+    await seedBank(db, dir);
+    await writeFile(join(dir, 'speaking-p2-x.json'), JSON.stringify([card('Uno')]));
+    await seedBank(db, dir);
+    const rows = await db.select().from(prompts);
+    const by = (slug: string) => rows.find((r) => r.slug === slug)!;
+    expect([by('p2x-a-p3').bullets, by('p2x-a-p3').title, by('p3-y').bullets, by('p2x-a').bullets]).toEqual([['Uno', 'Two'], 'Discussion: a hotel', ['A', 'B'], ['a', 'b', 'c']]);
   });
 
   it('skips invalid entries and unknown files with a warning', async () => {

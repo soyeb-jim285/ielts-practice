@@ -46,16 +46,17 @@ export const BANK_KINDS: { prefix: string; schema: z.ZodType; rows: (e: any) => 
   },
   {
     prefix: 'speaking-p2',
-    schema: Base.extend({ title: str, bullets: strs, explain: str, followUps: z.array(str), p3: strs }),
+    schema: Base.extend({ title: str, bullets: strs, explain: str, followUps: z.array(str), p3: strs, p3Topics: z.tuple([str, str]).optional() }),
     rows: (e) => [
       { slug: e.slug, skill: 'speaking', part: 2, type: 'cue-card', topic: e.topic, title: e.title, body: `${e.title}\n${e.explain}`, bullets: e.bullets, followUps: e.followUps, groupId: e.slug },
-      { slug: `${e.slug}-p3`, skill: 'speaking', part: 3, type: 'p3-linked', topic: e.topic, title: `Discussion: ${e.title.replace(/^Describe\s+/i, '')}`, body: e.p3[0], followUps: e.p3, groupId: e.slug },
+      { slug: `${e.slug}-p3`, skill: 'speaking', part: 3, type: 'p3-linked', topic: e.topic, title: `Discussion: ${e.title.replace(/^Describe\s+/i, '').replace(/\.$/, '')}`, body: e.p3[0], followUps: e.p3, bullets: e.p3Topics, groupId: e.slug },
     ],
   },
   {
     prefix: 'speaking-p3',
-    schema: Base.extend({ questions: strs }),
-    rows: (e) => [{ slug: e.slug, skill: 'speaking', part: 3, type: 'p3-discussion', topic: e.topic, title: e.topic, body: e.questions[0], followUps: e.questions }],
+    // subtopics: Cambridge groups Part 3 into two headed sub-topics; stored in bullets (null on other Part 3 rows)
+    schema: Base.extend({ questions: strs, subtopics: z.tuple([str, str]).optional() }),
+    rows: (e) => [{ slug: e.slug, skill: 'speaking', part: 3, type: 'p3-discussion', topic: e.topic, title: e.topic, body: e.questions[0], followUps: e.questions, bullets: e.subtopics }],
   },
   {
     prefix: 'writing-t2',

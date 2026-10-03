@@ -63,3 +63,11 @@ it('directions use the real test wording and never ask for feedback', () => {
   expect(rt).toContain('c question 4?');
   expect(rt).toContain('- why you liked it');
 });
+
+it('Part 3 announces the sub-topic headings: the first in the lead, the second before the fourth question', () => {
+  const t: SpeakingTest = { ...test, part2: { ...test.part2, title: 'Describe a book you read.' }, part3: { ...test.part3, bullets: ['Reading habits', 'Books and libraries'], followUps: ['q1?', 'q2?', 'q3?', 'q4?', 'q5?', 'q6?'] } };
+  const st = (p3Asked: number) => ({ ...newState('s', t, T0), phase: 'p3' as const, p3Asked });
+  expect(direction(st(0)).say).toContain("talking about a book you read, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all Reading habits.");
+  expect(direction(st(3)).say).toContain("Now let's move on to consider Books and libraries.");
+  expect(direction(st(2)).say).not.toContain('move on');
+});

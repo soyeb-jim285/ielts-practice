@@ -25,7 +25,7 @@ const P1_MAX_QUESTIONS = 12;
 export const LINES = {
   intro: "Hello. My name is Alex, and I'll be your examiner today. Could you tell me your full name, please, and where you are from?",
   prep: (topic: string) =>
-    `Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here's your topic: ${topic}.`,
+    `Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here's your topic: ${topic.replace(/\.$/, '')}.`,
   prepMore: 'You still have a little time to prepare.',
   talk: "All right? Remember, you have one to two minutes for this, so don't worry if I stop you. I'll tell you when the time is up. Can you start speaking now, please?",
   closing: 'Thank you. That is the end of the speaking test.',
@@ -39,6 +39,10 @@ export function liveQuestions(s: LiveState, part: 1 | 3): string[] | null {
   const lines = s.history.filter((h) => h.role === 'examiner' && h.phase === (part === 1 ? 'p1' : 'p3')).map((h) => h.text);
   return lines.length ? lines : part === 1 ? p1Questions(s.test).map((x) => x.q) : null;
 }
+/** The Part 2 title as a topic phrase: "Describe a hotel that you know." becomes "a hotel that you know". */
+const aboutTopic = (t: SpeakingTest) => t.part2.title.replace(/^describe\s+/i, '').replace(/\.$/, '');
+/** Linked Part 3 sets carry two sub-topic headings (bullets); the examiner announces the second after the third question. */
+const P3_SWITCH = 3;
 export const p3Questions = (t: SpeakingTest) => (t.part3.followUps?.length ? t.part3.followUps : [t.part3.body]);
 const answered = (s: LiveState, phase: Phase) => s.history.some((h) => h.role === 'candidate' && h.phase === phase);
 
@@ -120,16 +124,19 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
   }
   const qs = p3Questions(t);
   const q = qs[s.p3Asked];
-  const lead = `We've been talking about ${t.part2.title.replace(/^describe\s+/i, '')}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.topic}.`;
+  const sw = s.p3Asked === P3_SWITCH && t.part3.bullets?.[1] ? `Now let's move on to consider ${t.part3.bullets[1]}.` : '';
+  const lead = `We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.bullets?.[0] ?? t.part3.topic}.`;
   return {
     stage: 'Part 3 (two-way discussion of abstract issues linked to the Part 2 topic)',
     say:
       s.p3Asked === 0
         ? `Say "${lead}" and then ask exactly this question: "${q}"`
-        : q
+        : q && sw
+          ? `Say "${sw}" and then ask exactly this question: "${q}"`
+          : q
           ? `Ask this question: "${q}". Only if the candidate's last answer was very short or vague, you may instead ask one brief probing follow-up such as "Why do you think that is?" or "Can you give me an example?"`
           : `Ask one new abstract discussion question on "${t.part3.topic}" that develops the candidate's last answer (compare, evaluate or speculate about the future).`,
-    fallback: q ? (s.p3Asked === 0 ? `${lead} ${q}` : q) : `Why do you think that is?`,
+    fallback: q ? (s.p3Asked === 0 ? `${lead} ${q}` : `${sw} ${q}`.trim()) : `Why do you think that is?`,
   };
 }
 
@@ -169,7 +176,7 @@ ${p1}
 3. Part 2 (long turn): when told to move to Part 2, say "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
 Then stay completely silent for the one-minute preparation, whatever you hear. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks: you cannot hear them during the long turn. When told the candidate has finished, say "Thank you." and ${rounding}. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
-4. Part 3 (two-way discussion): say "We've been talking about ${t.part2.title.replace(/^describe\s+/i, '')}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these questions in order, one at a time. The questions are more abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up before the next question, for example "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?". Aim for five or six exchanges in all:
+4. Part 3 (two-way discussion): say "We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these questions in order, one at a time${t.part3.bullets?.[1] ? ` (before the fourth, say "Now let's move on to consider ${t.part3.bullets[1]}.")` : ''}. The questions are more abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up before the next question, for example "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?". Aim for five or six exchanges in all:
 ${p3Questions(t).map((x) => `- ${x}`).join('\n')}
 5. When told the test is over, say "${LINES.closing}" and nothing more.`;
 }
@@ -195,7 +202,7 @@ The app sends you instructions for each part of the test as the test goes on. Fo
 
 /** The instruction for one script moment (see GPT_LIVE_CUES). */
 export function gptLiveCue(cue: GptLiveCue, t: SpeakingTest): string {
-  const topic = t.part2.title.replace(/^describe\s+/i, '');
+  const topic = aboutTopic(t);
   switch (cue) {
     case 'begin': {
       const p1 = t.part1.map((p) => `"${p.topic}": ${(p.followUps?.length ? p.followUps : [p.body]).join(' | ')}`).join('\n');
@@ -215,7 +222,7 @@ Then stay completely silent during their one-minute preparation, whatever you he
       const lead = cue === 'follow-timeup' ? `Thank you. That's the end of your time.` : 'Thank you.';
       const rounding = q ? `exactly this rounding-off question: "${q}"` : 'one short, simple rounding-off question linked to what they said (for example "Do you often …?")';
       const qs = p3Questions(t);
-      return `The long turn is over. Say "${lead}" and ask ${rounding}. Listen to the short answer, then start Part 3: say "We've been talking about ${topic}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.topic}." and ask these questions in order, one at a time. They are abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up first ("Why do you think that is?", "Can you give me an example?"). About five or six exchanges in all:
+      return `The long turn is over. Say "${lead}" and ask ${rounding}. Listen to the short answer, then start Part 3: say "We've been talking about ${topic}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.bullets?.[0] ?? t.part3.topic}." and ask these questions in order, one at a time${t.part3.bullets?.[1] ? `; before the fourth question say "Now let's move on to consider ${t.part3.bullets[1]}."` : ''}. They are abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up first ("Why do you think that is?", "Can you give me an example?"). About five or six exchanges in all:
 ${qs.map((x) => `- ${x}`).join('\n')}`;
     }
     case 'closing':
