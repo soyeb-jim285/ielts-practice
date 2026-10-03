@@ -98,8 +98,35 @@ export interface LrMark { n: number; given: string; correct: boolean; answer: st
 export interface LrScore { raw: number; total: number; band: number; marks: LrMark[] }
 
 const norm = (s: string) =>
-  s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
-    .replace(/[‘’`]/g, "'").replace(/[-–—/]/g, ' ').replace(/[.,;:!?"“”]+/g, ' ').replace(/\s+/g, ' ').trim();
+  numbersToDigits(
+    s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/(\d),(?=\d{3}\b)/g, '$1') // 1,000 → 1000
+      .replace(/[£$€¥]/g, ' ') // a currency sign the gap already shows is not an error
+      .replace(/[‘’`]/g, "'").replace(/[-–—/]/g, ' ').replace(/[.,;:!?"“”]+/g, ' ').replace(/\s+/g, ' ').trim(),
+  );
+
+// IELTS accepts numbers as figures or words ("4" = "four", "15th" = "fifteenth"), so both sides are compared as digits.
+const UNITS: Record<string, number> = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const ORD: Record<string, string> = { first: 'one', second: 'two', third: 'three', fifth: 'five', eighth: 'eight', ninth: 'nine', twelfth: 'twelve' };
+const cardinal = (w: string) => ORD[w] ?? (/(ieth)$/.test(w) ? w.replace(/ieth$/, 'y') : /th$/.test(w) && (UNITS[w.slice(0, -2)] ?? TENS[w.slice(0, -2)]) !== undefined ? w.slice(0, -2) : w);
+function numbersToDigits(s: string): string {
+  const out: string[] = [];
+  let total = 0, cur = 0, inNum = false;
+  const flush = () => { if (inNum) out.push(String(total + cur)); total = cur = 0; inNum = false; };
+  for (const raw of s.split(' ')) {
+    if (/^\d+(st|nd|rd|th)$/.test(raw)) { flush(); out.push(raw.replace(/\D+$/, '')); continue; }
+    const w = cardinal(raw);
+    if (w in UNITS) { cur += UNITS[w]!; inNum = true; }
+    else if (w in TENS) { cur += TENS[w]!; inNum = true; }
+    else if (w === 'hundred' && inNum) cur *= 100;
+    else if (w === 'thousand' && inNum) { total += cur * 1000; cur = 0; }
+    else if (w === 'and' && inNum) continue;
+    else { flush(); out.push(raw); }
+  }
+  flush();
+  return out.join(' ');
+}
 
 /** "(the) old (town) hall" → every variant with/without each optional part. */
 export function expandAnswer(a: string): string[] {

@@ -12,6 +12,16 @@ describe('answer matching', () => {
     ['', ['x'], false],
     ['b', ['B'], true],
     ['F', ['F'], true],
+    ['4', ['four'], true],
+    ['four', ['4'], true],
+    ['fifteenth', ['15th'], true],
+    ['15', ['fifteenth'], true],
+    ['twenty-one', ['21'], true],
+    ['1000', ['1,000'], true],
+    ['six hundred and eighty', ['680'], true],
+    ['£680', ['680'], true],
+    ['2nd floor', ['second floor'], true],
+    ['5', ['four'], false],
     ['f', ['FALSE'], true],
   ])('%s vs %j → %s', (g, a, ok) => expect(isCorrect(g, a)).toBe(ok));
 });
