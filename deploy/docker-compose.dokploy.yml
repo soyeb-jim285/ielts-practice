@@ -4,6 +4,10 @@
 # Guest limits use the client IP from the Cloudflare Tunnel (CF-Connecting-IP): keep the app reachable only through the tunnel.
 # Exposed through the VPS's Cloudflare Tunnel (cloudflared on dokploy-network), like the other sites there:
 # public hostname ielts.soyebjim.me → http://ielts-app:8787. No host ports are published.
+# R2 bucket CORS is REQUIRED: browsers PUT recordings straight to presigned R2 URLs. Cloudflare dashboard → R2 → bucket →
+# Settings → CORS policy: AllowedOrigins ["https://ielts.soyebjim.me"], AllowedMethods [GET, PUT, HEAD], AllowedHeaders
+# [content-type, range], ExposeHeaders [ETag, Content-Length, Content-Range, Accept-Ranges]. Without it uploads fail with
+# "Couldn't reach the server" (the preflight gets 403).
 # Memory caps keep this app from squeezing other projects on the same VPS.
 services:
   db:
