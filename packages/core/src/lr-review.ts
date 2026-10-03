@@ -316,6 +316,15 @@ export function audioWindow(section: { timings?: TimingRows }, q: ReviewLike): {
   return at != null ? { from: Math.max(0, at - 2), to: at + 6, start: at, end: at + 6, exact: false } : null;
 }
 
+export interface QuestionMoment { n: number; /** the answer is heard here (s) */ at: number; /** playback start, 2 s of pre-roll */ from: number; to: number; /** false: only `review.at`, a rough position */ exact: boolean }
+/** Where each question of a listening part is answered in the recording, in time order. Questions with no locatable moment are left out. */
+export function questionMoments(section: { timings?: TimingRows; groups: { questions: (ReviewLike & { n: number })[] }[] }): QuestionMoment[] {
+  return section.groups.flatMap((g) => g.questions.flatMap((q) => {
+    const w = audioWindow(section, q);
+    return w ? [{ n: q.n, at: w.start, from: w.from, to: w.to, exact: w.exact }] : [];
+  })).sort((a, b) => a.at - b.at || a.n - b.n);
+}
+
 /** The recording's words between two instants, as spoken (for the dictation drill). */
 export const wordsBetween = (t: TimingRows | undefined, from: number, to: number): string => (t ?? []).filter(([, s, e]) => Number(s) >= from - 0.01 && Number(e) <= to + 0.01).map(([w]) => w).join(' ');
 

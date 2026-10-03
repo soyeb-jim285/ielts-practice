@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LrTest, LrTimings } from './lr';
-import { analyseAttempt, answerSentence, audioWindow, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
+import { analyseAttempt, answerSentence, audioWindow, questionMoments, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
 
 describe('wordLimitOf', () => {
   it.each([['ONE WORD ONLY', 1], ['NO MORE THAN TWO WORDS AND/OR A NUMBER', 2], ['Write THREE WORDS', 3], ['ONE WORD AND/OR A NUMBER', 1], ['A NUMBER', null], [undefined, null]])('%s', (s, n) => expect(wordLimitOf(s as string)).toBe(n));
@@ -99,6 +99,19 @@ describe('locatePhrase', () => {
     expect(audioWindow({}, { review: { at: 1 } })).toMatchObject({ from: 0, to: 7, exact: false });
     expect(audioWindow({}, { answer: ['x'] })).toBeNull();
   });
+});
+
+describe('questionMoments', () => {
+  const t: LrTimings = [['Half', 1.3, 1.5], ['past', 1.6, 1.8], ['six', 1.9, 2.3], ['Please', 6, 6.4], ['bring', 6.5, 6.8], ['a', 6.9, 7], ['coat.', 7.1, 7.6]];
+  const groups = [{ questions: [{ n: 2, answer: ['coat'] }, { n: 1, answer: ['half past'] }, { n: 3, answer: ['x'], review: { at: 20 } }, { n: 4, answer: ['y'] }] }];
+  it('ordered by time, approx for review.at, unlocatable dropped', () => {
+    expect(questionMoments({ timings: t, groups })).toEqual([
+      { n: 1, at: 1.3, from: 0, to: 2.3, exact: true },
+      { n: 2, at: 7.1, from: 5.1, to: 8.1, exact: true },
+      { n: 3, at: 20, from: 18, to: 26, exact: false },
+    ]);
+  });
+  it('no timings: only review.at', () => expect(questionMoments({ groups }).map((m) => m.n)).toEqual([3]));
 });
 
 describe('dictationDiff', () => {

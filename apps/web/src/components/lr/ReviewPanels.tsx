@@ -4,7 +4,7 @@ import { Check, Ear, Plus, Play, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Badge, Button, Dialog, Textarea, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
-import { formatDuration, plural } from '@/lib/format';
+import { formatClock, formatDuration, plural } from '@/lib/format';
 import type { LrGroup, LrQuestion, LrSection } from '@/lib/lr';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
@@ -109,8 +109,14 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
           )}
           {win && onPlay && (
             <Button size="sm" variant="outline" icon={<Play />} onClick={onPlay}>
-              Play from here{win.exact ? '' : ' (approx.)'}
+              Play from {formatClock(win.from)}
             </Button>
+          )}
+          {win && (
+            <p className="type-num type-caption flex items-center self-center">
+              Answer heard at {formatClock(win.start)}
+              {!win.exact && ' (approx.)'}
+            </p>
           )}
           {canDictate && onDictate && (
             <Button size="sm" variant="outline" icon={<Ear />} onClick={onDictate}>

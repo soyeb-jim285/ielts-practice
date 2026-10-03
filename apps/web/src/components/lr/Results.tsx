@@ -1,11 +1,11 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Check, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, Check, Play, RotateCcw, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { audioWindow, evidenceSpan, sectionParagraphs, type GapEntry, type LrTimings } from '@ielts/core';
+import { audioWindow, evidenceSpan, questionMoments, sectionParagraphs, type GapEntry, type LrTimings } from '@ielts/core';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, buttonStyles, CountUp, PageContainer, PageHeader, ProgressBar, Segmented, Tabs, type Tone } from '@/components/ui';
 import { call, client } from '@/lib/api';
-import { formatBand, formatDate, formatDuration } from '@/lib/format';
+import { formatBand, formatClock, formatDate, formatDuration } from '@/lib/format';
 import { accuracyBy, flatQuestions, lrProgressQuery, typeLabel, type LrAttempt } from '@/lib/lr';
 import { useMe } from '@/lib/query';
 import { bandColor } from '@/lib/result';
@@ -111,6 +111,18 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
     setCue({ part: s.part, from: w.from, to: w.to, id: Date.now() });
     ctx.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
+  // listening: when each question is answered in its recording (needs word timings, else review.at)
+  const moments = useMemo(() => new Map(listening ? test.sections.flatMap((s) => questionMoments({ timings: s.timings as LrTimings | undefined, groups: s.groups }).map((m) => [m.n, m] as const)) : []), [test, listening]);
+  const pins = questionMoments({ timings: section.timings as LrTimings | undefined, groups: section.groups }).map((m) => ({ n: m.n, at: m.at, approx: !m.exact, correct: !!marks.get(m.n)?.correct }));
+  const tpins = useMemo(() => {
+    if (!listening) return [];
+    const paras = sectionParagraphs(section);
+    return section.groups.flatMap((g) => g.questions.flatMap((q) => {
+      const sp = evidenceSpan(paras, q, g.type === 'gap');
+      return sp ? [{ p: sp.p, s: sp.s, n: q.n, correct: !!marks.get(q.n)?.correct }] : [];
+    }));
+  }, [section, marks, listening]);
+  const pickQ = (n: number) => { jump(n); play(n); };
   const blank = flat.filter((f) => !marks.get(f.n)?.given).map((f) => f.n);
   const rows = flat.filter((f) => !wrongOnly || !marks.get(f.n)?.correct);
   const time = attempt.elapsedS ? formatDuration(attempt.elapsedS * 1000) : null;
@@ -182,12 +194,13 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
           <p className="type-lede border-t border-line pt-4">Nothing wrong. Every answer was correct.</p>
         ) : (
           <div className="overflow-x-auto border-y border-line">
-            <table className="w-full min-w-[30rem] text-left text-body">
+            <table className={cn('w-full text-left text-body', !listening && 'min-w-[30rem]', listening && 'sm:min-w-[30rem]')}>
               <thead className="type-caption">
                 <tr className="border-b border-line">
-                  <th scope="col" className="w-14 py-2 pr-3 font-medium">No.</th>
+                  <th scope="col" className="w-10 py-2 pr-2 sm:w-14 sm:pr-3 font-medium">No.</th>
                   <th scope="col" className="py-2 pr-3 font-medium">Your answer</th>
                   <th scope="col" className="py-2 pr-3 font-medium">Correct answer</th>
+                  {listening && <th scope="col" className="py-2 pr-3 font-medium">Heard at</th>}
                   <th scope="col" className="w-10 py-2 font-medium"><span className="sr-only">Result</span></th>
                 </tr>
               </thead>
@@ -205,6 +218,16 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                       </td>
                       <td className={cn('py-2 pr-3', !m?.given && 'text-muted italic', m && !m.correct && 'text-bad-text')}>{m?.given || 'No answer'}</td>
                       <td className="py-2 pr-3 font-medium">{m?.answer.join(' / ')}</td>
+                      {listening && (
+                        <td className="py-0 pr-3">
+                          {moments.get(f.n) && (
+                            <button type="button" onClick={() => pickQ(f.n)} aria-label={`Question ${f.n}: play from Part ${f.part} at ${formatClock(moments.get(f.n)!.at)}${moments.get(f.n)!.exact ? '' : ', approximate'}`} className="type-num inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-surface-2 px-2 sm:px-2.5 text-sm font-medium text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                              <Play className="size-3 fill-current" aria-hidden />
+                              <span className="max-sm:hidden">Part {f.part} · </span>{moments.get(f.n)!.exact ? '' : '~'}{formatClock(moments.get(f.n)!.at)}
+                            </button>
+                          )}
+                        </td>
+                      )}
                       <td className="py-2">{m?.correct ? <Check className="size-4 text-good-text" aria-label="Correct" /> : <X className="size-4 text-bad-text" aria-label="Wrong" />}</td>
                     </tr>
                     </Fragment>
@@ -232,13 +255,13 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
           {listening && (
             <div className="mb-8 space-y-4">
               <div className="sticky top-0 z-10 rounded-lg border border-line bg-card px-4 py-3 shadow-card">
-                <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} cue={cue?.part === section.part ? cue : null} />
+                <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} cue={cue?.part === section.part ? cue : null} pins={pins} pinned={selected} onPin={pickQ} />
               </div>
               {section.transcript && (
                 <details className="group rounded-lg border border-line bg-card" open>
                   <summary className="type-subheading cursor-pointer px-4 py-3 select-none">Transcript</summary>
                   <div data-scrollpane className="type-reading max-h-[28rem] overflow-y-auto border-t border-line px-4 py-4">
-                    <Transcript text={section.transcript} evidence={mark} />
+                    <Transcript text={section.transcript} evidence={mark} pins={tpins} picked={selected} onPin={(n) => setSelected(n)} />
                   </div>
                 </details>
               )}

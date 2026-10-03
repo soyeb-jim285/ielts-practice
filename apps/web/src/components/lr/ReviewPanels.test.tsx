@@ -39,12 +39,13 @@ describe('QuestionDetail', () => {
   it('Play from here and Dictation only for listening with timings; Dictation only when wrong', () => {
     const ls: any = { part: 1, audio: 'a.mp3', timings: [['It', 1, 1.2], ['was', 1.3, 1.5], ['founded', 1.6, 2], ['in', 2.1, 2.2], ['1895.', 2.3, 3]], groups: [] };
     const { rerender } = wrap(<QuestionDetail q={q} group={{} as any} section={ls} mark={mark} onPlay={() => {}} onDictate={() => {}} />);
-    expect(screen.getByRole('button', { name: /Play from here/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Play from 0:00/ })).toBeTruthy();
+    expect(screen.getByText(/Answer heard at 0:01/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dictation' })).toBeTruthy();
     rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={q} group={{} as any} section={ls} mark={{ ...mark, correct: true }} onPlay={() => {}} onDictate={() => {}} /></QueryClientProvider>);
     expect(screen.queryByRole('button', { name: 'Dictation' })).toBeNull();
     rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={{ n: 7 } as any} group={{} as any} section={{ ...ls, timings: undefined }} mark={mark} onPlay={() => {}} onDictate={() => {}} /></QueryClientProvider>);
-    expect(screen.queryByRole('button', { name: /Play from here/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Play from 0:00/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Dictation' })).toBeNull();
   });
 });

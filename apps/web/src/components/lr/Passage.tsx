@@ -16,11 +16,34 @@ export function useHighlights(key: string) {
 /** Passage text convention: a paragraph starting "### " is a text heading; "• " lines are bullets (newline separated, shown with pre-line). */
 export const headingOf = (text: string) => (text.startsWith('### ') ? text.slice(4).trim() : null);
 
-function Paragraph({ index, text, marks, onRemove }: { index: number; text: string; marks: (Highlight & { evidence?: boolean })[]; onRemove?: (h: Highlight) => void }) {
+/** A question's answer sits in this sentence: a small tappable "Q7" pill (right / wrong by shape and word, not colour alone). */
+export interface QPin { s: number; n: number; correct: boolean }
+
+function Paragraph({ index, text, marks, pins = [], onPin, picked, onRemove }: { index: number; text: string; marks: (Highlight & { evidence?: boolean })[]; pins?: QPin[]; onPin?: (n: number) => void; picked?: number | null; onRemove?: (h: Highlight) => void }) {
   const parts: ReactNode[] = [];
   let at = 0;
+  const plain = (from: number, to: number, last = false) => {
+    let x = from;
+    for (const p of pins.filter((q) => q.s >= from && (last ? q.s <= to : q.s < to)).sort((a, b) => a.s - b.s)) {
+      if (p.s > x) parts.push(text.slice(x, p.s));
+      x = p.s;
+      parts.push(
+        <button
+          key={`q${p.n}`}
+          type="button"
+          onClick={() => onPin?.(p.n)}
+          aria-label={`Question ${p.n}, ${p.correct ? 'right' : 'wrong'}: show details`}
+          aria-current={picked === p.n || undefined}
+          className={cn('type-num mr-1 inline-flex h-6 min-w-6 cursor-pointer items-center justify-center border px-1.5 align-baseline text-xs font-semibold no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring', p.correct ? 'rounded-full border-good bg-good-soft text-good-text' : 'rounded-[4px] border-bad bg-bad-soft text-bad-text', picked === p.n && 'ring-2 ring-ink')}
+        >
+          Q{p.n}
+        </button>,
+      );
+    }
+    if (to > x) parts.push(text.slice(x, to));
+  };
   [...marks].sort((a, b) => a.s - b.s).forEach((m) => {
-    if (m.s > at) parts.push(text.slice(at, m.s));
+    if (m.s > at || pins.some((q) => q.s === m.s)) plain(at, m.s, true);
     parts.push(
       <mark
         key={m.s}
@@ -34,7 +57,7 @@ function Paragraph({ index, text, marks, onRemove }: { index: number; text: stri
     );
     at = m.e;
   });
-  if (at < text.length) parts.push(text.slice(at));
+  if (at < text.length || pins.some((q) => q.s >= at)) plain(at, text.length, true);
   return <span data-p={index} className="whitespace-pre-line">{parts}</span>;
 }
 
@@ -137,13 +160,13 @@ export function Split({ left, right }: { left: ReactNode; right: ReactNode }) {
 }
 
 /** Listening transcript, one paragraph per line, with the evidence span marked (results page). */
-export function Transcript({ text, evidence }: { text: string; evidence?: Highlight | null }) {
+export function Transcript({ text, evidence, pins, onPin, picked }: { text: string; evidence?: Highlight | null; pins?: (QPin & { p: number })[]; onPin?: (n: number) => void; picked?: number | null }) {
   return (
     <div className="space-y-3">
       {text.split('\n').map((line, i) =>
         line.trim() ? (
           <p key={i}>
-            <Paragraph index={i} text={line} marks={evidence?.p === i ? [{ ...evidence, evidence: true }] : []} />
+            <Paragraph index={i} text={line} marks={evidence?.p === i ? [{ ...evidence, evidence: true }] : []} pins={pins?.filter((q) => q.p === i)} onPin={onPin} picked={picked} />
           </p>
         ) : null,
       )}

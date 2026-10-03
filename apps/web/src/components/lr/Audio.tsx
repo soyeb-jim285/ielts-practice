@@ -2,8 +2,17 @@ import { Headphones, Pause, Play, RotateCcw, RotateCw, Volume2 } from 'lucide-re
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Button, ProgressBar, Segmented } from '@/components/ui';
 import { formatClock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { LISTENING_REVIEW_SECONDS } from '@/lib/lr';
 import { resumePosition, type AudioResume } from '@/lib/audioPos';
+
+const pinStyle = (p: AudioPin, on: boolean) =>
+  cn(
+    'type-num inline-flex cursor-pointer items-center justify-center border font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+    p.correct ? 'rounded-full border-good bg-good-soft text-good-text' : 'rounded-[4px] border-bad bg-bad-soft text-bad-text',
+    p.approx && 'border-dashed',
+    on && 'ring-2 ring-ink',
+  );
 
 const range = 'h-2 w-full cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed';
 
@@ -30,7 +39,11 @@ function Volume({ el }: { el: RefObject<HTMLAudioElement | null> }) {
 }
 
 /** Practice / review player: play, scrub, ±5 s, speed 0.75-1.25x, restart the part. */
-export function PracticeAudio({ src, label, className, cue, resume }: { src: string; label: string; className?: string; cue?: { from: number; to: number; id: number } | null; resume?: AudioResume }) {
+/** One answer moment on the results scrubber. Right / wrong is shown by shape and the number, not by colour alone. */
+export interface AudioPin { n: number; at: number; correct: boolean; approx: boolean }
+const pinLabel = (p: AudioPin) => `Question ${p.n}, ${p.correct ? 'right' : 'wrong'}, ${formatClock(p.at)}${p.approx ? ', approximate' : ''}`;
+
+export function PracticeAudio({ src, label, className, cue, resume, pins, pinned, onPin }: { src: string; label: string; className?: string; cue?: { from: number; to: number; id: number } | null; resume?: AudioResume; pins?: AudioPin[]; pinned?: number | null; onPin?: (n: number) => void }) {
   const el = useRef<HTMLAudioElement>(null);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(0);
@@ -128,9 +141,37 @@ export function PracticeAudio({ src, label, className, cue, resume }: { src: str
       </div>
       <div className="flex min-w-48 flex-1 items-center gap-3">
         <span className="type-num type-caption w-10 text-right">{formatClock(t)}</span>
-        <input type="range" aria-label="Seek" min={0} max={dur || 1} step={0.1} value={Math.min(t, dur || 1)} onChange={(e) => seek(+e.target.value)} className={range} />
+        <div className={cn('relative min-w-0 flex-1', !!pins?.length && 'pt-6 max-md:pt-0')}>
+          <input type="range" aria-label="Seek" min={0} max={dur || 1} step={0.1} value={Math.min(t, dur || 1)} onChange={(e) => seek(+e.target.value)} className={range} />
+          {dur > 0 && pins?.map((p) => (
+            <button
+              key={p.n}
+              type="button"
+              aria-label={pinLabel(p)}
+              title={pinLabel(p)}
+              aria-current={pinned === p.n || undefined}
+              onClick={() => onPin?.(p.n)}
+              style={{ left: `${Math.min(100, (p.at / dur) * 100)}%` }}
+              className={cn(pinStyle(p, pinned === p.n), 'absolute top-0 h-5 min-w-5 -translate-x-1/2 px-1 text-[11px] max-md:hidden')}
+            >
+              {p.n}
+            </button>
+          ))}
+        </div>
         <span className="type-num type-caption w-10">{formatClock(dur)}</span>
       </div>
+      {!!pins?.length && (
+        <ul aria-label="Questions in this part, by time" className="-mx-1 flex w-full gap-1.5 overflow-x-auto px-1 pb-1 md:hidden">
+          {pins.map((p) => (
+            <li key={p.n} className="shrink-0">
+              <button type="button" aria-label={pinLabel(p)} aria-current={pinned === p.n || undefined} onClick={() => onPin?.(p.n)} className={cn(pinStyle(p, pinned === p.n), 'h-11 min-w-14 flex-col gap-0 px-2 leading-tight')}>
+                <span className="text-sm">{p.n}</span>
+                <span className="text-[11px] font-normal">{formatClock(p.at)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <Segmented
         label="Playback speed"
         size="sm"
