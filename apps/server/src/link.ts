@@ -2,7 +2,7 @@
 // The plugin deletes the anonymous user right after, which would cascade-delete these rows.
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { attempts, liveSessions, mistakes, quotaUsage } from './db/schema';
+import { attempts, cards, liveSessions, lrAttempts, mistakes, quotaUsage } from './db/schema';
 import { storage } from './storage';
 
 export async function linkGuest(anonId: string, newId: string) {
@@ -12,6 +12,8 @@ export async function linkGuest(anonId: string, newId: string) {
     await tx.update(quotaUsage).set({ userId: newId }).where(eq(quotaUsage.userId, anonId));
     await tx.update(liveSessions).set({ userId: newId }).where(eq(liveSessions.userId, anonId));
     await tx.update(mistakes).set({ userId: newId }).where(eq(mistakes.userId, anonId));
+    await tx.update(lrAttempts).set({ userId: newId }).where(eq(lrAttempts.userId, anonId)); // Listening & Reading tests
+    await tx.update(cards).set({ userId: newId }).where(eq(cards.userId, anonId)); // spelling cards made on L/R submit
     return tx.update(attempts).set({ userId: newId }).where(eq(attempts.userId, anonId)).returning({ id: attempts.id, audioKey: attempts.audioKey });
   });
   // Recordings live under audio/{userId}/: re-key them so deleting the real account later removes them too. Best effort: a failure leaves the old key working.

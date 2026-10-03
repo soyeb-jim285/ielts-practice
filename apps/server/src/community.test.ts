@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, setKey, testUser } from './test/helpers';
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys } from './db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests } from './db/schema';
 import { auth } from './auth';
 import { env } from './env';
 import { keyCtx } from './ai/keyctx';
@@ -367,6 +367,16 @@ describe('guest → account linking', () => {
     expect((await req(`/api/attempts/${wr.id}`, { headers: acct.headers })).status).toBe(200);
     expect((await req('/api/attempts', { headers: acct.headers })).status).toBe(200); // history now open
     expect((await req('/api/me', { headers: g.headers })).status).toBe(401); // the guest token died with the guest
+  });
+
+  it('sign-up also moves Listening & Reading attempts and Review cards (they would cascade-delete with the guest)', async () => {
+    const g = await guestUser(ip());
+    const [t] = await db.insert(lrTests).values({ slug: `link-lr-${++n}`, skill: 'reading', variant: 'academic', source: 'generated', ref: 'X', title: 'x', data: { sections: [] } as never, restricted: false }).returning();
+    const [a] = await db.insert(lrAttempts).values({ userId: g.user.id, testId: t!.id, mode: 'practice' }).returning();
+    const [c] = await db.insert(cards).values({ userId: g.user.id, front: 'spell it', back: 'accommodation', source: 'mistake' }).returning();
+    const acct = await signUp(g, `lr${++n}@test.dev`);
+    expect((await db.query.lrAttempts.findFirst({ where: eq(lrAttempts.id, a!.id) }))?.userId).toBe(acct.user.id);
+    expect((await db.query.cards.findFirst({ where: eq(cards.id, c!.id) }))?.userId).toBe(acct.user.id);
   });
 
   it('signing in to an existing account carries the guest result over too', async () => {
