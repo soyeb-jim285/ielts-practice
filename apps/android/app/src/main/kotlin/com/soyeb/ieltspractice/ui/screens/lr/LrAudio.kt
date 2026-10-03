@@ -102,7 +102,7 @@ class LrPlayer(private val demo: Boolean) {
         engine?.seekTo((v * 1000).toLong())
     }
     fun replay() { seek(0.0); if (!playing) toggle() }
-    fun setSpeed(s: Float) { speed = s; engine?.setSpeed(s) }
+    fun changeSpeed(s: Float) { speed = s; engine?.setSpeed(s) }
     fun release() { engine?.release(); engine = null }
 }
 
@@ -153,7 +153,7 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier) {
         }
         Segmented(
             listOf("0.75" to "0.75×", "1.0" to "1×", "1.25" to "1.25×"), if (player.speed == 1f) "1.0" else player.speed.toString(),
-            { player.setSpeed(it.toFloat()) }, Modifier.semantics { contentDescription = "Playback speed" },
+            { player.changeSpeed(it.toFloat()) }, Modifier.semantics { contentDescription = "Playback speed" },
         )
         if (player.failed) Text("The recording could not be loaded. Check your connection.", style = MaterialTheme.typography.bodySmall, color = e.badText)
     }
