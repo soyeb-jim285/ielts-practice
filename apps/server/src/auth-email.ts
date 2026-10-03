@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, gte } from 'drizzle-orm';
+import { and, count, desc, eq, gt, gte, sql } from 'drizzle-orm';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { db } from './db/client';
 import { emailLog, user } from './db/schema';
@@ -14,26 +14,43 @@ const MAIL = {
 } as const;
 export const isPurpose = (p: unknown): p is Purpose => p === 'email-verification' || p === 'forget-password';
 
-const log = (row: Omit<typeof emailLog.$inferInsert, 'id'>) =>
-  db.insert(emailLog).values(row).catch((e) => console.error('[email] log write failed', e instanceof Error ? e.message : e)); // a broken log must never block the send
+/** Takes the cooldown slot for this address+purpose, atomically (an advisory lock serialises concurrent requests, so N at once yield one slot and N-1 skips).
+ *  Writes the row either way: 'sent' (attempts 0 until the send finishes) or 'skipped_cooldown'. Returns the row id when the caller may send, else null.
+ *  Unknown addresses go through the same function (finishRequest), so real and unknown addresses leave identical rows. */
+async function claim(email: string, purpose: Purpose, userId: string | null): Promise<string | null> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${purpose}:${email}`}, 0))`);
+    const recent = await tx.select({ id: emailLog.id }).from(emailLog)
+      .where(and(eq(emailLog.email, email), eq(emailLog.purpose, purpose), eq(emailLog.status, 'sent'), gt(emailLog.createdAt, sql`now() - make_interval(secs => ${COOLDOWN_S})`))).limit(1);
+    const [row] = await tx.insert(emailLog).values({ userId, email, purpose, status: recent.length ? 'skipped_cooldown' : 'sent', attempts: 0 }).returning({ id: emailLog.id });
+    return recent.length ? null : row!.id;
+  });
+}
 
-/** Sends the 6-digit code with retries and records every attempt. The cooldown starts only after a successful send, so a failed first send never blocks the resend.
- *  Never throws: Better Auth swallows errors from this hook anyway, and the outcome is what GET /api/auth-email/status reports. */
+const sends = new Set<Promise<unknown>>();
+/** Resolves when every background send has finished (tests; also lets a shutdown drain). */
+export const sendsIdle = () => Promise.all([...sends]);
+
+/** Better Auth's code hook. Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
+ *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
+ *  Never throws; GET /api/auth-email/status is how the user learns the outcome. */
 export async function sendOtpEmail({ email: raw, otp, type }: { email: string; otp: string; type: string }) {
   if (!isPurpose(type)) return; // sign-in codes are not offered: passwords only
   const email = raw.toLowerCase();
-  const recent = await db.select({ id: emailLog.id }).from(emailLog)
-    .where(and(eq(emailLog.email, email), eq(emailLog.purpose, type), eq(emailLog.status, 'sent'), gt(emailLog.attempts, 0), gt(emailLog.createdAt, new Date(Date.now() - COOLDOWN_S * 1000)))).limit(1); // attempts > 0: real sends only, not the stand-in rows finishRequest writes
   const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
-  const base = { userId: u?.id ?? null, email, purpose: type };
-  if (recent.length) return void (await log({ ...base, status: 'skipped_cooldown' }));
+  const id = await claim(email, type, u?.id ?? null);
+  if (!id) return;
   const mail = MAIL[type];
-  const r = await sendEmail({
-    to: email,
-    subject: mail.subject,
-    html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
-  });
-  await log(r.ok ? { ...base, status: 'sent', providerId: r.id, attempts: r.attempts } : { ...base, status: 'failed', error: r.kind, attempts: r.attempts });
+  const p = (async () => {
+    const r = await sendEmail({
+      to: email,
+      subject: mail.subject,
+      html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
+    });
+    await db.update(emailLog).set(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }).where(eq(emailLog.id, id));
+  })().catch((e) => console.error('[email] send/log failed', e instanceof Error ? e.message : e));
+  sends.add(p);
+  void p.finally(() => sends.delete(p));
 }
 
 export const maskEmail = (e: string) => {
@@ -73,11 +90,7 @@ export const countBefore = countRows;
 /** Call after Better Auth handled a code request: backfills the row an unknown address never got, and attaches the status token. */
 export async function finishRequest(a: Asked, before: number, res: Response) {
   const email = a.email.toLowerCase();
-  if ((await countRows(a)) === before) {
-    const recent = await db.select({ id: emailLog.id }).from(emailLog)
-      .where(and(eq(emailLog.email, email), eq(emailLog.purpose, a.purpose), eq(emailLog.status, 'sent'), gt(emailLog.createdAt, new Date(Date.now() - COOLDOWN_S * 1000)))).limit(1);
-    await log({ userId: null, email, purpose: a.purpose, status: recent.length ? 'skipped_cooldown' : 'sent', attempts: 0 });
-  }
+  if ((await countRows(a)) === before) await claim(email, a.purpose, null); // unknown address: the row a real one would have left
   const out = new Response(res.body, res);
   out.headers.set(STATUS_HEADER, mkToken(a));
   return out;
@@ -105,6 +118,12 @@ export async function emailStatus(token: string | undefined | null): Promise<Ema
     .where(and(eq(emailLog.email, t.email), eq(emailLog.purpose, t.purpose), gte(emailLog.createdAt, new Date(t.at - COOLDOWN_S * 1000)))).orderBy(desc(emailLog.createdAt)).limit(5);
   const last = rows.find((r) => r.status !== 'skipped_cooldown');
   if (!last) return out;
-  if (last.status === 'failed') return { ...out, status: 'failed', error: (last.error ?? 'network') as ErrorKind };
+  // A real failure would show only for real accounts. While the provider is failing for anyone, a still-unfinished row (which an unknown address never finishes) reads as failed too.
+  let failure = last.status === 'failed' ? last.error : null;
+  if (!failure && last.attempts === 0) {
+    const [g] = await db.select({ error: emailLog.error }).from(emailLog).where(and(eq(emailLog.status, 'failed'), gt(emailLog.createdAt, sql`now() - interval '60 seconds'`))).orderBy(desc(emailLog.createdAt)).limit(1);
+    failure = g?.error ?? null;
+  }
+  if (failure) return { ...out, status: 'failed', error: failure as ErrorKind };
   return { ...out, status: 'sent', sentAt: last.createdAt.toISOString(), resendAvailableIn: left(last.createdAt), alreadySent: rows.some((r) => r.status === 'skipped_cooldown' && r.createdAt > last.createdAt) };
 }

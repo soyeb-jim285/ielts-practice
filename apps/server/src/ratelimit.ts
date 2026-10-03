@@ -48,3 +48,8 @@ export const lrSaveLimit = createMiddleware<AppEnv>(async (c, next) => {
 
 /** Delivery-status polls (GET /api/auth-email/status) per client address: the web and mobile screens poll every ~2 s for 20 s after a send, so 30 at once + 1 per 2 s never blocks a person and stops address probing. */
 export const authStatusOk = (ipHash: string) => take(ipBuckets, `authstatus:${ipHash}`, 30, 2_000);
+
+/** Code-sending endpoints (sign-up, send code, password reset), per client address AND per target address, so one person cannot mail-bomb an inbox or burn the email quota.
+ *  Applies the same to real and unknown addresses. */
+export const codeRequestOk = (ipHash: string, email: string) =>
+  take(ipBuckets, `code-ip:${ipHash}`, 30, 3_000) && take(ipBuckets, `code-to:${email.toLowerCase()}`, 5, 20_000);

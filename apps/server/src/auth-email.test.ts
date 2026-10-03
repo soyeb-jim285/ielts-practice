@@ -1,9 +1,11 @@
+import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth } from './auth';
 import { db } from './db/client';
 import { emailLog } from './db/schema';
+import { sendsIdle } from './auth-email';
 import { retryDelaysMs } from './email';
-import { app, req } from './test/helpers';
+import { app } from './test/helpers';
 
 // Resend is mocked at the SDK boundary so the real retry / logging / cooldown / status code runs.
 const send = vi.hoisted(() => vi.fn());
@@ -14,7 +16,9 @@ const ok = { data: { id: 'rs_1' }, error: null };
 const err = (statusCode: number, name = 'application_error') => ({ data: null, error: { name, message: 'secret provider text', statusCode } });
 let n = 0;
 const fresh = () => `mail${++n}_${Math.random().toString(36).slice(2, 6)}@x.com`;
-const post = (path: string, body: unknown) => req(`/api/auth${path}`, { body });
+let ipn = 0;
+const post = (path: string, body: unknown, ip = `10.1.${Math.floor(++ipn / 250)}.${ipn % 250}`) =>
+  app.request(`/api/auth${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'CF-Connecting-IP': ip }, body: JSON.stringify(body) });
 const signUp = (email: string) => auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'U' } });
 const status = async (token: string | null, ip = '9.9.9.9') => {
   const r = await app.request('/api/auth-email/status', { headers: { 'CF-Connecting-IP': ip, ...(token && { 'x-email-status-token': token }) } });
@@ -23,10 +27,15 @@ const status = async (token: string | null, ip = '9.9.9.9') => {
 /** What the apps do: call the endpoint, keep the status token from the response. */
 const ask = async (email: string, type = 'email-verification') => {
   const r = type === 'forget-password' ? await post('/email-otp/request-password-reset', { email }) : await post('/email-otp/send-verification-otp', { email, type });
+  await sendsIdle();
   return r.headers.get('x-email-status-token')!;
 };
 const rows = () => db.select().from(emailLog);
-const verify = (email: string) => post('/email-otp/send-verification-otp', { email, type: 'email-verification' });
+const verify = async (email: string) => {
+  const r = await post('/email-otp/send-verification-otp', { email, type: 'email-verification' });
+  await sendsIdle(); // sends run in the background
+  return r;
+};
 const T = (r: Response) => r.headers.get('x-email-status-token')!;
 
 beforeEach(() => {
@@ -90,6 +99,7 @@ describe('sending', () => {
     const ctx = await auth.$context;
     send.mockResolvedValue(err(500));
     await (ctx.options.emailVerification as unknown as { sendVerificationEmail: (d: unknown) => Promise<void> }).sendVerificationEmail({ user, url: 'http://x', token: 't' });
+    await sendsIdle();
     expect(await rows()).toMatchObject([{ userId: user.id, status: 'failed' }]);
   });
 
@@ -182,5 +192,89 @@ describe('GET /api/auth-email/status', () => {
     expect(codes.slice(0, 30).every((c) => c === 200)).toBe(true);
     expect(codes.at(-1)).toBe(429);
     expect((await status(tok, '8.8.8.8')).code).toBe(200);
+  });
+});
+
+describe('real and unknown addresses are indistinguishable to the requester', () => {
+  const ageRows = (email: string) => db.execute(sql`update email_log set created_at = created_at - interval '31 seconds' where email = ${email}`);
+  const sequence = async (email: string) => {
+    const out: Record<string, unknown>[] = [];
+    const snap = async (r: Response) => {
+      await sendsIdle();
+      const { sentAt, ...rest } = (await status(r.headers.get('x-email-status-token'))).body;
+      out.push({ ...rest, hasSentAt: !!sentAt, headers: [...r.headers.keys()].filter((k) => k.startsWith('x-')).sort().join(), http: r.status });
+    };
+    await snap(await post('/email-otp/send-verification-otp', { email, type: 'email-verification' })); // first
+    await snap(await post('/email-otp/send-verification-otp', { email, type: 'email-verification' })); // immediate second
+    await ageRows(email);
+    await snap(await post('/email-otp/send-verification-otp', { email, type: 'email-verification' })); // after the cooldown
+    return out;
+  };
+
+  it('same status sequence: first request, immediate repeat, after the cooldown', async () => {
+    const real = fresh();
+    const ghost = fresh();
+    await signUp(real);
+    send.mockResolvedValue(ok);
+    const a = await sequence(real);
+    const b = await sequence(ghost);
+    expect(b).toEqual(a);
+    expect(a.map((x) => [x.status, x.alreadySent])).toEqual([['sent', false], ['sent', true], ['sent', false]]);
+    expect(send).toHaveBeenCalledTimes(2); // real address only: first and after-cooldown
+  });
+
+  it('same during a provider outage: both read as failed, with the same kind', async () => {
+    const real = fresh();
+    const ghost = fresh();
+    await signUp(real);
+    send.mockResolvedValue(err(500));
+    const a = (await status(T(await verify(real)))).body;
+    const b = (await status(T(await verify(ghost)))).body;
+    expect(a).toMatchObject({ status: 'failed', error: 'unavailable' });
+    expect({ ...b, sentAt: null, maskedEmail: null }).toEqual({ ...a, sentAt: null, maskedEmail: null });
+  });
+
+  it('latency does not depend on the send: a slow, retrying provider does not slow a real address down', async () => {
+    const real = fresh();
+    const ghost = fresh();
+    await signUp(real);
+    send.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+      return err(500);
+    });
+    const time = async (e: string) => {
+      const t = performance.now();
+      await post('/email-otp/send-verification-otp', { email: e, type: 'email-verification' });
+      return performance.now() - t;
+    };
+    const tReal = await time(real);
+    const tGhost = await time(ghost);
+    expect(tReal).toBeLessThan(300); // the three 400 ms attempts happen after the response
+    expect(Math.abs(tReal - tGhost)).toBeLessThan(250);
+    await sendsIdle();
+  });
+
+  it('N concurrent requests send at most one email', async () => {
+    const e = fresh();
+    await signUp(e);
+    send.mockResolvedValue(ok);
+    const rs = await Promise.all(Array.from({ length: 5 }, (_, i) => post('/email-otp/send-verification-otp', { email: e, type: 'email-verification' }, `10.9.0.${i}`)));
+    await sendsIdle();
+    expect(send).toHaveBeenCalledOnce();
+    expect(rs.every((r) => r.status === 200)).toBe(true);
+    expect((await rows()).map((r) => r.status).sort()).toEqual(['sent', 'skipped_cooldown', 'skipped_cooldown', 'skipped_cooldown', 'skipped_cooldown']);
+  });
+
+  it('is limited per target address and per client address on the code-sending endpoints', async () => {
+    const e = fresh();
+    send.mockResolvedValue(ok);
+    const codes: number[] = [];
+    for (let i = 0; i < 7; i++) codes.push((await post('/email-otp/send-verification-otp', { email: e, type: 'email-verification' }, `10.8.0.${i}`)).status); // different clients, same victim
+    expect(codes.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
+    expect(codes.slice(5)).toEqual([429, 429]);
+    const ip: number[] = [];
+    for (let i = 0; i < 33; i++) ip.push((await post('/email-otp/send-verification-otp', { email: fresh(), type: 'email-verification' }, '10.7.7.7')).status); // one client, many victims
+    expect(ip.slice(0, 30).every((c) => c === 200)).toBe(true);
+    expect(ip.at(-1)).toBe(429);
   });
 });

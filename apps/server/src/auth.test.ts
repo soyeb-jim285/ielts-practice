@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth, webLink } from './auth';
+import { sendsIdle } from './auth-email';
 import { sendEmail } from './email';
 import { req } from './test/helpers';
 
@@ -21,7 +22,11 @@ describe('webLink', () => {
 });
 
 const mail = vi.mocked(sendEmail);
-const post = (path: string, body: unknown) => req(`/api/auth${path}`, { body });
+const post = async (path: string, body: unknown) => {
+  const r = await req(`/api/auth${path}`, { body });
+  await sendsIdle(); // code emails are sent in the background
+  return r;
+};
 const lastCode = () => /(\d{6})<\/p>/.exec(mail.mock.calls.at(-1)![0].html)![1]!;
 const signUp = (email: string) => auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'Otp User' } });
 
