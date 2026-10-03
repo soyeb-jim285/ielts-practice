@@ -342,12 +342,12 @@ struct WritingEditorView: View {
         let showTitle = !p.body.hasPrefix(titleStem) && chart?.title != p.title
         let minimum = minWords(p)
         return VStack(alignment: .leading, spacing: 16) {
-            Text("\(taskLabel(p)), about \(p.part == 1 ? 20 : 40) minutes").font(.caption).foregroundStyle(.muted)
+            Text("\(taskLabel(p)). You should spend about \(p.part == 1 ? 20 : 40) minutes on this task.").font(.caption).foregroundStyle(.muted)
             if showTitle { Text(p.title).font(.display(.title3)).foregroundStyle(.ink) }
             Text(p.body).font(.system(.body, design: .serif)).foregroundStyle(.ink).fixedSize(horizontal: false, vertical: true)
             if let bullets = p.bullets, !bullets.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("In your letter:").font(.system(.body, design: .serif)).foregroundStyle(.ink)
+                    Text("In your letter").font(.system(.body, design: .serif)).foregroundStyle(.ink)
                     ForEach(bullets, id: \.self) { b in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("•").foregroundStyle(.muted)
@@ -376,6 +376,15 @@ struct WritingEditorView: View {
             }
             Divider()
             Text("Write at least \(minimum) words.").font(.caption).foregroundStyle(.muted)
+            if p.part == 1, p.variant == "general", !p.body.localizedCaseInsensitiveContains("Begin your letter") {
+                // Cambridge's closing lines: formal letters open "Dear Sir or Madam,", the rest leave the name blank.
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("You do NOT need to write any addresses.")
+                    Text("Begin your letter as follows:")
+                    Text(p.type == "letter-formal" ? "Dear Sir or Madam," : "Dear ..............,")
+                }
+                .font(.system(.body, design: .serif)).foregroundStyle(.ink)
+            }
         }
     }
 

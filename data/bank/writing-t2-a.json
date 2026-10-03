@@ -1,66 +1,362 @@
 [
-  {"slug":"t2a-continuous-assessment","topic":"education","type":"opinion","body":"Some people believe that final examinations should be abolished and replaced by continuous assessment of students' work throughout the school year.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-ai-tutors","topic":"technology","type":"opinion","body":"It has been suggested that artificial intelligence tutors will soon be so effective that human teachers will no longer be needed in secondary schools.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-single-use-plastic-ban","topic":"environment","type":"opinion","body":"Governments should ban all single-use plastic products, even if this means higher prices for consumers and businesses.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-sugar-tax","topic":"health","type":"opinion","body":"Placing a heavy tax on sugary drinks and fast food is the most effective way to reduce rising levels of obesity.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-four-day-week","topic":"work","type":"opinion","body":"A four-day working week would benefit not only employees but also employers and the economy as a whole.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-prison-degrees","topic":"crime","type":"opinion","body":"Prisoners should be given the opportunity to study for a university degree, paid for by the state, while they are serving their sentence.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-compulsory-voting","topic":"government","type":"opinion","body":"Voting in national elections should be made compulsory for every adult citizen, and those who fail to vote should be fined.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-paying-for-news","topic":"media","type":"opinion","body":"People should be prepared to pay for high-quality online news rather than expecting all news content to be free.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-smartphone-age-limit","topic":"technology","type":"opinion","body":"Children under the age of sixteen should not be allowed to own a smartphone.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-compulsory-languages","topic":"education","type":"opinion","body":"Learning a foreign language should be compulsory for all students until they finish secondary school.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-car-free-centres","topic":"environment","type":"opinion","body":"Private cars should be banned from the centres of all large cities.\n\nTo what extent do you agree or disagree?"},
-  {"slug":"t2a-celebrity-role-models","topic":"media","type":"opinion","body":"Famous people such as sports stars and entertainers have a responsibility to behave as positive role models for young people.\n\nTo what extent do you agree or disagree?"},
-
-  {"slug":"t2a-gap-year","topic":"education","type":"discussion","body":"Some people think that young people should take a year off between finishing school and starting university in order to travel or work. Others believe that this is a waste of valuable time.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-online-degrees","topic":"education","type":"discussion","body":"Some people argue that degrees completed entirely online are just as valuable as traditional university degrees. Others feel that studying on a campus offers benefits that online courses cannot provide.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-platform-liability","topic":"technology","type":"discussion","body":"Some people believe that social media companies should be held legally responsible for the content that their users post. Others think that this would be a threat to freedom of speech.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-automation-jobs","topic":"work","type":"discussion","body":"Some people think that automation and robotics will create more jobs than they destroy. Others fear that they will lead to widespread unemployment.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-climate-individuals","topic":"environment","type":"discussion","body":"Some people believe that individuals can do very little to tackle climate change and that only governments and large companies can make a real difference. Others think that every individual must take responsibility for protecting the environment.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-alternative-medicine","topic":"health","type":"discussion","body":"Some people think that public health services should pay for alternative treatments such as acupuncture and herbal medicine. Others believe that public money should only be spent on treatments that have been scientifically proven to work.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-punishment-rehabilitation","topic":"crime","type":"discussion","body":"Some people believe that the main purpose of prison is to punish criminals. Others argue that its main aim should be to rehabilitate offenders so that they can return to society.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-arts-funding","topic":"government","type":"discussion","body":"Some people think that governments should provide funding for artists, musicians and theatres. Others believe that this money would be better spent on public services such as hospitals and schools.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-remote-work","topic":"work","type":"discussion","body":"Some people believe that working from home benefits both employees and companies. Others argue that working in an office is essential for teamwork and productivity.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-reality-tv","topic":"media","type":"discussion","body":"Some people say that reality television programmes are harmless entertainment. Others believe that they have a negative influence on the values and behaviour of viewers, especially young people.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-space-spending","topic":"government","type":"discussion","body":"Some people believe that governments should continue to invest large sums of money in space exploration. Others think that this money should be used to solve problems here on Earth.\n\nDiscuss both views and give your own opinion."},
-  {"slug":"t2a-young-offenders","topic":"crime","type":"discussion","body":"Some people think that teenagers who commit serious crimes should be punished in the same way as adults. Others believe that young offenders should be treated differently because of their age.\n\nDiscuss both views and give your own opinion."},
-
-  {"slug":"t2a-teacher-shortage","topic":"education","type":"problem-solution","body":"In many countries, fewer and fewer young people are choosing to become teachers.\n\nWhat are the reasons for this? What can be done to encourage more people to enter the teaching profession?"},
-  {"slug":"t2a-screen-time","topic":"technology","type":"problem-solution","body":"Many people now spend several hours a day looking at screens, both at work and in their free time.\n\nWhat problems does this cause? What can be done to reduce these problems?"},
-  {"slug":"t2a-urban-air-pollution","topic":"environment","type":"problem-solution","body":"Air quality in many large cities around the world has become a serious concern.\n\nWhat are the main causes of this problem? What measures could be taken to improve the situation?"},
-  {"slug":"t2a-student-stress","topic":"health","type":"problem-solution","body":"An increasing number of university students report suffering from stress and anxiety.\n\nWhy is this happening? What can universities and students themselves do to address this problem?"},
-  {"slug":"t2a-youth-unemployment","topic":"work","type":"problem-solution","body":"In many countries, young people find it difficult to get a job even after completing their education.\n\nWhat are the causes of this problem? What solutions can you suggest?"},
-  {"slug":"t2a-online-fraud","topic":"crime","type":"problem-solution","body":"Online fraud and identity theft are becoming more common as people carry out more of their daily activities on the internet.\n\nWhat are the reasons for this increase? What can be done to protect people from these crimes?"},
-  {"slug":"t2a-rural-decline","topic":"government","type":"problem-solution","body":"In many countries, people are leaving rural areas to live in cities, and some villages are now almost empty.\n\nWhat problems does this cause? What can governments do to solve these problems?"},
-  {"slug":"t2a-false-information","topic":"media","type":"problem-solution","body":"False and misleading information spreads very quickly on the internet.\n\nWhy is this the case? What measures could be taken to reduce the spread of false information?"},
-  {"slug":"t2a-food-waste","topic":"environment","type":"problem-solution","body":"In many developed countries, a large proportion of the food that is produced is thrown away.\n\nWhat are the causes of this? How can the amount of food waste be reduced?"},
-  {"slug":"t2a-overwork","topic":"work","type":"problem-solution","body":"In many workplaces, employees are expected to work long hours and to be available by phone and email outside working time.\n\nWhat problems does this cause for individuals and for society? What can be done to solve these problems?"},
-  {"slug":"t2a-youth-violence","topic":"crime","type":"problem-solution","body":"In some cities, an increasing number of teenagers are becoming involved in violent crime.\n\nWhat are the causes of this? What can be done to deal with this problem?"},
-  {"slug":"t2a-ageing-healthcare","topic":"health","type":"problem-solution","body":"As people live longer, the number of elderly people in many countries is rising, placing pressure on health and care services.\n\nWhat problems does this situation create? What solutions can you suggest?"},
-
-  {"slug":"t2a-homeschooling","topic":"education","type":"adv-disadv","body":"A growing number of parents are choosing to educate their children at home rather than sending them to school.\n\nDo the advantages of this outweigh the disadvantages?"},
-  {"slug":"t2a-cashless-society","topic":"technology","type":"adv-disadv","body":"In some countries, cash is rapidly disappearing as people pay for almost everything using cards and mobile phones.\n\nDo the advantages of a cashless society outweigh the disadvantages?"},
-  {"slug":"t2a-electric-cars","topic":"environment","type":"adv-disadv","body":"Many governments are encouraging people to replace petrol and diesel cars with electric vehicles.\n\nWhat are the advantages and disadvantages of this policy?"},
-  {"slug":"t2a-health-wearables","topic":"health","type":"adv-disadv","body":"Many people now use wearable devices, such as smartwatches, to monitor their heart rate, sleep and physical activity.\n\nDo the advantages of this trend outweigh the disadvantages?"},
-  {"slug":"t2a-gig-economy","topic":"work","type":"adv-disadv","body":"More and more people are working as freelancers or on short-term contracts, for example as delivery drivers or online workers, instead of having a permanent job.\n\nDo the advantages of this development outweigh the disadvantages?"},
-  {"slug":"t2a-public-cctv","topic":"crime","type":"adv-disadv","body":"In many cities, surveillance cameras have been installed in streets, shops and on public transport in order to prevent crime.\n\nDo the advantages of this outweigh the disadvantages?"},
-  {"slug":"t2a-hosting-sports-events","topic":"government","type":"adv-disadv","body":"Many countries compete to host major international sporting events such as the Olympic Games or the football World Cup.\n\nWhat are the advantages and disadvantages for a country of hosting such events?"},
-  {"slug":"t2a-citizen-journalism","topic":"media","type":"adv-disadv","body":"Today, ordinary people often report news events by posting photos and videos online before professional journalists arrive.\n\nDo the advantages of this outweigh the disadvantages?"},
-  {"slug":"t2a-early-school-start","topic":"education","type":"adv-disadv","body":"In some countries, children begin formal schooling at the age of four, while in others they do not start until they are six or seven.\n\nWhat are the advantages and disadvantages of starting school at an early age?"},
-  {"slug":"t2a-changing-jobs","topic":"work","type":"adv-disadv","body":"Nowadays, many people change their jobs several times during their career rather than staying with one employer for life.\n\nDo the advantages of this outweigh the disadvantages?"},
-  {"slug":"t2a-smart-homes","topic":"technology","type":"adv-disadv","body":"More and more homes are equipped with smart devices that can be controlled by voice or through a mobile phone, such as lights, heating systems and door locks.\n\nDo the advantages of this outweigh the disadvantages?"},
-  {"slug":"t2a-personalised-advertising","topic":"media","type":"adv-disadv","body":"Many companies now collect information about people's online activity in order to show them advertisements that match their personal interests.\n\nWhat are the advantages and disadvantages of this type of advertising?"},
-
-  {"slug":"t2a-reading-for-pleasure","topic":"education","type":"two-part","body":"Fewer children today read books for pleasure than in the past.\n\nWhy is this? Is this a negative development?"},
-  {"slug":"t2a-satnav-reliance","topic":"technology","type":"two-part","body":"Many people now rely on navigation apps on their phones to find their way, even in places they know well.\n\nWhy has this happened? Has this made people less capable in some ways?"},
-  {"slug":"t2a-local-food","topic":"environment","type":"two-part","body":"In many countries, more people are choosing to buy food that has been grown or produced locally.\n\nWhy do people make this choice? Is this a positive or negative development?"},
-  {"slug":"t2a-cosmetic-surgery","topic":"health","type":"two-part","body":"The number of people having cosmetic surgery to change their appearance is increasing, and many of them are young.\n\nWhy is this happening? Is this a positive or negative trend?"},
-  {"slug":"t2a-retirement-age","topic":"work","type":"two-part","body":"Many governments are raising the age at which people can retire and receive a state pension.\n\nWhy are they doing this? Do you think this is fair?"},
-  {"slug":"t2a-crime-coverage","topic":"media","type":"two-part","body":"News programmes and newspapers often give a great deal of attention to reports of violent crime.\n\nWhy do the media focus on crime so much? What effects does this have on the public?"},
-  {"slug":"t2a-free-public-transport","topic":"government","type":"two-part","body":"Some cities have made their public transport completely free for everyone to use.\n\nWhy have they done this? Should other cities follow their example?"},
-  {"slug":"t2a-online-influencers","topic":"media","type":"two-part","body":"Many young people now trust the advice of online influencers more than that of doctors, teachers and other experts.\n\nWhy is this? What problems could this cause?"},
-  {"slug":"t2a-adult-learners","topic":"education","type":"two-part","body":"More and more adults are returning to education in their forties and fifties.\n\nWhat are the reasons for this? How does society benefit from it?"},
-  {"slug":"t2a-repair-culture","topic":"environment","type":"two-part","body":"Nowadays, when household items such as phones, clothes and electrical appliances break, people usually throw them away and buy new ones instead of repairing them.\n\nWhy is this? What can be done to encourage people to repair things?"},
-  {"slug":"t2a-job-satisfaction","topic":"work","type":"two-part","body":"Some people stay in the same job for years even though they are unhappy, while others leave well-paid positions to find more meaningful work.\n\nWhat is the most important factor in job satisfaction? Is it the same for people of all ages?"},
-  {"slug":"t2a-neighbourhood-safety","topic":"crime","type":"two-part","body":"Some neighbourhoods in the same city have much higher crime rates than others.\n\nWhat factors lead to this difference? Who should be responsible for making these areas safer?"}
+  {
+    "slug": "t2a-continuous-assessment",
+    "topic": "education",
+    "type": "opinion",
+    "body": "Some people believe that final examinations should be abolished and replaced by continuous assessment of students' work throughout the school year.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-ai-tutors",
+    "topic": "technology",
+    "type": "opinion",
+    "body": "It has been suggested that artificial intelligence tutors will soon be so effective that human teachers will no longer be needed in secondary schools.\n\nDo you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-single-use-plastic-ban",
+    "topic": "environment",
+    "type": "opinion",
+    "body": "Governments should ban all single-use plastic products, even if this means higher prices for consumers and businesses.\n\nTo what extent do you agree or disagree with this opinion?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-sugar-tax",
+    "topic": "health",
+    "type": "opinion",
+    "body": "Placing a heavy tax on sugary drinks and fast food is the most effective way to reduce rising levels of obesity.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-four-day-week",
+    "topic": "work",
+    "type": "opinion",
+    "body": "A four-day working week would benefit not only employees but also employers and the economy as a whole.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-prison-degrees",
+    "topic": "crime",
+    "type": "opinion",
+    "body": "Prisoners should be given the opportunity to study for a university degree, paid for by the state, while they are serving their sentence.\n\nDo you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-compulsory-voting",
+    "topic": "government",
+    "type": "opinion",
+    "body": "Voting in national elections should be made compulsory for every adult citizen, and those who fail to vote should be fined.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-paying-for-news",
+    "topic": "media",
+    "type": "opinion",
+    "body": "People should be prepared to pay for high-quality online news rather than expecting all news content to be free.\n\nDo you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-smartphone-age-limit",
+    "topic": "technology",
+    "type": "opinion",
+    "body": "Children under the age of sixteen should not be allowed to own a smartphone.\n\nTo what extent do you agree or disagree with this opinion?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-compulsory-languages",
+    "topic": "education",
+    "type": "opinion",
+    "body": "Learning a foreign language should be compulsory for all students until they finish secondary school.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-car-free-centres",
+    "topic": "environment",
+    "type": "opinion",
+    "body": "Private cars should be banned from the centres of all large cities.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-celebrity-role-models",
+    "topic": "media",
+    "type": "opinion",
+    "body": "Famous people such as sports stars and entertainers have a responsibility to behave as positive role models for young people.\n\nDo you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-gap-year",
+    "topic": "education",
+    "type": "discussion",
+    "body": "Some people think that young people should take a year off between finishing school and starting university in order to travel or work. Others believe that this is a waste of valuable time.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-online-degrees",
+    "topic": "education",
+    "type": "discussion",
+    "body": "Some people argue that degrees completed entirely online are just as valuable as traditional university degrees. Others feel that studying on a campus offers benefits that online courses cannot provide.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-platform-liability",
+    "topic": "technology",
+    "type": "discussion",
+    "body": "Some people believe that social media companies should be held legally responsible for the content that their users post. Others think that this would be a threat to freedom of speech.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-automation-jobs",
+    "topic": "work",
+    "type": "discussion",
+    "body": "Some people think that automation and robotics will create more jobs than they destroy. Others fear that they will lead to widespread unemployment.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-climate-individuals",
+    "topic": "environment",
+    "type": "discussion",
+    "body": "Some people believe that individuals can do very little to tackle climate change and that only governments and large companies can make a real difference. Others think that every individual must take responsibility for protecting the environment.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-alternative-medicine",
+    "topic": "health",
+    "type": "discussion",
+    "body": "Some people think that public health services should pay for alternative treatments such as acupuncture and herbal medicine. Others believe that public money should only be spent on treatments that have been scientifically proven to work.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-punishment-rehabilitation",
+    "topic": "crime",
+    "type": "discussion",
+    "body": "Some people believe that the main purpose of prison is to punish criminals. Others argue that its main aim should be to rehabilitate offenders so that they can return to society.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-arts-funding",
+    "topic": "government",
+    "type": "discussion",
+    "body": "Some people think that governments should provide funding for artists, musicians and theatres. Others believe that this money would be better spent on public services such as hospitals and schools.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-remote-work",
+    "topic": "work",
+    "type": "discussion",
+    "body": "Some people believe that working from home benefits both employees and companies. Others argue that working in an office is essential for teamwork and productivity.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-reality-tv",
+    "topic": "media",
+    "type": "discussion",
+    "body": "Some people say that reality television programmes are harmless entertainment. Others believe that they have a negative influence on the values and behaviour of viewers, especially young people.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-space-spending",
+    "topic": "government",
+    "type": "discussion",
+    "body": "Some people believe that governments should continue to invest large sums of money in space exploration. Others think that this money should be used to solve problems here on Earth.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-young-offenders",
+    "topic": "crime",
+    "type": "discussion",
+    "body": "Some people think that teenagers who commit serious crimes should be punished in the same way as adults. Others believe that young offenders should be treated differently because of their age.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-teacher-shortage",
+    "topic": "education",
+    "type": "problem-solution",
+    "body": "In many countries, fewer and fewer young people are choosing to become teachers.\n\nWhat are the reasons for this?\n\nWhat can be done to encourage more people to enter the teaching profession?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-screen-time",
+    "topic": "technology",
+    "type": "problem-solution",
+    "body": "Many people now spend several hours a day looking at screens, both at work and in their free time.\n\nWhat problems does this cause?\n\nWhat can be done to reduce these problems?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-urban-air-pollution",
+    "topic": "environment",
+    "type": "problem-solution",
+    "body": "Air quality in many large cities around the world has become a serious concern.\n\nWhat are the main causes of this problem?\n\nWhat measures could be taken to improve the situation?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-student-stress",
+    "topic": "health",
+    "type": "two-part",
+    "body": "An increasing number of university students report suffering from stress and anxiety.\n\nWhy is this the case?\n\nWhat can universities do to help?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-youth-unemployment",
+    "topic": "work",
+    "type": "discussion",
+    "body": "Some people think that schools and universities should be responsible for preparing young people for work. Others believe that employers should provide the training.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-online-fraud",
+    "topic": "crime",
+    "type": "problem-solution",
+    "body": "Online fraud and identity theft are becoming more common as people carry out more of their daily activities on the internet.\n\nWhat are the reasons for this increase?\n\nWhat can be done to protect people from these crimes?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-rural-decline",
+    "topic": "government",
+    "type": "discussion",
+    "body": "Some people believe that governments should do more to encourage young people to stay in rural areas. Others think that moving to cities is a natural part of progress.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-false-information",
+    "topic": "media",
+    "type": "opinion",
+    "body": "The best way to deal with false information online is to teach people how to check what they read.\n\nTo what extent do you agree or disagree with this statement?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-food-waste",
+    "topic": "environment",
+    "type": "problem-solution",
+    "body": "In many developed countries, a large proportion of the food that is produced is thrown away.\n\nWhat are the causes of this?\n\nHow can the amount of food waste be reduced?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-overwork",
+    "topic": "work",
+    "type": "problem-solution",
+    "body": "In many workplaces, employees are expected to work long hours and to be available by phone and email outside working time.\n\nWhat problems does this cause for individuals and for society?\n\nWhat can be done to solve these problems?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-youth-violence",
+    "topic": "crime",
+    "type": "problem-solution",
+    "body": "In some cities, an increasing number of teenagers are becoming involved in violent crime.\n\nWhat are the causes of this?\n\nWhat can be done to deal with this problem?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-ageing-healthcare",
+    "topic": "health",
+    "type": "problem-solution",
+    "body": "As people live longer, the number of elderly people in many countries is rising, placing pressure on health and care services.\n\nWhat problems does this situation create?\n\nWhat solutions can you suggest?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-homeschooling",
+    "topic": "education",
+    "type": "opinion",
+    "body": "Children get a better education at home than at school.\n\nDo you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-cashless-society",
+    "topic": "technology",
+    "type": "discussion",
+    "body": "Some people believe that a society in which nobody uses cash would be safer and more convenient. Others think that cash will always be necessary.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-electric-cars",
+    "topic": "environment",
+    "type": "adv-disadv",
+    "body": "Many governments are encouraging people to replace petrol and diesel cars with electric vehicles.\n\nWhat are the advantages and disadvantages of this policy?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-health-wearables",
+    "topic": "health",
+    "type": "adv-disadv",
+    "body": "Many people now use devices such as smartwatches to monitor their health and fitness.\n\nDo the advantages of this trend outweigh the disadvantages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-gig-economy",
+    "topic": "work",
+    "type": "adv-disadv",
+    "body": "More and more people work as freelancers or on short-term contracts instead of having a permanent job.\n\nDo the advantages of this development outweigh the disadvantages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-public-cctv",
+    "topic": "crime",
+    "type": "discussion",
+    "body": "Some people think that cameras in streets, shops and on public transport are the best way to prevent crime. Others believe that they are an invasion of privacy.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-hosting-sports-events",
+    "topic": "government",
+    "type": "discussion",
+    "body": "Some people think that it is a good idea for a country to spend public money on hosting major sporting events. Others believe that this money should be spent on other things.\n\nDiscuss both these views and give your own opinion.\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-citizen-journalism",
+    "topic": "media",
+    "type": "adv-disadv",
+    "body": "Today, ordinary people often report news events by posting photos and videos online before professional journalists arrive.\n\nDo the advantages of this outweigh the disadvantages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-early-school-start",
+    "topic": "education",
+    "type": "adv-disadv",
+    "body": "In some countries, children begin formal schooling at the age of four, while in others they do not start until they are six or seven.\n\nWhat are the advantages and disadvantages of starting school at an early age?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-changing-jobs",
+    "topic": "work",
+    "type": "adv-disadv",
+    "body": "Nowadays, many people change their jobs several times during their career rather than staying with one employer for life.\n\nDo the advantages of this outweigh the disadvantages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-smart-homes",
+    "topic": "technology",
+    "type": "adv-disadv",
+    "body": "More and more homes are fitted with smart devices that can be controlled by voice or by phone.\n\nDo the advantages of this outweigh the disadvantages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-personalised-advertising",
+    "topic": "media",
+    "type": "adv-disadv",
+    "body": "Many companies now collect information about people's online activity in order to show them advertisements that match their personal interests.\n\nWhat are the advantages and disadvantages of this type of advertising?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-reading-for-pleasure",
+    "topic": "education",
+    "type": "two-part",
+    "body": "Fewer children today read books for pleasure than in the past.\n\nWhy is this?\n\nIs this a negative development?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-satnav-reliance",
+    "topic": "technology",
+    "type": "two-part",
+    "body": "Many people now rely on navigation apps on their phones to find their way, even in places they know well.\n\nWhy has this happened?\n\nHas this made people less capable in some ways?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-local-food",
+    "topic": "environment",
+    "type": "two-part",
+    "body": "In many countries, more people are choosing to buy food that has been grown or produced locally.\n\nWhy do people make this choice?\n\nIs this a positive or negative development?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-cosmetic-surgery",
+    "topic": "health",
+    "type": "two-part",
+    "body": "The number of people having cosmetic surgery to change their appearance is increasing, and many of them are young.\n\nWhy is this happening?\n\nIs this a positive or negative trend?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-retirement-age",
+    "topic": "work",
+    "type": "two-part",
+    "body": "Many governments are raising the age at which people can retire and receive a state pension.\n\nWhy are they doing this?\n\nDo you think this is fair?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-crime-coverage",
+    "topic": "media",
+    "type": "two-part",
+    "body": "News programmes and newspapers often give a great deal of attention to reports of violent crime.\n\nWhy do the media focus on crime so much?\n\nWhat effects does this have on the public?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-free-public-transport",
+    "topic": "government",
+    "type": "two-part",
+    "body": "Some cities have made their public transport completely free for everyone to use.\n\nWhy have they done this?\n\nShould other cities follow their example?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-online-influencers",
+    "topic": "media",
+    "type": "two-part",
+    "body": "Many young people now trust the advice of online influencers more than that of doctors, teachers and other experts.\n\nWhy is this?\n\nWhat problems could this cause?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-adult-learners",
+    "topic": "education",
+    "type": "two-part",
+    "body": "More and more adults are returning to education in their forties and fifties.\n\nWhat are the reasons for this?\n\nHow does society benefit from it?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-repair-culture",
+    "topic": "environment",
+    "type": "two-part",
+    "body": "Nowadays, when household items such as phones, clothes and electrical appliances break, people usually throw them away and buy new ones instead of repairing them.\n\nWhy is this?\n\nWhat can be done to encourage people to repair things?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-job-satisfaction",
+    "topic": "work",
+    "type": "two-part",
+    "body": "Some people stay in the same job for years even though they are unhappy, while others leave well-paid positions to find more meaningful work.\n\nWhat is the most important factor in job satisfaction?\n\nIs it the same for people of all ages?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  },
+  {
+    "slug": "t2a-neighbourhood-safety",
+    "topic": "crime",
+    "type": "two-part",
+    "body": "Some neighbourhoods in the same city have much higher crime rates than others.\n\nWhat factors lead to this difference?\n\nWho should be responsible for making these areas safer?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience."
+  }
 ]

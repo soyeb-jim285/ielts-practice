@@ -3,45 +3,50 @@
     "slug": "t1a2-cafe-revenue-customers",
     "topic": "Business",
     "type": "table",
-    "body": "The table below shows the monthly number of customers at a city-centre café and the average amount each customer spent in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the average number of customers per day at a city-centre café and the average amount each customer spent, by day of the week, in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
-      "title": "Customers and average spend per customer at a café, 2023",
+      "title": "Customers and average spend per customer at a café, by day of the week",
       "columns": [
-        "Month",
-        "Customers (hundreds)",
-        "Average spend (£)"
+        "Day",
+        "Average customers per day",
+        "Average spend per customer (£)"
       ],
       "rows": [
         [
-          "Jan",
-          42,
+          "Monday",
+          142,
+          5.8
+        ],
+        [
+          "Tuesday",
+          150,
+          6.0
+        ],
+        [
+          "Wednesday",
+          158,
           6.2
         ],
         [
-          "Mar",
-          48,
+          "Thursday",
+          171,
           6.5
         ],
         [
-          "May",
-          61,
-          7.1
+          "Friday",
+          228,
+          7.4
         ],
         [
-          "Jul",
-          74,
-          8.4
+          "Saturday",
+          296,
+          8.9
         ],
         [
-          "Sep",
-          58,
-          7
-        ],
-        [
-          "Nov",
-          66,
-          9.3
+          "Sunday",
+          214,
+          8.1
         ]
       ]
     }
@@ -50,7 +55,7 @@
     "slug": "t1a2-birth-rate-age-mothers",
     "topic": "Population",
     "type": "table",
-    "body": "The table below shows the birth rate and the average age of first-time mothers in one European country between 1970 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the birth rate and the average age of first-time mothers in one European country between 1970 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Birth rate and average age of first-time mothers, 1970–2020",
@@ -97,75 +102,35 @@
     "slug": "t1a2-rainfall-reservoir",
     "topic": "Environment",
     "type": "table",
-    "body": "The table below shows average monthly rainfall and the water level of the main reservoir supplying a southern Australian city over one year. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows average monthly rainfall in each season and the water level of the main reservoir supplying a southern Australian city at the end of each season in 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
-      "title": "Monthly rainfall and reservoir level, 2022",
+      "title": "Rainfall and reservoir level by season, 2022",
       "columns": [
-        "Month",
-        "Rainfall (mm)",
-        "Reservoir level (% of capacity)"
+        "Season",
+        "Average monthly rainfall (mm)",
+        "Reservoir level at end of season (% of capacity)"
       ],
       "rows": [
         [
-          "Jan",
-          18,
-          54
-        ],
-        [
-          "Feb",
-          22,
-          49
-        ],
-        [
-          "Mar",
-          31,
+          "Summer",
+          20,
           46
         ],
         [
-          "Apr",
-          48,
-          47
-        ],
-        [
-          "May",
-          72,
+          "Autumn",
+          50,
           55
         ],
         [
-          "Jun",
+          "Winter",
           85,
-          64
-        ],
-        [
-          "Jul",
-          90,
-          73
-        ],
-        [
-          "Aug",
-          81,
           81
         ],
         [
-          "Sep",
-          63,
-          85
-        ],
-        [
-          "Oct",
-          44,
-          83
-        ],
-        [
-          "Nov",
-          29,
+          "Spring",
+          45,
           76
-        ],
-        [
-          "Dec",
-          20,
-          67
         ]
       ]
     }
@@ -174,7 +139,7 @@
     "slug": "t1a2-ecommerce-share-parcels",
     "topic": "Technology",
     "type": "table",
-    "body": "The table below gives information about online shopping in one country: the share of retail sales made online and the number of parcels delivered per person each year, from 2012 to 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below gives information about online shopping in one country: the share of retail sales made online and the number of parcels delivered per person each year, from 2012 to 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Online retail share and parcels delivered per person, 2012–2022",
@@ -221,7 +186,7 @@
     "slug": "t1a2-hotel-occupancy-price",
     "topic": "Tourism",
     "type": "table",
-    "body": "The table below shows the hotel occupancy rate and the average nightly room price in a coastal resort town across the four seasons of 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the hotel occupancy rate and the average nightly room price in a coastal resort town across the four seasons of 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Hotel occupancy and average room price by season, 2023",
@@ -258,75 +223,46 @@
     "slug": "t1a2-gym-membership-attendance",
     "topic": "Health",
     "type": "table",
-    "body": "The table below shows the number of members of a sports centre and the average number of visits each member made per month between January and December 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the number of members of a sports centre, by type of membership, in 2013, 2018 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
-      "title": "Sports centre membership and visits per member, 2023",
+      "title": "Sports centre members by type of membership",
       "columns": [
-        "Month",
-        "Members (hundreds)",
-        "Average visits per member"
+        "Type of membership",
+        "2013",
+        "2018",
+        "2023"
       ],
       "rows": [
         [
-          "Jan",
-          28,
-          11.5
+          "Adult",
+          1450,
+          1620,
+          1380
         ],
         [
-          "Feb",
-          30,
-          9.8
+          "Student",
+          380,
+          520,
+          710
         ],
         [
-          "Mar",
-          29,
-          8.6
+          "Senior (over 60)",
+          210,
+          340,
+          590
         ],
         [
-          "Apr",
-          27,
-          7.9
+          "Family",
+          260,
+          310,
+          240
         ],
         [
-          "May",
-          26,
-          7.6
-        ],
-        [
-          "Jun",
-          25,
-          7.2
-        ],
-        [
-          "Jul",
-          24,
-          6.4
-        ],
-        [
-          "Aug",
-          24,
-          6.1
-        ],
-        [
-          "Sep",
-          27,
-          8.3
-        ],
-        [
-          "Oct",
-          28,
-          8
-        ],
-        [
-          "Nov",
-          27,
-          7.4
-        ],
-        [
-          "Dec",
-          25,
-          5.9
+          "Junior (under 16)",
+          420,
+          390,
+          450
         ]
       ]
     }
@@ -335,7 +271,7 @@
     "slug": "t1a2-coffee-production-price",
     "topic": "Agriculture",
     "type": "table",
-    "body": "The table below shows global coffee production and the average export price of coffee between 2000 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows global coffee production and the average export price of coffee between 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "World coffee production and average export price, 2000–2020",
@@ -382,7 +318,7 @@
     "slug": "t1a2-rail-fares-passengers",
     "topic": "Transport",
     "type": "table",
-    "body": "The table below shows the average price of a standard rail ticket and the number of rail passenger journeys in one country between 2000 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the average price of a standard rail ticket and the number of rail passenger journeys in one country between 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Average rail fare index and passenger journeys, 2000–2020",
@@ -429,10 +365,10 @@
     "slug": "t1a2-electric-vehicle-sales",
     "topic": "Transport",
     "type": "line",
-    "body": "The graph below shows the percentage of new cars sold that were fully electric in four countries between 2014 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the percentage of new cars sold that were fully electric in four countries between 2014 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
-      "title": "Share of new car sales that were fully electric, 2014–2023",
+      "title": "Share of new car sales that were fully electric, 2014–2022",
       "xLabel": "Year",
       "yLabel": "Share of new car sales (%)",
       "unit": "%",
@@ -441,8 +377,7 @@
         "2016",
         "2018",
         "2020",
-        "2022",
-        "2023"
+        "2022"
       ],
       "series": [
         {
@@ -452,8 +387,7 @@
             16,
             31,
             54,
-            79,
-            82
+            79
           ]
         },
         {
@@ -463,8 +397,7 @@
             1.1,
             3.6,
             4.4,
-            21,
-            24
+            21
           ]
         },
         {
@@ -474,8 +407,7 @@
             0.3,
             1,
             6.7,
-            17.7,
-            18.4
+            17.7
           ]
         },
         {
@@ -485,8 +417,7 @@
             0.6,
             1.4,
             1.8,
-            5.8,
-            7.6
+            5.8
           ]
         }
       ]
@@ -496,7 +427,7 @@
     "slug": "t1a2-life-expectancy-regions",
     "topic": "Health",
     "type": "line",
-    "body": "The graph below shows average life expectancy at birth in four world regions from 1960 to 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows average life expectancy at birth in four world regions from 1960 to 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Life expectancy at birth by region, 1960–2020",
@@ -568,7 +499,7 @@
     "slug": "t1a2-forest-cover",
     "topic": "Environment",
     "type": "line",
-    "body": "The graph below shows the percentage of land area covered by forest in five countries between 1990 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below gives information about the percentage of land area covered by forest in five countries between 1990 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Forest area as a percentage of land area, 1990–2020",
@@ -652,7 +583,7 @@
     "slug": "t1a2-newspaper-news-sources",
     "topic": "Media",
     "type": "line",
-    "body": "The graph below shows the proportion of adults in one country who used different sources as their main source of news between 2005 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the proportion of adults in one country who used different sources as their main source of news between 2005 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Main source of news among adults, 2005–2023",
@@ -719,7 +650,7 @@
     "slug": "t1a2-housing-cost-income",
     "topic": "Housing",
     "type": "bar",
-    "body": "The chart below shows the ratio of average house prices to average annual household income in six cities in 2000 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the ratio of average house prices to average annual household income in six cities in 2000 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "House price to income ratio in six cities, 2000 and 2022",
@@ -764,7 +695,7 @@
     "slug": "t1a2-screen-time-children",
     "topic": "Education",
     "type": "bar",
-    "body": "The chart below shows the average number of hours per week children of different ages spent on four screen-based activities in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the average number of hours per week children of different ages spent on four screen-based activities in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Weekly screen time of children by activity and age, 2023",
@@ -821,7 +752,7 @@
     "slug": "t1a2-food-waste-sectors",
     "topic": "Environment",
     "type": "bar",
-    "body": "The chart below shows the amount of food wasted per person each year in five countries, divided by sector, in 2021. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below gives information about the amount of food wasted per person each year in five countries, divided by sector, in 2021.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Annual food waste per person by sector, 2021",
@@ -873,7 +804,7 @@
     "slug": "t1a2-museum-visits-age",
     "topic": "Culture",
     "type": "bar",
-    "body": "The chart below shows the percentage of people in different age groups in one country who visited a museum or art gallery at least once in 2008 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the percentage of people in different age groups in one country who visited a museum or art gallery at least once in 2008 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Adults visiting a museum or gallery in the past year, by age",
@@ -918,19 +849,17 @@
     "slug": "t1a2-olive-oil",
     "topic": "Food production",
     "type": "process",
-    "body": "The diagram below shows how olive oil is produced. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows how olive oil is produced.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "The production of extra virgin olive oil",
       "steps": [
-        "Olives are harvested by hand or by machines that shake the trees",
-        "Harvested olives are transported to the mill in ventilated crates",
-        "Leaves and twigs are removed by a blower",
+        "Olives are harvested by hand or by machine",
+        "Olives are taken to the mill and leaves and twigs are removed",
         "Olives are washed in cold water",
-        "Olives, including stones, are crushed into a paste",
-        "The paste is slowly mixed (malaxation) for 30–40 minutes",
+        "Olives are crushed into a paste",
+        "The paste is mixed slowly for 30–40 minutes",
         "A centrifuge separates the oil from water and solids",
-        "Solid waste is used as fuel or fertiliser",
         "Oil is left to settle in stainless steel tanks",
         "Oil is filtered and bottled in dark glass"
       ]
@@ -940,19 +869,17 @@
     "slug": "t1a2-desalination",
     "topic": "Water",
     "type": "process",
-    "body": "The diagram below shows how sea water is turned into drinking water at a desalination plant. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows how sea water is turned into drinking water at a desalination plant.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "Producing drinking water by reverse osmosis desalination",
       "steps": [
         "Sea water is drawn in through an offshore intake pipe",
         "Screens remove fish, seaweed and large debris",
-        "Water passes through sand filters to remove fine particles",
-        "Chemicals are added to prevent scaling",
-        "High-pressure pumps force water through reverse osmosis membranes",
+        "Sand filters remove fine particles",
+        "High-pressure pumps force the water through reverse osmosis membranes",
         "Concentrated brine is diluted and returned to the sea",
-        "Minerals such as calcium are added back to the fresh water",
-        "Water is disinfected with chlorine",
+        "Minerals are added back and the water is disinfected",
         "Treated water is stored in a reservoir",
         "Water is pumped to homes through the mains supply"
       ]
@@ -962,7 +889,7 @@
     "slug": "t1a2-silk-production",
     "topic": "Manufacturing",
     "type": "process",
-    "body": "The diagram below illustrates the stages in the production of silk cloth. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below illustrates the stages in the production of silk cloth.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "The life cycle of the silkworm and the production of silk cloth",
@@ -971,9 +898,8 @@
         "Eggs hatch into larvae after 10 days",
         "Silkworms feed on mulberry leaves for 4–6 weeks",
         "Silkworm spins a cocoon over 3–8 days",
-        "Some cocoons are allowed to develop into moths, restarting the cycle",
-        "Remaining cocoons are boiled to soften them",
-        "Silk threads are unwound from the cocoons",
+        "Some cocoons are kept to develop into moths, restarting the cycle",
+        "The remaining cocoons are boiled and the silk threads are unwound",
         "Threads are twisted together and dyed",
         "Dyed thread is woven into silk cloth"
       ]
@@ -983,7 +909,7 @@
     "slug": "t1a2-recycled-paper",
     "topic": "Recycling",
     "type": "process",
-    "body": "The diagram below shows how waste paper is recycled. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows how waste paper is recycled.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "Recycling waste paper",
@@ -992,12 +918,10 @@
         "Paper is sorted by type and grade at a recycling centre",
         "Bales of paper are taken to a paper mill",
         "Paper is mixed with water and chemicals to form pulp",
-        "Pulp is screened to remove staples, plastic and glue",
+        "Staples, plastic and glue are screened out of the pulp",
         "Ink is removed by adding soap and blowing air through the pulp",
-        "Pulp is bleached if white paper is required",
         "Pulp is sprayed onto a moving mesh to form a sheet",
-        "Rollers press out water and heated cylinders dry the sheet",
-        "Paper is wound onto large reels and cut to size"
+        "Rollers press out the water and heated cylinders dry the sheet"
       ]
     }
   },
@@ -1005,18 +929,16 @@
     "slug": "t1a2-geothermal-power",
     "topic": "Energy",
     "type": "process",
-    "body": "The diagram below shows how electricity is generated at a geothermal power station. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows how electricity is generated at a geothermal power station.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "Generating electricity from geothermal energy",
       "steps": [
         "A production well is drilled 4–5 km into hot rock",
-        "Cold water is pumped down an injection well",
-        "Water is heated by the hot rocks underground",
+        "Cold water is pumped down an injection well and heated by the rock",
         "Hot water rises up the production well under pressure",
-        "In the flash tank, pressure falls and water turns to steam",
-        "Steam drives a turbine",
-        "The turbine powers a generator which produces electricity",
+        "In the flash tank, pressure falls and the water turns to steam",
+        "Steam drives a turbine connected to a generator",
         "Electricity is sent to the grid through transmission lines",
         "Steam is cooled in a condenser and becomes water again",
         "Water is returned to the injection well"
@@ -1027,22 +949,19 @@
     "slug": "t1a2-chocolate-making",
     "topic": "Food production",
     "type": "process",
-    "body": "The diagram below shows the process of making chocolate from cocoa beans. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows the process of making chocolate from cocoa beans.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "How chocolate is made",
       "steps": [
-        "Ripe cocoa pods are harvested from cacao trees",
-        "Pods are split open and beans are removed",
+        "Ripe cocoa pods are harvested and split open to remove the beans",
         "Beans are fermented under banana leaves for 5–7 days",
-        "Beans are dried in the sun",
-        "Beans are shipped to a chocolate factory",
+        "Beans are dried in the sun and shipped to a chocolate factory",
         "Beans are roasted at 120–140°C",
         "Shells are removed, leaving cocoa nibs",
         "Nibs are ground into a thick cocoa liquor",
         "Sugar, milk and cocoa butter are mixed in",
-        "Mixture is heated and cooled repeatedly (tempering)",
-        "Chocolate is poured into moulds and set"
+        "Mixture is heated and cooled (tempering), then poured into moulds to set"
       ]
     }
   },
@@ -1050,21 +969,19 @@
     "slug": "t1a2-biogas-farm",
     "topic": "Energy",
     "type": "process",
-    "body": "The diagram below shows how a farm uses animal waste to produce energy and fertiliser. Summarise the information by selecting and reporting the main features.",
+    "body": "The diagram below shows how a farm uses animal waste to produce energy and fertiliser.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "process",
       "title": "Producing biogas from animal waste on a farm",
       "steps": [
         "Manure from cattle sheds is collected in a slurry pit",
-        "Slurry is mixed with crop waste in a mixing tank",
-        "Mixture is pumped into a sealed digester",
+        "Slurry is mixed with crop waste and pumped into a sealed digester",
         "Bacteria break down the material without oxygen for 20–30 days",
         "Methane-rich biogas collects under the digester dome",
         "Gas is cleaned to remove moisture and hydrogen sulphide",
         "Biogas fuels an engine that generates electricity and heat",
-        "Heat warms the farmhouse and digester",
-        "Leftover digestate is stored in a lagoon",
-        "Digestate is spread on fields as fertiliser"
+        "Heat warms the farmhouse and the digester",
+        "Leftover digestate is stored, then spread on fields as fertiliser"
       ]
     }
   },
@@ -1072,7 +989,7 @@
     "slug": "t1a2-fishing-village",
     "topic": "Tourism",
     "type": "map",
-    "body": "The maps below show a fishing village on an island in 1990 and in 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show a fishing village on an island in 1990 and in 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Changes to a fishing village, 1990–2020",
@@ -1109,7 +1026,7 @@
     "slug": "t1a2-university-campus",
     "topic": "Education",
     "type": "map",
-    "body": "The maps below show a university campus in 2000 and at present. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show a university campus in 2000 and at present.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Development of a university campus",
@@ -1144,7 +1061,7 @@
     "slug": "t1a2-riverside-industry",
     "topic": "Urban development",
     "type": "map",
-    "body": "The maps below show an area beside a river in 1990 and in 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show an area beside a river in 1990 and in 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Redevelopment of a riverside area, 1990–2020",
@@ -1179,7 +1096,7 @@
     "slug": "t1a2-town-centre-pedestrian",
     "topic": "Urban development",
     "type": "map",
-    "body": "The maps below show the centre of a small town in 1995 and in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show the centre of a small town in 1995 and in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Changes to a town centre, 1995–2023",
@@ -1214,7 +1131,7 @@
     "slug": "t1a2-airport-expansion",
     "topic": "Transport",
     "type": "map",
-    "body": "The maps below show an airport in 2005 and the planned changes for 2030. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show an airport in 2005 and the planned changes for 2030.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Current layout and planned expansion of an airport",
@@ -1248,7 +1165,7 @@
     "slug": "t1a2-national-park-trails",
     "topic": "Environment",
     "type": "map",
-    "body": "The maps below show a nature reserve in 2000 and today. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show a nature reserve in 2000 and today.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Changes to a nature reserve",
@@ -1282,7 +1199,7 @@
     "slug": "t1a2-hospital-site",
     "topic": "Health",
     "type": "map",
-    "body": "The maps below show the site of a hospital in 1985 and in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The maps below show the site of a hospital in 1985 and in 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "map",
       "title": "Development of a hospital site, 1985–2022",

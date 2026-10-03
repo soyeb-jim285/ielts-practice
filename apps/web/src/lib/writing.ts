@@ -6,6 +6,10 @@ export const minWords = (part: number) => (part === 1 ? MIN_WORDS.t1 : MIN_WORDS
 export const taskLabel = (p: { part: number; variant: 'academic' | 'general' | null }) =>
   p.part === 2 ? 'Task 2' : `Task 1 ${p.variant === 'general' ? 'General' : 'Academic'}`;
 
+/** Salutation Cambridge prints under a General Training letter ("Dear Sir or Madam," for formal, a blank name otherwise). Null for non-letters and for imported prompts whose body already carries the instruction. */
+export const letterOpening = (p: { part: number; variant: 'academic' | 'general' | null; type: string; body: string }) =>
+  p.part !== 1 || p.variant !== 'general' || /Begin your letter/i.test(p.body) ? null : p.type === 'letter-formal' ? 'Dear Sir or Madam,' : 'Dear ..............,';
+
 /** Below this many words a submit is refused: the server rates ≤20 words Band 1 anyway. */
 export const SUBMIT_FLOOR = 21;
 

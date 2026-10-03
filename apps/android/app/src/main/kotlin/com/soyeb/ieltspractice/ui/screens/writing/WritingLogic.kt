@@ -25,6 +25,11 @@ fun wordCount(s: String): Int = s.split(Regex("\\s+")).count { t -> t.any { it.i
 
 fun plural(n: Int) = if (n == 1) "1 word" else "$n words"
 
+/** Salutation Cambridge prints under a General Training letter; null for other prompts and imported ones whose body already has it (web lib/writing.ts). */
+fun letterOpening(p: Prompt): String? =
+    if (p.part != 1 || p.variant != "general" || p.body.contains("Begin your letter", ignoreCase = true)) null
+    else if (p.type == "letter-formal") "Dear Sir or Madam," else "Dear ..............,"
+
 fun taskLabel(p: Prompt) = if (p.part == 2) "Task 2" else "Task 1 ${if (p.variant == "general") "General" else "Academic"}"
 
 /** WRITING_SECONDS: a full test shares one 60-minute clock, Task 1 gets 20 minutes, Task 2 gets 40. */

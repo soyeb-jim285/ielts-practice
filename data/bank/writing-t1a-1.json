@@ -3,7 +3,7 @@
     "slug": "t1a1-metro-ridership",
     "topic": "Transport",
     "type": "line",
-    "body": "The graph below shows the number of passenger journeys made on the metro systems of four cities between 1995 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below gives information about the number of passenger journeys made on the metro systems of four cities between 1995 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Annual metro passenger journeys in four cities, 1995–2020",
@@ -70,7 +70,7 @@
     "slug": "t1a1-household-electricity-day",
     "topic": "Energy",
     "type": "line",
-    "body": "The graph below shows average hourly electricity consumption in households in one country on a typical day in winter and in summer. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows average hourly electricity consumption in households in one country on a typical day in winter and in summer.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Average household electricity use over 24 hours",
@@ -138,7 +138,7 @@
     "slug": "t1a1-international-students",
     "topic": "Education",
     "type": "line",
-    "body": "The graph below shows the number of international students enrolled at universities in four countries from 2004 to 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the number of international students enrolled at universities in four countries from 2004 to 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "International university students in four countries, 2004–2022",
@@ -210,7 +210,7 @@
     "slug": "t1a1-aquaculture-production",
     "topic": "Environment",
     "type": "line",
-    "body": "The graph below shows fish and seafood production from aquaculture (fish farming) in four regions of the world between 1990 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows fish and seafood production from aquaculture (fish farming) in four regions of the world between 1990 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Aquaculture production by region, 1990–2020",
@@ -282,7 +282,7 @@
     "slug": "t1a1-car-ownership",
     "topic": "Transport",
     "type": "line",
-    "body": "The graph below shows the number of private cars per 1,000 people in four countries between 1970 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below gives information about the number of private cars per 1,000 people in four countries between 1970 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Cars per 1,000 inhabitants, 1970–2020",
@@ -334,7 +334,7 @@
         {
           "name": "China",
           "values": [
-            0,
+            1,
             1,
             1,
             5,
@@ -349,7 +349,7 @@
     "slug": "t1a1-renewable-electricity-share",
     "topic": "Energy",
     "type": "line",
-    "body": "The graph below shows the percentage of electricity generated from renewable sources in four countries from 2000 to 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the percentage of electricity generated from renewable sources in four countries from 2000 to 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Share of electricity from renewable sources, 2000–2022",
@@ -421,7 +421,7 @@
     "slug": "t1a1-smartphone-ownership-age",
     "topic": "Technology",
     "type": "line",
-    "body": "The graph below shows the percentage of adults in one country who owned a smartphone, by age group, between 2010 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the percentage of adults in one country who owned a smartphone, by age group, between 2010 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Smartphone ownership by age group, 2010–2022",
@@ -493,7 +493,7 @@
     "slug": "t1a1-beverage-consumption",
     "topic": "Food and diet",
     "type": "line",
-    "body": "The graph below shows the average annual consumption of coffee, tea, bottled water and fizzy drinks per person in one European country between 1980 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the average annual consumption of coffee, tea, bottled water and fizzy drinks per person in one European country between 1980 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Average annual beverage consumption per person, 1980–2020",
@@ -555,7 +555,7 @@
     "slug": "t1a1-youth-unemployment",
     "topic": "Work and employment",
     "type": "line",
-    "body": "The graph below shows the unemployment rate among people aged 15 to 24 in four countries between 2006 and 2018. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below gives information about the unemployment rate among people aged 15 to 24 in four countries between 2006 and 2018.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Youth unemployment rate, 2006–2018",
@@ -627,7 +627,7 @@
     "slug": "t1a1-attraction-visitors-monthly",
     "topic": "Tourism",
     "type": "line",
-    "body": "The graph below shows the number of visitors to three tourist attractions in a coastal city in each month of 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The graph below shows the number of visitors to three tourist attractions in a coastal city in each month of 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "line",
       "title": "Monthly visitors to three attractions, 2023",
@@ -707,7 +707,7 @@
     "slug": "t1a1-leisure-by-age",
     "topic": "Leisure",
     "type": "bar",
-    "body": "The bar chart below shows the average number of hours per week that people in four age groups in one country spent on five leisure activities in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The bar chart below shows the average number of hours per week that people in four age groups in one country spent on five leisure activities in 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Weekly hours spent on leisure activities by age group, 2022",
@@ -769,7 +769,7 @@
     "slug": "t1a1-household-recycling-rates",
     "topic": "Environment",
     "type": "bar",
-    "body": "The chart below shows the percentage of household waste that was recycled in five countries in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the percentage of household waste that was recycled in five countries in 2000, 2010 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Household waste recycling rates, 2000–2020",
@@ -821,7 +821,7 @@
     "slug": "t1a1-commuting-modes",
     "topic": "Transport",
     "type": "bar",
-    "body": "The chart below shows how workers in one European city travelled to work in 1990, 2005 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows how workers in one European city travelled to work in 1990, 2005 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Main mode of travel to work, 1990–2020",
@@ -873,7 +873,7 @@
     "slug": "t1a1-graduates-by-field",
     "topic": "Education",
     "type": "bar",
-    "body": "The chart below shows the number of students who graduated from universities in one country in five fields of study in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the number of students who graduated from universities in one country in five fields of study in 2000, 2010 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "University graduates by field of study, 2000–2020",
@@ -925,7 +925,7 @@
     "slug": "t1a1-tourist-daily-spending",
     "topic": "Tourism",
     "type": "bar",
-    "body": "The bar chart below shows the average daily amount spent by international tourists from four regions visiting one country, divided into four categories, in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The bar chart below shows the average daily amount spent by international tourists from four regions visiting one country, divided into four categories, in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Average daily tourist spending by region of origin, 2023",
@@ -982,7 +982,7 @@
     "slug": "t1a1-water-use-by-sector",
     "topic": "Environment",
     "type": "bar",
-    "body": "The chart below shows the proportion of water used for agriculture, industry and domestic purposes in six regions of the world. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the proportion of water used for agriculture, industry and domestic purposes in six regions of the world.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Water withdrawal by sector in six regions",
@@ -1038,7 +1038,7 @@
     "slug": "t1a1-online-activities-age",
     "topic": "Technology",
     "type": "bar",
-    "body": "The chart below shows the percentage of internet users in three age groups in one country who carried out five different online activities in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below gives information about the percentage of internet users in three age groups in one country who carried out five different online activities in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Online activities by age group, 2023",
@@ -1090,7 +1090,7 @@
     "slug": "t1a1-book-sales-formats",
     "topic": "Media and culture",
     "type": "bar",
-    "body": "The chart below shows sales of printed books, e-books and audiobooks in one country between 2015 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows sales of printed books, e-books and audiobooks in one country between 2015 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "Book sales by format, 2015–2023",
@@ -1142,7 +1142,7 @@
     "slug": "t1a1-broadband-access-area",
     "topic": "Technology",
     "type": "bar",
-    "body": "The chart below shows the percentage of households with high-speed broadband access in urban, suburban and rural areas of five countries in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The chart below shows the percentage of households with high-speed broadband access in urban, suburban and rural areas of five countries in 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "High-speed broadband access by area type, 2022",
@@ -1194,7 +1194,7 @@
     "slug": "t1a1-co2-per-person",
     "topic": "Environment",
     "type": "bar",
-    "body": "The bar chart below shows carbon dioxide emissions per person in five countries in 1990, 2005 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The bar chart below shows carbon dioxide emissions per person in five countries in 1990, 2005 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "bar",
       "title": "CO2 emissions per person, 1990–2020",
@@ -1246,7 +1246,7 @@
     "slug": "t1a1-electricity-sources",
     "topic": "Energy",
     "type": "pie",
-    "body": "The pie charts below show the sources of electricity generated in one country in 2000 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The pie charts below show the sources of electricity generated in one country in 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "pie",
       "title": "Sources of electricity generation, 2000 and 2020",
@@ -1317,7 +1317,7 @@
     "slug": "t1a1-household-spending",
     "topic": "Economics",
     "type": "pie",
-    "body": "The pie charts below show how the average household in one country spent its income in 1980 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The pie charts below show how the average household in one country spent its income in 1980 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "pie",
       "title": "Average household expenditure, 1980 and 2020",
@@ -1396,7 +1396,7 @@
     "slug": "t1a1-museum-income",
     "topic": "Media and culture",
     "type": "pie",
-    "body": "The pie charts below show the sources of income of a national museum in 2005 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The pie charts below show the sources of income of a national museum in 2005 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "pie",
       "title": "Sources of museum income, 2005 and 2022",
@@ -1459,7 +1459,7 @@
     "slug": "t1a1-adult-learner-reasons",
     "topic": "Education",
     "type": "pie",
-    "body": "The pie chart below shows the main reasons given by adults in one country for enrolling in part-time courses in 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The pie chart below shows the main reasons given by adults in one country for enrolling in part-time courses in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "pie",
       "title": "Main reasons for adult enrolment in part-time courses, 2023",
@@ -1501,7 +1501,7 @@
     "slug": "t1a1-land-use-regions",
     "topic": "Environment",
     "type": "pie",
-    "body": "The pie charts below show how land was used in two regions of a country in 2021. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The pie charts below show how land was used in two regions of a country in 2021.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "pie",
       "title": "Land use in two regions, 2021",
@@ -1572,7 +1572,7 @@
     "slug": "t1a1-health-indicators",
     "topic": "Health",
     "type": "table",
-    "body": "The table below shows life expectancy, the number of doctors per 1,000 people and health spending as a percentage of GDP in five countries in 2021. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows life expectancy, the number of doctors per 1,000 people and health spending as a percentage of GDP in five countries in 2021.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Health indicators in five countries, 2021",
@@ -1620,7 +1620,7 @@
     "slug": "t1a1-cinema-attendance-age",
     "topic": "Media and culture",
     "type": "table",
-    "body": "The table below shows the percentage of people in different age groups in one country who went to the cinema at least once a month in 2000, 2010 and 2020. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the percentage of people in different age groups in one country who went to the cinema at least once a month in 2000, 2010 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Monthly cinema attendance by age group (%)",
@@ -1668,7 +1668,7 @@
     "slug": "t1a1-mobile-data-prices",
     "topic": "Technology",
     "type": "table",
-    "body": "The table below shows the average price of one gigabyte of mobile data in six countries in 2015 and 2023. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the average price of one gigabyte of mobile data in six countries in 2015 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Average price of 1 GB of mobile data (US dollars)",
@@ -1722,7 +1722,7 @@
     "slug": "t1a1-city-climate",
     "topic": "Environment",
     "type": "table",
-    "body": "The table below gives information about the climate of four cities in different parts of the world. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below gives information about the climate of four cities in different parts of the world.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Climate data for four cities",
@@ -1769,7 +1769,7 @@
     "slug": "t1a1-public-library-usage",
     "topic": "Media and culture",
     "type": "table",
-    "body": "The table below shows the use of public libraries in one city between 2010 and 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "body": "The table below shows the use of public libraries in one city between 2010 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
     "chart": {
       "kind": "table",
       "title": "Public library usage in one city, 2010–2022",

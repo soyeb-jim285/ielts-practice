@@ -37,12 +37,12 @@ fun PromptContent(p: Prompt, modifier: Modifier = Modifier) {
     val e = MaterialTheme.ext
     val chart = p.chartSpec
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("${taskLabel(p)}, about ${if (p.part == 1) 20 else 40} minutes", style = MaterialTheme.typography.bodySmall, color = e.muted)
+        Text("${taskLabel(p)}. You should spend about ${if (p.part == 1) 20 else 40} minutes on this task.", style = MaterialTheme.typography.bodySmall, color = e.muted)
         if (showPromptTitle(p, chart?.title)) Text(p.title, style = MaterialTheme.typography.titleLarge, color = e.ink)
         Text(p.body, style = AppText.reading, color = e.ink)
         if (!p.bullets.isNullOrEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("In your letter:", style = AppText.reading, color = e.ink)
+                Text("In your letter", style = AppText.reading, color = e.ink)
                 p.bullets.forEach { b ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("•", style = AppText.reading, color = e.muted)
@@ -54,6 +54,13 @@ fun PromptContent(p: Prompt, modifier: Modifier = Modifier) {
         if (chart != null) ChartView(chart) else p.imageUrl?.let { RemoteFigure(it, "Figure for: ${p.title}") }
         HorizontalDivider(color = e.line)
         Text("Write at least ${minWords(p.part)} words.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+        letterOpening(p)?.let {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("You do NOT need to write any addresses.", style = AppText.reading, color = e.ink)
+                Text("Begin your letter as follows:", style = AppText.reading, color = e.ink)
+                Text(it, style = AppText.reading, color = e.ink)
+            }
+        }
     }
 }
 
