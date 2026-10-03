@@ -121,7 +121,8 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     val marks = remember(a) { (a.marks ?: emptyList()).associateBy { it.n } }
     val flat = remember(test) { test.flat() }
     var wrongOnly by remember { mutableStateOf(false) }
-    var partIdx by remember { mutableIntStateOf(if (LocalDemo.current?.screen == "lr-result-p2") 1 else 0) }
+    val demoScreen = LocalDemo.current?.screen
+    var partIdx by remember { mutableIntStateOf(if (demoScreen == "lr-result-p2") 1 else 0) }
     var active by remember { mutableStateOf<Int?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }

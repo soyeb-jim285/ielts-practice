@@ -312,7 +312,7 @@ private fun OptionCard(key: String, text: String, selected: Boolean, enabled: Bo
     Row(
         Modifier.fillMaxWidth().heightIn(min = 48.dp).background(bg, RoundedCornerShape(12.dp)).border(if (selected || right) 2.dp else 1.dp, border, RoundedCornerShape(12.dp))
             .clip(RoundedCornerShape(12.dp))
-            .selectable(selected, enabled, if (multi) Role.Checkbox else Role.RadioButton, onClick)
+            .selectable(selected, enabled, if (multi) Role.Checkbox else Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = "Option $key, $text" + if (right) ", correct answer" else "" }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
