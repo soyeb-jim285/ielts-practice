@@ -220,7 +220,7 @@ final class APIClient {
     func loadMe() async throws {
         let m: Me = try await send("GET", "/api/me")
         me = m
-        isGuest = m.user.isAnonymous
+        isGuest = Demo.on ? Demo.hasGuestSession : m.user.isAnonymous // the demo fixture user is a real account
     }
 
     /// GET /api/quota works without a session (a guest, by IP), so test screens can call it before the first sign-in.
