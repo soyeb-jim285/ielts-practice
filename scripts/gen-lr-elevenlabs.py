@@ -130,7 +130,12 @@ def main():
     # structure gate (answers in question order, each inside its announced narrator segment): never spend credits on a broken script
     chk = subprocess.run(["pnpm", "-s", "tsx", "scripts/lr-structure-check.ts", slug, "--parts", ",".join(str(p["part"]) for p in parts), "--lenient", "--no-timings"], cwd=ROOT, capture_output=True, text=True)
     if chk.returncode: sys.exit(f"refusing to render: script fails scripts/lr-structure-check.ts\n{chk.stdout}{chk.stderr}")
-    est = sum(len(t["text"]) for p in parts for t in p["turns"])
+    # only blocks not already cached (audio + word timings) cost credits
+    def cached(inputs):
+        key = hashlib.sha1(json.dumps([MODEL, inputs], sort_keys=True).encode()).hexdigest()
+        return (CACHE / f"{key}.mp3").exists() and (CACHE / f"{key}.words.json").exists()
+    est = sum(sum(len(i["text"]) for i in ins) for p in parts for blk, _ in blocks(p["turns"]) if blk
+              for ins in [[{"voice_id": p["voices"][t["speaker"]], "text": say(t["text"])} for t in blk]] if not cached(ins))
     left, tier = remaining()
     r = rate(); need = int(est * r)
     print(f"{slug}: {est} chars (~{need} credits at {r:.3f}/char from recent charges), account {tier}, {left} credits left", flush=True)
