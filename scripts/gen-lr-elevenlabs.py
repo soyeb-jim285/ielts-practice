@@ -44,6 +44,17 @@ def api(path, body=None):
     sys.exit("ElevenLabs: retries exhausted")
 
 
+def rate():
+    """Credits per character actually charged lately (from the cost log), with headroom; 0.5 (list price) when there's no history."""
+    try:
+        rows = [l.split() for l in LOG.read_text().splitlines()[-300:]]
+        chars = sum(int(r[2].split("=")[1]) for r in rows if len(r) > 3)
+        cost = sum(int(r[3].split("=")[1]) for r in rows if len(r) > 3)
+        return min(0.5, max(0.05, cost / chars * 1.5)) if chars > 5000 else 0.5
+    except Exception:
+        return 0.5
+
+
 def remaining():
     d = json.loads(api("/v1/user/subscription")[0])
     return d["character_limit"] - d["character_count"], d["tier"]
@@ -121,9 +132,10 @@ def main():
     if chk.returncode: sys.exit(f"refusing to render: script fails scripts/lr-structure-check.ts\n{chk.stdout}{chk.stderr}")
     est = sum(len(t["text"]) for p in parts for t in p["turns"])
     left, tier = remaining()
-    print(f"{slug}: {est} chars (~{est // 2} credits at 0.5/char), account {tier}, {left} credits left", flush=True)
+    r = rate(); need = int(est * r)
+    print(f"{slug}: {est} chars (~{need} credits at {r:.3f}/char from recent charges), account {tier}, {left} credits left", flush=True)
     if dry: return
-    if tier == "free" or est // 2 > left or est // 2 > cap: sys.exit("refusing: plan/credit guard")
+    if tier == "free" or need > left or need > cap: sys.exit("refusing: plan/credit guard")
     spent = 0
     for p in parts:
         out = OUT / f"assets/lr/gen/{slug}-p{p['part']}.mp3"
