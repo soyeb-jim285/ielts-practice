@@ -38,7 +38,12 @@ it('scores mcq-multi in any order without double counting', () => {
   expect(scoreLr(test, { 1: 'smith', 2: 'D', 3: 'B' }).raw).toBe(3);
   expect(scoreLr(test, { 2: 'B', 3: 'B' }).raw).toBe(1);
 });
-it('strips answers and transcript', () => {
+it('strips answers, transcript and review data', () => {
+  const t2: LrTest = JSON.parse(JSON.stringify(test));
+  t2.sections[0]!.timings = [['secret', 0, 1]];
+  t2.sections[0]!.vocab = [{ word: 'secret', meaning: 'x' }];
+  t2.sections[0]!.groups[0]!.questions[0]!.review = { evidence: 'secret', why: 'secret' };
+  expect(JSON.stringify(stripAnswers(t2))).not.toContain('secret');
   const s = stripAnswers(test);
   expect(JSON.stringify(s)).not.toContain('Smith');
   expect(s.sections[0]!.transcript).toBeUndefined();

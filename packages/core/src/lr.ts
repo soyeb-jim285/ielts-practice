@@ -27,7 +27,25 @@ export interface LrQuestion {
    * Absent in the client copy (stripAnswers).
    */
   answer?: string[];
+  /** Review-only enrichment, precomputed once per test (scripts/lr-enrich.ts); stripped before submission like `answer`. */
+  review?: LrQuestionReview;
 }
+/** Where and why: generated offline by a model once per question, shown on the results page only. */
+export interface LrQuestionReview {
+  /** verbatim sentence(s) from the passage / transcript that give the answer */
+  evidence?: string;
+  /** listening: seconds into the part's audio where the evidence starts (from word timings) */
+  at?: number;
+  /** 1–2 sentences: why the key is right (the paraphrase, the trap, NOT GIVEN vs FALSE logic) */
+  why?: string;
+  /** option key → why that option is wrong (mcq, match, tfng/ynng values, word-box letters) */
+  wrong?: Record<string, string>;
+  /** question wording ↔ passage/transcript wording, e.g. ["decline", "fell sharply"] */
+  paraphrase?: [string, string][];
+}
+export interface LrVocab { word: string; meaning: string; example?: string }
+/** listening word timings for one part: [word, start s, end s] */
+export type LrTimings = [string, number, number][];
 export interface LrGroup {
   from: number;
   to: number;
@@ -58,6 +76,10 @@ export interface LrSection {
   transcript?: string;
   /** reading */
   passage?: LrPassage;
+  /** listening: word timings of the recording (ElevenLabs scribe), review-only — stripped before submission */
+  timings?: LrTimings;
+  /** key vocabulary of the passage / recording, review-only — stripped before submission */
+  vocab?: LrVocab[];
   groups: LrGroup[];
 }
 export interface LrTest {
@@ -137,9 +159,9 @@ export function lrBand(skill: LrSkill, variant: 'academic' | 'general', raw: num
 export function stripAnswers(test: LrTest): LrTest {
   return {
     ...test,
-    sections: test.sections.map(({ transcript: _t, ...s }) => ({
+    sections: test.sections.map(({ transcript: _t, timings: _w, vocab: _v, ...s }) => ({
       ...s,
-      groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer: _a, ...q }) => q) })),
+      groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer: _a, review: _r, ...q }) => q) })),
     })),
   };
 }
