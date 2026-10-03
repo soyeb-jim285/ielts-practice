@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { SpeakingTest } from '../routes/prompts';
-import { direction, EXAMINER_SYSTEM, newState, nextPhase, realtimeInstructions, type LiveState } from './examiner';
+import { candidateFacts, detectBranch, direction, EXAMINER_SYSTEM, gptLiveCue, newState, nextPhase, p1Plan, realtimeInstructions, type LiveState } from './examiner';
 
 const prompt = (id: string, part: number, extra = {}) => ({
   id, slug: id, skill: 'speaking' as const, part, variant: null, type: 't', topic: `topic ${id}`, title: `Describe ${id}`, body: `body ${id}`,
@@ -70,4 +70,52 @@ it('Part 3 announces the sub-topic headings: the first in the lead, the second b
   expect(direction(st(0)).say).toContain("talking about a book you read, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all Reading habits.");
   expect(direction(st(3)).say).toContain("Now let's move on to consider Books and libraries.");
   expect(direction(st(2)).say).not.toContain('move on');
+});
+
+// ---- adaptive examiner
+const wsTest = {
+  ...test,
+  part1: [prompt('ws', 1, { topic: 'Work or study', followUps: ['Do you work or are you a student?', 'What do you enjoy most about your work or studies?', 'x3?', 'x4?'] }), ...test.part1.slice(0, 1)],
+  branches: { work: ['What kind of work do you do?', 'How long have you done it?', 'What do you like about it?'], study: ['What subject are you studying?', 'Why did you choose it?', 'Do you like your course?'] },
+};
+const talk = (text: string, phase: LiveState['phase'] = 'p1') => ({ role: 'candidate' as const, text, at: T0, phase });
+const ex = (text: string) => ({ role: 'examiner' as const, text, at: T0, phase: 'p1' as const });
+const wsState = (answer: string, extra: Partial<LiveState> = {}): LiveState => ({
+  ...newState('s', wsTest, T0), phase: 'p1', p1Asked: 1, history: [ex('Do you work or are you a student?'), talk(answer)], ...extra,
+});
+
+it('detects the work/study branch from keywords, neutral when ambiguous', () => {
+  expect(detectBranch('I work as a nurse in a hospital')).toBe('work');
+  expect(detectBranch("I'm a student at Dhaka University")).toBe('study');
+  expect(detectBranch("I don't work, I'm studying")).toBe('study');
+  expect(detectBranch('I work part time and study at college')).toBe('both');
+  expect(detectBranch('Uh, not really')).toBeNull();
+});
+
+it('continues Part 1 with the matching branch set', () => {
+  expect(direction(wsState('I work in a bank')).say).toContain('What kind of work do you do?');
+  expect(direction(wsState("I'm a student")).say).toContain('What subject are you studying?');
+  expect(direction(wsState('both, work and study')).say).toContain('your work or studies');
+  expect(p1Plan(wsState('I work')).length).toBe(p1Plan(wsState('both')).length);
+});
+
+it('Part 1 and 3 cues are guides, the cue card stays verbatim', () => {
+  const s = wsState('I work as a nurse');
+  expect(direction(s).say).not.toMatch(/exactly/);
+  expect(direction({ ...s, phase: 'p3', p3Asked: 1 }).say).not.toMatch(/exactly/);
+  expect(direction({ ...s, phase: 'p3', p3Asked: 0 }).say).toContain('suggested question');
+  expect(direction({ ...s, phase: 'p2-follow' }).say).not.toMatch(/exactly/);
+  for (const i of [realtimeInstructions(wsTest), gptLiveCue('begin', wsTest), gptLiveCue('follow', wsTest)]) expect(i).not.toMatch(/ask (its questions|these questions) in (this )?order|script exactly/i);
+  expect(gptLiveCue('part2', wsTest)).toContain('Say exactly');
+  expect(realtimeInstructions(wsTest)).toContain('What kind of work do you do?');
+});
+
+it('carries a facts note into later cues', () => {
+  const h = [ex('Where are you from?'), talk("I'm from Dhaka", 'intro'), ex('Do you work or are you a student?'), talk('I work as a nurse in a clinic')];
+  const f = candidateFacts(h);
+  expect(f).toMatch(/works \(a nurse in a clinic\)/);
+  expect(f).toContain('Dhaka');
+  expect(direction(wsState('I work as a nurse')).say).toContain('works (a nurse)');
+  expect(gptLiveCue('follow', wsTest, f)).toContain(f);
+  expect(candidateFacts([])).toBe('');
 });

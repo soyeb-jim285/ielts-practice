@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
+import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { redact } from '../ai/keyctx';
@@ -20,7 +20,7 @@ import { aiLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
 import type { App } from '../types';
 import { CodedError } from './community';
-import { pickSpeakingTest, PromptSchema } from './prompts';
+import { pickP1Branches, pickSpeakingTest, PromptSchema } from './prompts';
 
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
 const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav' };
@@ -142,8 +142,9 @@ export function register(app: App) {
       const payer = c.get('payer')!;
       requireLive(payer, skipTts ? 'duplex' : 'turn');
       await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
-      const test = await pickSpeakingTest(user, source);
-      if (!test) return c.json({ error: 'No speaking test available' }, 404);
+      const picked = await pickSpeakingTest(user, source);
+      if (!picked) return c.json({ error: 'No speaking test available' }, 404);
+      const test = { ...picked, branches: await pickP1Branches(user) };
       const sessionId = crypto.randomUUID();
       const s = newState(sessionId, test, Date.now());
       const { key, ...audio } = skipTts ? { url: null } : await voice(s, 0, s.history[0]!.text, await getSettings(user.id));
@@ -222,7 +223,8 @@ export function register(app: App) {
       const phase = nextPhase(s, now);
       if (phase !== s.phase) Object.assign(s, { phase, phaseStartedAt: now });
       // Fixed wording (scripted moments and Part 1 questions) needs no LLM, so the examiner voice starts while the answer is transcribed.
-      let text = scriptedLine(s) ?? (s.phase === 'p1' ? direction(s).fallback : null);
+      // The first Part 1 question needs no LLM; later ones are adapted to the candidate's answers.
+      let text = scriptedLine(s) ?? (s.phase === 'p1' && s.p1Asked === 0 ? direction(s).fallback : null);
       let audio: Awaited<ReturnType<typeof voice>>, transcript: string | undefined;
       const speakLine = async (line: string) => {
         const t = Date.now();
@@ -304,7 +306,7 @@ export function register(app: App) {
       const b = c.req.valid('json');
       const s = await loadSession(b.sessionId, user.id);
       const sent = activeRun(s.sessionId, user.id)?.cue(b.cue) ?? false;
-      return c.json({ sent, content: gptLiveCue(b.cue, s.test) }, 200);
+      return c.json({ sent, content: gptLiveCue(b.cue, s.test, candidateFacts(s.history)) }, 200);
     },
   );
 

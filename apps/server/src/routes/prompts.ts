@@ -106,6 +106,14 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
   };
 }
 
+/** The Part 1 work and study sets (bank p1-work, p1-study) the live examiner switches to once the candidate says which applies. Undefined if the bank lacks them. */
+export async function pickP1Branches(user: SessionUser): Promise<{ work: string[]; study: string[] } | undefined> {
+  const rows = await db.select().from(prompts).where(and(visiblePromptWhere(user), eq(prompts.skill, 'speaking'), eq(prompts.part, 1), eq(prompts.type, 'p1-branch')));
+  const qs = (topic: string) => rows.find((r) => r.topic === topic)?.followUps ?? [];
+  const [work, study] = [qs('Work'), qs('Study')];
+  return work.length && study.length ? { work, study } : undefined;
+}
+
 export function register(app: App) {
   app.openapi(
     createRoute({

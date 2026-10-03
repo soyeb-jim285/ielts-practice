@@ -8,7 +8,7 @@ import { db } from '../db/client';
 import { liveSessions } from '../db/schema';
 import { env } from '../env';
 import type { SpeakingTest } from '../routes/prompts';
-import { CUE_PHASE, GPT_LIVE_CUES, gptLiveCue, gptLiveInstructions, type GptLiveCue, type LiveState, type Phase, type Turn } from './examiner';
+import { candidateFacts, CUE_PHASE, GPT_LIVE_CUES, gptLiveCue, gptLiveInstructions, type GptLiveCue, type LiveState, type Phase, type Turn } from './examiner';
 
 export const LIVE_HTTP = 'https://api.openai.com/v1/live/sessions';
 export const LIVE_WS = 'wss://api.openai.com/v1/live/sessions';
@@ -75,7 +75,7 @@ export function clientMessage(raw: string): { upstream: Json } | { cue: GptLiveC
 export const isCue = (v: unknown): v is GptLiveCue => typeof v === 'string' && (GPT_LIVE_CUES as readonly string[]).includes(v);
 
 /** session.instructions.append for one script moment (content is limited to 500 tokens; the cue texts stay well below). */
-export const cueEvent = (cue: GptLiveCue, t: SpeakingTest) => ({ type: 'session.instructions.append', event_id: `cue-${cue}`, delegation_id: null, content: gptLiveCue(cue, t) });
+export const cueEvent = (cue: GptLiveCue, t: SpeakingTest, facts = '') => ({ type: 'session.instructions.append', event_id: `cue-${cue}`, delegation_id: null, content: gptLiveCue(cue, t, facts) });
 
 /** A server event as the native client sees it: the instructions are ours, not theirs, and output audio always has its base64 in `audio` (also kept in `delta`). */
 export function scrub(raw: string): string {
@@ -184,7 +184,7 @@ export function startRun(o: { userId: string; sessionId: string; test: SpeakingT
     cue(c) {
       if (!run.ready) return false;
       run.transcript.setPhase(CUE_PHASE[c]);
-      return run.send(cueEvent(c, o.test));
+      return run.send(cueEvent(c, o.test, candidateFacts(run.transcript.turns)));
     },
     end() {
       return (done ??= (async () => {

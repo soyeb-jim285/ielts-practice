@@ -3,6 +3,9 @@ import type { SpeakingTest } from '../routes/prompts';
 
 export type Phase = 'intro' | 'p1' | 'p2-prep' | 'p2-talk' | 'p2-follow' | 'p3' | 'closing' | 'done';
 export type Turn = { role: 'examiner' | 'candidate'; text: string; at: number; audioKey?: string; durationMs?: number; phase: Phase };
+/** Part 1 work and study question sets (bank sets p1-work, p1-study) that replace the neutral "work or study" questions once the candidate's answer is known. */
+export type Branches = { work: string[]; study: string[] };
+export type LiveTest = SpeakingTest & { branches?: Branches };
 export type LiveState = {
   sessionId: string;
   phase: Phase;
@@ -12,7 +15,7 @@ export type LiveState = {
   p2PromptId: string;
   p3Asked: number;
   history: Turn[];
-  test: SpeakingTest;
+  test: LiveTest;
 };
 
 export const P1_MAX_MS = 270_000;
@@ -33,6 +36,60 @@ export const LINES = {
 
 export const p1Questions = (t: SpeakingTest) =>
   t.part1.flatMap((p) => (p.followUps?.length ? p.followUps : [p.body]).map((q) => ({ topic: p.topic, q }))).slice(0, P1_MAX_QUESTIONS);
+// ---- Candidate memory: branch (work / study) and a short facts note, from the candidate's own words. Deterministic: no AI call.
+const NEUTRAL_TOPIC = 'Work or study';
+const WORK_Q = /do you work or|work or are you a student|working or studying/i;
+const NEGATED = /\b(?:don'?t|do not|doesn'?t|not|no longer|never|isn'?t|am not)\s+(?:currently\s+|really\s+)?(?:work|working|a student|study|studying|employed)\b/gi;
+const WORK_RE = /\b(?:work|works|working|worked|job|jobs|employed|employee|employment|office|company|career|profession|business|freelanc\w*|self-employed|full[- ]time|part[- ]time)\b/i;
+const STUDY_RE = /\b(?:student|students|study|studies|studying|university|college|school|course|degree|major|class|classes|undergraduate|postgraduate|bachelor'?s?|master'?s?|phd|semester)\b/i;
+/** work / study from the candidate's answer to "Do you work or are you a student?"; 'both' when it says both, null when neither (the neutral set stays). */
+export function detectBranch(answer: string): 'work' | 'study' | 'both' | null {
+  const a = answer.replace(NEGATED, ' ');
+  const w = WORK_RE.test(a), st = STUDY_RE.test(a);
+  return w && st ? 'both' : w ? 'work' : st ? 'study' : null;
+}
+/** The branch the candidate's answer to the work/study question points to (history may be the live transcript). */
+export function branchOf(history: Turn[]): 'work' | 'study' | 'both' | null {
+  const i = history.findIndex((h) => h.role === 'examiner' && WORK_Q.test(h.text));
+  const ans = i < 0 ? undefined : history.slice(i + 1).find((h) => h.role === 'candidate');
+  return ans ? detectBranch(ans.text) : null;
+}
+const FACT = (re: RegExp, h: Turn[]) => h.filter((x) => x.role === 'candidate').map((x) => re.exec(x.text)?.[1]?.trim()).find(Boolean);
+/** A short running note of what the candidate has said about themselves, for later cues. '' until there is something to say. */
+export function candidateFacts(history: Turn[]): string {
+  const b = branchOf(history);
+  const job = FACT(/\bI(?:'m| am)? (?:work|working|worked) (?:as|in|at|for) ((?:a|an|the )?[^.,;!?]{2,40})/i, history);
+  const role = FACT(/\bI(?:'m| am) (?:a|an) ([^.,;!?]{2,30})/i, history);
+  const subject = FACT(/\bI(?:'m| am)? (?:study|studying|majoring in|major in) ([^.,;!?]{2,40})/i, history);
+  const place = FACT(/\b(?:I(?:'m| am)? (?:live|living|from)|I come from) (?:in )?([A-Z][^.,;!?]{1,30})/, history);
+  const bits = [
+    b === 'work' ? `works${job ? ` (${job})` : role ? ` (${role})` : ''}` : b === 'study' ? `is a student${subject ? ` (${subject})` : ''}` : b === 'both' ? 'works and studies' : '',
+    place ? `lives in or is from ${place}` : '',
+  ].filter(Boolean);
+  return bits.length ? `Candidate facts so far (from their own answers): ${bits.join('; ')}.` : '';
+}
+/** Part 1 questions for this session: the neutral "work or study" set is replaced after the first question by the work or study set the candidate's answer points to. */
+export function p1Plan(s: LiveState): { topic: string; q: string }[] {
+  const base = p1Questions(s.test);
+  const b = branchOf(s.history);
+  const set = b === 'work' || b === 'study' ? s.test.branches?.[b] : undefined;
+  const i = base.findIndex((x) => x.topic === NEUTRAL_TOPIC);
+  if (!set?.length || i < 0) return base;
+  const n = base.filter((x) => x.topic === NEUTRAL_TOPIC).length;
+  return [...base.slice(0, i + 1), ...set.slice(0, n - 1).map((q) => ({ topic: NEUTRAL_TOPIC, q })), ...base.slice(i + n)];
+}
+/** The branch sets as instructions for a live model that sees the answer itself. */
+const branchGuide = (t: SpeakingTest) => {
+  const b = (t as LiveTest).branches;
+  const hasNeutral = t.part1.some((p) => p.topic === NEUTRAL_TOPIC);
+  return b && hasNeutral
+    ? `\nWork or study branch: after the candidate answers "Do you work or are you a student?", drop the rest of the "${NEUTRAL_TOPIC}" questions and ask these instead (about three), one at a time. If they only work: ${b.work.join(' | ')}. If they only study: ${b.study.join(' | ')}. If they do both or neither, keep the neutral questions.`
+    : '';
+};
+const P1_ADAPT = `Part 1 questions are close guides, not a script: you may make small edits so they fit the candidate (drop "or studies" or "or school", change pronouns or tense). Skip a question the candidate has already answered, repeat one if asked. Do not add new topics. Keep your own talk short.`;
+const P3_ADAPT = `Part 3 questions are suggestions: rephrase them, follow up on the candidate's own ideas, probe with "Why?" or "Can you give me an example?", and make them easier or harder to suit the candidate's level. Stay within the two sub-topics, aim for five or six exchanges, keep your own talk short, and never lecture or give an opinion.`;
+const MEMORY = `Remember what the candidate says about themselves (work or study, where they live) and keep later questions consistent with it. Only mention it when natural ("You said you work as a nurse, ..."): real examiners rarely do.`;
+
 /** The questions a live part's recording was marked against: the examiner's lines in that part (one client mark each).
  *  Duplex sessions without a server transcript, so Part 1 falls back to the scripted list; null = use the prompt's questions. */
 export function liveQuestions(s: LiveState, part: 1 | 3): string[] | null {
@@ -67,7 +124,7 @@ export function nextPhase(s: LiveState, now: number): Phase {
     case 'intro':
       return answered(s, 'intro') ? 'p1' : 'intro';
     case 'p1':
-      return elapsed >= P1_MAX_MS || s.p1Asked >= p1Questions(s.test).length ? 'p2-prep' : 'p1';
+      return elapsed >= P1_MAX_MS || s.p1Asked >= p1Plan(s).length ? 'p2-prep' : 'p1';
     case 'p2-prep':
       return elapsed >= PREP_MS ? 'p2-talk' : 'p2-prep';
     case 'p2-talk':
@@ -93,11 +150,16 @@ export function scriptedLine(s: LiveState): string | null {
   return null;
 }
 
+const facts = (s: LiveState) => {
+  const f = candidateFacts(s.history);
+  return f ? ` ${f}` : '';
+};
+
 /** What the examiner must say next (s.phase is the new phase; counters not yet incremented). Also the fallback line if the LLM returns nothing. */
 export function direction(s: LiveState): { stage: string; say: string; fallback: string } {
   const t = s.test;
   if (s.phase === 'p1') {
-    const qs = p1Questions(t);
+    const qs = p1Plan(s);
     const { topic, q } = qs[Math.min(s.p1Asked, qs.length - 1)]!;
     const newTopic = s.p1Asked === 0 || qs[s.p1Asked - 1]?.topic !== topic;
     const lead =
@@ -108,7 +170,7 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
           : '';
     return {
       stage: 'Part 1 (introduction and interview on familiar topics; short answers are expected)',
-      say: `${lead ? `Say "${lead}" and then ask` : 'Ask'} exactly this question: "${q}"`,
+      say: `${lead ? `Say "${lead}" and then ask` : 'Ask'} this question: "${q}". ${P1_ADAPT}${facts(s)}`,
       fallback: `${lead} ${q}`.trim(),
     };
   }
@@ -118,7 +180,7 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
     const q = t.part2.followUps?.[0];
     return {
       stage: 'Part 2 (the candidate has just finished the long turn)',
-      say: `Say "${lead}" and then ask ${q ? `exactly this rounding-off question: "${q}"` : `one short, simple rounding-off question linked to their talk (for example "Do you often …?")`}`,
+      say: `Say "${lead}" and then ask ${q ? `this rounding-off question, adapted if needed to what they just said: "${q}"` : `one short, simple rounding-off question linked to their talk (for example "Do you often …?")`}.${facts(s)}`,
       fallback: q ? `${lead} ${q}` : lead,
     };
   }
@@ -130,11 +192,11 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
     stage: 'Part 3 (two-way discussion of abstract issues linked to the Part 2 topic)',
     say:
       s.p3Asked === 0
-        ? `Say "${lead}" and then ask exactly this question: "${q}"`
+        ? `Say "${lead}" and then ask this suggested question: "${q}". ${P3_ADAPT}${facts(s)}`
         : q && sw
-          ? `Say "${sw}" and then ask exactly this question: "${q}"`
+          ? `Say "${sw}" and then ask this suggested question: "${q}". ${P3_ADAPT}${facts(s)}`
           : q
-          ? `Ask this question: "${q}". Only if the candidate's last answer was very short or vague, you may instead ask one brief probing follow-up such as "Why do you think that is?" or "Can you give me an example?"`
+          ? `Suggested next question: "${q}". ${P3_ADAPT} If the candidate's last answer was short, vague or raised an interesting idea, ask a brief follow-up or a rephrased question instead.${facts(s)}`
           : `Ask one new abstract discussion question on "${t.part3.topic}" that develops the candidate's last answer (compare, evaluate or speculate about the future).`,
     fallback: q ? (s.p3Asked === 0 ? `${lead} ${q}` : `${sw} ${q}`.trim()) : `Why do you think that is?`,
   };
@@ -163,20 +225,20 @@ export const CUE_PREFIX = '[APP CUE] ';
 export function realtimeInstructions(t: SpeakingTest): string {
   const p1 = t.part1.map((p) => `Topic "${p.topic}":\n${(p.followUps?.length ? p.followUps : [p.body]).map((q) => `- ${q}`).join('\n')}`).join('\n');
   const q = t.part2.followUps?.[0];
-  const rounding = q ? `ask exactly this rounding-off question: "${q}"` : 'ask one short, simple rounding-off question linked to the topic (for example "Do you often …?")';
+  const rounding = q ? `ask this rounding-off question, adapted if needed to what they said: "${q}"` : 'ask one short, simple rounding-off question linked to the topic (for example "Do you often …?")';
   return `${PERSONA}
 Ask one question at a time, then stop and listen. Keep every turn brief: a sentence or two plus the question. Never ask two questions at once. Give the candidate time to think; do not fill pauses.
 Messages that begin with "${CUE_PREFIX.trim()}" come from the test application, not from the candidate. Follow them immediately, even in the middle of a sentence, and never read them aloud, answer them or mention them. You only start speaking when you receive the first cue, "${CUE_PREFIX}Begin the test."
 The app keeps the time: Parts 1 and 3 each last about 4-5 minutes, and you never move on to the next part until you are told to.
 
-Follow this script exactly:
+Follow this plan. The introduction, the Part 2 card and the closing are word for word; the Part 1 and Part 3 questions are guides you adapt to the candidate. ${MEMORY}
 1. Introduction: "${LINES.intro}" Wait for the candidate's answer.
-2. Part 1 (interview on familiar topics): say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." Then for each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and ask its questions in order, one at a time. Expect short answers. After a one-word answer you may ask "Why?" or "Why not?", otherwise just move to the next question:
-${p1}
+2. Part 1 (interview on familiar topics): say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." Then for each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and work through its questions roughly in order, one at a time. ${P1_ADAPT} Expect short answers. After a one-word answer you may ask "Why?" or "Why not?", otherwise just move to the next question:
+${p1}${branchGuide(t)}
 3. Part 2 (long turn): when told to move to Part 2, say "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
 Then stay completely silent for the one-minute preparation, whatever you hear. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks: you cannot hear them during the long turn. When told the candidate has finished, say "Thank you." and ${rounding}. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
-4. Part 3 (two-way discussion): say "We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these questions in order, one at a time${t.part3.bullets?.[1] ? ` (before the fourth, say "Now let's move on to consider ${t.part3.bullets[1]}.")` : ''}. The questions are more abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up before the next question, for example "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?". Aim for five or six exchanges in all:
+4. Part 3 (two-way discussion): say "We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these suggested questions, one at a time${t.part3.bullets?.[1] ? ` (before the fourth, say "Now let's move on to consider ${t.part3.bullets[1]}.")` : ''}. They are more abstract: invite the candidate to explain, compare, evaluate or speculate. ${P3_ADAPT} Follow-ups such as "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?" are welcome:
 ${p3Questions(t).map((x) => `- ${x}`).join('\n')}
 5. When told the test is over, say "${LINES.closing}" and nothing more.`;
 }
@@ -201,29 +263,30 @@ You have no tools, no backend and nothing to look up. Never delegate, never say 
 The app sends you instructions for each part of the test as the test goes on. Follow the latest one at once, even mid-sentence, and never read them aloud or mention them. Until the first one arrives, say nothing.`;
 
 /** The instruction for one script moment (see GPT_LIVE_CUES). */
-export function gptLiveCue(cue: GptLiveCue, t: SpeakingTest): string {
+export function gptLiveCue(cue: GptLiveCue, t: SpeakingTest, facts = ''): string {
   const topic = aboutTopic(t);
+  const mem = facts ? `\n${facts} ${MEMORY}` : '';
   switch (cue) {
     case 'begin': {
       const p1 = t.part1.map((p) => `"${p.topic}": ${(p.followUps?.length ? p.followUps : [p.body]).join(' | ')}`).join('\n');
       return `Begin the test now. Say exactly: "${LINES.intro}" Then listen to the name.
-Then Part 1. Say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." For each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and ask its questions in this order, one at a time. Expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Do not move to Part 2 until told.
-${p1}`;
+Then Part 1. Say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." For each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and work through its questions roughly in this order, one at a time. ${P1_ADAPT} Expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Do not move to Part 2 until told.
+${p1}${branchGuide(t)}${mem}`;
     }
     case 'part2':
       return `Part 1 is over. Finish or drop your current question and do not ask another. Now Part 2. Say exactly: "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
-Then stay completely silent during their one-minute preparation, whatever you hear. Speak again only when told.`;
+Then stay completely silent during their one-minute preparation, whatever you hear. Speak again only when told.${mem}`;
     case 'talk':
       return `Preparation is over. Say exactly: "${LINES.talk}" Then say nothing at all while the candidate gives their long turn, up to two minutes: no "mm", no encouragement, no questions, even when they pause. Speak again only when told.`;
     case 'follow':
     case 'follow-timeup': {
       const q = t.part2.followUps?.[0];
       const lead = cue === 'follow-timeup' ? `Thank you. That's the end of your time.` : 'Thank you.';
-      const rounding = q ? `exactly this rounding-off question: "${q}"` : 'one short, simple rounding-off question linked to what they said (for example "Do you often …?")';
+      const rounding = q ? `this rounding-off question, adapted if needed to what they said: "${q}"` : 'one short, simple rounding-off question linked to what they said (for example "Do you often …?")';
       const qs = p3Questions(t);
-      return `The long turn is over. Say "${lead}" and ask ${rounding}. Listen to the short answer, then start Part 3: say "We've been talking about ${topic}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.bullets?.[0] ?? t.part3.topic}." and ask these questions in order, one at a time${t.part3.bullets?.[1] ? `; before the fourth question say "Now let's move on to consider ${t.part3.bullets[1]}."` : ''}. They are abstract: invite the candidate to explain, compare, evaluate or speculate. Whenever an answer is short, vague or one-sided, ask one brief follow-up first ("Why do you think that is?", "Can you give me an example?"). About five or six exchanges in all:
-${qs.map((x) => `- ${x}`).join('\n')}`;
+      return `The long turn is over. Say "${lead}" and ask ${rounding}. Listen to the short answer, then start Part 3: say "We've been talking about ${topic}, and I'd like to discuss with you one or two more general questions related to this. Let's consider first of all ${t.part3.bullets?.[0] ?? t.part3.topic}." and discuss these suggested questions, one at a time${t.part3.bullets?.[1] ? `; before the fourth exchange say "Now let's move on to consider ${t.part3.bullets[1]}."` : ''}. They are abstract: invite the candidate to explain, compare, evaluate or speculate. ${P3_ADAPT}
+${qs.map((x) => `- ${x}`).join('\n')}${mem}`;
     }
     case 'closing':
       return `The test is over. Stop whatever you are saying. Say exactly: "${LINES.closing}" and nothing more.`;
