@@ -20,6 +20,7 @@ function Signup() {
   const [exists, setExists] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const done = () => {
     refreshSession();
     router.history.push(safeRedirect(redirect));
@@ -33,20 +34,20 @@ function Signup() {
     setBusy(true);
     setError(null);
     setExists(false);
-    const { data, error } = await authClient.signUp.email({ name: String(f.get('name')).trim(), email, password: String(f.get('password')), callbackURL: `${location.origin}/` });
+    const { data, error, statusToken } = await authClient.signUp.email({ name: String(f.get('name')).trim(), email, password: String(f.get('password')), callbackURL: `${location.origin}/` });
     setBusy(false);
     if (error) {
       if (error.code === 'USER_ALREADY_EXISTS' || error.status === 422) return setExists(true);
       return setError(error.message || 'Could not create the account.');
     }
-    if (!data?.token) return setSentTo(email); // the server emailed a code: the address must be verified before first sign-in
+    if (!data?.token) { setToken(statusToken ?? null); return setSentTo(email); } // the server emailed a code: the address must be verified before first sign-in
     done();
   }
 
   if (sentTo)
     return (
       <AuthLayout title="Check your email" subtitle="One step left: verify your address.">
-        <VerifyEmailCode email={sentTo} onVerified={done} />
+        <VerifyEmailCode email={sentTo} token={token} onVerified={done} />
       </AuthLayout>
     );
 

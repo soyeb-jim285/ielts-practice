@@ -3,14 +3,24 @@ import { Scalar } from '@scalar/hono-api-reference';
 import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
+import { countBefore, emailStatus, finishRequest, isPurpose, STATUS_HEADER } from './auth-email';
 import { auth, clearBearerCache, sessionMiddleware } from './auth';
 import { env, R2_CONFIGURED } from './env';
 import { ApiError } from './errors';
 import { clientIpHash } from './ip';
-import { anonSignInOk } from './ratelimit';
+import { anonSignInOk, authStatusOk } from './ratelimit';
 import { MAX_AUDIO_BYTES, requestOrigin, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
 import { registerRoutes } from './routes';
+
+/** Endpoints that make Better Auth send (or pretend to send) a code: which address and purpose, read from a copy of the body. */
+async function codeRequest(path: string, raw: Request) {
+  const purpose = path.endsWith('/sign-up/email') ? 'email-verification' : path.endsWith('/email-otp/request-password-reset') ? 'forget-password' : path.endsWith('/email-otp/send-verification-otp') ? undefined : null;
+  if (purpose === null) return null;
+  const b = (await raw.clone().json().catch(() => null)) as { email?: unknown; type?: unknown } | null;
+  const p = purpose ?? b?.type;
+  return typeof b?.email === 'string' && isPurpose(p) ? { email: b.email.trim(), purpose: p } : null;
+}
 
 export function createApp() {
   const app = new OpenAPIHono<AppEnv>({
@@ -26,15 +36,25 @@ export function createApp() {
 
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
-  app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS], credentials: true, exposeHeaders: ['set-auth-token'] }));
+  app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS], credentials: true, exposeHeaders: ['set-auth-token', STATUS_HEADER] }));
   // Guests get an anonymous session on their first test start; one IP cannot mint them in bulk.
   app.post('/api/auth/sign-in/anonymous', async (c, next) => {
     const ip = clientIpHash(c);
     if (ip && !anonSignInOk(ip)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
     await next();
   });
+  // Delivery status of the code email (see auth-email.ts): the same answer shape for real and unknown addresses.
+  app.get('/api/auth-email/status', async (c) => {
+    const ip = clientIpHash(c) ?? 'unknown';
+    if (!authStatusOk(ip)) throw new ApiError(429, { error: 'Too many requests, slow down.', code: 'too_many_requests' });
+    c.header('Cache-Control', 'no-store');
+    return c.json(await emailStatus(c.req.header(STATUS_HEADER) ?? c.req.query('token')));
+  });
   app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
-    const res = await auth.handler(c.req.raw);
+    const asked = c.req.method === 'POST' ? await codeRequest(c.req.path, c.req.raw) : null;
+    const before = asked ? await countBefore(asked) : 0;
+    let res = await auth.handler(c.req.raw);
+    if (asked) res = await finishRequest(asked, before, res);
     // sign-in/sign-up/verify-email can merge a guest into the account, which deletes the guest's session: drop it from the bearer cache (after the call, so nothing re-caches it).
     if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password|sign-in(?!\/anonymous)|sign-up|verify-email)/.test(c.req.path)) clearBearerCache();
     return res;

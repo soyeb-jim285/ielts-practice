@@ -362,3 +362,9 @@ object DisfluencyKinds {
 )
 @Serializable data class UploadTarget(val key: String, val uploadUrl: String)
 @Serializable data class FinishResult(val attemptIds: List<String>)
+
+/** GET /api/auth-email/status: what happened to the code email. [error] is a short kind (rate_limited, rejected, network, unavailable), never provider text. */
+@Serializable data class EmailStatus(
+    val status: String = "none", val sentAt: String? = null, val maskedEmail: String? = null,
+    val resendAvailableIn: Int = 0, val alreadySent: Boolean = false, val error: String? = null,
+)

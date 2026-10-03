@@ -177,6 +177,16 @@ class ShellLogicTest {
         assertEquals("123456", otpDigits("12 34-56 78"))
     }
 
+    @Test fun emailStatusWording() {
+        val z = ZoneOffset.UTC
+        val sent = com.soyeb.ieltspractice.core.EmailStatus("sent", "2026-01-01T12:01:00Z", "j•••@gmail.com", 0, false)
+        val now = Instant.parse("2026-01-01T12:01:20Z").toEpochMilli()
+        assertEquals("Code sent to j•••@gmail.com at 12:01. Check your spam folder if it doesn't show up." to false, emailStatusLine(sent, now, z))
+        assertEquals("Code already sent 20 s ago to j•••@gmail.com; it is still valid. Check spam; you can resend in 10 s." to false, emailStatusLine(sent.copy(alreadySent = true, resendAvailableIn = 10), now, z))
+        assertEquals("We couldn't send the email (the email service is busy). Try again." to true, emailStatusLine(sent.copy(status = "failed", error = "rate_limited"), now, z))
+        assertEquals("Sending the code…" to false, emailStatusLine(null, now, z))
+    }
+
     @Test fun modelLabels() {
         assertEquals("gpt-6-luna", shortModel("openai/gpt-6-luna"))
         assertEquals("\$0.10 in · \$0.50 out per 1M tokens", modelPrice("1e-7", "5e-7"))

@@ -281,3 +281,16 @@ export const lrAttempts = pgTable('lr_attempts', {
   index('lr_attempts_user_started_idx').on(t.userId, t.startedAt),
   index('lr_attempts_user_test_idx').on(t.userId, t.testId, t.status),
 ]);
+
+// ---------- Auth emails: one row per send attempt (sign-up / verification / password-reset codes), so a failed send leaves a record that survives deploys ----------
+export const emailLog = pgTable('email_log', {
+  id: id(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  email: text('email').notNull(), // lowercased; masked whenever it is returned
+  purpose: text('purpose').notNull(), // email-verification | forget-password
+  status: text('status').notNull(), // sent | failed | skipped_cooldown
+  providerId: text('provider_id'), // Resend email id
+  error: text('error'), // short error kind (rate_limited | rejected | network | …), never the raw provider message
+  attempts: integer('attempts').notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('email_log_lookup_idx').on(t.email, t.purpose, t.createdAt)]);

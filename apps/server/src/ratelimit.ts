@@ -45,3 +45,6 @@ export const lrSaveLimit = createMiddleware<AppEnv>(async (c, next) => {
   if (!take(buckets, `lr:${currentUser(c).id}`, 30, 2_000)) throw new HTTPException(429, { message: 'Too many requests, slow down' });
   await next();
 });
+
+/** Delivery-status polls (GET /api/auth-email/status) per client address: the web and mobile screens poll every ~2 s for 20 s after a send, so 30 at once + 1 per 2 s never blocks a person and stops address probing. */
+export const authStatusOk = (ipHash: string) => take(ipBuckets, `authstatus:${ipHash}`, 30, 2_000);

@@ -15,6 +15,7 @@ struct LoginView: View {
     @State private var issue: Issue?
     @State private var info: String?
     @State private var verifying: String? // address that still needs its code
+    @State private var statusToken: String? // proof of the request that sent it
     @State private var showForgot = false
 
     private struct Issue {
@@ -38,7 +39,7 @@ struct LoginView: View {
         NavigationStack {
             Group {
                 if let verifying {
-                    VerifyEmailView(email: verifying) { finish() }
+                    VerifyEmailView(email: verifying, token: statusToken) { finish() }
                 } else {
                     form
                 }
@@ -169,7 +170,7 @@ struct LoginView: View {
         do {
             if signUp {
                 let signedIn = try await api.signUp(name: name.trimmingCharacters(in: .whitespaces), email: address, password: password)
-                if signedIn { finish() } else { verifying = address } // the server emailed a code
+                if signedIn { finish() } else { statusToken = api.emailStatusToken; verifying = address } // the server emailed a code
             } else {
                 try await api.signIn(email: address, password: password)
                 finish()
@@ -177,7 +178,7 @@ struct LoginView: View {
         } catch is CancellationError {
         } catch let e as APIError {
             if !signUp, e.code == "EMAIL_NOT_VERIFIED" || e.status == 403 {
-                try? await api.sendOTP(email: address, type: "email-verification")
+                statusToken = try? await api.sendOTP(email: address, type: "email-verification")
                 verifying = address
             } else {
                 issue = describe(e)
@@ -204,6 +205,7 @@ struct LoginView: View {
 private struct VerifyEmailView: View {
     @Environment(APIClient.self) private var api
     let email: String
+    let token: String?
     let onVerified: () -> Void
     @State private var code = ""
     @State private var busy = false
@@ -215,7 +217,7 @@ private struct VerifyEmailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Image(systemName: "envelope.badge").font(.largeTitle).foregroundStyle(.brand).accessibilityHidden(true)
                     Text("Verify your email").font(.display(.largeTitle, weight: .bold)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
-                    Text("We sent a 6-digit code to \(email). It expires in 10 minutes; check spam if it doesn't show up.").foregroundStyle(.muted)
+                    Text("Enter the 6-digit code for \(email). It expires in 10 minutes.").foregroundStyle(.muted)
                 }
                 .padding(.vertical, 8)
             }
@@ -226,7 +228,7 @@ private struct VerifyEmailView: View {
                 CodeField(code: $code)
                 if let error { ErrorLine(message: error) }
             }
-            Section { ResendCodeButton { try await api.sendOTP(email: email, type: "email-verification") } }
+            Section { CodeDelivery(token: token) { try await api.sendOTP(email: email, type: "email-verification") } }
         }
         .canvasList()
         .demoScroll()
@@ -306,27 +308,68 @@ private struct CodeField: View {
     }
 }
 
-/// "Resend code" with a 30 s cooldown that starts now (a code was just sent); the server sends at most one email per address every 30 s.
-private struct ResendCodeButton: View {
-    let send: () async throws -> Void
-    @State private var wait = 30
-    @State private var failed = false
+/// Delivery status plus "Resend code" with a live countdown. `token` is the status token of the request that sent the first code (nil when that call failed);
+/// the status is polled every 2 s for 20 s after each send so a late failure shows up. Screenshots (demo) show a sample and never poll.
+private struct CodeDelivery: View {
+    @Environment(APIClient.self) private var api
+    let send: () async throws -> String?
+    @State private var token: String?
+    @State private var status: EmailStatus?
+    @State private var wait = 0
+    @State private var sendFailed: Bool
+
+    init(token: String?, send: @escaping () async throws -> String?) {
+        self.send = send
+        _token = State(initialValue: token)
+        _sendFailed = State(initialValue: token == nil && !Demo.on)
+        if Demo.on {
+            _status = State(initialValue: EmailStatus(status: "sent", sentAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-40)), maskedEmail: "m•••@example.com"))
+        }
+    }
+
+    private var shown: EmailStatus? {
+        if sendFailed { return EmailStatus(status: "failed", error: "network") }
+        guard var s = status else { return nil }
+        s.resendAvailableIn = wait
+        return s
+    }
 
     var body: some View {
+        let line = AuthText.statusLine(shown)
+        Label {
+            Text(line.text)
+        } icon: {
+            Image(systemName: line.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+        }
+        .font(.footnote)
+        .foregroundStyle(line.failed ? Color.bad : (shown?.status == "sent" ? Color.goodText : Color.muted))
+        .accessibilityElement(children: .combine)
         Button(wait > 0 ? "Resend code in \(wait)s" : "Resend code") {
-            wait = 30
             Task {
-                do { try await send(); failed = false } catch is CancellationError {} catch { failed = true }
+                sendFailed = false
+                do {
+                    if let t = try await send() { status = nil; token = t } else { sendFailed = true }
+                } catch is CancellationError {} catch { sendFailed = true }
             }
         }
         .disabled(wait > 0)
         .frame(minHeight: 44, alignment: .leading)
+        .task(id: token) {
+            guard !Demo.on, let token else { return }
+            for _ in 0..<10 {
+                if let s = try? await api.emailStatus(token: token) {
+                    status = s
+                    wait = s.resendAvailableIn
+                }
+                try? await Task.sleep(for: .seconds(2))
+                if Task.isCancelled { return }
+            }
+        }
         .task(id: wait) {
             guard wait > 0 else { return }
             try? await Task.sleep(for: .seconds(1))
             if !Task.isCancelled { wait -= 1 }
         }
-        if failed { ErrorLine(message: "Could not send the code. Try again shortly.") }
     }
 }
 
@@ -337,6 +380,7 @@ private struct ForgotPasswordSheet: View {
     let onDone: () -> Void
     @State private var email: String
     @State private var sentTo: String?
+    @State private var statusToken: String?
     @State private var code = ""
     @State private var password = ""
     @State private var confirm = ""
@@ -403,7 +447,7 @@ private struct ForgotPasswordSheet: View {
             }
             if let error { Section { ErrorLine(message: error) } }
             Section {
-                ResendCodeButton { try await api.sendOTP(email: address, type: "forget-password") }
+                CodeDelivery(token: statusToken) { try await api.sendOTP(email: address, type: "forget-password") }
                 Button("Use a different email") {
                     sentTo = nil
                     code = ""
@@ -438,7 +482,7 @@ private struct ForgotPasswordSheet: View {
         defer { busy = false }
         let address = email.trimmingCharacters(in: .whitespaces)
         do {
-            try await api.sendOTP(email: address, type: "forget-password")
+            statusToken = try await api.sendOTP(email: address, type: "forget-password")
             sentTo = address
         } catch is CancellationError {
         } catch let e as APIError {

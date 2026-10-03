@@ -3,7 +3,7 @@ import { auth, webLink } from './auth';
 import { sendEmail } from './email';
 import { req } from './test/helpers';
 
-vi.mock('./email', () => ({ sendEmail: vi.fn() }));
+vi.mock('./email', () => ({ sendEmail: vi.fn(async () => ({ ok: true, id: 'e1', attempts: 1 })) }));
 
 const api = 'http://192.168.0.105:8787/api/auth/verify-email?token=t&callbackURL=%2F';
 describe('webLink', () => {
@@ -26,7 +26,7 @@ const lastCode = () => /(\d{6})<\/p>/.exec(mail.mock.calls.at(-1)![0].html)![1]!
 const signUp = (email: string) => auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'Otp User' } });
 
 describe('email OTP', () => {
-  beforeEach(() => mail.mockClear());
+  beforeEach(() => mail.mockClear()); // keeps the implementation
 
   it('password reset: code by email, new password works, old one does not, code is single-use', async () => {
     await signUp('reset@x.com');

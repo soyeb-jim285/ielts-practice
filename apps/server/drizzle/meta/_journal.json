@@ -57,6 +57,13 @@
       "when": 1791045423535,
       "tag": "0007_lr_review",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791055438022,
+      "tag": "0008_email_log",
+      "breakpoints": true
     }
   ]
 }

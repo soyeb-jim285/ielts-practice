@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { PasswordPair, passwordsMatch } from '@/components/auth/PasswordPair';
-import { ResendCode } from '@/components/auth/ResendCode';
+import { CodeDelivery } from '@/components/auth/CodeDelivery';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { Alert, Button, buttonStyles, Input, OtpInput, toast } from '@/components/ui';
 import { authClient, otpError } from '@/lib/auth';
@@ -18,6 +18,7 @@ const backToSignIn = (
 function ForgotPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -29,9 +30,10 @@ function ForgotPassword() {
     const to = String(new FormData(e.currentTarget).get('email')).trim();
     setBusy(true);
     setError(null);
-    const { error } = await authClient.emailOtp.send({ email: to, type: 'forget-password' });
+    const { error, statusToken } = await authClient.emailOtp.send({ email: to, type: 'forget-password' });
     setBusy(false);
     if (error) return setError(otpError(error));
+    setToken(statusToken ?? null);
     setEmail(to);
   }
 
@@ -68,7 +70,7 @@ function ForgotPassword() {
             Update password
           </Button>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <ResendCode send={() => authClient.emailOtp.send({ email, type: 'forget-password' })} />
+            <CodeDelivery token={token} send={() => authClient.emailOtp.send({ email, type: 'forget-password' })} />
             <button type="button" onClick={() => setEmail(null)} className={buttonStyles({ variant: 'link', className: 'hit' })}>
               Use a different email
             </button>

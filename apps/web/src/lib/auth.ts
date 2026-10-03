@@ -3,9 +3,11 @@ import { redirect } from '@tanstack/react-router';
 import { ApiError } from './api';
 import { isAccount, meQuery, queryClient } from './query';
 
+export type EmailStatus = { status: 'sent' | 'failed' | 'none'; sentAt: string | null; maskedEmail: string | null; resendAvailableIn: number; alreadySent: boolean; error: 'rate_limited' | 'rejected' | 'network' | 'unavailable' | null };
+
 /** Better Auth error as the pages read it (the same fields its own client returns). */
 export type AuthError = { status: number; code?: string; message?: string };
-type Result = { error: AuthError | null; data: { user?: { id: string }; token?: string | null } | null };
+type Result = { error: AuthError | null; data: { user?: { id: string }; token?: string | null } | null; /** Proof of this request for the delivery-status endpoint (code-sending calls only). */ statusToken?: string | null };
 
 /**
  * Thin client for the few Better Auth endpoints the pages use: plain fetch + cookies. The official client (+ better-fetch, nanostores) was a
@@ -15,7 +17,8 @@ async function post(path: string, body: object = {}): Promise<Result> {
   try {
     const r = await fetch(`/api/auth${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => null);
-    return r.ok ? { data: j, error: null } : { data: null, error: { status: r.status, code: j?.code, message: j?.message ?? j?.error } };
+    const statusToken = r.headers.get('x-email-status-token');
+    return r.ok ? { data: j, error: null, statusToken } : { data: null, error: { status: r.status, code: j?.code, message: j?.message ?? j?.error } };
   } catch {
     return { data: null, error: { status: 0, message: 'Network error. Check your connection and try again.' } };
   }
@@ -33,6 +36,15 @@ export const authClient = {
     send: (b: { email: string; type: 'email-verification' | 'forget-password' }) => post('/email-otp/send-verification-otp', b),
     verifyEmail: (b: { email: string; otp: string }) => post('/email-otp/verify-email', b),
     resetPassword: (b: { email: string; otp: string; password: string }) => post('/email-otp/reset-password', b),
+  },
+  /** Delivery status of the code email behind a status token (what the sender screen shows). A failed lookup reads as "no news". */
+  emailStatus: async (token: string): Promise<EmailStatus | null> => {
+    try {
+      const r = await fetch('/api/auth-email/status', { headers: { 'x-email-status-token': token } });
+      return r.ok ? ((await r.json()) as EmailStatus) : null;
+    } catch {
+      return null;
+    }
   },
   deleteUser: (b: { password: string }) => post('/delete-user', b),
 };

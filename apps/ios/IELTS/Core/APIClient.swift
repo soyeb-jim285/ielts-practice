@@ -143,9 +143,20 @@ final class APIClient {
     /// Returns false when the server requires email verification before signing in.
     func signUp(name: String, email: String, password: String) async throws -> Bool {
         let (_, http) = try await raw("POST", "/api/auth/sign-up/email", ["name": name, "email": email, "password": password])
+        emailStatusToken = http.value(forHTTPHeaderField: "x-email-status-token")
         guard http.value(forHTTPHeaderField: "set-auth-token") != nil else { return false }
         try await adopt(http)
         return true
+    }
+
+    /// Proof of the latest code-sending request (sign-up, send code): the delivery status is only answered to whoever holds it.
+    @ObservationIgnored private(set) var emailStatusToken: String?
+
+    /// Whether the code email was sent, behind a status token.
+    func emailStatus(token: String) async throws -> EmailStatus {
+        let q = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token
+        let (data, _) = try await raw("GET", "/api/auth-email/status?token=\(q)")
+        return try JSONDecoder().decode(EmailStatus.self, from: data)
     }
 
     /// Guests browse freely; call this when they start something personal. The sheet signs them in or up (the pending screen or action is simply
@@ -156,8 +167,11 @@ final class APIClient {
     }
 
     /// Emails a 6-digit code (Better Auth emailOTP). The answer is the same whether or not the address has an account.
-    func sendOTP(email: String, type: String) async throws {
-        try await raw("POST", "/api/auth/email-otp/send-verification-otp", ["email": email, "type": type])
+    @discardableResult
+    func sendOTP(email: String, type: String) async throws -> String? {
+        let (_, http) = try await raw("POST", "/api/auth/email-otp/send-verification-otp", ["email": email, "type": type])
+        emailStatusToken = http.value(forHTTPHeaderField: "x-email-status-token")
+        return emailStatusToken
     }
 
     /// Verifies the address with the emailed code and signs the user in.
@@ -269,7 +283,50 @@ final class APIClient {
 }
 
 /// Wording for the 6-digit code flow (web lib/auth.ts otpError).
+/// GET /api/auth-email/status: what happened to the code email. `error` is a short kind (rate_limited, rejected, network, unavailable), never provider text.
+struct EmailStatus: Decodable, Equatable {
+    var status: String
+    var sentAt: String? = nil
+    var maskedEmail: String? = nil
+    var resendAvailableIn = 0
+    var alreadySent = false
+    var error: String? = nil
+}
+
 enum AuthText {
+    /// The status line under the code boxes (same wording as web and Android) and whether it is a failure.
+    static func statusLine(_ s: EmailStatus?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> (text: String, failed: Bool) {
+        guard let s, s.status != "none" else { return ("Sending the code…", false) }
+        if s.status == "failed" {
+            let why: String
+            switch s.error {
+            case "rate_limited": why = " (the email service is busy)"
+            case "rejected": why = " (the address was refused)"
+            case "network": why = " (the email service could not be reached)"
+            case "unavailable": why = " (the email service is down)"
+            default: why = ""
+            }
+            return ("We couldn't send the email\(why). Try again.", true)
+        }
+        let to = s.maskedEmail ?? "your address"
+        let at = CommunityText.date(s.sentAt)
+        if s.alreadySent, let at {
+            let ago = max(0, Int(now.timeIntervalSince(at).rounded()))
+            let resend = s.resendAvailableIn > 0 ? "; you can resend in \(s.resendAvailableIn) s" : ""
+            return ("Code already sent \(ago) s ago to \(to); it is still valid. Check spam\(resend).", false)
+        }
+        var time = ""
+        if let at {
+            let f = DateFormatter()
+            f.calendar = calendar
+            f.timeZone = calendar.timeZone
+            f.locale = locale
+            f.dateFormat = "HH:mm"
+            time = " at " + f.string(from: at)
+        }
+        return ("Code sent to \(to)\(time). Check your spam folder if it doesn't show up.", false)
+    }
+
     /// Digits only, at most six: what a code field keeps from typing, paste or the keyboard's one-time-code suggestion.
     static func otpDigits(_ s: String) -> String { String(s.filter(\.isASCII).filter(\.isNumber).prefix(6)) }
 

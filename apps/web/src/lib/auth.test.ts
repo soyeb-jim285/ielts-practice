@@ -8,7 +8,7 @@ describe('authClient', () => {
   it('posts JSON to /api/auth and returns { data }', async () => {
     reply(200, { token: 't' });
     const r = await authClient.signIn.email({ email: 'a@b.co', password: 'pw' });
-    expect(r).toEqual({ data: { token: 't' }, error: null });
+    expect(r).toMatchObject({ data: { token: 't' }, error: null });
     expect(fetch).toHaveBeenCalledWith('/api/auth/sign-in/email', expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'a@b.co', password: 'pw' }) }));
   });
   it('maps failures to { error: { status, code, message } }', async () => {

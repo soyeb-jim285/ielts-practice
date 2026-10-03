@@ -7,6 +7,7 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
+import { sendOtpEmail } from './auth-email';
 import { sendEmail } from './email';
 import { ApiError } from './errors';
 import { linkGuest } from './link';
@@ -28,31 +29,6 @@ export function webLink(url: string, request?: Request) {
     if (v?.startsWith('/')) u.searchParams.set(k, new URL(v, base).toString());
   }
   return u.toString();
-}
-
-const OTP_MINUTES = 10;
-const OTP_MAIL = {
-  'email-verification': { subject: 'Your IELTS Practice verification code', lead: 'Welcome to IELTS Practice! Enter this code to verify your email:' },
-  'forget-password': { subject: 'Your IELTS Practice password reset code', lead: 'Enter this code to reset your password:' },
-} as const;
-// ponytail: per-process; one OTP email per address+purpose every 30 s. The code is reused while valid (resendStrategy), so a skipped resend loses nothing.
-const OTP_COOLDOWN_MS = 30_000;
-const otpSentAt = new Map<string, number>();
-
-/** Sends the 6-digit code. Callers get the same response whether or not the address has an account (Better Auth only calls this for real users). */
-export async function sendOtpEmail({ email, otp, type }: { email: string; otp: string; type: string }) {
-  const mail = OTP_MAIL[type as keyof typeof OTP_MAIL];
-  if (!mail) return; // sign-in codes are not offered: passwords only
-  const key = `${type}:${email}`;
-  const now = Date.now();
-  if (now - (otpSentAt.get(key) ?? 0) < OTP_COOLDOWN_MS) return;
-  if (otpSentAt.size > 5000) otpSentAt.clear();
-  otpSentAt.set(key, now);
-  await sendEmail({
-    to: email,
-    subject: mail.subject,
-    html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
-  });
 }
 
 export const auth = betterAuth({
@@ -95,7 +71,7 @@ export const auth = betterAuth({
       sendVerificationOTP: sendOtpEmail,
       overrideDefaultEmailVerification: true,
       otpLength: 6,
-      expiresIn: OTP_MINUTES * 60,
+      expiresIn: 10 * 60,
       allowedAttempts: 5, // wrong guesses before the code is burned: 5 in 1,000,000
       storeOTP: 'encrypted',
       resendStrategy: 'reuse',

@@ -17,6 +17,7 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verify, setVerify] = useState<string | null>(null); // address that still needs its code
+  const [token, setToken] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,7 +29,7 @@ function Login() {
     setBusy(false);
     if (error) {
       if (error.code === 'EMAIL_NOT_VERIFIED') {
-        await authClient.emailOtp.send({ email, type: 'email-verification' });
+        setToken((await authClient.emailOtp.send({ email, type: 'email-verification' })).statusToken ?? null);
         return setVerify(email);
       }
       return setError(error.status === 401 ? 'That email and password don’t match.' : error.message || 'Could not sign in. Try again.');
@@ -44,7 +45,7 @@ function Login() {
   if (verify)
     return (
       <AuthLayout title="Verify your email" subtitle="One step left before you can sign in.">
-        <VerifyEmailCode email={verify} onVerified={done} />
+        <VerifyEmailCode email={verify} token={token} onVerified={done} />
       </AuthLayout>
     );
 

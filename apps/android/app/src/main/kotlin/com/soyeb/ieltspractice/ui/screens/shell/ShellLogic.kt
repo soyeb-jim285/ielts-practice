@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens.shell
 
+import com.soyeb.ieltspractice.core.EmailStatus
 import com.soyeb.ieltspractice.core.Crit
 import com.soyeb.ieltspractice.core.fmt
 import java.time.Duration
@@ -247,6 +248,27 @@ fun otpError(status: Int, code: String?, message: String): String = when {
     code == "TOO_MANY_ATTEMPTS" -> "Too many wrong tries. Request a new code."
     status == 429 -> "Too many requests. Wait a minute, then try again."
     else -> message.ifEmpty { "Something went wrong. Try again." }
+}
+
+/** The status line under the code boxes: text and whether it is a failure. Same wording as the web's StatusLine. */
+fun emailStatusLine(s: EmailStatus?, nowMs: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Pair<String, Boolean> {
+    if (s == null || s.status == "none") return "Sending the code…" to false
+    if (s.status == "failed") {
+        val why = when (s.error) {
+            "rate_limited" -> " (the email service is busy)"; "rejected" -> " (the address was refused)"
+            "network" -> " (the email service could not be reached)"; "unavailable" -> " (the email service is down)"; else -> ""
+        }
+        return "We couldn't send the email$why. Try again." to true
+    }
+    val to = s.maskedEmail ?: "your address"
+    val at = s.sentAt?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+    if (s.alreadySent && at != null) {
+        val ago = maxOf(0L, (nowMs - at.toEpochMilli() + 500) / 1000)
+        val resend = if (s.resendAvailableIn > 0) "; you can resend in ${s.resendAvailableIn} s" else ""
+        return "Code already sent $ago s ago to $to; it is still valid. Check spam$resend." to false
+    }
+    val time = at?.let { " at " + java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(it.atZone(zone)) } ?: ""
+    return "Code sent to $to$time. Check your spam folder if it doesn't show up." to false
 }
 
 /** Short model id for display ("openai/gpt-6-luna" -> "gpt-6-luna"). */

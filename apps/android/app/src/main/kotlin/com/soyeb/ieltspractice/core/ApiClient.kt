@@ -247,6 +247,7 @@ class ApiClient(
     /** Returns false when the server requires email verification before signing in. */
     suspend fun signUp(name: String, email: String, password: String): Boolean {
         val r = raw("POST", "/api/auth/sign-up/email", buildJsonObject { put("name", name); put("email", email); put("password", password) })
+        statusToken = r.headers["x-email-status-token"]
         if (r.headers["set-auth-token"].isNullOrEmpty()) return false
         adopt(r)
         return true
@@ -263,9 +264,17 @@ class ApiClient(
     }
 
     /** Emails a 6-digit code (Better Auth emailOTP): [type] is "email-verification" or "forget-password". The answer is the same whether or not the address has an account. */
-    suspend fun sendOtp(email: String, type: String) {
-        raw("POST", "/api/auth/email-otp/send-verification-otp", buildJsonObject { put("email", email); put("type", type) })
+    suspend fun sendOtp(email: String, type: String): String? {
+        val r = raw("POST", "/api/auth/email-otp/send-verification-otp", buildJsonObject { put("email", email); put("type", type) })
+        return r.headers["x-email-status-token"].also { statusToken = it }
     }
+
+    /** Proof of the latest code-sending request (sign-up, send code): the delivery status is only answered to whoever holds it. */
+    var statusToken: String? = null
+
+    /** Whether the code email was sent, behind a [statusToken]. */
+    suspend fun emailStatus(token: String): EmailStatus =
+        AppJson.decodeFromString(EmailStatus.serializer(), raw("GET", "/api/auth-email/status?token=${java.net.URLEncoder.encode(token, "UTF-8")}").body)
 
     /** Verifies the address with the emailed code and signs the user in. */
     suspend fun verifyEmail(email: String, otp: String) {

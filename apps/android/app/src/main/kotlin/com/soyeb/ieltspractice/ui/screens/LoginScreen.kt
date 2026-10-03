@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +44,8 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.ApiError
+import com.soyeb.ieltspractice.core.EmailStatus
+import com.soyeb.ieltspractice.ui.screens.shell.emailStatusLine
 import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.screens.shell.AppField
@@ -90,6 +93,8 @@ fun LoginScreen(nav: AppNav) {
     var issue by remember { mutableStateOf<Issue?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
     var address by remember { mutableStateOf(email.trim()) } // the address a code was sent to
+    var token by remember { mutableStateOf<String?>(null) } // proof of the request that sent it, for the delivery status
+    val demoStatus = if (demoSub in listOf("Verify", "Reset")) EmailStatus("sent", java.time.Instant.now().minusSeconds(40).toString(), "m•••@example.com", 0, false) else null
 
     val signUp = mode == Mode.SignUp
     val mismatch = confirm.isNotEmpty() && confirm != password
@@ -112,7 +117,7 @@ fun LoginScreen(nav: AppNav) {
         val a = email.trim()
         try {
             if (signUp) {
-                if (api.signUp(name.trim(), a, password)) nav.loginFinished(true) else { address = a; show(Mode.Verify) } // the server emailed a code
+                if (api.signUp(name.trim(), a, password)) nav.loginFinished(true) else { address = a; token = api.statusToken; show(Mode.Verify) } // the server emailed a code
             } else {
                 api.signIn(a, password)
                 nav.loginFinished(true)
@@ -121,7 +126,7 @@ fun LoginScreen(nav: AppNav) {
             throw x
         } catch (x: ApiError) {
             if (!signUp && (x.code == "EMAIL_NOT_VERIFIED" || x.status == 403)) {
-                runCatching { api.sendOtp(a, "email-verification") }
+                token = runCatching { api.sendOtp(a, "email-verification") }.getOrNull()
                 address = a; show(Mode.Verify)
             } else if (signUp) {
                 issue = if (x.status == 422 || x.message.contains("already exists", true)) Issue("An account with this email already exists.", exists = true)
@@ -177,19 +182,19 @@ fun LoginScreen(nav: AppNav) {
                     Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Filled.Email, null, Modifier.size(40.dp), tint = e.brand)
                         Text("Verify your email", style = MaterialTheme.typography.headlineMedium, color = e.ink)
-                        Text("We sent a 6-digit code to $address. It expires in 10 minutes; check spam if it doesn't show up.", style = MaterialTheme.typography.bodyLarge, color = e.muted)
+                        Text("Enter the 6-digit code for $address. It expires in 10 minutes.", style = MaterialTheme.typography.bodyLarge, color = e.muted)
                     }
                     CodeField(code) { code = it }
                     issue?.let { ErrorLine(it.message) }
                     PrimaryButton("Verify email", { attempt { api.verifyEmail(address, code); nav.loginFinished(true) } }, Modifier.fillMaxWidth(), enabled = code.length == 6, loading = busy)
-                    ResendCode { api.sendOtp(address, "email-verification") }
+                    CodeDelivery(token, demoStatus) { api.sendOtp(address, "email-verification") }
                 }
 
                 Mode.ForgotEmail -> {
                     Text("Enter your account email and we'll send you a 6-digit code.", style = MaterialTheme.typography.bodyLarge, color = e.muted)
                     AppField(email, { email = it }, "Email", keyboardType = KeyboardType.Email, contentType = ContentType.EmailAddress)
                     issue?.let { ErrorLine(it.message) }
-                    PrimaryButton("Send code", { attempt { val a = email.trim(); api.sendOtp(a, "forget-password"); address = a; show(Mode.ForgotCode) } }, Modifier.fillMaxWidth(), enabled = email.contains("@"), loading = busy)
+                    PrimaryButton("Send code", { attempt { val a = email.trim(); token = api.sendOtp(a, "forget-password"); address = a; show(Mode.ForgotCode) } }, Modifier.fillMaxWidth(), enabled = email.contains("@"), loading = busy)
                 }
 
                 Mode.ForgotCode -> {
@@ -206,7 +211,7 @@ fun LoginScreen(nav: AppNav) {
                             password = ""; confirm = ""; show(Mode.SignIn); info = "Password updated. Sign in with your new password."
                         }
                     }, Modifier.fillMaxWidth(), enabled = canReset, loading = busy)
-                    ResendCode { api.sendOtp(address, "forget-password") }
+                    CodeDelivery(token, demoStatus) { api.sendOtp(address, "forget-password") }
                     LinkButton("Use a different email", { show(Mode.ForgotEmail) })
                 }
             }
@@ -276,16 +281,39 @@ private fun CodeField(code: String, onChange: (String) -> Unit) {
     )
 }
 
-/** "Resend code" with a 30 s cooldown that starts now (a code was just sent); the server sends at most one email per address every 30 s. */
+/**
+ * Delivery status plus "Resend code" with a live countdown. [first] is the status token of the request that sent the first code (null when that call failed);
+ * the status is polled every 2 s for 20 s after each send so a late failure shows up. [demo] (screenshots) is shown as is, with no network.
+ */
 @Composable
-private fun ResendCode(send: suspend () -> Unit) {
-    var wait by remember { mutableIntStateOf(30) }
-    var failed by remember { mutableStateOf(false) }
+private fun CodeDelivery(first: String?, demo: EmailStatus?, send: suspend () -> String?) {
+    val api = LocalApp.current.api
+    val e = MaterialTheme.ext
+    var token by remember { mutableStateOf(first) }
+    var status by remember { mutableStateOf(demo) }
+    var wait by remember { mutableIntStateOf(demo?.resendAvailableIn ?: 0) }
+    var sendFailed by remember { mutableStateOf(first == null && demo == null) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(token) {
+        val t = token ?: return@LaunchedEffect
+        if (demo != null) return@LaunchedEffect
+        repeat(10) {
+            runCatching { api.emailStatus(t) }.getOrNull()?.let { status = it; wait = it.resendAvailableIn }
+            delay(2000)
+        }
+    }
     LaunchedEffect(wait) { if (wait > 0) { delay(1000); wait-- } }
+    val shown = if (sendFailed) EmailStatus("failed", error = "network") else status?.copy(resendAvailableIn = wait)
+    val (line, bad) = emailStatusLine(shown, System.currentTimeMillis())
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
+        Icon(if (bad) Icons.Filled.Warning else Icons.Filled.CheckCircle, null, Modifier.size(18.dp), tint = if (bad) e.bad else if (shown?.status == "sent") e.goodText else e.muted)
+        Text(line, style = MaterialTheme.typography.bodySmall, color = if (bad) e.bad else e.muted)
+    }
     LinkButton(if (wait > 0) "Resend code in ${wait}s" else "Resend code", {
-        wait = 30
-        scope.launch { failed = try { send(); false } catch (x: CancellationException) { throw x } catch (x: Exception) { true } }
+        scope.launch {
+            sendFailed = false
+            val t = try { send() } catch (x: CancellationException) { throw x } catch (x: Exception) { null }
+            if (t == null) sendFailed = true else { status = null; token = t }
+        }
     }, enabled = wait == 0)
-    if (failed) ErrorLine("Could not send the code. Try again shortly.")
 }
