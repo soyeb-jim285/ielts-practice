@@ -139,7 +139,7 @@ I = Staff room (not asked, never mention): back right corner.`,
       // front row
       N(70, 430, 100, 150, 'TOILETS', '#e8e8e8') + L(180, 430, 130, 150, 'A') + N(320, 430, 260, 150, 'RECEPTION', '#f0ecd8') + L(590, 430, 120, 150, 'B') + L(720, 430, 110, 150, 'C') +
       // doors (white gaps in the walls)
-      [[150, 248], [330, 248], [520, 248], [720, 248], [110, 408], [680, 408], [230, 428], [610, 428], [740, 428], [100, 428]].map(([x, y]) => `<rect x="${x}" y="${y - 3}" width="36" height="9" fill="#fafaf5"/>`).join('') +
+      [[150, 248], [330, 248], [520, 248], [720, 248], [110, 408], [680, 408], [230, 428], [610, 428], [740, 428], [100, 428]].map(([x, y]) => `<rect x="${x}" y="${y! - 3}" width="36" height="9" fill="#fafaf5"/>`).join('') +
       `<rect x="400" y="586" width="100" height="10" fill="#fafaf5"/>` +
       `<path d="M450 640 L 450 606" stroke="#111" stroke-width="4"/><path d="M438 618 L 450 604 L 462 618 Z" fill="#111"/>` + txt(450, 654, 'ENTRANCE', 17, 'font-weight="700"'),
   ),
