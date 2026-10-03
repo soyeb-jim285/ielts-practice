@@ -75,7 +75,7 @@ private fun lede(listening: Boolean) =
     if (listening) "Four recordings, 40 questions. Take it like the real computer-delivered test, or practise with replay and slow-down."
     else "Three passages, 40 questions, 60 minutes. Flag what to revisit and check your pace."
 
-/** Listening or Reading hub: tests grouped by Cambridge book, then our own, with status and best band. Only for accounts with Cambridge access. */
+/** Listening or Reading hub: tests grouped by Cambridge book, then our own, with status and best band. Cambridge books show only for allow-listed accounts (the server filters). */
 @Composable
 fun LrHubScreen(route: LrHub, nav: AppNav) {
     val api = LocalApp.current.api
@@ -85,7 +85,6 @@ fun LrHubScreen(route: LrHub, nav: AppNav) {
         val m = me
         when {
             m == null -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
-            !m.cambridgeAccess -> EmptyState("Not available", "Listening and Reading tests are not enabled for this account.")
             else -> HubContent(route.skill, m.settings.targetBand, nav)
         }
     }

@@ -1,10 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Runner } from '@/components/lr/Runner';
 import { call, client } from '@/lib/api';
-import { requireLrAccess } from '@/lib/lr';
 
 export const Route = createFileRoute('/_app/lr/run/$attemptId')({
-  beforeLoad: ({ context }) => requireLrAccess(context.queryClient),
   loader: async ({ params }) => {
     const a = await call(client.GET('/api/lr/attempts/{id}', { params: { path: { id: params.attemptId } } }));
     if (a.status === 'submitted') throw redirect({ to: '/lr/result/$attemptId', params: { attemptId: a.id }, replace: true });

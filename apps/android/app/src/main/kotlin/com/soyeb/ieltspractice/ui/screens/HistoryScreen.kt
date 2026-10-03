@@ -86,8 +86,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
     val me by api.me.collectAsState()
     val target = me?.settings?.targetBand ?: 7.0
     var skill by remember { mutableStateOf(route.skill.orEmpty()) } // "" = all
-    // Listening & Reading attempts (cambridge accounts only) come from their own list and sit above the speaking and writing ones.
-    val lrOn = me?.cambridgeAccess == true
+    // Listening & Reading attempts come from their own list and sit above the speaking and writing ones.
+    val lrOn = me != null
     val isLr = skill == "listening" || skill == "reading"
     val lrLoad = rememberLoad(lrOn) { if (lrOn) api.getList<LrAttemptItem>("/api/lr/attempts") else emptyList() }
     val lr = ((lrLoad.state as? Load.Ready)?.value ?: emptyList()).filter { !isLr || it.skill == skill }

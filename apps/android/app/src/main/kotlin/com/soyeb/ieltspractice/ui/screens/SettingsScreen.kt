@@ -157,7 +157,7 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
     AppCard {
         SectionTitle("More")
         Column {
-            if (LocalApp.current.api.me.collectAsState().value?.cambridgeAccess == true) {
+            run {
                 NavRow("Listening tests", null, { nav.go(LrHub("listening")) }, icon = R.drawable.ic_sp_headphones)
                 RowDivider()
                 NavRow("Reading tests", null, { nav.go(LrHub("reading")) }, icon = R.drawable.ic_lr_book)

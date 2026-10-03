@@ -1,4 +1,4 @@
-// Imports Listening & Reading tests (LrTest JSON) as restricted lr_tests rows and uploads their assets to storage under lr/<key>.
+// Imports Listening & Reading tests (LrTest JSON) as lr_tests rows (Cambridge = restricted to allow-listed users, generated = open to all) and uploads their assets to storage under lr/<key>.
 // Reads data/cambridge-lr/*.json and data/lr-generated/*.json (assets in <dir>/assets/<key>); PRIVATE data, never commit it.
 // Usage: pnpm tsx scripts/lr-import.ts [--dry] [--force] [--dev] [dir...]   (--dev adds the committed dev fixtures; --force imports tests that fail validation)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -52,7 +52,7 @@ for (const dir of dirs) {
         await storage.put(`lr/${k}`, readFileSync(file), MIME[extname(k).toLowerCase()] ?? 'application/octet-stream');
         uploaded++;
       }
-      const row = { skill: t.skill, variant: t.variant, source: t.source, ref: t.ref, title: t.title, data: t, restricted: true };
+      const row = { skill: t.skill, variant: t.variant, source: t.source, ref: t.ref, title: t.title, data: t, restricted: t.source === 'cambridge' };
       await db.insert(lrTests).values({ slug: t.slug, ...row }).onConflictDoUpdate({ target: lrTests.slug, set: row });
     }
     ok++;

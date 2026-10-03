@@ -1,8 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { scoreLr, stripAnswers, type LrTest } from '@ielts/core';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, type SQL } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { currentUser, requireCambridge, requireUser } from '../auth';
+import { currentUser, isCambridgeAllowed, requireUser } from '../auth';
 import { db } from '../db/client';
 import { lrAttempts, lrTests } from '../db/schema';
 import { lrSaveLimit } from '../ratelimit';
@@ -20,8 +20,13 @@ const Status = z.enum(['in_progress', 'submitted']);
 
 const ErrorSchema = z.object({ error: z.string(), code: z.string().optional() }).openapi('LrError');
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
-const common = { tags: ['Listening & Reading'], security: [{ bearer: [] }], middleware: [requireUser, requireCambridge] };
-const errors = { 403: json(ErrorSchema, 'cambridge_required'), 404: json(ErrorSchema, 'Not found') };
+const common = { tags: ['Listening & Reading'], security: [{ bearer: [] }], middleware: [requireUser] };
+const errors = { 404: json(ErrorSchema, 'Not found (also for a Cambridge test this user may not open)') };
+
+type Viewer = Parameters<typeof isCambridgeAllowed>[0];
+/** Our own tests are open to everyone; Cambridge (restricted) tests only to allow-listed, verified accounts. */
+const canOpen = (t: { restricted: boolean }, u: Viewer) => !t.restricted || isCambridgeAllowed(u);
+const visibleWhere = (u: Viewer): SQL | undefined => (isCambridgeAllowed(u) ? undefined : eq(lrTests.restricted, false));
 
 const Option = z.object({ key: z.string(), text: z.string() });
 const LrTestSchema = z
@@ -134,11 +139,11 @@ async function assetUrls(test: LrTest) {
   return Object.fromEntries(await Promise.all([...keys].map(async (k) => [k, await storage.presignGet(lrAssetKey(k), 6 * 3600)] as const)));
 }
 
-async function ownAttempt(id: string, userId: string) {
-  const a = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.id, id), eq(lrAttempts.userId, userId)) });
+async function ownAttempt(id: string, user: { id: string; email: string; emailVerified: boolean }) {
+  const a = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.id, id), eq(lrAttempts.userId, user.id)) });
   if (!a) throw new HTTPException(404, { message: 'Attempt not found' });
   const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, a.testId) });
-  if (!t) throw new HTTPException(404, { message: 'Test not found' });
+  if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
   return { a, t };
 }
 
@@ -168,20 +173,21 @@ export function register(app: App) {
     createRoute({
       method: 'get',
       path: '/api/lr/tests',
-      ...common,
-      summary: 'List Listening & Reading tests with your latest status and best band',
+      tags: common.tags,
+      security: [{ bearer: [] }, {}] as Record<string, string[]>[], // {} = optional: a visitor sees the open tests, like the prompt bank
+      summary: 'List the Listening & Reading tests you may open (Cambridge ones only for allow-listed accounts) with your latest status and best band',
       request: { query: z.object({ skill: Skill.optional(), variant: Variant.optional(), source: Source.optional() }) },
-      responses: { 200: json(z.object({ items: z.array(TestListItem) }), 'Tests'), ...errors },
+      responses: { 200: json(z.object({ items: z.array(TestListItem) }), 'Tests') },
     }),
     async (c) => {
-      const user = currentUser(c);
+      const user = c.get('user');
       const q = c.req.valid('query');
       const rows = await db
         .select({ id: lrTests.id, slug: lrTests.slug, skill: lrTests.skill, variant: lrTests.variant, source: lrTests.source, ref: lrTests.ref, title: lrTests.title })
         .from(lrTests)
-        .where(and(q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
+        .where(and(visibleWhere(user), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
         .orderBy(lrTests.ref);
-      const mine = await db.select().from(lrAttempts).where(eq(lrAttempts.userId, user.id)).orderBy(desc(lrAttempts.startedAt));
+      const mine = user ? await db.select().from(lrAttempts).where(eq(lrAttempts.userId, user.id)).orderBy(desc(lrAttempts.startedAt)) : [];
       const byTest = new Map<string, typeof mine>();
       for (const a of mine) byTest.set(a.testId, [...(byTest.get(a.testId) ?? []), a]);
       const items = rows.map((t) => {
@@ -215,7 +221,7 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
-      if (!t) throw new HTTPException(404, { message: 'Test not found' });
+      if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
       const open = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')) });
       const a = open ?? (await db.insert(lrAttempts).values({ userId: user.id, testId: t.id, mode: c.req.valid('json').mode }).returning())[0]!;
       return c.json(await toAttempt(a, t), 200);
@@ -233,7 +239,7 @@ export function register(app: App) {
     }),
     async (c) => {
       const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
-      if (!t) throw new HTTPException(404, { message: 'Test not found' });
+      if (!t || !canOpen(t, currentUser(c))) throw new HTTPException(404, { message: 'Test not found' });
       return c.json({ id: t.id, test: stripAnswers(t.data), assets: await assetUrls(t.data) }, 200);
     },
   );
@@ -278,7 +284,7 @@ export function register(app: App) {
       responses: { 200: json(AttemptSchema, 'Attempt'), ...errors },
     }),
     async (c) => {
-      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c).id);
+      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c));
       return c.json(await toAttempt(a, t), 200);
     },
   );
@@ -288,7 +294,7 @@ export function register(app: App) {
       method: 'put',
       path: '/api/lr/attempts/{id}',
       ...common,
-      middleware: [requireUser, requireCambridge, lrSaveLimit],
+      middleware: [requireUser, lrSaveLimit],
       summary: 'Autosave responses and elapsed seconds',
       request: {
         params: z.object({ id: z.string() }),
@@ -297,7 +303,7 @@ export function register(app: App) {
       responses: { 200: json(z.object({ savedAt: z.string() }), 'Saved'), 409: json(ErrorSchema, 'Already submitted'), ...errors },
     }),
     async (c) => {
-      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c).id);
+      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c));
       if (a.status !== 'in_progress') throw new HTTPException(409, { message: 'Attempt already submitted' });
       const { responses, elapsedS } = c.req.valid('json');
       await db
@@ -321,7 +327,7 @@ export function register(app: App) {
       responses: { 200: json(AttemptSchema, 'Scored attempt with the full test'), 409: json(ErrorSchema, 'Already submitted'), ...errors },
     }),
     async (c) => {
-      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c).id);
+      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c));
       if (a.status !== 'in_progress') throw new HTTPException(409, { message: 'Attempt already submitted' });
       const body = c.req.valid('json') ?? {};
       const responses = cleanResponses(body.responses ?? (a.responses as Record<string, string>), scoreTotal(t.data));

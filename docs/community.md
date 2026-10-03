@@ -23,6 +23,10 @@ The app is a community project: everyone can practise for free from one shared O
 - **With an own OpenRouter key every OpenRouter call uses that key** (analysis, scoring, STT, TTS, audio pronunciation), and ElevenLabs Scribe is skipped (Whisper on their key instead; Scribe stays on the server key for community users).
 - **Retention:** guest data (attempts, recordings) is deleted 30 days after the anonymous user was created. Say "Create an account to keep this result".
 
+## Listening & Reading access
+
+Our own (generated) Listening and Reading tests are open to everyone, guests included; scoring is objective, so there is no AI cost and no quota or fair-use dialog. Cambridge tests (`lr_tests.restricted`, set by `scripts/lr-import.ts` for `source = cambridge`) are for `CAMBRIDGE_ALLOWED_EMAILS` with a verified email only. `GET /api/lr/tests` works without a session and lists only the tests the caller may open. Opening, starting, saving or submitting against a Cambridge test the caller may not open answers 404 (never 403, so its existence does not leak), including an old attempt after access is lost. Clients show Listening and Reading to everyone and never hint at hidden Cambridge content.
+
 ## Community balance
 
 `GET /api/community/balance` (public, no auth, cached 60 s on the server, last known value if OpenRouter is unreachable):

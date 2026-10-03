@@ -39,14 +39,14 @@ const HISTORY: NavItem = { to: '/history', label: 'History', icon: History };
 const SETTINGS: NavItem = { to: '/settings', label: 'Settings', icon: Settings };
 
 /** Sidebar groups: the dashboard on its own, then practise, then look back. Settings sits with the account at the bottom. */
-const groups = (lr: boolean): { label?: string; items: NavItem[] }[] => [
+const GROUPS: { label?: string; items: NavItem[] }[] = [
   { items: [DASHBOARD] },
-  { label: 'Practise', items: [SPEAKING, WRITING, ...(lr ? [LISTENING, READING] : []), BANK] },
+  { label: 'Practise', items: [SPEAKING, WRITING, LISTENING, READING, BANK] },
   { label: 'Improve', items: [MISTAKES, REVIEW, HISTORY] },
 ];
 const TABS = [DASHBOARD, SPEAKING, WRITING, REVIEW];
 // Listening & Reading are for Cambridge-allow-listed accounts only (me.cambridgeAccess); nobody else sees them.
-const moreItems = (lr: boolean) => [...(lr ? [LISTENING, READING] : []), BANK, MISTAKES, HISTORY, SETTINGS];
+const MORE = [LISTENING, READING, BANK, MISTAKES, HISTORY, SETTINGS];
 
 function useSignOut() {
   const navigate = useNavigate();
@@ -189,7 +189,7 @@ function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="gap-0 px-2">
         <nav aria-label="Main">
-          {groups(!!me?.cambridgeAccess).map((g, i) => (
+          {GROUPS.map((g, i) => (
             <SidebarGroup key={i} className="px-0 py-1.5">
               {g.label && <SidebarGroupLabel className="h-7 px-2 text-caption font-medium">{g.label}</SidebarGroupLabel>}
               <SidebarGroupContent>
@@ -239,7 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const backTo = useBackTo();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // On a page that lives under More, the tab takes that page's icon and name so the bar still says where you are.
-  const here = moreItems(!!me?.cambridgeAccess).find((n) => isCurrent(pathname, n.to));
+  const here = MORE.find((n) => isCurrent(pathname, n.to));
   const MoreIcon = here?.icon ?? Ellipsis;
 
   return (
@@ -280,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email ?? 'Browsing as a guest'}>
         <nav aria-label="More" className="-mx-2 space-y-0.5">
-          {(me ? moreItems(!!me.cambridgeAccess) : [BANK]).map((n) => { // a guest's only page under More is the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
+          {(me ? MORE : [LISTENING, READING, BANK]).map((n) => { // a visitor's pages under More are the open hubs and the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
             const Icon = n.icon;
             return (
               <Link

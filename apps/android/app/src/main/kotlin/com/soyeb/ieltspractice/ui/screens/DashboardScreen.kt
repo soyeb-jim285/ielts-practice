@@ -340,7 +340,7 @@ private fun PractiseCard(due: DueResponse?, nav: AppNav) {
             RowDivider()
             NavRow("Task 2 essay", "40 min, at least 250 words", { nav.go(WritingEditor("task2")) }, icon = R.drawable.ic_edit)
             RowDivider()
-            if (LocalApp.current.api.me.collectAsState().value?.cambridgeAccess == true) { // Listening and Reading: Cambridge-allow-listed accounts only
+            run {
                 NavRow("Listening", "Four recordings, 40 questions", { nav.go(LrHub("listening")) }, icon = R.drawable.ic_sp_headphones)
                 RowDivider()
                 NavRow("Reading", "Three passages, 60 minutes", { nav.go(LrHub("reading")) }, icon = R.drawable.ic_lr_book)

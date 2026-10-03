@@ -208,16 +208,3 @@ struct LrModeSheet: View {
         }
     }
 }
-
-/// Listening & Reading exist only for allow-listed accounts; everyone else sees the ordinary "not available" (no teaser).
-struct LrGate<Content: View>: View {
-    @Environment(APIClient.self) private var api
-    @ViewBuilder let content: () -> Content
-    var body: some View {
-        if api.me?.cambridgeAccess == true {
-            content()
-        } else {
-            ContentUnavailableView("Not available", systemImage: "lock", description: Text("Listening and Reading tests are not enabled for this account."))
-        }
-    }
-}

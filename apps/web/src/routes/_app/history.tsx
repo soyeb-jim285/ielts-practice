@@ -54,7 +54,7 @@ function HistoryPage() {
   const { skill } = Route.useSearch();
   const navigate = Route.useNavigate();
   const target = useMe().data?.settings.targetBand ?? 7;
-  const lrOn = !!useAccount()?.cambridgeAccess; // Listening & Reading exist only for Cambridge-allow-listed accounts
+  const lrOn = !!useAccount();
   const lr = useQuery({ ...lrAttemptsQuery, enabled: lrOn }).data?.items.filter((a) => !isLr(skill) || a.skill === skill) ?? [];
   const showLr = lrOn && (!skill || isLr(skill));
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseInfiniteQuery(historyQuery(isLr(skill) ? undefined : skill));

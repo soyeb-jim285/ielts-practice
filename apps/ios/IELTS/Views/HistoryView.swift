@@ -94,7 +94,7 @@ struct HistoryView: View {
     @State private var error: String?
 
     private var target: Double { api.me?.settings.targetBand ?? 7 }
-    private var hasLr: Bool { api.me?.cambridgeAccess == true }
+    private var hasLr: Bool { api.me != nil }
     private var lrOnly: Bool { skill == "listening" || skill == "reading" }
 
     /// What the list shows: speaking/writing pages merged with the Listening & Reading attempts (newest first) once those are in range.

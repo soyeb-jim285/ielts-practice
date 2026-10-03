@@ -1862,7 +1862,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Listening & Reading tests with your latest status and best band */
+        /** List the Listening & Reading tests you may open (Cambridge ones only for allow-listed accounts) with your latest status and best band */
         get: {
             parameters: {
                 query?: {
@@ -1885,24 +1885,6 @@ export interface paths {
                         "application/json": {
                             items: components["schemas"]["LrTestListItem"][];
                         };
-                    };
-                };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
                     };
                 };
             };
@@ -1952,16 +1934,7 @@ export interface paths {
                         "application/json": components["schemas"]["LrAttempt"];
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2012,16 +1985,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2068,16 +2032,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2124,16 +2079,7 @@ export interface paths {
                         "application/json": components["schemas"]["LrAttempt"];
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2174,16 +2120,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2247,16 +2184,7 @@ export interface paths {
                         "application/json": components["schemas"]["LrAttempt"];
                     };
                 };
-                /** @description cambridge_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["LrError"];
-                    };
-                };
-                /** @description Not found */
+                /** @description Not found (also for a Cambridge test this user may not open) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2831,10 +2759,6 @@ export interface components {
             /** @description Submitted attempts */
             attempts: number;
         };
-        LrError: {
-            error: string;
-            code?: string;
-        };
         LrAttempt: {
             id: string;
             testId: string;
@@ -2917,6 +2841,10 @@ export interface components {
                     }[];
                 }[];
             }[];
+        };
+        LrError: {
+            error: string;
+            code?: string;
         };
         LrAttemptListItem: {
             id: string;

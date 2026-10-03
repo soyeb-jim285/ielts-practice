@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
 import { Alert, Badge, Button, Dialog, EmptyState, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client, type Schemas } from '@/lib/api';
+import { ensureSession } from '@/lib/auth';
 import { formatBand } from '@/lib/format';
 import { lrTestsQuery, parseRef, READING_SECONDS, type LrSkill } from '@/lib/lr';
 import { useMe } from '@/lib/query';
@@ -115,6 +116,7 @@ export function LrHub({ skill }: { skill: LrSkill }) {
     setBusy(true);
     setErr(false);
     try {
+      await ensureSession(); // a visitor gets a guest session on the first test; no AI cost, so no fair-use dialog
       const a = await call(client.POST('/api/lr/tests/{id}/attempts', { params: { path: { id: t.id } }, body: { mode } }));
       await open(a.id);
     } catch {

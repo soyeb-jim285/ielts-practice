@@ -2159,20 +2159,6 @@
           "attempts"
         ]
       },
-      "LrError": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "error"
-        ]
-      },
       "LrAttempt": {
         "type": "object",
         "properties": {
@@ -2508,6 +2494,20 @@
           "sections"
         ],
         "description": "Stripped (no answers, no transcript) until submitted"
+      },
+      "LrError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
       },
       "LrAttemptListItem": {
         "type": "object",
@@ -4601,9 +4601,10 @@
         "security": [
           {
             "bearer": []
-          }
+          },
+          {}
         ],
-        "summary": "List Listening & Reading tests with your latest status and best band",
+        "summary": "List the Listening & Reading tests you may open (Cambridge ones only for allow-listed accounts) with your latest status and best band",
         "parameters": [
           {
             "schema": {
@@ -4660,26 +4661,6 @@
                   "required": [
                     "items"
                   ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
                 }
               }
             }
@@ -4741,18 +4722,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4815,18 +4786,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4871,18 +4832,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4926,18 +4877,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5011,18 +4952,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5096,18 +5027,8 @@
               }
             }
           },
-          "403": {
-            "description": "cambridge_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LrError"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Not found",
+            "description": "Not found (also for a Cambridge test this user may not open)",
             "content": {
               "application/json": {
                 "schema": {

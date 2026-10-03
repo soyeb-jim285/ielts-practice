@@ -1,7 +1,5 @@
-import { notFound } from '@tanstack/react-router';
-import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { queryOptions } from '@tanstack/react-query';
 import { call, client, type Schemas } from './api';
-import { meQuery } from './query';
 
 export type LrTest = Schemas['LrTest'];
 export type LrSection = LrTest['sections'][number];
@@ -158,9 +156,3 @@ export const parseRef = (ref: string) => {
   const m = /^C(\d+)\s*T(\d+)/i.exec(ref);
   return m ? { book: +m[1]!, test: +m[2]! } : null;
 };
-
-/** Route guard: Listening & Reading exist only for Cambridge-allow-listed accounts; everyone else gets the ordinary 404 (no teaser). */
-export async function requireLrAccess(qc: QueryClient) {
-  const me = await qc.ensureQueryData(meQuery);
-  if (!me?.cambridgeAccess) throw notFound();
-}

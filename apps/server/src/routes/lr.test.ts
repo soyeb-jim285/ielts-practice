@@ -10,7 +10,7 @@ const fixture = (n: string) => JSON.parse(readFileSync(new URL(`../test/fixtures
 const ALLOWED = 'soyebjim@gmail.com';
 
 async function seed(t: LrTest) {
-  const [row] = await db.insert(lrTests).values({ slug: t.slug, skill: t.skill, variant: t.variant, source: t.source, ref: t.ref, title: t.title, data: t }).returning();
+  const [row] = await db.insert(lrTests).values({ slug: t.slug, skill: t.skill, variant: t.variant, source: t.source, ref: t.ref, title: t.title, data: t, restricted: t.source === 'cambridge' }).returning();
   return row!.id;
 }
 /** Answers every question of a test correctly, as the client would send them (string keys). */
@@ -30,20 +30,52 @@ describe('listening & reading tests', () => {
     lid = await seed(fixture('listening'));
   });
 
-  describe('gating', () => {
-    it('403 cambridge_required for a guest, a non-allowed user and an unverified allow-listed email', async () => {
+  describe('access', () => {
+    let cid: string;
+    beforeEach(async () => {
+      const c = fixture('reading');
+      cid = await seed({ ...c, slug: 'cam-reading-1', source: 'cambridge', ref: 'Cambridge 19 Test 1', title: 'Cambridge 19 Test 1' });
+    });
+
+    it('a visitor sees only the open tests; no session cannot start one', async () => {
+      const r = await body(await req('/api/lr/tests'));
+      expect(r.items.map((i: any) => i.slug).sort()).toEqual(['dev-listening-1', 'dev-reading-1']);
+      expect((await req(`/api/lr/tests/${rid}`)).status).toBe(401);
+    });
+    it('guests and non-allowed users list and take only the open tests; Cambridge is 404', async () => {
       const g = await guestUser();
       const other = await testUser('someone@x.com');
       const unverified = await testUser(ALLOWED, { verified: false });
       for (const { headers } of [g, other, unverified]) {
-        for (const [path, method] of [['/api/lr/tests', 'GET'], [`/api/lr/tests/${rid}`, 'GET'], ['/api/lr/attempts', 'GET'], [`/api/lr/tests/${rid}/attempts`, 'POST']] as const) {
-          const r = await req(path, { headers, method, body: method === 'POST' ? { mode: 'practice' } : undefined });
-          expect([path, r.status, (await body(r)).code]).toEqual([path, 403, 'cambridge_required']);
-        }
+        expect((await body(await req('/api/lr/tests', { headers }))).items.map((i: any) => i.source)).toEqual(['generated', 'generated']);
+        expect((await req(`/api/lr/tests/${rid}`, { headers })).status).toBe(200);
+        expect((await req(`/api/lr/tests/${cid}`, { headers })).status).toBe(404);
+        expect((await req(`/api/lr/tests/${cid}/attempts`, { headers, body: { mode: 'practice' } })).status).toBe(404);
+        const a = await body(await req(`/api/lr/tests/${rid}/attempts`, { headers, body: { mode: 'practice' } }));
+        expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200);
+        expect((await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} })).status).toBe(200);
       }
     });
-    it('401 without a session', async () => {
-      expect((await req('/api/lr/tests')).status).toBe(401);
+    it('an attempt on a Cambridge test is 404 once access is lost', async () => {
+      const { headers } = await testUser(ALLOWED);
+      const a = await body(await req(`/api/lr/tests/${cid}/attempts`, { headers, body: { mode: 'practice' } }));
+      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200);
+      const { env } = await import('../env');
+      const kept = [...env.CAMBRIDGE_ALLOWED_EMAILS];
+      env.CAMBRIDGE_ALLOWED_EMAILS.length = 0;
+      try {
+        expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(404);
+        expect((await req(`/api/lr/attempts/${a.id}`, { headers, method: 'PUT', body: { responses: {}, elapsedS: 1 } })).status).toBe(404);
+        expect((await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} })).status).toBe(404);
+        expect((await body(await req('/api/lr/attempts', { headers }))).items).toHaveLength(1);
+      } finally {
+        env.CAMBRIDGE_ALLOWED_EMAILS.push(...kept);
+      }
+    });
+    it('an allow-listed account sees both', async () => {
+      const { headers } = await testUser(ALLOWED);
+      expect((await body(await req('/api/lr/tests', { headers }))).items).toHaveLength(3);
+      expect((await req(`/api/lr/tests/${cid}`, { headers })).status).toBe(200);
     });
     it('/api/me exposes cambridgeAccess', async () => {
       const { headers } = await testUser(ALLOWED);
