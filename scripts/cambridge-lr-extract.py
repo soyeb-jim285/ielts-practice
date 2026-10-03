@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pymupdf", "httpx", "rapidocr", "onnxruntime"]
+# dependencies = ["pymupdf", "httpx", "faster-whisper", "av<14"]
 # ///
 """Cambridge IELTS Listening + Reading extractor (PRIVATE: copyrighted, output in gitignored data/cambridge-lr/).
 
@@ -16,8 +16,6 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "cambridge-lr"
 CACHE = OUT / "cache"
 BOOKS_DIR = Path.home() / "Downloads" / "Cambridge IELTS (1-19) With Audio (FULL)"
-WATERMARK = re.compile(r"https?:|www\.|\.com\b|\.vn\b|ielts-?share|ieltsxpress|edit by|[一-鿿]|微信", re.I)
-_ocr = None
 COST_LOCK = __import__("threading").Lock()
 VLM_OCR = os.environ.get("LR_VLM", "qwen/qwen3.7-flash")
 
@@ -39,60 +37,6 @@ def aux_kind(p: Path) -> str | None:
     return None
 
 
-def ocr_page(page: pymupdf.Page, dpi=150) -> list[list]:
-    """-> [[x0,y0,x1,y1,text]] in PDF points of the displayed page."""
-    global _ocr
-    if _ocr is None:
-        from rapidocr import LangRec, RapidOCR
-        _ocr = RapidOCR(params={"Rec.lang_type": LangRec.EN, "Global.log_level": "error", "EngineConfig.onnxruntime.intra_op_num_threads": 2})
-    r = _ocr(page.get_pixmap(dpi=dpi).tobytes("png"))
-    k = 72 / dpi
-    out = []
-    for box, txt in zip(r.boxes if r.boxes is not None else [], r.txts or []):
-        xs, ys = [p[0] for p in box], [p[1] for p in box]
-        out.append([round(float(min(xs)) * k, 1), round(float(min(ys)) * k, 1), round(float(max(xs)) * k, 1), round(float(max(ys)) * k, 1), str(txt)])
-    return out
-
-
-def layer_lines(page: pymupdf.Page) -> list[list]:
-    out = []
-    for b in page.get_text("dict")["blocks"]:
-        for l in b.get("lines", []):
-            t = "".join(s["text"] for s in l["spans"]).strip()
-            if t:
-                r = pymupdf.Rect(l["bbox"]) * page.rotation_matrix
-                out.append([round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1), t])
-    return out
-
-
-def lines_to_text(boxes: list[list], width: float) -> str:
-    """Group boxes into visual rows (left-to-right, wide gaps -> TAB), rows top-to-bottom; left/right page of a spread separately."""
-    boxes = [b for b in boxes if b[4].strip() and not WATERMARK.search(b[4])]
-    halves = [boxes]
-    if width > 700:  # landscape spread
-        halves = [[b for b in boxes if b[0] < width / 2], [b for b in boxes if b[0] >= width / 2]]
-    out = []
-    for h in halves:
-        rows = []
-        for b in sorted(h, key=lambda b: (b[1] + b[3]) / 2):
-            yc = (b[1] + b[3]) / 2
-            if rows and abs(rows[-1][0] - yc) < (b[3] - b[1]) * 0.5:
-                rows[-1][1].append(b)
-            else:
-                rows.append([yc, [b]])
-        pitch = sorted(b[0] - a[0] for a, b in zip(rows, rows[1:]) if b[0] > a[0])
-        med = pitch[len(pitch) // 2] if pitch else 0
-        for ri, (yc, bs) in enumerate(rows):
-            if ri and med and yc - rows[ri - 1][0] > 1.45 * med: out.append("")  # paragraph gap
-            bs.sort(key=lambda b: b[0])
-            s = bs[0][4]
-            for p, q in zip(bs, bs[1:]):
-                s += ("\t" if q[0] - p[2] > 25 else " ") + q[4]
-            out.append(s.strip())
-        out.append("\f")
-    return "\n".join(out)
-
-
 def vlm_text(key: str, png: bytes, spread: bool) -> str:
     """Transcribe one scanned page with a cheap VLM (cached). RapidOCR was too slow on the shared laptop (~30 s/page under load) and drops blanks."""
     import base64, httpx
@@ -107,27 +51,29 @@ def vlm_text(key: str, png: bytes, spread: bool) -> str:
     for attempt in range(4):
         try:
             if spent() > BUDGET - 0.15: sys.exit("BUDGET nearly exhausted")
+            body["model"] = [VLM_OCR, "qwen/qwen3.6-flash", "openai/gpt-6-luna", "qwen/qwen3.7-plus"][attempt]  # other models when one keeps truncating a page
             r = httpx.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": "Bearer " + env_key()}, json=body, timeout=240)
             r.raise_for_status()
             d = r.json()
             txt = d["choices"][0]["message"]["content"] or ""
-            if len(txt) < 20 and attempt < 2: raise ValueError("empty")
+            u = d.get("usage", {})
+            with COST_LOCK:  # log every call, also the ones we then reject
+                with open(OUT / "cost.log", "a") as f: f.write(f"{time.strftime('%F %T')} ocr {key} in={u.get('prompt_tokens')} out={u.get('completion_tokens')} cost={u.get('cost')} total {spent() + float(u.get('cost') or 0):.4f}\n")
+            # a zero-cost / non-'stop' answer came from a provider variant that cut pages short (seen: a page ending mid-sentence)
+            if attempt < 3 and (len(txt) < 20 or d["choices"][0].get("finish_reason") != "stop" or not float(u.get("cost") or 0)): raise ValueError("truncated or empty")
             break
         except Exception as e:
             print("  vlm retry", key, e, flush=True); time.sleep(4 * (attempt + 1))
     else:
         raise RuntimeError("vlm failed " + key)
-    u = d.get("usage", {})
-    with COST_LOCK:
-        total = spent() + float(u.get("cost") or 0)
-        with open(OUT / "cost.log", "a") as f: f.write(f"{time.strftime('%F %T')} ocr {key} in={u.get('prompt_tokens')} out={u.get('completion_tokens')} cost={u.get('cost')} total {total:.4f}\n")
     cf.parent.mkdir(parents=True, exist_ok=True)
     cf.write_text(txt)
     return txt
 
 
 def stage_ocr(b: int):
-    """pages/C{b}.json: [{file, page, text, ocr}] for every PDF page: the text layer when real, else VLM transcription (cached)."""
+    """pages/C{b}.json: [{file, page, text}] for every PDF page, transcribed by a cheap VLM (cached). The PDFs' own text layers are old OCR that
+    drops form blanks, boxed tables and diagram text (checked on books 2 and 18), so they are not used."""
     from concurrent.futures import ThreadPoolExecutor
     pages = []
     files = book_pdfs(b) + [p for p in sorted(book_dir(b).glob("*.pdf")) if aux_kind(p) in ("key", "transcript")]
@@ -135,26 +81,22 @@ def stage_ocr(b: int):
         doc = pymupdf.open(pdf)
         jobs = []
         for i, pg in enumerate(doc):
-            lines = layer_lines(pg)
-            n_chars = sum(len(l[4]) for l in lines if not WATERMARK.search(l[4]))
-            rec = {"file": pdf.name, "page": i, "ocr": n_chars < 150, "w": round(pg.rect.width), "h": round(pg.rect.height)}
-            if rec["ocr"]:
-                spread = pg.rect.width > pg.rect.height * 1.2
-                jobs.append((rec, f"C{b}-{re.sub(r'[^A-Za-z0-9]+', '_', pdf.stem)}-{i}", pg.get_pixmap(dpi=130 if spread else 110).tobytes("png"), spread))
-            else:
-                rec["text"] = lines_to_text(lines, pg.rect.width)
+            spread = pg.rect.width > pg.rect.height * 1.2
+            rec = {"file": pdf.name, "page": i, "w": round(pg.rect.width), "h": round(pg.rect.height)}
+            jobs.append((rec, f"C{b}-{re.sub(r'[^A-Za-z0-9]+', '_', pdf.stem)}-{i}", pg.get_pixmap(dpi=130 if spread else 110).tobytes("png"), spread))
             pages.append(rec)
         with ThreadPoolExecutor(10) as ex:
             for rec, txt in zip([j[0] for j in jobs], ex.map(lambda j: vlm_text(j[1], j[2], j[3]), jobs)):
                 rec["text"] = txt
         print(f"C{b} {pdf.name}: {len(doc)} pages, {len(jobs)} transcribed", flush=True)
     (OUT / "pages" / f"C{b}.json").write_text(json.dumps(pages))
-    print(f"C{b}: {len(pages)} pages, {sum(p['ocr'] for p in pages)} via VLM", flush=True)
+    print(f"C{b}: {len(pages)} pages via VLM", flush=True)
 
 
 # ---------------------------------------------------------------- LLM (OpenRouter), cached, cost-tracked
 MODEL = os.environ.get("LR_MODEL", "openai/gpt-6-luna")
 BUDGET = 3.00
+FALLBACK = "deepseek/deepseek-v4.1-flash"
 
 
 def env_key() -> str:
@@ -188,18 +130,18 @@ def llm(tag: str, system: str, user: str, model: str = None, images: list[bytes]
             r = httpx.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": "Bearer " + env_key()}, json=body, timeout=300)
             if r.status_code >= 400: raise RuntimeError(f"{r.status_code} {r.text[:300]}")
             d = r.json()
+            u = d.get("usage", {})
+            with COST_LOCK:
+                total = spent() + float(u.get("cost") or 0)
+                with open(OUT / "cost.log", "a") as f: f.write(f"{time.strftime('%F %T')} {tag} {model} in={u.get('prompt_tokens')} out={u.get('completion_tokens')} cost={u.get('cost')} total {total:.4f}\n")
+            txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", (d["choices"][0]["message"]["content"] or "").strip())
+            out = json.loads(txt)  # invalid / truncated JSON -> retry
             break
         except Exception as e:
-            print("  llm retry", tag, str(e)[:300], flush=True); time.sleep(5 * (attempt + 1))
+            print("  llm retry", tag, str(e)[:300], flush=True); time.sleep(5 * (attempt + 1)); body["temperature"] = 0.3
+            if attempt >= 1 and not images: body["model"] = FALLBACK  # luna sometimes stops right after '{"' on long verbatim transcripts
     else:
         raise RuntimeError("llm failed " + tag)
-    u = d.get("usage", {})
-    with COST_LOCK:
-        total = spent() + float(u.get("cost") or 0)
-        with open(OUT / "cost.log", "a") as f: f.write(f"{time.strftime('%F %T')} {tag} {model} in={u.get('prompt_tokens')} out={u.get('completion_tokens')} cost={u.get('cost')} total {total:.4f}\n")
-    txt = d["choices"][0]["message"]["content"]
-    txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt.strip())
-    out = json.loads(txt)
     cf.parent.mkdir(parents=True, exist_ok=True)
     cf.write_text(json.dumps(out))
     return out
@@ -230,7 +172,7 @@ SYS_READ = SYS_COMMON + """
 Task: structure ONE reading passage/section with its questions. Output: {"passage":{"title":"","subtitle":"(the italic standing line under the title, if any)","paragraphs":[{"label":"A","text":"..."}]},"groups":[LrGroup...]}
 Passage rules: reproduce the full passage text faithfully; join OCR line breaks into flowing paragraphs, fix hyphenation across lines, keep footnotes (lines starting with *) as their own final paragraph without label. If paragraphs carry letters A, B, C... put the letter in label and not in text; otherwise no label. For General Training sections that contain several short texts (adverts, notices, articles) put each text's heading as its own paragraph with no label whose text starts with '### ', followed by the text's paragraphs. Never put the questions inside the passage. A passage may continue over several pages; page numbers/running heads are noise."""
 
-SYS_KEY = """You read OCR text of the Listening and Reading answer-key pages of a Cambridge IELTS book and return the answers as JSON. Output: {"tests":{"1":{"listening":{"1":["answer", ...]},"reading":{"1":["..."]}}}} where the inner key is the question number as a string (1-40 for the whole test, listening 1-40, reading 1-40) and the value is the list of ACCEPTED alternatives for that question. Rules: split alternatives written with '/' or 'OR' into separate array entries (e.g. 'colour/color' -> ["colour","color"]); keep optional words in parentheses exactly as printed '(the) river'; keep letters/roman numerals as printed (letters uppercase A-H, roman numerals lowercase 'iv'); TRUE/FALSE/NOT GIVEN/YES/NO uppercase; for 'in either order' pairs (e.g. '21&22 (in either order) A, C') give each question the printed letters of its own line as listed; fix OCR errors. Remove explanatory page references. Use the test numbers as printed in the book. If the book has both an Academic and a General Training reading key, return the General Training one under the key "reading_gt" with its own sections, and the academic under "reading"."""
+SYS_KEY = """You read OCR text of the Listening and Reading answer-key pages of a Cambridge IELTS book and return the answers as JSON. Output: {"tests":{"1":{"listening":{"1":["answer", ...]},"reading":{"1":["..."]}}}} where the inner key is the question number as a string (1-40 for the whole test, listening 1-40, reading 1-40) and the value is the list of ACCEPTED alternatives for that question. Rules: split alternatives written with '/' or 'OR' into separate array entries (e.g. 'colour/color' -> ["colour","color"]); keep optional words in parentheses exactly as printed '(the) river'; keep letters/roman numerals as printed (letters uppercase A-H, roman numerals lowercase 'iv'); TRUE/FALSE/NOT GIVEN/YES/NO uppercase; fix OCR errors. Remove explanatory page references. Never renumber or shift: the answer to question n is only what follows the printed number n. Lines without a leading number continue the previous number's answer ('23 IN EITHER ORDER; BOTH REQUIRED FOR ONE MARK / books (and) / activities' is one answer to 23: [\"books (and) activities\"]), except under a block header 'n&m IN EITHER ORDER' / 'n-m IN ANY ORDER' covering questions n..m: then the unnumbered lines below it are the shared answer set and EVERY question n..m gets the union of them. Old books print extra notes that are not answers: drop 'NOT x' (x is a rejected answer), 'ALTERNATIVE FORMS ACCEPTED', 'MUST BE IN ORDER', score tables, page numbers; '//' separates alternatives like '/'. Expand slash alternatives inside a phrase into complete separate phrases ('no/non(-)smoking section/area' -> 'no smoking section','no smoking area','non-smoking section','non-smoking area'). For a group marked 'IN ANY ORDER' (e.g. '25-27 IN ANY ORDER' followed by the acceptable answers) give EVERY question of the group the union of all acceptable answers of that group. Two-column layouts interleave sections (e.g. 'Section 1' left, 'Section 3' right): assign every answer by its question number. Keep single letters exactly as printed ('F' is a letter unless the block is clearly TRUE/FALSE/NOT GIVEN; never expand a letter into a word). Use the test numbers as printed in the book. If the book has both an Academic and a General Training reading key, return the General Training one under the key "reading_gt" with its own sections, and the academic under "reading"."""
 
 SYS_LOC = """You get, for each page of a Cambridge IELTS book (global page index, source file name and the heading-like lines on the page), and must locate the Listening and Reading test content. Output JSON: {"tests":[{"test":1,"variant":"academic"|"general","listening":{"1":[first_page,last_page],"2":[..],"3":[..],"4":[..]},"reading":{"1":[..],"2":[..],"3":[..]},"audioscript":{"1":[..],...},"key":[first_page,last_page]}]} Page numbers are the global indices given. Ranges are inclusive and include every page holding that section's questions (listening: question pages of that section only; reading: passage pages and its question pages). Use the test number printed in the book (some books number tests 5-8). Omit what the book does not contain (e.g. 'listening' for a General Training reading book that repeats the listening). 'audioscript' ranges are the transcript pages of each listening section (it may start/end mid page: include those pages). 'key' is the page range of the Listening and Reading answer key for that test (usually the same range for all tests). Writing/speaking pages and sample answers are not needed. Reading in a General Training book is 3 sections (Section 1-3) that you map to 1-3."""
 
@@ -270,7 +212,7 @@ def section_check(groups: list[dict]) -> list[str]:
     return errs
 
 
-def structure_section(tag: str, system: str, user: str, expect: tuple[int, int], key=None) -> dict:
+def structure_section(tag: str, system: str, user: str, expect: tuple[int, int], alt: str | None = None) -> dict:
     """LLM call + retry with the error list when the question numbers do not match `expect` (first, last)."""
     last = None
     msg = user
@@ -281,7 +223,7 @@ def structure_section(tag: str, system: str, user: str, expect: tuple[int, int],
         if nums != list(range(expect[0], expect[1] + 1)): errs.append(f"questions found {nums[:1]}..{nums[-1:]} (count {len(nums)}), expected {expect[0]}-{expect[1]}")
         if not errs: return out
         last = out
-        msg = user + "\n\nYour previous output had these problems, fix them:\n- " + "\n- ".join(errs)
+        msg = (alt or user) + "\n\nYour previous output had these problems, fix them (the questions may continue on the first/last pages given):\n- " + "\n- ".join(errs)
     out = dict(last); out["_errors"] = errs
     return out
 
@@ -292,24 +234,36 @@ def stage_struct(b: int, only_tests: set[int] | None = None):
     pages = load_pages(b)
     if not pages: return print(f"C{b}: no pages (run ocr stage)")
     loc = locate(b, pages)
-    # one key call per source file (a book can ship an Academic and a General Training key with the same test numbers)
-    by_file: dict[str, list[int]] = {}
+    # one key call per test (asking for all tests at once makes the model stop after the first). A test without a located key range uses the first one found.
+    fallback = next((t["key"] for t in loc["tests"] if t.get("key")), None)
     for t in loc["tests"]:
-        if t.get("key"):
-            for i in range(t["key"][0], t["key"][1] + 1): by_file.setdefault(pages[i]["file"], []).append(i)
-    keys = {f: llm(f"C{b}-key-{n}", SYS_KEY, f"Book: Cambridge IELTS {b}\n\n" + "\n".join(f"=== PAGE {i} ===\n{pages[i]['text']}" for i in sorted(set(ix))))
-            for n, (f, ix) in enumerate(by_file.items())}
-    for n, (f, ix) in enumerate(list(by_file.items())):
-        if key_gaps(keys[f], [t for t in loc["tests"] if t.get("key") and pages[t["key"][0]]["file"] == f]):
-            print(f"C{b}: key text incomplete ({key_gaps(keys[f], [t for t in loc['tests'] if t.get('key') and pages[t['key'][0]]['file'] == f])}); re-reading key pages as images", flush=True)
-            doc = pymupdf.open(book_dir(b) / f)
-            txt = [vlm_text(f"C{b}-keyimg-{re.sub(r'[^A-Za-z0-9]+', '_', f)}-{pages[i]['page']}", doc[pages[i]["page"]].get_pixmap(dpi=130).tobytes("png"), doc[pages[i]["page"]].rect.width > doc[pages[i]["page"]].rect.height * 1.2) for i in sorted(set(ix))]
-            keys[f] = llm(f"C{b}-key-{n}v", SYS_KEY, f"Book: Cambridge IELTS {b}\n\n" + "\n".join(f"=== PAGE {k} ===\n{x}" for k, x in zip(sorted(set(ix)), txt)))
-            print(f"   after image re-read: {key_gaps(keys[f], [t for t in loc['tests'] if t.get('key') and pages[t['key'][0]]['file'] == f])}", flush=True)
-    key = {"files": keys}
+        t["key"] = t.get("key") or fallback
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(4) as ex:
+        keys = list(ex.map(lambda t: key_for(b, t, pages) if t["key"] else {}, loc["tests"]))
+    key = {"by_test": {(int(t["test"]), t.get("variant")): k for t, k in zip(loc["tests"], keys)}}
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(4) as ex:
         list(ex.map(lambda t: do_test(b, t, pages, key), [t for t in loc["tests"] if not only_tests or int(t["test"]) in only_tests]))
+
+
+def key_for(b: int, t: dict, pages: list[dict]) -> dict:
+    tn, gt = int(t["test"]), t.get("variant") == "general"
+    ix = list(range(t["key"][0], t["key"][1] + 1))
+    if not any(pages[i]["file"] == pages[ix[0]]["file"] and aux_kind(Path(pages[i]["file"])) == "key" for i in ix):  # books 4 and 6 ship the key as its own PDF
+        ix = [i for i, p in enumerate(pages) if aux_kind(Path(p["file"])) == "key"] or ix
+    f = pages[ix[0]]["file"]
+    ask = f"Book: Cambridge IELTS {b}. Return ONLY Test {tn}{' (General Training reading, under reading_gt)' if gt else ''}; ignore the other tests on these pages.\n\n"
+    strong = f"{b}.{tn}" in os.environ.get("LR_STRONG_KEY", "").split(",")  # LR_STRONG_KEY=2.1,3.3: re-read these keys with a stronger model
+    k = llm(f"C{b}-key-T{tn}{'g' if gt else ''}{'S' if strong else ''}", SYS_KEY, ask + "\n".join(f"=== PAGE {i} ===\n{pages[i]['text']}" for i in ix), model="openai/gpt-6-sol" if strong else None)
+    gaps = key_gaps(k, [t])
+    if gaps:
+        print(f"C{b} T{tn}: key text incomplete ({gaps}); re-reading key pages as images", flush=True)
+        doc = pymupdf.open(book_dir(b) / f)
+        txt = [vlm_text(f"C{b}-keyimg-{re.sub(r'[^A-Za-z0-9]+', '_', f)}-{pages[i]['page']}", doc[pages[i]["page"]].get_pixmap(dpi=130).tobytes("png"), doc[pages[i]["page"]].rect.width > doc[pages[i]["page"]].rect.height * 1.2) for i in ix]
+        k = llm(f"C{b}-key-T{tn}{'g' if gt else ''}v", SYS_KEY, ask + "\n".join(f"=== PAGE {i} ===\n{x}" for i, x in zip(ix, txt)))
+        print(f"   after image re-read: {key_gaps(k, [t])}", flush=True)
+    return k
 
 
 def key_gaps(k: dict, tests: list[dict]) -> list[str]:
@@ -326,10 +280,16 @@ def key_gaps(k: dict, tests: list[dict]) -> list[str]:
 
 
 def do_test(b, t, pages, key):
+    try:
+        return _do_test(b, t, pages, key)
+    except Exception as e:  # one broken test must not stop the book
+        print(f"  C{b} T{t.get('test')}: FAILED {type(e).__name__}: {str(e)[:200]}", flush=True)
+
+
+def _do_test(b, t, pages, key):
     if True:
         tn, variant = int(t["test"]), t.get("variant", "academic")
-        kf = pages[t["key"][0]]["file"] if t.get("key") else None
-        kt = key["files"].get(kf, {}).get("tests", {}).get(str(tn), {})
+        kt = key["by_test"].get((tn, t.get("variant")), {}).get("tests", {}).get(str(tn), {})
         # ---- listening (General Training books repeat the Academic recordings: skip)
         if t.get("listening") and len(t["listening"]) == 4 and variant != "general" and not has_audio(b, tn):
             print(f"  C{b} T{tn}: listening skipped, no audio recording in the book's files", flush=True)
@@ -338,7 +298,7 @@ def do_test(b, t, pages, key):
             secs, bad, n0 = [], [], 1
             for part in "1234":
                 a, z = t["listening"][part]
-                st = structure_section(f"C{b}T{tn}-L{part}", SYS_LISTEN, f"Book {b}, Test {tn}, LISTENING SECTION {part}. Structure the questions of Section {part} only.\n\n" + span(pages, a, z), (n0, n0 + 9))
+                st = structure_section(f"C{b}T{tn}-L{part}", SYS_LISTEN, f"Book {b}, Test {tn}, LISTENING SECTION {part}. Structure the questions of Section {part} only.\n\n" + span(pages, a, z), (n0, n0 + 9), alt=f"Book {b}, Test {tn}, LISTENING SECTION {part}. Structure the questions of Section {part} only.\n\n" + span(pages, a - 1, z + 1))
                 n0 += 10
                 tr = None
                 if t.get("audioscript"):
@@ -363,17 +323,23 @@ def do_test(b, t, pages, key):
             write_test(b, tn, "reading", "general" if gt else "academic", secs, kt.get("reading_gt" if gt else "reading", kt.get("reading", {})), f)
 
 
+def reading_errs(out: dict, part: str, lo: int) -> list[str]:
+    errs = section_check(out.get("groups", []))
+    nums = [q["n"] for g in out.get("groups", []) for q in g.get("questions", [])]
+    if not nums or nums[0] != lo or nums != list(range(lo, nums[-1] + 1)): errs.append(f"questions must be contiguous starting at {lo}, got {nums}")
+    elif not {"1": 12 <= nums[-1] <= 14, "2": 24 <= nums[-1] <= 27, "3": nums[-1] == 40}[part]: errs.append(f"last question is {nums[-1]}, which is implausible for passage {part} (passages end near Q13, Q26, Q40): questions are missing")
+    return errs
+
+
 def structure_reading(b, tn, part, gt, pages, a, z, lo):
     """Reading sections do not always split 13/13/14: take the expected first number from the previous section when known."""
     # try the standard split first, then accept any contiguous range that starts at lo
-    user = f"Book {b}, Test {tn}, {'GENERAL TRAINING READING SECTION' if gt else 'READING PASSAGE'} {part}. Passage and its questions only. Question numbers use the printed numbers (the section starts at {lo}).\n\n" + span(pages, a, z)
-    out = llm(f"C{b}T{tn}-R{part}{'g' if gt else ''}", SYS_READ, user)
-    errs = section_check(out.get("groups", []))
-    nums = [q["n"] for g in out.get("groups", []) for q in g.get("questions", [])]
-    if nums[:1] != [lo] or nums != list(range(nums[0], nums[-1] + 1)) if nums else True: errs.append(f"questions must be contiguous starting at {lo}, got {nums}")
+    user = f"Book {b}, Test {tn}, {'GENERAL TRAINING READING SECTION' if gt else 'READING PASSAGE'} {part}. Passage and its questions only. Question numbers use the printed numbers (the section starts at {lo}).\n\n"
+    out = llm(f"C{b}T{tn}-R{part}{'g' if gt else ''}", SYS_READ, user + span(pages, a, z))
+    errs = reading_errs(out, part, lo)
     if errs:
-        out = llm(f"C{b}T{tn}-R{part}{'g' if gt else ''}-retry", SYS_READ, user + "\n\nYour previous output had these problems, fix them:\n- " + "\n- ".join(errs))
-        errs = section_check(out.get("groups", []))
+        out = llm(f"C{b}T{tn}-R{part}{'g' if gt else ''}-retry", SYS_READ, user + span(pages, a, z + 1) + "\n\nYour previous output had these problems, fix them (the question groups may continue on the last pages given):\n- " + "\n- ".join(errs))
+        errs = reading_errs(out, part, lo)
         out["_errors"] = errs or None
     return out
 
@@ -396,8 +362,21 @@ def write_test(b, tn, skill, variant, secs, ans: dict, f: Path):
                 for q in g["questions"]: q["text"] = re.sub(r"\s*\{\{\d+\}\}", "", q.get("text") or "").strip()
             for q in g["questions"]:
                 a = [str(x).strip() for x in ans.get(str(q["n"]), []) if str(x).strip()]
-                if g["type"] in ("tfng", "ynng"): a = [x.upper() for x in a]
-                if g["type"] in ("mcq", "match") or (g["type"] == "gap" and g.get("options")): a = [x.upper() if not re.fullmatch(r"[ivx]+", x, re.I) else x.lower() for x in a]
+                if g["type"] == "mcq-multi": a = [c for x in a for c in (list(x) if re.fullmatch(r"[A-Za-z]{2,4}", x) else [x])]  # old keys print "AE"
+                roman = ["", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"]
+                if g["type"] == "match" and any(str(o["key"]).lower() in roman[1:] for o in g.get("options") or []):
+                    a = [roman[int(x)] if x.isdigit() and 0 < int(x) < len(roman) else x for x in a]  # old keys number the headings 1-9
+                if g["type"] == "gap" and g.get("options"):  # old books key word-box answers by the word, the contract wants the letter
+                    bykey = {str(o["text"]).strip().lower(): o["key"] for o in g["options"]}
+                    a = [bykey.get(x.lower(), x) for x in a]
+                if g["type"] in ("tfng", "ynng"):
+                    ab = {"T": "TRUE", "F": "FALSE", "NG": "NOT GIVEN", "Y": "YES", "N": "NO", "NOT GIVEN": "NOT GIVEN"}
+                    a = list(dict.fromkeys(ab.get(x.upper().strip(" ."), x.upper()) for x in a))
+                if g["type"] in ("mcq", "match") or (g["type"] == "gap" and g.get("options")):  # snap to the printed option key (letters upper, roman numerals lower)
+                    keys = {o["key"] for o in (g.get("options") or []) + (q.get("options") or [])}
+                    texts = {str(o["text"]).strip().lower(): o["key"] for o in (g.get("options") or []) + (q.get("options") or [])}
+                    a = [next((k for k in (x, x.upper(), x.lower()) if k in keys), texts.get(x.strip().lower(), x.upper() if not re.fullmatch(r"[ivx]+", x, re.I) else x.lower())) for x in a]
+                    a = list(dict.fromkeys(x for x in a if x in keys)) or a  # old keys print the option's text next to its letter: keep the letter only
                 if g["type"] == "mcq-multi": a = [x.upper() for x in a]
                 q["answer"] = a
                 ga += a
@@ -420,8 +399,17 @@ def write_test(b, tn, skill, variant, secs, ans: dict, f: Path):
             if s.get("transcript"): sec["transcript"] = s["transcript"]
         else:
             sec["passage"] = s["passage"]
+            if not sec["passage"].get("title"): sec["passage"]["title"] = f"Section {s['part']}"  # GT sections made of several texts have no overall title
+            if not sec["passage"].get("subtitle"): sec["passage"].pop("subtitle", None)
         sec["groups"] = s["groups"]
         test["sections"].append(sec)
+    if f.exists():  # keep figure crops made by a previous `figs` run
+        try:
+            done = {g["from"]: g["image"] for s0 in json.loads(f.read_text())["sections"] for g in s0["groups"] if isinstance(g.get("image"), str)}
+        except Exception: done = {}
+        for sec in test["sections"]:
+            for g in sec["groups"]:
+                if g.get("image") is True and g["from"] in done: g["image"] = done[g["from"]]; g.pop("figure_page", None)
     if problems: test["_problems"] = problems  # stripped by the validator report; remove after review
     f.write_text(json.dumps(test, ensure_ascii=False, indent=1))
     print(f"  wrote {f.name} ({len(qn)} questions){' PROBLEMS: ' + str(problems) if problems else ''}", flush=True)
@@ -431,6 +419,16 @@ def write_test(b, tn, skill, variant, secs, ans: dict, f: Path):
 def sh(cmd: list[str]) -> str:
     import subprocess
     return subprocess.run(["nice", "-n", "19"] + cmd, capture_output=True, text=True).stderr
+
+
+@__import__("functools").lru_cache(maxsize=None)
+def mono_filter(p: Path) -> list[str]:
+    """Book 3's stereo files are in antiphase (a plain downmix cancels the voices): use the left channel when the downmix is >6 dB quieter."""
+    def mean(af):
+        o = sh(["ffmpeg", "-hide_banner", "-nostats", "-ss", "60", "-t", "60", "-i", str(p), "-af", af + ",volumedetect", "-f", "null", "-"])
+        m = re.search(r"mean_volume: (-?[\d.]+) dB", o)
+        return float(m.group(1)) if m else -91.0
+    return ["-af", "pan=mono|c0=c0"] if mean("pan=mono|c0=c0") - mean("pan=mono|c0=0.5*c0+0.5*c1") > 6 else ["-ac", "1"]
 
 
 def duration(path) -> float:
@@ -483,6 +481,32 @@ def split_by_silence(p: Path) -> list[tuple[float, float]]:
     return bounds
 
 
+def split_by_stt(p: Path) -> list[tuple[float, float]]:
+    """Books 1 and 3: one 22-27 min file per test without clean pauses. Local whisper (tiny.en, 2 threads, cached) finds the spoken
+    'Now turn to Section N' announcements; section N runs from its announcement to the next one (S1 starts at 0, S4 ends at 'end of the listening test')."""
+    cf = CACHE / "stt" / f"{p.parent.name}-{p.stem}.json"
+    if cf.exists(): segs = json.loads(cf.read_text())
+    else:
+        from faster_whisper import WhisperModel
+        m = WhisperModel("tiny.en", device="cpu", cpu_threads=2, compute_type="int8")
+        wav = CACHE / "stt" / "tmp.wav"
+        wav.parent.mkdir(parents=True, exist_ok=True)
+        sh(["ffmpeg", "-y", "-loglevel", "error", "-i", str(p)] + mono_filter(p) + ["-ar", "16000", str(wav)])
+        it, _ = m.transcribe(str(wav), language="en", beam_size=1, condition_on_previous_text=False)
+        segs = [(round(x.start, 1), round(x.end, 1), x.text.strip()) for x in it]
+        cf.parent.mkdir(parents=True, exist_ok=True)
+        cf.write_text(json.dumps(segs))
+    num = {"1": 1, "one": 1, "2": 2, "two": 2, "3": 3, "three": 3, "4": 4, "four": 4}
+    starts = {1: 0.0}
+    for k in (2, 3, 4):
+        hit = [a for a, _, t in segs if a > 120 and (m := re.search(r"(?i)(?:turn to|start)\s+section\s+(\w+)", t)) and num.get(m.group(1).lower()) == k]
+        if not hit: hit = [a - 8 for a, _, t in segs if a > 120 and (m := re.fullmatch(r"(?i)\W*section\s+(\w+)\W*", t)) and num.get(m.group(1).lower()) == k]
+        if not hit: raise RuntimeError(f"{p.name}: no 'Section {k}' announcement found")
+        starts[k] = max(hit[0] - 1.0, 0)
+    end = next((a for a, _, t in segs if a > starts[4] + 120 and re.search(r"(?i)end of the listening test", t)), None) or duration(p)
+    return [(starts[1], starts[2]), (starts[2], starts[3]), (starts[3], starts[4]), (starts[4], end + 2)]
+
+
 def stage_audio(b: int):
     dst = OUT / "assets" / "lr" / "cambridge"
     dst.mkdir(parents=True, exist_ok=True)
@@ -490,13 +514,13 @@ def stage_audio(b: int):
     if b in (1, 2, 3):
         files = sorted(book_dir(b).glob("*.mp3"))
         for ti, p in enumerate(files):
-            for part, (a, z) in enumerate(split_by_silence(p), 1): jobs.append(((ti + 1, part), p, a, z))
+            for part, (a, z) in enumerate((split_by_silence if b == 2 else split_by_stt)(p), 1): jobs.append(((ti + 1, part), p, a, z))
     else:
         jobs = [(k, p, a, z) for k, (p, a, z) in sorted(audio_sources(b).items())]
     for (t, part), p, a, z in jobs:
         out = dst / f"C{b}T{t}P{part}.mp3"
         if out.exists() and out.stat().st_size > 10000: continue
-        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-threads", "2"] + (["-ss", f"{a:.2f}", "-to", f"{z:.2f}"] if a is not None else []) + ["-i", str(p), "-vn", "-ac", "1", "-ar", "44100", "-b:a", "64k", str(out)]
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-threads", "2"] + (["-ss", f"{a:.2f}", "-to", f"{z:.2f}"] if a is not None else []) + ["-i", str(p), "-vn"] + mono_filter(p) + ["-ar", "44100", "-b:a", "64k", str(out)]
         sh(cmd)
         print(f"  audio {out.name} {duration(out):.0f}s <- {p.name}", flush=True)
     print(f"C{b}: audio {len(jobs)} sections", flush=True)
