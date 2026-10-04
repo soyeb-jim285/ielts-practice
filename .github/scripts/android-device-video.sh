@@ -68,7 +68,7 @@ dump() { # UI hierarchy to $OUT/dumps (kept as an artifact) and /tmp/ui.xml
     grep -q "</hierarchy>" /tmp/ui.xml && break
     sleep 1
   done
-  DUMPN=$((DUMPN + 1)); cp /tmp/ui.xml "$OUT/dumps/$CLIP-$DUMPN-${1:-dump}.xml"
+  DUMPN=$((DUMPN + 1)); cp /tmp/ui.xml "$OUT/dumps/$CLIP-$DUMPN-$(printf %s "${1:-dump}" | tr -c 'A-Za-z0-9_-' _).xml" # artifact names allow no quotes or colons
 }
 xy_of() { dump "${1// /_}"; python3 /tmp/find_xy.py "$1" "${2:-0}" < /tmp/ui.xml; }
 tap_text() { # tap_text "Transcript" [n]
@@ -150,8 +150,10 @@ clip_listening_start() { # Listening hub: an unfinished test offers Continue or 
 clip_listening_run() { # Practice listening: play the recording (the clock runs), answer the form while it plays.
   launch lr-listening light; rec_start "08-listening-practice-run-light"
   sleep 1.2; tap_text "Play Part 1" 0 1.0
+  swipe_up 900 1.0 # the form up, so the next rows stay above the keyboard
   tap_text "Question 4," 0 0.6; adb shell input text "85"; sleep 0.8
-  tap_text "Question 5," 0 0.6; adb shell input text "apron"; sleep 2.2
+  tap_text "Question 5," 0 0.6 || adb shell input keyevent 66 # Enter = Next field
+  adb shell input text "apron"; sleep 2.2
   rec_stop
 }
 clip_listening_result() { # $1 theme. Listening result: band and takeaways; See your mistakes; open one (why, where it was said); Listen from: transcript marked, audio cued.
@@ -164,7 +166,7 @@ clip_listening_result() { # $1 theme. Listening result: band and takeaways; See 
 clip_reading_location() { # Reading result: a True/False/Not Given mistake explained, then Show in passage: the answer's sentence marked in the text.
   launch lr-result light; rec_start "10-reading-result-answer-location-light"
   sleep 1.5; tap_text "See your" 0 1.4
-  tap_text "Question 4," 0 2.8
+  tap_text "Question 4," 0 1.6; swipe_up 900 1.6 # the explanation opens below the row
   tap_text "Show in passage" 0 3.6
   rec_stop
 }
