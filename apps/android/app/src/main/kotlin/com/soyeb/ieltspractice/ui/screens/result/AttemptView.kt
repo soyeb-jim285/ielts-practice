@@ -165,7 +165,8 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
     var scrollToRelevance by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    val player = remember(attempt.id) { ResultPlayer(if (demo != null && speaking && attempt.status == "done") result?.metrics?.durationS else null) }
+    // The tour starts paused: tapping a word starts it (screenshots show it playing at a fixed spot).
+    val player = remember(attempt.id) { ResultPlayer(if (demo != null && speaking && attempt.status == "done") result?.metrics?.durationS else null, demoPlaying = demo?.tour != true) }
     DisposableEffect(player) { onDispose { player.release() } }
     LaunchedEffect(attempt.audioUrl) {
         val url = attempt.audioUrl

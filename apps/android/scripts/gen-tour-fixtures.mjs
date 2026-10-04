@@ -317,7 +317,8 @@ const fx = {
   '/api/attempts?page=1&skill=speaking': page(newest.filter((a) => a.skill === 'speaking')), '/api/attempts?page=1&skill=writing': page(newest.filter((a) => a.skill === 'writing')),
   '/api/attempts/as1': attempt('as1', spSkill, s2Analysis, 0, { durationMs: Math.round(s2.dur * 1000) }),
   '/api/attempts/as2': attempt('as2', spWeekends, s1Analysis, 2, { durationMs: Math.round(s1.dur * 1000) }),
-  '/api/attempts/aw1': attempt('aw1', wGap, aw1Analysis, 1, { text: essay, parentAttemptId: 'aw0', durationMs: 38 * 60000 }),
+  // aw0 is linked through analysis.comparison (Overview: last try 6.0 -> 7.0); no attempt parent, so Improve opens on the band-higher rewrite.
+  '/api/attempts/aw1': attempt('aw1', wGap, aw1Analysis, 1, { text: essay, durationMs: 38 * 60000 }),
   '/api/attempts/aw0': attempt('aw0', wGap, aw0Analysis, 19, { text: essayBefore, durationMs: 40 * 60000 }),
   // Review: a Listening spelling card first (its "Hear the word" button), then a mistake, a word and a fix.
   '/api/cards/due': { items: [
@@ -365,8 +366,8 @@ for (const x of prompts) fx[`/api/prompts/${x.id}`] = x;
   const retitle = (a, title) => ({ ...a, test: { ...a.test, title } });
   const L1 = 'Original practice · Listening 1', R1 = 'Original practice · Reading 1';
   const lraL = { ...retitle(base['/api/lr/attempts/lra-l'], L1), responses: { 1: 'Whitlock', 2: 'Thursday', 3: '6.30' }, elapsedS: 95, startedAt: day(0, 10) };
-  // "Start new", Practice, Part 2 only: the server keeps just that section.
-  const lraL2 = { ...lraL, id: 'lra-l2', parts: [2], responses: {}, elapsedS: 0, test: { ...lraL.test, sections: lraL.test.sections.filter((s) => s.part === 2) } };
+  // "Start new", Practice, Part 1 only: the server keeps just that section.
+  const lraL2 = { ...lraL, id: 'lra-l2', parts: [1], responses: {}, elapsedS: 0, test: { ...lraL.test, sections: lraL.test.sections.filter((s) => s.part === 1) } };
   const lraLs = { ...retitle(base['/api/lr/attempts/lra-ls'], L1), startedAt: day(3, 9), submittedAt: day(3, 10) };
   const lraRs = { ...retitle(base['/api/lr/attempts/lra-rs'], R1), startedAt: day(6, 9), submittedAt: day(6, 10) };
   const lraR = { ...retitle(base['/api/lr/attempts/lra-r'], R1), startedAt: day(1, 14) };

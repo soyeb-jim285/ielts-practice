@@ -19,10 +19,10 @@ import kotlin.math.min
  * the playhead and the word playing now without any audio or looping animation.
  */
 @Stable
-class ResultPlayer(private val demoDuration: Double? = null) {
+class ResultPlayer(private val demoDuration: Double? = null, demoPlaying: Boolean = true) {
     var isLoaded by mutableStateOf(demoDuration != null)
         private set
-    var isPlaying by mutableStateOf(demoDuration != null)
+    var isPlaying by mutableStateOf(demoDuration != null && demoPlaying)
         private set
     var currentTime by mutableDoubleStateOf(demoDuration?.let { it * 0.38 } ?: 0.0)
         private set
