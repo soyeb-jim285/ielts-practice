@@ -288,7 +288,7 @@ class RecordResult(val durationMs: Int, val energy: List<Int>)
  * The practice recorder (iOS Recorder): 16 kHz mono AAC m4a to [start]'s file, plus the observable state the UI shows. With a null file it
  * only meters (the mic check). Observable fields are Compose state, updated from the capture thread. Main thread starts and stops it.
  */
-class MicRecorder(synthetic: Boolean = false) {
+class MicRecorder(private val synthetic: Boolean = false) {
     private val rate = 16_000
     private val capture = PcmCapture(rate, synthetic)
     private var meter = Meter(rate)
@@ -311,7 +311,10 @@ class MicRecorder(synthetic: Boolean = false) {
         stop()
         paused = startPaused
         meter = Meter(rate)
-        writer = file?.let { runCatching { AacWriter(it, rate) }.getOrNull() ?: return false }
+        // ponytail: the synthetic (demo) voice is not encoded. On the emulator the AAC encoder shares the software codec service with
+        // screenrecord and stalls the video; an empty file stands in for the recording.
+        writer = if (synthetic) { file?.run { parentFile?.mkdirs(); createNewFile() }; null }
+        else file?.let { runCatching { AacWriter(it, rate) }.getOrNull() ?: return false }
         this.onLevel = onLevel
         elapsed = 0.0; silence = 0.0; liveWpm = 0; loud = 0; soft = 0; level = 0.0
         levels = List(48) { 0.0 }

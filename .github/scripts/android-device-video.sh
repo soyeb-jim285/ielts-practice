@@ -162,8 +162,8 @@ clip_writing_rewrite() { # Writing result, Improve: the same essay one band high
 }
 clip_listening_start() { # Listening hub: an unfinished test offers Continue or Start new; Start new, Practice, Part 1 only, Start: the runner opens on that part.
   launch lr-hub-listening light; rec_start "07-listening-continue-or-new-single-part-light"
-  sleep 1.2; tap_text "Original practice · Listening 1" 0 1.8
-  tap_text "Start new" 0 1.5; tap_text "Practice" 0 1.2; tap_text "1" 0 1.4
+  sleep 1.2; tap_text "Original practice · Listening 1" 0 2.6 # the sheet needs its time to come all the way up on the emulator
+  tap_text "Start new" 0 1.8; tap_text "Practice" 0 1.4; tap_text "1" 0 1.4
   tap_text "Start practice part 1" 0 3.0
   rec_stop
 }
