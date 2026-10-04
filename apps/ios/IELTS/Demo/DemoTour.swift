@@ -1,9 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// Demo-only auto-tour for screen recordings: `-demo -screen <name> -tour <script>` scripts scrolling, tab switches, typing and playback
+/// Demo-only auto-tour for screen recordings: `-demo -screen <name> -tour <script>` scripts taps, scrolling, typing and playback
 /// with timers so a simulator video has real motion (the simulator can't be tapped from the CLI). It waits for a go signal
 /// (`notifyutil -p com.soyeb.ielts.tourgo` or the file /tmp/ielts-tour-go) so recording can start first, and starts by itself after 20 s.
+/// A scripted tap is "press:<id>": the control marked `.demoPress(id)` shows a touch and runs its action.
 /// DEBUG builds only: a Release build compiles the stubs at the bottom and never runs a tour.
 extension View {
     /// Runs `handle` for each tour event. Events are only ever posted by `DemoTour`, so this is inert for real users.
@@ -16,16 +17,58 @@ extension View {
         return self
         #endif
     }
+
+    /// Tour event "press:<id>": a touch shows on this control, then `action` runs (what a tap on it does), so a scripted tap reads on video.
+    @ViewBuilder func demoPress(_ id: String, _ action: @escaping () -> Void = {}) -> some View {
+        #if DEBUG
+        if DemoTour.name != nil { modifier(DemoPress(id: id, action: action)) } else { self }
+        #else
+        self
+        #endif
+    }
 }
 
 #if DEBUG
+/// A finger-sized touch over the control and a slight press, like the simulator's "show touches".
+private struct DemoPress: ViewModifier {
+    let id: String
+    let action: () -> Void
+    @State private var down = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(down ? 0.96 : 1)
+            .overlay {
+                Circle()
+                    .fill(Color.gray.opacity(0.4))
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.85), lineWidth: 2))
+                    .frame(width: 46, height: 46)
+                    .scaleEffect(down ? 1 : 0.5)
+                    .opacity(down ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+            .animation(.easeOut(duration: 0.16), value: down)
+            .onDemoTour { s in
+                guard s == "press:\(id)" else { return }
+                down = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(240))
+                    action()
+                    try? await Task.sleep(for: .milliseconds(160))
+                    down = false
+                }
+            }
+    }
+}
+
 enum DemoTour {
     static let note = Notification.Name("ielts.demo.tour")
     static let name: String? = Demo.on ? Demo.arg("tour") : nil
 }
 
 private enum Target { case top, bottom, by(Double) }
-private enum Step { case send(String), scroll(Target, Double), focus, type(String, String) }
+/// `type(prefix, text, cps)` sends the text as "<prefix><chars>" events at `cps` characters a second.
+private enum Step { case send(String), scroll(Target, Double), focus, type(String, String, Double) }
 
 @MainActor
 extension DemoTour {
@@ -66,52 +109,95 @@ extension DemoTour {
             case let .send(s): send(s)
             case let .scroll(to, dur): scroll(to, dur)
             case .focus: focusEditor()
-            case let .type(prefix, text): Task { @MainActor in await typeOut(prefix, text) }
+            case let .type(prefix, text, cps): Task { @MainActor in await typeOut(prefix, text, cps) }
             }
         }
     }
 
-    /// Two characters every 50 ms (about 40 characters a second), as `<prefix><chars>` events.
-    private static func typeOut(_ prefix: String, _ text: String) async {
+    /// One character per event when slow (a word in a gap), two when fast (an essay).
+    private static func typeOut(_ prefix: String, _ text: String, _ cps: Double) async {
+        let n = cps > 25 ? 2 : 1
         var i = text.startIndex
         while i < text.endIndex {
-            let j = text.index(i, offsetBy: 2, limitedBy: text.endIndex) ?? text.endIndex
+            let j = text.index(i, offsetBy: n, limitedBy: text.endIndex) ?? text.endIndex
             send(prefix + String(text[i..<j]))
             i = j
-            try? await Task.sleep(for: .milliseconds(50))
+            try? await Task.sleep(for: .seconds(Double(n) / cps))
         }
     }
 
-    private static let essay = "In my opinion, working from home benefits both sides, provided it is organised well. Employees gain flexibility: they can plan the day around their own energy and save the hours lost in traffic. Employers, in turn, often see steadier output and lower office costs. However, remote work can be lonely, and junior staff learn more slowly when they cannot watch colleagues at work. For this reason, I believe a hybrid pattern, with two or three days together in the office, is the most sensible compromise."
-    private static let notes = "- a novel I read at university\n- about the history of humankind\n- changed how I see progress\n- still recommend it to friends"
+    private static let task2 = "In many fast-growing cities, traffic has become one of the biggest problems of daily life. Some people argue that governments should invest in public transport instead of building more roads. I completely agree with this view, because new roads only offer a short-term solution, while good public transport benefits the whole society."
+    private static let task1 = "The line graph compares the share of electricity generated from renewable sources in Denmark, Spain and Japan between 2000 and 2020. Overall, all three countries relied more on renewables."
+    private static let notes = "- swimming, started at 24\n- club near my office\n- breathing = hardest part\n- 5 months: first length!"
 
+    private static func press(_ id: String) -> Step { .send("press:\(id)") }
+
+    /// Times are seconds after the go signal. ios-video.sh keeps about `dur - 1` seconds of them, so every script settles before then.
     private static func script(_ name: String) -> [(Double, Step)] {
         switch name {
-        case "scroll":
-            return [(1.0, .scroll(.bottom, 9))]
-        case "gentle":
-            return [(1.0, .scroll(.by(700), 7))]
-        case "tabs":
-            var s: [(Double, Step)] = [(0.6, .scroll(.by(450), 1.8))]
-            for k in 0..<4 {
-                let t = 2.8 + Double(k) * 2.6
-                s.append((t, .send("tab:next")))
-                s.append((t + 0.15, .scroll(.top, 0)))
-                s.append((t + 0.5, .scroll(.by(450), 1.9)))
-            }
-            return s
-        case "karaoke":
-            return [(0.4, .scroll(.by(380), 1.2)), (1.8, .send("play:4:1.6")), (2.2, .scroll(.by(300), 9))]
+        case "scroll": return [(1.0, .scroll(.bottom, 9))]
+        case "gentle": return [(1.0, .scroll(.by(700), 7))]
+        // Home: next step, predicted bands, the band-by-criterion trend (speaking, then writing), Listening and Reading.
+        case "dashboard":
+            return [(1.0, .scroll(.by(560), 3.2)), (5.2, .send("dash:writing")), (7.2, .scroll(.by(620), 3.4))]
+        // Speaking hub: questions from our own bank, then the ways to practise.
+        case "speaking-hub":
+            return [(1.4, .send("src:generated")), (3.6, .scroll(.by(720), 4.2))]
+        // Part 1: the examiner reads each question (heard, not shown), then "Speak now", the timer, waveform and live pace.
+        case "speaking-part1":
+            return [(0.8, press("record")), (6.6, press("showq")), (9.0, press("next"))]
+        // Part 2: cue card, a minute of preparation with notes, then the long turn.
+        case "speaking-part2":
+            return [(1.2, press("prep")), (2.2, .type("n:", notes, 16)), (8.8, press("speak"))]
+        case "result-overview":
+            return [(1.0, .scroll(.by(380), 2.6)), (4.6, .scroll(.by(520), 3.0)), (8.6, .scroll(.by(480), 3.0))]
+        // Transcript: playback lights each word; pauses, fillers, repeats and restarts are marked inline.
+        case "transcript":
+            return [(0.6, .scroll(.by(300), 1.2)), (2.0, .send("play:4:1.4")), (2.4, .scroll(.by(330), 9.5))]
         case "fluency":
-            return [(0.4, .scroll(.by(260), 1.2)), (1.8, .send("play:3:2.2"))]
-        case "typing":
-            return [(1.0, .focus), (1.6, .type("t:", essay))]
-        case "session":
-            return [(1.0, .send("prep")), (1.8, .type("n:", notes)), (7.5, .send("record"))]
-        case "session1":
-            return [(1.0, .send("record")), (9.0, .send("next"))]
-        case "fairuse":
-            return [(3.5, .send("start"))]
+            return [(0.5, .scroll(.by(260), 1.2)), (2.0, .send("play:3:2.2")), (5.6, .scroll(.by(420), 4.0))]
+        case "language-improve":
+            return [(1.0, .scroll(.by(650), 4.0)), (5.6, .scroll(.top, 1.0)), (7.0, press("tab:Improve")), (8.6, .scroll(.by(420), 3.0))]
+        case "live":
+            return [(1.2, press("livestart")), (3.4, press("captions"))]
+        case "task1":
+            return [(1.0, .scroll(.by(300), 2.2)), (4.6, .scroll(.top, 1.0)), (6.0, .focus), (6.6, .type("t:", task1, 32))]
+        case "task2":
+            return [(1.0, .focus), (1.6, .type("t:", task2, 36))]
+        case "writing-overview":
+            return [(1.0, .scroll(.by(420), 2.8)), (4.6, .scroll(.by(520), 3.0)), (8.4, .scroll(.by(400), 2.4))]
+        // Essay: mistakes underlined in place; one opens with its correction and reason.
+        case "essay":
+            return [(1.0, .scroll(.by(260), 2.0)), (4.0, .send("res:err:w1")), (8.0, .send("res:close")), (9.2, .scroll(.by(380), 2.6))]
+        case "rewrite":
+            return [(1.0, .scroll(.by(300), 2.2)), (4.2, .scroll(.by(420), 3.4)), (8.6, .scroll(.by(400), 3.0))]
+        // Listening practice: the recording plays while the form fills in, including the two-blank question 3.
+        case "lr-run":
+            return [(1.0, press("lrplay")), (2.6, .type("g:2:0:1:", "Thursday", 12)), (4.0, .type("g:3:0:2:", "6.30", 8)), (5.2, .type("g:3:1:2:", "8.30", 8)),
+                    (6.6, .type("g:4:0:1:", "85", 6)), (8.0, .send("lr:clear")), (8.6, .scroll(.by(380), 3.0))]
+        case "lr-answers":
+            return [(1.4, press("mistakes")), (3.6, .scroll(.by(260), 2.0)), (6.4, press("row:28")), (9.6, .scroll(.by(260), 2.0))]
+        // Play from the moment the answer is spoken: the transcript with the evidence marked and Q pins.
+        case "lr-timestamp":
+            return [(1.2, press("mistakes")), (3.4, press("ts:27")), (4.8, .send("lrr:show")), (8.2, press("qtimes"))]
+        case "lr-dictation":
+            return [(1.2, press("mistakes")), (3.0, press("row:28")), (5.2, press("dictate")), (6.8, press("dplay")),
+                    (8.2, .type("dt:", "record the wait of each hive every week", 22)), (10.8, press("dcheck"))]
+        case "reading-run":
+            return [(1.0, .scroll(.by(520), 3.6)), (5.2, .send("lr:questions")), (6.6, press("a:4:FALSE")), (8.2, press("a:5:NOT GIVEN")),
+                    (9.8, press("a:6:FALSE")), (11.0, .scroll(.by(260), 1.6))]
+        // Reading result: why the answer is wrong, then where the answer is in the passage.
+        case "reading-location":
+            return [(1.4, press("row:5")), (5.6, press("show"))]
+        // Hub: an unfinished attempt offers Continue or Start new; then Practice, Part 2 only.
+        case "single-part":
+            return [(1.2, press("test:lt-l2")), (3.4, press("startnew")), (5.2, press("mode:practice")), (6.8, .send("part:2")), (8.4, press("start"))]
+        case "review":
+            return [(1.4, press("hear")), (3.4, press("reveal")), (5.6, press("grade:4")), (7.6, press("reveal")), (9.8, press("grade:5"))]
+        case "history":
+            return [(1.0, .scroll(.by(700), 4.0)), (5.6, .scroll(.top, 1.4)), (7.6, .send("hist:listening"))]
+        case "bank":
+            return [(1.2, .send("bank:src:generated")), (2.8, .send("bank:part:2")), (4.6, .scroll(.by(400), 3.0))]
         default:
             return []
         }
