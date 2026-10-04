@@ -116,7 +116,9 @@ take() { # take <clip function> [theme]: probe pass, then the recorded replay (i
   dump end
   adb logcat -c
   MODE=replay; XI=0; "$@"
-  adb logcat -d -v time '*:W' 2>/dev/null | tail -300 > "$OUT/dumps/$CLIP-logcat.txt"
+  { adb shell dumpsys activity activities | grep -E "ResumedActivity|mFocusedApp" | head -3
+    adb logcat -d -v time 2>/dev/null | grep -E "ActivityTaskManager|ActivityManager|AndroidRuntime|WindowManager|InputDispatcher|ieltspractice|libprocessgroup|lowmemorykiller|\( *$(adb shell pidof $PKG 2>/dev/null | tr -d '\r' | sed 's/^$/0/')\)" | tail -300
+  } > "$OUT/dumps/$CLIP-logcat.txt" 2>&1
 }
 
 # ---- clips ---------------------------------------------------------------------------------------------------------
@@ -138,8 +140,8 @@ clip_transcript() { # $1 theme. Transcript: fillers, repeat / restart tags and l
   dump words # one dump for both words once the list has settled (a dump while the audio plays takes seconds)
   local g e; g=$(python3 /tmp/find_xy.py "Growing" 0 < /tmp/ui.xml); e=$(python3 /tmp/find_xy.py "had, Grammar" 0 < /tmp/ui.xml)
   echo "words at $g / $e ($MODE)"
-  adb shell input tap $g; sleep 3.6
-  adb shell input tap $e; sleep 3.2
+  adb shell input tap ${g% *} $((${g#* } + 16)); sleep 3.6 # +16: the drawn words sit a little below their reported bounds here
+  adb shell input tap ${e% *} $((${e#* } + 16)); sleep 3.2
   rec_stop
 }
 clip_writing_errors() { # $1 theme. Writing result, Essay: every mistake underlined in the text (red major, amber minor); open one for the correction.
@@ -161,8 +163,8 @@ clip_writing_rewrite() { # Writing result, Improve: the same essay one band high
 clip_listening_start() { # Listening hub: an unfinished test offers Continue or Start new; Start new, Practice, Part 1 only, Start: the runner opens on that part.
   launch lr-hub-listening light; rec_start "07-listening-continue-or-new-single-part-light"
   sleep 1.2; tap_text "Original practice · Listening 1" 0 1.8
-  tap_text "Start new" 0 1.2; tap_text "Practice" 0 0.9; tap_text "1" 0 1.0
-  tap_text "Start practice part 1" 0 2.6
+  tap_text "Start new" 0 1.5; tap_text "Practice" 0 1.2; tap_text "1" 0 1.4
+  tap_text "Start practice part 1" 0 3.0
   rec_stop
 }
 clip_listening_run() { # Practice listening: play the recording (the clock runs), answer the form while it plays.

@@ -96,7 +96,7 @@ class PcmCapture(val rate: Int, private val synthetic: Boolean = false) {
                     onPcm?.invoke(buf, chunk)
                     next += chunk * 1_000_000_000L / rate
                     val wait = (next - System.nanoTime()) / 1_000_000
-                    if (wait > 0) Thread.sleep(wait)
+                    if (wait > 0) Thread.sleep(wait) else next = System.nanoTime() // fell behind (a slow first encode): no burst to catch up
                 }
                 running = false
             }, "mic-synthetic").apply { start() }
