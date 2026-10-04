@@ -414,6 +414,7 @@ struct LrGroupView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(key), \(text)")
                 .accessibilityAddTraits(on ? .isSelected : [])
+                .demoPress("a:\(n):\(key)") { if !ctx.isReview { ctx.set(n, on ? "" : key) } }
             }
         }
     }
@@ -437,6 +438,7 @@ struct LrGroupView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(k.capitalized)
                 .accessibilityAddTraits(on ? .isSelected : [])
+                .demoPress("a:\(n):\(k)") { if !ctx.isReview { ctx.set(n, on ? "" : k) } }
             }
         }
         .padding(3)

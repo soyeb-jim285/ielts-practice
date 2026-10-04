@@ -76,7 +76,7 @@ final class LiveExam {
     /// Mic check on the pre-screen: asks for the microphone on entry so the level meter is already running. Safe to call again to retry.
     func prepare() async {
         guard !micReady, !micChecking else { return }
-        if Demo.on { micReady = true; return } // screenshots must not wait on a permission prompt
+        if Demo.on { micReady = true; micHeard = DemoTour.name != nil; level = micHeard ? 0.35 : 0; return } // screenshots must not wait on a permission prompt
         micChecking = true
         micError = nil
         defer { micChecking = false }
@@ -91,6 +91,9 @@ final class LiveExam {
     }
 
     func start(_ kind: Examiner) {
+        #if DEBUG
+        if DemoTour.name != nil { testStarted = Date(); stage = .running; run = Task { await demoRun() }; return }
+        #endif
         guard audio.running else { micDenied = true; return }
         testStarted = Date()
         stage = .running
@@ -428,6 +431,49 @@ final class LiveExam {
     }
 }
 
+#if DEBUG
+extension LiveExam {
+    /// Demo tour (Demo/DemoTour.swift): the turn-based examiner with scripted turns, since a CI simulator has no microphone or network.
+    fileprivate func demoRun() async {
+        let test: SpeakingTest? = try? await api.get("/api/speaking/test")
+        func ask(_ text: String, _ seconds: Double) async {
+            thinking = false
+            caption = text
+            examinerTalking = true
+            try? await Task.sleep(for: .seconds(seconds))
+            examinerTalking = false
+        }
+        func answer(_ seconds: Double) async {
+            listening = true
+            let t0 = Date()
+            while Date().timeIntervalSince(t0) < seconds, !Task.isCancelled {
+                level = 0.2 + 0.4 * abs(sin(Date().timeIntervalSince(t0) * 6.5))
+                try? await Task.sleep(for: .milliseconds(80))
+            }
+            level = 0
+            listening = false
+            thinking = true
+            try? await Task.sleep(for: .seconds(0.5))
+        }
+        phase = "p1"
+        phaseStarted = Date()
+        await ask("Good morning. My name is Daniel, and I'll be your examiner today. Can you tell me your full name, please?", 2.4)
+        await answer(1.8)
+        await ask("Thank you, Nusrat. Now, let's talk about your hometown. Where is your hometown?", 2.2)
+        await answer(1.6)
+        phase = "p2-prep"
+        phaseStarted = Date()
+        cueCard = test?.part2
+        prepLeft = 60
+        await ask("Now I'm going to give you a topic, and I'd like you to talk about it for one to two minutes.", 1.2)
+        while prepLeft > 0, !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(1))
+            prepLeft -= 1
+        }
+    }
+}
+#endif
+
 struct LiveExamView: View {
     @Environment(APIClient.self) private var api
     @State private var exam: LiveExam?
@@ -617,6 +663,7 @@ struct LiveExamView: View {
                 .primaryButton()
                 .controlSize(.large)
                 .disabled(exam.micChecking)
+                .demoPress("livestart") { exam.start(examiner) }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -717,6 +764,7 @@ struct LiveExamView: View {
                 }
                 .secondaryButton()
                 .accessibilityLabel(showCaptions ? "Hide captions" : "Show captions")
+                .demoPress("captions") { showCaptions.toggle() }
                 .accessibilityAddTraits(showCaptions ? .isSelected : [])
                 if exam.listening {
                     Button { exam.endTurn() } label: {

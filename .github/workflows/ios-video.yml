@@ -7,6 +7,9 @@ on:
       only:
         description: "Clip names to record, space-separated (empty = all)"
         default: ""
+      modes:
+        description: "Appearances to record each clip in"
+        default: "light dark"
 
 concurrency:
   group: ios-video-${{ github.ref }}
@@ -15,7 +18,7 @@ concurrency:
 jobs:
   video:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 100
     defaults:
       run:
         working-directory: apps/ios
@@ -42,6 +45,7 @@ jobs:
       - name: Record clips
         env:
           ONLY: ${{ inputs.only }}
+          MODES: ${{ inputs.modes }}
         run: |
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           export APP="$PWD/build/dd/Build/Products/Debug-iphonesimulator/IELTS.app" OUT="$PWD/video" RAW="$PWD/video-raw"

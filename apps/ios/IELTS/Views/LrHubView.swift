@@ -85,6 +85,7 @@ struct LrHubView: View {
                 Section {
                     ForEach(g.tests) { t in
                         Button { pick = t } label: { row(t) }
+                            .demoPress("test:\(t.id)") { pick = t }
                             .listRowBackground(Color.surface)
                     }
                 } header: {
@@ -207,8 +208,10 @@ struct LrModeSheet: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 12) {
                     Button("Start new") { startNew = true }.secondaryButton().controlSize(.large)
+                        .demoPress("startnew") { withAnimation { startNew = true } }
                     Button { dismiss(); onStart(open) } label: { Text("Continue").frame(maxWidth: .infinity) }
                         .primaryButton().controlSize(.large)
+                        .demoPress("continue") { dismiss(); onStart(open) }
                 }
             }
             .padding(20)
@@ -240,6 +243,7 @@ struct LrModeSheet: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(mode == m.key ? .isSelected : [])
+                .demoPress("mode:\(m.key)") { withAnimation { mode = m.key } }
             }
             VStack(alignment: .leading, spacing: 6) {
                 Picker(noun, selection: $part) {
@@ -260,10 +264,12 @@ struct LrModeSheet: View {
                     HStack { if busy { ProgressView() }; Text(part == 0 ? "Start \(mode) test" : "Start \(mode) \(noun.lowercased()) \(part)") }.frame(maxWidth: .infinity)
                 }
                 .primaryButton().controlSize(.large).disabled(busy)
+                .demoPress("start") { Task { await start() } }
             }
         }
         .padding(20)
         .background(Color.canvas)
+        .onDemoTour { s in if s.hasPrefix("part:"), let n = Int(s.dropFirst(5)) { withAnimation { part = n } } } // demo auto-tour
     }
 
     private func start() async {

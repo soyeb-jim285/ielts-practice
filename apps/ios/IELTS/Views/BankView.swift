@@ -201,6 +201,10 @@ struct BankView: View {
             guard !Task.isCancelled else { return }
             await load(reset: true)
         }
+        .onDemoTour { s in // demo auto-tour: source and part filters
+            if s.hasPrefix("bank:src:") { source = String(s.dropFirst(9)) }
+            if s.hasPrefix("bank:part:") { partKey = String(s.dropFirst(10)) }
+        }
         .onChange(of: skill) {
             partKey = "all"
             type = ""

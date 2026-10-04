@@ -140,6 +140,17 @@ private struct LrRunnerBody: View {
         .onChange(of: current) { _, n in session.remember(part: partIdx, n: n) }
         .onChange(of: playlist?.idx) { _, i in if examListening, let i, playlist?.phase == .audio { goPart(i) } }
         .task { await examLoop() }
+        .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift): "g:<n>:<blank>:<blanks>:<chars>" types into a gap
+            let p = s.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
+            if p.count == 5, p[0] == "g", let n = Int(p[1]), let part = Int(p[2]), let of = Int(p[3]) {
+                let v = session.value(n)
+                current = n
+                active = n
+                session.set(n, of > 1 ? Lr.setGapPart(v, part, of, Lr.gapPart(v, part) + p[4]) : v + p[4])
+            }
+            if s == "lr:questions" { withAnimation { tab = .questions } }
+            if s == "lr:clear" { active = nil }
+        }
         .task(id: partIdx) { // pacing: one second per tick on the part on screen, while the app is in the foreground
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
@@ -516,6 +527,7 @@ struct LrPracticeBar: View {
                 }
                 .primaryButton().buttonBorderShape(.circle).controlSize(.large)
                 .accessibilityLabel(player.playing ? "Pause" : "Play")
+                .demoPress("lrplay") { player.toggle() }
                 VStack(spacing: 2) {
                     if !pins.isEmpty, player.duration > 0 {
                         let groups = LrReview.clusterMoments(pins, duration: player.duration) { $0.at }

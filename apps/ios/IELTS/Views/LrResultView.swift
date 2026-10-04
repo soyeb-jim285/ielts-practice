@@ -108,6 +108,7 @@ struct LrResultView: View {
                         Label(chipsOpen ? "Hide question times" : "Question times", systemImage: chipsOpen ? "chevron.down" : "chevron.up").font(.footnote.weight(.medium)).frame(minHeight: 32)
                     }
                     .buttonStyle(.plain).foregroundStyle(Color.brand)
+                    .demoPress("qtimes") { withAnimation { chipsOpen.toggle() } }
                 }
                 LrPracticeBar(player: practice, url: Lr.assetURL(attempt.assets[section.audio ?? ""]), label: "Part \(section.part)", rate: $rate, pins: audioPins, pinned: selected, showChips: chipsOpen, onPin: { select($0); play($0) })
                 }
@@ -155,6 +156,7 @@ struct LrResultView: View {
             }
         }
         .onDisappear { practice.teardown() }
+        .onDemoTour { if $0 == "lrr:show" { show() } } // demo auto-tour: bring the marked answer into view
     }
 
     private func goTabs() { scrollTo = "tabs"; scrollAnchor = .top; scrollStamp += 1 }
@@ -213,6 +215,7 @@ struct LrResultView: View {
             if wrongCount > 0 {
                 Button { wrongOnly = true; tab = .answers } label: { Text("See your \(wrongCount) \(wrongCount == 1 ? "mistake" : "mistakes")").frame(maxWidth: .infinity) }
                     .primaryButton().controlSize(.large)
+                    .demoPress("mistakes") { wrongOnly = true; tab = .answers }
             }
             if !takeaways.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -347,12 +350,14 @@ struct LrResultView: View {
                 .accessibilityLabel("Question \(n). Your answer: \((m?.given.isEmpty ?? true) ? "none" : m!.given). \(m?.correct == true ? "Correct." : "Wrong. Correct answer: \((m?.answer ?? []).joined(separator: " or ")).")" + (entries[n].map { " \($0.label)." } ?? ""))
                 .accessibilityValue(open ? "Expanded" : "Collapsed")
                 .accessibilityHint("Explains the question and shows where the answer is")
+                .demoPress("row:\(n)") { jump(n) }
                 if let mo, let part = test.section(of: n).map({ test.sections[$0].part }) {
                     Button { select(n); play(n) } label: {
                         Label("\(mo.exact ? "" : "~")\(clock(Int(mo.at)))", systemImage: "play.fill").font(.footnote.weight(.medium).monospacedDigit())
                             .padding(.horizontal, 10).frame(minHeight: 44)
                     }
                     .buttonStyle(.plain).foregroundStyle(Color.brand)
+                    .demoPress("ts:\(n)") { select(n); play(n) }
                     .accessibilityLabel("Question \(n): listen from \(test.partNoun) \(part) at \(clock(Int(mo.at)))" + (mo.exact ? "" : ", approximate"))
                 }
             }

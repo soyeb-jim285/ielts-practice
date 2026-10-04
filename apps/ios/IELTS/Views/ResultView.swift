@@ -760,6 +760,8 @@ struct AttemptResultView: View {
         .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift)
             if s == "tab:next", let i = tabs.firstIndex(of: current) { withAnimation(.snappy) { tab = tabs[(i + 1) % tabs.count] } }
             if s.hasPrefix("play:") { DemoTour.playback(player, end: attempt.analysis?.words?.last?.end ?? 60, arg: String(s.dropFirst(5))) }
+            if s.hasPrefix("res:err:") { selectedError = attempt.analysis?.errors.first { $0.id == String(s.dropFirst(8)) } } // a tapped mistake
+            if s == "res:close" { selectedError = nil }
         }
     }
 
@@ -991,6 +993,7 @@ struct AttemptResultView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(t)
                 .accessibilityAddTraits(on ? .isSelected : [])
+                .demoPress("tab:\(t)") { tab = t }
             }
         }
     }

@@ -60,6 +60,7 @@ struct SpeakingHomeView: View {
         .task { await api.loadQuota() }
         .refreshable { await loadRecent(); await api.loadQuota(force: true) }
         .onAppear { store.reload() }
+        .onDemoTour { s in if s.hasPrefix("src:") { withAnimation { source = String(s.dropFirst(4)) } } } // demo auto-tour: the question source
         .confirmationDialog("Delete this recording?",
                             isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
                             titleVisibility: .visible, presenting: deleting) { p in

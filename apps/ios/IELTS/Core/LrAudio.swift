@@ -30,6 +30,7 @@ final class LrPracticePlayer {
     /// "Play from here": play [from, to] and pause at `to`. Held until the recording has loaded.
     @ObservationIgnored private var stopAt: Double?
     @ObservationIgnored private var pending: (from: Double, to: Double)?
+    @ObservationIgnored private var demoTask: Task<Void, Never>? // demo tour clock (DEBUG)
 
     func load(_ url: URL?, resumeAt: Double = 0, track: ((Double) -> Void)? = nil, persist: (() -> Void)? = nil) {
         let keep = pending
@@ -43,29 +44,49 @@ final class LrPracticePlayer {
         let item = AVPlayerItem(url: url)
         let p = AVPlayer(playerItem: item)
         player = p
+        #if DEBUG
+        if DemoTour.name != nil { demoClock(item); return }
+        #endif
         observer = p.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main) { [weak self] t in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.time = t.seconds.isFinite ? t.seconds : 0
-                let d = item.duration.seconds
-                if d.isFinite, d > 0 { self.duration = d }
-                self.failed = item.status == .failed
-                if let stop = self.stopAt, self.time >= stop { self.stopAt = nil; self.player?.pause(); self.playing = false }
-                if let c = self.pending, self.duration > 0 { self.pending = nil; self.play(from: c.from, to: c.to) }
-                if !self.ready, self.duration > 0 {
-                    let at = LrAudioState.resumePosition(self.resumeTo ?? 0, duration: self.duration)
-                    self.ready = true
-                    if at > 0 { self.seek(to: at); self.resumedAt = at }
-                } else if self.ready, self.track != nil {
-                    self.track?(self.time)
-                    if self.playing, self.time - self.lastPersist >= 5 || self.time < self.lastPersist { self.lastPersist = self.time; self.persist?() }
-                }
-            }
+            MainActor.assumeIsolated { self?.tick(t.seconds, item.duration.seconds, failed: item.status == .failed) }
         }
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.playing = false }
         }
     }
+
+    private func tick(_ now: Double, _ d: Double, failed: Bool) {
+        time = now.isFinite ? now : 0
+        if d.isFinite, d > 0 { duration = d }
+        self.failed = failed
+        if let stop = stopAt, time >= stop { stopAt = nil; player?.pause(); playing = false }
+        if let c = pending, duration > 0 { pending = nil; play(from: c.from, to: c.to) }
+        if !ready, duration > 0 {
+            let at = LrAudioState.resumePosition(resumeTo ?? 0, duration: duration)
+            ready = true
+            if at > 0 { seek(to: at); resumedAt = at }
+        } else if ready, track != nil {
+            track?(time)
+            if playing, time - lastPersist >= 5 || time < lastPersist { lastPersist = time; persist?() }
+        }
+    }
+
+    #if DEBUG
+    /// Demo tour: a CI simulator has no audio device, so the clock runs by itself while "playing" (the recorded video has no sound).
+    private func demoClock(_ item: AVPlayerItem) {
+        player?.isMuted = true
+        demoTask = Task { [weak self] in
+            let d = (try? await item.asset.load(.duration).seconds) ?? 0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard let self, self.player != nil else { return }
+                let next = self.playing ? self.time + 0.1 * Double(self.rate) : self.time
+                self.tick(d > 0 ? min(next, d) : next, d, failed: false)
+                if self.playing, d > 0, self.time >= d { self.playing = false }
+            }
+        }
+    }
+    #endif
 
     func toggle() {
         guard let p = player else { return }
@@ -114,6 +135,7 @@ final class LrPracticePlayer {
         if let o = observer { player?.removeTimeObserver(o) }
         if let e = endObserver { NotificationCenter.default.removeObserver(e) }
         observer = nil; endObserver = nil
+        demoTask?.cancel(); demoTask = nil
         player?.pause()
         player = nil
         playing = false; time = 0; duration = 0; stopAt = nil; pending = nil

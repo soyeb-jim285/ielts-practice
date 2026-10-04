@@ -190,6 +190,7 @@ struct HistoryView: View {
         .refreshable { await load(reset: true) }
         .confirmRemoval($removing) { t in Task { await remove(t) } }
         .task(id: skill) { await load(reset: true) }
+        .onDemoTour { s in if s.hasPrefix("hist:") { withAnimation { skill = String(s.dropFirst(5)) } } } // demo auto-tour: filter by skill
     }
 
     /// Drops the row at once; if the server refuses, the lists reload and the error shows.

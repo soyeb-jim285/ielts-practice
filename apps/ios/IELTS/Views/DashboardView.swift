@@ -126,6 +126,7 @@ struct DashboardView: View {
         .task { await load() }
         .task { await api.loadQuota() }
         .onAppear { targetDraft = target }
+        .onDemoTour { s in if s.hasPrefix("dash:") { withAnimation { trendSkill = String(s.dropFirst(5)) } } } // demo auto-tour: trend by skill
         .navigationDestination(item: $lrStarted) { LrAttemptScreen(id: $0) }
     }
 

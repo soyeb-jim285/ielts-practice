@@ -126,6 +126,7 @@ struct ReviewView: View {
                 if let word = card.heardWord {
                     Button { say(word) } label: { Label("Hear the word", systemImage: "speaker.wave.2.fill") }
                         .secondaryButton()
+                        .demoPress("hear") { say(word) }
                 }
                 if revealed {
                     Divider()
@@ -141,6 +142,7 @@ struct ReviewView: View {
                 Button { revealed = true } label: { Text("Show answer").frame(maxWidth: .infinity, minHeight: 28) }
                     .primaryButton()
                     .controlSize(.large)
+                    .demoPress("reveal") { revealed = true }
             }
             Text("Grade honestly: cards you find hard come back sooner. Again shows the card once more before you finish.")
                 .font(.caption).foregroundStyle(.muted)
@@ -161,6 +163,7 @@ struct ReviewView: View {
                 }
                 .secondaryButton()
                 .disabled(grading)
+                .demoPress("grade:\(g.grade)") { Task { await grade(card, g.grade) } }
                 .accessibilityLabel("\(g.label), next review \(g.grade == 1 ? "this session" : days(nextInterval(card, g.grade)))")
             }
         }

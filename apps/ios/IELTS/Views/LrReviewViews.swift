@@ -154,12 +154,15 @@ struct LrQuestionDetail: View {
             FlowLayout(spacing: 8, lineSpacing: 8) {
                 if r?.evidence != nil || !listening {
                     Button(action: onShow) { Label("Show \(listening ? "in transcript" : "in passage")", systemImage: "text.magnifyingglass") }.secondaryButton().controlSize(.regular)
+                        .demoPress("show", onShow)
                 }
                 if let w = window {
                     Button(action: onPlay) { Label("Listen from \(clock(Int(w.from)))", systemImage: "play.fill") }.secondaryButton().controlSize(.regular)
+                        .demoPress("listen", onPlay)
                 }
                 if canDictate {
                     Button(action: onDictate) { Label("Dictation", systemImage: "ear") }.secondaryButton().controlSize(.regular)
+                        .demoPress("dictate", onDictate)
                 }
             }
             if let w = window {
@@ -228,11 +231,9 @@ struct LrDictationSheet: View {
                         Text("Question \(q.n). Play the sentence with the answer in it, as many times as you like, and type what you hear.")
                             .font(.subheadline).foregroundStyle(Color.muted)
                         HStack(spacing: 10) {
-                            Button {
-                                player.rate = slow ? 0.75 : 1
-                                player.play(from: max(0, win.start - 0.3), to: win.end + 0.4)
-                            } label: { Label("Play sentence", systemImage: "speaker.wave.2.fill") }
+                            Button { playSentence(win) } label: { Label("Play sentence", systemImage: "speaker.wave.2.fill") }
                                 .primaryButton().controlSize(.large)
+                                .demoPress("dplay") { playSentence(win) }
                             Button { slow.toggle() } label: { Label("Slow (0.75×)", systemImage: slow ? "checkmark" : "tortoise") }
                                 .secondaryButton().controlSize(.large)
                                 .accessibilityValue(slow ? "On" : "Off")
@@ -246,6 +247,7 @@ struct LrDictationSheet: View {
                                 .onChange(of: typed) { _, _ in checked = false }
                         }
                         Button("Check") { checked = true }.primaryButton().controlSize(.large).disabled(typed.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .demoPress("dcheck") { checked = true }
                         if checked { LrDictationResult(typed: typed, expected: LrReview.wordsBetween(section.timings, win.start, win.end)).card() }
                     }
                     .padding(16)
@@ -265,6 +267,12 @@ struct LrDictationSheet: View {
             }
         }
         .onDisappear { player.teardown() }
+        .onDemoTour { if $0.hasPrefix("dt:") { typed += $0.dropFirst(3) } } // demo auto-tour types what it "hears"
+    }
+
+    private func playSentence(_ win: LrReview.AudioWindow) {
+        player.rate = slow ? 0.75 : 1
+        player.play(from: max(0, win.start - 0.3), to: win.end + 0.4)
     }
 }
 

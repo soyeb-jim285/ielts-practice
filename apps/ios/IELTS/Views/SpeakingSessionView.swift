@@ -104,17 +104,7 @@ struct SpeakingSessionView: View {
         }
         .micDeniedAlert($micDenied)
         .onDisappear { discardLive() }
-        .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift)
-            switch s {
-            case "prep" where phase == .ready:
-                prepLeft = Self.prepSeconds
-                prepEnd = Date().addingTimeInterval(Double(Self.prepSeconds))
-                phase = .prep
-            case "record": Task { await startRecording() }
-            case "next" where phase == .recording: nextQuestion()
-            default: if s.hasPrefix("n:") { notes += String(s.dropFirst(2)) }
-            }
-        }
+        .onDemoTour { s in if s.hasPrefix("n:") { notes += String(s.dropFirst(2)) } } // demo auto-tour types the Part 2 notes
     }
 
     @ViewBuilder private var content: some View {
@@ -278,6 +268,7 @@ struct SpeakingSessionView: View {
                     Button { shownQ = "\(index):\(question)" } label: {
                         Text("Show the question").underline().font(.subheadline.weight(.medium)).foregroundStyle(.brand)
                     }
+                    .demoPress("showq") { shownQ = "\(index):\(question)" }
                 }
             } else {
                 Text(questionText(p))
@@ -318,6 +309,7 @@ struct SpeakingSessionView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Start recording")
+                    .demoPress("record") { Task { await startRecording() } }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Press to start recording").font(.headline)
                         Text(p.part == 1
@@ -504,6 +496,7 @@ struct SpeakingSessionView: View {
                     Button { nextQuestion() } label: { Text("Next question").frame(maxWidth: .infinity) }
                         .buttonStyle(.borderedProminent)
                         .disabled(asking)
+                        .demoPress("next") { nextQuestion() }
                 }
             } else {
                 controlBar {
@@ -518,16 +511,14 @@ struct SpeakingSessionView: View {
             controlBar {
                 Button { Task { await startRecording() } } label: { Text("Start speaking now").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
+                    .demoPress("speak") { Task { await startRecording() } }
             }
         case .ready where p.part == 2:
             controlBar {
-                Button {
-                    prepLeft = Self.prepSeconds
-                    prepEnd = Date().addingTimeInterval(Double(Self.prepSeconds))
-                    phase = .prep
-                } label: { Text("Start 1-minute preparation").frame(maxWidth: .infinity) }
+                Button { startPrep() } label: { Text("Start 1-minute preparation").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
                     .disabled(asking)
+                    .demoPress("prep") { if !asking { startPrep() } }
             }
         default:
             EmptyView()
@@ -624,6 +615,12 @@ struct SpeakingSessionView: View {
 
     // MARK: Actions
 
+    private func startPrep() {
+        prepLeft = Self.prepSeconds
+        prepEnd = Date().addingTimeInterval(Double(Self.prepSeconds))
+        phase = .prep
+    }
+
     private func startRecording() async {
         guard (phase == .ready || phase == .prep), !starting else { return }
         starting = true
@@ -678,6 +675,9 @@ struct SpeakingSessionView: View {
             recorder.pause()
             for u in urls {
                 guard gen == askGen else { return }
+                #if DEBUG
+                if DemoTour.name != nil { try? await Task.sleep(for: .seconds(1.6)); continue } // demo tour: no network or speaker on CI, each line "plays" briefly
+                #endif
                 if let (data, _) = try? await URLSession.shared.data(from: u) { await examinerPlayer.playToEnd(data) }
             }
         }

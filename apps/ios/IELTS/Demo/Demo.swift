@@ -75,7 +75,7 @@ final class DemoURLProtocol: URLProtocol {
             let keys = ["\(full)#\(screen)", "\(url.path)#\(screen)"] + (Demo.isGuest ? ["\(url.path)#guest"] : []) + [full, url.path]
             if let d = keys.lazy.compactMap({ Demo.fixtures[$0] }).first { body = Self.fillDates(d) } else { status = 404 }
         } else if let d = Demo.fixtures["\(request.httpMethod ?? "") \(url.path)"] {
-            body = d // mutations with a canned answer ("POST /api/lr/attempts/x/submit"); every other write succeeds with {}
+            body = Self.fillDates(d) // mutations with a canned answer ("POST /api/lr/attempts/x/submit"); every other write succeeds with {}
         }
         let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json", "set-auth-token": "demo"])!
         client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
@@ -85,7 +85,8 @@ final class DemoURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 
-    /// Quota resets move with the clock: "@@DAY@@" is the next 00:00 UTC, "@@WEEK@@" the next Monday 00:00 UTC.
+    /// Dates move with the clock: "@@DAY@@" is the next 00:00 UTC, "@@WEEK@@" the next Monday 00:00 UTC (quota resets), and "@@AGO:n@@"
+    /// is n days ago at 60 % of today's elapsed time, so day 0 is always earlier today and the history buckets never go stale.
     static func fillDates(_ data: Data) -> Data {
         guard var s = String(data: data, encoding: .utf8), s.contains("@@") else { return data }
         var cal = Calendar(identifier: .gregorian)
@@ -95,6 +96,17 @@ final class DemoURLProtocol: URLProtocol {
         let week = cal.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, weekday: 2), matchingPolicy: .nextTime)!
         let f = ISO8601DateFormatter()
         s = s.replacingOccurrences(of: "@@DAY@@", with: f.string(from: day)).replacingOccurrences(of: "@@WEEK@@", with: f.string(from: week))
-        return Data(s.utf8)
+        let local = Calendar.current, today = local.startOfDay(for: now), into = now.timeIntervalSince(today) * 0.6
+        let ns = s as NSString
+        var out = "", at = 0
+        for m in agoPattern.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+            let n = Int(ns.substring(with: m.range(at: 1))) ?? 0
+            out += ns.substring(with: NSRange(location: at, length: m.range.location - at))
+            out += f.string(from: (local.date(byAdding: .day, value: -n, to: today) ?? today).addingTimeInterval(into))
+            at = m.range.location + m.range.length
+        }
+        return Data((out + ns.substring(from: at)).utf8)
     }
+
+    private static let agoPattern = try! NSRegularExpression(pattern: "@@AGO:(\\d+)@@")
 }
