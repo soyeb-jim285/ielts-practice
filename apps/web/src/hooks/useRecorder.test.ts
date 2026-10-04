@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { estimateWpm, useRecorder } from './useRecorder';
+import { estimateWpm, pickMime, useRecorder } from './useRecorder';
 
 const setMedia = (mediaDevices: unknown) => Object.defineProperty(navigator, 'mediaDevices', { value: mediaDevices, configurable: true });
 
@@ -50,5 +50,16 @@ describe('estimateWpm', () => {
   it('ignores a periodic beep with too few voiced frames to be speech', () => {
     const beep = Array.from({ length: 200 }, (_, i) => (i % 10 === 1 ? 145 : 10));
     expect(estimateWpm(beep)).toBe(0);
+  });
+});
+
+describe('pickMime', () => {
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+  const crios = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0 Mobile/15E148 Safari/604.1';
+  const chrome = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
+  it('records mp4 on WebKit (Safari, every iOS browser) and opus/webm elsewhere', () => {
+    vi.stubGlobal('MediaRecorder', { isTypeSupported: () => true });
+    expect([pickMime(iphone), pickMime(crios), pickMime(chrome)]).toEqual(['audio/mp4', 'audio/mp4', 'audio/webm;codecs=opus']);
+    vi.unstubAllGlobals();
   });
 });

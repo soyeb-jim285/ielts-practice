@@ -8,11 +8,16 @@ const VOICE = 60; // byte threshold for "speaking"; matches core computeSpeechMe
 // ponytail: fixed gain maps typical speech RMS (0.05–0.2) to ~60–115; expose a calibration setting if quiet mics read as silence.
 const GAIN = 255;
 
-/** First supported of opus/webm, mp4 (Safari), plain webm; '' lets the browser choose. */
-export function pickMime(): string {
+/** WebKit = Safari and every iOS browser (CriOS/FxiOS are WebKit too); Chromium and Gecko are not. */
+export const isWebKit = (ua = globalThis.navigator?.userAgent ?? '') => /AppleWebKit/.test(ua) && !/Chrome\/|Chromium|Edg\/|Android/.test(ua);
+
+/** First supported of opus/webm, mp4, plain webm; '' lets the browser choose. WebKit gets mp4 (AAC) first: its own WebM (2.5 ms Opus frames,
+ *  no cues) plays back in WebKit with the sound dropping out mid-file while the clock runs on, until a seek. */
+export function pickMime(ua?: string): string {
   const MR = globalThis.MediaRecorder;
   if (!MR?.isTypeSupported) return '';
-  return ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => MR.isTypeSupported(t)) ?? '';
+  const order = isWebKit(ua) ? ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'] : ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'];
+  return order.find((t) => MR.isTypeSupported(t)) ?? '';
 }
 
 // ponytail: calibrated in Chrome against Whisper speech rate on TTS answers (176/186 wpm → 3.4/3.2 peaks/s); peaks merge syllables, so ~1.1 per word.
