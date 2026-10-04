@@ -77,6 +77,11 @@ tap_text() { # tap_text <label> [n] [sleep after] [dy]: probe pass finds it in a
   [ "$MODE" = probe ] && echo "tap '$1' at $xy"
   adb shell input tap $xy; sleep "${3:-1.2}"
 }
+tap_live() { # tap_live <label> [n] [sleep after]: a fresh dump in both passes, for a target after a swipe (a fling never stops at quite the same place)
+  local xy; dump "$1"; xy=$(python3 /tmp/find_xy.py "$1" "${2:-0}" < /tmp/ui.xml)
+  if [ -z "$xy" ]; then echo "MISS tap_live '$1' ($MODE)"; return 1; fi
+  echo "tap live '$1' at $xy ($MODE)"; adb shell input tap $xy; sleep "${3:-1.2}"
+}
 swipe_up()   { adb shell input swipe $CX $((H * 72 / 100)) $CX $((H * 30 / 100)) "${1:-650}"; sleep "${2:-1}"; }  # scrolls the content down
 swipe_down() { adb shell input swipe $CX $((H * 30 / 100)) $CX $((H * 72 / 100)) "${1:-650}"; sleep "${2:-1}"; }
 launch() { # launch <screen> <theme> [tab]
@@ -106,9 +111,12 @@ rec_stop() {
   adb pull "/sdcard/$CLIP.mp4" "$OUT/$CLIP.mp4" > /dev/null && echo "clip $CLIP $(du -k "$OUT/$CLIP.mp4" | cut -f1) KB"
 }
 typewords() { local w; for w in "$@"; do adb shell input text "$w"; sleep 0.1; done; } # each arg is one input call, use %s for spaces
-take() { # take <clip function> [theme]: probe pass, then the recorded replay
+take() { # take <clip function> [theme]: probe pass, then the recorded replay (its warnings and errors go to dumps/<clip>-logcat.txt)
   MODE=probe; XY=(); "$@"
+  dump end
+  adb logcat -c
   MODE=replay; XI=0; "$@"
+  adb logcat -d -v time '*:W' 2>/dev/null | tail -300 > "$OUT/dumps/$CLIP-logcat.txt"
 }
 
 # ---- clips ---------------------------------------------------------------------------------------------------------
@@ -126,9 +134,12 @@ clip_speaking_bands() { # $1 theme. Speaking result: band 7.0 against the target
 }
 clip_transcript() { # $1 theme. Transcript: fillers, repeat / restart tags and long pauses in place; tap a word to play from there (the word lights up as it plays); tap an underlined mistake.
   launch result-speaking "$1" Transcript; rec_start "03-speaking-transcript-highlights-$1"
-  sleep 1.5; swipe_up 1100 1.6
-  tap_text "Growing" 0 3.6 32 # +32: in this list the reported bounds sit about 12dp above the drawn words
-  tap_text "had, Grammar" 0 3.2 32
+  sleep 1.5; swipe_up 1100 2.4
+  dump words # one dump for both words once the list has settled (a dump while the audio plays takes seconds)
+  local g e; g=$(python3 /tmp/find_xy.py "Growing" 0 < /tmp/ui.xml); e=$(python3 /tmp/find_xy.py "had, Grammar" 0 < /tmp/ui.xml)
+  echo "words at $g / $e ($MODE)"
+  adb shell input tap $g; sleep 3.6
+  adb shell input tap $e; sleep 3.2
   rec_stop
 }
 clip_writing_errors() { # $1 theme. Writing result, Essay: every mistake underlined in the text (red major, amber minor); open one for the correction.
@@ -174,13 +185,13 @@ clip_reading_location() { # Reading result: a True/False/Not Given mistake expla
   launch lr-result light; rec_start "10-reading-result-answer-location-light"
   sleep 1.5; tap_text "See your" 0 1.4
   tap_text "Question 4," 0 1.6; swipe_up 900 1.6 # the explanation opens below the row
-  tap_text "Show in passage" 0 3.6
+  tap_live "Show in passage" 0 3.6
   rec_stop
 }
 clip_reading_tfng() { # Reading result, Summary: where marks were lost by question type, then the True/False/Not Given pattern.
   launch lr-result light; rec_start "11-reading-result-tfng-pattern-light"
   sleep 1.5; swipe_up 1100 1.6; swipe_up 1100 1.4
-  tap_text "Which statements you mix up" 0 1.6; swipe_up 1100 1.8; swipe_up 1100 2.0
+  tap_live "Which statements you mix up" 0 1.6; swipe_up 1100 1.8; swipe_up 1100 2.0
   rec_stop
 }
 clip_review() { # $1 theme. Review deck: a Listening spelling card (Hear the word, then the spelling), graded Good; the next card comes up.
@@ -191,7 +202,7 @@ clip_review() { # $1 theme. Review deck: a Listening spelling card (Hear the wor
 clip_dashboard() { # $1 theme. Home: streak, Next up, predicted bands, then the band-by-criterion trend (speaking, then writing) over three weeks.
   launch home "$1"; rec_start "13-dashboard-trend-$1"
   sleep 1.5; swipe_up 1100 1.5; swipe_up 1100 2.2
-  tap_text "Writing" 0 2.4; swipe_up 1100 1.6
+  tap_live "Writing" 0 2.4; swipe_up 1100 1.6
   rec_stop
 }
 clip_bank() { # Prompt bank: every question to practise; Speaking only, then search "food".
