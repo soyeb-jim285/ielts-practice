@@ -170,6 +170,7 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
     LaunchedEffect(attempt.audioUrl) {
         val url = attempt.audioUrl
         if (speaking && url != null && demo == null) { player.load(context, url); player.poll() }
+        else if (demo?.tour == true) player.demoClock()
     }
     LaunchedEffect(attempt.parentAttemptId) {
         val id = attempt.parentAttemptId ?: return@LaunchedEffect

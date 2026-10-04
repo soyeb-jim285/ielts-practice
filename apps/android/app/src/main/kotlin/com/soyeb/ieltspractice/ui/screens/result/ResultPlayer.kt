@@ -53,7 +53,15 @@ class ResultPlayer(private val demoDuration: Double? = null) {
         }
     }
 
-    fun play() { engine?.play(); if (engine != null) isPlaying = true }
+    /** Tour demo ([DemoConfig.tour]): no engine, so the clock moves by itself while "playing". Screenshots never call it and keep the fixed spot. */
+    suspend fun demoClock() {
+        while (true) {
+            delay(50)
+            if (isPlaying) currentTime = min(duration, currentTime + 0.05 * speed).also { if (it >= duration) isPlaying = false }
+        }
+    }
+
+    fun play() { engine?.play(); if (engine != null || demoDuration != null) isPlaying = true }
     fun pause() { engine?.pause(); isPlaying = false }
     fun toggle() = if (isPlaying) pause() else play()
 

@@ -18,15 +18,17 @@ import okhttp3.ResponseBody.Companion.toResponseBody
  * - `screen`: a name from [com.soyeb.ieltspractice.ui.nav.screenCatalog] (default: the Home tab)
  * - `tab`: a screen-specific sub-tab (the iOS `-tab` argument), read with `LocalDemo.current?.tab`
  * - `theme`: `light` | `dark` (default: follow the system)
+ * - `tour` (`--ez tour true`): the video tour. Layers `tour-fixtures.json` (one student's three weeks, apps/android/scripts/gen-tour-fixtures.mjs)
+ *   over the fixtures, and the demo audio clocks run: players move while playing, the examiner "speaks" for the length of a line.
  */
-data class DemoConfig(val screen: String? = null, val tab: String? = null, val theme: String? = null) {
+data class DemoConfig(val screen: String? = null, val tab: String? = null, val theme: String? = null, val tour: Boolean = false) {
     val dark: Boolean? get() = when (theme) { "dark" -> true; "light" -> false; else -> null }
 
     companion object {
         /** Null unless the intent carries `--ez demo true`. */
         fun from(intent: Intent?): DemoConfig? {
             if (intent?.getBooleanExtra("demo", false) != true) return null
-            return DemoConfig(intent.getStringExtra("screen"), intent.getStringExtra("tab"), intent.getStringExtra("theme"))
+            return DemoConfig(intent.getStringExtra("screen"), intent.getStringExtra("tab"), intent.getStringExtra("theme"), intent.getBooleanExtra("tour", false))
         }
     }
 }
@@ -36,8 +38,10 @@ object DemoFixtures {
     fun parse(text: String): Map<String, String> =
         AppJson.parseToJsonElement(text).jsonObject.mapValues { it.value.toString() }
 
-    fun load(context: Context): Map<String, String> =
-        parse(context.assets.open("fixtures.json").bufferedReader().use { it.readText() })
+    fun load(context: Context, tour: Boolean = false): Map<String, String> {
+        fun read(name: String) = parse(context.assets.open(name).bufferedReader().use { it.readText() })
+        return if (tour) read("fixtures.json") + read("tour-fixtures.json") else read("fixtures.json")
+    }
 }
 
 /**

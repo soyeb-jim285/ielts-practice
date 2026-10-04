@@ -77,12 +77,16 @@ import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 // Mirrors: web components/lr/Audio.tsx. Media3 ExoPlayer streams the presigned URLs (Range supported).
 
-/** Practice / review player state: play, scrub, speed. In demo mode there is no engine, only a fixed spot, so screenshots need no audio. */
+/**
+ * Practice / review player state: play, scrub, speed. In demo mode there is no engine, only a fixed spot, so screenshots need no audio.
+ * With [clock] (the video tour) the demo position moves by itself while "playing".
+ */
 @Stable
-class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null) {
+class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null, private val clock: Boolean = false) {
     var playing by mutableStateOf(false)
         private set
     var position by mutableDoubleStateOf(if (demo) 87.0 else 0.0)
@@ -109,7 +113,7 @@ class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null) 
     }
 
     suspend fun poll() {
-        val e = engine ?: return
+        val e = engine ?: return demoClock()
         var waited = 0
         while (true) {
             playing = e.playing.value
@@ -131,8 +135,19 @@ class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null) 
         }
     }
 
+    private suspend fun demoClock() {
+        if (!demo || !clock) return
+        while (true) {
+            delay(100)
+            if (!playing) continue
+            position = min(duration, position + 0.1 * speed)
+            stopAt?.let { if (position >= it) { playing = false; stopAt = null } }
+            if (position >= duration) playing = false
+        }
+    }
+
     fun toggle() {
-        if (playing) { engine?.pause(); playing = false; savePosition() } else { engine?.play(); if (engine != null) { playing = true; resumedAt = 0.0 } }
+        if (playing) { engine?.pause(); playing = false; savePosition() } else { engine?.play(); if (engine != null || clock) { playing = true; resumedAt = 0.0 } }
     }
     private fun savePosition() {
         if (resume == null || !ready) return
@@ -143,7 +158,7 @@ class LrPlayer(private val demo: Boolean, private val resume: LrResume? = null) 
     fun playWindow(from: Double, to: Double) {
         seek(from)
         stopAt = to
-        if (demo) { playing = false; return }
+        if (demo) { playing = clock; return }
         engine?.play()
         if (engine != null) playing = true
     }
@@ -210,7 +225,7 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
     val e = MaterialTheme.ext
     val context = LocalContext.current
     val demo = LocalDemo.current != null
-    val player = remember(src) { LrPlayer(demo, resume) }
+    val player = remember(src) { LrPlayer(demo, resume, clock = LocalDemo.current?.tour == true) }
     LaunchedEffect(player) { if (src.isNotEmpty()) { player.load(context, src); player.poll() } }
     DisposableEffect(player) { onDispose { player.release() } }
     // review: "Play from here" jumps to the cue and stops at its end

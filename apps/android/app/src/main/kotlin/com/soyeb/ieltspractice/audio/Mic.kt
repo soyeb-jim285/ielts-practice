@@ -75,8 +75,8 @@ class Vad(var threshold: Double = 0.3, var startAfter: Double = 0.15, var endAft
     }
 }
 
-/** Mono PCM16 capture on its own thread, in ~40 ms chunks. Needs RECORD_AUDIO granted. [onPcm] runs on the capture thread. */
-class PcmCapture(val rate: Int) {
+/** Mono PCM16 capture on its own thread, in ~40 ms chunks. Needs RECORD_AUDIO granted. [onPcm] runs on the capture thread. [synthetic]: [SyntheticVoice] instead of the microphone. */
+class PcmCapture(val rate: Int, private val synthetic: Boolean = false) {
     @Volatile var onPcm: ((ShortArray, Int) -> Unit)? = null
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -85,6 +85,23 @@ class PcmCapture(val rate: Int) {
     fun start(): Boolean {
         if (running) return true
         val chunk = rate / 25
+        if (synthetic) {
+            running = true
+            thread = Thread({
+                val voice = SyntheticVoice(rate)
+                val buf = ShortArray(chunk)
+                var next = System.nanoTime()
+                while (running) {
+                    voice.fill(buf)
+                    onPcm?.invoke(buf, chunk)
+                    next += chunk * 1_000_000_000L / rate
+                    val wait = (next - System.nanoTime()) / 1_000_000
+                    if (wait > 0) Thread.sleep(wait)
+                }
+                running = false
+            }, "mic-synthetic").apply { start() }
+            return true
+        }
         val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (min <= 0) return false
         val rec = try {
@@ -113,6 +130,35 @@ class PcmCapture(val rate: Int) {
         thread = null
         if (t !== Thread.currentThread()) runCatching { t.join(500) }
     }
+}
+
+/**
+ * Demo mode's microphone: noise shaped into about four syllables a second with short pauses between phrases, so the level meter, the pace
+ * estimate ([estimateWpm] reads ~140 wpm) and the recorded file behave as if someone were talking. Deterministic (fixed seed).
+ */
+private class SyntheticVoice(private val rate: Int) {
+    private val rnd = java.util.Random(7)
+    private val gains = DoubleArray(97) { 0.55 + 0.45 * rnd.nextDouble() } // per-syllable loudness
+    private var n = 0L
+    private var phraseLeft = 0.0
+    private var pauseLeft = 0.0
+
+    fun fill(buf: ShortArray) {
+        val dt = 1.0 / rate
+        for (i in buf.indices) {
+            val t = n++ * dt
+            val env = if (pauseLeft > 0) { pauseLeft -= dt; 0.0 } else {
+                phraseLeft -= dt
+                if (phraseLeft <= 0) { phraseLeft = 2.5 + 2 * rnd.nextDouble(); pauseLeft = 0.35 + 0.5 * rnd.nextDouble() }
+                val c = 0.5 - 0.5 * kotlin.math.cos(2 * Math.PI * SYLLABLES * t)
+                c * c * gains[(t * SYLLABLES).toInt() % gains.size]
+            }
+            val x = 0.003 * (2 * rnd.nextDouble() - 1) + 0.45 * env * (2 * rnd.nextDouble() - 1)
+            buf[i] = (x.coerceIn(-1.0, 1.0) * 32767).toInt().toShort()
+        }
+    }
+
+    companion object { const val SYLLABLES = 4.2 }
 }
 
 /** PCM16 mono -> AAC-LC in an MPEG-4 container (.m4a, `audio/mp4`). Thread-safe; call [finish] once. */
@@ -242,9 +288,9 @@ class RecordResult(val durationMs: Int, val energy: List<Int>)
  * The practice recorder (iOS Recorder): 16 kHz mono AAC m4a to [start]'s file, plus the observable state the UI shows. With a null file it
  * only meters (the mic check). Observable fields are Compose state, updated from the capture thread. Main thread starts and stops it.
  */
-class MicRecorder {
+class MicRecorder(synthetic: Boolean = false) {
     private val rate = 16_000
-    private val capture = PcmCapture(rate)
+    private val capture = PcmCapture(rate, synthetic)
     private var meter = Meter(rate)
     private var writer: AacWriter? = null
     private var onLevel: ((Double, Double) -> Unit)? = null

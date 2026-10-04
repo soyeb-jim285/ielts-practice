@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Records real interaction clips: `adb shell screenrecord` in the background while taps/swipes/text are sent with adb input.
 # Taps find their target by dumping the UI (uiautomator) and reading the bounds of a text / content-description, no hardcoded coordinates.
-# Demo mode (see apps/android/.../core/Demo.kt) opens each screen on fixtures. Output: device-video/*.mp4 plus dumps/ for debugging.
+# Demo mode (see apps/android/.../core/Demo.kt) opens each screen on fixtures; `--ez tour true` adds the video-tour data (one student, Nusrat,
+# band 6.0 to 7.0 over three weeks: apps/android/scripts/gen-tour-fixtures.mjs) and runs the demo audio clocks and synthetic microphone.
+# Output: device-video/<NN-feature-theme>.mp4 (one feature per clip, portrait) plus dumps/ for debugging.
 set -u
 APK=apps/android/app/build/outputs/apk/debug/app-debug.apk
 PKG=com.soyeb.ieltspractice
@@ -48,6 +50,13 @@ for e in root.iter("node"):
 if not hits: sys.exit(1)
 best = min(h[0] for h in hits)
 pick = [h for h in hits if h[0] == best]
+# the same label in the content and in the bottom navigation bar ("Writing"): take the content one
+screen = max(h[7] for h in hits)
+for e in root.iter("node"):
+    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+    if m: screen = max(screen, int(m.group(4)))
+upper = [h for h in pick if h[3] < screen * 0.88]
+if upper: pick = upper
 h = pick[min(n, len(pick) - 1)]
 print(*(h[4:] if len(sys.argv) > 3 else h[2:4]))
 PY
@@ -73,7 +82,7 @@ swipe_down() { adb shell input swipe $CX $((H * 30 / 100)) $CX $((H * 72 / 100))
 launch() { # launch <screen> <theme> [tab]
   if [ "$2" = dark ]; then adb shell cmd uimode night yes; else adb shell cmd uimode night no; fi
   adb shell am force-stop "$PKG"
-  adb shell am start -W -n "$PKG/.MainActivity" --ez demo true --es screen "$1" --es theme "$2" ${3:+--es tab "$3"} > /dev/null
+  adb shell am start -W -n "$PKG/.MainActivity" --ez demo true --ez tour true --es screen "$1" --es theme "$2" ${3:+--es tab "$3"} > /dev/null
   sleep 4.5
   dump launch
   if grep -q "isn't responding" /tmp/ui.xml; then adb shell input keyevent KEYCODE_DPAD_DOWN KEYCODE_DPAD_DOWN KEYCODE_ENTER; sleep 3; fi
@@ -95,98 +104,128 @@ rec_stop() {
 typewords() { local w; for w in "$@"; do adb shell input text "$w"; sleep 0.1; done; } # each arg is one input call, use %s for spaces
 
 # ---- clips ---------------------------------------------------------------------------------------------------------
-clip_home() { # $1 theme
-  launch home "$1"; rec_start "01-home-scroll-$1"
-  sleep 0.7; swipe_up 900 1.2; swipe_up 900 1.4; swipe_up 900 1.2; swipe_down 700 0.6; swipe_down 700 0.6; swipe_down 700 1
+# One feature each, 6-15 s, light and (where it matters) dark. Taps find their target in a UI dump, which takes ~1.5 s, so a dump that
+# would leave a dead pause on camera is taken while something is already happening (the examiner talking).
+
+clip_examiner() { # $1 theme. Part 1: tap the mic; the examiner reads the topic line and the question aloud (the question is heard, not shown); "Speak now"; the answer records.
+  launch session-p1 "$1"; rec_start "01-speaking-examiner-part1-$1"
+  sleep 1.2; tap_text "Start recording" 0 10.5
   rec_stop
 }
-clip_speaking_hub() { # the hub, scroll to the single parts, tap Part 1, press record (real mic, silence on the emulator)
-  launch speaking light; rec_start "02-speaking-hub-light"
-  sleep 0.7; swipe_up 800 1.0; swipe_up 800 1.0
-  tap_text "Part 1" 0 2.5
-  has_text "Start test" && tap_text "Start test" 0 3 # community-balance fair-use dialog
-  tap_text "Start recording" 0 5
+clip_speaking_bands() { # $1 theme. Speaking result: band 7.0 against the target, then each criterion with its band, range and summary.
+  launch result-speaking "$1" Overview; rec_start "02-speaking-result-bands-$1"
+  sleep 2.2; swipe_up 1100 1.8; swipe_up 1100 1.8; swipe_up 1100 1.8
   rec_stop
 }
-clip_session_prep() { # Part 2 preparation minute: tap the notes box and type notes
-  launch session-prep light; rec_start "03-session-prep-notes-light"
-  sleep 1.5; tap_text "Notes" 1 1.2 # 0 is the label, 1 the field
-  typewords "Book:%s" "Sapiens%s" "-%sread%sit%s" "in%s2019%s" "-%schanged%show%sI%s" "see%shistory"
-  sleep 2
+clip_transcript() { # $1 theme. Transcript: fillers, repeat / restart tags and long pauses in place; tap a word to play from there; tap an underlined mistake.
+  launch result-speaking "$1" Transcript; rec_start "03-speaking-transcript-highlights-$1"
+  sleep 1.5; swipe_up 1100 1.6
+  tap_text "Growing" 0 3.2
+  tap_text "had, Grammar" 0 3.2
   rec_stop
 }
-clip_session_live_record() { # a real recording on the emulator mic: Part 1, press the record button, the timer and level run
-  launch session-p1 light; rec_start "03b-session-p1-record-light"
-  sleep 1; tap_text "Start recording" 0 7
+clip_writing_errors() { # $1 theme. Writing result, Essay: every mistake underlined in the text (red major, amber minor); open one for the correction.
+  launch result-writing "$1" Essay; rec_start "04-writing-result-marked-errors-$1"
+  sleep 1.8; swipe_up 1100 1.6; swipe_up 1100 1.6; swipe_up 1100 1.4
+  tap_text '"Which" refers' 0 3.2
   rec_stop
 }
-clip_result_tabs() { # $1 theme
-  launch result-speaking "$1" Overview; rec_start "04-result-tabs-$1"
-  sleep 0.7; swipe_up 800 1.0; swipe_up 800 1.0; swipe_down 700 0.4; swipe_down 700 0.4
-  tap_text "Transcript" 0 1.2; swipe_up 800 1.0; swipe_up 800 1.0; swipe_down 700 0.4; swipe_down 700 0.4
-  tap_text "Fluency" 0 1.2; swipe_up 800 1.2; swipe_up 800 1.2
+clip_writing_bands() { # Writing result, Overview: 7.0, each criterion up on the last try, and the last try 6.0 -> 7.0 strip.
+  launch result-writing light Overview; rec_start "05-writing-result-progress-light"
+  sleep 2.2; swipe_up 1100 1.8; swipe_up 1100 1.8; swipe_up 1100 2.0
   rec_stop
 }
-fluency_scroll() { swipe_up 700 1.0; } # brings the pace chart into view (same swipes in the probe pass and the recorded pass)
-clip_fluency_dot() { # $1 theme. Pass 1 (not recorded): probe the chart for dots with taps + dumps. Pass 2 (recorded): replay the scroll and the dot taps.
-  local box x0 y0 x1 y1 w h fx fy last=-99 n=0 hits="" xy
-  launch result-speaking "$1" Fluency; CLIP="05-fluency-dot-$1"
-  fluency_scroll
-  dump chart; box=$(python3 /tmp/find_xy.py "Words per minute over time" 0 box < /tmp/ui.xml)
-  if [ -z "$box" ]; then echo "MISS chart"; return 1; fi
-  read -r x0 y0 x1 y1 <<< "$box"; w=$((x1 - x0)); h=$((y1 - y0)); echo "chart box $box"
-  for fx in 16 24 34 44 52 60 68 76 84 92; do for fy in 40 30 50 60 70; do
-    [ $((fx - last)) -lt 18 ] && continue
-    adb shell input tap $((x0 + w * fx / 100)) $((y0 + h * fy / 100)); sleep 0.4
-    if has_text "Close"; then echo "dot hit at $fx,$fy"; hits="$hits $((x0 + w * fx / 100)),$((y0 + h * fy / 100))"; last=$fx; n=$((n + 1)); tap_text "Close" 0 0.4; break; fi
-  done; [ $n -ge 3 ] && break; done
-  xy=; echo "hits:$hits"
-  launch result-speaking "$1" Fluency; rec_start "05-fluency-dot-$1"
-  sleep 0.7; fluency_scroll; sleep 1
-  for xy2 in $hits; do adb shell input tap ${xy2%,*} ${xy2#*,}; sleep 2.6; done
-  tap_text "Close" 0 1
-  sleep 1.2
+clip_writing_rewrite() { # Writing result, Improve: what changed since the last attempt, then the same essay one band higher as a word diff.
+  launch result-writing light Improve; rec_start "06-writing-result-rewrite-light"
+  sleep 1.8; swipe_up 1100 1.5; swipe_up 1100 1.5; swipe_up 1100 1.5; swipe_up 1100 1.5; swipe_up 1100 1.8
   rec_stop
 }
-clip_writing_type() { # $1 theme
-  launch editor "$1"; rec_start "06-writing-editor-type-$1"
-  sleep 1; tap_text "Your answer" 0 1.0
-  typewords "Some%speople%s" "believe%sthat%s" "children%sshould%s" "start%sschool%s" "later%sin%slife.%s" "However,%sI%s" "think%san%searly%s" "start%sis%sbetter."
+clip_listening_start() { # Listening hub: an unfinished test offers Continue or Start new; Start new, Practice, Part 2 only, Start: the runner opens on that part.
+  launch lr-hub-listening light; rec_start "07-listening-continue-or-new-single-part-light"
+  sleep 1.2; tap_text "Original practice · Listening 1" 0 1.8
+  tap_text "Start new" 0 1.0; tap_text "Practice" 0 0.6; tap_text "2" 0 0.8
+  tap_text "Start practice part 2" 0 2.6
+  rec_stop
+}
+clip_listening_run() { # Practice listening: play the recording (the clock runs), answer the form while it plays.
+  launch lr-listening light; rec_start "08-listening-practice-run-light"
+  sleep 1.2; tap_text "Play Part 1" 0 1.0
+  tap_text "Question 4," 0 0.6; adb shell input text "85"; sleep 0.8
+  tap_text "Question 5," 0 0.6; adb shell input text "apron"; sleep 2.2
+  rec_stop
+}
+clip_listening_result() { # $1 theme. Listening result: band and takeaways; See your mistakes; open one (why, where it was said); Listen from: transcript marked, audio cued.
+  launch lr-result-listening "$1"; rec_start "09-listening-result-explain-replay-$1"
+  sleep 1.8; tap_text "See your" 0 1.4
+  tap_text "Question 5," 0 2.4
+  tap_text "Listen from" 0 4.2
+  rec_stop
+}
+clip_reading_location() { # Reading result: a True/False/Not Given mistake explained, then Show in passage: the answer's sentence marked in the text.
+  launch lr-result light; rec_start "10-reading-result-answer-location-light"
+  sleep 1.5; tap_text "See your" 0 1.4
+  tap_text "Question 4," 0 2.8
+  tap_text "Show in passage" 0 3.6
+  rec_stop
+}
+clip_reading_tfng() { # Reading result, Summary: where marks were lost by question type, then the True/False/Not Given pattern.
+  launch lr-result light; rec_start "11-reading-result-tfng-pattern-light"
+  sleep 1.5; swipe_up 1100 1.6; swipe_up 1100 1.4
+  tap_text "Which statements you mix up" 0 2.0; swipe_up 1100 2.2
+  rec_stop
+}
+clip_review() { # $1 theme. Review deck: a Listening spelling card (Hear the word, then the spelling), graded Good; the next card comes up.
+  launch review "$1" Question; rec_start "12-review-spelling-card-$1"
+  sleep 1.8; tap_text "Hear the word" 0 1.8; tap_text "Show answer" 0 2.4; tap_text "Good" 0 2.4
+  rec_stop
+}
+clip_dashboard() { # $1 theme. Home: streak, Next up, predicted bands, then the band-by-criterion trend (speaking, then writing) over three weeks.
+  launch home "$1"; rec_start "13-dashboard-trend-$1"
+  sleep 1.5; swipe_up 1100 1.5; swipe_up 1100 2.2
+  tap_text "Writing" 0 2.4; swipe_up 1100 1.6
+  rec_stop
+}
+clip_bank() { # Prompt bank: every question to practise; Speaking only, then search "food".
+  launch bank-all light; rec_start "14-question-bank-search-light"
+  sleep 1.5; swipe_up 1100 1.4; swipe_down 1100 1.0
+  tap_text "Speaking" 0 1.2; tap_text "Search titles and questions" 0 0.6
+  typewords "food"; sleep 2.6
+  rec_stop
+}
+clip_part2_prep() { # Part 2: the cue card, start the minute of preparation (the ring counts down) and make notes.
+  launch session light; rec_start "15-speaking-part2-prep-notes-light"
+  sleep 1.2; tap_text "Start 1-minute preparation" 0 1.0
+  tap_text "Notes" 1 0.6 # 0 is the label, 1 the field
+  typewords "swimming%sat%s19" "%s-%scoach,%s" "small%ssteps" "%s-%sfitness%s+%s" "patience"
+  sleep 1.8
+  rec_stop
+}
+clip_writing_type() { # Writing Task 2 editor: the prompt, the timer and word count while typing.
+  launch editor light; rec_start "16-writing-editor-typing-light"
+  sleep 1; tap_text "Your answer" 0 0.8
+  typewords "These%sdays,%s" "a%sgrowing%snumber%s" "of%syoung%speople%s" "take%sa%syear%sout%s" "before%suniversity."
   sleep 1.5
   rec_stop
 }
-clip_review() {
-  launch review light Question; rec_start "07-review-reveal-light"
-  sleep 1.5; tap_text "Show answer" 0 2.5; tap_text "Good" 0 2; tap_text "Show answer" 0 2.5; tap_text "Easy" 0 2
-  rec_stop
-}
-clip_settings_keys() {
-  launch settings-keys light Empty; rec_start "08-settings-keys-light"
-  sleep 1.5; tap_text "OpenRouter API key" 0 1.5
-  typewords "sk-or-v1-" "demo-key-" "0123456789"
-  sleep 0.8; tap_text "Show" 0 2.5 # (Save answers an error in demo mode, so it is not tapped)
-  rec_stop
-}
-clip_guest_home() {
-  launch guest-home light; rec_start "09-guest-home-light"
-  sleep 0.7; swipe_up 900 1.3; swipe_up 900 1.5; swipe_down 800 0.8; swipe_down 800 1
-  rec_stop
-}
 
-ONLY=${ONLY:-}  # e.g. ONLY="clip_review clip_home" for a quick re-run
-if [ -n "$ONLY" ]; then for c in $ONLY; do ${c%%:*} ${c#*:}; done; exit 0; fi
-clip_home light
-clip_speaking_hub
-clip_session_prep
-clip_session_live_record
-clip_result_tabs light
-clip_fluency_dot light
-clip_writing_type light
-clip_review
-clip_settings_keys
-clip_guest_home
-clip_home dark
-clip_result_tabs dark
-clip_writing_type dark
-clip_fluency_dot dark
+ONLY=${ONLY:-}  # e.g. ONLY="clip_review:dark clip_bank" for a quick re-run
+if [ -n "$ONLY" ]; then for c in $ONLY; do ${c%%:*} ${c#*:}; done; ls -l "$OUT"; exit 0; fi
+for t in light dark; do
+  clip_examiner $t
+  clip_speaking_bands $t
+  clip_transcript $t
+  clip_writing_errors $t
+  clip_listening_result $t
+  clip_review $t
+  clip_dashboard $t
+done
+clip_writing_bands
+clip_writing_rewrite
+clip_listening_start
+clip_listening_run
+clip_reading_location
+clip_reading_tfng
+clip_bank
+clip_part2_prep
+clip_writing_type
 ls -l "$OUT"

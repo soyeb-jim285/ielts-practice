@@ -43,7 +43,7 @@ class AppContainer(context: Context, val demo: DemoConfig? = null) {
             DemoCommunity.pinClock()
             ApiClient(
                 baseUrl = "https://demo.ielts.local", store = MemoryTokenStore(),
-                interceptor = DemoInterceptor(DemoCommunity.overlay(DemoFixtures.load(app), demo.screen, demo.tab)) { name -> runCatching { app.assets.open(name).use { it.readBytes() } }.getOrNull() },
+                interceptor = DemoInterceptor(DemoCommunity.overlay(DemoFixtures.load(app, demo.tour), demo.screen, demo.tab)) { name -> runCatching { app.assets.open(name).use { it.readBytes() } }.getOrNull() },
                 // iOS: `-screen login` / `guest-*` show the signed-out state; a screen with "guest" in its name is signed out, except the guest's own result.
                 initialToken = if (demo.screen == "login" || (DemoCommunity.guest(demo.screen) && !DemoCommunity.anonymousSession(demo.screen))) null else "demo",
                 scope = scope,

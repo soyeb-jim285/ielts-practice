@@ -61,8 +61,9 @@ class SessionModel(
     var startError by mutableStateOf<String?>(null)
     var demoStates by mutableStateOf<Map<String, UploadState>>(emptyMap()); private set
 
-    val recorder = MicRecorder()
-    val micCheck = MicRecorder()
+    // Demo mode has no microphone to rely on (screenshots, the emulator): a synthetic voice feeds the same pipeline.
+    val recorder = MicRecorder(synthetic = demo != null)
+    val micCheck = MicRecorder(synthetic = demo != null)
 
     private val api get() = app.api
     private val store get() = app.pending
@@ -123,12 +124,14 @@ class SessionModel(
     private fun ask(lines: List<AudioLine?>, resume: Boolean = true) {
         askJob?.cancel()
         askJob = scope.launch {
-            val urls = lines.mapNotNull { it?.url }
-            if (urls.isNotEmpty()) {
+            val spoken = lines.filterNotNull().filter { it.url != null }
+            if (spoken.isNotEmpty()) {
                 examiner = Examiner.Asking
                 recorder.paused = true
-                for (u in urls) {
-                    player.load(u); player.play()
+                for (l in spoken) {
+                    // ponytail: demo mode has no examiner audio, so the line "plays" for about as long as it takes to say
+                    if (demo != null) { delay(600L + 280L * l.text.split(' ').size); continue }
+                    player.load(l.url!!); player.play()
                     withTimeoutOrNull(60_000) { player.ended.first { it } }
                 }
             }
