@@ -1,3 +1,4 @@
+import { pageMeta } from '@ielts/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -22,6 +23,11 @@ const router = createRouter({
 // Hard load: /api/me is already in flight from index.html; start the matched routes' split chunks now too, so the
 // router doesn't discover them only after the entry has rendered. _app's loader awaits me in parallel with the page loaders.
 for (const r of router.getMatchedRoutes(location.pathname)[0]) router.loadRouteChunk(r)?.catch(() => {}); // the router retries and reports on navigation
+
+// The tab title follows the page (the server writes the same one into the HTML for crawlers and link previews).
+router.subscribe('onResolved', ({ toLocation }) => {
+  document.title = pageMeta(toLocation.pathname).title;
+});
 
 // After a deploy, reload into the new build at the next navigation between ordinary pages (never into or out of an exam screen).
 let stale = false;

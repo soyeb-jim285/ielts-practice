@@ -5,9 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#F7F9FB" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0A111C" media="(prefers-color-scheme: dark)" />
-    <meta name="description" content="Timed IELTS Speaking and Writing practice with honest, descriptor-anchored feedback." />
-    <title>IELTS Practice</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230F766E'/%3E%3Cpath d='M9 20v-8M13 23V9M17 19v-6M21 22V10M25 18v-4' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <!-- Defaults; the server rewrites this block per page (apps/server/src/seo.ts) so link previews and crawlers get the right card. -->
+    <!--seo-->
+    <title>IELTS Practice: Free IELTS practice with instant band scores</title>
+    <meta name="description" content="Practise IELTS Speaking, Writing, Listening and Reading online. Timed tests in the real exam format, an AI examiner, and band scores for every criterion with each mistake marked." />
+    <meta property="og:image" content="/og/home.png" />
+    <!--/seo-->
+    <meta name="application-name" content="IELTS Practice" />
+    <meta name="apple-mobile-web-app-title" content="IELTS Practice" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "WebSite", "name": "IELTS Practice", "url": "https://ielts.soyebjim.me/", "inLanguage": "en" },
+          {
+            "@type": "WebApplication",
+            "name": "IELTS Practice",
+            "url": "https://ielts.soyebjim.me/",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web, iOS, Android",
+            "description": "Practise IELTS Speaking, Writing, Listening and Reading with timed real-format tests, an AI examiner and band scores for every criterion.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "educationalUse": "Test preparation",
+            "about": { "@type": "Thing", "name": "IELTS" }
+          }
+        ]
+      }
+    </script>
 
     <script>
       // Apply the theme before first paint (no flash). Mirrors components/layout/ThemeToggle.tsx.

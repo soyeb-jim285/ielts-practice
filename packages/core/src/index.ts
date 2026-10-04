@@ -9,3 +9,4 @@ export * from './calibration';
 export * from './lr';
 export * from './lr-review';
 export * from './speaking-audio';
+export * from './seo';

@@ -43,3 +43,12 @@ it('sends http visitors (Cloudflare CF-Visitor) to https and pins https with HST
   expect([https.status, https.headers.get('strict-transport-security')]).toEqual([200, 'max-age=31536000']);
   expect((await app.request('/api/health')).headers.get('strict-transport-security')).toBeNull(); // dev / direct
 });
+
+it('serves robots.txt and a sitemap of the public pages', async () => {
+  const robots = await (await app.request('/robots.txt')).text();
+  expect(robots).toContain('Disallow: /api/');
+  expect(robots).toMatch(/Sitemap: .+\/sitemap\.xml/);
+  const map = await app.request('/sitemap.xml');
+  expect(map.headers.get('content-type')).toContain('application/xml');
+  expect((await map.text()).match(/<loc>/g)).toHaveLength(6);
+});

@@ -12,6 +12,7 @@ import { anonSignInOk, authStatusOk, codeCheckOk, codeRequestOk } from './rateli
 import { MAX_AUDIO_BYTES, requestOrigin, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
 import { registerRoutes } from './routes';
+import { registerSeo } from './seo';
 
 /** Endpoints that make Better Auth send (or pretend to send) a code: which address and purpose, read from a copy of the body. */
 async function codeRequest(path: string, raw: Request) {
@@ -95,6 +96,7 @@ export function createApp() {
     if (c.req.method === 'POST' && /\/(sign-out|revoke-|delete-user|change-password|reset-password|sign-in(?!\/anonymous)|sign-up|verify-email)/.test(c.req.path)) clearBearerCache();
     return res;
   });
+  registerSeo(app);
   app.use('/api/*', sessionMiddleware);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'bearer', { type: 'http', scheme: 'bearer' });
