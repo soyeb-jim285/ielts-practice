@@ -242,7 +242,7 @@ struct LrResultView: View {
             if let st = attempt.stats {
                 fold("How you used your time", hint: "Minutes per \(test.partNoun.lowercased()), answers you changed, last-minute answers.") {
                     LrPacingPanel(stats: st, parts: test.sections.map { (part: $0.part, questions: $0.groups.flatMap { $0.questions.map(\.n) }) }, noun: test.partNoun,
-                                  totalS: listening ? nil : Lr.readingLimit(attempt.parts), marks: marks, blank: blankNs)
+                                  totalS: listening ? nil : Double(Lr.readingLimit(attempt.parts)), marks: marks, blank: blankNs)
                 }
             }
             if !(attempt.analysis?.tfng ?? []).isEmpty {
