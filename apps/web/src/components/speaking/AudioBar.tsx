@@ -25,16 +25,18 @@ export function useAudio() {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
-  const stopAt = useRef<number | null>(null);
+  /** The clip seek() is playing to its stop point. Dropped on any pause or a seek outside it, so a stale stop never halts later playback. */
+  const clip = useRef<{ from: number; to: number } | null>(null);
 
   useEffect(() => {
     if (!el) return;
+    clip.current = null;
     let raf = 0;
     const read = () => setTime(Math.round(el.currentTime * 10) / 10);
     const loop = () => {
       read();
-      if (stopAt.current != null && el.currentTime >= stopAt.current) {
-        stopAt.current = null;
+      if (clip.current && el.currentTime >= clip.current.to) {
+        clip.current = null;
         el.pause();
       }
       if (!el.paused) raf = requestAnimationFrame(loop);
@@ -44,6 +46,7 @@ export function useAudio() {
       raf = requestAnimationFrame(loop);
     };
     const onPause = () => {
+      clip.current = null;
       setPlaying(false);
       cancelAnimationFrame(raf);
       read();
@@ -52,20 +55,28 @@ export function useAudio() {
     el.addEventListener('pause', onPause);
     el.addEventListener('ended', onPause);
     el.addEventListener('seeked', read);
+    // The scrubber or a play button moved the playhead out of the clip: play on from there.
+    const onSeeking = () => {
+      const c = clip.current;
+      if (c && (el.currentTime < c.from - 0.05 || el.currentTime >= c.to)) clip.current = null;
+    };
+    el.addEventListener('seeking', onSeeking);
     return () => {
       cancelAnimationFrame(raf);
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
       el.removeEventListener('ended', onPause);
       el.removeEventListener('seeked', read);
+      el.removeEventListener('seeking', onSeeking);
     };
   }, [el]);
 
   const seek = useCallback(
     (t: number, until?: number) => {
       if (!el) return;
-      el.currentTime = Math.max(0, t - 0.3);
-      stopAt.current = until ?? null;
+      const from = Math.max(0, t - 0.3);
+      el.currentTime = from;
+      clip.current = until != null && until > from ? { from, to: until } : null;
       void el.play().catch(() => {});
     },
     [el],
