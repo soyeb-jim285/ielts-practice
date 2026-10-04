@@ -6,7 +6,7 @@
       "Where is your hometown?",
       "Is it a big town or a small one?",
       "What do you like most about living there?",
-      "Has it changed much since you were a child?"
+      "Has it changed much in the last few years?"
     ],
     "frame": "intro"
   },
@@ -38,7 +38,7 @@
     "questions": [
       "What kind of work do you do?",
       "How long have you been doing this job?",
-      "What do you like most about it?",
+      "What's a typical working day like for you?",
       "Is there anything you would like to change about your job?"
     ],
     "frame": "branch"
@@ -58,700 +58,719 @@
     "slug": "p1-hobbies",
     "topic": "Hobbies",
     "questions": [
-      "What do you like doing in your free time? Why?",
-      "How long have you had your main hobby?",
-      "Do you prefer doing hobbies on your own or with other people? Why?",
-      "Did you have different hobbies when you were younger?"
+      "Tell me about something you enjoy doing in your spare time.",
+      "When did you take it up?",
+      "How much time do you spend on it in a normal week?",
+      "Is it an expensive hobby to have? Why/why not?",
+      "Do you prefer hobbies that keep you active or ones that help you unwind? Why?"
     ]
   },
   {
     "slug": "p1-weather",
     "topic": "Weather",
     "questions": [
-      "What is the weather usually like where you live at this time of year?",
-      "Which season do you like best? Why?",
-      "Does the weather affect what you do at weekends? Why/why not?",
-      "Did you enjoy a particular kind of weather when you were a child?"
+      "What's the weather like in your area at this time of year?",
+      "What sort of weather puts you in a good mood? Why?",
+      "How often do you check the weather forecast?",
+      "Does the weather ever make you change your plans? Why/why not?",
+      "Would you be happy living somewhere with a very different climate? Why/why not?"
     ]
   },
   {
     "slug": "p1-food",
     "topic": "Food",
     "questions": [
-      "What kinds of food do you eat most often?",
-      "Is there any food you really dislike? Why?",
-      "Do you prefer eating at home or in restaurants? Why?",
-      "What food did you enjoy eating when you were a child?"
+      "What do you normally have for lunch on a weekday?",
+      "What's a typical breakfast in your country?",
+      "Which food could you never give up? Why?",
+      "Are there any dishes from your region that you're especially fond of?",
+      "How often do you try food you've never eaten before? Why?"
     ]
   },
   {
     "slug": "p1-music",
     "topic": "Music",
     "questions": [
-      "What kinds of music do you listen to most often?",
-      "When do you usually listen to music?",
-      "Do you prefer listening to music at home or while travelling? Why?",
-      "Did you enjoy learning a musical instrument when you were younger? Why/why not?"
+      "Which singers or bands are you listening to at the moment?",
+      "Do you have music on while you're working or studying? Why/why not?",
+      "Which song always takes you back to a particular time in your life?",
+      "Do you go to see live music much? Why/why not?"
     ]
   },
   {
     "slug": "p1-reading",
     "topic": "Reading",
     "questions": [
-      "Do you enjoy reading in your free time? Why?",
-      "What kinds of books do you enjoy reading?",
-      "Which do you prefer, paper books or reading on a screen? Why?",
-      "Did you read much when you were at school?"
+      "How much time do you spend reading on a typical day?",
+      "What was the last thing you read just for pleasure?",
+      "Where's your favourite place to sit and read? Why?",
+      "Do you read more fiction or more non-fiction? Why?",
+      "Would you ever join a book club? Why/why not?"
     ]
   },
   {
     "slug": "p1-sports",
     "topic": "Sports",
     "questions": [
-      "Do you play any sports at the moment? Why/why not?",
-      "What sports did you enjoy playing at school?",
-      "Do you enjoy watching sport on television? Why/why not?",
-      "Would you like to try a sport you have never played?"
+      "Which sports are most popular in your area?",
+      "Do you prefer taking part in sport or watching it? Why?",
+      "What sports did you do at primary school?",
+      "Is there a sport you'd like to try one day? Why?"
     ]
   },
   {
     "slug": "p1-transport",
     "topic": "Transport",
     "questions": [
-      "How do you usually get around your town?",
-      "Do you prefer travelling by car or by public transport? Why?",
-      "Is public transport convenient where you live? Why/why not?",
-      "How did you usually travel to school when you were younger?"
+      "Which kind of transport do you use most? Why?",
+      "How long is your usual daily journey?",
+      "Is public transport in your area reliable? Why/why not?",
+      "Do you use the time on journeys to do anything useful? Why/why not?",
+      "What would make getting around your town easier?"
     ]
   },
   {
     "slug": "p1-shopping",
     "topic": "Shopping",
     "questions": [
-      "Do you enjoy shopping for things you need? Why?",
-      "Where do you usually go to buy clothes?",
-      "Do you prefer shopping alone or with other people? Why?",
-      "Have you bought anything online recently?"
+      "Where do you usually do your food shopping? Why?",
+      "Do you enjoy browsing in shops, or do you prefer to get in and out quickly? Why?",
+      "Do you ever make a list before you go shopping? Why/why not?",
+      "Tell me about a small local shop you like.",
+      "Which do you find easier, shopping online or in a real shop? Why?"
     ]
   },
   {
     "slug": "p1-friends",
     "topic": "Friends",
     "questions": [
-      "Do you have many friends?",
-      "How often do you see your friends?",
-      "Do you prefer meeting friends at home or going out? Why?",
-      "Have you stayed in touch with any friends from your school days? Why/why not?"
+      "How did you meet most of your close friends?",
+      "What do you and your friends usually do when you get together?",
+      "Are you happier seeing one friend at a time or a whole group? Why?",
+      "Is it easy to make new friends where you live? Why/why not?"
     ]
   },
   {
     "slug": "p1-family",
     "topic": "Family",
     "questions": [
-      "Do you enjoy spending time with your family? Why/why not?",
-      "Who do you usually spend the most time with in your family?",
-      "Do you prefer having meals together or doing other activities as a family? Why?",
-      "Did you spend much time with your family when you were younger?"
+      "How often do you get together with your relatives?",
+      "What kinds of things do you do when your family meets up?",
+      "Who in your family are you most like? Why?",
+      "Are family meals common where you live? Why/why not?"
     ]
   },
   {
     "slug": "p1-tv",
     "topic": "Television",
     "questions": [
-      "Do you watch much television these days?",
-      "What kinds of programmes do you enjoy watching most? Why?",
-      "Which do you prefer, watching television alone or with other people? Why?",
-      "Did you watch much television when you were a child?"
+      "How much television do you watch in a typical week?",
+      "What sort of programmes do you tend to choose? Why?",
+      "Do you ever watch programmes together with friends or family? Why/why not?",
+      "What programme from your country should a visitor watch? Why?"
     ]
   },
   {
     "slug": "p1-films",
     "topic": "Films",
     "questions": [
-      "Do you often go to the cinema?",
-      "What kinds of films do you usually choose to watch? Why?",
-      "Do you prefer watching films at home or at the cinema? Why?",
-      "What was the last film you saw?"
+      "What kinds of films do you enjoy most? Why?",
+      "Who do you usually watch films with?",
+      "Do you prefer watching films on a big screen or at home? Why?",
+      "Is there a film you've seen more than once? Why?",
+      "Would you watch a film in a language you don't understand, with subtitles? Why/why not?"
     ]
   },
   {
     "slug": "p1-internet",
     "topic": "The internet",
     "questions": [
-      "How often do you use the internet?",
-      "Do you find it easy to get useful information on the internet? Why?",
-      "Which websites do you visit most often?",
-      "Could you manage without the internet for a week? Why/why not?"
+      "What do you use the internet for most?",
+      "Roughly how many hours a day do you spend online?",
+      "What annoys you most about being online? Why?",
+      "How would you feel if you had no internet access for a week? Why?"
     ]
   },
   {
     "slug": "p1-phones",
     "topic": "Mobile phones",
     "questions": [
-      "How often do you use your mobile phone?",
-      "Which do you prefer using your phone for, calls or messages? Why?",
-      "Do you always carry your phone with you? Why/why not?",
-      "How old were you when you got your first mobile phone?"
+      "How old were you when you got your first phone?",
+      "Which app on your phone could you not do without? Why?",
+      "How do you manage if you leave home without your phone?",
+      "Do you switch your phone off at night? Why/why not?",
+      "Are there times when you think people should put their phones away? Why?"
     ]
   },
   {
     "slug": "p1-clothes",
     "topic": "Clothes",
     "questions": [
-      "What kinds of clothes do you usually wear?",
-      "Do you prefer buying clothes in shops or online? Why?",
-      "Do you wear different clothes at the weekend? Why/why not?",
-      "Did you have a favourite item of clothing when you were younger?"
+      "What do you usually wear on a day off?",
+      "When you choose clothes, is comfort or style more important to you? Why?",
+      "Are there any clothes you wear only on special occasions?",
+      "Have you ever bought something to wear and then never worn it? Why?"
     ]
   },
   {
     "slug": "p1-gifts",
     "topic": "Gifts",
     "questions": [
-      "Do you like giving gifts to other people? Why?",
-      "What was the last gift you gave someone?",
-      "Do you prefer buying a gift or making one? Why?",
-      "What is the best gift you have ever received?"
+      "Do you find it easy to choose presents for people? Why/why not?",
+      "What sort of present do you most enjoy receiving? Why?",
+      "Do you take time to wrap presents nicely? Why/why not?"
     ]
   },
   {
     "slug": "p1-birthdays",
     "topic": "Birthdays",
     "questions": [
-      "Do you usually celebrate your birthday at home or somewhere else? Why?",
-      "Who do you usually spend your birthday with?",
-      "Do you like getting presents on your birthday? Why?",
-      "Did you have a favourite way to celebrate your birthday as a child?"
+      "What did you do on your last birthday?",
+      "Do you enjoy being the centre of attention on your birthday? Why/why not?",
+      "Which birthdays are seen as special in your country?",
+      "Are you good at remembering other people's birthdays? Why/why not?"
     ]
   },
   {
     "slug": "p1-holidays",
     "topic": "Holidays",
     "questions": [
-      "What do you usually do on public holidays?",
-      "Where did you go on your last holiday?",
-      "Do you prefer holidays by the sea or in the mountains? Why?",
-      "Is there a place you would love to visit in the future? Why?"
+      "How do you normally spend public holidays?",
+      "Do you prefer holidays where you're busy or ones where you can rest? Why?",
+      "Is it better to plan a holiday carefully or keep it flexible, in your view? Why?",
+      "Where would you go if you had a free week next month? Why?"
     ]
   },
   {
     "slug": "p1-sleep",
     "topic": "Sleep",
     "questions": [
-      "What time do you usually go to bed?",
-      "Do you find it easy to get up in the morning? Why/why not?",
-      "Do you ever take a nap during the day?",
-      "Have you ever tried changing your bedtime to sleep better? Why/why not?"
+      "How many hours' sleep do you need to feel at your best?",
+      "Are you a light sleeper or a heavy one?",
+      "What helps you drift off when your mind is busy?",
+      "Does noise ever keep you awake at night?",
+      "Is it common to have a nap in the afternoon where you live? Why/why not?"
     ]
   },
   {
     "slug": "p1-colours",
     "topic": "Colours",
     "questions": [
-      "Which colour do you like best? Why?",
-      "Do you wear a lot of that colour?",
-      "What colour are the walls in your bedroom?",
-      "Did you like different colours when you were a child? Why/why not?"
+      "What colours do you wear most often? Why?",
+      "Is there a colour you'd never choose for the walls of a room? Why?",
+      "Do you think colours can change the way people feel? Why/why not?"
     ]
   },
   {
     "slug": "p1-flowers",
     "topic": "Flowers",
     "questions": [
-      "Do you like having flowers in your home? Why?",
-      "Do you ever buy flowers for your home? Why/why not?",
-      "What kinds of flowers do you like most?",
-      "Did you grow flowers when you were younger?"
+      "Do you notice flowers when you're out walking? Why/why not?",
+      "Which do you prefer, cut flowers or plants in pots? Why?",
+      "Are flowers a popular present where you live? Why/why not?",
+      "Would you like to grow your own flowers one day? Why/why not?"
     ]
   },
   {
     "slug": "p1-parks",
     "topic": "Parks",
     "questions": [
-      "Is there a park near your home?",
-      "How often do you spend time in parks near your home?",
-      "Do you enjoy walking through parks? Why?",
-      "Did you play in parks when you were a child? Why/why not?"
+      "Is there a park you go to regularly? Why/why not?",
+      "What do people tend to do in the parks in your town?",
+      "Who do you usually go to the park with?",
+      "Which do you enjoy more, a lively park or a quiet one? Why?",
+      "How could the parks near you be improved?"
     ]
   },
   {
     "slug": "p1-art",
     "topic": "Art",
     "questions": [
-      "Do you draw or paint these days? Why/why not?",
-      "What kinds of art do you enjoy looking at?",
-      "Have you ever visited an art gallery? Why/why not?",
-      "Which pictures would you choose to hang on your walls at home?"
+      "Do you have any pictures or posters on your walls? Why/why not?",
+      "Were you good at art when you were at school?",
+      "What kind of art is your country known for?",
+      "How often do you go to see art in galleries or exhibitions?",
+      "Would you like to take an art class? Why/why not?"
     ]
   },
   {
     "slug": "p1-museums",
     "topic": "Museums",
     "questions": [
-      "Do you enjoy visiting museums? Why?",
-      "When did you last visit a museum?",
-      "What kinds of exhibits do you usually look at first?",
-      "Did you go on school trips to museums as a child? Why/why not?"
+      "What kinds of museum are there in your town or city?",
+      "Do you prefer to look round a museum alone or with someone? Why?",
+      "How long do you usually spend in a museum?",
+      "Are museums in your country free to visit?",
+      "Which museum in your country should every visitor see? Why?"
     ]
   },
   {
     "slug": "p1-photography",
     "topic": "Photography",
     "questions": [
-      "Do you take many photos? Why/why not?",
-      "What do you usually take photos of?",
-      "What do you usually do with the photos you take?",
-      "Do you think you will take more photos in the future? Why?"
+      "Do you prefer taking photos or being in them? Why?",
+      "Roughly how many photos are on your phone at the moment?",
+      "Do you ever go through old photos and delete some? Why/why not?",
+      "Is there a photo in your home that means a lot to you? Why?"
     ]
   },
   {
     "slug": "p1-singing",
     "topic": "Singing",
     "questions": [
-      "Do you like singing? Why?",
-      "How often do you sing when you are at home?",
-      "Did you sing a lot when you were a child? Why/why not?",
-      "Do you think you will sing more often in the future?"
+      "Do you ever sing along to music when you're on your own? Why/why not?",
+      "How do you feel about singing in front of other people? Why?",
+      "Are there any songs that almost everyone in your country knows?",
+      "Would you like to have singing lessons? Why/why not?"
     ]
   },
   {
     "slug": "p1-dancing",
     "topic": "Dancing",
     "questions": [
-      "Do you like dancing?",
-      "Have you ever taken dancing lessons? Why/why not?",
-      "Do you enjoy dancing at parties? Why?",
-      "Is there a traditional dance you would like to learn?"
+      "On what occasions do people dance in your country?",
+      "Are you comfortable dancing in front of others? Why/why not?",
+      "What kind of music gets you dancing?",
+      "Is dancing a good way to keep fit, do you think? Why/why not?"
     ]
   },
   {
     "slug": "p1-cooking",
     "topic": "Cooking",
     "questions": [
-      "Do you cook for yourself very often?",
-      "Which meal do you most enjoy cooking? Why?",
-      "What was the first meal you learned to make?",
-      "Would you like to learn to cook something new? Why/why not?"
+      "How often do you cook a proper meal yourself?",
+      "Do you follow a recipe or just make it up as you go along? Why?",
+      "What's the dish you're best at making?",
+      "Is cooking for other people something you enjoy? Why/why not?",
+      "Which dish from another country would you like to learn to make?"
     ]
   },
   {
     "slug": "p1-coffee-tea",
     "topic": "Coffee and tea",
     "questions": [
-      "Which do you drink more, tea or coffee? Why?",
-      "How many cups do you usually drink in a day?",
-      "Do you usually drink tea or coffee at home or in a café? Why?",
-      "Did you drink tea or coffee when you were younger?"
+      "Are you more of a tea drinker or a coffee drinker? Why?",
+      "At what time of day do you most enjoy a hot drink?",
+      "How do you like your tea or coffee, with milk or without?",
+      "Is it usual to offer tea or coffee to visitors in your country?"
     ]
   },
   {
     "slug": "p1-rain",
     "topic": "Rain",
     "questions": [
-      "Does it rain often where you live?",
-      "Do you enjoy being outside in the rain? Why?",
-      "What do you usually do when it rains?",
-      "Did you enjoy rainy days when you were a child? Why/why not?"
+      "When is the rainiest time of year where you live?",
+      "How do you usually spend a wet afternoon?",
+      "Do you mind getting caught in the rain? Why/why not?",
+      "Have you ever been caught in a really heavy storm?"
     ]
   },
   {
     "slug": "p1-the-sea",
     "topic": "The sea",
     "questions": [
-      "How often do you go to the sea these days?",
-      "Do you enjoy going to the beach? Why?",
-      "Could you swim when you were younger?",
-      "Would you like to live near the sea? Why/why not?"
+      "How far is the nearest coast from where you live?",
+      "What do people usually do when they visit the seaside in your country?",
+      "Do you find it relaxing to be near water? Why/why not?",
+      "Have you ever been out on a boat?",
+      "Would you choose to live by the sea if you could? Why/why not?"
     ]
   },
   {
     "slug": "p1-mirrors",
     "topic": "Mirrors",
     "questions": [
-      "Do you like having a mirror in your bedroom? Why?",
-      "How often do you look in a mirror?",
-      "Where is the biggest mirror in your home?",
-      "Did you like looking in mirrors when you were younger? Why/why not?"
+      "How many mirrors are there in your home?",
+      "Do you look in the mirror before you leave the house? Why/why not?",
+      "Have you ever bought a mirror just for decoration? Why/why not?"
     ]
   },
   {
     "slug": "p1-handwriting",
     "topic": "Handwriting",
     "questions": [
-      "Do you often write by hand?",
-      "Do you prefer writing by hand or typing? Why?",
-      "Did you practise handwriting at school?",
-      "Would you like to improve your handwriting? Why/why not?"
+      "What do you still write by hand?",
+      "Is your handwriting easy for other people to read? Why/why not?",
+      "When did you last receive a handwritten card or note?",
+      "Do you think children still need to learn neat handwriting? Why/why not?"
     ]
   },
   {
     "slug": "p1-time-management",
     "topic": "Daily routine",
     "questions": [
-      "Do you have a regular routine on weekdays? Why/why not?",
-      "Do you plan your day or just see what happens? Why?",
-      "What is the busiest part of your day?",
-      "Did you follow a different routine when you were younger?"
+      "What time does your day usually start?",
+      "At what time of day do you get the most done? Why?",
+      "Do you write lists of the things you need to do? Why/why not?",
+      "What's one thing you do every day without fail?",
+      "How different is your routine at weekends?"
     ]
   },
   {
     "slug": "p1-noise",
     "topic": "Noise",
     "questions": [
-      "Is the area where you live usually noisy? Why/why not?",
-      "What sounds do you hear most often at home?",
-      "Do you like to study or work in a quiet place? Why?",
-      "Did certain sounds annoy you when you were younger?"
+      "What noises can you hear from your home during the day?",
+      "Can you concentrate when there's noise around you? Why/why not?",
+      "What sound really gets on your nerves? Why?",
+      "Where do you go in your town when you want some peace and quiet?"
     ]
   },
   {
     "slug": "p1-boredom",
     "topic": "Free time",
     "questions": [
-      "Do you ever feel bored in your free time? Why/why not?",
-      "What do you do when you have nothing to do?",
-      "Did you get bored easily as a child?",
-      "Do you like having a lot of free time? Why?"
+      "How much free time do you get in a normal week?",
+      "Is your free time usually planned, or do you decide on the day? Why?",
+      "Do you ever get bored when you have nothing to do? Why/why not?",
+      "If you had an extra day off each week, how would you use it?"
     ]
   },
   {
     "slug": "p1-patience",
     "topic": "Waiting",
     "questions": [
-      "Do you mind waiting in a queue? Why/why not?",
-      "What do you do while you wait for a bus or a friend?",
-      "Are you usually on time when meeting friends? Why?",
-      "Did you find waiting harder when you were younger?"
+      "How do you pass the time when you're waiting somewhere?",
+      "Which bothers you more, waiting in a queue or waiting on the phone? Why?",
+      "How long are you prepared to wait for a friend who's late?",
+      "Are you usually early, late or on time when you meet people? Why?"
     ]
   },
   {
     "slug": "p1-maps",
     "topic": "Maps and directions",
     "questions": [
-      "How do you usually find your way around an unfamiliar place?",
-      "Do you prefer using a phone map or asking someone for directions? Why?",
-      "Have you ever got lost while trying to find somewhere?",
-      "Would you feel confident finding your way without a map? Why/why not?"
+      "How's your sense of direction?",
+      "Have you ever got completely lost somewhere?",
+      "Is your home easy for visitors to find? Why/why not?",
+      "Do you prefer to plan a route before you set off? Why/why not?",
+      "How good are you at giving directions to strangers?"
     ]
   },
   {
     "slug": "p1-bicycles",
     "topic": "Bicycles",
     "questions": [
-      "How often do you ride a bicycle these days?",
-      "Do you enjoy cycling around where you live? Why?",
-      "When did you learn to ride a bicycle?",
-      "Would you like to cycle more often? Why/why not?"
+      "Can you ride a bike?",
+      "Do many people cycle to work or school where you live? Why/why not?",
+      "Are the roads in your area safe for cyclists? Why/why not?",
+      "Would you rather cycle or walk for short journeys? Why?"
     ]
   },
   {
     "slug": "p1-cars",
     "topic": "Cars",
     "questions": [
-      "Does your family have a car?",
-      "Do you prefer travelling by car or public transport? Why?",
-      "Did you often travel by car when you were younger?",
-      "Would you like to own a car one day? Why/why not?"
+      "Do you know how to drive?",
+      "Do you enjoy long journeys by car? Why/why not?",
+      "Is traffic a problem in your area at certain times of day?",
+      "Do you think you'll need a car in the future? Why/why not?"
     ]
   },
   {
     "slug": "p1-emails",
     "topic": "Emails and messages",
     "questions": [
-      "How often do you check your email?",
-      "Do you prefer sending messages or phoning? Why?",
-      "Would you like to use email more in the future?",
-      "Did you write emails when you were younger?"
+      "Who do you send messages to most often?",
+      "Do you prefer sending voice notes or typed messages? Why?",
+      "How often do you need to write a formal email?",
+      "How many unread emails do you have at the moment?",
+      "Is it rude not to answer a message for a whole day? Why/why not?"
     ]
   },
   {
     "slug": "p1-social-media",
     "topic": "Social media",
     "questions": [
-      "Do you enjoy using social media to keep in touch with friends? Why?",
-      "Which apps do you use most often?",
-      "Have you ever used social media to reconnect with someone?",
-      "Would you like to share more photos on social media? Why/why not?"
+      "What kinds of accounts do you follow?",
+      "Do you post things yourself, or mostly look at what others post? Why?",
+      "Have you ever taken a break from social media? Why/why not?",
+      "Do you think you'll use social media more or less in the future? Why?"
     ]
   },
   {
     "slug": "p1-jokes",
     "topic": "Jokes and laughing",
     "questions": [
-      "Do you like telling jokes to your friends? Why?",
-      "What kinds of things do you find funny?",
-      "Did you tell jokes when you were younger?",
-      "Would you like to go to a live comedy show? Why/why not?"
+      "Who's the funniest person you know? Why?",
+      "Are you good at remembering jokes? Why/why not?",
+      "What kinds of comedy do you enjoy watching? Why?"
     ]
   },
   {
     "slug": "p1-advertisements",
     "topic": "Advertisements",
     "questions": [
-      "Do you notice advertisements when you are shopping? Why/why not?",
-      "Where do you usually see most advertisements?",
-      "Have you ever bought something because of an advert?",
-      "Would you consider buying something after seeing an online advert? Why/why not?"
+      "Where do you notice adverts most in your daily life?",
+      "Is there an advert you remember particularly well? Why?",
+      "Do you always skip adverts when you're watching videos? Why/why not?",
+      "Has an advert ever persuaded you to buy something?"
     ]
   },
   {
     "slug": "p1-trees",
     "topic": "Trees",
     "questions": [
-      "Are there many trees near your home?",
-      "Do you like climbing trees? Why?",
-      "Have you ever planted a tree?",
-      "Would you like to plant more trees in the future? Why/why not?"
+      "Are there many trees along the streets where you live?",
+      "Which trees are common in your part of the country?",
+      "Have you ever helped to plant a tree?",
+      "Would you like to have more trees near your home? Why/why not?"
     ]
   },
   {
     "slug": "p1-science",
     "topic": "Science",
     "questions": [
-      "Do you enjoy reading or watching things about science? Why?",
-      "Which science subject did you enjoy most at school? Why?",
-      "Have you ever done a science experiment yourself?",
-      "Do you think you will learn more about science in the future?"
+      "Which science subject did you find easiest at school? Why?",
+      "Do you ever watch videos or programmes about science? Why/why not?",
+      "What's something about the natural world you'd love to understand better?",
+      "How useful is science in your everyday life?"
     ]
   },
   {
     "slug": "p1-history",
     "topic": "History",
     "questions": [
-      "Do you enjoy learning about history in your free time? Why?",
-      "Is there a historical place near where you live?",
-      "Did you enjoy history lessons when you were at school?",
-      "Would you like to visit a historical place abroad? Why/why not?"
+      "Which old building in your town do you like best? Why?",
+      "How much do you know about the history of the place where you live?",
+      "Do you enjoy films or books set in the past? Why/why not?",
+      "If you could meet someone from history, who would it be? Why?"
     ]
   },
   {
     "slug": "p1-languages",
     "topic": "Languages",
     "questions": [
-      "Which languages do you speak with your family?",
-      "Do you find English difficult? Why/why not?",
-      "Did you study any languages besides English at school?",
-      "Would you like to learn another language? Why/why not?"
+      "Which languages are spoken where you live?",
+      "What do you find hardest about learning English?",
+      "Do you use English in your daily life? Why/why not?",
+      "Which language sounds most beautiful to you? Why?",
+      "Would you like to learn a language that's very different from your own? Why/why not?"
     ]
   },
   {
     "slug": "p1-neighbours",
     "topic": "Neighbours",
     "questions": [
-      "Do you enjoy chatting with your neighbours? Why?",
-      "How often do you talk to your neighbours?",
-      "Have your neighbours ever helped you with a problem?",
-      "Would you like to know your neighbours better? Why/why not?"
+      "Do you know the names of most people living near you?",
+      "What do you and your neighbours usually chat about?",
+      "Is it common for neighbours to share food where you live? Why/why not?"
     ]
   },
   {
     "slug": "p1-walking",
     "topic": "Walking",
     "questions": [
-      "Do you enjoy walking around your local area? Why?",
-      "Where do you usually go for a walk?",
-      "Did you walk to school when you were younger?",
-      "Would you like to walk more often in the future? Why/why not?"
+      "How much walking do you do on a normal day?",
+      "Is your area a pleasant place to go for a walk? Why/why not?",
+      "Do you listen to anything while you're walking? Why/why not?",
+      "Where's your favourite place for a walk? Why?",
+      "Would you ever go on a long walking holiday? Why/why not?"
     ]
   },
   {
     "slug": "p1-crowded-places",
     "topic": "Crowded places",
     "questions": [
-      "Do you like spending time in crowded places? Why?",
-      "Do you prefer crowded places indoors or outdoors? Why?",
-      "Where do you go when you want some peace?",
-      "Have you ever been to a very crowded event?"
+      "Which places in your town get really crowded?",
+      "Do big crowds make you feel excited or uncomfortable? Why?",
+      "Do you try to avoid busy times when you go out? Why/why not?",
+      "Have you ever been part of a huge crowd at a concert or match?"
     ]
   },
   {
     "slug": "p1-childhood",
     "topic": "Childhood",
     "questions": [
-      "Where did you grow up?",
-      "Did you enjoy playing with other children when you were young? Why/why not?",
-      "Did you have a favourite toy as a child? Why?",
-      "Do you remember your first day at school?"
+      "Where did you spend most of your childhood?",
+      "Who did you spend most of your time with as a child?",
+      "Do you still have anything from your childhood? Why/why not?",
+      "Would you like to be a child again? Why/why not?"
     ]
   },
   {
     "slug": "p1-teachers",
     "topic": "Teachers",
     "questions": [
-      "Do you still see any of your old teachers?",
-      "Did you have a favourite teacher at school? Why?",
-      "What was he or she like?",
-      "Would you like to teach children in the future? Why/why not?"
+      "Who was your favourite teacher at school? Why?",
+      "What makes a teacher easy to learn from, in your opinion?",
+      "Do you still keep in touch with any of your teachers? Why/why not?",
+      "Would you enjoy being a teacher? Why/why not?"
     ]
   },
   {
     "slug": "p1-weekends",
     "topic": "Weekends",
     "questions": [
-      "What do you usually do at the weekend?",
-      "Do you prefer to stay at home or go out at weekends? Why?",
-      "Do you usually spend the weekend with family or friends? Why?",
-      "What did you do last weekend?"
+      "What did you get up to last weekend?",
+      "Do you usually make plans for the weekend in advance? Why/why not?",
+      "Who do you usually see at weekends?",
+      "Are your weekends very different from your weekdays? Why/why not?",
+      "What would your ideal weekend look like?"
     ]
   },
   {
     "slug": "p1-mornings",
     "topic": "Mornings",
     "questions": [
-      "Are you a morning person? Why/why not?",
-      "What do you usually do first thing in the morning?",
-      "Do you prefer to eat breakfast at home or somewhere else? Why?",
-      "Did you get up early when you were at school?"
+      "What's the first thing you do when you wake up?",
+      "Is breakfast an important meal for you? Why/why not?",
+      "Are your mornings usually rushed or relaxed? Why?",
+      "Are you at your best early in the morning or later in the day? Why?"
     ]
   },
   {
     "slug": "p1-stars-and-sky",
     "topic": "The sky",
     "questions": [
-      "Do you enjoy looking at the sky during the day? Why/why not?",
-      "Can you see stars from where you live?",
-      "Do you like watching the sunset? Why?",
-      "Did you ever learn about the stars at school?"
+      "How often do you stop to look up at the sky?",
+      "Is it easy to see the stars at night where you live? Why/why not?",
+      "Which do you prefer, sunrise or sunset? Why?",
+      "Have you ever seen a shooting star?",
+      "Would you like to learn the names of the stars? Why/why not?"
     ]
   },
   {
     "slug": "p1-travel",
     "topic": "Travel",
     "questions": [
-      "Do you like going on trips? Why?",
-      "Have you travelled much in your own country?",
-      "Would you rather travel on your own or in a group? Why?",
-      "Where would you like to go next?"
+      "How do you usually pass the time on a long journey?",
+      "Do you pack lightly when you go away, or take a lot? Why?",
+      "What's the most convenient way to travel around your country? Why?",
+      "Which part of your own country would you most like to explore? Why?"
     ]
   },
   {
     "slug": "p1-school",
     "topic": "School days",
     "questions": [
-      "Did you go to a school near your home?",
-      "Did you enjoy spending break times with your friends at school? Why/why not?",
-      "Which subject did you enjoy most at school? Why?",
-      "Have you met any of your school friends since you left?"
+      "How did you get to school each day?",
+      "Which lesson did you look forward to most? Why?",
+      "Is there anything about your school days that you miss? Why/why not?",
+      "Do you think school uniforms are a good idea? Why/why not?"
     ]
   },
   {
     "slug": "p1-names",
     "topic": "Names",
     "questions": [
-      "Does your name mean anything special?",
-      "Who chose your name?",
-      "Do you like the way your name sounds? Why?",
-      "Would you choose the same name for a child in the future? Why/why not?"
+      "Does anyone call you by a nickname?",
+      "Do you find it easy to remember people's names? Why/why not?",
+      "Which names are fashionable for babies in your country right now?",
+      "How do you feel when someone gets your name wrong?"
     ]
   },
   {
     "slug": "p1-health",
     "topic": "Health",
     "questions": [
-      "Do you try to eat healthy food? Why/why not?",
-      "What do you do when you catch a cold?",
-      "Do you enjoy doing exercise to stay healthy? Why?",
-      "Have you ever been in hospital?"
+      "What do you do to stay fit?",
+      "Is it easy to eat well in your area? Why/why not?",
+      "How do you usually relax after a busy day?",
+      "What healthy habit would you like to start? Why?"
     ]
   },
   {
     "slug": "p1-festivals",
     "topic": "Festivals",
     "questions": [
-      "What festivals do you usually celebrate with your family?",
-      "How do you usually celebrate your favourite festival?",
-      "Did you enjoy festivals as a child? Why?",
-      "Is there a festival you would like to see in another country? Why/why not?"
+      "Which festival do you look forward to most each year? Why?",
+      "Do you usually help with the preparations? Why/why not?",
+      "Have you ever been to a festival in another part of your country?",
+      "Which festival from another country would you most like to see? Why?"
     ]
   },
   {
     "slug": "p1-pets",
     "topic": "Pets",
     "questions": [
-      "Do you enjoy being around pets? Why/why not?",
-      "What kinds of animals do you like?",
-      "Did you have a pet when you were younger?",
-      "Do you think you will have a pet in the future? Why/why not?"
+      "Which animals are popular as pets where you live?",
+      "Do you enjoy being around other people's pets? Why/why not?",
+      "What's the hardest part of looking after a pet, do you think?"
     ]
   },
   {
     "slug": "p1-newspapers",
     "topic": "News",
     "questions": [
-      "Do you read the news? Why/why not?",
-      "Where do you usually get your news?",
-      "Do you prefer reading news online or watching it on television? Why?",
-      "Did you follow the news when you were younger?"
+      "How do you usually find out what's happening in the world?",
+      "What kinds of news stories catch your attention? Why?",
+      "When during the day do you usually catch up on the news?",
+      "Do you discuss the news with your friends or family? Why/why not?",
+      "Is local news or international news more interesting to you? Why?"
     ]
   },
   {
     "slug": "p1-computers",
     "topic": "Computers",
     "questions": [
-      "How often do you use a computer?",
-      "Do you enjoy using a computer for work or study? Why/why not?",
-      "Do you prefer using a laptop or a desktop computer? Why?",
-      "When did you first use a computer?"
+      "What do you mainly use a computer for?",
+      "How did you learn to use one?",
+      "Who do you turn to when your computer stops working?",
+      "Do you prefer a laptop, a tablet or a desktop? Why?",
+      "Would you like to learn more about how computers work? Why/why not?"
     ]
   },
   {
     "slug": "p1-games",
     "topic": "Games",
     "questions": [
-      "Do you play video games in your free time? Why/why not?",
-      "Which do you prefer, board games or video games? Why?",
-      "Who do you usually play games with?",
-      "Did you play games when you were a child?"
+      "What games did you enjoy playing as a child?",
+      "Do you still find time for games now? Why/why not?",
+      "How competitive are you when you play a game?",
+      "Do you prefer games that need skill or ones that depend on luck? Why?"
     ]
   },
   {
     "slug": "p1-gardens",
     "topic": "Gardens",
     "questions": [
-      "Do you have a garden?",
-      "Do you enjoy spending time in a garden? Why/why not?",
-      "Did you grow anything at home as a child?",
-      "Would you prefer to grow flowers or vegetables at home? Why?"
+      "Where's the nearest garden or green space you enjoy visiting?",
+      "Do you enjoy looking after plants? Why/why not?",
+      "How popular is gardening as a hobby in your country?",
+      "If you had some land, would you grow flowers or food? Why?"
     ]
   },
   {
     "slug": "p1-spending-money",
     "topic": "Money",
     "questions": [
-      "What do you usually spend your money on?",
-      "Do you prefer to save money or spend it soon after you get it? Why?",
-      "Did you get pocket money as a child?",
-      "Are you good at keeping to a budget? Why/why not?"
+      "When did you first start handling your own money?",
+      "Do you keep track of what you spend? Why/why not?",
+      "Are you the kind of person who looks for bargains? Why/why not?",
+      "Is lending money to friends a good idea, in your view? Why/why not?"
     ]
   },
   {
     "slug": "p1-hairstyles",
     "topic": "Hairstyles",
     "questions": [
-      "How often do you get a haircut?",
-      "Which do you prefer, short or long hair? Why?",
-      "Do you enjoy trying new hairstyles? Why/why not?",
-      "Did you have a different hairstyle as a child?"
+      "Who usually cuts your hair?",
+      "How much time do you spend on your hair each day?",
+      "Do you change your hairstyle often? Why/why not?",
+      "Have you ever had a haircut you regretted?"
     ]
   },
   {
     "slug": "p1-bags",
     "topic": "Bags and belongings",
     "questions": [
-      "What do you usually carry in your bag?",
-      "Do you have a favourite bag? Why?",
-      "Which kind of bag do you prefer for everyday use, a backpack or a handbag? Why?",
-      "Have you ever lost anything important?"
+      "What do you always take with you when you go out?",
+      "What kind of bag do you use on a normal day? Why?",
+      "Do you tend to carry more than you really need? Why/why not?",
+      "Have you ever left something important behind somewhere?",
+      "How do you keep track of small things like keys?"
     ]
   },
   {
     "slug": "p1-city-life",
     "topic": "Where you live",
     "questions": [
-      "Do you live in a city or a village?",
-      "Do you enjoy living where you do? Why/why not?",
-      "What is one thing you would change about your area?",
-      "Do you think you will live somewhere else in the future? Why/why not?"
+      "How long have you lived in your current area?",
+      "Is your area a good place for young people? Why/why not?",
+      "What's the best way to spend an afternoon in your area?",
+      "What would you change about your area if you could?",
+      "Do you see yourself still living there in ten years' time? Why/why not?"
     ]
   }
 ]

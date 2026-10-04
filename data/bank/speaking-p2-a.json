@@ -2,55 +2,53 @@
   {
     "slug": "p2a-inspiring-teacher",
     "topic": "People",
-    "title": "Describe a teacher who had a strong influence on you.",
+    "title": "Describe a teacher who made a lasting impression on you.",
     "bullets": [
       "who this teacher was",
-      "what subject they taught you",
+      "which subject they taught you",
       "what their lessons were like"
     ],
-    "explain": "and explain why this teacher influenced you so much.",
+    "explain": "and explain how this teacher has influenced you.",
     "followUps": [
-      "Are you still in touch with this teacher?",
-      "Would you like to be a teacher yourself?"
+      "Are you still in touch with this teacher?"
     ],
     "p3Topics": [
-      "Teachers and students",
+      "What makes a good teacher",
       "Teaching as a career"
     ],
     "p3": [
-      "What qualities do students in your country value most in a teacher?",
-      "Why do some teachers have a lasting influence on their students?",
-      "Do you think schools should give teachers more freedom to choose how they teach?",
-      "What kinds of people choose teaching as a career in your country?",
-      "How do teachers' roles compare with those of parents in children's education?",
-      "Do you think teaching will become more attractive to young people in the future?"
+      "What qualities do pupils in your country tend to appreciate most in a teacher?",
+      "Is it more important for a teacher to be strict or to be approachable? Why?",
+      "How much difference can one good teacher make to a child's attitude to a subject?",
+      "Why might talented graduates decide not to go into teaching?",
+      "In what ways has a teacher's job changed since your parents were at school?",
+      "Do you think teachers in your country are paid fairly for the work they do?"
     ]
   },
   {
     "slug": "p2a-elderly-person-admire",
     "topic": "People",
-    "title": "Describe an elderly person you admire.",
+    "title": "Describe an older person you know and admire.",
     "bullets": [
       "who this person is",
-      "how you know them",
-      "what they do in their daily life"
+      "how you got to know them",
+      "how they spend their time"
     ],
-    "explain": "and explain why you admire this person.",
+    "explain": "and explain what you admire about this person.",
     "followUps": [
-      "Do you often spend time with older people?",
-      "What have you learned from them?"
+      "How often do you see this person?"
     ],
     "p3Topics": [
-      "Older people in families",
-      "Experience and ageing"
+      "Older people in the family",
+      "Growing older in society"
     ],
     "p3": [
-      "What kinds of activities do older people in your country enjoy with family?",
-      "Why do some people enjoy spending time with older relatives?",
-      "Do you think older people are generally respected in your country?",
-      "What are the benefits of older people sharing their experiences with younger generations?",
-      "How do older and younger people often differ in their approach to change?",
-      "Do you think older people will play a more active role in communities in the future?"
+      "What kinds of help do grandparents give to families in your country?",
+      "How common is it for three generations to share a home where you live?",
+      "What can young people learn from listening to older relatives talk about their lives?",
+      "Some people say older people get less respect than they did in the past. What's your view?",
+      "How easy is it for people over seventy to keep up with new technology?",
+      "Do you think people will need to keep working until a later age in future?"
     ]
   },
   {
@@ -59,52 +57,50 @@
     "title": "Describe a neighbour who has helped you.",
     "bullets": [
       "who this neighbour is",
-      "how long you have known them",
-      "how they helped you"
+      "how long you have lived near them",
+      "what they did to help you"
     ],
     "explain": "and explain how you felt about their help.",
     "followUps": [
-      "Do you know most of your neighbours?",
-      "Have you ever helped a neighbour in return?"
+      "Have you been able to help this neighbour in return?"
     ],
     "p3Topics": [
-      "Neighbours nearby",
-      "Community life"
+      "Getting on with neighbours",
+      "Local communities"
     ],
     "p3": [
-      "What kinds of help do neighbours in your country commonly give one another?",
-      "Why do some people know their neighbours better than others?",
-      "Do you think people today are as friendly with neighbours as they were in the past?",
-      "What are the advantages of having a close relationship with neighbours?",
-      "How has neighbourly communication changed in your country in recent years?",
-      "Do you think local communities can remain close as more people move often?"
+      "In what ways can neighbours make each other's daily lives easier?",
+      "Why do people in large blocks of flats often know so few of their neighbours?",
+      "What sorts of disagreements happen between neighbours, and how can they be avoided?",
+      "Do you think people in villages are more neighbourly than people in big cities?",
+      "How has the way people socialise in their local area changed in recent years?",
+      "What could be done to bring people who live on the same street closer together?"
     ]
   },
   {
     "slug": "p2a-famous-business-person",
     "topic": "People",
-    "title": "Describe a successful entrepreneur you have heard about.",
+    "title": "Describe an entrepreneur whose success you find impressive.",
     "bullets": [
       "who this person is",
-      "how you heard about them",
-      "what kind of business they started"
+      "what their business does",
+      "how you found out about them"
     ],
-    "explain": "and explain why you think this person is successful.",
+    "explain": "and explain what you think helped this person to succeed.",
     "followUps": [
-      "Would you like to run your own business?",
-      "Do you read about business leaders often?"
+      "Would you like to run a business of your own one day?"
     ],
     "p3Topics": [
-      "Successful entrepreneurs",
-      "Starting a business"
+      "Starting a business",
+      "Success and wealth"
     ],
     "p3": [
-      "What kinds of businesses are successful entrepreneurs in your country most likely to start?",
-      "Why do some people admire entrepreneurs more than other business leaders?",
-      "Do you think successful entrepreneurs need to take risks to succeed?",
-      "What are the advantages of schools in your country teaching young people how to start businesses?",
-      "How do family businesses compare with companies started by one person?",
-      "Do you think it is easier to start a business now than in the past?"
+      "What types of small business do young people in your country tend to start?",
+      "Why is it so common for new businesses to close within their first few years?",
+      "Would you say it is wiser to set up a business alone or with a partner?",
+      "How much does luck, rather than hard work, contribute to success in business?",
+      "Should very successful companies do more to support the towns where they are based?",
+      "Do you think wealthy business people are good role models for the young?"
     ]
   },
   {
@@ -113,52 +109,50 @@
     "title": "Describe a childhood friend you remember well.",
     "bullets": [
       "who this friend was",
-      "how you met",
+      "how you first met",
       "what you used to do together"
     ],
     "explain": "and explain why you remember this friend so clearly.",
     "followUps": [
-      "Are you still friends with this person?",
-      "Do you make friends easily?"
+      "Do you still keep in touch with this friend?"
     ],
     "p3Topics": [
-      "Childhood friendships",
-      "Making friends"
+      "Friendship in childhood",
+      "Friendship in adult life"
     ],
     "p3": [
-      "What kinds of activities do children in your country usually do with friends?",
-      "Why do some childhood friendships last into adulthood?",
-      "Do you think children today make friends differently from children in the past?",
-      "What are the benefits of having friends from different backgrounds?",
-      "How do friendships formed at school compare with those made online?",
-      "Do you think close friendships are as important for adults as for children?"
+      "Where do children in your country usually make their first friends?",
+      "How far should parents try to guide who their children spend time with?",
+      "What helps a childhood friendship to last into adult life?",
+      "What makes it harder to form close friendships once people are adults?",
+      "How easy is it to stay close to a friend who lives in another country?",
+      "Has social media made friendships deeper or more superficial, in your opinion?"
     ]
   },
   {
     "slug": "p2a-helpful-stranger",
     "topic": "People",
-    "title": "Describe a time a stranger helped you.",
+    "title": "Describe an occasion when a stranger helped you.",
     "bullets": [
       "where you were",
       "what problem you had",
       "what the stranger did"
     ],
-    "explain": "and explain how you felt about this experience.",
+    "explain": "and explain how you felt about this person's help.",
     "followUps": [
-      "Would you do the same for a stranger?",
-      "Is it common for strangers to help each other where you live?"
+      "Would you do the same for someone you didn't know?"
     ],
     "p3Topics": [
-      "Helping strangers",
-      "Trust in public"
+      "Helping people we don't know",
+      "Kindness in society"
     ],
     "p3": [
-      "In what situations do people in your country most often help strangers?",
-      "Why do some people hesitate to offer help to someone they do not know?",
-      "Do you think people are more willing to help strangers in small towns? Why?",
-      "How do people in your country decide whether a stranger needs help?",
-      "What are the advantages of helping people you have never met?",
-      "Do you think people will trust strangers more or less in the future?"
+      "In which situations are people most likely to ask a stranger for help?",
+      "Why might someone hesitate before helping a stranger in the street?",
+      "How does the way people treat strangers differ between small towns and big cities?",
+      "Should children be taught to be cautious with strangers, or to be helpful to them?",
+      "What role can schools play in encouraging young people to be kind to others?",
+      "It is sometimes said that people are less kind to each other than they used to be. Do you agree?"
     ]
   },
   {
@@ -168,51 +162,49 @@
     "bullets": [
       "who this person is",
       "what they have achieved",
-      "how you found out about it"
+      "how they achieved it"
     ],
-    "explain": "and explain why you feel proud of this person.",
+    "explain": "and explain why you feel proud of them.",
     "followUps": [
-      "Did you tell this person you were proud of them?",
-      "Does your family celebrate achievements together?"
+      "Have you ever told this person how you feel?"
     ],
     "p3Topics": [
-      "Family achievements",
-      "Family influence"
+      "Achievements in families",
+      "Family influence on young people"
     ],
     "p3": [
-      "What achievements do families in your country tend to feel proud of?",
-      "Why do some people feel especially proud of a family member's success?",
-      "Do you think families should celebrate small achievements as well as major ones?",
-      "What are the advantages of learning useful values from family members?",
-      "How important is it for young people to have family support when choosing a career?",
-      "Do you think family members will have less influence on young people's decisions in the future?"
+      "Which achievements do families in your country usually celebrate together?",
+      "How do parents in your country typically show that they are proud of their children?",
+      "Can praising children too much ever do more harm than good?",
+      "Who has more influence on a teenager's decisions: their parents or their friends?",
+      "How has the role of the family in choosing a young person's career changed over the years?",
+      "Do you think young people today depend on their families for longer than in the past?"
     ]
   },
   {
     "slug": "p2a-talented-musician",
     "topic": "People",
-    "title": "Describe a musician or singer you enjoy listening to.",
+    "title": "Describe a singer or musician whose music you enjoy.",
     "bullets": [
       "who this person is",
-      "what kind of music they perform",
-      "how you first heard their music"
+      "what kind of music they make",
+      "how you first came across their music"
     ],
-    "explain": "and explain why you like their music.",
+    "explain": "and explain what you like about their music.",
     "followUps": [
-      "Have you ever seen them perform live?",
-      "Can you play a musical instrument?"
+      "Have you ever seen this musician perform live?"
     ],
     "p3Topics": [
-      "Music and listeners",
-      "Musicians' careers"
+      "Music in everyday life",
+      "Working as a musician"
     ],
     "p3": [
-      "What kinds of music do people in your country listen to during their free time?",
-      "Why do some people prefer live music to recorded songs?",
-      "Do you think famous musicians influence the way young people dress?",
-      "What are the challenges of making a living as a musician?",
-      "How do musicians today compare with musicians from previous generations?",
-      "Do you think music will remain an important part of people's lives in the future?"
+      "At what times of day do people in your country usually listen to music?",
+      "Why does a particular song often bring back such strong memories?",
+      "Is going to a live concert a better experience than listening at home? Why?",
+      "What difficulties do young musicians face when trying to earn a living?",
+      "How has the internet changed the way musicians become well known?",
+      "Do you think music from your country is becoming better known abroad?"
     ]
   },
   {
@@ -221,25 +213,24 @@
     "title": "Describe a person who taught you a useful skill.",
     "bullets": [
       "who this person was",
-      "what skill they taught you",
-      "how they taught it"
+      "what the skill was",
+      "how they taught you"
     ],
-    "explain": "and explain why this skill is useful to you.",
+    "explain": "and explain how this skill has been useful to you.",
     "followUps": [
-      "Do you still use this skill?",
-      "Would you teach this skill to someone else?"
+      "Have you ever taught this skill to anyone else?"
     ],
     "p3Topics": [
-      "Learning useful skills",
-      "Passing on skills"
+      "Learning practical skills",
+      "Skills for the future"
     ],
     "p3": [
-      "What useful skills do people in your country often learn from other people?",
-      "Why do some people find it easier to learn a skill by watching someone?",
-      "Do you think people learn practical skills better from a teacher than from books?",
-      "What are the advantages of older and younger people teaching skills to each other?",
-      "How important is it for employers to help workers develop new skills?",
-      "Do you think people will need to learn new skills more often in the future?"
+      "Which practical skills do young people in your country usually learn at home?",
+      "Do you think it is easier to learn a skill by watching someone or by reading instructions?",
+      "What makes someone good at passing on a skill to other people?",
+      "Which skills will be most valuable in the workplace in twenty years' time, in your view?",
+      "Why are some traditional skills disappearing in many countries?",
+      "Should employers pay for their staff to learn new skills?"
     ]
   },
   {
@@ -248,79 +239,76 @@
     "title": "Describe someone you know who is a good cook.",
     "bullets": [
       "who this person is",
-      "what dishes they cook",
+      "what dishes they are known for",
       "how they learned to cook"
     ],
-    "explain": "and explain what you think of their cooking.",
+    "explain": "and explain what makes their cooking so good.",
     "followUps": [
-      "Do you like cooking yourself?",
-      "What is your favourite dish that they make?"
+      "Which of their dishes do you like best?"
     ],
     "p3Topics": [
       "Cooking at home",
-      "Cooking skills"
+      "Changing eating habits"
     ],
     "p3": [
-      "What kinds of meals are commonly prepared at home in your country?",
-      "Why do some people enjoy cooking, while others prefer buying ready-made food?",
-      "Do you think children should learn basic cooking skills at school?",
-      "What are the most common ways people in your country learn to cook?",
-      "How do home-cooked meals compare with food from restaurants?",
-      "Do you think cooking will remain an important everyday skill in the future?"
+      "In most families in your country, who does the cooking?",
+      "Why do some people enjoy cooking while others see it as a chore?",
+      "At what age should children start helping in the kitchen?",
+      "How have people's eating habits in your country changed over the last twenty years?",
+      "What are the disadvantages of relying on ready meals and takeaways?",
+      "Do you think traditional recipes are in danger of being forgotten?"
     ]
   },
   {
     "slug": "p2a-person-environment",
     "topic": "People",
-    "title": "Describe a person who cares about protecting the environment.",
+    "title": "Describe a person who cares a lot about the environment.",
     "bullets": [
       "who this person is",
       "how you know them",
       "what they do to protect the environment"
     ],
-    "explain": "and explain what you think of their actions.",
+    "explain": "and explain whether this person has changed any of your own habits.",
     "followUps": [
-      "Do you do anything similar?",
-      "Have they influenced your habits?"
+      "Do you do anything similar yourself?"
     ],
     "p3Topics": [
-      "Everyday environmental habits",
-      "Environmental influence"
+      "Green habits at home",
+      "Protecting the environment"
     ],
     "p3": [
-      "What kinds of environmentally friendly habits are common among people in your country?",
-      "Why do some people take more interest in protecting the environment than others?",
-      "Do you think individuals can make a meaningful difference to the environment?",
-      "What are some ways people in your country encourage others to protect the environment?",
-      "How important is it for people to set an example through their daily habits?",
-      "Do you think young people are more concerned about the environment than older generations?"
+      "What are some simple things households can do to produce less rubbish?",
+      "Why is it hard for people to change their habits, even when they know it would help the environment?",
+      "How effective are campaigns that encourage people to recycle?",
+      "Who should do more to protect the environment: individuals or large companies?",
+      "Are young people more aware of environmental problems than their parents were?",
+      "What changes to everyday life might be needed in future to protect nature?"
     ]
   },
   {
     "slug": "p2a-leader-admire",
     "topic": "People",
-    "title": "Describe a leader you admire.",
+    "title": "Describe a person you know who is good at leading others.",
     "bullets": [
-      "who this leader is",
-      "what group or organisation they lead",
-      "what they have done"
+      "who this person is",
+      "what group or team they lead",
+      "how they lead it"
     ],
-    "explain": "and explain why you think they are a good leader.",
+    "explain": "and explain what makes this person a good leader.",
     "followUps": [
-      "Would you like to be a leader?",
-      "Have you ever led a team?"
+      "Have you ever been in charge of a group yourself?"
     ],
     "p3Topics": [
-      "Leadership qualities",
-      "Leaders in society"
+      "Leadership in everyday life",
+      "Leaders at work"
     ],
     "p3": [
-      "What qualities do people in your country usually expect from a leader?",
-      "Why do some people become influential leaders while others do not?",
-      "Do you think honesty is the most important quality in a leader?",
-      "What are the main qualities people in your country value in community leaders?",
-      "How do leaders in businesses compare with leaders in politics?",
-      "Do you think leadership skills can be learned?"
+      "What opportunities do children have to practise leadership at school?",
+      "Do you think leadership is something people are born with, or can it be taught?",
+      "Can a group work well without anyone in charge? Why or why not?",
+      "What qualities should someone who manages a team of people have?",
+      "How does leading a small company differ from leading a large organisation?",
+      "Do leaders today need different skills from leaders fifty years ago?"
     ]
   },
   {
@@ -330,24 +318,23 @@
     "bullets": [
       "who this person is",
       "how you know them",
-      "what kinds of things they say or do that are funny"
+      "what they say or do that makes people laugh"
     ],
-    "explain": "and explain how you feel when you are with this person.",
+    "explain": "and explain how you feel when you spend time with this person.",
     "followUps": [
-      "Do you think you have a good sense of humour?",
-      "Do you enjoy comedy shows?"
+      "Would you say you have a good sense of humour yourself?"
     ],
     "p3Topics": [
       "Humour in daily life",
-      "Humour and society"
+      "Comedy and entertainment"
     ],
     "p3": [
-      "What kinds of humour are enjoyed by people in your country?",
-      "Why do some people use humour when they feel nervous or uncomfortable?",
-      "Do you think having a sense of humour helps people make friends?",
-      "What are the common ways comedians entertain people in your country?",
-      "How important is it for comedians to understand their audience?",
-      "Do you think humour can sometimes cause misunderstandings between people?"
+      "How important is a sense of humour in a friend or colleague?",
+      "Do you think humour helps people to cope with stressful situations?",
+      "Are there situations where it is inappropriate to make jokes?",
+      "What sort of comedy is most popular on television in your country?",
+      "Why is it often difficult to translate a joke into another language?",
+      "Can humour help people to learn more effectively in the classroom?"
     ]
   },
   {
@@ -356,52 +343,50 @@
     "title": "Describe a sportsperson you admire.",
     "bullets": [
       "who this person is",
-      "what sport they play",
+      "which sport they do",
       "what they have achieved"
     ],
-    "explain": "and explain why you admire them.",
+    "explain": "and explain why you admire this sportsperson.",
     "followUps": [
-      "Do you play this sport yourself?",
-      "Do you watch sport often?"
+      "Have you ever tried this sport yourself?"
     ],
     "p3Topics": [
-      "Sports role models",
-      "Sporting success"
+      "Sport and young people",
+      "Professional sport"
     ],
     "p3": [
-      "What kinds of sportspeople are admired by people in your country?",
-      "Why do some people admire successful athletes more than other public figures?",
-      "Do you think famous sportspeople should set a good example for young people?",
-      "What are the benefits of having successful athletes in your country?",
-      "How do individual sports compare with team sports in developing character?",
-      "Do you think sports stars will have more influence on young people in the future?"
+      "Which sports are most popular with children in your country?",
+      "How can schools encourage children who don't enjoy sport to be more active?",
+      "Do you think top athletes should be expected to behave as role models off the field?",
+      "Why are some professional sportspeople paid so much more than other workers?",
+      "What pressures do athletes face when they compete at an international level?",
+      "How might sport change in the future as technology develops?"
     ]
   },
   {
     "slug": "p2a-new-person-met",
     "topic": "People",
-    "title": "Describe an interesting person you met recently.",
+    "title": "Describe an interesting person you met for the first time recently.",
     "bullets": [
       "who this person is",
-      "where and when you met",
+      "where and how you met",
       "what you talked about"
     ],
     "explain": "and explain why you found this person interesting.",
     "followUps": [
-      "Would you like to meet this person again?",
-      "Do you enjoy meeting new people?"
+      "Do you think you'll see this person again?"
     ],
     "p3Topics": [
       "Meeting new people",
-      "Interesting conversations"
+      "First impressions"
     ],
     "p3": [
-      "Where do people in your country most often meet new people?",
-      "Why do some people find it easy to start conversations with strangers?",
-      "Do you think people can become friends after a brief first meeting?",
-      "What are the main ways people in your country make new friends as adults?",
-      "How has meeting new people changed in your country in recent years?",
-      "Do you think online friendships can be as meaningful as friendships formed in person?"
+      "Where do adults in your country usually meet new people outside work?",
+      "Why do some people find it easy to start a conversation with a stranger?",
+      "How has the internet changed the way people get to know each other?",
+      "How accurate are first impressions of people, in your opinion?",
+      "What can someone do to make a good impression at a job interview?",
+      "Is it fair to judge people by the way they dress?"
     ]
   },
   {
@@ -410,25 +395,24 @@
     "title": "Describe someone you know who speaks a foreign language well.",
     "bullets": [
       "who this person is",
-      "what language they speak",
+      "which language they speak",
       "how they learned it"
     ],
-    "explain": "and explain how this language has helped them.",
+    "explain": "and explain how speaking this language has helped them.",
     "followUps": [
-      "Would you like to learn the same language?",
-      "How did you learn English?"
+      "Would you like to learn this language too?"
     ],
     "p3Topics": [
-      "Learning languages",
-      "Languages at work"
+      "Learning foreign languages",
+      "Languages in the modern world"
     ],
     "p3": [
-      "What foreign languages do people in your country most often learn?",
-      "Why do some people find it difficult to become fluent in another language?",
-      "Do you think children learn foreign languages more easily than adults?",
-      "What are the benefits of speaking a foreign language at work?",
-      "How important is it for employees to speak another language in your country?",
-      "Do you think technology will make language learning less necessary in the future?"
+      "Which foreign languages are most commonly studied in your country, and why?",
+      "Do you think it is better to learn a language in a classroom or by living where it is spoken?",
+      "How useful are language-learning apps compared with a real teacher?",
+      "In what ways can speaking a second language help someone's career?",
+      "Will translation apps ever make learning foreign languages unnecessary, do you think?",
+      "Why is it important to protect languages that only a few people still speak?"
     ]
   },
   {
@@ -437,25 +421,24 @@
     "title": "Describe a classmate or colleague you work well with.",
     "bullets": [
       "who this person is",
-      "where you first met",
-      "what you do together"
+      "how you first met",
+      "what you have worked on together"
     ],
-    "explain": "and explain why you work well together.",
+    "explain": "and explain why the two of you work well together.",
     "followUps": [
-      "Do you enjoy working with other people?",
-      "Would you like to work together again?"
+      "Would you choose to work with this person again?"
     ],
     "p3Topics": [
-      "Good colleagues",
-      "Collaborative work"
+      "Working in teams",
+      "Relationships at work"
     ],
     "p3": [
-      "What qualities do people in your country value in a good classmate or colleague?",
-      "Why do some people work better with others than alone?",
-      "Do you think people can become more effective team members through experience?",
-      "What are the benefits of working with people who have different skills in your country?",
-      "How do good colleagues deal with disagreements at work?",
-      "Do you think teamwork is more important in workplaces today than in the past?"
+      "What kinds of tasks are better done in a group than alone?",
+      "What problems can come up when students are asked to work in groups?",
+      "How should a team deal with a member who isn't doing their share of the work?",
+      "How important is it to be friends with the people you work with?",
+      "What can managers do to help staff work well together?",
+      "Has working from home made it harder for colleagues to build good relationships?"
     ]
   },
   {
@@ -464,25 +447,24 @@
     "title": "Describe a person you know who works very hard.",
     "bullets": [
       "who this person is",
-      "what work they do",
-      "how hard they work"
+      "what they do",
+      "what a typical day is like for them"
     ],
-    "explain": "and explain what you think about their attitude to work.",
+    "explain": "and explain what you think of their attitude to work.",
     "followUps": [
-      "Do you consider yourself hardworking?",
-      "Do you think they work too much?"
+      "Would you say you are as hard-working as this person?"
     ],
     "p3Topics": [
-      "Work habits",
-      "Attitudes to work"
+      "Hard work and success",
+      "Work and free time"
     ],
     "p3": [
-      "What kinds of jobs are considered demanding in your country?",
-      "Why do some people work longer hours than others?",
-      "Do you think working hard always leads to success?",
-      "What are the advantages of being seen as hardworking in your country?",
-      "How important is it for people to have a good balance between work and free time?",
-      "Do you think people in your country work harder now than they did in the past?"
+      "Does hard work always lead to success? Why or why not?",
+      "Which jobs in your country involve the longest working hours?",
+      "Why are some people more motivated at work than others?",
+      "What effects can very long working hours have on family life?",
+      "In what ways could employers help their staff to balance work and leisure?",
+      "Some people say a four-day working week would benefit everyone. What's your opinion?"
     ]
   },
   {
@@ -491,25 +473,24 @@
     "title": "Describe a person who made you change your opinion about something.",
     "bullets": [
       "who this person is",
-      "what your original opinion was",
+      "what your opinion was at first",
       "what they said or did"
     ],
-    "explain": "and explain why you changed your opinion.",
+    "explain": "and explain how you feel now about changing your opinion.",
     "followUps": [
-      "Do you often change your mind?",
-      "Have you ever changed someone else's opinion?"
+      "Do you change your mind easily?"
     ],
     "p3Topics": [
       "Changing opinions",
-      "Influence of others"
+      "Persuasion and influence"
     ],
     "p3": [
-      "What kinds of opinions do people in your country often change?",
-      "Why do some people find it difficult to change their views?",
-      "Do you think people are more likely to change their opinions after talking to someone they respect?",
-      "What are the advantages of listening to people with different views?",
-      "How do personal experiences compare with advice from others when changing someone's mind?",
-      "Do you think people will become more open to changing their views in the future?"
+      "Why do some people find it so difficult to admit they were wrong?",
+      "Do you think changing your opinion is a sign of weakness or of strength?",
+      "What are the most effective ways to persuade someone to see your point of view?",
+      "How much influence does advertising have on people's opinions?",
+      "Which people have the most influence on what young people think today?",
+      "Are people becoming less willing to listen to views that differ from their own?"
     ]
   },
   {
@@ -521,22 +502,21 @@
       "what kind of creative work they do",
       "how you learned about their work"
     ],
-    "explain": "and explain why you admire their work.",
+    "explain": "and explain what you find impressive about their work.",
     "followUps": [
-      "Do you consider yourself creative?",
-      "Have you ever tried the same kind of work?"
+      "Have you ever tried doing this kind of work yourself?"
     ],
     "p3Topics": [
-      "Creative work",
-      "Supporting creativity"
+      "Creativity in childhood",
+      "Creative careers"
     ],
     "p3": [
-      "What kinds of creative work are popular in your country?",
-      "Why do some people prefer creative careers to more predictable jobs?",
-      "Do you think creative skills can be learned by most people?",
-      "What are the benefits of creative work for society?",
-      "How important is it for schools to give students time for creative activities?",
-      "Do you think new technology will make it easier for people to produce original work?"
+      "How can parents encourage their children to be creative?",
+      "Do you think schools spend enough time on art, music and drama?",
+      "Why is it that many children stop drawing for fun as they grow up?",
+      "How difficult is it to earn a good living from creative work in your country?",
+      "Apart from the arts, what kinds of jobs require a lot of creativity?",
+      "Could computers ever be as creative as human artists and musicians?"
     ]
   },
   {
@@ -545,25 +525,24 @@
     "title": "Describe a quiet place you like to go to.",
     "bullets": [
       "where it is",
-      "how often you go there",
+      "how you found this place",
       "what you do there"
     ],
-    "explain": "and explain why you like to go to this place.",
+    "explain": "and explain how you feel when you are there.",
     "followUps": [
-      "Do you usually go there alone?",
-      "Is it easy to find quiet places where you live?"
+      "Do you usually go there on your own?"
     ],
     "p3Topics": [
-      "Quiet places",
-      "Need for quiet"
+      "Finding peace and quiet",
+      "Calm in busy lives"
     ],
     "p3": [
-      "What kinds of quiet places do people in your country enjoy spending time in?",
-      "Why do some people seek quiet places when they are under pressure?",
-      "Do you think people have fewer opportunities to enjoy quiet surroundings nowadays?",
-      "What are the advantages of having quiet public spaces in towns?",
-      "How do quiet places compare with busy places as settings for relaxation?",
-      "Do you think people will value quiet places more in the future?"
+      "Where can people who live in towns go when they want some peace and quiet?",
+      "Why do some people feel uncomfortable in complete silence?",
+      "How important is it for people to spend some time alone?",
+      "Is life in cities becoming more stressful than it used to be?",
+      "What could be done to make city centres feel calmer?",
+      "Will finding quiet time become harder for people in the future?"
     ]
   },
   {
@@ -571,53 +550,51 @@
     "topic": "Places",
     "title": "Describe a historic building you have visited.",
     "bullets": [
-      "where it is",
+      "what the building is and where it is",
       "what it looks like",
       "what it was used for in the past"
     ],
-    "explain": "and explain what you learned from visiting it.",
+    "explain": "and explain what you learned from your visit.",
     "followUps": [
-      "Would you visit it again?",
-      "Do many tourists go there?"
+      "Would you take a friend to see this building?"
     ],
     "p3Topics": [
-      "Historic buildings",
-      "Preserving heritage"
+      "Old buildings today",
+      "Learning about history"
     ],
     "p3": [
-      "What kinds of historic buildings are most common in your country?",
-      "Why do some people prefer visiting historic buildings to modern attractions?",
-      "Do you think historic buildings should be used for modern purposes? Why?",
-      "How do historic buildings help people understand their country's past?",
-      "What are the advantages of restoring old buildings instead of replacing them?",
-      "Do you think young people are interested in the history of buildings? Why?"
+      "Are old buildings in your country generally well looked after? Why or why not?",
+      "Is it better to turn an old building into a hotel or a museum, or to leave it as it was?",
+      "Who should pay for the upkeep of historic buildings: the owners, visitors or the state?",
+      "Do you think history is taught in an interesting way in most schools?",
+      "Which is a better way to learn about the past: reading about it or visiting historic places?",
+      "What can a country learn from studying its own past?"
     ]
   },
   {
     "slug": "p2a-city-want-visit",
     "topic": "Places",
-    "title": "Describe a city you would like to visit in the future.",
+    "title": "Describe a foreign city you would like to explore.",
     "bullets": [
-      "where it is",
-      "how you know about it",
-      "which places you would visit"
+      "which city it is",
+      "how you first heard about it",
+      "what you would like to see and do there"
     ],
-    "explain": "and explain why you want to visit this city.",
+    "explain": "and explain what makes this city appeal to you.",
     "followUps": [
-      "Who would you go with?",
-      "When do you think you will go?"
+      "Who would you like to go there with?"
     ],
     "p3Topics": [
-      "Choosing cities",
-      "City tourism"
+      "City breaks",
+      "Life in big cities"
     ],
     "p3": [
-      "What kinds of cities do people in your country often choose to visit?",
-      "Why do some people prefer visiting large cities rather than smaller towns?",
-      "Do you think visitors learn more about a country by spending time in its cities?",
-      "What are the benefits of visiting cities with a different culture?",
-      "How do cities in your country compare with those abroad as tourist destinations?",
-      "Do you think city tourism will become more popular in the future?"
+      "What attracts tourists to big cities rather than beach resorts?",
+      "How useful are guidebooks and travel apps when visiting a new city?",
+      "Why do some cities attract far more visitors than others?",
+      "Do children who grow up in big cities have advantages over those from small towns?",
+      "What would make the cities in your country more pleasant places to live?",
+      "Do you think more people will move to cities in the coming decades?"
     ]
   },
   {
@@ -629,22 +606,21 @@
       "what it looks like",
       "what people do there"
     ],
-    "explain": "and explain why you enjoy going there.",
+    "explain": "and explain why you like spending time there.",
     "followUps": [
-      "Did you go there as a child?",
-      "What is the best season to visit?"
+      "When is the best time of year to go there?"
     ],
     "p3Topics": [
-      "Public green spaces",
-      "Gardens and wellbeing"
+      "Parks in towns and cities",
+      "Gardening"
     ],
     "p3": [
-      "What kinds of parks do people in your country use most often?",
-      "Why do some people prefer gardens to other places for relaxation?",
-      "Do you think parks are important parts of a good neighbourhood?",
-      "What are the advantages of having green spaces in cities?",
-      "How important is it for children to spend time outdoors in parks?",
-      "Do you think urban parks will become more important in the future?"
+      "What facilities make a public park popular with families?",
+      "Why are green spaces important for people living in cities?",
+      "Should land that is used as a park ever be sold for housing?",
+      "What type of person enjoys gardening, in your experience?",
+      "What can people who live in flats do if they want to grow plants?",
+      "Do you think children benefit from learning to grow their own food?"
     ]
   },
   {
@@ -652,26 +628,25 @@
     "topic": "Places",
     "title": "Describe a crowded place you have been to.",
     "bullets": [
-      "where it was",
-      "when you went there",
-      "who you went with"
+      "where this place was",
+      "why so many people were there",
+      "what you did there"
     ],
-    "explain": "and explain how you felt about being there.",
+    "explain": "and explain how you felt about being in such a busy place.",
     "followUps": [
-      "Do you generally like crowded places?",
-      "Would you go there again?"
+      "Would you choose to go back there?"
     ],
     "p3Topics": [
-      "Crowded places",
-      "Managing crowds"
+      "Busy public places",
+      "Population and cities"
     ],
     "p3": [
-      "What kinds of crowded places are popular in your country?",
-      "Why do some people enjoy visiting places where there are many people?",
-      "Do you think crowded places are usually exciting or uncomfortable? Why?",
-      "How do crowded public places compare with quieter ones for families?",
-      "What things are important for making busy public places comfortable?",
-      "Do you think cities will become more crowded in the future?"
+      "Which places in your country get most crowded at weekends or holidays?",
+      "What is it that attracts some people to busy, lively places?",
+      "How can organisers keep large crowds safe at events?",
+      "What problems are caused by too many people living in one city?",
+      "Do you think people should be encouraged to move from big cities to smaller towns?",
+      "How might cities need to change if their populations keep growing?"
     ]
   },
   {
@@ -683,22 +658,21 @@
       "when you went there",
       "what you did there"
     ],
-    "explain": "and explain why you enjoyed this place.",
+    "explain": "and explain why you enjoyed this place so much.",
     "followUps": [
-      "Can you swim?",
-      "Do you prefer the sea or lakes?"
+      "Are you a confident swimmer?"
     ],
     "p3Topics": [
-      "Waterfront places",
-      "Water and communities"
+      "Spending time by water",
+      "Rivers, lakes and coasts"
     ],
     "p3": [
-      "What kinds of places near water do people in your country visit for leisure?",
-      "Why do some people enjoy spending time near rivers or the sea?",
-      "Do you think living close to water affects people's quality of life?",
-      "What are the benefits of having public spaces beside rivers or lakes?",
-      "How do places beside the sea compare with those beside rivers for visitors?",
-      "Do you think more people will choose to live near water in the future?"
+      "What activities do people in your country enjoy doing by the sea or at lakes?",
+      "Why are homes with a view of water often so expensive?",
+      "How important is it for children to learn to swim?",
+      "What causes the most pollution in rivers and seas, in your opinion?",
+      "In what ways can large numbers of tourists damage beaches and coastal areas?",
+      "Would it be a good idea to build more homes close to rivers and the sea?"
     ]
   },
   {
@@ -708,24 +682,23 @@
     "bullets": [
       "where it is",
       "what it sells",
-      "how often you go there"
+      "what the people who work there are like"
     ],
-    "explain": "and explain why you like shopping there.",
+    "explain": "and explain why you prefer it to other places to shop.",
     "followUps": [
-      "Do you usually go shopping alone?",
-      "Do you ever buy things online instead?"
+      "What did you last buy there?"
     ],
     "p3Topics": [
-      "Local shopping",
-      "Shopping habits"
+      "Local shops",
+      "Changing shopping habits"
     ],
     "p3": [
-      "What kinds of shops or markets are popular in your country?",
-      "How do people choose between shopping in local shops and online?",
-      "Do you think small shops are important in a neighbourhood? Why?",
-      "How have shopping habits changed in your country in recent years?",
-      "What are the advantages of markets compared with large shopping centres?",
-      "Do you think people will continue to shop in physical stores? Why?"
+      "What are the advantages of shopping in small local shops?",
+      "Why do many people prefer supermarkets to traditional markets?",
+      "How important is good customer service when choosing where to shop?",
+      "How has online shopping affected town centres in your country?",
+      "Do you think people buy more than they actually need nowadays?",
+      "Will physical shops still exist in fifty years' time, or will everything be bought online?"
     ]
   },
   {
@@ -737,22 +710,21 @@
       "what it looks like",
       "when you usually go there"
     ],
-    "explain": "and explain why you find it a good place to study or work.",
+    "explain": "and explain why you are able to concentrate well there.",
     "followUps": [
-      "Do you prefer to study alone or with others?",
-      "Has your study place changed over the years?"
+      "Do you listen to anything while you study there?"
     ],
     "p3Topics": [
-      "Study environments",
-      "Work environments"
+      "Places to study",
+      "The modern workplace"
     ],
     "p3": [
-      "What kinds of places do people in your country usually choose for studying?",
-      "Why do some people work better in shared spaces than at home?",
-      "Do you think a quiet environment is necessary for effective study?",
-      "What are the advantages of working in a place outside the home?",
-      "How important is it for employers to provide comfortable workspaces?",
-      "Do you think more people will study and work remotely in the future?"
+      "Is it better for students to study at home or in a library?",
+      "What distractions make it hard for young people to study nowadays?",
+      "Do you think cafés and libraries are good places to get work done? Why?",
+      "What makes an office a pleasant and productive place to work?",
+      "What are the drawbacks of working from home every day?",
+      "How do you think workplaces will look different in twenty years' time?"
     ]
   },
   {
@@ -761,25 +733,24 @@
     "title": "Describe a place in the countryside you have visited.",
     "bullets": [
       "where it is",
-      "when you went there",
-      "who you went with"
+      "why you went there",
+      "what you did there"
     ],
-    "explain": "and explain what you liked or disliked about it.",
+    "explain": "and explain whether you would like to spend more time there.",
     "followUps": [
-      "Would you like to live in the countryside?",
-      "How often do you leave the city?"
+      "How often do you get the chance to visit the countryside?"
     ],
     "p3Topics": [
-      "Rural visits",
-      "Countryside life"
+      "Visiting the countryside",
+      "Rural life"
     ],
     "p3": [
-      "What kinds of countryside places do people in your country visit at weekends?",
-      "Why do some people prefer rural areas to cities for holidays?",
-      "Do you think people who live in cities benefit from visiting the countryside?",
-      "What are the advantages of living in the countryside?",
-      "How do rural communities compare with urban ones in the way people spend their free time?",
-      "Do you think countryside tourism will grow in the future?"
+      "What do people from cities enjoy doing when they visit the countryside?",
+      "Would most city people enjoy living in the countryside, do you think?",
+      "Should visitors to the countryside follow special rules? What kind?",
+      "What makes many young people leave villages to live in cities?",
+      "How different is daily life in a village from life in a city in your country?",
+      "Do you think working from home will bring more people back to the countryside?"
     ]
   },
   {
@@ -787,26 +758,25 @@
     "topic": "Places",
     "title": "Describe a restaurant you went to for a special occasion.",
     "bullets": [
-      "where it is",
+      "where the restaurant is",
       "what the occasion was",
       "what you ate there"
     ],
-    "explain": "and explain why this meal was memorable.",
+    "explain": "and explain why the meal was so memorable.",
     "followUps": [
-      "Do you eat out often?",
-      "Would you recommend this restaurant?"
+      "Do you often eat out for celebrations?"
     ],
     "p3Topics": [
-      "Celebrating in restaurants",
-      "Restaurant work"
+      "Eating out",
+      "The restaurant business"
     ],
     "p3": [
-      "What kinds of restaurants do families in your country choose for celebrations?",
-      "Why do some people prefer dining out to celebrating at home?",
-      "Do you think restaurants should offer special menus for important occasions?",
-      "What qualities do customers in your country value in restaurant staff?",
-      "How has restaurant work changed in your country in recent years?",
-      "Do you think local restaurants will remain important as food delivery grows?"
+      "How often do families in your country eat in restaurants?",
+      "Why do people often choose a restaurant rather than cooking at home for celebrations?",
+      "What makes a restaurant suitable for a special occasion?",
+      "Would you say that working as a waiter is a good job for a student? Why?",
+      "How do people decide which restaurant to try nowadays?",
+      "Do you think home delivery of food is a threat to traditional restaurants?"
     ]
   },
   {
@@ -820,20 +790,19 @@
     ],
     "explain": "and explain what you thought of your visit.",
     "followUps": [
-      "Do you often visit museums?",
-      "Did you take any photos?"
+      "Did anything in particular stay in your memory?"
     ],
     "p3Topics": [
-      "Visiting museums",
-      "Museums and education"
+      "Museums and young people",
+      "The role of museums"
     ],
     "p3": [
-      "What museums do schoolchildren in your country often visit?",
-      "Why do some people prefer art galleries to history museums?",
-      "Do you think museums should be free for everyone?",
-      "What role do museums play in education in your country?",
-      "What are the benefits of displaying modern art alongside older works?",
-      "Do you think museums will attract more young visitors in future?"
+      "What could museums do to make their exhibitions more appealing to children?",
+      "What can students learn from a museum that they cannot learn from a textbook?",
+      "What might put some people off visiting museums, even when entry is free?",
+      "How should museums be paid for: through ticket prices or public money?",
+      "Is a virtual tour of a museum as good as visiting in person?",
+      "Which objects from your country's history belong in a national museum, in your view?"
     ]
   },
   {
@@ -845,22 +814,21 @@
       "what it used to be like",
       "what it is like now"
     ],
-    "explain": "and explain what you think of the change.",
+    "explain": "and explain how you feel about the change.",
     "followUps": [
-      "Do you still visit this place?",
-      "Do other people like the change?"
+      "Do other local people like the change?"
     ],
     "p3Topics": [
-      "Changing neighbourhoods",
-      "Town development"
+      "Changes in towns",
+      "Planning for the future"
     ],
     "p3": [
-      "Which places in towns in your country have changed most in recent years?",
-      "Why do some residents welcome changes to familiar neighbourhoods?",
-      "Do you think old buildings should be preserved as towns develop?",
-      "What are the effects of new roads on small businesses?",
-      "How do new shopping areas compare with traditional town centres?",
-      "Do you think towns will change faster in the future?"
+      "What are the most noticeable changes in towns in your country over the last ten years?",
+      "Why do some people dislike changes to the place where they grew up?",
+      "Which matters more to a town: new shopping centres or a traditional high street?",
+      "Who should have a say in decisions about how a town develops?",
+      "Should new buildings be designed to match the older buildings around them?",
+      "What will towns in your country probably look like in thirty years?"
     ]
   },
   {
@@ -872,22 +840,21 @@
       "what it looks like",
       "what you do there"
     ],
-    "explain": "and explain why it is your favourite room.",
+    "explain": "and explain why you like spending time in this room.",
     "followUps": [
-      "Would you change anything about it?",
-      "Do you spend most of your time there?"
+      "Is there anything you would change about this room?"
     ],
     "p3Topics": [
-      "Using rooms at home",
-      "Choosing a home"
+      "Homes and space",
+      "Housing"
     ],
     "p3": [
-      "How do people in your country use their living rooms?",
-      "Why do some people prefer quiet rooms while others like open-plan homes?",
-      "Do you think homes should have a separate room for relaxation?",
-      "What features do people in your country look for when choosing a home?",
-      "What are the benefits of having a private space at home?",
-      "Do you think technology has changed how people use rooms at home?"
+      "How do the homes of young people differ from their grandparents' homes?",
+      "Why is it important for teenagers to have their own space at home?",
+      "What do people in your country usually do to make a home feel comfortable?",
+      "Do you think young people should rent or buy their first home?",
+      "Why is it so hard for young people in many cities to afford a home?",
+      "How will homes be different in fifty years' time, do you think?"
     ]
   },
   {
@@ -897,24 +864,23 @@
     "bullets": [
       "which country it is",
       "how you know about it",
-      "what you would do in your daily life there"
+      "what you would do there"
     ],
-    "explain": "and explain what attracts you to this country.",
+    "explain": "and explain what attracts you to living in this country.",
     "followUps": [
-      "How long would you like to stay?",
-      "Would you miss your home country?"
+      "How long would you like to live there?"
     ],
     "p3Topics": [
-      "Moving abroad",
-      "Life in another country"
+      "Living abroad",
+      "Adapting to a new culture"
     ],
     "p3": [
-      "What countries do young adults in your country often consider moving to?",
-      "Why do some people choose to live abroad rather than in their own country?",
-      "Do you think living abroad makes people more independent?",
-      "How do people in your country usually prepare for living abroad?",
-      "What are the advantages of studying or working abroad?",
-      "Do you think more people will choose to live abroad in the future?"
+      "What are the main reasons people decide to live in another country?",
+      "Which is harder when moving abroad: the language or the culture?",
+      "How can people prepare for living in a different country?",
+      "In what ways can living abroad change a person?",
+      "Do you think it is normal to feel homesick even after many years abroad?",
+      "Is it important for visitors to follow local customs, even when they seem strange?"
     ]
   },
   {
@@ -926,22 +892,21 @@
       "who you went there with",
       "what you did there"
     ],
-    "explain": "and explain why this place was important to you.",
+    "explain": "and explain why this place meant so much to you.",
     "followUps": [
-      "Have you been back recently?",
-      "Has it changed much?"
+      "Have you been back there as an adult?"
     ],
     "p3Topics": [
-      "Places children visit",
-      "Parks and play"
+      "Children and play",
+      "Childhood then and now"
     ],
     "p3": [
-      "What places do children in your country usually visit after school?",
-      "Why do some children prefer playing outdoors to staying at home?",
-      "Do you think children today have enough places to play?",
-      "What role do local parks play in communities in your country?",
-      "What are the advantages of parks compared with indoor play centres?",
-      "Do you think children will spend more time outdoors in future?"
+      "Where do children in your area usually play when they are not at school?",
+      "Is it safe for children to play outside without an adult nowadays?",
+      "What are the benefits for children of playing outdoors?",
+      "How is childhood today different from childhood when your parents were young?",
+      "Do you think children today spend too much time in organised activities like clubs and lessons?",
+      "Why do adults often remember childhood places as bigger than they really were?"
     ]
   },
   {
@@ -951,24 +916,23 @@
     "bullets": [
       "where it is",
       "what exercise you do there",
-      "how often you go"
+      "who you usually go with"
     ],
     "explain": "and explain why you like exercising there.",
     "followUps": [
-      "Do you exercise alone or with friends?",
-      "Is it expensive to go there?"
+      "How often do you manage to go there?"
     ],
     "p3Topics": [
-      "Places for exercise",
-      "Community sports facilities"
+      "Places to exercise",
+      "Sport in the community"
     ],
     "p3": [
-      "What kinds of places do people in your country use for exercise?",
-      "Why do some people prefer exercising outdoors to going to a gym?",
-      "Do you think people are more likely to exercise when facilities are nearby?",
-      "What are the benefits of public sports facilities for local residents?",
-      "How have sports facilities changed in your country in recent years?",
-      "Do you think more people will use community sports centres in future?"
+      "Which is more enjoyable, exercising outdoors or in a gym?",
+      "How expensive is it to join a gym or sports club in your country?",
+      "What stops many adults from exercising as regularly as they would like to?",
+      "Should every neighbourhood have free sports facilities, such as outdoor gyms or courts?",
+      "How far do local sports clubs help to bring a community together?",
+      "Do you think people will exercise more at home in the future?"
     ]
   },
   {
@@ -977,52 +941,50 @@
     "title": "Describe a noisy place you have been to.",
     "bullets": [
       "where it was",
-      "who you were with",
-      "what made it noisy"
+      "why you were there",
+      "what made it so noisy"
     ],
-    "explain": "and explain how you felt in this place.",
+    "explain": "and explain whether you enjoyed being there.",
     "followUps": [
-      "How long did you stay there?",
-      "Can you concentrate in noisy places?"
+      "Can you concentrate when there is a lot of noise?"
     ],
     "p3Topics": [
-      "Noisy places",
-      "Noise in cities"
+      "Noise in daily life",
+      "Noise and the community"
     ],
     "p3": [
-      "What places in your country are usually noisy during the day?",
-      "Why do some people enjoy busy, noisy places while others avoid them?",
-      "Do you think people have become less tolerant of noise?",
-      "What are the effects of noise on people who work from home?",
-      "How do city centres compare with residential areas for noise levels?",
-      "Do you think cities will become noisier in the future?"
+      "Which parts of a typical town in your country are the noisiest?",
+      "Why might some people prefer to have background noise while they are working?",
+      "How does noise affect people's ability to work or sleep?",
+      "What rules about noise are there in apartment buildings in your country?",
+      "Should there be stricter limits on noise from building work?",
+      "Are people today more sensitive to noise than in the past?"
     ]
   },
   {
     "slug": "p2a-beautiful-view",
     "topic": "Places",
-    "title": "Describe a place with a beautiful view.",
+    "title": "Describe a beautiful view you remember.",
     "bullets": [
-      "where it is",
-      "how you got there",
-      "what you could see"
+      "where you saw it",
+      "what you could see",
+      "what you were doing there"
     ],
-    "explain": "and explain why the view impressed you.",
+    "explain": "and explain why this view has stayed with you.",
     "followUps": [
-      "Did you take any photos?",
-      "Would you like to go back?"
+      "Did you take a photo of the view?"
     ],
     "p3Topics": [
-      "Enjoying scenery",
-      "Protecting landscapes"
+      "Natural scenery",
+      "Protecting the landscape"
     ],
     "p3": [
-      "What kinds of places with beautiful views do people visit in your country?",
-      "Why do some people prefer natural views to city skylines?",
-      "Do you think attractive views make a place more enjoyable to live in?",
-      "What are the benefits of keeping public spaces open to scenic landscapes?",
-      "How important is it for towns to protect their natural surroundings?",
-      "Do you think people will value scenic places more in the future?"
+      "What kinds of scenery are people in your country proud of?",
+      "Do you think a beautiful view is worth paying extra for when booking a hotel?",
+      "Does living in beautiful surroundings make people happier, or do they stop noticing them?",
+      "What can be done to stop popular beauty spots from becoming overcrowded?",
+      "Should new buildings be allowed in areas of natural beauty?",
+      "How will the landscape of your country change in the next fifty years?"
     ]
   },
   {
@@ -1034,49 +996,47 @@
       "when you used it",
       "what you did there"
     ],
-    "explain": "and explain how useful this library was to you.",
+    "explain": "and explain how useful you found this library.",
     "followUps": [
-      "Do you still go to libraries?",
-      "Do you prefer paper books or e-books?"
+      "Do you still use libraries now?"
     ],
     "p3Topics": [
-      "Using libraries",
-      "Libraries in society"
+      "Libraries and reading",
+      "The future of libraries"
     ],
     "p3": [
-      "What kinds of services do people use most in libraries in your country?",
-      "Why do some people choose a library rather than studying at home?",
-      "Do you think public libraries are still useful for young people?",
-      "What are the advantages of having libraries in local communities?",
-      "How have libraries changed in your country in recent years?",
-      "Do you think libraries will remain important as more books become digital?"
+      "What kinds of people use public libraries in your country?",
+      "How might libraries attract more teenagers and young adults?",
+      "Why do some people prefer borrowing books to buying them?",
+      "What services, apart from lending books, should a modern library offer?",
+      "Has the internet made public libraries less necessary than they were twenty years ago?",
+      "Do you think printed books will still be popular in fifty years?"
     ]
   },
   {
     "slug": "p2a-wedding-venue",
     "topic": "Travel",
-    "title": "Describe a hotel or guest house where you stayed.",
+    "title": "Describe a hotel or guest house you have stayed in.",
     "bullets": [
-      "where this place is",
-      "when you stayed there",
-      "what the rooms looked like"
+      "where it is",
+      "when and why you stayed there",
+      "what the rooms and facilities were like"
     ],
-    "explain": "and explain why you chose this place.",
+    "explain": "and explain whether you would stay there again.",
     "followUps": [
-      "Do you often stay in hotels?",
-      "Would you recommend this place to other travellers?"
+      "Did you book it yourself?"
     ],
     "p3Topics": [
-      "Hotel stays",
-      "Hotel services"
+      "Choosing accommodation",
+      "Jobs in tourism"
     ],
     "p3": [
-      "What kinds of accommodation do people in your country choose when they travel?",
-      "Why do some travellers prefer guest houses to large hotels?",
-      "Do you think staying in a hotel is better than staying with friends?",
-      "What are the advantages of staying in hotels for travellers in your country?",
-      "Why do some hotels offer a wider range of services than others?",
-      "Do you think hotels will use more technology to serve guests in the future?"
+      "What do people in your country look for when booking somewhere to stay?",
+      "Why are holiday rentals in private homes becoming more popular than hotels?",
+      "How much do online reviews influence people's choice of hotel?",
+      "What personal qualities are needed to work in tourism?",
+      "How does tourism create jobs for people who live in popular areas?",
+      "Do you think robots will be able to replace hotel staff one day?"
     ]
   },
   {
@@ -1086,24 +1046,23 @@
     "bullets": [
       "what it is",
       "when you got it",
-      "how you use it"
+      "what you use it for"
     ],
-    "explain": "and explain why you find it so useful.",
+    "explain": "and explain how your life would be different without it.",
     "followUps": [
-      "Could you live without it?",
       "Do you think you use it too much?"
     ],
     "p3Topics": [
-      "Everyday technology",
-      "Technology at work"
+      "Technology in the home",
+      "Technology and work"
     ],
     "p3": [
-      "What kinds of technology are most useful to people in your country?",
-      "Why do some people prefer using digital devices rather than doing things by hand?",
-      "Do you think people rely too much on technology in their daily lives?",
-      "How has technology changed the way people work in your country in recent years?",
-      "What advantages do people gain from using technology to communicate?",
-      "Do you think technology will make people's lives easier in the future?"
+      "Which devices do most homes in your country have nowadays?",
+      "In your experience, do older people find new technology difficult to use? Why?",
+      "At what age should children be given their own phone or tablet?",
+      "Which jobs have changed the most because of technology?",
+      "What could go wrong if a business depends too much on computers?",
+      "Do you think machines will do most jobs in the future?"
     ]
   },
   {
@@ -1113,24 +1072,23 @@
     "bullets": [
       "what the gift was",
       "who gave it to you",
-      "when you received it"
+      "what the occasion was"
     ],
-    "explain": "and explain why it was special to you.",
+    "explain": "and explain why this gift was so special.",
     "followUps": [
-      "Do you still have it?",
-      "Do you enjoy giving gifts?"
+      "Do you still have this gift?"
     ],
     "p3Topics": [
-      "Giving gifts",
-      "Gifts and relationships"
+      "Giving presents",
+      "Gifts and money"
     ],
     "p3": [
-      "What kinds of gifts do people commonly give for birthdays in your country?",
-      "Why do some people find it difficult to choose a suitable gift?",
-      "Do you think handmade gifts are more meaningful than expensive ones?",
-      "What are the benefits of giving gifts to people at work?",
-      "How important is it for a gift to reflect the receiver's interests?",
-      "Do you think people will give fewer physical gifts in the future?"
+      "On what occasions do people in your country give presents?",
+      "How do people decide what to buy someone as a present?",
+      "Is giving money instead of a present acceptable in your culture?",
+      "Do you think people spend too much money on gifts nowadays?",
+      "What are the advantages of giving experiences, like concert tickets, instead of objects?",
+      "In what ways have shops and advertising changed the way people celebrate special occasions?"
     ]
   },
   {
@@ -1139,25 +1097,24 @@
     "title": "Describe an old object that you have kept for a long time.",
     "bullets": [
       "what it is",
-      "where you got it",
-      "how it has been used over the years"
+      "how you got it",
+      "where you keep it now"
     ],
-    "explain": "and explain why you have kept it.",
+    "explain": "and explain why you have never got rid of it.",
     "followUps": [
-      "Where do you keep it?",
       "Would you ever sell it?"
     ],
     "p3Topics": [
-      "Keeping old possessions",
-      "Objects and memory"
+      "Keeping possessions",
+      "Throwaway culture"
     ],
     "p3": [
-      "What kinds of old objects do people in your country often keep?",
-      "Why do some people hold on to things they no longer use?",
-      "Do you think keeping old possessions helps people remember the past?",
-      "What are the advantages of repairing old objects instead of replacing them?",
-      "How important is it for families to pass treasured objects to younger generations?",
-      "Do you think people will keep fewer physical objects in the future?"
+      "What sorts of things do people tend to keep for sentimental reasons?",
+      "Why do some people find it hard to throw things away?",
+      "Do you think people keep too many things they don't really need?",
+      "Why are many products today made to last only a few years?",
+      "How common is it in your country to repair things rather than replace them?",
+      "What could encourage people to buy fewer new products?"
     ]
   },
   {
@@ -1165,26 +1122,25 @@
     "topic": "Objects",
     "title": "Describe a book that you read when you were younger.",
     "bullets": [
-      "what the book is",
+      "what the book was",
       "when you read it",
-      "what it is about"
+      "what it was about"
     ],
-    "explain": "and explain why it stayed in your memory.",
+    "explain": "and explain why you still remember it.",
     "followUps": [
-      "Have you recommended it to anyone?",
-      "Would you read it again?"
+      "Would you read it again now?"
     ],
     "p3Topics": [
-      "Books for children",
-      "Reading at school"
+      "Children and books",
+      "Reading in the digital age"
     ],
     "p3": [
-      "What kinds of books do children in your country enjoy reading?",
-      "Why do some children prefer stories to books that teach facts?",
-      "Do you think children benefit more from reading books or watching films?",
-      "What are the benefits of teachers in your country reading stories aloud to pupils?",
-      "How has the way children find books changed in your country in recent years?",
-      "Do you think schools will encourage children to read printed books in the future?"
+      "Which stories do young children in your country grow up hearing?",
+      "How important is it for parents to read to their children?",
+      "Should children be allowed to choose what they read at school?",
+      "Why do many teenagers stop reading for pleasure, and what could encourage them to start again?",
+      "Do you think reading on a screen is as good for children as reading a printed book?",
+      "How does reading a story compare with watching it as a film?"
     ]
   },
   {
@@ -1193,25 +1149,24 @@
     "title": "Describe a piece of clothing you like to wear.",
     "bullets": [
       "what it is",
-      "where you bought it or got it",
-      "when you wear it"
+      "where you got it",
+      "when you usually wear it"
     ],
     "explain": "and explain why you like wearing it.",
     "followUps": [
-      "Do you care about fashion?",
-      "How often do you buy new clothes?"
+      "Do you pay much attention to fashion?"
     ],
     "p3Topics": [
-      "Choosing clothes",
-      "Clothing and society"
+      "Clothes and fashion",
+      "Dress codes"
     ],
     "p3": [
-      "What kinds of clothes do people wear most often in your country?",
-      "Why do some people spend a lot of money on clothes?",
-      "Do you think people feel more confident in clothes they like?",
-      "What are the advantages of wearing comfortable clothes at work?",
-      "How important is it for schools to have rules about students' clothing?",
-      "Do you think people's clothing choices will become more similar in the future?"
+      "What influences the way young people dress in your country?",
+      "Why are designer clothes so attractive to some people?",
+      "Do you think it is important to follow fashion? Why?",
+      "What are the arguments for and against school uniforms?",
+      "Should companies be allowed to tell their employees what to wear at work?",
+      "How has the way people dress for work changed in recent years?"
     ]
   },
   {
@@ -1219,26 +1174,25 @@
     "topic": "Objects",
     "title": "Describe a photograph that is important to you.",
     "bullets": [
-      "what the photo shows",
+      "what the photograph shows",
       "when and where it was taken",
       "who took it"
     ],
-    "explain": "and explain why it is important to you.",
+    "explain": "and explain why this photograph means so much to you.",
     "followUps": [
-      "Do you keep it on display?",
-      "Do you like taking photos?"
+      "Where do you keep this photograph?"
     ],
     "p3Topics": [
       "Taking photographs",
-      "Sharing photographs"
+      "Photographs and memories"
     ],
     "p3": [
-      "What kinds of photographs do people in your country most enjoy taking?",
-      "Why do some people prefer taking photographs to keeping written records?",
-      "Do you think photographs help people remember important events?",
-      "How has photography changed since mobile phones became common?",
-      "What are the advantages of sharing photographs online?",
-      "Do you think people take too many photographs nowadays? Why?"
+      "What do people in your country usually take photographs of?",
+      "Why has it become so common to take photos of everyday things like meals?",
+      "Now that most people carry a camera on their phone, has photography become less special?",
+      "Is it better to print photographs or keep them on a phone?",
+      "How do photographs change the way we remember events?",
+      "Should people ask permission before posting photos of others online?"
     ]
   },
   {
@@ -1247,25 +1201,24 @@
     "title": "Describe something expensive you bought.",
     "bullets": [
       "what it was",
-      "where you bought it",
-      "when you bought it"
+      "where and when you bought it",
+      "how long you thought about it before buying it"
     ],
-    "explain": "and explain how you felt after buying it.",
+    "explain": "and explain whether you think it was worth the money.",
     "followUps": [
-      "Was it worth the money?",
-      "Do you usually save up for things?"
+      "Do you usually save up before buying something expensive?"
     ],
     "p3Topics": [
-      "Buying expensive things",
-      "Spending and value"
+      "Spending decisions",
+      "Money and young people"
     ],
     "p3": [
-      "What kinds of expensive products do people in your country often save up for?",
-      "Why do some people prefer buying high-quality goods rather than cheaper ones?",
-      "Do you think people should spend more on things that last?",
-      "How do people in your country decide whether an expensive purchase is worth the money?",
-      "What are the disadvantages of buying things on credit?",
-      "Do you think people will buy more expensive goods online in the future?"
+      "Which purchases do people in your country think are worth spending a lot of money on?",
+      "Why do some people buy expensive brands even when cheaper ones are just as good?",
+      "Is it better to buy one high-quality item or several cheaper ones?",
+      "At what age should children start to receive pocket money?",
+      "How can young people learn to manage their money wisely?",
+      "What are the dangers of buying things on credit?"
     ]
   },
   {
@@ -1277,22 +1230,21 @@
       "what it looks like",
       "where you would use it"
     ],
-    "explain": "and explain what appeals to you about it.",
+    "explain": "and explain what appeals to you about this vehicle.",
     "followUps": [
-      "Can you drive?",
-      "What vehicle do you use most now?"
+      "What kind of transport do you use most at the moment?"
     ],
     "p3Topics": [
-      "Choosing transport",
-      "Vehicles and society"
+      "Getting around",
+      "Transport in the future"
     ],
     "p3": [
-      "What kinds of vehicles do people commonly own in your country?",
-      "Why do some people prefer cars to public transport for daily travel?",
-      "Do you think electric vehicles are a good choice for ordinary families?",
-      "What are the benefits of having a bicycle for getting around a town?",
-      "How do private cars and public transport affect city life differently?",
-      "Do you think people will own fewer cars in the future?"
+      "What are the most common ways of getting to work in your country?",
+      "Why do many people prefer driving to taking public transport?",
+      "How safe is it to cycle in towns in your country?",
+      "Should city centres be closed to private cars? What would the effects be?",
+      "What would persuade more people to use public transport?",
+      "Do you think self-driving cars will be common one day?"
     ]
   },
   {
@@ -1304,22 +1256,21 @@
       "who gave it to you",
       "how you played with it"
     ],
-    "explain": "and explain why you liked it.",
+    "explain": "and explain why you liked it so much.",
     "followUps": [
-      "Do you still have this toy?",
-      "Do children still play with similar toys?"
+      "Do you still have this toy?"
     ],
     "p3Topics": [
-      "Children's toys",
-      "Sharing toys"
+      "Toys and play",
+      "Children and technology"
     ],
     "p3": [
-      "What kinds of toys are popular among children in your country?",
-      "Why do some people prefer traditional toys to electronic ones?",
-      "Do you think children learn more from toys they play with alone? Why?",
-      "Which toys do children in your country often share with friends?",
-      "What are the advantages of children sharing toys with their friends?",
-      "Do you think handmade toys will remain attractive to children?"
+      "What kinds of toys are popular with children in your country today?",
+      "Do you think children today have more toys than they really need?",
+      "Do children learn more from playing alone or from playing with others?",
+      "Should parents limit the time young children spend on screens?",
+      "Are electronic toys as good for a child's development as traditional ones?",
+      "How might the games children play change over the next twenty years?"
     ]
   },
   {
@@ -1328,25 +1279,24 @@
     "title": "Describe something you made by hand.",
     "bullets": [
       "what you made",
-      "how you made it",
+      "what materials you used",
       "how long it took"
     ],
-    "explain": "and explain how you felt about what you made.",
+    "explain": "and explain how you felt about the finished result.",
     "followUps": [
-      "Did you give it to anyone?",
-      "Would you make something similar again?"
+      "Did you keep it or give it away?"
     ],
     "p3Topics": [
-      "Making things",
-      "Handmade products"
+      "Making things by hand",
+      "Craft and industry"
     ],
     "p3": [
-      "What kinds of things do people in your country enjoy making by hand?",
-      "Why do some people prefer making gifts themselves rather than buying them?",
-      "Do you think children should learn practical crafts at school?",
-      "Which handmade products are commonly sold in your country?",
-      "What are the main differences between handmade and factory-made products?",
-      "Do you think people will make more things by hand in the future?"
+      "Which crafts are still practised in homes in your country?",
+      "Would you say handmade products are worth their higher price?",
+      "Should schools teach practical skills like sewing and woodwork?",
+      "How important are traditional crafts to a country's culture?",
+      "What are the advantages of products made in factories?",
+      "Do you think handmade goods will become more popular as people grow tired of mass production?"
     ]
   },
   {
@@ -1360,20 +1310,19 @@
     ],
     "explain": "and explain why you like it.",
     "followUps": [
-      "Do you have any art in your home?",
-      "Can you draw or paint?"
+      "Do you have any art on the walls at home?"
     ],
     "p3Topics": [
-      "Art at home",
-      "Art in public"
+      "Art in daily life",
+      "Public art"
     ],
     "p3": [
-      "What kinds of art do people in your country display in their homes?",
-      "Why do some people enjoy looking at paintings more than other kinds of art?",
-      "Do you think children should visit art galleries as part of their education?",
-      "Where do people in your country usually see paintings outside galleries?",
-      "What are the benefits of displaying art in public places?",
-      "Do you think public interest in art will grow in the future?"
+      "What kinds of art do people in your country hang in their homes?",
+      "Why do some people find modern art difficult to understand?",
+      "How important is it for children to learn to draw and paint?",
+      "Do you think public art, like statues and murals, is a good use of public money?",
+      "In what ways can art make a city a more pleasant place?",
+      "Can a piece of art produced by a computer be considered real art?"
     ]
   },
   {
@@ -1383,24 +1332,23 @@
     "bullets": [
       "what it was",
       "when and where you lost it",
-      "how you tried to find it"
+      "what you did to try to find it"
     ],
-    "explain": "and explain how you felt when you lost it.",
+    "explain": "and explain how you felt about losing it.",
     "followUps": [
-      "Did you ever find it?",
-      "Are you usually a careful person?"
+      "Did you ever get it back?"
     ],
     "p3Topics": [
-      "Losing belongings",
-      "Finding lost possessions"
+      "Losing things",
+      "Finding and returning lost things"
     ],
     "p3": [
-      "What kinds of things do people in your country often lose?",
-      "Why do some people find it harder than others to keep track of their belongings?",
-      "Do you think people are more careful with valuable items than they used to be?",
-      "What methods do people in your country use to find lost belongings?",
-      "How do online services compare with asking people for help?",
-      "Do you think people will rely more on tracking technology in the future?"
+      "What things do people most commonly lose, and why do you think that is?",
+      "Why are some people naturally more organised with their belongings than others?",
+      "What advice would you give to someone who often loses things?",
+      "What should someone do if they find something valuable in the street?",
+      "Are people in your country generally honest about returning lost property?",
+      "Do you think tracking devices will mean that people no longer lose things?"
     ]
   },
   {
@@ -1410,24 +1358,23 @@
     "bullets": [
       "what it is",
       "where it is",
-      "what it looks like"
+      "who chose it"
     ],
     "explain": "and explain why you like it.",
     "followUps": [
-      "Who chose it?",
-      "Would you like to replace it?"
+      "Would you ever replace it?"
     ],
     "p3Topics": [
-      "Furniture at home",
-      "Flexible furniture"
+      "Choosing furniture",
+      "Changing tastes"
     ],
     "p3": [
-      "What kinds of furniture are commonly found in homes in your country?",
-      "Why do some people prefer old furniture to newer designs?",
-      "Do you think comfortable furniture is more important than stylish furniture?",
-      "Which pieces of furniture are most common in homes in your country?",
-      "What are the advantages of buying furniture that can be used in different ways?",
-      "Do you think people will choose smaller furniture in the future?"
+      "What do people usually think about when choosing furniture for a new home?",
+      "Do you think older furniture is better made than modern furniture?",
+      "Is comfort more important than appearance when it comes to furniture? Why?",
+      "How have ideas about home design changed in your country in recent years?",
+      "Do people change their furniture more often than they used to? Why?",
+      "What are the benefits of buying second-hand furniture rather than new?"
     ]
   },
   {
@@ -1437,24 +1384,23 @@
     "bullets": [
       "what the app is",
       "how you found out about it",
-      "when you usually use it"
+      "what you use it for"
     ],
     "explain": "and explain why you use it so often.",
     "followUps": [
-      "Did you pay for it?",
-      "Would you recommend it to others?"
+      "Have you ever paid for an app?"
     ],
     "p3Topics": [
-      "Everyday apps",
-      "Apps and communication"
+      "Apps in everyday life",
+      "Phones and attention"
     ],
     "p3": [
-      "What kinds of mobile apps do people in your country use every day?",
-      "Why do some people prefer using apps instead of websites?",
-      "Do you think mobile apps make everyday tasks easier? Why?",
-      "Which mobile apps are used most often by people in your country?",
-      "What are the benefits of using apps to communicate with other people?",
-      "Do you think people will depend more on mobile apps in the future?"
+      "Which types of apps are most popular among older people?",
+      "How many of the apps on a typical phone do people really need, in your opinion?",
+      "How have apps changed the way people shop and travel?",
+      "Do you think people spend too much time looking at their phones?",
+      "Should there be limits on the time children spend on apps?",
+      "What are the risks of sharing personal information through apps?"
     ]
   },
   {
@@ -1464,24 +1410,23 @@
     "bullets": [
       "what it is",
       "what it looks like",
-      "how it is made"
+      "how it is made or used"
     ],
     "explain": "and explain why it is important in your culture.",
     "followUps": [
-      "Do you own one?",
-      "Is it still used today?"
+      "Do you own one yourself?"
     ],
     "p3Topics": [
-      "Traditional objects",
-      "Objects and daily life"
+      "Traditions and young people",
+      "Souvenirs and tourism"
     ],
     "p3": [
-      "Which traditional objects are still commonly used in homes in your country?",
-      "Why do some people keep traditional objects even when they are no longer useful?",
-      "Do you think young people should learn about traditional objects?",
-      "Which traditional objects do people in your country still use regularly?",
-      "What are the advantages of using traditional objects in everyday life?",
-      "Do you think traditional objects will remain important in the future?"
+      "How do people in your country keep traditional crafts alive?",
+      "Why do young people sometimes lose interest in their country's traditions?",
+      "Should schools spend more time teaching children about traditional culture?",
+      "What do tourists usually take home as souvenirs from your country?",
+      "Is it a good thing when traditional objects are mass-produced for tourists?",
+      "Can tourism help to keep local traditions alive, or does it change them too much?"
     ]
   },
   {
@@ -1491,24 +1436,23 @@
     "bullets": [
       "what you borrowed",
       "who you borrowed it from",
-      "how long you kept it"
+      "why you needed it"
     ],
     "explain": "and explain how you felt about borrowing it.",
     "followUps": [
-      "Did you return it on time?",
-      "Do you lend things to other people?"
+      "Did you return it in good condition?"
     ],
     "p3Topics": [
-      "Borrowing things",
-      "Borrowing from others"
+      "Borrowing and lending",
+      "Sharing resources"
     ],
     "p3": [
-      "What kinds of things do people in your country often borrow from friends?",
-      "Why do some people prefer borrowing things rather than buying them?",
-      "Do you think people should return borrowed items as soon as possible?",
-      "What things do people in your country usually borrow from neighbours?",
-      "What are the benefits of borrowing things from neighbours?",
-      "Do you think people will borrow less from others in the future?"
+      "What kinds of things do people often borrow from friends?",
+      "Why might some people be unwilling to lend their belongings, even to friends?",
+      "Is it a good idea to lend money to friends?",
+      "What are the benefits of sharing things like tools in a community?",
+      "How popular are sharing schemes, like bike rentals, in your country?",
+      "Do you think people will own fewer things and share more in the future?"
     ]
   },
   {
@@ -1522,26 +1466,25 @@
     ],
     "explain": "and explain how it makes your life easier.",
     "followUps": [
-      "Who uses it most in your home?",
-      "What appliance would you like to buy next?"
+      "Who uses it most in your home?"
     ],
     "p3Topics": [
-      "Household appliances",
-      "Energy-efficient appliances"
+      "Housework",
+      "Machines in the home"
     ],
     "p3": [
-      "What kinds of household appliances are commonly used in your country?",
-      "Why do some people choose simple appliances instead of more advanced ones?",
-      "Do you think appliances have made housework easier for most families?",
-      "Which household appliances are used most often in homes in your country?",
-      "What are the benefits of using energy-efficient household appliances?",
-      "Do you think people will own fewer appliances in the future?"
+      "Who does most of the housework in homes in your country?",
+      "Should children be expected to help with household chores? From what age?",
+      "How have household appliances changed family life since your grandparents' time?",
+      "Which appliance would be hardest for people to live without?",
+      "Would you say people replace their appliances more often than they need to?",
+      "Do you think robots will do most housework in the future?"
     ]
   },
   {
     "slug": "p2a-something-wanted-buy",
     "topic": "Objects",
-    "title": "Describe something you would like to buy in the future.",
+    "title": "Describe something you are saving up to buy.",
     "bullets": [
       "what it is",
       "how much it costs",
@@ -1549,20 +1492,19 @@
     ],
     "explain": "and explain why you want to buy it.",
     "followUps": [
-      "Are you saving for it now?",
-      "Is it a need or a want?"
+      "How long will it take you to save for it?"
     ],
     "p3Topics": [
-      "Choosing products",
-      "Shopping habits"
+      "Saving money",
+      "Advertising and spending"
     ],
     "p3": [
-      "What kinds of expensive items do people in your country usually save up to buy?",
-      "Why do some people prefer buying new products rather than second-hand ones?",
-      "Do you think people need to plan carefully before making a large purchase?",
-      "Do you think online shopping has changed how people in your country choose expensive products?",
-      "What are the advantages of saving for something rather than borrowing money to buy it?",
-      "Is it better to spend money on useful items or enjoyable experiences? Why?"
+      "What do young people in your country usually save money for?",
+      "Why do some people find it difficult to save money?",
+      "Do you think it is better to save up or to borrow money for something you want?",
+      "What methods do advertisers use to persuade people to buy things they don't need?",
+      "Should advertising aimed at young children be more strictly controlled? Why?",
+      "Does owning more possessions really make people happier? Why or why not?"
     ]
   },
   {
@@ -1572,24 +1514,23 @@
     "bullets": [
       "what the instrument is",
       "what it sounds like",
-      "where you have heard it"
+      "where you have heard it played"
     ],
-    "explain": "and explain what attracts you to this instrument.",
+    "explain": "and explain what draws you to this instrument.",
     "followUps": [
-      "Is it difficult to learn?",
-      "Does anyone you know play it?"
+      "Do you know anyone who plays this instrument?"
     ],
     "p3Topics": [
-      "Learning music",
+      "Learning an instrument",
       "Music in society"
     ],
     "p3": [
-      "What musical instruments are most often learned by young people in your country?",
-      "Why do some people find it easier to learn an instrument as children?",
-      "Do you think schools should give students more chances to learn music?",
-      "Do you think traditional musical instruments are still important in your country?",
-      "What are the benefits of learning to play music with other people?",
-      "How do musical tastes influence which instruments become popular?"
+      "Which musical instruments do children in your country usually learn?",
+      "Should all children learn to play an instrument at school?",
+      "Why is it that so many people give up learning an instrument?",
+      "How does traditional music in your country differ from modern music?",
+      "In what ways can music bring people from different backgrounds together?",
+      "Do you think traditional instruments will still be played in the future?"
     ]
   },
   {
@@ -1599,24 +1540,23 @@
     "bullets": [
       "what the website is",
       "how you found it",
-      "what information it provides"
+      "what you use it for"
     ],
-    "explain": "and explain why you find it useful.",
+    "explain": "and explain why you find this website useful.",
     "followUps": [
-      "How often do you visit it?",
-      "Have you recommended it to anyone?"
+      "Is there anything about this website you would change?"
     ],
     "p3Topics": [
-      "Online habits",
-      "Websites and society"
+      "Information online",
+      "The internet and society"
     ],
     "p3": [
-      "What kinds of websites do people in your country visit most often?",
-      "Why do some people prefer websites to smartphone apps?",
-      "Do you think people should be careful about the information they find online?",
-      "What are the advantages of using websites to learn new skills?",
-      "How have websites changed the way people communicate in your country?",
-      "Do you think websites will remain important as more services move to apps?"
+      "Which websites do people in your country use most, apart from social media?",
+      "How can people tell if information online is reliable?",
+      "Are news websites as trustworthy as printed newspapers, in your view?",
+      "Do you think online courses can be as effective as classes in person?",
+      "Has the internet brought people closer together or made them more isolated?",
+      "Should children be allowed to use the internet without supervision?"
     ]
   }
 ]

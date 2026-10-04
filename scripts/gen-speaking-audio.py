@@ -49,7 +49,7 @@ def main():
     dry = "--dry" in args
     cap = int(args[args.index("--max-credits") + 1]) if "--max-credits" in args else 10000
     OUT.mkdir(parents=True, exist_ok=True); CACHE.mkdir(exist_ok=True)
-    items = json.loads(subprocess.check_output(["pnpm", "-s", "tsx", "scripts/speaking-audio-texts.ts"], cwd=ROOT))
+    items = json.loads(subprocess.check_output(["pnpm", "-s", "tsx", "--env-file-if-exists=.env", "scripts/speaking-audio-texts.ts"], cwd=ROOT))
     todo = [i for i in items if not (OUT / f"{i['hash']}.mp3").exists()]
     chars = sum(len(i["text"]) for i in todo)
     c0, limit, tier = used()
