@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -167,7 +168,7 @@ fun SpeakingSessionScreen(route: SpeakingSession, nav: AppNav) {
             Phase.Finishing -> Finishing(vm, ::stateOf, doneIds.size)
             else -> if (p != null) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    if (p.part == 2) CueCard(p) else QuestionHeader(p, vm.question)
+                    if (p.part == 2) CueCard(p) else QuestionHeader(p, vm.question, vm.index, spoken = vm.lineFor(p, p.questions.getOrNull(vm.question) ?: "")?.url != null)
                     vm.startError?.let { ErrorLine(it) }
                     when (vm.phase) {
                         Phase.Recording -> RecordingPanel(vm, p)
@@ -231,7 +232,7 @@ private fun subTopic(p: Prompt, question: Int): String? {
 }
 
 @Composable
-private fun QuestionHeader(p: Prompt, question: Int) {
+private fun QuestionHeader(p: Prompt, question: Int, part: Int, spoken: Boolean) {
     val e = MaterialTheme.ext
     val n = p.questions.size
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -252,10 +253,25 @@ private fun QuestionHeader(p: Prompt, question: Int) {
                 }
             }
         }
-        Text(
-            p.questions.getOrNull(question) ?: p.questions.lastOrNull() ?: p.title,
-            Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, color = e.ink,
-        )
+        val text = p.questions.getOrNull(question) ?: p.questions.lastOrNull() ?: p.title
+        // A spoken question is heard, not read, as in the real test; the text is one tap away, for this question only.
+        var shown by remember(part, question) { mutableStateOf(false) }
+        if (spoken && !shown) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    Modifier.clearAndSetSemantics { contentDescription = text; heading() },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(painterResource(R.drawable.ic_sp_volume), contentDescription = null, Modifier.size(28.dp), tint = e.muted)
+                    Text("Listen to the examiner", style = MaterialTheme.typography.headlineMedium, color = e.muted)
+                }
+                TextButton({ shown = true }, Modifier.heightIn(min = 48.dp)) {
+                    Text("Show the question", color = e.brand, textDecoration = TextDecoration.Underline)
+                }
+            }
+        } else {
+            Text(text, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, color = e.ink)
+        }
     }
 }
 

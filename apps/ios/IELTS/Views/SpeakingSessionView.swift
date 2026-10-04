@@ -19,6 +19,8 @@ struct SpeakingSessionView: View {
     @State private var items: [Prompt] = []
     @State private var index = 0
     @State private var question = 0
+    /// Which question's text the candidate chose to read ("part:q"); a spoken question is heard, not read, as in the real test.
+    @State private var shownQ = ""
     @State private var questionStart: TimeInterval = 0
     @State private var windows: [AnswerWindow] = []
     @State private var examinerState: Examiner = .idle
@@ -265,11 +267,25 @@ struct SpeakingSessionView: View {
                     }
                 }
             }
-            Text(questionText(p))
-                .font(.display(.title))
-                .foregroundStyle(.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityAddTraits(.isHeader)
+            if line(p, questionText(p))?.url != nil && shownQ != "\(index):\(question)" {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Listen to the examiner", systemImage: "speaker.wave.2.fill")
+                        .font(.display(.title))
+                        .foregroundStyle(.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityLabel(questionText(p))
+                        .accessibilityAddTraits(.isHeader)
+                    Button { shownQ = "\(index):\(question)" } label: {
+                        Text("Show the question").underline().font(.subheadline.weight(.medium)).foregroundStyle(.brand)
+                    }
+                }
+            } else {
+                Text(questionText(p))
+                    .font(.display(.title))
+                    .foregroundStyle(.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
     }
 

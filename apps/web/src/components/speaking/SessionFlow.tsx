@@ -72,6 +72,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
   const openAt = useRef(0);
   const askCtl = useRef<AbortController | undefined>(undefined);
   const [examiner, setExaminer] = useState<'idle' | 'asking' | 'cue'>('idle');
+  /** Which question's text the candidate chose to read ("seg:q"); a spoken question is heard, not read, as in the real test. */
+  const [shownQ, setShownQ] = useState('');
   const stopping = useRef(false);
   useEffect(() => () => askCtl.current?.abort(), []);
 
@@ -249,9 +251,22 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
           ) : (
             <div className="space-y-4">
               <PartMeta seg={seg} p1Pos={p1Pos} p1Count={p1Count} multi={segments.length > 1} n={multiQ ? qIdx + 1 : undefined} heading={seg.part === 3 && seg.prompt.bullets?.length === 2 ? seg.prompt.bullets[Math.floor((qIdx * 2) / seg.questions.length)] : undefined} total={seg.questions.length} />
-              <h1 key={qIdx} className="type-title motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
-                {seg.questions[qIdx]}
-              </h1>
+              {lineFor(seg, seg.questions[qIdx]!)?.url && shownQ !== `${segIdx}:${qIdx}` ? (
+                <div key={qIdx} className="space-y-2 motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
+                  <h1 className="sr-only">{seg.questions[qIdx]}</h1>
+                  <p aria-hidden className="type-title flex items-center gap-3 text-muted">
+                    <Volume2 className="size-7 shrink-0" />
+                    Listen to the examiner
+                  </p>
+                  <button type="button" onClick={() => setShownQ(`${segIdx}:${qIdx}`)} className="type-caption text-accent-text underline underline-offset-4">
+                    Show the question
+                  </button>
+                </div>
+              ) : (
+                <h1 key={qIdx} className="type-title motion-safe:animate-[fade-in_250ms_var(--ease-out-quart)]">
+                  {seg.questions[qIdx]}
+                </h1>
+              )}
             </div>
           )}
 

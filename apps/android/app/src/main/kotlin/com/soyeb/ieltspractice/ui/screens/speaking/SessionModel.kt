@@ -114,7 +114,7 @@ class SessionModel(
 
     // MARK: Examiner
 
-    private fun lineFor(p: Prompt, text: String) = p.audio?.questions?.firstOrNull { it.text == text }
+    fun lineFor(p: Prompt, text: String) = p.audio?.questions?.firstOrNull { it.text == text }
 
     /**
      * The examiner reads [lines] (microphone held meanwhile, so the recording holds only the candidate), then the answer window opens
