@@ -42,6 +42,18 @@ export function createApp() {
 
   if (!R2_CONFIGURED) app.use('*', (c, next) => requestOrigin.run(new URL(c.req.url).origin, next)); // dev presigned URLs (storage.ts)
 
+  // Behind Cloudflare an http:// visit served the whole app, then sign-in failed "Invalid origin" (only the https origin is trusted).
+  // CF-Visitor carries the visitor's scheme (X-Forwarded-Proto is the proxy hop's); send http visitors to https and pin it with HSTS.
+  app.use('*', async (c, next) => {
+    const cf = c.req.header('cf-visitor');
+    if (cf?.includes('"http"')) {
+      const u = new URL(c.req.url);
+      return c.redirect(`https://${c.req.header('host') ?? u.host}${u.pathname}${u.search}`, 308);
+    }
+    await next();
+    if (cf) c.header('Strict-Transport-Security', 'max-age=31536000');
+  });
+
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
   app.use('/api/*', cors({ origin: [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS], credentials: true, exposeHeaders: ['set-auth-token', STATUS_HEADER] }));

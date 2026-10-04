@@ -35,3 +35,11 @@ it('dev local-disk storage: presigned URLs point back at the host the client use
     setStorage(memory);
   }
 });
+
+it('sends http visitors (Cloudflare CF-Visitor) to https and pins https with HSTS', async () => {
+  const http = await app.request('/login?next=%2F', { headers: { 'cf-visitor': '{"scheme":"http"}', host: 'ielts.example' } });
+  expect([http.status, http.headers.get('location')]).toEqual([308, 'https://ielts.example/login?next=%2F']);
+  const https = await app.request('/api/health', { headers: { 'cf-visitor': '{"scheme":"https"}' } });
+  expect([https.status, https.headers.get('strict-transport-security')]).toEqual([200, 'max-age=31536000']);
+  expect((await app.request('/api/health')).headers.get('strict-transport-security')).toBeNull(); // dev / direct
+});
