@@ -187,13 +187,13 @@ clip_reading_location() { # Reading result: a True/False/Not Given mistake expla
   launch lr-result light; rec_start "10-reading-result-answer-location-light"
   sleep 1.5; tap_text "See your" 0 1.4
   tap_text "Question 4," 0 1.6; swipe_up 900 1.6 # the explanation opens below the row
-  tap_live "Show in passage" 0 3.6
+  tap_live "Show in passage" 0 3.0
   rec_stop
 }
 clip_reading_tfng() { # Reading result, Summary: where marks were lost by question type, then the True/False/Not Given pattern.
   launch lr-result light; rec_start "11-reading-result-tfng-pattern-light"
-  sleep 1.5; swipe_up 1100 1.6; swipe_up 1100 1.4
-  tap_live "Which statements you mix up" 0 1.6; swipe_up 1100 1.8; swipe_up 1100 2.0
+  sleep 1.2; swipe_up 1100 1.4; swipe_up 1100 1.2
+  tap_live "Which statements you mix up" 0 1.4; swipe_up 1100 1.6; swipe_up 1100 1.6
   rec_stop
 }
 clip_review() { # $1 theme. Review deck: a Listening spelling card (Hear the word, then the spelling), graded Good; the next card comes up.
@@ -210,7 +210,7 @@ clip_dashboard() { # $1 theme. Home: streak, Next up, predicted bands, then the 
 clip_bank() { # Prompt bank: every question to practise; Speaking only, then search "food".
   launch bank-all light; rec_start "14-question-bank-search-light"
   sleep 1.5; swipe_up 1100 1.4; swipe_down 1100 1.0
-  tap_text "Speaking" 0 1.2; tap_text "Search titles and questions" 0 0.6
+  tap_live "Speaking" 0 1.2; tap_text "Search titles and questions" 0 0.6
   typewords "food"; sleep 2.6
   rec_stop
 }
@@ -224,23 +224,24 @@ clip_part2_prep() { # Part 2: the cue card, start the minute of preparation (the
 }
 clip_writing_type() { # Writing Task 2 editor: the prompt, the timer and word count while typing.
   launch editor light; rec_start "16-writing-editor-typing-light"
-  sleep 1; tap_text "Your answer" 0 0.8
+  sleep 0.6; tap_text "Your answer" 0 0.6
   typewords "These%sdays,%s" "a%sgrowing%snumber%s" "of%syoung%speople%s" "take%sa%syear%sout%s" "before%suniversity."
-  sleep 1.5
+  sleep 1.0
   rec_stop
 }
 
+sleep 20 # let the freshly booted emulator settle: the first clip otherwise drops frames
 ONLY=${ONLY:-}  # e.g. ONLY="clip_review:dark clip_bank" for a quick re-run
 if [ -n "$ONLY" ]; then for c in $ONLY; do take ${c%%:*} ${c#*:}; done
 else
   for t in light dark; do
-    take clip_examiner $t
     take clip_speaking_bands $t
     take clip_transcript $t
     take clip_writing_errors $t
     take clip_listening_result $t
     take clip_review $t
     take clip_dashboard $t
+    take clip_examiner $t
   done
   take clip_writing_bands
   take clip_writing_rewrite

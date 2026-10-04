@@ -355,9 +355,9 @@ const fx = {
   '/api/speaking/test': { part1: [spWeekends], part2: spSkill, part3: spLearning },
 };
 // The bank's search: typing "food" with Speaking picked.
-for (const q of ['f', 'fo', 'foo', 'food']) {
-  const hits = prompts.filter((x) => x.skill === 'speaking' && [x.title, x.body, ...(x.followUps ?? [])].join(' ').toLowerCase().includes(q));
-  fx[`/api/prompts?page=1&q=${q}&skill=speaking`] = { items: hits, total: hits.length, page: 1, pageSize: 30 };
+for (const q of ['f', 'fo', 'foo', 'food']) for (const skill of ['speaking', '']) {
+  const hits = prompts.filter((x) => (!skill || x.skill === skill) && [x.title, x.body, ...(x.followUps ?? [])].join(' ').toLowerCase().includes(q));
+  fx[`/api/prompts?page=1&q=${q}${skill && `&skill=${skill}`}`] = { items: hits, total: hits.length, page: 1, pageSize: 30 };
 }
 for (const x of prompts) fx[`/api/prompts/${x.id}`] = x;
 
