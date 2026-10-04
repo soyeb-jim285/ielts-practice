@@ -2,7 +2,7 @@ import { pageMeta, SITE_NAME, SITEMAP_PATHS } from '@ielts/core';
 import type { Hono } from 'hono';
 import { env } from './env';
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** The SPA shell with this path's title, description, canonical URL and share card written in, replacing the
  *  <!--seo-->…<!--/seo--> defaults of index.html. Link previews (WhatsApp, Facebook, X, Slack) read only this HTML. */
@@ -30,7 +30,8 @@ export function renderShell(html: string, path: string, origin = env.WEB_ORIGIN)
     `<meta name="twitter:description" content="${esc(m.description)}" />`,
     `<meta name="twitter:image" content="${esc(img)}" />`,
   ].join('\n    ');
-  return html.replace(/<!--seo-->[\s\S]*?<!--\/seo-->/, `<!--seo-->\n    ${tags}\n    <!--/seo-->`);
+  // A replacer function: the URL path is user-controlled, and a replacement *string* would expand "$'" / "$`" patterns in it.
+  return html.replace(/<!--seo-->[\s\S]*?<!--\/seo-->/, () => `<!--seo-->\n    ${tags}\n    <!--/seo-->`);
 }
 
 export function registerSeo(app: Hono<any>) {

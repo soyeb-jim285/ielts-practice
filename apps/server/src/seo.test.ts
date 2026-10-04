@@ -15,3 +15,11 @@ it('writes each page its own title, share card and canonical URL; private pages 
   expect(result).toContain('content="noindex, follow"');
   expect(renderShell(shell, '/', 'https://ielts.example')).toContain('og/home.png');
 });
+
+it('inserts a hostile path literally: no $-pattern expansion, no markup', () => {
+  const html = renderShell(`<p>before</p>${shell}<p>after</p>`, "/x$'$`\"<script>'", 'https://ielts.example');
+  expect(html).not.toContain('<script>');
+  expect(html.match(/<p>before<\/p>/g)).toHaveLength(1);
+  expect(html.match(/<p>after<\/p>/g)).toHaveLength(1);
+  expect(html).toContain('href="https://ielts.example/x$&#39;$`&quot;&lt;script&gt;&#39;"');
+});
