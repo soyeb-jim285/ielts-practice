@@ -162,7 +162,7 @@ final class LiveExam {
 
     private func runTurnBased() async {
         do {
-            var reply: LiveReply = try await api.send("POST", "/api/live/start", [String: String]())
+            var reply: LiveReply = try await api.send("POST", "/api/live/start", ["source": QuestionSource.speaking(api)].compactMapValues { $0 })
             sessionId = reply.sessionId ?? ""
             test = reply.test
             while !Task.isCancelled {
@@ -234,7 +234,9 @@ final class LiveExam {
 
     private func runDuplex(_ kind: Examiner) async {
         do {
-            let s: LiveReply = try await api.send("POST", "/api/live/start", ["skipTts": true] as [String: Any])
+            var startBody: [String: Any] = ["skipTts": true]
+            if let source = QuestionSource.speaking(api) { startBody["source"] = source }
+            let s: LiveReply = try await api.send("POST", "/api/live/start", startBody)
             sessionId = s.sessionId ?? ""
             test = s.test
             do {

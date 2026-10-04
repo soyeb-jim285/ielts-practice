@@ -25,6 +25,15 @@ class AppContainer(context: Context, val demo: DemoConfig? = null) {
 
     val api: ApiClient
     val pending: PendingStore
+    private val prefs = context.applicationContext.getSharedPreferences("ielts", Context.MODE_PRIVATE)
+
+    /** Question bank for random speaking tests (web: useQuestionSource): "any", "cambridge" or "generated", remembered on this device. */
+    var speakingSource: String
+        get() = prefs.getString("questionSource:speaking", null) ?: "any"
+        set(v) { prefs.edit().putString("questionSource:speaking", v).apply() }
+
+    /** The `source` to send: only Cambridge-allowlisted accounts choose; null = the server default (any visible prompt). */
+    fun speakingSourceParam(): String? = speakingSource.takeIf { api.me.value?.cambridgeAccess == true && (it == "cambridge" || it == "generated") }
 
     init {
         val app = context.applicationContext

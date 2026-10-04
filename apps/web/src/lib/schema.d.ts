@@ -202,8 +202,8 @@ export interface paths {
                     part?: number;
                     variant?: "academic" | "general";
                     type?: string;
-                    topic?: string;
                     source?: "generated" | "cambridge";
+                    topic?: string;
                     q?: string;
                     page?: number;
                 };
@@ -283,6 +283,7 @@ export interface paths {
                     part?: number;
                     variant?: "academic" | "general";
                     type?: string;
+                    source?: "generated" | "cambridge";
                 };
                 header?: never;
                 path?: never;

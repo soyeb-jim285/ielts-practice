@@ -4,7 +4,7 @@
 import { api } from '@/lib/api';
 import { useDuplexExaminer, type CueKey, type Duplex, type Handlers } from './duplex';
 import { appendEvent, closeEvent, muteEvent, parseLiveEvent, type LiveEvent } from './gptLiveProtocol';
-import type { LiveExaminer } from './turn';
+import type { LiveExaminer, LiveSource } from './turn';
 
 const CONNECT_MS = 15_000;
 const IDLE_MS = 2500; // no caption delta for this long: the examiner has finished speaking (there is no response.done in GPT-Live)
@@ -151,6 +151,6 @@ function iceComplete(pc: RTCPeerConnection) {
   });
 }
 
-export function useGptLiveExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void): LiveExaminer {
-  return useDuplexExaminer(() => new GptLiveDuplex(), onFinished, onUnavailable);
+export function useGptLiveExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource): LiveExaminer {
+  return useDuplexExaminer(() => new GptLiveDuplex(), onFinished, onUnavailable, source);
 }

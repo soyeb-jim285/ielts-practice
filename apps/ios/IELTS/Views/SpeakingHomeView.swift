@@ -1,5 +1,15 @@
 import SwiftUI
 
+/// Which bank random speaking tests draw from (web: useQuestionSource), remembered on this device.
+/// Only Cambridge-allowlisted accounts choose; nil = the server default (any visible prompt).
+enum QuestionSource {
+    static let key = "questionSource:speaking"
+    @MainActor static func speaking(_ api: APIClient) -> String? {
+        guard api.me?.cambridgeAccess == true, let v = UserDefaults.standard.string(forKey: key), v == "cambridge" || v == "generated" else { return nil }
+        return v
+    }
+}
+
 /// Speaking hub (web: routes/_app/speaking/index.tsx): unsent recordings, the two ways to practise, single parts, recent results.
 struct SpeakingHomeView: View {
     @Environment(APIClient.self) private var api
@@ -7,6 +17,7 @@ struct SpeakingHomeView: View {
     @State private var recentError: String?
     @State private var openResult: String?
     @State private var deleting: PendingRecording?
+    @AppStorage(QuestionSource.key) private var source = "any"
 
     private var store: PendingStore { .shared }
     private var target: Double { api.me?.settings.targetBand ?? 7 }
@@ -29,6 +40,7 @@ struct SpeakingHomeView: View {
             VStack(alignment: .leading, spacing: 28) {
                 Text("Record your answers and get a band for each criterion, with every mistake and pause located in your transcript.")
                     .foregroundStyle(.muted)
+                if api.me?.cambridgeAccess == true { sourcePicker }
                 GuestRecentView(skill: "speaking")
                 if fresh { partsSection }
                 pendingSection
@@ -55,6 +67,25 @@ struct SpeakingHomeView: View {
             Button("Cancel", role: .cancel) {}
         } message: { _ in
             Text("The recording is removed from this device and can't be uploaded afterwards.")
+        }
+    }
+
+    // MARK: Question source
+
+    /// Cambridge-allowlisted accounts only: which bank the full test, single parts and the live examiner draw from.
+    private var sourcePicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Questions").font(.caption).foregroundStyle(.muted).accessibilityHidden(true)
+            Picker("Questions", selection: $source) {
+                Text("Mixed").tag("any")
+                Text("Cambridge books").tag("cambridge")
+                Text("Our own").tag("generated")
+            }
+            .pickerStyle(.segmented)
+            if source == "cambridge" {
+                Text("Cambridge questions have no recorded examiner voice, so the practice test shows them on screen. The live examiner still asks them aloud.")
+                    .font(.caption).foregroundStyle(.muted)
+            }
         }
     }
 

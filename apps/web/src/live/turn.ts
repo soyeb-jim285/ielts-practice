@@ -10,6 +10,8 @@ import { api } from '@/lib/api';
 export type { Phase };
 export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
 export type LiveStarted = ExaminerLine & { sessionId: string; test: SpeakingTest };
+/** Which bank /live/start draws the test from; undefined = the server default (any visible prompt). */
+export type LiveSource = 'cambridge' | 'generated' | undefined;
 type Part = 1 | 2 | 3;
 
 export const PREP_S = 60;
@@ -135,7 +137,7 @@ function useExaminerAudio() {
   };
 }
 
-export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void): LiveExaminer {
+export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, source?: LiveSource): LiveExaminer {
   const [status, setStatus] = useState<LiveExaminer['status']>('idle');
   const [phase, setPhase] = useState<Phase>('intro');
   const [caption, setCaption] = useState('');
@@ -245,7 +247,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     audio.prime();
     setStatus('starting');
     try {
-      const st = await api.post<LiveStarted>('/live/start', {});
+      const st = await api.post<LiveStarted>('/live/start', { source });
       s.current.sessionId = st.sessionId;
       await play(st);
     } catch (e) {

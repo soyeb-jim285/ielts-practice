@@ -51,11 +51,10 @@ export type SpeakingTest = z.infer<typeof SpeakingTestSchema>;
 const TestSource = z.enum(['generated', 'cambridge', 'any']);
 
 const part = z.coerce.number().int().min(1).max(3).optional();
-const RandomQuery = z.object({ skill: Skill, part, variant: Variant.optional(), type: z.string().max(40).optional() });
+const RandomQuery = z.object({ skill: Skill, part, variant: Variant.optional(), type: z.string().max(40).optional(), source: Source.optional() });
 const ListQuery = RandomQuery.extend({
   skill: Skill.optional(),
   topic: z.string().max(80).optional(),
-  source: Source.optional(),
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
 });
@@ -85,9 +84,12 @@ const filters = (user: SessionUser | null, f: Partial<z.infer<typeof ListQuery>>
     f.q ? or(ilike(prompts.title, like(f.q)), ilike(prompts.body, like(f.q))) : undefined,
   );
 
-/** Random visible prompts, undone first. */
+/** Random visible prompts, undone first. Without a user there is no done flag to sort by (and Postgres rejects ORDER BY false). */
 const pick = (user: SessionUser | null, where: SQL | undefined, limit: number) =>
-  selectWithDone(user?.id ?? null).where(and(visiblePromptWhere(user), where)).orderBy(doneExpr(user?.id ?? null), sql`random()`).limit(limit);
+  selectWithDone(user?.id ?? null)
+    .where(and(visiblePromptWhere(user), where))
+    .orderBy(...(user ? [doneExpr(user.id)] : []), sql`random()`)
+    .limit(limit);
 
 /** A full speaking test: a random P1 intro frame plus 2 familiar topics (P1_TEST_QUESTIONS each), a P2 cue card and its linked P3 set. Null when the bank has no card. */
 export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any'): Promise<SpeakingTest | null> {

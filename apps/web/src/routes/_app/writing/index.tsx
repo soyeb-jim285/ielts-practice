@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { BarChart3, CircleCheck, Mail, PenLine, Search, Shuffle } from 'lucide-react';
 import { useDeferredValue, useState, type ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
+import { QuestionSourcePicker, useQuestionSource } from '@/components/bank/QuestionSource';
 import { Alert, Badge, Button, buttonStyles, Card, EmptyState, Input, PageContainer, PageHeader, Segmented, Select, Skeleton, toast } from '@/components/ui';
 import type { WritingPrompt } from '@/components/writing/PromptPanel';
 import { api, call, client } from '@/lib/api';
@@ -29,22 +30,24 @@ const PAGE = 15;
 type PromptPage = { items: WritingPrompt[]; total: number; page: number; pageSize: number };
 type Meta = { groups: { skill: string; part: number; topics: string[]; types: string[] }[] };
 
-const random = (k: Kind) => api.get<WritingPrompt>(`/prompts/random?${kindQuery(k)}`);
+const random = (k: Kind, source?: string) => api.get<WritingPrompt>(`/prompts/random?${kindQuery(k)}${source ? `&source=${source}` : ''}`);
 
 function WritingHome() {
   const navigate = useNavigate();
   const [starting, setStarting] = useState<Kind | 'full' | null>(null);
   const [fullVariant, setFullVariant] = useState<'academic' | 'general'>('academic');
+  const q = useQuestionSource('writing');
+  const { source } = q;
 
   const start = async (k: Kind | 'full') => {
     setStarting(k);
     try {
       await ensureSession(); // picking a test prompt needs a session; a guest gets theirs when they press Start
       if (k === 'full') {
-        const [t1, t2] = await Promise.all([random(fullVariant === 'academic' ? 't1a' : 't1g'), random('t2')]);
+        const [t1, t2] = await Promise.all([random(fullVariant === 'academic' ? 't1a' : 't1g', source), random('t2', source)]);
         await navigate({ to: '/writing/full', search: { t1: t1.id, t2: t2.id } });
       } else {
-        const p = await random(k);
+        const p = await random(k, source);
         await navigate({ to: '/writing/task/$promptId', params: { promptId: p.id }, search: {} });
       }
     } catch (e) {
@@ -55,7 +58,7 @@ function WritingHome() {
 
   return (
     <PageContainer>
-      <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." />
+      <PageHeader title="Writing" description="Timed tasks, marked against the public band descriptors with every mistake located." actions={<QuestionSourcePicker q={q} />} />
 
       <GuestRecent skill="writing" />
       <div className="space-y-12">

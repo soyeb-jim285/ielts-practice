@@ -97,8 +97,8 @@ class SessionModel(
         phase = Phase.Loading
         try {
             when (route.mode) {
-                "full" -> { val t: SpeakingTest = api.get("/api/speaking/test"); items = t.part1 + t.part2 + t.part3 }
-                "part" -> items = listOf(api.get<Prompt>("/api/prompts/random", mapOf("skill" to "speaking", "part" to route.part.toString())))
+                "full" -> { val t: SpeakingTest = api.get("/api/speaking/test", mapOf("source" to app.speakingSourceParam())); items = t.part1 + t.part2 + t.part3 }
+                "part" -> items = listOf(api.get<Prompt>("/api/prompts/random", mapOf("skill" to "speaking", "part" to route.part.toString(), "source" to app.speakingSourceParam())))
                 else -> { items = listOf(api.get<Prompt>("/api/prompts/${route.promptId}")); parent = route.parentId }
             }
             phase = Phase.Ready

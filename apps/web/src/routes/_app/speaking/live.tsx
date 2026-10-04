@@ -11,12 +11,16 @@ import { useQuota } from '@/lib/community';
 import { useMe } from '@/lib/query';
 import { useGeminiExaminer } from '@/live/gemini';
 import { useGptLiveExaminer } from '@/live/gptLive';
-import { useTurnExaminer, type LiveExaminer } from '@/live/turn';
+import { useTurnExaminer, type LiveExaminer, type LiveSource } from '@/live/turn';
 
-export const Route = createFileRoute('/_app/speaking/live')({ staticData: { exam: true }, component: LivePage });
+export const Route = createFileRoute('/_app/speaking/live')({
+  validateSearch: (s: Record<string, unknown>): { source?: 'cambridge' | 'generated' } => ({ source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined }),
+  staticData: { exam: true },
+  component: LivePage,
+});
 
 type Style = 'turn' | 'gpt-live' | 'gemini-live';
-type Run = { style: Style; fallback: false | 'failed' | 'locked'; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
+type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
 
 /** The live examiner runs on the person's own key and is never paid from the community balance: no key, no live. */
 function LivePage() {
@@ -72,6 +76,7 @@ function Locked({ guest }: { guest: boolean }) {
 function Live({ providers }: { providers: Style[] }) {
   const { data: me } = useMe();
   const navigate = useNavigate();
+  const { source } = Route.useSearch();
   // Set when the chosen conversation provider couldn't connect: the turn-based examiner runs the same test instead (when the person has an OpenRouter key).
   const [failed, setFailed] = useState(false);
   const onFinished = useCallback(
@@ -91,21 +96,21 @@ function Live({ providers }: { providers: Style[] }) {
   // The saved choice if it is allowed; else turn-based; else whichever conversation provider their key unlocks.
   const chosen: Style = providers.includes(wanted) && !(failed && wanted !== 'turn') ? wanted : canTurn ? 'turn' : (natural ?? 'turn');
   const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : 'locked') : false;
-  const run: Run = { style: chosen, fallback, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
+  const run: Run = { style: chosen, fallback, source, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
   // Separate components so each provider's hook is always called unconditionally.
   return chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
 }
 
 function TurnLive(p: Run) {
-  return <Stage ex={useTurnExaminer(p.onFinished)} {...p} />;
+  return <Stage ex={useTurnExaminer(p.onFinished, p.source)} {...p} />;
 }
 
 function GptLive(p: Run) {
-  return <Stage ex={useGptLiveExaminer(p.onFinished, p.onUnavailable)} {...p} />;
+  return <Stage ex={useGptLiveExaminer(p.onFinished, p.onUnavailable, p.source)} {...p} />;
 }
 
 function GeminiLive(p: Run) {
-  return <Stage ex={useGeminiExaminer(p.onFinished, p.onUnavailable)} {...p} />;
+  return <Stage ex={useGeminiExaminer(p.onFinished, p.onUnavailable, p.source)} {...p} />;
 }
 
 function Stage({ ex, style, fallback }: Run & { ex: LiveExaminer }) {

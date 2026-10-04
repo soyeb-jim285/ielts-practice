@@ -11,25 +11,26 @@ import { api, ApiError } from '@/lib/api';
 
 const MODES = ['full', 'p1', 'p2', 'p3'] as const;
 type Mode = (typeof MODES)[number];
-type Search = { mode: Mode; promptId?: string; parent?: string };
+type Search = { mode: Mode; promptId?: string; parent?: string; source?: 'cambridge' | 'generated' };
 
 export const Route = createFileRoute('/_app/speaking/session')({
   validateSearch: (s: Record<string, unknown>): Search => ({
     mode: MODES.includes(s.mode as Mode) ? (s.mode as Mode) : 'full',
     promptId: typeof s.promptId === 'string' ? s.promptId : undefined,
     parent: typeof s.parent === 'string' ? s.parent : undefined,
+    source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined,
   }),
   staticData: { exam: true },
   component: SessionPage,
 });
 
-async function loadSegments({ mode, promptId }: Search): Promise<Segment[]> {
+async function loadSegments({ mode, promptId, source }: Search): Promise<Segment[]> {
   if (promptId) return [toSegment(await api.get<Prompt>(`/prompts/${promptId}`))];
   if (mode === 'full') {
-    const t = await api.get<SpeakingTest>('/speaking/test');
+    const t = await api.get<SpeakingTest>(`/speaking/test${source ? `?source=${source}` : ''}`);
     return [...t.part1, t.part2, t.part3].map(toSegment);
   }
-  return [toSegment(await api.get<Prompt>(`/prompts/random?skill=speaking&part=${mode.slice(1)}`))];
+  return [toSegment(await api.get<Prompt>(`/prompts/random?skill=speaking&part=${mode.slice(1)}${source ? `&source=${source}` : ''}`))];
 }
 
 /** The gate first (quota, fair use, guest session); the questions load after it, because picking them needs a session. */
@@ -44,7 +45,7 @@ function SessionPage() {
 function Session() {
   const search = Route.useSearch();
   // A fresh test each visit, stable while you're on the page.
-  const q = useQuery({ queryKey: ['speaking-session', search.mode, search.promptId ?? null], queryFn: () => loadSegments(search), staleTime: Infinity, gcTime: 0 });
+  const q = useQuery({ queryKey: ['speaking-session', search.mode, search.promptId ?? null, search.source ?? null], queryFn: () => loadSegments(search), staleTime: Infinity, gcTime: 0 });
   const [sessionId] = useState(() => (search.mode === 'full' && !search.promptId ? crypto.randomUUID() : undefined));
 
   return q.data ? <SessionFlow segments={q.data} sessionId={sessionId} parentAttemptId={search.parent} /> : <Loading q={q} />;

@@ -42,8 +42,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.soyeb.ieltspractice.AppContainer
 import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.ui.screens.shell.GuestRecentSection
+import com.soyeb.ieltspractice.ui.screens.shell.Segmented
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.AttemptListItem
@@ -131,6 +133,7 @@ fun SpeakingHomeScreen(nav: AppNav) {
                 "Record your answers and get a band for each criterion, with every mistake and pause located in your transcript.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
             )
+            if (me?.cambridgeAccess == true) SourcePicker(app)
             GuestRecentSection(nav, "speaking")
             if (fresh) PartsSection(true, nav)
             if (pending.isNotEmpty()) PendingSection(pending, states, onUpload = { p -> started.add(p.id); store.start(p, api) }, onDelete = { deleting = it })
@@ -146,6 +149,25 @@ fun SpeakingHomeScreen(nav: AppNav) {
             "Delete this recording?", "The recording is removed from this device and can't be uploaded afterwards.", "Delete",
             onConfirm = { scope.launch { store.discard(p, api) } }, onDismiss = { deleting = null }, destructive = true,
         )
+    }
+}
+
+// MARK: Question source
+
+/** Cambridge-allowlisted accounts only: which bank the full test, single parts and the live examiner draw from (web: QuestionSourcePicker). */
+@Composable
+private fun SourcePicker(app: AppContainer) {
+    val e = MaterialTheme.ext
+    var source by remember { mutableStateOf(app.speakingSource) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Questions", style = MaterialTheme.typography.bodySmall, color = e.muted)
+        Segmented(listOf("any" to "Mixed", "cambridge" to "Cambridge books", "generated" to "Our own"), source, { source = it; app.speakingSource = it })
+        if (source == "cambridge") {
+            Text(
+                "Cambridge questions have no recorded examiner voice, so the practice test shows them on screen. The live examiner still asks them aloud.",
+                style = MaterialTheme.typography.bodySmall, color = e.muted,
+            )
+        }
     }
 }
 

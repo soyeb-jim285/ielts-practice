@@ -54,12 +54,31 @@ describe('prompt gating (Review Focus #5)', () => {
     expect((await body(await req('/api/prompts?source=cambridge', { headers }))).items).toHaveLength(1);
   });
 
+  it('source=cambridge tests and random picks: allowlisted only, and they assemble without a P1 intro frame', async () => {
+    const cam = { source: 'cambridge' as const, restricted: true };
+    for (const t of ['Music', 'Food', 'Sport']) await seedPrompt({ ...cam, slug: `cam-p1-${t}`, topic: t });
+    await seedPrompt({ ...cam, slug: 'cam-p2', part: 2, type: 'cue-card', groupId: 'cam-g', bullets: ['a', 'b', 'c'] });
+    await seedPrompt({ ...cam, slug: 'cam-p3', part: 3, type: 'p3-linked', groupId: 'cam-g' });
+
+    const other = (await testUser('a@x.com')).headers;
+    expect((await req('/api/speaking/test?source=cambridge', { headers: other })).status).toBe(404);
+    expect((await req('/api/prompts/random?skill=speaking&source=cambridge', { headers: other })).status).toBe(404);
+    expect((await req('/api/prompts/random?skill=speaking&source=cambridge')).status).toBe(404); // guest
+
+    const { headers } = await testUser('soyebjim@gmail.com');
+    const t = await body(await req('/api/speaking/test?source=cambridge', { headers }));
+    expect([t.part1.length, t.part2.slug, t.part3.slug]).toEqual([3, 'cam-p2', 'cam-p3']);
+    expect([...t.part1, t.part2, t.part3].every((p: any) => p.source === 'cambridge')).toBe(true);
+    for (let i = 0; i < 5; i++) expect((await body(await req('/api/prompts/random?skill=speaking&part=1&source=generated', { headers }))).source).toBe('generated');
+    expect((await body(await req('/api/prompts/random?skill=speaking&part=1&source=cambridge', { headers }))).source).toBe('cambridge');
+  });
+
   it('guests browse the generated bank; Cambridge stays hidden', async () => {
     expect((await body(await req('/api/prompts'))).total).toBe(2);
     expect((await req(`/api/prompts/${restrictedId}`)).status).toBe(404);
     expect((await body(await req('/api/prompts?source=cambridge'))).items).toEqual([]);
     expect((await body(await req('/api/prompts/meta'))).groups[0].topics.sort()).toEqual(['Work', 'hometown']);
-    for (let i = 0; i < 5; i++) expect((await body(await req('/api/prompts/random?skill=speaking'))).id).not.toBe(restrictedId);
+    for (let i = 0; i < 5; i++) expect((await body(await req('/api/prompts/random?skill=speaking'))).source).toBe('generated'); // a 200, never the Cambridge row
     const [first] = (await body(await req('/api/prompts'))).items;
     expect(first.done).toBe(false);
     expect((await body(await req(`/api/prompts/${first.id}`))).id).toBe(first.id);

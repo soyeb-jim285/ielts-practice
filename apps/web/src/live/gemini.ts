@@ -5,7 +5,7 @@ import { useDuplexExaminer, type Duplex, type Handlers } from './duplex';
 import { audioEndMessage, audioMessage, cueMessage, frameText, geminiUrl, parseGeminiMessage, setupMessage, type GeminiEvent } from './geminiProtocol';
 import { bytesToPcm16, fromBase64, MicEncoder } from './pcm';
 import { PcmPlayer } from './pcmPlayer';
-import type { LiveExaminer } from './turn';
+import type { LiveExaminer, LiveSource } from './turn';
 
 const CONNECT_MS = 15_000;
 const RECONNECTS = 3; // a connection lives ~10 min; sessionResumption carries the test across it
@@ -194,6 +194,6 @@ export class GeminiDuplex implements Duplex {
   }
 }
 
-export function useGeminiExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void): LiveExaminer {
-  return useDuplexExaminer(() => new GeminiDuplex(), onFinished, onUnavailable);
+export function useGeminiExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource): LiveExaminer {
+  return useDuplexExaminer(() => new GeminiDuplex(), onFinished, onUnavailable, source);
 }

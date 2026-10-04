@@ -176,10 +176,10 @@ struct SpeakingSessionView: View {
         do {
             switch mode {
             case .full:
-                let t: SpeakingTest = try await api.get("/api/speaking/test")
+                let t: SpeakingTest = try await api.get("/api/speaking/test", query: ["source": QuestionSource.speaking(api)])
                 items = t.part1 + [t.part2, t.part3]
             case let .part(n):
-                let p: Prompt = try await api.get("/api/prompts/random", query: ["skill": "speaking", "part": String(n)])
+                let p: Prompt = try await api.get("/api/prompts/random", query: ["skill": "speaking", "part": String(n), "source": QuestionSource.speaking(api)])
                 items = [p]
             case let .prompt(id, parentId):
                 let p: Prompt = try await api.get("/api/prompts/\(id)")

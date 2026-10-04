@@ -3,6 +3,7 @@ import { createFileRoute, Link, type LinkProps } from '@tanstack/react-router';
 import { ArrowRight, AudioLines, ListOrdered, Lock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { listStyles, PanelHeader, RowChevron, rowStyles } from '@/components/bank/ListRow';
+import { QuestionSourcePicker, useQuestionSource } from '@/components/bank/QuestionSource';
 import { PendingUploads } from '@/components/speaking/PendingUploads';
 import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -35,15 +36,21 @@ function SpeakingHome() {
   const list = useRecentAttempts();
   const fresh = !useAccount() || (list.isSuccess && list.data.items.length === 0);
   const live = useQuota().data?.liveProviders.length !== 0; // unknown while loading counts as open, so the card does not flash a lock
+  const q = useQuestionSource('speaking');
+  const { source } = q;
   return (
     <PageContainer>
-      <PageHeader title="Speaking" description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript." />
+      <PageHeader
+        title="Speaking"
+        description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript."
+        actions={<QuestionSourcePicker q={q} cambridgeNote="Cambridge questions have no recorded examiner voice, so the practice test shows them on screen. The live examiner still asks them aloud." />}
+      />
       <div className="flex flex-col gap-12">
         <PendingUploads />
         <GuestRecent skill="speaking" />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
-            link={{ to: '/speaking/session', search: { mode: 'full' } }}
+            link={{ to: '/speaking/session', search: { mode: 'full', source } }}
             icon={<ListOrdered />}
             kind="Practice test, at your own pace"
             title="Full practice test"
@@ -53,7 +60,7 @@ function SpeakingHome() {
             note={<QuotaNote skill="speaking" />}
           />
           <ModeCard
-            link={{ to: '/speaking/live' }}
+            link={{ to: '/speaking/live', search: { source } }}
             tone="live"
             icon={<AudioLines />}
             kind="Live, spoken conversation"
@@ -70,7 +77,7 @@ function SpeakingHome() {
           <ul className={cn(listStyles, 'stagger')}>
             {PARTS.map((p) => (
               <li key={p.mode}>
-                <Link to="/speaking/session" search={{ mode: p.mode }} className={cn(rowStyles, 'min-h-[4.75rem]')}>
+                <Link to="/speaking/session" search={{ mode: p.mode, source }} className={cn(rowStyles, 'min-h-[4.75rem]')}>
                   <span className="type-num w-9 shrink-0 font-serif text-3xl leading-none font-medium text-muted transition-colors duration-[120ms] group-hover:text-accent-text" aria-hidden>
                     {p.n}
                   </span>

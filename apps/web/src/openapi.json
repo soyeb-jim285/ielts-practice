@@ -3478,15 +3478,6 @@
           {
             "schema": {
               "type": "string",
-              "maxLength": 80
-            },
-            "required": false,
-            "name": "topic",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
               "enum": [
                 "generated",
                 "cambridge"
@@ -3494,6 +3485,15 @@
             },
             "required": false,
             "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "topic",
             "in": "query"
           },
           {
@@ -3610,6 +3610,18 @@
             },
             "required": false,
             "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "generated",
+                "cambridge"
+              ]
+            },
+            "required": false,
+            "name": "source",
             "in": "query"
           }
         ],

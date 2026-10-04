@@ -211,7 +211,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runTurnBased() {
         try {
-            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject {})
+            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { app.speakingSourceParam()?.let { put("source", it) } })
             sessionId = reply.sessionId.orEmpty()
             test = reply.test
             while (true) {
@@ -300,7 +300,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runDuplex(kind: Examiner) {
         try {
-            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true) })
+            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true); app.speakingSourceParam()?.let { put("source", it) } })
             sessionId = s.sessionId.orEmpty()
             test = s.test
             try {
