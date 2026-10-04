@@ -35,7 +35,7 @@ struct DemoHeartbeat: View {
         #if DEBUG
         if DemoTour.name != nil {
             TimelineView(.animation) { ctx in
-                Color.black.opacity(Int(ctx.date.timeIntervalSinceReferenceDate * 60) % 2 == 0 ? 0.02 : 0.04)
+                Color.gray.opacity(Int(ctx.date.timeIntervalSinceReferenceDate * 60) % 2 == 0 ? 0.05 : 0.1) // mid grey: a change on light and dark
                     .frame(width: 1, height: 1)
             }
             .allowsHitTesting(false)
@@ -265,7 +265,9 @@ extension DemoTour {
         var area: CGFloat = 0
         func walk(_ v: UIView) {
             if v.isHidden || v.alpha < 0.01 { return }
-            if let s = v as? UIScrollView, s.isScrollEnabled, s.window != nil, s.contentSize.height > s.bounds.height + 1,
+            // content that only overflows into the insets (a floating control bar) still scrolls
+            if let s = v as? UIScrollView, s.isScrollEnabled, s.window != nil,
+               s.contentSize.height + s.adjustedContentInset.top + s.adjustedContentInset.bottom > s.bounds.height + 1,
                s.contentSize.width <= s.bounds.width + 1, s.bounds.width * s.bounds.height > area {
                 best = s
                 area = s.bounds.width * s.bounds.height
