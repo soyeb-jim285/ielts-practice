@@ -246,7 +246,15 @@ export function fuseDisfluencies(m: SpeechMetrics, audio?: AudioDisfluencies, to
   }
   // A filled pause the transcript did not show needs two sources: held voice in a 1 s+ gap (counted by computeSpeechMetrics), or the audio model's filler inside a voiced gap.
   // The audio model alone (nothing in the energy) and short voiced gaps alone are dropped: breaths and noise were being typed as "um".
+  // A false start from the audio model or text tagger alone needs evidence where the clause was dropped (its end): a pause, or a filler / restart there.
+  // The transcript's own cut-off ("the—") is evidence by itself. Ungated, both models were inventing false starts in fluent speech.
+  const near = (t: number) => (a: number, b: number) => t >= a - tol && t <= b + tol;
+  const evidenced = (e: Disfluency) =>
+    e.sources.includes('rule') ||
+    m.pauses.some(p => near(e.end)(p.start, p.end)) ||
+    out.some(o => o !== e && o.kind !== 'false_start' && near(e.end)(o.start, o.end));
   return out.filter(e => {
+    if (e.kind === 'false_start') return evidenced(e);
     if (e.kind !== 'filled' || e.sources.some(s => s === 'stt' || s === 'rule' || s === 'llm') || e.sources.includes('voiced')) return true;
     const gap = m.pauses.find(p => p.voiced && p.dur * 1000 >= VOICED_GAP_MS && e.start >= p.start - tol && e.start <= p.end + tol);
     if (!gap) return false;

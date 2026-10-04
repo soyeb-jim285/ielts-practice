@@ -192,7 +192,9 @@ it('P without acoustic evidence stays within one band of the other criteria; wit
 
 it('disfluency tagger spans are fused with the other detectors and summarised per type', async () => {
   const tags = { tags: [{ type: 'false_start', start: 1, reparandum: 'goes', interregnum: '', repair: '' }] };
-  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat({ tags }) }));
+  // a 0.6 s pause after "goes" backs the tagger's false start (unbacked ones are dropped)
+  const paused = { ...sttWords, words: sttWords.words.map((w, i) => (i >= 2 ? { ...w, start: w.start + 0.5, end: w.end + 0.5 } : w)) };
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(paused), '/chat/completions': chat({ tags }) }));
   const r = await run();
   const fl = (r.metrics as any).fluency;
   expect(fl.events).toEqual([{ kind: 'false_start', start: 0.5, end: 0.9, sources: ['llm'] }]);

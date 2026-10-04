@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, reconcileFillers, PROVISIONAL_FLUENCY_NORMS, type Word } from './speech';
+import { cleanTranscript, computeSpeechMetrics, fluencyBand, fluencyComposite, fluencyFeatures, fuseDisfluencies, reconcileFillers, PROVISIONAL_FLUENCY_NORMS, type Disfluency, type Word } from './speech';
 const mk = (a: [string, number, number, number?][]): Word[] => a.map(([w, start, end, conf]) => ({ w, start, end, conf }));
 it('detects short and long pauses, mid-clause flag', () => {
   const m = computeSpeechMetrics(mk([['I', 0, 0.2], ['love', 0.25, 0.5], ['the', 0.9, 1.0], ['city.', 1.1, 1.5], ['It', 2.8, 3.0]]), { durationS: 3 });
@@ -87,13 +87,13 @@ it('fuses disfluencies by time: same-kind events within 0.3 s count once, source
   const energy = Array.from({ length: 80 }, (_, i) => (i >= 20 && i < 40 ? 120 : 150)); // voiced gap 1.0-2.0 s
   const m = computeSpeechMetrics(mk([['I', 0, 0.3], ['um', 0.4, 0.6], ['went', 0.7, 1.0], ['home', 2.0, 2.3], ['home', 2.35, 2.6]]), { durationS: 4, energy, frameMs: 50, voiceThreshold: 60 });
   expect(m.fillers.map(f => f.kind)).toEqual(['lexical', 'voiced']);
-  const ev = fuseDisfluencies(m, { filledPauses: [0.5, 1.6, 3.5], repetitions: [2.1], falseStarts: [3.0] });
+  const ev = fuseDisfluencies(m, { filledPauses: [0.5, 1.6, 3.5], repetitions: [2.1], falseStarts: [1.5, 3.0] });
   expect(ev.map(e => [e.kind, e.start, e.sources.join('+')])).toEqual([
     ['filled', 0.4, 'stt+audio'], // lexical "um" and the audio model's 0.5 s
     ['filled', 1.0, 'voiced+audio'], // audio 1.6 s falls inside the voiced gap
+    ['false_start', 1.5, 'audio'], // in the 1.0-2.0 s pause: kept
     ['repetition', 2.0, 'stt+audio'],
-    ['false_start', 3.0, 'audio'],
-  ]); // the audio model's 3.5 s is dropped: nothing in the energy backs it
+  ]); // dropped: the audio model's 3.5 s filler (nothing in the energy) and its 3.0 s false start (no pause or disfluency there)
   expect(fuseDisfluencies(m).length).toBe(3); // without the audio model: um, voiced gap, "home home"
   const f = fluencyFeatures(m, ev);
   expect(f.filledPausesPerMin).toBeCloseTo(2 / (4 / 60));
@@ -155,4 +155,13 @@ it('does not flag emphasis, sentence edges, parallel clauses or "kind of" as dis
   expect(m(['I', 'agree,', 'I', 'think', 'so'], 0.4).selfCorrections).toEqual([]);
   expect(m(['I', 'went', 'I', 'go', 'there'], 0.4).selfCorrections.map(s => s.wordIdx)).toEqual([2]);
   expect(m(['what', 'kind', 'of', 'music']).fillers).toEqual([]);
+});
+
+it('keeps an AI false start only with a pause, a nearby disfluency or a transcript cut-off at its end', () => {
+  const m = computeSpeechMetrics(mk([['I', 0, 0.3], ['went', 0.35, 0.6], ['to', 0.65, 0.8], ['the', 0.85, 1.0], ['we', 1.6, 1.8], ['go', 1.85, 2.1], ['home', 2.15, 2.4]]), { durationS: 3 });
+  const llm = (start: number, end: number): Disfluency => ({ kind: 'false_start', start, end, sources: ['llm'] });
+  expect(fuseDisfluencies(m, undefined, 0.3, [llm(0, 1.0)]).map(e => e.kind)).toEqual(['false_start']); // ends at the 1.0-1.6 s pause
+  expect(fuseDisfluencies(m, undefined, 0.3, [llm(1.6, 2.4)])).toEqual([]); // fluent, ends at the last word
+  expect(fuseDisfluencies(m, { filledPauses: [], repetitions: [], falseStarts: [0.3] })).toEqual([]); // audio alone, mid-run
+  expect(fuseDisfluencies(m, undefined, 0.3, [{ ...llm(1.6, 2.4), sources: ['rule'] }]).length).toBe(1); // transcript cut-off
 });
