@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 /// A card as GET /api/cards/due returns it. The scheduling fields are optional so older payloads and demo fixtures still decode.
@@ -9,6 +10,13 @@ struct DueCard: Decodable, Identifiable {
     let ease: Double?
     let interval: Double? // days
     let reps: Int?
+
+    /// Listening spelling cards ("🎧 Listening · spell the word you heard…") keep the word as the first line of the back.
+    var heardWord: String? {
+        guard front.hasPrefix("🎧 Listening") else { return nil }
+        let w = (back.components(separatedBy: "\n").first ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return w.isEmpty ? nil : w
+    }
 }
 
 /// `{ cards, total, deck }` (also accepts `{ items }`): the due batch, how many are due in all, and the whole deck size.
@@ -37,6 +45,7 @@ struct ReviewView: View {
     @State private var grading = false
     @State private var error: String?
     @State private var gradeError: String?
+    @State private var speech = AVSpeechSynthesizer() // one instance, kept alive so a word is not cut off mid-utterance
 
     private struct Grade: Identifiable {
         let grade: Int, label: String
@@ -102,14 +111,22 @@ struct ReviewView: View {
                 Text("\(index) / \(total)").font(.caption.monospacedDigit()).foregroundStyle(.muted).accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 16) {
-                if let s = card.source, let name = Self.sourceLabel[s] {
-                    Label(name, systemImage: "rectangle.on.rectangle.angled").font(.caption).foregroundStyle(.muted)
+                VStack(alignment: .leading, spacing: 16) {
+                    if let s = card.source, let name = Self.sourceLabel[s] {
+                        Label(name, systemImage: "rectangle.on.rectangle.angled").font(.caption).foregroundStyle(.muted)
+                    }
+                    if !revealed, let s = card.source, let prompt = Self.sourcePrompt[s] {
+                        Text(prompt).font(.caption).foregroundStyle(.muted)
+                    }
+                    if let label { Text(label).font(.subheadline.weight(.medium)).foregroundStyle(.brand) }
+                    Text(front).font(.display(.title2)).foregroundStyle(.ink)
                 }
-                if !revealed, let s = card.source, let prompt = Self.sourcePrompt[s] {
-                    Text(prompt).font(.caption).foregroundStyle(.muted)
+                .accessibilityElement(children: .combine)
+                // Outside the combined text so VoiceOver reaches it as its own button. The spelling stays hidden until the card is turned.
+                if let word = card.heardWord {
+                    Button { say(word) } label: { Label("Hear the word", systemImage: "speaker.wave.2.fill") }
+                        .secondaryButton()
                 }
-                if let label { Text(label).font(.subheadline.weight(.medium)).foregroundStyle(.brand) }
-                Text(front).font(.display(.title2)).foregroundStyle(.ink)
                 if revealed {
                     Divider()
                     Text(card.back).font(.system(.title3, design: .serif)).foregroundStyle(.ink)
@@ -117,7 +134,6 @@ struct ReviewView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 260, alignment: .topLeading)
             .card(padding: 20)
-            .accessibilityElement(children: .combine)
             if let gradeError { ErrorLine(message: "Couldn't save that grade: \(gradeError)") }
             if revealed {
                 gradeButtons(card)
@@ -168,6 +184,16 @@ struct ReviewView: View {
         let ease = max(1.3, (c.ease ?? 2.5) + (0.1 - d * (0.08 + d * 0.02)))
         let reps = (c.reps ?? 0) + 1
         return reps == 1 ? 1 : reps == 2 ? 6 : Int(((c.interval ?? 0) * ease).rounded())
+    }
+
+    /// The device's British English voice, a little slow. ponytail: not the test speaker's voice; play the clip from the test audio if that matters.
+    private func say(_ word: String) {
+        activatePlayback() // playback category, so the silent switch does not mute it
+        let u = AVSpeechUtterance(string: word)
+        u.voice = AVSpeechSynthesisVoice(language: "en-GB")
+        u.rate = 0.42
+        speech.stopSpeaking(at: .immediate)
+        speech.speak(u)
     }
 
     private func days(_ n: Int) -> String { n == 1 ? "1 day" : n < 30 ? "\(n) days" : "\(Int((Double(n) / 30).rounded())) mo" }

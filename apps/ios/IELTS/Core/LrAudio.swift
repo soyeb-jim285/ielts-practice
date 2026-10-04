@@ -3,7 +3,7 @@ import Observation
 
 /// Streams a recording from its presigned URL (AVPlayer supports Range requests). Playback category so the silent switch does not mute it.
 @MainActor
-private func activatePlayback() {
+func activatePlayback() {
     try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
     try? AVAudioSession.sharedInstance().setActive(true)
 }

@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -125,14 +126,17 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     }
 }
 
-/** Secondary action: a neutral grey fill (iOS `.bordered`), never teal. */
+/** Secondary action: a neutral grey fill (iOS `.bordered`), never teal. [icon] is a leading drawable. */
 @Composable
-fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: Int? = null) {
     FilledTonalButton(
         onClick, modifier.heightIn(min = 48.dp), enabled = enabled, shape = ControlShape,
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.ext.surface2, contentColor = MaterialTheme.ext.ink,
             disabledContainerColor = MaterialTheme.ext.surface2, disabledContentColor = MaterialTheme.ext.muted,
         ),
-    ) { Text(text) }
+    ) {
+        icon?.let { Icon(painterResource(it), contentDescription = null, Modifier.padding(end = 8.dp).size(18.dp)) }
+        Text(text)
+    }
 }

@@ -160,6 +160,12 @@ class ShellLogicTest {
         assertEquals(null to "a\n\nb", splitFixCard(DueCard("1", "a\n\nb", "b", source = "mistake")))
     }
 
+    @Test fun listeningCardsSpeakTheFirstLineOfTheBack() {
+        assertEquals("speech", heardWord(DueCard("1", "🎧 Listening · spell the word you heard: 's____h' (6 letters)", " speech \nYou wrote: speach")))
+        assertNull(heardWord(DueCard("1", "🎧 Listening · spell the word you heard", "\nYou wrote: x")))
+        assertNull(heardWord(DueCard("1", "Vocabulary", "speech")))
+    }
+
     @Test fun historyBadges() {
         assertEquals("Scoring" to "brand", historyStatus("analyzing"))
         assertNull(historyStatus("done"))

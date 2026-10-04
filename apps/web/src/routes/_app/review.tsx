@@ -3,7 +3,7 @@ import { useMutation, useSuspenseQuery, queryOptions } from '@tanstack/react-que
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AccountGate } from '@/components/community/AccountGate';
 import { clsx } from 'clsx';
-import { CircleCheck, Layers } from 'lucide-react';
+import { CircleCheck, Layers, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button, buttonStyles, Card, EmptyState, Kbd, PageContainer, PageHeader, ProgressBar, Skeleton, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
@@ -82,6 +82,7 @@ function ReviewPage() {
   // Fix cards are "title\n\nsentence" (server fixCard): the title is a label, only the sentence is the thing to improve.
   const cut = card?.source === 'fix' ? card.front.indexOf('\n\n') : -1;
   const [label, front] = card && cut > 0 ? [card.front.slice(0, cut), card.front.slice(cut + 2)] : [null, card?.front];
+  const word = card ? heardWord(card) : null;
   const next = card ? GRADES.map((g) => (g.grade === 1 ? 'This session' : days(review({ ...card, due: new Date(card.due) }, g.grade).interval))) : [];
   return (
     <PageContainer>
@@ -135,6 +136,12 @@ function ReviewPage() {
                 {!revealed && <p className="type-caption mb-4 max-w-[52ch]">{PROMPT[card.source]}</p>}
                 {label && <p className="mb-2 text-sm font-medium text-accent-text">{label}</p>}
                 <p className="max-w-[36ch] type-title-sm text-balance whitespace-pre-line">{front}</p>
+                {word && canSpeak() && (
+                  <Button variant="outline" className="mt-5 w-fit" onClick={() => say(word)}>
+                    <Volume2 aria-hidden />
+                    Hear the word
+                  </Button>
+                )}
                 <div aria-live="polite">
                   {revealed && <p className="type-reading mt-6 max-w-[52ch] border-t border-line pt-6 text-pretty whitespace-pre-line text-ink motion-safe:animate-[rise-in_320ms_var(--ease-out-expo)]">{card.back}</p>}
                 </div>
@@ -168,4 +175,17 @@ function ReviewPage() {
       </div>
     </PageContainer>
   );
+}
+
+/** Listening spelling cards ("🎧 Listening · spell the word you heard…") keep the word as the first line of the back. */
+const heardWord = (c: { front: string; back: string }) => (c.front.startsWith('🎧 Listening') ? c.back.split('\n')[0]!.trim() || null : null);
+const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
+/** The device's own British English voice, a little slow; the spelling stays hidden until the card is turned. ponytail: not the test speaker's voice; play the clip from the test audio if that matters. */
+function say(word: string) {
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'en-GB';
+  u.rate = 0.85;
+  u.voice = speechSynthesis.getVoices().find((v) => v.lang === 'en-GB') ?? null;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
 }

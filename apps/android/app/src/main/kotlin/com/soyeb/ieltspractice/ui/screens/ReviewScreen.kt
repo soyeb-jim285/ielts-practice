@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens
 
+import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +49,7 @@ import com.soyeb.ieltspractice.ui.screens.shell.EmptyState
 import com.soyeb.ieltspractice.ui.screens.shell.SignInGate
 import com.soyeb.ieltspractice.ui.screens.shell.daysLabel
 import com.soyeb.ieltspractice.ui.screens.shell.demoTab
+import com.soyeb.ieltspractice.ui.screens.shell.heardWord
 import com.soyeb.ieltspractice.ui.screens.shell.nextInterval
 import com.soyeb.ieltspractice.ui.screens.shell.reviewSourceLabel
 import com.soyeb.ieltspractice.ui.screens.shell.reviewSourcePrompt
@@ -55,11 +59,13 @@ import com.soyeb.ieltspractice.ui.theme.AppText
 import com.soyeb.ieltspractice.ui.theme.ControlShape
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
+import com.soyeb.ieltspractice.ui.theme.SecondaryButton
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.util.Locale
 
 // Mirrors: iOS Views/ReviewView.swift, web routes/_app/review.tsx
 
@@ -94,6 +100,16 @@ private fun ColumnScope.ReviewBody(nav: AppNav) {
     var grading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var gradeError by remember { mutableStateOf<String?>(null) }
+    // Listening spelling cards: the device's British English voice, a little slow. Made once here so the engine is bound before the first tap.
+    // ponytail: not the test speaker's voice; play the clip from the test audio if that matters.
+    val context = LocalContext.current
+    val tts = remember { TextToSpeech(context.applicationContext) {} }
+    DisposableEffect(tts) { onDispose { tts.shutdown() } }
+    fun say(word: String) = tts.run {
+        setLanguage(Locale.UK)
+        setSpeechRate(0.85f)
+        speak(word, TextToSpeech.QUEUE_FLUSH, null, "heard-word") // flush: cancels a word still being spoken
+    }
 
     suspend fun load() {
         try {
@@ -154,6 +170,8 @@ private fun ColumnScope.ReviewBody(nav: AppNav) {
                     if (!revealed) reviewSourcePrompt[card.source]?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = e.muted) }
                     label?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = e.brand) }
                     Text(front, style = MaterialTheme.typography.headlineSmall, color = e.ink)
+                    // The spelling stays hidden until the card is turned.
+                    heardWord(card)?.let { word -> SecondaryButton("Hear the word", { say(word) }, icon = R.drawable.ic_sp_volume) }
                     if (revealed) {
                         HorizontalDivider(color = e.line)
                         Text(card.back, style = AppText.reading, color = e.ink)

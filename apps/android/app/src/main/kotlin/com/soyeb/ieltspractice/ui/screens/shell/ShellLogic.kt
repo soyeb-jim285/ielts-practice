@@ -212,6 +212,10 @@ fun splitFixCard(card: DueCard): Pair<String?, String> {
     return if (card.source == "fix" && i > 0) card.front.substring(0, i) to card.front.substring(i + 2) else null to card.front
 }
 
+/** Listening spelling cards ("🎧 Listening · spell the word you heard…") keep the word as the first line of the back. */
+fun heardWord(card: DueCard): String? =
+    if (card.front.startsWith("🎧 Listening")) card.back.lineSequence().first().trim().ifEmpty { null } else null
+
 val reviewSourceLabel = mapOf("mistake" to "From your mistakes", "vocab" to "Vocabulary", "fix" to "Fix to practise")
 val reviewSourcePrompt = mapOf(
     "mistake" to "How would you correct this? Say or write it, then reveal the answer.",
