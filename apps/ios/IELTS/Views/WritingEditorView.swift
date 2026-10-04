@@ -395,6 +395,7 @@ struct WritingEditorView: View {
         } icon: {
             Image(systemName: "timer")
         }
+        .labelStyle(.titleAndIcon) // a toolbar shows icon-only labels by default, which hid the time left
         .font(.headline.monospacedDigit())
         .foregroundStyle(tint)
         .accessibilityElement(children: .ignore)

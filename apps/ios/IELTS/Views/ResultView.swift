@@ -1444,6 +1444,7 @@ private struct ResDiffCard: View {
                 .font(font).lineSpacing(4).textSelection(.enabled)
         }
         .card()
+        .onDemoTour { if $0 == "res:clean" { withAnimation { clean = true } } } // demo auto-tour: the clean rewrite
     }
 }
 

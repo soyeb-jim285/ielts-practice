@@ -28,6 +28,24 @@ extension View {
     }
 }
 
+/// During a tour, one corner pixel changes every frame: `simctl io recordVideo` only writes a frame when the screen changes, so without it
+/// still moments are dropped and the clip's timing collapses. Nothing at all outside a tour.
+struct DemoHeartbeat: View {
+    var body: some View {
+        #if DEBUG
+        if DemoTour.name != nil {
+            TimelineView(.animation) { ctx in
+                Color.black.opacity(Int(ctx.date.timeIntervalSinceReferenceDate * 60) % 2 == 0 ? 0.02 : 0.04)
+                    .frame(width: 1, height: 1)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .ignoresSafeArea()
+        }
+        #endif
+    }
+}
+
 #if DEBUG
 /// A finger-sized touch over the control and a slight press, like the simulator's "show touches".
 private struct DemoPress: ViewModifier {
@@ -114,15 +132,14 @@ extension DemoTour {
         }
     }
 
-    /// One character per event when slow (a word in a gap), two when fast (an essay).
+    /// Paced by the clock, not per event: when a slow render delays an event, the next one carries the characters that are due.
     private static func typeOut(_ prefix: String, _ text: String, _ cps: Double) async {
-        let n = cps > 25 ? 2 : 1
-        var i = text.startIndex
-        while i < text.endIndex {
-            let j = text.index(i, offsetBy: n, limitedBy: text.endIndex) ?? text.endIndex
-            send(prefix + String(text[i..<j]))
-            i = j
-            try? await Task.sleep(for: .seconds(Double(n) / cps))
+        let chars = Array(text), t0 = Date()
+        var sent = 0
+        while sent < chars.count {
+            try? await Task.sleep(for: .seconds(1 / cps))
+            let due = min(chars.count, Int(Date().timeIntervalSince(t0) * cps) + 1)
+            if due > sent { send(prefix + String(chars[sent..<due])); sent = due }
         }
     }
 
@@ -142,13 +159,13 @@ extension DemoTour {
             return [(1.0, .scroll(.by(560), 3.2)), (5.2, .send("dash:writing")), (7.2, .scroll(.by(620), 3.4))]
         // Speaking hub: questions from our own bank, then the ways to practise.
         case "speaking-hub":
-            return [(1.4, .send("src:generated")), (3.6, .scroll(.by(720), 4.2))]
+            return [(1.2, .send("src:cambridge")), (3.4, .send("src:generated")), (5.0, .scroll(.by(720), 4.2))]
         // Part 1: the examiner reads each question (heard, not shown), then "Speak now", the timer, waveform and live pace.
         case "speaking-part1":
             return [(0.8, press("record")), (6.6, press("showq")), (9.0, press("next"))]
         // Part 2: cue card, a minute of preparation with notes, then the long turn.
         case "speaking-part2":
-            return [(1.2, press("prep")), (2.2, .type("n:", notes, 16)), (8.8, press("speak"))]
+            return [(1.2, press("prep")), (2.2, .type("n:", notes, 16)), (8.4, press("speak")), (10.2, .scroll(.by(320), 1.6))]
         case "result-overview":
             return [(1.0, .scroll(.by(380), 2.6)), (4.6, .scroll(.by(520), 3.0)), (8.6, .scroll(.by(480), 3.0))]
         // Transcript: playback lights each word; pauses, fillers, repeats and restarts are marked inline.
@@ -170,34 +187,34 @@ extension DemoTour {
         case "essay":
             return [(1.0, .scroll(.by(260), 2.0)), (4.0, .send("res:err:w1")), (8.0, .send("res:close")), (9.2, .scroll(.by(380), 2.6))]
         case "rewrite":
-            return [(1.0, .scroll(.by(300), 2.2)), (4.2, .scroll(.by(420), 3.4)), (8.6, .scroll(.by(400), 3.0))]
+            return [(1.0, .scroll(.by(300), 2.2)), (4.0, .scroll(.by(420), 3.2)), (7.8, .scroll(.by(380), 2.6)), (11.0, .send("res:clean"))]
         // Listening practice: the recording plays while the form fills in, including the two-blank question 3.
         case "lr-run":
-            return [(1.0, press("lrplay")), (2.6, .type("g:2:0:1:", "Thursday", 12)), (4.0, .type("g:3:0:2:", "6.30", 8)), (5.2, .type("g:3:1:2:", "8.30", 8)),
-                    (6.6, .type("g:4:0:1:", "85", 6)), (8.0, .send("lr:clear")), (8.6, .scroll(.by(380), 3.0))]
+            return [(1.0, press("lrplay")), (1.8, .scroll(.by(230), 1.2)), (3.4, .type("g:2:0:1:", "Thursday", 12)), (4.8, .type("g:3:0:2:", "6.30", 8)),
+                    (6.0, .type("g:3:1:2:", "8.30", 8)), (7.4, .type("g:4:0:1:", "85", 6)), (8.8, .send("lr:clear")), (9.4, .scroll(.by(360), 2.6))]
         case "lr-answers":
-            return [(1.4, press("mistakes")), (3.6, .scroll(.by(260), 2.0)), (6.4, press("row:28")), (9.6, .scroll(.by(260), 2.0))]
+            return [(1.4, press("mistakes")), (3.2, .scroll(.by(260), 1.6)), (5.4, press("row:5")), (9.0, .scroll(.by(240), 2.0))]
         // Play from the moment the answer is spoken: the transcript with the evidence marked and Q pins.
         case "lr-timestamp":
-            return [(1.2, press("mistakes")), (3.4, press("ts:27")), (4.8, .send("lrr:show")), (8.2, press("qtimes"))]
+            return [(1.2, press("mistakes")), (2.8, .scroll(.by(260), 1.4)), (4.8, press("ts:8")), (6.2, .send("lrr:show")), (9.4, press("qtimes"))]
         case "lr-dictation":
-            return [(1.2, press("mistakes")), (3.0, press("row:28")), (5.2, press("dictate")), (6.8, press("dplay")),
-                    (8.2, .type("dt:", "record the wait of each hive every week", 22)), (10.8, press("dcheck"))]
+            return [(1.2, press("mistakes")), (2.6, .scroll(.by(420), 1.8)), (5.0, press("row:28")), (7.0, press("dictate")), (8.4, press("dplay")),
+                    (9.6, .type("dt:", "record the wait of each hive every week", 22)), (12.0, press("dcheck"))]
         case "reading-run":
-            return [(1.0, .scroll(.by(520), 3.6)), (5.2, .send("lr:questions")), (6.6, press("a:4:FALSE")), (8.2, press("a:5:NOT GIVEN")),
-                    (9.8, press("a:6:FALSE")), (11.0, .scroll(.by(260), 1.6))]
+            return [(1.0, .scroll(.by(520), 3.4)), (5.0, .send("lr:questions")), (6.2, .scroll(.by(330), 1.4)), (8.0, press("a:4:FALSE")),
+                    (9.4, press("a:5:NOT GIVEN")), (10.8, press("a:6:FALSE"))]
         // Reading result: why the answer is wrong, then where the answer is in the passage.
         case "reading-location":
             return [(1.4, press("row:5")), (5.6, press("show"))]
         // Hub: an unfinished attempt offers Continue or Start new; then Practice, Part 2 only.
         case "single-part":
-            return [(1.2, press("test:lt-l2")), (3.4, press("startnew")), (5.2, press("mode:practice")), (6.8, .send("part:2")), (8.4, press("start"))]
+            return [(1.2, press("test:lt-l2")), (3.2, press("startnew")), (4.8, press("mode:practice")), (6.2, .send("part:2")), (7.8, press("start")), (10.8, press("lrplay"))]
         case "review":
             return [(1.4, press("hear")), (3.4, press("reveal")), (5.6, press("grade:4")), (7.6, press("reveal")), (9.8, press("grade:5"))]
         case "history":
             return [(1.0, .scroll(.by(700), 4.0)), (5.6, .scroll(.top, 1.4)), (7.6, .send("hist:listening"))]
         case "bank":
-            return [(1.2, .send("bank:src:generated")), (2.8, .send("bank:part:2")), (4.6, .scroll(.by(400), 3.0))]
+            return [(1.0, .scroll(.by(520), 3.0)), (4.4, .scroll(.top, 1.2)), (6.0, .send("bank:src:generated")), (7.6, .send("bank:part:2"))]
         default:
             return []
         }

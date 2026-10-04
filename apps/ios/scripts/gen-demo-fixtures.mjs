@@ -282,8 +282,8 @@ const part1Analysis = {
   criteria: {
     fc: crit(7, 'Speaks at length without noticeable effort.', 'Every answer goes beyond a one-line reply, with a reason or a detail. Only one short hesitation.', ['"Compared to Dhaka, everything is much calmer"']),
     lr: crit(7, 'Uses vocabulary flexibly, with some less common items.', 'Natural phrases such as "the pace of life" and "knocked down".', ['"the pace of life"', '"knocked down"']),
-    gra: crit(7, 'A variety of complex structures with frequent error-free sentences.', 'Comparisons and the present perfect are used accurately, apart from "more wide".', ['"have been knocked down"']),
-    p: crit(6.5, 'Generally clear; some sounds are unclear.', 'Easy to follow, though some word endings are dropped when you speak quickly.', ['"neighbours"']),
+    gra: crit(6.5, 'A range of complex structures; frequent error-free sentences, with some errors.', 'The present perfect is used accurately ("have been knocked down"), but "more wide" should be "wider".', ['"have been knocked down"', '"more wide"']),
+    p: crit(7, 'Easy to understand throughout; accent has little effect.', 'Clear and easy to follow, with natural stress on the key words.', ['"the pace of life"']),
   },
   topFixes: [{ title: 'Short adjectives take -er', why: 'One-syllable adjectives form the comparative with -er, not "more".', before: 'the roads are more wide now', after: 'the roads are wider now' }],
   errors: [serr(p1, 'e1', 'grammar.comparative', 'minor', 'more wide', 'wider', 'One-syllable adjectives take -er: wide, wider.')],
@@ -392,16 +392,16 @@ const history = [
 const list = history.map(([id, promptTitle, skill, part, overall, d, min]) => ({ id, promptTitle, skill, part, mode: 'practice', status: 'done', overall, createdAt: day(d), durationMs: Math.round(min * 60000) }));
 
 // Per-criterion bands behind each scored attempt (oldest first), matching the overall bands above.
-const CRIT = {
-  as11: [6, 6.5, 5.5, 6], as10: [6, 6, 6, 6], as9: [6, 6.5, 5.5, 6], as8: [6.5, 6.5, 6, 6.5], as6: [6.5, 7, 6, 6.5], as13: [6.5, 6.5, 6.5, 6.5], as12: [7, 7, 6.5, 7], as2: [7, 7, 7, 6.5], as1: [7, 7, 6.5, 7],
-  aw5: [6, 6, 6, 5.5], aw4: [6, 6, 6.5, 5.5], aw3: [6, 6, 6, 6], aw0: [7, 6.5, 6.5, 6], aw2: [6.5, 6.5, 7, 6], aw1: [7, 7, 7, 6.5],
+const CRIT = { // smooth climbs, so the band-by-criterion chart reads as steady progress
+  as11: [6, 6.5, 5.5, 6], as10: [6, 6.5, 5.5, 6], as9: [6, 6.5, 6, 6], as8: [6.5, 6.5, 6, 6.5], as6: [6.5, 7, 6, 6.5], as13: [6.5, 7, 6, 6.5], as12: [7, 7, 6.5, 6.5], as2: [7, 7, 6.5, 7], as1: [7, 7, 6.5, 7],
+  aw5: [6, 6, 6, 5.5], aw4: [6, 6, 6.5, 5.5], aw3: [6.5, 6, 6.5, 5.5], aw0: [7, 6.5, 6.5, 6], aw2: [7, 6.5, 7, 6], aw1: [7, 7, 7, 6.5],
 };
 const trendOf = (skill) => list.filter((a) => a.skill === skill).reverse().map((a) => {
   const keys = skill === 'speaking' ? ['fc', 'lr', 'gra', 'p'] : ['ta', 'cc', 'lr', 'gra'];
   return { date: a.createdAt, overall: a.overall, skill, part: a.part, criteria: Object.fromEntries(keys.map((k, i) => [k, CRIT[a.id][i]])) };
 });
 const trendS = trendOf('speaking'), trendW = trendOf('writing');
-const progress = (trend) => ({ trend, streak: 6, minutesThisWeek: 142, attempts: 24, weakest: { key: 'gra', avg: 6.2 },
+const progress = (trend) => ({ trend, streak: 6, minutesThisWeek: 142, attempts: 24, weakest: { key: 'gra', avg: 6.3 },
   topMistakes: [{ category: 'grammar.article', count: 11 }, { category: 'grammar.agreement', count: 8 }, { category: 'grammar.verb-tense', count: 6 }, { category: 'vocabulary.collocation', count: 4 }],
   predicted: { speaking: 7, writing: 6.5 } });
 

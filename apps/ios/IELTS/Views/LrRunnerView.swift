@@ -358,7 +358,7 @@ private struct LrRunnerBody: View {
                 HStack(spacing: 10) {
                     Image(systemName: "square.grid.3x3").foregroundStyle(Color.brand)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("Question \(current) of \(total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(attempt.parts == nil ? "Question \(current) of \(total)" : "Question \(current), \(index + 1) of \(total)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.7)
                         Text("\(answeredN) answered").font(.caption.monospacedDigit()).foregroundStyle(Color.muted).lineLimit(1)
                     }
                     Spacer(minLength: 0)

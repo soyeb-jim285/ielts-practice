@@ -28,19 +28,20 @@ record() { # name screen tab tour mode dur
   xcrun simctl install "$UDID" "$APP"
   rm -f /tmp/ielts-tour-go
   xcrun simctl launch "$UDID" "$BID" -demo -screen "$screen" ${tab:+-tab "$tab"} -tour "$tour" > /dev/null
-  sleep 4
+  sleep 6 # a fresh install's first launch can take a few seconds on CI
   xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RAW/$name.mov" > "$RAW/$name.log" 2>&1 &
   local rpid=$! i
   # recordVideo takes a few seconds to really start: send the go signal only once it says so, or the tour's first seconds are lost.
   for i in $(seq 1 60); do grep -q "Recording started" "$RAW/$name.log" 2>/dev/null && break; sleep 0.25; done
   sleep 1.5
+  touch /tmp/ielts-tour-go # the app polls this file every 0.1 s; notifyutil is a backup (spawning it can take a second or two)
   xcrun simctl spawn "$UDID" notifyutil -p com.soyeb.ielts.tourgo || echo "notifyutil failed"
-  touch /tmp/ielts-tour-go
   sleep "$dur"
   kill -INT "$rpid" 2>/dev/null; wait "$rpid" 2>/dev/null
   rm -f /tmp/ielts-tour-go
   [ -s "$RAW/$name.mov" ] || { echo "no recording for $name"; cat "$RAW/$name.log"; return; }
-  # simctl only writes a frame when the screen changes: keep 1 s before the go signal, hold the last frame, cut to dur + 1 s at a constant 30 fps.
+  # The app's tour heartbeat (Demo/DemoTour.swift) changes a pixel every frame, so the recording is real-time: keep 1 s before the go signal,
+  # cut to dur + 1 s at a constant 30 fps (the clone padding only covers a recorder that stopped early).
   ffmpeg -y -loglevel error -ss 0.5 -i "$RAW/$name.mov" -vf "fps=30,tpad=stop_mode=clone:stop_duration=6,format=yuv420p" -t "$((dur + 1))" -c:v libx264 -crf 20 -preset medium -movflags +faststart -an "$OUT/$name.mp4"
   ffprobe -v error -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 "$OUT/$name.mp4"
   rm -f "$RAW/$name.mov"
