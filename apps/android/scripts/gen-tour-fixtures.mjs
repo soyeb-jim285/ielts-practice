@@ -206,9 +206,9 @@ In conclusion, while a gap year has some risks, I am convinced that its advantag
 
 const essayBefore = `Nowadays many young people take a gap year after school. They work or travel before they go to university. In my opinion this has more advantages than disadvantages.
 
-First, a gap year give students experience of life. If they work in a shop they learn responsibility and how to talk with different kind of people. If they travel to other countries they become more independent because their parents are not there. Also they can think about what they really want to study, so they will not change their subject later.
+First, a gap year give students experience of life. If they work in a shop they learn responsibility and how to talk with different kind of people. If they travel to other countries they become more independent because their parents are not there. Also they can think about what they really want to study, so they will not change their subject later. For example, my cousin worked in a café for one year and now she is more confident. It is also good for their CV.
 
-On the other hand there are some disadvantages. Students can forget how to study and it is difficult for them to go back to the classes. Also travelling is very expensive and not every family have enough money for it. Some students find a job and earn money and then they never go to university, this is a big problem for their future.
+On the other hand there are some disadvantages. Students can forget how to study and it is difficult for them to go back to the classes. Also travelling is very expensive and not every family have enough money for it. This is not fair for poor students. Some students find a job and earn money and then they never go to university, this is a big problem for their future.
 
 But I think these problems can be solved. Students should make a plan for the year, for example save money for university or do a volunteer work. Universities can also keep a place for the student so they can come back after one year.
 

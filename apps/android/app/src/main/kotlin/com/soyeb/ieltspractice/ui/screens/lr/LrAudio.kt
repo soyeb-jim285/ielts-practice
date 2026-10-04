@@ -225,7 +225,8 @@ fun PracticeAudio(src: String, label: String, modifier: Modifier = Modifier, cue
     val e = MaterialTheme.ext
     val context = LocalContext.current
     val demo = LocalDemo.current != null
-    val player = remember(src) { LrPlayer(demo, resume, clock = LocalDemo.current?.tour == true) }
+    val tour = LocalDemo.current?.tour == true
+    val player = remember(src) { LrPlayer(demo, resume, clock = tour) }
     LaunchedEffect(player) { if (src.isNotEmpty()) { player.load(context, src); player.poll() } }
     DisposableEffect(player) { onDispose { player.release() } }
     // review: "Play from here" jumps to the cue and stops at its end
