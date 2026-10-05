@@ -3,7 +3,10 @@ import SwiftUI
 /// Loads an attempt and shows the runner (in progress) or the result (submitted). A submit swaps the content in place, so back goes to the hub.
 struct LrAttemptScreen: View {
     @Environment(APIClient.self) private var api
+    @Environment(\.dismiss) private var dismiss
     let id: String
+    /// Set when this attempt is a section of a full mock test: submitting returns to the mock instead of showing the result.
+    var mockId: String? = nil
     @State private var attempt: LrAttempt?
     @State private var error: String?
 
@@ -11,9 +14,9 @@ struct LrAttemptScreen: View {
         Group {
             if let a = attempt {
                 if a.status == "submitted" {
-                    LrResultView(attempt: a)
+                    if mockId != nil { Color.canvas.ignoresSafeArea().onAppear { dismiss() } } else { LrResultView(attempt: a) }
                 } else {
-                    LrRunnerView(attempt: a) { attempt = $0 }
+                    LrRunnerView(attempt: a) { if mockId != nil { dismiss() } else { attempt = $0 } }
                 }
             } else if let error {
                 ContentUnavailableView {

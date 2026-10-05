@@ -19,6 +19,8 @@ struct PendingRecording: Codable, Identifiable, Equatable {
     var segments: [AnswerWindow]? = nil
     let sessionId: String?
     let parentAttemptId: String?
+    /// Set when the recording is the speaking section of a mock test.
+    var mockId: String? = nil
     // Upload progress, so a retry resumes at the step that failed.
     var attemptId: String?
     var uploadUrl: String?
@@ -107,6 +109,7 @@ final class PendingStore {
                                            "audioContentType": "audio/mp4"]
                 if let s = p.sessionId { body["sessionId"] = s }
                 if let a = p.parentAttemptId { body["parentAttemptId"] = a }
+                if let m = p.mockId { body["mockId"] = m }
                 let created: Created = try await api.send("POST", "/api/attempts", body)
                 guard let url = created.uploadUrl else { throw APIError(status: 0, message: "The server didn't return an upload URL.") }
                 p.attemptId = created.id

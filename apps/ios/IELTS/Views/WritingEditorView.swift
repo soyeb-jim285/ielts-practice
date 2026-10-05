@@ -6,6 +6,9 @@ import UIKit
 /// paste blocked. Full test = Task 1 + Task 2 sharing one 60-minute clock.
 struct WritingEditorView: View {
     let mode: WritingMode
+    /// Set when this is the Writing section of a full mock test: the prompts, session and time already used come from the mock, the clock
+    /// is saved to it, and finishing returns to the mock instead of showing the result.
+    var mockId: String? = nil
 
     private enum Stage: Equatable { case loading, writing, submitting, failed(String), done }
 
@@ -27,6 +30,7 @@ struct WritingEditorView: View {
 
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var prompts: [Prompt] = []
     @State private var texts: [String: String] = [:]
@@ -47,6 +51,7 @@ struct WritingEditorView: View {
     @State private var created: [String: String] = [:] // promptId to attemptId, so a retried submit never duplicates attempts
     @State private var parent: String?
     @State private var sessionId = newSessionId()
+    @State private var usedS = 0 // mock: seconds of the writing clock used before this visit
 
     private var multi: Bool { prompts.count > 1 }
     private var seconds: Int {
@@ -73,7 +78,8 @@ struct WritingEditorView: View {
                 ContentUnavailableView { Label("Couldn't load the task", systemImage: "exclamationmark.triangle") } description: { Text(msg) } actions: {
                     Button("Try again") { stage = .loading }.primaryButton()
                 }
-            case .done: ResultView(ids: ids)
+            case .done:
+                if mockId != nil { Color.canvas.ignoresSafeArea().onAppear { dismiss() } } else { ResultView(ids: ids) }
             default: if let p = current { editor(p) }
             }
         }
@@ -100,7 +106,7 @@ struct WritingEditorView: View {
             Button("Leave", role: .destructive) { dismiss() }
             Button("Stay", role: .cancel) {}
         } message: {
-            Text("Your draft stays saved on this device. The timer restarts when you come back.")
+            Text(mockId != nil ? "Your draft and the time used are kept. Come back from the mock test page." : "Your draft stays saved on this device. The timer restarts when you come back.")
         }
         .sheet(isPresented: $showSubmit) {
             SubmitSheet(
@@ -142,6 +148,12 @@ struct WritingEditorView: View {
     private func load() async {
         do {
             func pick(_ query: [String: String?]) async throws -> Prompt { try await api.get("/api/prompts/random", query: query) }
+            if let mockId {
+                let s = try await api.startMockWriting(mockId)
+                prompts = s.prompts
+                sessionId = s.writingSessionId
+                usedS = s.elapsedS
+            } else {
             switch mode {
             case let .full(variant):
                 let t1 = try await pick(["skill": "writing", "part": "1", "variant": variant])
@@ -158,6 +170,8 @@ struct WritingEditorView: View {
                 prompts = [t]
                 parent = parentId
             }
+            }
+            guard !prompts.isEmpty else { throw APIError(status: 0, message: "The task has no prompts.") }
             for p in prompts {
                 let d = loadDraft(p.id)
                 texts[p.id] = d.text
@@ -166,8 +180,8 @@ struct WritingEditorView: View {
             showPlan = prompts.contains { !(plans[$0.id] ?? "").isEmpty } // plan opens by itself when it has content
             showPrompt = (texts[prompts[0].id] ?? "").isEmpty // an answer already under way starts with the question folded
             task = 0
-            startedAt = Date()
-            left = seconds
+            startedAt = Date().addingTimeInterval(-Double(usedS)) // the deadline is startedAt + seconds, so time already used counts
+            left = seconds - usedS
             autoFired = false
             stage = .writing
         } catch {
@@ -280,6 +294,16 @@ struct WritingEditorView: View {
             if prompts.indices.contains(new) { showPrompt = (texts[prompts[new].id] ?? "").isEmpty }
         }
         .onChange(of: left) { old, new in timeChanged(old, new) }
+        .onChange(of: scenePhase) { _, p in if p != .active { saveClock() } }
+        .onDisappear { saveClock() }
+        .task {
+            // Mock: keep the clock on the server so a relaunch or another device resumes with the time used.
+            guard mockId != nil else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                saveClock()
+            }
+        }
         .task {
             // Wall clock, not ticks: the deadline is startedAt + seconds, so backgrounding or a throttled run loop can't drift it.
             while !Task.isCancelled {
@@ -457,6 +481,13 @@ struct WritingEditorView: View {
         }
     }
 
+    /// Mock only: PATCH the used time (the server keeps the highest value). Nothing to save once submitting or done.
+    private func saveClock() {
+        guard let mockId, stage == .writing else { return }
+        let used = max(0, seconds - left)
+        Task { await api.saveMockClock(mockId, elapsedS: used) }
+    }
+
     // MARK: Submit
 
     private func submit() async {
@@ -475,6 +506,7 @@ struct WritingEditorView: View {
                 if created[p.id] == nil {
                     var body: [String: Any] = ["promptId": p.id, "skill": "writing", "part": p.part, "mode": multi ? "exam" : "practice", "text": text]
                     if multi { body["sessionId"] = sessionId }
+                    if let mockId { body["mockId"] = mockId }
                     if let parent { body["parentAttemptId"] = parent }
                     let c: Created = try await api.send("POST", "/api/attempts", body)
                     created[p.id] = c.id

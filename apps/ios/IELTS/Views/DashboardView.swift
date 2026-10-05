@@ -96,6 +96,7 @@ struct DashboardView: View {
                         predictedCard(p)
                         trendCard
                     }
+                    MockEntryCard()
                     lrCard.id("lr")
                     practiseCard
                     if !p.topMistakes.isEmpty { mistakesCard(p.topMistakes) }

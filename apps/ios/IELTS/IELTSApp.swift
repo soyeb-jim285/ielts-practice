@@ -50,6 +50,8 @@ enum Route: Hashable {
     case review
     case lrHub(skill: String)
     case lrAttempt(id: String)
+    case mock
+    case mockHub(id: String)
 }
 
 extension View {
@@ -67,6 +69,8 @@ extension View {
             case let .mistakes(category): SignInGate(icon: "exclamationmark.triangle", title: "Your mistake log", reason: "Sign in to see the errors you repeat, grouped by type.") { MistakesView(category: category) }
             case let .lrHub(skill): LrHubView(skill: skill)
             case let .lrAttempt(id): LrAttemptScreen(id: id)
+            case .mock: SignInGate(icon: "checklist", title: "Full mock test", reason: "Sign in to take the whole test, with one overall band.") { MockStartView() }
+            case let .mockHub(id): SignInGate(icon: "checklist", title: "Full mock test", reason: "Sign in to see your mock test.") { MockHubView(id: id) }
             case .review: SignInGate(icon: "rectangle.on.rectangle.angled", title: "Your review deck", reason: "Sign in to turn your corrections into flashcards.") { ReviewView() }
             }
         }

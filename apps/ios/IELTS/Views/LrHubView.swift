@@ -71,6 +71,8 @@ struct LrHubView: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            Section { MockEntryCard(inList: true) }
+                .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
             if api.isGuest {
                 Section { GuestRecentView(skill: listening ? "listening" : "reading") }
                     .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))

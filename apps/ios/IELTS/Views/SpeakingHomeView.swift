@@ -44,6 +44,7 @@ struct SpeakingHomeView: View {
                 GuestRecentView(skill: "speaking")
                 if fresh { partsSection }
                 pendingSection
+                MockEntryCard()
                 modesSection
                 if !fresh { partsSection }
                 recentSection

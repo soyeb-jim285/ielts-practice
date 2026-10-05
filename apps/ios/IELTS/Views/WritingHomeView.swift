@@ -29,6 +29,7 @@ struct WritingHomeView: View {
                 Text("Timed tasks, marked against the public band descriptors with every mistake located.")
                     .font(.subheadline).foregroundStyle(.muted)
                 GuestRecentView(skill: "writing")
+                MockEntryCard()
                 fullTest
                 practise
                 if !recent.isEmpty { recentSection }

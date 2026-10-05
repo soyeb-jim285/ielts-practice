@@ -49,7 +49,13 @@ final class LiveExam {
     @ObservationIgnored private var lastOut = Date.distantPast // GPT-Live has no turn boundaries: a 2.5 s gap in the examiner's output starts a new turn
     @ObservationIgnored private var freshTurn = true // duplex: the next examiner output starts a new turn
 
-    init(api: APIClient) { self.api = api }
+    /// Set when this is the Speaking section of a full mock test: the server uses the mock's test, and the finished session is attached to it.
+    @ObservationIgnored private let mockId: String?
+
+    init(api: APIClient, mockId: String? = nil) {
+        self.api = api
+        self.mockId = mockId
+    }
 
     /// Web LiveStage PHASE_LABEL.
     var phaseLabel: String {
@@ -162,7 +168,10 @@ final class LiveExam {
 
     private func runTurnBased() async {
         do {
-            var reply: LiveReply = try await api.send("POST", "/api/live/start", ["source": QuestionSource.speaking(api)].compactMapValues { $0 })
+            var turnBody: [String: Any] = [:]
+            if let source = QuestionSource.speaking(api) { turnBody["source"] = source }
+            if let mockId { turnBody["mockId"] = mockId }
+            var reply: LiveReply = try await api.send("POST", "/api/live/start", turnBody)
             sessionId = reply.sessionId ?? ""
             test = reply.test
             while !Task.isCancelled {
@@ -236,6 +245,7 @@ final class LiveExam {
         do {
             var startBody: [String: Any] = ["skipTts": true]
             if let source = QuestionSource.speaking(api) { startBody["source"] = source }
+            if let mockId { startBody["mockId"] = mockId }
             let s: LiveReply = try await api.send("POST", "/api/live/start", startBody)
             sessionId = s.sessionId ?? ""
             test = s.test
@@ -407,6 +417,14 @@ final class LiveExam {
 
     // MARK: Finish
 
+    /// Link the finished live session to the mock (a few tries: the attempts are already saved, only the link would be missing).
+    private func attach(_ mockId: String) async {
+        for _ in 0..<3 {
+            if (try? await api.attachMockSession(mockId, sessionId: sessionId)) != nil { return }
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
     private func finish() async {
         closePart()
         socket?.close()
@@ -421,6 +439,7 @@ final class LiveExam {
             }
             guard !parts.isEmpty else { stage = .failed("Nothing was recorded, so there's nothing to score."); return }
             let res: FinishResult = try await api.send("POST", "/api/live/finish", ["sessionId": sessionId, "parts": parts] as [String: Any])
+            if let mockId { await attach(mockId) }
             stage = .finished(res.attemptIds)
         } catch {
             stage = .failed(CommunityIssue.summary(error))
@@ -430,6 +449,9 @@ final class LiveExam {
 
 struct LiveExamView: View {
     @Environment(APIClient.self) private var api
+    @Environment(\.dismiss) private var dismiss
+    /// Set for the Speaking section of a full mock test: finishing returns to the mock instead of showing the result.
+    var mockId: String? = nil
     @State private var exam: LiveExam?
     @State private var showCaptions = false
     @State private var showSettings = false
@@ -506,7 +528,7 @@ struct LiveExamView: View {
         }
         .task {
             if exam == nil {
-                let e = LiveExam(api: api)
+                let e = LiveExam(api: api, mockId: mockId)
                 exam = e
                 await e.prepare()
             }
@@ -533,7 +555,8 @@ struct LiveExamView: View {
         case .ready: ready(exam)
         case .running: running(exam)
         case .uploading: ProgressView("Uploading your recordings").frame(maxHeight: .infinity)
-        case let .finished(ids): ResultView(ids: ids)
+        case let .finished(ids):
+            if mockId != nil { Color.canvas.ignoresSafeArea().onAppear { dismiss() } } else { ResultView(ids: ids) }
         case let .failed(msg):
             ContentUnavailableView {
                 Label("The test stopped", systemImage: "exclamationmark.triangle")

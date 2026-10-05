@@ -90,6 +90,7 @@ struct HistoryView: View {
     @State private var items: [HistoryItem] = []
     @State private var total = 0
     @State private var lrItems: [HistoryItem] = []
+    @State private var mocks: [MockExam] = []
     @State private var page = 1
     @State private var loading = true
     @State private var error: String?
@@ -146,6 +147,16 @@ struct HistoryView: View {
                     Button("Try again") { Task { await load(reset: true) } }
                 }
             }
+            if skill.isEmpty, !mocks.isEmpty {
+                Section {
+                    ForEach(mocks) { m in
+                        NavigationLink(value: Route.mockHub(id: m.id)) { MockHistoryRow(mock: m, target: target) }
+                            .listRowBackground(Color.surface)
+                    }
+                } header: {
+                    Text("Mock tests").textCase(nil)
+                }
+            }
             ForEach(groups) { g in
                 Section {
                     ForEach(g.items) { a in
@@ -173,7 +184,7 @@ struct HistoryView: View {
         .overlay {
             if loading && items.isEmpty {
                 ProgressView()
-            } else if shown.isEmpty && error == nil {
+            } else if shown.isEmpty && mocks.isEmpty && error == nil {
                 ContentUnavailableView {
                     Label(skill.isEmpty ? "Nothing practised yet" : "No \(skill) attempts yet", systemImage: "clock.arrow.circlepath")
                 } description: {
@@ -210,6 +221,7 @@ struct HistoryView: View {
         loading = true
         defer { loading = false }
         if reset, hasLr, skill.isEmpty || lrOnly, let r: LrHistoryPage = try? await api.get("/api/lr/attempts") { lrItems = r.items.map(HistoryItem.init) }
+        if reset, hasLr, skill.isEmpty { mocks = (try? await api.mockList()) ?? [] } else if !skill.isEmpty { mocks = [] }
         if lrOnly { items = []; total = 0; error = nil; return }
         do {
             let p: HistoryPage = try await api.get("/api/attempts", query: ["skill": skill.isEmpty ? nil : skill, "page": String(page)])

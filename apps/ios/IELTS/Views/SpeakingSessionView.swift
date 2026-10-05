@@ -5,6 +5,9 @@ import SwiftUI
 /// (PendingStore), uploaded in the background while you continue, and becomes an attempt sharing a sessionId.
 struct SpeakingSessionView: View {
     let mode: SpeakingMode
+    /// Set when this is the recorded Speaking section of a full mock test: the questions and session id come from the mock, every attempt
+    /// carries the mock id, and finishing returns to the mock instead of showing the result.
+    var mock: MockSpeakingRun? = nil
 
     private enum Examiner { case idle, asking, cue }
     private enum Phase: Equatable { case loading, ready, prep, recording, finishing, empty, failed(String) }
@@ -75,7 +78,7 @@ struct SpeakingSessionView: View {
 
     var body: some View {
         Group {
-            if allDone { ResultView(ids: doneIds) } else { content }
+            if allDone && mock == nil { ResultView(ids: doneIds) } else { content }
         }
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -103,6 +106,7 @@ struct SpeakingSessionView: View {
             Text(exitMessage)
         }
         .micDeniedAlert($micDenied)
+        .onChange(of: allDone) { _, done in if done && mock != nil { dismiss() } }
         .onDisappear { discardLive() }
         .onDemoTour { s in // demo auto-tour (Demo/DemoTour.swift)
             switch s {
@@ -174,6 +178,12 @@ struct SpeakingSessionView: View {
 
     private func load() async {
         do {
+            if let mock {
+                items = mock.test.part1 + [mock.test.part2, mock.test.part3]
+                sessionId = mock.sessionId
+                phase = .ready
+                return
+            }
             switch mode {
             case .full:
                 let t: SpeakingTest = try await api.get("/api/speaking/test", query: ["source": QuestionSource.speaking(api)])
@@ -700,7 +710,7 @@ struct SpeakingSessionView: View {
         let rec = PendingRecording(id: recId, promptId: p.id, part: p.part,
                                    label: "\(label(index)): \((p.topic ?? p.title).trimmingCharacters(in: CharacterSet(charactersIn: ".")))", createdAt: Date(),
                                    durationMs: r.durationMs, energy: Array(r.energy.prefix(20000)), marks: Array(windows.map(\.startMs).prefix(200)), segments: windows,
-                                   sessionId: isFull ? sessionId : nil, parentAttemptId: parent)
+                                   sessionId: isFull ? sessionId : nil, parentAttemptId: parent, mockId: mock?.mockId)
         store.add(rec)
         uploads.append(UploadItem(id: rec.id, label: rec.label))
         store.start(rec, api: api)
