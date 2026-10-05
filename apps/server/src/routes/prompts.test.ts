@@ -121,7 +121,8 @@ describe('speaking test + seed', () => {
     const { headers } = await testUser();
     const t = await body(await req('/api/speaking/test', { headers }));
     expect(t.part1).toHaveLength(3);
-    expect(t.part1.every((p: any) => p.part === 1 && p.followUps.length === 4)).toBe(true);
+    // Part 1 sets hold 3–5 questions (bank variety); a test takes up to P1_TEST_QUESTIONS (4) from each
+    expect(t.part1.every((p: any) => p.part === 1 && p.followUps.length >= 3 && p.followUps.length <= 4)).toBe(true);
     expect(t.part1[0].type).toBe('p1-intro');
     expect(t.part1.slice(1).every((p: any) => p.type === 'p1-topic')).toBe(true);
     expect(t.part2.type).toBe('cue-card');
