@@ -97,14 +97,14 @@ fun LrRunScreen(route: LrRun, nav: AppNav) {
     when (val s = load.state) {
         Load.Loading -> ScreenScaffold("Loading", onBack = nav::back) { Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() } }
         is Load.Failed -> ScreenScaffold("Test", onBack = nav::back) { ErrorLine(s.message); SecondaryButton("Retry", load.reload) }
-        is Load.Ready -> if (s.value.submitted) LaunchedEffect(Unit) { nav.replace(LrResult(s.value.id)) } else LrRunner(s.value, nav)
+        is Load.Ready -> if (s.value.submitted) LaunchedEffect(Unit) { if (route.mockId != null) nav.back() else nav.replace(LrResult(s.value.id)) } else LrRunner(s.value, route.mockId, nav)
     }
 }
 
 private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("lr", Context.MODE_PRIVATE)
 
 @Composable
-private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
+private fun LrRunner(attempt: LrAttempt, mockId: String?, nav: AppNav) {
     val e = MaterialTheme.ext
     val app = LocalApp.current
     val demo = LocalDemo.current
@@ -197,7 +197,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
             try {
                 session.submit()
                 if (demo == null) prefs(context).edit().remove("marks:${attempt.id}").apply() // notes are not kept past the attempt
-                nav.replace(LrResult(attempt.id))
+                if (mockId != null) nav.back() else nav.replace(LrResult(attempt.id)) // a mock test goes back to its hub
             } catch (ex: Exception) {
                 leaving = false
                 confirm = false

@@ -96,7 +96,7 @@ private val steps = listOf(
 )
 
 @Composable
-fun LiveExamScreen(nav: AppNav) {
+fun LiveExamScreen(nav: AppNav, mockId: String? = null) {
     val app = LocalApp.current
     val demo = LocalDemo.current
     val ctx = LocalContext.current
@@ -104,7 +104,7 @@ fun LiveExamScreen(nav: AppNav) {
     val quota by app.api.quota.collectAsState()
     val exam: LiveExam = viewModel(factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = LiveExam(app, ctx.cacheDir, demo) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = LiveExam(app, ctx.cacheDir, demo, mockId) as T
     })
     val access = rememberMicAccess()
     var confirmEnd by remember { mutableStateOf(false) }
@@ -133,7 +133,11 @@ fun LiveExamScreen(nav: AppNav) {
     LaunchedEffect(stage) {
         (stage as? LiveStage.Failed)?.error?.let { nav.reportBlocked(it, "speaking", needs = Providers.name(Providers.keyFor(provider))) }
     }
-    if (stage is LiveStage.Finished) { ResultScreen(AttemptResult.of(*stage.ids.toTypedArray()), nav); return }
+    if (stage is LiveStage.Finished) {
+        // A mock test goes back to its hub (the session is already linked to it); any other test opens its result.
+        if (mockId != null) { LaunchedEffect(Unit) { nav.back() }; return }
+        ResultScreen(AttemptResult.of(*stage.ids.toTypedArray()), nav); return
+    }
 
     val running = stage == LiveStage.Running
     BackHandler(enabled = running || stage == LiveStage.Uploading) { if (running) confirmEnd = true }

@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens
 
+import com.soyeb.ieltspractice.ui.mock.MockCta
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -135,6 +136,7 @@ fun SpeakingHomeScreen(nav: AppNav) {
             )
             if (me?.cambridgeAccess == true) SourcePicker(app)
             GuestRecentSection(nav, "speaking")
+            MockCta(nav)
             if (fresh) PartsSection(true, nav)
             if (pending.isNotEmpty()) PendingSection(pending, states, onUpload = { p -> started.add(p.id); store.start(p, api) }, onDelete = { deleting = it })
             ModesSection(nav)

@@ -32,6 +32,8 @@ import java.io.File
     val segments: List<AnswerWindow> = emptyList(),
     val sessionId: String? = null,
     val parentAttemptId: String? = null,
+    /** Full mock test: sent with the attempt so the server links it to the mock (its Speaking session id is [sessionId]). */
+    val mockId: String? = null,
     // Upload progress, so a retry resumes at the step that failed.
     val attemptId: String? = null,
     val uploadUrl: String? = null,
@@ -116,6 +118,7 @@ class PendingStore(private val dir: File, private val scope: CoroutineScope) {
                     put("promptId", p.promptId); put("skill", "speaking"); put("part", p.part); put("mode", "practice")
                     put("audioContentType", "audio/mp4")
                     p.sessionId?.let { put("sessionId", it) }
+                    p.mockId?.let { put("mockId", it) }
                     p.parentAttemptId?.let { put("parentAttemptId", it) }
                 })
                 val url = created.uploadUrl ?: throw ApiError(0, "The server didn't return an upload URL.")

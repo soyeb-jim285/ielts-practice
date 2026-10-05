@@ -50,6 +50,9 @@ import com.soyeb.ieltspractice.ui.nav.HomeTab
 import com.soyeb.ieltspractice.ui.nav.LiveExam
 import com.soyeb.ieltspractice.ui.nav.Login
 import com.soyeb.ieltspractice.ui.nav.LrHub
+import com.soyeb.ieltspractice.ui.nav.MockHub
+import com.soyeb.ieltspractice.ui.nav.MockLive
+import com.soyeb.ieltspractice.ui.nav.MockStart
 import com.soyeb.ieltspractice.ui.nav.LrResult
 import com.soyeb.ieltspractice.ui.nav.LrRun
 import com.soyeb.ieltspractice.ui.screens.lr.LrHubScreen
@@ -68,6 +71,8 @@ import com.soyeb.ieltspractice.ui.screens.BankScreen
 import com.soyeb.ieltspractice.ui.screens.DashboardScreen
 import com.soyeb.ieltspractice.ui.screens.HistoryScreen
 import com.soyeb.ieltspractice.ui.screens.LiveExamScreen
+import com.soyeb.ieltspractice.ui.screens.MockHubScreen
+import com.soyeb.ieltspractice.ui.screens.MockStartScreen
 import com.soyeb.ieltspractice.ui.screens.LoginScreen
 import com.soyeb.ieltspractice.ui.screens.MistakesScreen
 import com.soyeb.ieltspractice.ui.screens.ResultScreen
@@ -142,6 +147,9 @@ private fun AppNavHost(start: Any) {
                 composable<LrHub> { LrHubScreen(it.toRoute(), nav) }
                 composable<LrRun> { LrRunScreen(it.toRoute(), nav) }
                 composable<LrResult> { LrResultScreen(it.toRoute(), nav) }
+                composable<MockStart> { MockStartScreen(nav) }
+                composable<MockHub> { MockHubScreen(it.toRoute(), nav) }
+                composable<MockLive> { LiveExamScreen(nav, it.toRoute<MockLive>().mockId) }
             }
         }
         GateHost(nav) // the limit panel and the fair-use dialog, over whatever screen is open

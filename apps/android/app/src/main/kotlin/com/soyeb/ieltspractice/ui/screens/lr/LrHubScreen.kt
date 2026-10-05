@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens.lr
 
+import com.soyeb.ieltspractice.ui.mock.MockCta
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -110,6 +111,7 @@ private fun HubContent(skill: String, target: Double, nav: AppNav) {
 
     Text(lede(listening), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
     GuestRecentSection(nav, skill)
+    MockCta(nav)
     when (state) {
         Load.Loading -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
         is Load.Failed -> AppCard { ErrorLine(state.message); SecondaryButton("Try again", load.reload) }

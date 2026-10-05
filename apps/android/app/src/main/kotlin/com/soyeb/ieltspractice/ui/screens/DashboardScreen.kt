@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens
 
+import com.soyeb.ieltspractice.ui.mock.MockCta
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -128,6 +129,7 @@ private fun Dashboard(d: DashData, target: Double, nav: AppNav) {
     val p = d.progress
     Header(p)
     QuotaSummary(nav)
+    MockCta(nav)
     p.lastFailed?.let { f ->
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = e.warn.copy(alpha = 0.12f)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

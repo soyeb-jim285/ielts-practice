@@ -18,6 +18,7 @@ import com.soyeb.ieltspractice.core.PendingRecording
 import com.soyeb.ieltspractice.core.Prompt
 import com.soyeb.ieltspractice.core.SpeakingTest
 import com.soyeb.ieltspractice.core.UploadState
+import com.soyeb.ieltspractice.core.mockChoose
 import com.soyeb.ieltspractice.core.newSessionId
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
 import kotlinx.coroutines.CancellationException
@@ -74,7 +75,7 @@ class SessionModel(
     private var askJob: Job? = null
     private var introduced = -1
     private var recId = newSessionId()
-    private val sessionId = newSessionId()
+    private var sessionId = newSessionId() // a mock test replaces it with the mock's Speaking session
     private var parent: String? = null
     private var prepEnd = 0L
     private var prepJob: Job? = null
@@ -84,7 +85,8 @@ class SessionModel(
     var hintSeen by mutableStateOf(runCatching { prefs.getBoolean("micHintSeen", false) }.getOrDefault(false)); private set
 
     val current: Prompt? get() = items.getOrNull(index)
-    val isFull get() = route.mode == "full"
+    val isFull get() = route.mode == "full" || route.mode == "mock"
+    val mockId: String? get() = route.mockId?.takeIf { route.mode == "mock" }
     val recording get() = phase == Phase.Recording
 
     init { reload() }
@@ -97,6 +99,13 @@ class SessionModel(
         phase = Phase.Loading
         try {
             when (route.mode) {
+                "mock" -> {
+                    // Full mock test: the questions and the session id are the mock's (choosing again before anything is submitted returns the same set).
+                    val c = api.mockChoose(route.mockId.orEmpty(), "recorded")
+                    val t = c.test ?: throw ApiError(0, "The mock test has no Speaking questions.")
+                    sessionId = c.sessionId ?: sessionId
+                    items = t.part1 + t.part2 + t.part3
+                }
                 "full" -> { val t: SpeakingTest = api.get("/api/speaking/test", mapOf("source" to app.speakingSourceParam())); items = t.part1 + t.part2 + t.part3 }
                 "part" -> items = listOf(api.get<Prompt>("/api/prompts/random", mapOf("skill" to "speaking", "part" to route.part.toString(), "source" to app.speakingSourceParam())))
                 else -> { items = listOf(api.get<Prompt>("/api/prompts/${route.promptId}")); parent = route.parentId }
@@ -228,7 +237,7 @@ class SessionModel(
         val rec = PendingRecording(
             id = recId, promptId = p.id, part = p.part, label = "${partLabel(items, index)}: ${p.topic ?: p.title}",
             createdAt = System.currentTimeMillis(), durationMs = r.durationMs, energy = r.energy.take(20000), marks = windows.map { it.startMs }.take(200), segments = windows.take(200),
-            sessionId = if (isFull) sessionId else null, parentAttemptId = parent,
+            sessionId = if (isFull) sessionId else null, parentAttemptId = parent, mockId = mockId,
         )
         store.add(rec)
         uploads = uploads + UploadItem(rec.id, rec.label)

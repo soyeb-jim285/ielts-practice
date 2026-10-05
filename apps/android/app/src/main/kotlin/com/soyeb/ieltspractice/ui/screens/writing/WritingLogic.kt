@@ -105,7 +105,7 @@ fun decodeDraft(raw: String?): Draft {
 }
 
 /** A running exam: the prompts and the wall-clock start, saved across configuration changes so a rotation never reshuffles the task. */
-@Serializable data class ExamSession(val prompts: List<Prompt>, val startedAt: Long, val sessionId: String, val parentId: String? = null)
+@Serializable data class ExamSession(val prompts: List<Prompt>, val startedAt: Long, val sessionId: String, val parentId: String? = null, val mockId: String? = null)
 
 /** "28 Sep" (the device's language and format); falls back to the date part of the ISO string. */
 fun shortDate(iso: String, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String =

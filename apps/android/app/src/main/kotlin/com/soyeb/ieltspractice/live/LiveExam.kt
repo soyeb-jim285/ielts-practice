@@ -22,6 +22,7 @@ import com.soyeb.ieltspractice.core.LiveReply
 import com.soyeb.ieltspractice.core.Prompt
 import com.soyeb.ieltspractice.core.SpeakingTest
 import com.soyeb.ieltspractice.core.UploadTarget
+import com.soyeb.ieltspractice.core.mockAttach
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +69,7 @@ fun phaseLabel(phase: String) = when (phase) {
  * turns ended by VAD). Duplex: GPT-Live (through our WebSocket relay) or Gemini Live with client-timed part changes. All record one m4a per
  * part and finish with /api/live/finish. A ViewModel, so rotating the phone does not end the test.
  */
-class LiveExam(private val app: AppContainer, private val cacheDir: File, private val demo: DemoConfig?) : ViewModel() {
+class LiveExam(private val app: AppContainer, private val cacheDir: File, private val demo: DemoConfig?, private val mockId: String? = null) : ViewModel() {
     var stage by mutableStateOf<LiveStage>(LiveStage.Ready); private set
     var phase by mutableStateOf("intro"); private set
     var phaseStartedAt by mutableLongStateOf(SystemClock.elapsedRealtime()); private set
@@ -211,7 +212,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runTurnBased() {
         try {
-            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { app.speakingSourceParam()?.let { put("source", it) } })
+            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) } })
             sessionId = reply.sessionId.orEmpty()
             test = reply.test
             while (true) {
@@ -300,7 +301,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runDuplex(kind: Examiner) {
         try {
-            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true); app.speakingSourceParam()?.let { put("source", it) } })
+            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true); app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) } })
             sessionId = s.sessionId.orEmpty()
             test = s.test
             try {
@@ -480,6 +481,11 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
                 put("sessionId", sessionId)
                 put("parts", buildJsonArray { parts.forEach { add(it) } })
             })
+            // A mock test: link the finished session to it (a second try covers a dropped connection) before the screen returns to the hub.
+            if (mockId != null) {
+                var attached = false
+                repeat(2) { if (!attached) attached = runCatching { api.mockAttach(mockId, sessionId) }.isSuccess }
+            }
             stage = LiveStage.Finished(res.attemptIds)
         } catch (e: Exception) {
             stage = failed(e)

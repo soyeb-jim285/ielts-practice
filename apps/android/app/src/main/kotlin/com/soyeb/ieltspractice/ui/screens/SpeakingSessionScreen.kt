@@ -133,7 +133,11 @@ fun SpeakingSessionScreen(route: SpeakingSession, nav: AppNav) {
     fun requestExit() { if (vm.recording || vm.phase == Phase.Prep || vm.index > 0 || notDone) exitOpen = true else leave() }
     BackHandler(enabled = !allDone) { requestExit() }
 
-    if (allDone) { ResultScreen(AttemptResult.of(*doneIds.toTypedArray()), nav); return }
+    if (allDone) {
+        // A mock test goes back to its hub, which moves on to the result; any other test opens its result.
+        if (vm.mockId != null) { LaunchedEffect(Unit) { nav.back() }; return }
+        ResultScreen(AttemptResult.of(*doneIds.toTypedArray()), nav); return
+    }
 
     val e = MaterialTheme.ext
     val title = when (vm.phase) {

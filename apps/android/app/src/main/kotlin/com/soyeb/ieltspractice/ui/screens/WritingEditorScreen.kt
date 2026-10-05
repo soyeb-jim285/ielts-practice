@@ -60,6 +60,8 @@ import com.soyeb.ieltspractice.core.GateText
 import com.soyeb.ieltspractice.core.Empty
 import com.soyeb.ieltspractice.core.Prompt
 import com.soyeb.ieltspractice.core.clock
+import com.soyeb.ieltspractice.core.mockWritingClock
+import com.soyeb.ieltspractice.core.mockWritingStart
 import com.soyeb.ieltspractice.core.newSessionId
 import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
@@ -154,6 +156,11 @@ fun WritingEditorScreen(route: WritingEditor, nav: AppNav) {
 }
 
 private suspend fun loadSession(api: ApiClient, r: WritingEditor): ExamSession {
+    if (r.mode == "mock" && r.mockId != null) {
+        // A full mock test: both tasks, the shared session id and the time already used come from the mock; the clock continues from there.
+        val m = api.mockWritingStart(r.mockId)
+        return ExamSession(m.prompts, System.currentTimeMillis() - m.elapsedS.toLong() * 1000L, m.writingSessionId, null, r.mockId)
+    }
     suspend fun pick(part: String, variant: String? = null): Prompt =
         api.get("/api/prompts/random", mapOf("skill" to "writing", "part" to part, "variant" to variant))
     val prompts = when (r.mode) {
@@ -170,7 +177,8 @@ private class Flags { var autoFired = false; var submitted = false }
 @Composable
 private fun ExamScreen(session: ExamSession, nav: AppNav) {
     val e = MaterialTheme.ext
-    val api = LocalApp.current.api
+    val app = LocalApp.current
+    val api = app.api
     val demo = LocalDemo.current
     val variant = demo?.tab // demo only: which state the screenshot shows (see ScreenCatalog)
     val me by api.me.collectAsState()
@@ -241,6 +249,17 @@ private fun ExamScreen(session: ExamSession, nav: AppNav) {
     LaunchedEffect(session) { snapshotFlow { prompts.map { texts[it.id] to plans[it.id] } }.collectLatest { delay(800); persist() } }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { persist() }
     DisposableEffect(Unit) { onDispose { persist() } }
+
+    // A mock test keeps the Writing clock on the server (every 15 s, when the app goes to the background and when the screen closes), so leaving resumes with the time used.
+    val mockId = session.mockId
+    fun saveClock() {
+        if (mockId == null || flags.submitted || demo != null) return
+        val used = ((System.currentTimeMillis() - session.startedAt) / 1000).toInt()
+        app.scope.launch { runCatching { api.mockWritingClock(mockId, used) } }
+    }
+    LaunchedEffect(session) { if (mockId != null && demo == null) while (true) { delay(15_000); saveClock() } }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { saveClock() }
+    DisposableEffect(Unit) { onDispose { saveClock() } }
 
     LaunchedEffect(showSubmit, showExit) { if (showSubmit || showExit) focus.clearFocus() }
     BackHandler { if (!submitting) showExit = true }
@@ -357,7 +376,7 @@ private fun ExamScreen(session: ExamSession, nav: AppNav) {
         }
         if (showExit) {
             ModalCard("Leave this test?", { showExit = false }) {
-                Text("Your draft stays saved on this device. The timer restarts when you come back.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+                Text(if (session.mockId != null) "Your draft stays saved on this device and the time you have used is kept. Come back to this mock test to continue." else "Your draft stays saved on this device. The timer restarts when you come back.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton({ showExit = false; nav.back() }, Modifier.weight(1f), colors = ButtonDefaults.textButtonColors(contentColor = e.badText)) { Text("Leave") }
                     PrimaryButton("Stay", { showExit = false }, Modifier.weight(1f))
@@ -389,6 +408,7 @@ private fun submit(
                 val id = created[p.id] ?: api.send<Created>("POST", "/api/attempts", buildJsonObject {
                     put("promptId", p.id); put("skill", "writing"); put("part", p.part); put("mode", if (multi) "exam" else "practice"); put("text", text)
                     if (multi) put("sessionId", session.sessionId)
+                    session.mockId?.let { put("mockId", it) }
                     session.parentId?.let { put("parentAttemptId", it) }
                 }).id.also { created[p.id] = it }
                 try {
@@ -404,7 +424,7 @@ private fun submit(
             flags.submitted = true
             store.clear(prompts.map { it.id })
             nav.back() // the test is over: back from the result lands on the hub, not on a new random task
-            nav.go(AttemptResult.of(*ids.toTypedArray()))
+            if (session.mockId == null) nav.go(AttemptResult.of(*ids.toTypedArray())) // a mock test lands on its hub (and goes on to Speaking)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

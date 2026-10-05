@@ -1,5 +1,10 @@
 package com.soyeb.ieltspractice.ui.screens
 
+import com.soyeb.ieltspractice.ui.nav.MockHub
+import com.soyeb.ieltspractice.core.mockList
+import com.soyeb.ieltspractice.core.MockFlow
+import com.soyeb.ieltspractice.core.Mock
+import androidx.compose.runtime.produceState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -103,6 +108,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
     val gone = remember { mutableStateListOf<String>() }
     var asking by remember { mutableStateOf<RemovalTarget?>(null) }
     var removeError by remember { mutableStateOf<String?>(null) }
+    // Full mock tests sit at the top of the "All" list (quiet on failure; the member attempts still appear under their own filters).
+    val mocks by produceState(emptyList<Mock>(), lrOn) { value = if (lrOn) runCatching { api.mockList() }.getOrDefault(emptyList()) else emptyList() }
     val lr = ((lrLoad.state as? Load.Ready)?.value ?: emptyList()).filter { (!isLr || it.skill == skill) && it.id !in gone }
     val paged = remember {
         Paged(scope) { page ->
@@ -146,6 +153,17 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
         paged.error?.let { msg ->
             item { AppCard { ErrorLine(msg); SecondaryButton("Try again", { paged.reset() }) } }
         }
+        if (skill.isEmpty() && mocks.isNotEmpty()) item(key = "mocks") {
+            Column {
+                GroupHeader("Mock tests")
+                AppCard(padding = 0.dp) {
+                    mocks.take(5).forEachIndexed { i, m ->
+                        if (i > 0) RowDivider()
+                        MockHistoryRow(m, target) { nav.go(MockHub(m.id)) }
+                    }
+                }
+            }
+        }
         if (lrOn && lr.isNotEmpty()) item(key = "lr") {
             Column {
                 GroupHeader("Listening and Reading")
@@ -188,6 +206,29 @@ private fun androidx.compose.foundation.layout.ColumnScope.HistoryList(route: Hi
             if (paged.items.isNotEmpty() && paged.loading) Box(Modifier.fillMaxWidth().padding(16.dp), Alignment.Center) { CircularProgressIndicator() }
             LaunchedEffect(paged.items.size, paged.hasMore) { paged.more() }
         }
+    }
+}
+
+/** One full mock test: title, test type and date (or what is next), then the overall band. */
+@Composable
+private fun MockHistoryRow(m: Mock, target: Double, onClick: () -> Unit) {
+    val e = MaterialTheme.ext
+    val o = m.overall
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
+    ) {
+        Icon(painterResource(R.drawable.ic_books), null, Modifier.padding(top = 2.dp).size(20.dp), tint = e.muted)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(listOfNotNull("Full mock test", m.ref).joinToString(", "), style = MaterialTheme.typography.titleSmall, color = e.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (m.open) Chip(m.next?.let { "${MockFlow.name(it)} next" } ?: "In progress", color = e.warnText)
+            else if (m.status == "closed") Chip("Finished without Speaking")
+            Text(
+                "${if (m.variant == "academic") "Academic" else "General Training"}, ${ShellDate.date(m.startedAt)}",
+                style = MaterialTheme.typography.bodySmall, color = e.muted,
+            )
+        }
+        if (o != null) Text(fmt(o), Modifier.clearAndSetSemantics { contentDescription = "Overall band ${fmt(o)}" }, style = AppText.band(20), color = bandTextColor(o, target))
     }
 }
 

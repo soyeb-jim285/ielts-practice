@@ -58,6 +58,7 @@ data class DashData(val progress: DashProgress, val due: DueResponse?, val trend
     val createdAt: String,
     val durationMs: Int? = null,
     val flag: String? = null, // offTopic | tooShort
+    val sessionId: String? = null, // attempts of one test share it (a mock's Writing and Speaking results open together)
 )
 @Serializable data class HistoryPage(val items: List<HistoryItem>, val total: Int)
 

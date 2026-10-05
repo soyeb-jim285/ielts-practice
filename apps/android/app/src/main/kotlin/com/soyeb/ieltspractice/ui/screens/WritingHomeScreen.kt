@@ -1,5 +1,6 @@
 package com.soyeb.ieltspractice.ui.screens
 
+import com.soyeb.ieltspractice.ui.mock.MockCta
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -103,6 +104,7 @@ fun WritingHomeScreen(nav: AppNav) {
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted,
             )
             GuestRecentSection(nav, "writing")
+            MockCta(nav)
             FullTest(variant, { variant = it }) { nav.startTest("writing") { nav.go(WritingEditor("full", variant)) } }
             Practise(nav)
             if (recent.isNotEmpty()) Recent(recent, target, nav)
