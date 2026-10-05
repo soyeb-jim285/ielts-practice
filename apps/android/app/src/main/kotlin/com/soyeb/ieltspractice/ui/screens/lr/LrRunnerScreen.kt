@@ -24,8 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +38,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +53,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -118,6 +126,21 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     val flat = remember(test) { test.flat() }
     val total = flat.size
     val reg = remember { QRegistry() }
+    val hl = remember(attempt.id) {
+        Marks(if (demo == null) parseMarks(prefs(context).getString("marks:${attempt.id}", null)) else emptyList()) {
+            if (demo == null) prefs(context).edit().putString("marks:${attempt.id}", marksJson(it)).apply()
+        }
+    }
+    var settings by remember { mutableStateOf(if (demo == null) parseSettings(prefs(context).getString("settings", null)) else LrSettings()) }
+    var notesOpen by remember { mutableStateOf(false) }
+    var helpOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var moreOpen by remember { mutableStateOf(false) }
+    var hidden by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val roomy = LocalConfiguration.current.screenWidthDp >= 640 // below this the buttons fold into one "More" menu and the title goes
+    val baseBar = LocalTextToolbar.current
+    val toolbar = remember(baseBar) { MarkToolbar(baseBar) }
     val saved = remember(attempt.id) { if (demo == null) prefs(context).getString("pos:${attempt.id}", null)?.split(",")?.mapNotNull { it.toIntOrNull() } else null }
     var partIdx by rememberSaveable { mutableIntStateOf(if (ds == "lr-reading-p2") 1 else saved?.getOrNull(0)?.coerceIn(0, sections.lastIndex) ?: 0) }
     var current by rememberSaveable { mutableIntStateOf(if (ds == "lr-reading-p2") sections.getOrNull(1)?.groups?.firstOrNull()?.from ?: 1 else saved?.getOrNull(1) ?: flat.firstOrNull()?.n ?: 1) }
@@ -155,6 +178,9 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     val modeNote = attempt.parts?.let { ", ${partsLabel(test.skill, it)}" }.orEmpty()
     val limit = readingSeconds(attempt.parts) // 20 minutes per passage when taking only some
     val readingLeft = limit - wall.toInt()
+    // only the Reading exam countdown warns (10:00 and 5:00); Listening stays neutral
+    val tone = if (exam && !listening) readingTone(readingLeft, limit) else 0
+    val pulse = tone > 0 && readingPulse(readingLeft, limit)
     val timeUp = demo == null && exam && (if (listening) playlist.phase == ExamPhase.Review && playlist.reviewLeft == 0 else readingLeft <= 0)
     var leaving by remember { mutableStateOf(false) }
     // pacing: late = the last 5 minutes of reading; in the exam listening, after the recordings end
@@ -170,6 +196,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
         scope.launch {
             try {
                 session.submit()
+                if (demo == null) prefs(context).edit().remove("marks:${attempt.id}").apply() // notes are not kept past the attempt
                 nav.replace(LrResult(attempt.id))
             } catch (ex: Exception) {
                 leaving = false
@@ -190,7 +217,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     BackHandler(enabled = !leaving) { if (exam) leave = true else exit() }
 
     // ---- moving about ----
-    val ctx = QCtx(responses, session::change, attempt.assets, active = active, onFocus = { current = it }, onText = { n, on -> if (on) session.noteFocus(n) else session.noteBlur(n) }, reg = reg)
+    val ctx = QCtx(responses, session::change, attempt.assets, active = active, onFocus = { current = it }, onText = { n, on -> if (on) session.noteFocus(n) else session.noteBlur(n) }, reg = reg, hl = hl)
     fun goPart(i: Int) { partIdx = i; current = sections[i].groups.firstOrNull()?.from ?: current }
     LaunchedEffect(examListening, playlist.phase, playlist.idx) { if (examListening && playlist.phase == ExamPhase.Audio) goPart(playlist.idx.coerceIn(0, sections.lastIndex)) }
     fun jump(n: Int) {
@@ -204,6 +231,18 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
             if (active == n) active = null
         }
     }
+    fun jumpMark(m: TextMark) {
+        notesOpen = false
+        val q = markQuestion(m)
+        if (q != null) jump(q) else {
+            val i = sections.indexOfFirst { it.part == m.region.split(':').getOrNull(1)?.toIntOrNull() }
+            if (i >= 0) { goPart(i); tab = "passage" }
+        }
+        hl.flash = m.id
+        scope.launch { delay(2500); if (hl.flash == m.id) hl.flash = null }
+    }
+    // in the Listening exam the recording owns the part, so a mark in another part cannot be opened
+    fun canJump(m: TextMark): Boolean = !examListening || markQuestion(m)?.let { q -> flat.firstOrNull { it.n == q }?.part == section.part } == true
     LaunchedEffect(started) { if (started && saved != null) { delay(250); ctx.reveal(current, false) } }
 
     val navParts = sections.map { s -> NavPart(s.part, "${if (listening) "Part" else "Passage"} ${s.part}", s.groups.flatMap { g -> g.questions.map { it.n } }) }
@@ -211,21 +250,36 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
     val unanswered = flat.count { !answered(it.n) }
     val idx = flat.indexOfFirst { it.n == current }
 
+    CompositionLocalProvider(LocalTextToolbar provides toolbar) {
     ScreenScaffold(
-        if (exam) "Exam" else "Practice", Modifier.imePadding(), onBack = { if (exam) leave = true else exit() }, scroll = false,
+        if (roomy) "${test.title}, ${if (listening) "Part" else "Passage"} ${section.part}" else "", Modifier.imePadding(), onBack = { if (exam) leave = true else exit() }, scroll = false,
         actions = {
-            SaveIndicator(session.state)
             if (examListening) {
-                if (playlist.phase == ExamPhase.Review) ClockPill(playlist.reviewLeft, true, "Review time left")
+                if (playlist.phase == ExamPhase.Review) ClockPill(playlist.reviewLeft, true, "Review time left", tone = 1)
                 else if (playlist.total > 0) ClockPill(playlist.timeLeft, true, "Time left")
             }
-            else if (exam) ClockPill(readingLeft.coerceAtLeast(0), true, "Time left")
+            else if (exam) ClockPill(readingLeft.coerceAtLeast(0), true, "Time left", tone = tone, pulse = pulse, announce = true)
             else ClockPill(wall.toInt(), false, "Time spent")
+            SaveIndicator(session.state)
+            if (roomy) {
+                if (hl.list.isNotEmpty()) TextButton({ notesOpen = true }, Modifier.heightIn(min = 48.dp)) { Text("Notes (${hl.list.size})", color = e.ink) }
+                TextButton({ helpOpen = true }, Modifier.heightIn(min = 48.dp)) { Text("Help", color = e.ink) }
+                TextButton({ settingsOpen = true }, Modifier.heightIn(min = 48.dp)) { Text("Settings", color = e.ink) }
+                TextButton({ focusManager.clearFocus(); hidden = true }, Modifier.heightIn(min = 48.dp), enabled = started) { Text("Hide", color = e.ink) }
+            } else Box {
+                IconButton({ moreOpen = true }) { Icon(Icons.Filled.MoreVert, "More: notes, help, settings, hide") }
+                DropdownMenu(moreOpen, { moreOpen = false }, containerColor = e.surface) {
+                    if (hl.list.isNotEmpty()) DropdownMenuItem({ Text("Notes (${hl.list.size})", color = e.ink) }, { moreOpen = false; notesOpen = true }, Modifier.heightIn(min = 48.dp))
+                    DropdownMenuItem({ Text("Help", color = e.ink) }, { moreOpen = false; helpOpen = true }, Modifier.heightIn(min = 48.dp))
+                    DropdownMenuItem({ Text("Settings", color = e.ink) }, { moreOpen = false; settingsOpen = true }, Modifier.heightIn(min = 48.dp))
+                    if (started) DropdownMenuItem({ Text("Hide", color = e.ink) }, { moreOpen = false; focusManager.clearFocus(); hidden = true }, Modifier.heightIn(min = 48.dp))
+                }
+            }
             PrimaryButton("Submit", { confirm = true }, Modifier.padding(start = 6.dp, end = 8.dp), enabled = started)
         },
     ) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxSize().then(if (hidden) Modifier.clearAndSetSemantics {} else Modifier), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (started) {
                     PrimaryTabRow(
                         sections.indexOf(section), containerColor = e.bg, contentColor = e.brand,
@@ -245,6 +299,7 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
                         }
                     }
                 }
+                LrContent(settings) {
                 when {
                     !started -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp)) { ExamGate(playlist, attempt.elapsedS > 0, ::exit, parts = sections.map { it.part }) }
                     listening -> {
@@ -255,18 +310,20 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
                         QuestionsPane(section, ctx, exam, true, Modifier.weight(1f).fillMaxWidth(), modeNote)
                     }
                     wide -> Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) { SectionPassage(section) }
+                        Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) { SectionPassage(section, hl = hl) }
                         QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxSize(), modeNote)
                     }
                     else -> {
                         Segmented(listOf("passage" to "Passage", "questions" to "Questions"), tab, { tab = it })
                         if (tab == "passage") Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-                            SectionPassage(section)
-                            Text("Press and hold to select text and copy it.", Modifier.padding(top = 16.dp, bottom = 16.dp), style = MaterialTheme.typography.bodySmall, color = e.muted)
+                            SectionPassage(section, hl = hl)
+                            Text("Press and hold to select text, then highlight it or add a note.", Modifier.padding(top = 16.dp, bottom = 16.dp), style = MaterialTheme.typography.bodySmall, color = e.muted)
                         } else QuestionsPane(section, ctx, exam, false, Modifier.weight(1f).fillMaxWidth(), modeNote)
                     }
                 }
+                }
             }
+            if (hidden) HidePanel(listening, { hidden = false }, Modifier.fillMaxSize())
         }
         if (started) {
             HorizontalDivider(color = e.line)
@@ -290,6 +347,12 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
         }
     }
 
+    }
+    MarkChip(toolbar, hl)
+    MarkDialogs(hl)
+    if (notesOpen) NotesSheet(hl, ::canJump, ::jumpMark) { notesOpen = false }
+    if (helpOpen) HelpSheet { helpOpen = false }
+    if (settingsOpen) SettingsSheet(settings, { settings = it; if (demo == null) prefs(context).edit().putString("settings", settingsJson(it)).apply() }) { settingsOpen = false }
     submitError?.let { msg ->
         AlertDialog(
             { submitError = null }, containerColor = e.surface, titleContentColor = e.ink, textContentColor = e.muted,

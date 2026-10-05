@@ -1,5 +1,19 @@
 package com.soyeb.ieltspractice.core
 
+import com.soyeb.ieltspractice.ui.screens.lr.LrSettings
+import com.soyeb.ieltspractice.ui.screens.lr.TextMark
+import com.soyeb.ieltspractice.ui.screens.lr.locateSelection
+import com.soyeb.ieltspractice.ui.screens.lr.marksJson
+import com.soyeb.ieltspractice.ui.screens.lr.parseMarks
+import com.soyeb.ieltspractice.ui.screens.lr.parseSettings
+import com.soyeb.ieltspractice.ui.screens.lr.readingPulse
+import com.soyeb.ieltspractice.ui.screens.lr.readingTone
+import com.soyeb.ieltspractice.ui.screens.lr.scale
+import com.soyeb.ieltspractice.ui.screens.lr.settingsJson
+import com.soyeb.ieltspractice.ui.screens.lr.withHighlight
+import com.soyeb.ieltspractice.ui.screens.lr.withNote
+import com.soyeb.ieltspractice.ui.screens.lr.withNoteText
+import com.soyeb.ieltspractice.ui.screens.lr.withoutMark
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -109,5 +123,60 @@ class LrLogicTest {
         assertEquals(local, LrAudioState.pick(local.encode(), LrAudioState(mapOf("1" to 30.0))))
         assertEquals(null, LrAudioState.pick(null, null))
         assertEquals(server, LrAudioState.pick("not json", server))
+    }
+
+    // ---- exam fidelity: highlights and notes, settings, reading clock (docs/exam-fidelity.md) ----
+
+    @Test fun plainHighlightsMergeAndNotesNeverDo() {
+        val r = "passage:1:0"
+        var m = withHighlight(emptyList(), r, 2, 6, "a")
+        m = withHighlight(m, r, 5, 9, "b") // overlaps: one mark 2..9
+        assertEquals(listOf(2 to 9), m.map { it.s to it.e })
+        m = withHighlight(m, r, 20, 25, "c")
+        assertEquals(2, m.size)
+        m = withNote(m, r, 3, 8, "why", "n") // absorbs the plain highlight under it, keeps the other
+        assertEquals(2, m.size)
+        assertEquals("why", m.first { it.note != null }.note)
+        assertEquals(m, withHighlight(m, r, 4, 6, "d")) // over a note: unchanged
+        m = withNote(m, r, 4, 6, "edited", "e") // over a note: edits it
+        assertEquals(listOf("edited"), m.mapNotNull { it.note })
+        m = withNoteText(m, "n", "  ") // clearing the note leaves a plain highlight
+        assertTrue(m.all { it.note == null })
+        assertEquals(1, withoutMark(m, "n").size)
+        assertEquals(500, withNoteText(m, "n", "x".repeat(900)).first { it.id == "n" }.note!!.length)
+    }
+
+    @Test fun marksRoundTripAsTheSharedJsonShape() {
+        val m = listOf(TextMark("a", "q:14:text", 0, 1, 5, "n"), TextMark("b", "passage:2:3", 3, 0, 4))
+        assertEquals(m, parseMarks(marksJson(m)))
+        assertEquals(emptyList(), parseMarks("not json"))
+        assertEquals(emptyList(), parseMarks(null))
+        val web = parseMarks("""[{"id":"x","region":"passage:1:0","p":0,"s":2,"e":9}]""")
+        assertEquals(TextMark("x", "passage:1:0", 0, 2, 9), web.single())
+    }
+
+    @Test fun selectionIsFoundInItsRegion() {
+        val regions = linkedMapOf("passage:1:0" to "The quick brown fox", "q:3:text" to "Which animal is quick?")
+        val one = locateSelection(regions, "brown").single()
+        assertEquals(Triple("passage:1:0", 10, 15), Triple(one.region, one.s, one.e))
+        val two = locateSelection(regions, "fox\nWhich animal")
+        assertEquals(listOf("passage:1:0", "q:3:text"), two.map { it.region })
+        assertTrue(locateSelection(regions, "absent").isEmpty())
+    }
+
+    @Test fun settingsDefaultsAndScale() {
+        assertEquals(LrSettings(), parseSettings(null))
+        assertEquals(LrSettings(), parseSettings("""{"size":"huge","scheme":"neon"}"""))
+        val s = LrSettings("xl", "yb")
+        assertEquals(s, parseSettings(settingsJson(s)))
+        assertEquals(listOf(1f, 1.25f, 1.5f), listOf("std", "lg", "xl").map { LrSettings(it).scale() })
+    }
+
+    @Test fun readingClockWarnsAtTenAndFiveMinutes() {
+        assertEquals(listOf(0, 1, 1, 2, 2), listOf(601, 600, 301, 300, 0).map { readingTone(it, 3600) })
+        assertEquals(listOf(true, true, false, true, false), listOf(600, 591, 590, 300, 250).map { readingPulse(it, 3600) })
+        assertEquals(1, readingTone(450, 1200)) // one passage: 20 minutes, still above 10
+        assertEquals(0, readingTone(100, 600)) // a limit of 10 minutes or less never warns
+        assertEquals(false, readingPulse(300, 600))
     }
 }

@@ -29,7 +29,20 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.soyeb.ieltspractice.ui.screens.speaking.animationsEnabled
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,7 +69,7 @@ import com.soyeb.ieltspractice.ui.theme.ext
 
 /** The reading passage in the book serif. Paragraph letters sit in a gutter. Long-press selects text to copy. */
 @Composable
-fun PassageView(p: LrPassage, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0) {
+fun PassageView(p: LrPassage, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0, hl: Marks? = null, part: Int = 0) {
     val e = MaterialTheme.ext
     SelectionContainer {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -76,7 +89,8 @@ fun PassageView(p: LrPassage, modifier: Modifier = Modifier, evidence: TextSpan?
                         }
                     }
                     Column(Modifier.weight(1f).semantics { if (para.label != null) contentDescription = "Paragraph ${para.label}. ${para.text}" }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (evidence?.p == pi) EvidenceText(para.text, evidence, AppText.reading, e.ink, scrollKey)
+                        if (hl != null) MarkedText(hl, "passage:$part:$pi", para.text, AppText.reading, e.ink)
+                        else if (evidence?.p == pi) EvidenceText(para.text, evidence, AppText.reading, e.ink, scrollKey)
                         else para.text.split('\n').forEach { line ->
                             if (line.startsWith("• ")) Row(Modifier.padding(start = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("•", style = AppText.reading, color = e.muted)
@@ -128,14 +142,36 @@ fun QuestionNavigator(parts: List<NavPart>, answered: (Int) -> Boolean, flagged:
     }
 }
 
-/** A timer pill. Countdowns go amber under 5 minutes and rose under 1. */
+/** Reading exam clock tone: 0 neutral, 1 warn under 10:00, 2 strong under 5:00. Only when the limit is above 10 minutes (a one-passage attempt has 20, so it applies). */
+fun readingTone(left: Int, limit: Int): Int = if (limit <= 600) 0 else if (left <= 300) 2 else if (left <= 600) 1 else 0
+
+/** The first 10 seconds after each of the two marks: the clock flashes. */
+fun readingPulse(left: Int, limit: Int): Boolean = limit > 600 && (left in 291..300 || left in 591..600)
+
+/**
+ * A timer pill. [tone] is 0 neutral, 1 warn, 2 strong; [pulse] flashes it at 1 Hz (not with animations removed). With [announce], each rise of
+ * the tone is spoken once ("10 minutes remaining", "5 minutes remaining") through a polite live region; the pill's own label stays the time.
+ */
 @Composable
-fun ClockPill(seconds: Int, countdown: Boolean, label: String, modifier: Modifier = Modifier) {
+fun ClockPill(seconds: Int, countdown: Boolean, label: String, modifier: Modifier = Modifier, tone: Int = 0, pulse: Boolean = false, announce: Boolean = false) {
     val e = MaterialTheme.ext
+    val context = LocalContext.current
+    val animated = remember { animationsEnabled(context) }
+    val flashing = pulse && animated
+    val beat = if (flashing) {
+        val a by rememberInfiniteTransition(label = "clock").animateFloat(0f, 1f, infiniteRepeatable(tween(500), RepeatMode.Reverse), label = "beat")
+        a
+    } else 0f
     val (bg, fg) = when {
-        countdown && seconds <= 60 -> e.bad.copy(alpha = 0.14f) to e.badText
-        countdown && seconds <= 300 -> e.warn.copy(alpha = 0.16f) to e.warnText
-        else -> e.surface2 to e.ink
+        !countdown || tone == 0 -> e.surface2 to e.ink
+        tone >= 2 -> e.bad.copy(alpha = 0.14f + 0.3f * beat) to e.badText
+        else -> e.warn.copy(alpha = 0.16f + 0.3f * beat) to e.warnText
+    }
+    var said by remember { mutableStateOf("") }
+    var last by remember { mutableIntStateOf(tone) }
+    LaunchedEffect(tone) {
+        if (announce && tone > last) said = if (tone >= 2) "5 minutes remaining" else "10 minutes remaining"
+        last = tone
     }
     Row(
         modifier.heightIn(min = 40.dp).background(bg, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp)
@@ -144,6 +180,7 @@ fun ClockPill(seconds: Int, countdown: Boolean, label: String, modifier: Modifie
     ) {
         Icon(painterResource(R.drawable.ic_w_timer), null, Modifier.size(18.dp), tint = fg)
         Text(clock(seconds), style = MaterialTheme.typography.titleMedium.merge(AppText.num), color = fg)
+        if (said.isNotEmpty()) Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = said })
     }
 }
 
@@ -182,4 +219,4 @@ fun LrSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
 
 /** The passage of a section, or nothing when it has none. */
 @Composable
-fun SectionPassage(s: LrSection, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0) { s.passage?.let { PassageView(it, modifier, evidence, scrollKey) } }
+fun SectionPassage(s: LrSection, modifier: Modifier = Modifier, evidence: TextSpan? = null, scrollKey: Int = 0, hl: Marks? = null) { s.passage?.let { PassageView(it, modifier, evidence, scrollKey, hl, s.part) } }

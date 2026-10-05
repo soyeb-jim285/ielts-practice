@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -122,6 +124,8 @@ class QCtx(
     /** A text gap gained (true) or lost (false) the cursor: pacing counts a typed change once per visit. */
     val onText: (Int, Boolean) -> Unit = { _, _ -> },
     val reg: QRegistry = QRegistry(),
+    /** Highlights and notes (the exam runner); null in the review screens. */
+    val hl: Marks? = null,
 ) {
     fun requester(n: Int) = reg.requester(n)
     fun focuser(n: Int) = reg.focuser(n)
@@ -158,10 +162,12 @@ fun QNum(n: Int, done: Boolean, mark: LrMark?, modifier: Modifier = Modifier) {
         done -> e.brandSoft to e.brand
         else -> e.surface2 to e.muted
     }
-    Box(
-        modifier.heightIn(min = 28.dp).widthIn(min = 28.dp).background(bg, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp).clearAndSetSemantics {},
-        contentAlignment = Alignment.Center,
-    ) { Text("$n", style = MaterialTheme.typography.labelLarge.merge(AppText.num), color = fg) }
+    DisableSelection {
+        Box(
+            modifier.heightIn(min = 28.dp).widthIn(min = 28.dp).background(bg, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp).clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
+        ) { Text("$n", style = MaterialTheme.typography.labelLarge.merge(AppText.num), color = fg) }
+    }
 }
 
 @Composable
@@ -247,13 +253,19 @@ private fun gapKey(p: Inline.Gap) = if (p.of > 1) "q${p.n}_${p.part}" else "q${p
 
 /** Text with `{{n}}` gaps as inline fields (or dropdowns for a word box). The line grows to fit the 44sp field. */
 @Composable
-private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, modifier: Modifier = Modifier, wordBox: Boolean = g.type == "gap" && !g.options.isNullOrEmpty()) {
+private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, region: String, modifier: Modifier = Modifier, wordBox: Boolean = g.type == "gap" && !g.options.isNullOrEmpty()) {
     val e = MaterialTheme.ext
     val hasGap = inline.any { it is Inline.Gap }
+    val hl = ctx.hl
+    val look = markLook()
+    // marks count characters of the text only: gaps take no offset
+    hl?.Track(region, inline.joinToString("") { when (it) { is Inline.Text -> it.text; is Inline.Bold -> it.text; else -> "" } })
+    val marks = hl?.list.orEmpty().filter { it.region == region }
+    var base = 0
     val text = buildAnnotatedString {
         for (p in inline) when (p) {
-            is Inline.Text -> append(p.text)
-            is Inline.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(p.text) }
+            is Inline.Text -> { appendMarked(p.text, base, marks, look, e.brand, hl?.flash) { hl?.menu = it }; base += p.text.length }
+            is Inline.Bold -> { withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { appendMarked(p.text, base, marks, look, e.brand, hl?.flash) { hl?.menu = it } }; base += p.text.length }
             is Inline.Gap -> {
                 appendInlineContent(gapKey(p), "${p.n}")
                 val m = ctx.mark(p.n)
@@ -265,7 +277,9 @@ private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, modifier: Modi
         val typed = if (gap.of > 1) gapPart(ctx.value(gap.n), gap.part) else ctx.value(gap.n)
         val w = if (wordBox) 80 else (96 + 9 * typed.length).coerceIn(112, 240)
         gapKey(gap) to InlineTextContent(Placeholder(w.sp, 44.sp, PlaceholderVerticalAlign.Center)) {
-            if (wordBox) ChoiceDropdown(gap.n, ctx, g.options.orEmpty(), Modifier.fillMaxSize().padding(vertical = 2.dp)) else GapField(gap.n, ctx, g.wordLimit, gap.part, gap.of)
+            DisableSelection {
+                if (wordBox) ChoiceDropdown(gap.n, ctx, g.options.orEmpty(), Modifier.fillMaxSize().padding(vertical = 2.dp)) else GapField(gap.n, ctx, g.wordLimit, gap.part, gap.of)
+            }
         }
     }
     Text(
@@ -280,14 +294,14 @@ private fun RichText(inline: List<Inline>, ctx: QCtx, g: LrGroup, modifier: Modi
 private fun Content(blocks: List<Block>, ctx: QCtx, g: LrGroup) {
     val e = MaterialTheme.ext
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        blocks.forEach { b ->
+        blocks.forEachIndexed { bi, b ->
             when (b) {
-                is Block.P -> RichText(b.inline, ctx, g, Modifier.fillMaxWidth())
+                is Block.P -> RichText(b.inline, ctx, g, "grp:${g.from}:b$bi", Modifier.fillMaxWidth())
                 is Block.Items -> Column(Modifier.padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     b.items.forEachIndexed { i, it ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(if (b.ordered) "${i + 1}." else "•", Modifier.padding(top = 14.dp), style = MaterialTheme.typography.bodyLarge.merge(AppText.num), color = e.muted)
-                            RichText(it, ctx, g, Modifier.weight(1f))
+                            RichText(it, ctx, g, "grp:${g.from}:b${bi}i$i", Modifier.weight(1f))
                         }
                     }
                 }
@@ -299,7 +313,7 @@ private fun Content(blocks: List<Block>, ctx: QCtx, g: LrGroup) {
                             cells.forEachIndexed { c, cell ->
                                 Box(Modifier.weight(1f).fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp), contentAlignment = Alignment.CenterStart) {
                                     RichText(
-                                        if (head) cell.map { if (it is Inline.Text) Inline.Bold(it.text) else it } else cell, ctx, g,
+                                        if (head) cell.map { if (it is Inline.Text) Inline.Bold(it.text) else it } else cell, ctx, g, "grp:${g.from}:b${bi}r${r}c$c",
                                     )
                                 }
                             }
@@ -315,7 +329,7 @@ private fun Content(blocks: List<Block>, ctx: QCtx, g: LrGroup) {
 // ---------- choices: mcq cards, true/false segmented, choose-N ----------
 
 @Composable
-private fun OptionCard(key: String, text: String, selected: Boolean, enabled: Boolean, right: Boolean, wrong: Boolean, multi: Boolean, onClick: () -> Unit) {
+private fun OptionCard(key: String, text: String, selected: Boolean, enabled: Boolean, right: Boolean, wrong: Boolean, multi: Boolean, hl: Marks?, region: String, onClick: () -> Unit) {
     val e = MaterialTheme.ext
     val border = when { wrong -> e.bad; right -> e.good; selected -> e.brand; else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f) }
     val bg = when { wrong -> e.bad.copy(alpha = 0.10f); right && selected -> e.good.copy(alpha = 0.10f); selected -> e.brandSoft; else -> e.surface }
@@ -327,10 +341,12 @@ private fun OptionCard(key: String, text: String, selected: Boolean, enabled: Bo
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(28.dp).background(if (selected) e.brand else e.surface2, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-            Text(key, style = MaterialTheme.typography.labelLarge, color = if (selected) e.onBrand else e.muted)
+        DisableSelection {
+            Box(Modifier.size(28.dp).background(if (selected) e.brand else e.surface2, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                Text(key, style = MaterialTheme.typography.labelLarge, color = if (selected) e.onBrand else e.muted)
+            }
         }
-        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = e.ink)
+        MarkedText(hl, region, text, MaterialTheme.typography.bodyLarge, e.ink, Modifier.weight(1f))
         if (right && !selected) Icon(Icons.Filled.Check, "Correct answer", Modifier.size(18.dp), tint = e.goodText)
     }
 }
@@ -382,15 +398,15 @@ private fun Item(q: LrQuestion, ctx: QCtx, content: @Composable () -> Unit) {
 
 /** The option list of a match or word-box group, shown once. Keys that carry no text (map letters) are not listed. */
 @Composable
-private fun OptionList(title: String, options: List<LrOption>) {
+private fun OptionList(title: String, options: List<LrOption>, hl: Marks?, from: Int) {
     if (options.none { it.text.isNotBlank() }) return
     val e = MaterialTheme.ext
     Column(Modifier.fillMaxWidth().background(e.surface2, RoundedCornerShape(12.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.titleSmall, color = e.ink, modifier = Modifier.semantics { heading() })
         options.forEach { o ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(o.key, Modifier.widthIn(min = 24.dp), style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = e.brand, fontWeight = FontWeight.SemiBold)
-                Text(o.text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                DisableSelection { Text(o.key, Modifier.widthIn(min = 24.dp), style = MaterialTheme.typography.bodyMedium.merge(AppText.num), color = e.brand, fontWeight = FontWeight.SemiBold) }
+                MarkedText(hl, "grp:$from:list${o.key}", o.text, MaterialTheme.typography.bodyMedium, e.ink, Modifier.weight(1f))
             }
         }
     }
@@ -439,6 +455,11 @@ private val RANGE_PREFIX = Regex("""^Questions? [\d\s–\-and]+\.\s*""", RegexOp
 /** One group of questions: instructions, optional figure and option list, then the items in the shape of its type. */
 @Composable
 fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
+    if (ctx.hl != null) SelectionContainer { GroupBody(g, ctx, modifier) } else GroupBody(g, ctx, modifier)
+}
+
+@Composable
+private fun GroupBody(g: LrGroup, ctx: QCtx, modifier: Modifier) {
     val e = MaterialTheme.ext
     val opts = g.options.orEmpty()
     val wordBox = g.type == "gap" && opts.isNotEmpty()
@@ -448,16 +469,16 @@ fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
                 if (g.from == g.to) "Question ${g.from}" else "Questions ${g.from} to ${g.to}",
                 Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium, color = e.ink,
             )
-            Text(g.instructions.replace(RANGE_PREFIX, ""), style = MaterialTheme.typography.bodySmall, color = e.muted)
+            MarkedText(ctx.hl, "grp:${g.from}:instr", g.instructions.replace(RANGE_PREFIX, ""), MaterialTheme.typography.bodySmall, e.muted)
             if (g.wordLimit != null && !g.instructions.uppercase().contains(g.wordLimit.uppercase())) {
                 Text("Write ${g.wordLimit}.", style = MaterialTheme.typography.bodySmall, color = e.ink, fontWeight = FontWeight.Medium)
             }
         }
-        g.title?.let { Text(it, style = AppText.readingSm, color = e.ink, fontWeight = FontWeight.Medium) }
+        g.title?.let { MarkedText(ctx.hl, "grp:${g.from}:title", it, AppText.readingSm, e.ink, fontWeight = FontWeight.Medium) }
         g.image?.let { key -> ctx.assets[key]?.let { Figure(it, g.title) } }
         if (g.type == "match" || wordBox) {
             val roman = opts.any { Regex("^[ivx]+$", RegexOption.IGNORE_CASE).matches(it.key) }
-            OptionList(if (wordBox) "Word box" else if (roman) "List of headings" else "Options", opts)
+            OptionList(if (wordBox) "Word box" else if (roman) "List of headings" else "Options", opts, ctx.hl, g.from)
         }
         when {
             g.type == "gap" && g.content != null -> Content(parseContent(g.content), ctx, g)
@@ -466,19 +487,19 @@ fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         QNum(q.n, ctx.value(q.n).isNotBlank(), ctx.mark(q.n), Modifier.padding(top = 10.dp))
                         val t = q.text.orEmpty()
-                        RichText(if (t.contains("{{${q.n}}}")) parseInline(numberGapParts(t)) else parseInline(t) + Inline.Text(" ") + Inline.Gap(q.n), ctx, g, Modifier.weight(1f))
+                        RichText(if (t.contains("{{${q.n}}}")) parseInline(numberGapParts(t)) else parseInline(t) + Inline.Text(" ") + Inline.Gap(q.n), ctx, g, "q:${q.n}:text", Modifier.weight(1f))
                     }
                 }
             }
             g.type == "mcq" -> Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 g.questions.forEach { q ->
                     Item(q, ctx) {
-                        Text(q.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = e.ink, fontWeight = FontWeight.Medium)
+                        MarkedText(ctx.hl, "q:${q.n}:text", q.text.orEmpty(), MaterialTheme.typography.bodyLarge, e.ink, fontWeight = FontWeight.Medium)
                         val m = ctx.mark(q.n)
                         val correct = m?.answer.orEmpty().map { it.uppercase() }.toSet()
                         q.options.orEmpty().forEach { o ->
                             val on = ctx.value(q.n).equals(o.key, true)
-                            OptionCard(o.key, o.text, on, m == null, m != null && o.key.uppercase() in correct, m != null && on && !m.correct, false) { ctx.set(q.n, if (on) "" else o.key); ctx.onFocus(q.n) }
+                            OptionCard(o.key, o.text, on, m == null, m != null && o.key.uppercase() in correct, m != null && on && !m.correct, false, ctx.hl, "q:${q.n}:opt${o.key}") { ctx.set(q.n, if (on) "" else o.key); ctx.onFocus(q.n) }
                         }
                     }
                 }
@@ -490,7 +511,7 @@ fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
                 Column(Modifier.bringIntoViewRequester(ctx.requester(g.from)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { g.questions.forEach { QNum(it.n, ctx.value(it.n).isNotBlank(), ctx.mark(it.n)) } }
-                        Text(g.questions.firstOrNull()?.text ?: "Choose $max answers", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = e.ink, fontWeight = FontWeight.Medium)
+                        MarkedText(ctx.hl, "grp:${g.from}:text", g.questions.firstOrNull()?.text ?: "Choose $max answers", MaterialTheme.typography.bodyLarge, e.ink, Modifier.weight(1f), FontWeight.Medium)
                     }
                     if (!ctx.review) Text(
                         "Choose $max. ${picks.size} of $max selected${if (picks.size >= max) "; tap one to change" else ""}.",
@@ -501,21 +522,21 @@ fun QuestionGroup(g: LrGroup, ctx: QCtx, modifier: Modifier = Modifier) {
                         val on = picks.contains(o.key)
                         val right = ctx.review && o.key.uppercase() in correct
                         OptionCard(
-                            o.key, o.text, on, !ctx.review && (on || picks.size < max), right, ctx.review && on && !right, true,
+                            o.key, o.text, on, !ctx.review && (on || picks.size < max), right, ctx.review && on && !right, true, ctx.hl, "grp:${g.from}:opt${o.key}",
                         ) { ctx.onChange(setMultiPicks(g, ctx.responses, if (on) picks - o.key else picks + o.key)); ctx.onFocus(g.from) }
                     }
                 }
             }
             g.type == "tfng" || g.type == "ynng" -> Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 val keys = if (g.type == "tfng") listOf("TRUE", "FALSE", "NOT GIVEN") else listOf("YES", "NO", "NOT GIVEN")
-                g.questions.forEach { q -> Item(q, ctx) { Text(q.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = e.ink); Trio(q.n, keys, ctx) } }
+                g.questions.forEach { q -> Item(q, ctx) { MarkedText(ctx.hl, "q:${q.n}:text", q.text.orEmpty(), MaterialTheme.typography.bodyLarge, e.ink); DisableSelection { Trio(q.n, keys, ctx) } } }
             }
             else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 g.questions.forEach { q ->
                     Item(q, ctx) {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(q.text.orEmpty(), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = e.ink)
-                            ChoiceDropdown(q.n, ctx, opts, Modifier.size(width = 96.dp, height = 48.dp))
+                            MarkedText(ctx.hl, "q:${q.n}:text", q.text.orEmpty(), MaterialTheme.typography.bodyLarge, e.ink, Modifier.weight(1f))
+                            DisableSelection { ChoiceDropdown(q.n, ctx, opts, Modifier.size(width = 96.dp, height = 48.dp)) }
                         }
                     }
                 }
