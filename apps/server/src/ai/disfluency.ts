@@ -66,7 +66,7 @@ export function tagEvents(words: Word[], tags: DisfluencyTag[]): Disfluency[] {
 export async function llmDisfluencies(words: Word[], model: string, transitions?: [number, number][]): Promise<Disfluency[]> {
   if (words.length < 3) return [];
   try {
-    const r = await chatJson({ model, system: SYSTEM, user: indexed(words, transitions), schema: DisfluencyTagsSchema, schemaName: 'disfluency_tags', temperature: 0, effort: 'low', timeoutMs: 60_000 });
+    const r = await chatJson({ model, system: SYSTEM, user: indexed(words, transitions), schema: DisfluencyTagsSchema, schemaName: 'disfluency_tags', temperature: 0, effort: 'low', timeoutMs: 60_000, cost: { stage: 'disfluency' } });
     return tagEvents(words, r.tags);
   } catch (e) {
     console.error('disfluency tagger failed, continuing without it', (e as Error).message);

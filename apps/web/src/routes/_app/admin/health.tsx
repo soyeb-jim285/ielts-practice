@@ -5,7 +5,10 @@ import { CircleCheck } from 'lucide-react';
 import { dhakaTime, userLabel } from '@/components/admin/format';
 import { Load, Section } from '@/components/admin/Load';
 import { type Col, DataTable } from '@/components/admin/Table';
-import { Badge, Button, EmptyState, PageContainer, PageHeader, Stat, toast } from '@/components/ui';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AttentionList } from '@/components/admin/AttentionList';
+import { attentionItems } from '@/components/admin/logic';
+import { Badge, Button, EmptyState, PageContainer, Stat, toast } from '@/components/ui';
 import { appPath, useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
 
@@ -60,15 +63,41 @@ function HealthPage() {
   const q = useAdmin<Health>('/health');
   return (
     <PageContainer>
-      <PageHeader title="Health" description="Failed or stuck analyses and emails that did not send. Retrying costs the user nothing." />
+      <AdminHeader title="System" description="Failed or stuck analyses and emails that did not send. Retrying costs the user nothing." />
       <Load q={q} lines={4}>
         {(h) => (
           <>
-            <dl className="grid grid-cols-3 gap-x-6">
+            <AttentionList
+              items={attentionItems({ failed24h: h.counts.failed24h, stuck: h.counts.stuckAnalyzing, emailFailed24h: h.counts.emailFailed24h, feedbackNew: 0, balanceErrors: h.recentErrors.filter((e) => /402|balance|credit/i.test(e.error)).reduce((n, e) => n + e.count, 0) })}
+            />
+            <dl className="mt-6 grid grid-cols-3 gap-x-6">
               <Stat label="Failed, 24 h" value={h.counts.failed24h} />
               <Stat label="Stuck analyzing" value={h.counts.stuckAnalyzing} />
               <Stat label="Emails failed, 24 h" value={h.counts.emailFailed24h} />
             </dl>
+            <Section title="Errors, grouped" aside="Last 7 days, most common first">
+              {h.recentErrors.length ? (
+                <ul className="divide-y divide-line border-y border-line">
+                  {h.recentErrors.map((e) => (
+                    <li key={e.error} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+                      <span className="min-w-0 break-words">
+                        {e.error}
+                        {/402|balance|credit/i.test(e.error) && (
+                          <Link to="/admin/costs" className="ml-2 text-accent-text underline-offset-4 hover:underline">
+                            Check balance
+                          </Link>
+                        )}
+                      </span>
+                      <span className="type-caption type-num shrink-0">
+                        {e.count}x · last {dhakaTime(e.lastAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No errors.</p>
+              )}
+            </Section>
             <Section title="Analyses" aside="Failed in the last 7 days, or analyzing over 10 minutes">
               {h.attempts.length ? (
                 <DataTable rows={h.attempts} cols={COLS} rowKey={(a) => a.id} label="Failed or stuck analyses" />
@@ -76,22 +105,6 @@ function HealthPage() {
                 <EmptyState icon={<CircleCheck />} title="All clear" bare>
                   Nothing failed or stuck.
                 </EmptyState>
-              )}
-            </Section>
-            <Section title="Common errors" aside="Last 7 days">
-              {h.recentErrors.length ? (
-                <ul className="divide-y divide-line border-y border-line">
-                  {h.recentErrors.map((e) => (
-                    <li key={e.error} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-                      <span className="min-w-0 break-words">{e.error}</span>
-                      <span className="type-caption type-num shrink-0">
-                        {e.count}x · {dhakaTime(e.lastAt)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted">No errors.</p>
               )}
             </Section>
             <Section title="Emails that failed" aside="Last 7 days">

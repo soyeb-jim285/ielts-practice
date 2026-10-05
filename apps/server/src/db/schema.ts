@@ -341,3 +341,34 @@ export const guestConversions = pgTable('guest_conversions', {
   guestCreatedAt: timestamp('guest_created_at', { withTimezone: true }).notNull(),
   linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('guest_conversions_linked_idx').on(t.linkedAt)]);
+
+// ---------- AI cost ledger (docs/admin/COSTS-AND-UI.md) ----------
+// One row per paid external call. Append-only; no FKs on purpose: deleting a user or attempt must not erase what was spent.
+export const aiCosts = pgTable('ai_costs', {
+  id: id(),
+  createdAt: createdAt(),
+  userId: text('user_id'),
+  attemptId: text('attempt_id'), // speaking/writing attempt; null for live turns
+  sessionId: text('session_id'), // test session (attempts.sessionId) or live_sessions.id
+  promptId: text('prompt_id'),
+  skill: text('skill'), // 'speaking' | 'writing'
+  part: integer('part'),
+  stage: text('stage').notNull(), // stt | stt_verbatim | pronunciation | disfluency | feedback | score | examiner_llm | examiner_tts | live_realtime | other
+  provider: text('provider').notNull(), // openrouter | elevenlabs | openai | gemini
+  model: text('model').notNull(),
+  paidBy: text('paid_by').notNull(), // 'house' | 'own_key'
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  audioSeconds: numeric('audio_seconds', { mode: 'number' }),
+  characters: integer('characters'),
+  credits: numeric('credits', { mode: 'number' }),
+  costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }).notNull().default(0),
+  ok: boolean('ok').notNull().default(true),
+  retry: boolean('retry').notNull().default(false),
+  meta: jsonb('meta').$type<Record<string, unknown>>(), // generationId, served, estimated, criterion, sample, extra, kept, timeout, status, usage
+}, (t) => [
+  index('ai_costs_created_idx').on(t.createdAt),
+  index('ai_costs_user_created_idx').on(t.userId, t.createdAt),
+  index('ai_costs_attempt_idx').on(t.attemptId),
+  index('ai_costs_stage_idx').on(t.stage),
+]);

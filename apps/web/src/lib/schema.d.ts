@@ -3162,6 +3162,254 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/admin/spend/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spend totals (today / 7 d / 30 d / all time, house vs own key), waste, cost per finished attempt and the drift against OpenRouter's own usage */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                    /** @description Who paid: the owner's server keys ('house', default), the user's own keys, or both */
+                    paidBy?: "house" | "own_key" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendSummary"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/spend/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spend per Dhaka day / week / month, house vs own key */
+        get: {
+            parameters: {
+                query?: {
+                    bucket?: "day" | "week" | "month";
+                    days?: number;
+                    /** @description Who paid: the owner's server keys ('house', default), the user's own keys, or both */
+                    paidBy?: "house" | "own_key" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Series */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendSeries"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/spend/by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spend ranked by stage, model, provider, skill+part, user or prompt (test) */
+        get: {
+            parameters: {
+                query: {
+                    dim: "stage" | "model" | "provider" | "skill_part" | "user" | "prompt";
+                    limit?: number;
+                    days?: number;
+                    /** @description Who paid: the owner's server keys ('house', default), the user's own keys, or both */
+                    paidBy?: "house" | "own_key" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ranking */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendBy"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/spend/attempt/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Line items, per-stage subtotals, waste and session total of one attempt */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cost of an attempt */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendAttempt"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/spend/waste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spend on failed calls, retries, discarded primed transcriptions, extra scoring samples and failed or refunded attempts */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                    /** @description Who paid: the owner's server keys ('house', default), the user's own keys, or both */
+                    paidBy?: "house" | "own_key" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Waste */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendWaste"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/spend/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Days of OpenRouter balance left at the 7-day house burn rate, and finished tests left above the community floor */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Forecast */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSpendForecast"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replay/{sessionId}/chunks": {
         parameters: {
             query?: never;
@@ -4402,6 +4650,204 @@ export interface components {
         AdminFeedbackPatch: {
             /** @enum {string} */
             status: "new" | "seen" | "done";
+        };
+        AdminSpendSummary: {
+            /** @description First recorded call; earlier attempts have no cost rows ("not recorded") */
+            since: string | null;
+            today: {
+                /** @description USD */
+                house: number;
+                /** @description USD */
+                ownKey: number;
+                calls: number;
+            };
+            last7d: {
+                /** @description USD */
+                house: number;
+                /** @description USD */
+                ownKey: number;
+                calls: number;
+            };
+            last30d: {
+                /** @description USD */
+                house: number;
+                /** @description USD */
+                ownKey: number;
+                calls: number;
+            };
+            allTime: {
+                /** @description USD */
+                house: number;
+                /** @description USD */
+                ownKey: number;
+                calls: number;
+            };
+            /** @description 0-1 share of successful calls, last 30 d (all payers) */
+            okRate: number | null;
+            /** @description Wasted spend and its share of all spend in the window */
+            waste: {
+                /** @description USD */
+                usd: number;
+                share: number;
+            };
+            /** @description Finished attempts (status done) that have cost rows, in the window */
+            perAttempt: {
+                /** @enum {string} */
+                skill: "speaking" | "writing";
+                part: number;
+                n: number;
+                /** @description USD */
+                avgUsd: number;
+                /** @description USD */
+                medianUsd: number;
+                /** @description USD */
+                p90Usd: number;
+                /** @description Waste per finished attempt */
+                wasteUsd: number;
+            }[];
+            /** @description Finished speaking/writing attempts in the window with no cost rows (ran before tracking started) */
+            unrecordedAttempts: number;
+            drift: {
+                recorded: {
+                    /** @description USD */
+                    day: number;
+                    /** @description USD */
+                    week: number;
+                    /** @description USD */
+                    month: number;
+                };
+                openrouter: {
+                    /** @description USD */
+                    day: number | null;
+                    /** @description USD */
+                    week: number | null;
+                    /** @description USD */
+                    month: number | null;
+                };
+                /** @description Recorded house OpenRouter spend and OpenRouter usage_weekly differ by more than 5 percent: some call site is not recorded */
+                warn: boolean;
+            };
+        };
+        AdminSpendSeries: {
+            /** @enum {string} */
+            bucket: "day" | "week" | "month";
+            points: {
+                /** @description Dhaka bucket start, YYYY-MM-DD */
+                date: string;
+                /** @description USD */
+                house: number;
+                /** @description USD */
+                ownKey: number;
+                calls: number;
+            }[];
+        };
+        AdminSpendBy: {
+            /** @enum {string} */
+            dim: "stage" | "model" | "provider" | "skill_part" | "user" | "prompt";
+            /** @description USD */
+            total: number;
+            items: {
+                key: string;
+                label: string;
+                /** @description USD */
+                costUsd: number;
+                calls: number;
+                attempts: number;
+                /** @description USD */
+                avgPerCall: number;
+                share: number;
+            }[];
+        };
+        AdminSpendAttempt: {
+            attempt: {
+                id: string;
+                skill: components["schemas"]["AdminSkill"];
+                part: number;
+                status: string;
+                /** @description ISO-8601 UTC */
+                createdAt: string;
+                userId: string;
+                /** @description '' for a guest */
+                email: string;
+                isGuest: boolean;
+                title: string;
+            };
+            /** @description false: no cost rows exist (the attempt ran before tracking started); show "not recorded", not $0 */
+            recorded: boolean;
+            items: {
+                /** @description ISO-8601 UTC */
+                at: string;
+                stage: string;
+                provider: string;
+                model: string;
+                /** @enum {string} */
+                paidBy: "house" | "own_key";
+                inputTokens: number | null;
+                outputTokens: number | null;
+                audioSeconds: number | null;
+                characters: number | null;
+                /** @description USD */
+                costUsd: number;
+                ok: boolean;
+                retry: boolean;
+                estimated: boolean;
+                criterion: string | null;
+                sample: number | null;
+                extra: boolean;
+                kept: boolean | null;
+                timeout: boolean;
+            }[];
+            stages: {
+                stage: string;
+                /** @description USD */
+                costUsd: number;
+                calls: number;
+            }[];
+            /** @description USD */
+            totalUsd: number;
+            /** @description USD */
+            wasteUsd: number;
+            /** @description Everything recorded for the test session this attempt belongs to */
+            sessionTotal: {
+                /** @description USD */
+                usd: number;
+                parts: number;
+            } | null;
+        };
+        AdminSpendWaste: {
+            /** @description USD */
+            totalUsd: number;
+            /** @description USD */
+            spendUsd: number;
+            share: number;
+            parts: {
+                /** @enum {string} */
+                kind: "failed" | "retry" | "discarded_stt" | "extra_samples" | "failed_attempt";
+                /** @description USD */
+                usd: number;
+                calls: number;
+            }[];
+        };
+        AdminSpendForecast: {
+            /** @description OpenRouter key limit minus usage */
+            remaining: number | null;
+            /** @description House OpenRouter spend per day, mean of the last 7 full Dhaka days; null with nothing recorded */
+            burnPerDay7d: number | null;
+            /** @description USD */
+            burnPerDay14d: number | null;
+            daysLeft: number | null;
+            /** @description Dhaka date YYYY-MM-DD */
+            runsOutOn: string | null;
+            /** @description remaining minus COMMUNITY_MIN_BALANCE */
+            usableLeft: number | null;
+            /** @description Mean house cost of a finished speaking/writing attempt, last 30 d */
+            avgCostPerTest: number | null;
+            testsLeft: number | null;
+            /**
+             * @description low < 7 days left, critical < 3, unknown without a burn rate or balance
+             * @enum {string}
+             */
+            status: "ok" | "low" | "critical" | "unknown";
         };
         FeedbackCreated: {
             id: string;

@@ -1,9 +1,10 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Video } from 'lucide-react';
 import { dhakaTime, type ReplayItem } from '@/components/admin/ReplayPlayer';
 import { listStyles, rowStyles } from '@/components/bank/ListRow';
-import { Alert, Button, EmptyState, PageContainer, PageHeader, Skeleton } from '@/components/ui';
+import { Alert, Button, EmptyState, PageContainer, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatClock } from '@/lib/format';
 
@@ -27,7 +28,7 @@ function Replays() {
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / SIZE));
   return (
     <PageContainer>
-      <PageHeader title="Recordings" description={userId ? 'One user only.' : 'Session recordings, kept for 14 days.'} />
+      <AdminHeader title="Recordings" description={userId ? 'One user only.' : 'Session recordings, kept for 14 days.'} />
       {isError ? (
         <Alert tone="bad">Couldn't load recordings.</Alert>
       ) : isPending ? (

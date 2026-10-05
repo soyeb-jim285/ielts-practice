@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Badge, type Tone } from '@/components/ui';
 import { appPath } from '@/lib/admin';
 import { band, dhakaTime, userLabel } from './format';
+import { CostLink } from './AttemptDrawer';
 import { DataTable, type Col } from './Table';
 
 const TONE: Record<ActivityItem['status'], Tone> = { done: 'good', submitted: 'good', failed: 'bad', analyzing: 'warn', recording: 'neutral', in_progress: 'neutral' };
@@ -16,7 +17,7 @@ export function ActivityTable({ items, withUser = true }: { items: ActivityItem[
           {
             head: 'User',
             cell: (r: ActivityItem) => (
-              <Link to="/admin/users/$userId" params={{ userId: r.userId }} className="break-all underline-offset-4 hover:underline">
+              <Link to="/admin/users/$userId" params={{ userId: r.userId }} className="block max-w-56 truncate underline-offset-4 hover:underline" title={userLabel(r)}>
                 {userLabel(r)}
               </Link>
             ),
@@ -43,6 +44,7 @@ export function ActivityTable({ items, withUser = true }: { items: ActivityItem[
         </span>
       ),
     },
+    { head: 'Cost', cell: (r) => (r.skill === 'speaking' || r.skill === 'writing' ? <CostLink id={r.id} /> : <span className="text-muted" aria-label="none">&ndash;</span>) },
     { head: 'Status', cell: (r) => <Badge tone={TONE[r.status]}>{r.status.replace('_', ' ')}</Badge> },
     {
       head: 'Open',
@@ -60,5 +62,5 @@ export function ActivityTable({ items, withUser = true }: { items: ActivityItem[
       ),
     },
   ];
-  return <DataTable rows={items} cols={cols} rowKey={(r) => `${r.kind}:${r.id}`} label="Tests taken" />;
+  return <DataTable dense rows={items} cols={cols} rowKey={(r) => `${r.kind}:${r.id}`} label="Tests taken" />;
 }

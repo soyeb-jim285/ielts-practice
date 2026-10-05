@@ -7,7 +7,7 @@ import { memoryStorage, setStorage } from '../storage';
 // Clean slate per test; storage is in-memory. AI fetch is injected per test (see helpers.fakeFetch).
 beforeEach(async () => {
   await sql.unsafe(
-    `TRUNCATE "user","session","account","verification","user_settings","prompts","attempts","analyses","mistakes","cards","live_sessions","quota_usage","user_api_keys","lr_attempts","lr_tests","email_log","cambridge_access","replay_sessions","feedback","guest_conversions" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "user","session","account","verification","user_settings","prompts","attempts","analyses","mistakes","cards","live_sessions","quota_usage","user_api_keys","lr_attempts","lr_tests","email_log","cambridge_access","replay_sessions","feedback","guest_conversions","ai_costs" RESTART IDENTITY CASCADE`,
   );
   await (await import('../auth')).loadCambridgeGrants(); // table is empty again; imported lazily so a test file's vi.mock('./email') still applies to auth.ts
   setStorage(memoryStorage());

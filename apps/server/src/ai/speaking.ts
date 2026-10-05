@@ -6,6 +6,7 @@ import {
 import type { Settings } from '../settings';
 import { bandDescriptor, BELOW_4, EXAMINER_RULES, fmt, SPEAKING_DESCRIPTORS } from './descriptors';
 import { llmDisfluencies } from './disfluency';
+import { asRetry } from './cost';
 import { AiError, chatJson, transcribe } from './openrouter';
 import { keepVerbatimEvidence, poolCriteria, PronLlmSchema, SpeakingLlmSchema, type LlmCriterion } from './schemas';
 import type { AnalysisResult, AnalysisStage, PronunciationLlm } from './types';
@@ -273,6 +274,7 @@ export async function analyzeSpeaking(i: {
         ],
         schema: PronLlmSchema,
         schemaName: 'pronunciation',
+        cost: { stage: 'pronunciation' },
       });
       return { ...p, words: realMispronunciations(p.words) };
     } catch (e) {
@@ -300,6 +302,7 @@ export async function analyzeSpeaking(i: {
       effort: 'low',
       schema: SpeakingFeedbackSchema,
       schemaName: 'speaking_feedback',
+      cost: { stage: 'feedback' },
       user: JSON.stringify({
         part: i.part,
         partContext: PART_CONTEXT[i.part],
@@ -317,7 +320,7 @@ export async function analyzeSpeaking(i: {
     feedbackOnce().catch((e: unknown) => {
       if (!(e instanceof AiError && e.retryable)) throw e;
       console.error('speaking feedback failed, retrying once', e.code, e.status ?? '');
-      return feedbackOnce();
+      return asRetry(feedbackOnce);
     });
 
   // FC on the verbatim transcript with the audio timing facts; LR and GRA on the cleaned transcript; P from the audio pass, or from ASR evidence (capped at 7) without it.
@@ -333,10 +336,10 @@ export async function analyzeSpeaking(i: {
       (k === 'lr' || k === 'gra') && spokenForms && `<spokenForms>${JSON.stringify(spokenForms.map(({ transcript, spoken }) => ({ transcript, spoken })))}</spokenForms>`,
       `Rate "${NAMES[k]}" only.`,
     ].filter(Boolean).join('\n');
-  const score = (k: Key) =>
-    chatJson({ model: models.analysis, system: SCORER_SYSTEM, user: criterionUser(k), schema: CriterionScoreSchema, schemaName: 'criterion_score', temperature: 0.7, effort: 'low' });
+  const score = (k: Key, sample: number) =>
+    chatJson({ model: models.analysis, system: SCORER_SYSTEM, user: criterionUser(k), schema: CriterionScoreSchema, schemaName: 'criterion_score', temperature: 0.7, effort: 'low', cost: { stage: 'score', meta: { criterion: k, sample } } });
 
-  const [fb, ...scored] = await Promise.allSettled([feedbackCall(), ...keys.flatMap((k) => Array.from({ length: SCORE_K }, () => score(k)))]);
+  const [fb, ...scored] = await Promise.allSettled([feedbackCall(), ...keys.flatMap((k) => Array.from({ length: SCORE_K }, (_, n) => score(k, n)))]);
   if (fb.status === 'rejected') throw fb.reason;
   const llm = fb.value;
   const byKey = Object.fromEntries(

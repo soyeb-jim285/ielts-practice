@@ -19,6 +19,7 @@ const Env = z.object({
   // Optional: live examiner over OpenAI GPT-Live (sessions created server-side with this key) and Gemini Live (ephemeral tokens). Unset: that option is hidden.
   OPENAI_API_KEY: z.string().optional().transform((v) => v || undefined),
   OPENAI_LIVE_MODEL: z.string().default('gpt-live-1'), // $0.05/min, billed per second
+  ELEVENLABS_SCRIBE_USD_PER_HOUR: z.coerce.number().min(0).default(0.4), // Scribe has no per-call price in its response: cost = audio hours x this (cost ledger, flagged estimated)
   OPENAI_LIVE_VOICE: z.string().default('vesper'), // British, natural, masculine
   GEMINI_API_KEY: z.string().optional().transform((v) => v || undefined),
   GEMINI_LIVE_MODEL: z.string().default('gemini-3.8-live'),

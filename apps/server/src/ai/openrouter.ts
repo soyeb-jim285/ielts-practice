@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Word } from '@ielts/core';
 import { env, IS_TEST } from '../env';
+import { recordCost, scribeUsd, usageCost, whisperUsd } from './cost';
 import { keyCtx, redact } from './keyctx';
 
 const BASE = 'https://openrouter.ai/api/v1';
@@ -98,8 +99,27 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | Co
 /** Served model and provider of a chat call (OpenRouter reports which provider answered), and chatJson's output mode. */
 export type Served = { provider?: string; model?: string; mode?: 'json_schema' | 'json_object' };
 
-async function chat(body: Record<string, unknown>, timeoutMs?: number, onServed?: (s: Served) => void): Promise<string> {
-  const data = (await (await call('/chat/completions', body, timeoutMs)).json()) as Served & { choices?: { message?: { content?: string | null } }[] };
+/** What the cost ledger needs to know about one call (ai/cost.ts): the pipeline stage, whether it re-asks a failed generation, and free-form meta. */
+export type CostTag = { stage?: string; retry?: boolean; meta?: Record<string, unknown> };
+
+/** A failed call is recorded too (zero cost, ok=false): it shows failure waste, and a timeout may have been billed without us seeing it. */
+const recordFailure = (e: unknown, o: { stage: string; model: string; retry?: boolean; meta?: Record<string, unknown> }) =>
+  recordCost({ stage: o.stage, provider: 'openrouter', model: o.model, costUsd: 0, ok: false, retry: o.retry, meta: { ...o.meta, ...(e instanceof AiError && { code: e.code, status: e.status, timeout: e.code === 'timeout' || undefined }) } });
+
+async function chat(body: Record<string, unknown>, timeoutMs?: number, onServed?: (s: Served) => void, tag: CostTag = {}): Promise<string> {
+  const stage = tag.stage ?? 'other', model = String(body.model);
+  let data: Served & { id?: string; usage?: unknown; choices?: { message?: { content?: string | null } }[] };
+  try {
+    data = (await (await call('/chat/completions', { ...body, usage: { include: true } }, timeoutMs)).json()) as typeof data;
+  } catch (e) {
+    recordFailure(e, { stage, model, retry: tag.retry, meta: tag.meta });
+    throw e;
+  }
+  const u = usageCost(data.usage);
+  recordCost({
+    stage, provider: 'openrouter', model: data.model ?? model, costUsd: u.costUsd, retry: tag.retry, inputTokens: u.inputTokens, outputTokens: u.outputTokens,
+    meta: { ...tag.meta, generationId: data.id, served: data.provider, ...(!u.exact && { estimated: true }) },
+  });
   onServed?.({ provider: data.provider, model: data.model });
   return data.choices?.[0]?.message?.content ?? '';
 }
@@ -143,6 +163,8 @@ export async function chatJson<T>(o: {
   provider?: ProviderPrefs;
   /** Called with the served provider/model of each attempt (calibration records key on it). */
   onServed?: (s: Served) => void;
+  /** Cost ledger: pipeline stage and extra meta (criterion, sample, extra) of this call. */
+  cost?: CostTag;
 }): Promise<T> {
   const schema = toStrictSchema(o.schema);
   const messages: ChatMessage[] = [
@@ -160,7 +182,7 @@ export async function chatJson<T>(o: {
     const response_format = mode === 'json_schema' ? { type: 'json_schema', json_schema: { name: o.schemaName, strict: true, schema } } : { type: 'json_object' };
     let content: string;
     try {
-      content = await chat({ ...base, response_format, messages }, o.timeoutMs, (s) => o.onServed?.({ ...s, mode }));
+      content = await chat({ ...base, response_format, messages }, o.timeoutMs, (s) => o.onServed?.({ ...s, mode }), { ...o.cost, retry: o.cost?.retry || attempt > 0 || undefined });
     } catch (e) {
       // Some providers reject a strict schema they cannot compile (Gemini 3.8 Flash: 400 "invalid argument" on the errors enum array):
       // fall back to JSON mode with the schema, in field order, in the prompt; zod still validates (scoring-research §2.3).
@@ -193,8 +215,9 @@ export async function chatText(o: {
   maxTokens?: number;
   /** Reasoning effort for reasoning models: a one-line examiner turn does not need the default (medium) thinking time. */
   effort?: 'low' | 'medium' | 'high';
+  cost?: CostTag;
 }): Promise<string> {
-  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: { effort: o.effort } }) });
+  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: { effort: o.effort } }) }, undefined, undefined, { stage: 'examiner_llm', ...o.cost });
 }
 
 type SttResponse = {
@@ -202,6 +225,8 @@ type SttResponse = {
   duration?: number;
   words?: { word: string; start: number; end: number; confidence?: number; probability?: number }[];
   segments?: { start: number; end: number; avg_logprob?: number }[];
+  id?: string;
+  usage?: unknown;
 };
 
 // Whisper disfluency-priming prompt (research.md §3): Whisper imitates its style, so disfluent, ungrammatical text keeps um/uh and the speaker's own word forms instead of repairing them.
@@ -243,7 +268,7 @@ export function verbatimSane(verbatim: string[], plain: string[]) {
 }
 
 type Format = 'webm' | 'm4a' | 'wav' | 'mp3' | 'ogg';
-async function stt(o: { model: string; audio: Uint8Array; format: Format }, extra?: object) {
+async function stt(o: { model: string; audio: Uint8Array; format: Format }, stage: string, extra?: object) {
   const res = await call(
     '/audio/transcriptions',
     {
@@ -255,8 +280,14 @@ async function stt(o: { model: string; audio: Uint8Array; format: Format }, extr
       ...extra,
     },
     120_000,
-  );
+  ).catch((e) => (recordFailure(e, { stage, model: o.model }), Promise.reject(e)));
   return (await res.json()) as SttResponse;
+}
+
+/** Success row of a Whisper pass. OpenRouter's STT response is not known to carry `usage.cost` (docs section 2): without it the price is audio seconds x a documented rate, flagged estimated. */
+function recordStt(d: SttResponse, model: string, stage: string, meta: Record<string, unknown> = {}) {
+  const u = usageCost(d.usage), seconds = d.duration ?? d.words?.at(-1)?.end ?? 0;
+  recordCost({ stage, provider: 'openrouter', model, costUsd: u.exact ? u.costUsd : whisperUsd(seconds), audioSeconds: seconds, meta: { ...meta, generationId: d.id, ...(!u.exact && { estimated: true }) } });
 }
 
 export const SCRIBE_MODEL = 'elevenlabs/scribe_v2';
@@ -280,9 +311,15 @@ async function scribe(o: { audio: Uint8Array; format: Format }) {
   form.set('timestamps_granularity', 'character');
   form.set('tag_audio_events', 'true');
   form.set('file', new Blob([Buffer.from(o.audio)], { type: SCRIBE_MIME[o.format] }), `audio.${o.format}`);
-  const res = await fetcher(SCRIBE_URL, { method: 'POST', headers: { 'xi-api-key': env.ELEVENLABS_API_KEY! }, body: form, signal: AbortSignal.timeout(120_000) });
-  if (!res.ok) throw new Error(`scribe ${res.status} ${(await res.text().catch(() => '')).slice(0, 300)}`);
-  const d = (await res.json()) as ScribeResponse;
+  let d: ScribeResponse;
+  try {
+    const res = await fetcher(SCRIBE_URL, { method: 'POST', headers: { 'xi-api-key': env.ELEVENLABS_API_KEY! }, body: form, signal: AbortSignal.timeout(120_000) });
+    if (!res.ok) throw new Error(`scribe ${res.status} ${(await res.text().catch(() => '')).slice(0, 300)}`);
+    d = (await res.json()) as ScribeResponse;
+  } catch (e) {
+    recordCost({ stage: 'stt', provider: 'elevenlabs', model: SCRIBE_MODEL, costUsd: 0, ok: false, paidBy: 'house', meta: { error: (e as Error).message.slice(0, 80) } });
+    throw e;
+  }
   // "…" and cut-offs ("th-", "I went to the—") stay in the word text: core's rule tagger and the text tagger read them as false starts / partials.
   const words: SttWord[] = (d.words ?? [])
     .filter((w) => w.type === 'word' && w.text.trim() && w.start != null && w.end != null)
@@ -291,12 +328,15 @@ async function scribe(o: { audio: Uint8Array; format: Format }) {
       conf: w.logprob == null ? undefined : Math.round(Math.exp(w.logprob) * 100) / 100,
       ...(w.characters?.some((c) => c.end - c.start >= HELD_CHAR_S) && w.text.length > 1 && { prolonged: true }),
     }));
-  return { text: words.map((w) => w.w).join(' '), words, duration: words.at(-1)?.end ?? 0, verbatim: true, model: SCRIBE_MODEL };
+  const duration = words.at(-1)?.end ?? 0;
+  // Scribe returns no price: audio seconds x ELEVENLABS_SCRIBE_USD_PER_HOUR, reconciled by the character_count drift on the Costs page.
+  recordCost({ stage: 'stt', provider: 'elevenlabs', model: SCRIBE_MODEL, costUsd: scribeUsd(duration), audioSeconds: duration, paidBy: 'house', meta: { estimated: true } });
+  return { text: words.map((w) => w.w).join(' '), words, duration, verbatim: true, model: SCRIBE_MODEL };
 }
 
 /** `verbatim`: for Whisper models, also runs a disfluency-primed pass (in parallel) and keeps it when verbatimSane; `verbatim` in the result says which was used.
  *  model `elevenlabs/scribe_v2` uses ElevenLabs when ELEVENLABS_API_KEY is set and falls back to Whisper on any error or quota; `model` in the result is the one that answered. */
-export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean; model: string }> {
+export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }, fallbackFrom?: string): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean; model: string }> {
   if (o.model === SCRIBE_MODEL) {
     // ElevenLabs credit is the owner's: users with their own OpenRouter key transcribe with Whisper on their key instead.
     if (env.ELEVENLABS_API_KEY && !keyCtx.getStore()?.openrouter)
@@ -305,13 +345,22 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
       } catch (e) {
         console.error('ElevenLabs Scribe failed, falling back to Whisper:', (e as Error).message);
       }
-    return transcribe({ ...o, model: WHISPER_FALLBACK });
+    return transcribe({ ...o, model: WHISPER_FALLBACK }, o.model);
   }
   const primed = o.verbatim && /whisper/.test(o.model);
-  const [plain, v] = await Promise.all([stt(o), primed ? stt(o, { provider: VERBATIM_PROVIDER }).catch(() => undefined) : undefined]);
+  // allSettled: a billed primed pass is recorded even when the plain pass fails
+  const [plainR, vR] = await Promise.allSettled([stt(o, 'stt'), primed ? stt(o, 'stt_verbatim', { provider: VERBATIM_PROVIDER }) : Promise.resolve(undefined)]);
+  const v = vR.status === 'fulfilled' ? vR.value : undefined;
+  if (plainR.status === 'rejected') {
+    if (v) recordStt(v, o.model, 'stt_verbatim', { kept: false });
+    throw plainR.reason;
+  }
+  const plain = plainR.value!;
   const toks = (d: SttResponse) => (d.words ?? []).map((w) => w.word);
   const verbatim = !!v && verbatimSane(toks(v), toks(plain));
   const d = verbatim ? v! : plain;
+  recordStt(plain, o.model, 'stt', fallbackFrom ? { fallbackFrom } : {});
+  if (v) recordStt(v, o.model, 'stt_verbatim', { kept: verbatim }); // the primed pass is a second full charge; kept=false is pure waste
   // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
   // ponytail: segment-level, so a poorly recognised segment flags all its words; the audio pronunciation pass is the precise signal.
   const segConf = (t: number) => {
@@ -350,7 +399,13 @@ type Speech = { audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' };
 
 async function speakOnce(o: { model: string; voice: string; text: string }): Promise<Speech> {
   const pcm = pcmOnly(o.model);
-  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' });
+  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' }).catch((e) => {
+    recordFailure(e, { stage: 'examiner_tts', model: o.model, meta: { characters: o.text.length } });
+    throw e;
+  });
+  // The response is raw audio: no usage block. Price = characters x the catalogue's per-token rate when the catalogue is cached, else 0; always flagged estimated.
+  const rate = Number(modelCache?.models.find((m) => m.id === o.model)?.pricing.prompt);
+  recordCost({ stage: 'examiner_tts', provider: 'openrouter', model: o.model, costUsd: Number.isFinite(rate) ? o.text.length * rate : 0, characters: o.text.length, meta: { estimated: true, generationId: res.headers.get('x-generation-id') ?? undefined } });
   const audio = new Uint8Array(await res.arrayBuffer());
   if (!pcm) return { audio, contentType: 'audio/mpeg' };
   // content-type is e.g. "audio/pcm;rate=24000;channels=1"

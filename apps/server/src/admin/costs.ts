@@ -1,7 +1,10 @@
 // OpenRouter + ElevenLabs spend (docs/admin/DESIGN.md section 3.2). Only numbers leave this module: no key, no upstream message.
 import { httpFetch } from '../ai/openrouter';
 import { communityBalance } from '../community';
+import { sql } from 'drizzle-orm';
+import { db } from '../db/client';
 import { env } from '../env';
+import { daysAgo, dhakaTodayStart } from './common';
 import type { Costs } from './schemas';
 
 const TTL_MS = 5 * 60_000;
@@ -49,6 +52,17 @@ const elevenlabs = cached(async () => {
 
 export const clearCostsCache = () => (openrouter.clear(), elevenlabs.clear());
 
+/** House OpenRouter spend per day (USD), mean over the last 7 / 14 full Dhaka days, counting only the full days the ledger covers (it is new: a fixed divisor would understate the burn); null when fewer than one full day is covered or nothing was spent. */
+export async function houseBurn(): Promise<{ p7: number | null; p14: number | null }> {
+  const win = (n: number) => sql`greatest(${daysAgo(n)}, (select first_full from b))`;
+  const col = (n: number) => sql`(select coalesce(sum(cost_usd), 0) from ai_costs where provider = 'openrouter' and paid_by = 'house' and created_at >= ${win(n)} and created_at < ${dhakaTodayStart}) as ${sql.raw(`s${n}`)},
+    round(extract(epoch from ${dhakaTodayStart} - ${win(n)}) / 86400) as ${sql.raw(`d${n}`)}`;
+  const [r] = [...(await db.execute(sql`with b as (select (date_trunc('day', (min(created_at) at time zone 'Asia/Dhaka') - interval '1 microsecond') + interval '1 day') at time zone 'Asia/Dhaka' as first_full from ai_costs where provider = 'openrouter' and paid_by = 'house')
+    select ${col(7)}, ${col(14)}`))] as { s7: string; d7: string; s14: string; d14: string }[];
+  const mean = (s: string, d: string) => (Number(d) >= 1 && Number(s) > 0 ? Number(s) / Number(d) : null);
+  return { p7: mean(r!.s7, r!.d7), p14: mean(r!.s14, r!.d14) };
+}
+
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 export async function getCosts(): Promise<Costs> {
@@ -62,6 +76,8 @@ export async function getCosts(): Promise<Costs> {
     elOut.warn = left < 0.05 ? 'critical' : left < 0.2 ? 'low' : 'ok';
   }
   const warnings: string[] = [];
+  const burn = orOut.remaining != null ? (await houseBurn().catch(() => ({ p7: null }))).p7 : null;
+  if (burn && orOut.remaining! / burn < 7) warnings.push(`OpenRouter runs out in about ${Math.max(1, Math.round(orOut.remaining! / burn))} days at ${usd(burn)}/day`);
   if (orOut.warn !== 'ok') warnings.push(`OpenRouter has ${usd(orOut.remaining!)} left (community tests stop at ${usd(min)})`);
   if (elOut.warn !== 'ok') warnings.push(`ElevenLabs has ${elOut.remaining!.toLocaleString('en-US')} characters left of ${elOut.characterLimit!.toLocaleString('en-US')}`);
   return { openrouter: orOut, elevenlabs: elOut, community, minBalance: min, warnings, cachedAt: new Date().toISOString() };

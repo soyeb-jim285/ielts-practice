@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { liveSessions } from '../db/schema';
 import { env } from '../env';
+import { gptLiveUsd, recordCost } from './cost';
 import type { SpeakingTest } from '../routes/prompts';
 import { candidateFacts, CUE_PHASE, GPT_LIVE_CUES, gptLiveCue, gptLiveInstructions, type GptLiveCue, type LiveState, type Phase, type Turn } from './examiner';
 
@@ -134,6 +135,7 @@ export class Transcript {
 export type Run = {
   sessionId: string;
   userId: string;
+  paidBy: 'house' | 'own_key';
   test: SpeakingTest;
   transcript: Transcript;
   ws?: Upstream;
@@ -166,13 +168,23 @@ export async function saveTranscript(run: Pick<Run, 'sessionId' | 'transcript'>)
 }
 
 /** Registers a run (it supersedes this user's previous one) and, when `upstream` is given, wires its events in. `onEvent` also receives each raw server message. */
-export function startRun(o: { userId: string; sessionId: string; test: SpeakingTest; upstream?: Upstream; onEvent?: (raw: string) => void; onClosed?: () => void }): Run {
+export function startRun(o: { userId: string; paidBy?: 'house' | 'own_key'; sessionId: string; test: SpeakingTest; upstream?: Upstream; onEvent?: (raw: string) => void; onClosed?: () => void }): Run {
   void byUser.get(o.userId)?.end();
   let done: Promise<void> | undefined;
+  const t0 = Date.now();
+  let billed = false;
+  /** One `live_realtime` row per run: from the upstream `session.closed` usage when it arrives, else the wall clock (docs/admin/COSTS-AND-UI.md row 12; the usage shape is not confirmed, so the row is flagged estimated and keeps the raw usage). */
+  const bill = (usage?: unknown) => {
+    if (billed) return;
+    billed = true;
+    const seconds = Math.round((Date.now() - t0) / 1000);
+    recordCost({ stage: 'live_realtime', provider: 'openai', model: env.OPENAI_LIVE_MODEL, costUsd: gptLiveUsd(seconds), audioSeconds: seconds, userId: o.userId, sessionId: o.sessionId, paidBy: o.paidBy ?? 'house', meta: { estimated: true, usage: usage ?? undefined, ...(usage === undefined && { wallClock: true }) } });
+  };
   let timer: ReturnType<typeof setTimeout>;
   const run: Run = {
     sessionId: o.sessionId,
     userId: o.userId,
+    paidBy: o.paidBy ?? 'house',
     test: o.test,
     transcript: new Transcript(),
     ready: false,
@@ -189,6 +201,7 @@ export function startRun(o: { userId: string; sessionId: string; test: SpeakingT
     end() {
       return (done ??= (async () => {
         clearTimeout(timer);
+        if (run.ready || run.ws) bill(); // session.closed may not arrive (dropped socket): fall back to the wall clock
         if (runs.get(o.sessionId) === run) runs.delete(o.sessionId);
         if (byUser.get(o.userId) === run) byUser.delete(o.userId);
         const ws = run.ws;
@@ -204,11 +217,11 @@ export function startRun(o: { userId: string; sessionId: string; test: SpeakingT
   byUser.set(o.userId, run);
   timer = setTimeout(() => void run.end(), MAX_RUN_MS);
   timer.unref();
-  if (o.upstream) wire(run, o.upstream, o.onEvent, o.onClosed);
+  if (o.upstream) wire(run, o.upstream, o.onEvent, o.onClosed, bill);
   return run;
 }
 
-function wire(run: Run, ws: Upstream, onEvent?: (raw: string) => void, onClosed?: () => void) {
+function wire(run: Run, ws: Upstream, onEvent?: (raw: string) => void, onClosed?: () => void, bill: (usage?: unknown) => void = () => {}) {
   run.ws = ws;
   ws.on('message', (data: Buffer | string) => {
     const raw = typeof data === 'string' ? data : data.toString('utf8');
@@ -217,7 +230,10 @@ function wire(run: Run, ws: Upstream, onEvent?: (raw: string) => void, onClosed?
       ev = JSON.parse(raw);
     } catch {}
     if (ev.type === 'session.started') run.ready = true;
-    else if (ev.type === 'session.closed') console.log(`gpt-live closed ${run.sessionId} reason=${ev.reason} usage=${JSON.stringify(ev.usage)}`);
+    else if (ev.type === 'session.closed') {
+      console.log(`gpt-live closed ${run.sessionId} reason=${ev.reason} usage=${JSON.stringify(ev.usage)}`);
+      bill(ev.usage ?? null);
+    }
     else if (ev.type === 'error') console.warn('gpt-live error', ev.error?.message);
     run.transcript.feed(ev);
     onEvent?.(raw);
@@ -232,7 +248,7 @@ function wire(run: Run, ws: Upstream, onEvent?: (raw: string) => void, onClosed?
 }
 
 /** Browser sessions: attach the sideband to a session OpenAI created from the browser's offer. A failure only costs the server-side transcript and cues. */
-export function attachSideband(o: { userId: string; sessionId: string; test: SpeakingTest; liveId: string; apiKey: string }): Run {
+export function attachSideband(o: { userId: string; paidBy?: 'house' | 'own_key'; sessionId: string; test: SpeakingTest; liveId: string; apiKey: string }): Run {
   const ws = connect(`${LIVE_WS}/${encodeURIComponent(o.liveId)}/attach`, o.userId, o.apiKey);
   const run = startRun({ ...o, upstream: ws });
   // The attach connection is open once we may send; session.started was sent before we attached, so it is not awaited.
@@ -241,7 +257,7 @@ export function attachSideband(o: { userId: string; sessionId: string; test: Spe
 }
 
 /** Native relay: the main upstream connection. Resolves with the run once `session.start` is sent. */
-export function openRelay(o: { userId: string; sessionId: string; test: SpeakingTest; apiKey: string; onEvent: (raw: string) => void; onClosed: () => void }): Run {
+export function openRelay(o: { userId: string; paidBy?: 'house' | 'own_key'; sessionId: string; test: SpeakingTest; apiKey: string; onEvent: (raw: string) => void; onClosed: () => void }): Run {
   const ws = connect(LIVE_WS, o.userId, o.apiKey);
   const run = startRun({ ...o, upstream: ws });
   ws.on('open', () => run.send(sessionStart()));

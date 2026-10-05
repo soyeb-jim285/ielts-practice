@@ -144,10 +144,10 @@ it('writing: feedback is stored as `partial` (stage scoring) while the scorer st
   setFetch(
     fakeFetch({
       '/chat/completions': async (u, init) => {
-        if (JSON.parse(String(init.body)).response_format?.json_schema?.name === 'writing_scores' && !seen)
-          for (let i = 0; i < 100 && !seen; i++) {
+        if (JSON.parse(String(init.body)).response_format?.json_schema?.name === 'writing_scores')
+          for (let i = 0; i < 200 && !seen; i++) {
             const row = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
-            if (row?.partial) {
+            if (row?.partial && row.stage === 'scoring') {
               seen = { stage: row.stage, partial: row.partial };
               viaApi = await (await req(`/api/attempts/${a!.id}`, { headers })).json();
             } else await new Promise((r) => setTimeout(r, 20));

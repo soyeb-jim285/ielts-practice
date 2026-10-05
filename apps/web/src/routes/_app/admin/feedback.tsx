@@ -1,11 +1,12 @@
 import type { FeedbackItem } from '@server/admin/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Inbox } from 'lucide-react';
 import { dhakaTime } from '@/components/admin/format';
 import { Load } from '@/components/admin/Load';
 import { Pager } from '@/components/admin/Pager';
-import { Badge, EmptyState, PageContainer, PageHeader, Segmented, toast, type Tone } from '@/components/ui';
+import { Badge, EmptyState, PageContainer, Segmented, toast, type Tone } from '@/components/ui';
 import { type Page, useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
 
@@ -65,7 +66,7 @@ function FeedbackPage() {
   const q = useAdmin<Page<FeedbackItem>>('/feedback', { status, page });
   return (
     <PageContainer>
-      <PageHeader
+      <AdminHeader
         title="Feedback"
         description="Problems people reported, new ones first."
         actions={<Segmented label="Show" value={status as Filter} onChange={(v) => void navigate({ search: { status: v === 'all' ? undefined : v } })} options={FILTERS.map((v) => ({ value: v, label: <span className="capitalize">{v}</span> }))} />}

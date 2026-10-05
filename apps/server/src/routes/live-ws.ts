@@ -16,7 +16,7 @@ import type { App, AppEnv } from '../types';
 export type Client = { send(data: string): void; close(code?: number, reason?: string): void };
 
 /** One relayed connection: `message` takes what the app sends, the app gets upstream events through `client`. */
-export function relay(client: Client, o: { userId: string; sessionId: string; test: LiveState['test']; apiKey: string }) {
+export function relay(client: Client, o: { userId: string; paidBy?: 'house' | 'own_key'; sessionId: string; test: LiveState['test']; apiKey: string }) {
   const run: Run = openRelay({ ...o, onEvent: (raw) => client.send(scrub(raw)), onClosed: () => client.close(1000, 'session ended') });
   return {
     run,
@@ -34,6 +34,7 @@ const check = createMiddleware<AppEnv>(async (c, next) => {
   const payer = await payerOf(currentUser(c));
   requireLive(payer, 'gpt-live'); // the user's own OpenAI key (the owner may use the server's): the relay opens the upstream connection with it
   c.set('liveKey' as never, liveKey(payer, 'openai') as never);
+  c.set('livePaidBy' as never, (payer.keys.openai ? 'own_key' : 'house') as never);
   const id = c.req.query('sessionId') ?? '';
   const row = await db.query.liveSessions.findFirst({ where: and(eq(liveSessions.id, id), eq(liveSessions.userId, currentUser(c).id)) });
   if (!row) throw new HTTPException(404, { message: 'Live session not found' });
@@ -55,8 +56,9 @@ export function attachLiveRelay(app: App) {
       const userId = currentUser(c).id;
       const test = c.get('liveTest' as never) as LiveState['test'];
       const apiKey = c.get('liveKey' as never) as string;
+      const paidBy = c.get('livePaidBy' as never) as 'house' | 'own_key';
       return {
-        onOpen: (_e, ws) => (r = relay({ send: (d) => ws.send(d), close: (code, reason) => ws.close(code, reason) }, { userId, sessionId, test, apiKey })),
+        onOpen: (_e, ws) => (r = relay({ send: (d) => ws.send(d), close: (code, reason) => ws.close(code, reason) }, { userId, paidBy, sessionId, test, apiKey })),
         onMessage: (e) => typeof e.data === 'string' && r?.message(e.data),
         onClose: () => r?.closed(),
         onError: () => r?.closed(),

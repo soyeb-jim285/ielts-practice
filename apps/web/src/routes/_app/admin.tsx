@@ -1,10 +1,9 @@
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router';
 import { AdminNav } from '@/components/admin/AdminNav';
-import { Alert, PageContainer } from '@/components/ui';
-import { useAdmin } from '@/lib/admin';
+import { AttemptDrawer } from '@/components/admin/AttemptDrawer';
 import { meQuery } from '@/lib/query';
 
-/** Owner-only area (docs/admin/DESIGN.md): invisible, so a non-owner gets the plain not-found page. Tab nav on top, low-balance warnings under it, then the page. */
+/** Owner-only area (docs/admin/DESIGN.md): invisible, so a non-owner gets the plain not-found page. Side rail (pills on phones), then the page. A `?attempt=<id>` on any admin URL opens that attempt's cost drawer. */
 export const Route = createFileRoute('/_app/admin')({
   beforeLoad: async ({ context }) => {
     const me = (await context.queryClient.ensureQueryData(meQuery)) as { isOwner?: boolean } | null;
@@ -14,18 +13,14 @@ export const Route = createFileRoute('/_app/admin')({
 });
 
 function AdminLayout() {
-  const costs = useAdmin<{ warnings: string[] }>('/costs');
   return (
-    <>
-      <PageContainer className="mb-6 md:mb-8">
-        <AdminNav />
-        {!!costs.data?.warnings.length && (
-          <Alert tone="warn" title="Check your balances" className="mt-4">
-            {costs.data.warnings.join(' ')}
-          </Alert>
-        )}
-      </PageContainer>
-      <Outlet />
-    </>
+    <div className="mx-auto w-full max-w-[1320px] lg:grid lg:grid-cols-[10.5rem_minmax(0,1fr)] lg:gap-10">
+      <AdminNav />
+      {/* pages bring their own PageContainer (1080px); inside the rail layout they fill the column instead */}
+      <div className="min-w-0 [&>.page-enter]:max-w-none">
+        <Outlet />
+      </div>
+      <AttemptDrawer />
+    </div>
   );
 }

@@ -206,7 +206,7 @@ export const withPayer = createMiddleware<AppEnv>(async (c, next) => {
   if (!u) throw new HTTPException(401, { message: 'Sign in required' });
   const payer = await payerOf(u);
   c.set('payer', payer);
-  await keyCtx.run({ openrouter: payer.keys.openrouter, onAuthFail: () => void markKeyInvalid(u.id, 'openrouter') }, next);
+  await keyCtx.run({ openrouter: payer.keys.openrouter, cost: { userId: u.id }, onAuthFail: () => void markKeyInvalid(u.id, 'openrouter') }, next);
 });
 
 /** Live examiner is never paid from the community balance: turn-based needs the user's own OpenRouter key, GPT-Live an OpenAI key, Gemini Live a Gemini key

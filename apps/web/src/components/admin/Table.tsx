@@ -7,7 +7,7 @@ export type Col<T> = { head: string; cell: (r: T) => ReactNode; className?: stri
  * A real table from md up; below md every row is a stacked card (first column is the title, the rest are label/value pairs).
  * Rendering both keeps the markup simple; CSS shows one.
  */
-export function DataTable<T>({ rows, cols, rowKey, label }: { rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; label: string }) {
+export function DataTable<T>({ rows, cols, rowKey, label, dense }: { rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; label: string; dense?: boolean }) {
   const [first, ...rest] = cols;
   return (
     <>
@@ -27,7 +27,7 @@ export function DataTable<T>({ rows, cols, rowKey, label }: { rows: T[]; cols: C
             {rows.map((r) => (
               <tr key={rowKey(r)}>
                 {cols.map((c) => (
-                  <td key={c.head} className={cn('px-3 py-3 align-top first:pl-0', c.className)}>
+                  <td key={c.head} className={cn('px-3 align-top first:pl-0', dense ? 'py-2' : 'py-3', c.className)}>
                     {c.cell(r)}
                   </td>
                 ))}

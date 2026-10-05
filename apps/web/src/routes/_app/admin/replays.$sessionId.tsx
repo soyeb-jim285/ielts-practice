@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { dhakaTime, ReplayPlayer, replayQuery } from '@/components/admin/ReplayPlayer';
-import { buttonStyles, PageContainer, PageHeader } from '@/components/ui';
+import { buttonStyles, PageContainer } from '@/components/ui';
 
 export const Route = createFileRoute('/_app/admin/replays/$sessionId')({ component: ReplayPage });
 
@@ -11,7 +12,7 @@ function ReplayPage() {
   const { data } = useQuery(replayQuery(sessionId));
   return (
     <PageContainer>
-      <PageHeader
+      <AdminHeader
         back={
           <Link to="/admin/replays" className={buttonStyles({ variant: 'link', className: 'hit' })}>
             <ArrowLeft className="size-4" aria-hidden /> All recordings

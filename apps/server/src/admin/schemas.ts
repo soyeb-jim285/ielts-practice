@@ -198,3 +198,90 @@ export const Health = z
   })
   .openapi('AdminHealth');
 export type Health = z.infer<typeof Health>;
+
+// ---- 5. spend (docs/admin/COSTS-AND-UI.md section 5): money is USD rounded to 6 decimals ----
+export const PaidBy = z.enum(['house', 'own_key', 'all']);
+export const SpendQuery = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
+  paidBy: PaidBy.default('house').openapi({ description: "Who paid: the owner's server keys ('house', default), the user's own keys, or both" }),
+});
+const Usd = z.number().openapi({ description: 'USD' });
+const SpendTotal = z.object({ house: Usd, ownKey: Usd, calls: int });
+
+export const SpendSummary = z
+  .object({
+    since: iso.nullable().openapi({ description: 'First recorded call; earlier attempts have no cost rows ("not recorded")' }),
+    today: SpendTotal,
+    last7d: SpendTotal,
+    last30d: SpendTotal,
+    allTime: SpendTotal,
+    okRate: z.number().nullable().openapi({ description: '0-1 share of successful calls, last 30 d (all payers)' }),
+    waste: z.object({ usd: Usd, share: z.number() }).openapi({ description: 'Wasted spend and its share of all spend in the window' }),
+    perAttempt: z.array(z.object({ skill: z.enum(['speaking', 'writing']), part: int, n: int, avgUsd: Usd, medianUsd: Usd, p90Usd: Usd, wasteUsd: Usd.openapi({ description: 'Waste per finished attempt' }) })).openapi({ description: 'Finished attempts (status done) that have cost rows, in the window' }),
+    unrecordedAttempts: int.openapi({ description: 'Finished speaking/writing attempts in the window with no cost rows (ran before tracking started)' }),
+    drift: z.object({
+      recorded: z.object({ day: Usd, week: Usd, month: Usd }),
+      openrouter: z.object({ day: Usd.nullable(), week: Usd.nullable(), month: Usd.nullable() }),
+      warn: z.boolean().openapi({ description: 'Recorded house OpenRouter spend and OpenRouter usage_weekly differ by more than 5 percent: some call site is not recorded' }),
+    }),
+  })
+  .openapi('AdminSpendSummary');
+export type SpendSummary = z.infer<typeof SpendSummary>;
+
+export const SpendSeries = z
+  .object({ bucket: z.enum(['day', 'week', 'month']), points: z.array(z.object({ date: z.string().openapi({ description: 'Dhaka bucket start, YYYY-MM-DD' }), house: Usd, ownKey: Usd, calls: int })) })
+  .openapi('AdminSpendSeries');
+export type SpendSeries = z.infer<typeof SpendSeries>;
+
+export const SpendDim = z.enum(['stage', 'model', 'provider', 'skill_part', 'user', 'prompt']);
+export const SpendBy = z
+  .object({
+    dim: SpendDim,
+    total: Usd,
+    items: z.array(z.object({ key: z.string(), label: z.string(), costUsd: Usd, calls: int, attempts: int, avgPerCall: Usd, share: z.number() })),
+  })
+  .openapi('AdminSpendBy');
+export type SpendBy = z.infer<typeof SpendBy>;
+
+export const SpendAttempt = z
+  .object({
+    attempt: z.object({ id: z.string(), skill: SkillS, part: int, status: z.string(), createdAt: iso, userId: z.string(), email: z.string().openapi({ description: "'' for a guest" }), isGuest: z.boolean(), title: z.string() }),
+    recorded: z.boolean().openapi({ description: 'false: no cost rows exist (the attempt ran before tracking started); show "not recorded", not $0' }),
+    items: z.array(z.object({
+      at: iso, stage: z.string(), provider: z.string(), model: z.string(), paidBy: z.enum(['house', 'own_key']),
+      inputTokens: int.nullable(), outputTokens: int.nullable(), audioSeconds: z.number().nullable(), characters: int.nullable(),
+      costUsd: Usd, ok: z.boolean(), retry: z.boolean(), estimated: z.boolean(),
+      criterion: z.string().nullable(), sample: int.nullable(), extra: z.boolean(), kept: z.boolean().nullable(), timeout: z.boolean(),
+    })),
+    stages: z.array(z.object({ stage: z.string(), costUsd: Usd, calls: int })),
+    totalUsd: Usd,
+    wasteUsd: Usd,
+    sessionTotal: z.object({ usd: Usd, parts: int }).nullable().openapi({ description: 'Everything recorded for the test session this attempt belongs to' }),
+  })
+  .openapi('AdminSpendAttempt');
+export type SpendAttempt = z.infer<typeof SpendAttempt>;
+
+export const SpendWaste = z
+  .object({
+    totalUsd: Usd,
+    spendUsd: Usd,
+    share: z.number(),
+    parts: z.array(z.object({ kind: z.enum(['failed', 'retry', 'discarded_stt', 'extra_samples', 'failed_attempt']), usd: Usd, calls: int })),
+  })
+  .openapi('AdminSpendWaste');
+export type SpendWaste = z.infer<typeof SpendWaste>;
+
+export const SpendForecast = z
+  .object({
+    remaining: Usd.nullable().openapi({ description: 'OpenRouter key limit minus usage' }),
+    burnPerDay7d: Usd.nullable().openapi({ description: 'House OpenRouter spend per day, mean of the last 7 full Dhaka days; null with nothing recorded' }),
+    burnPerDay14d: Usd.nullable(),
+    daysLeft: z.number().nullable(),
+    runsOutOn: z.string().nullable().openapi({ description: 'Dhaka date YYYY-MM-DD' }),
+    usableLeft: Usd.nullable().openapi({ description: 'remaining minus COMMUNITY_MIN_BALANCE' }),
+    avgCostPerTest: Usd.nullable().openapi({ description: 'Mean house cost of a finished speaking/writing attempt, last 30 d' }),
+    testsLeft: z.number().nullable(),
+    status: z.enum(['ok', 'low', 'critical', 'unknown']).openapi({ description: 'low < 7 days left, critical < 3, unknown without a burn rate or balance' }),
+  })
+  .openapi('AdminSpendForecast');
+export type SpendForecast = z.infer<typeof SpendForecast>;

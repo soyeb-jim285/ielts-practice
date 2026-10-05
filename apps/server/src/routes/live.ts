@@ -4,7 +4,8 @@ import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
-import { redact } from '../ai/keyctx';
+import { recordCost } from '../ai/cost';
+import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -51,6 +52,8 @@ const ExaminerLine = z
 async function loadSession(sessionId: string, userId: string) {
   const row = await db.query.liveSessions.findFirst({ where: and(eq(liveSessions.id, sessionId), eq(liveSessions.userId, userId)) });
   if (!row) throw new HTTPException(404, { message: 'Live session not found' });
+  const cost = keyCtx.getStore()?.cost;
+  if (cost) cost.sessionId = sessionId; // the turn's STT / examiner / TTS rows belong to this live session
   return row.state as LiveState;
 }
 
@@ -238,7 +241,7 @@ export function register(app: App) {
         transcript = await transcribed;
         const t = Date.now();
         const messages = s.history.map((h) => ({ role: h.role === 'examiner' ? ('assistant' as const) : ('user' as const), content: h.text }));
-        text = (await ai(() => chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages], effort: 'low', maxTokens: 200 }))).trim() || direction(s).fallback;
+        text = (await ai(() => chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages], effort: 'low', maxTokens: 200, cost: { stage: 'examiner_llm' } }))).trim() || direction(s).fallback;
         ms.llmMs = Date.now() - t;
         audio = await speakLine(text);
       }
@@ -283,7 +286,7 @@ export function register(app: App) {
         if (r.status === 401 || r.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
         return c.json({ error: 'Could not start a GPT-Live session. Please retry or use the turn-based examiner.' }, 502);
       }
-      attachSideband({ userId: user.id, sessionId: s.sessionId, test: s.test, liveId: r.id, apiKey });
+      attachSideband({ userId: user.id, paidBy: payer.keys.openai ? 'own_key' : 'house', sessionId: s.sessionId, test: s.test, liveId: r.id, apiKey });
       return c.json({ sdp: r.sdp, sessionId: r.id }, 200);
     },
   );
@@ -339,6 +342,8 @@ export function register(app: App) {
         if (t.status === 401 || t.status === 403 || (t.status === 400 && /API key not valid|API_KEY_INVALID/i.test(t.detail))) return rejectedKey(currentUser(c).id, 'gemini', 'Gemini', payer.keys.gemini);
         return c.json({ error: 'Could not start a Gemini Live session. Please retry or use the turn-based examiner.' }, 502);
       }
+      // The browser talks to Google directly, so the server never sees usage: one zero-cost marker row keeps the session visible in the ledger.
+      recordCost({ stage: 'live_realtime', provider: 'gemini', model, costUsd: 0, userId: currentUser(c).id, sessionId: s.sessionId, paidBy: payer.keys.gemini ? 'own_key' : 'house', meta: { estimated: true, unmetered: true } });
       return c.json({ value: t.name, expiresAt: Math.floor(Date.parse(req.expireTime) / 1000), model }, 200);
     },
   );

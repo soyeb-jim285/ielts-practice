@@ -24,8 +24,11 @@ const dataUrl = async (key: string) => `data:${IMAGE_MIME[key.split('.').pop()!.
 const bands = (r: AnalysisResult) => Object.fromEntries(Object.entries(r.criteria).map(([k, c]) => [k, c!.band])) as Partial<Record<CriterionKey, number>>;
 
 /** Progress shown to a polling client: the pipeline step now running and, for writing, the feedback that is already ready. Best effort: never fails the analysis. */
-const progress = (attemptId: string) => (patch: { stage?: AnalysisStage; partial?: AnalysisPartial }) =>
-  db.update(attempts).set(patch).where(and(eq(attempts.id, attemptId), eq(attempts.status, 'analyzing'))).then(() => undefined, (e) => console.error('progress update failed', attemptId, e));
+const progress = (attemptId: string) => {
+  let chain: Promise<void> = Promise.resolve(); // writes are queued so a late stage update can never overtake a newer one
+  return (patch: { stage?: AnalysisStage; partial?: AnalysisPartial }) =>
+    (chain = chain.then(() => db.update(attempts).set(patch).where(and(eq(attempts.id, attemptId), eq(attempts.status, 'analyzing'))).then(() => undefined, (e) => console.error('progress update failed', attemptId, e))));
+};
 
 /** Analysis runs on the owner's shared OpenRouter key unless the user brought their own, in which case every call in it (STT, scoring, audio pronunciation) uses theirs. */
 export async function analyze(attemptId: string): Promise<void> {
@@ -34,7 +37,7 @@ export async function analyze(attemptId: string): Promise<void> {
   const u = await db.query.user.findFirst({ where: eq(user.id, a.userId), columns: { id: true, email: true, emailVerified: true, isAnonymous: true } });
   const payer = u ? await payerOf(u) : undefined;
   const ownKey = payer?.keys.openrouter;
-  return keyCtx.run({ openrouter: ownKey, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a, payer?.tier ?? 'community'));
+  return keyCtx.run({ openrouter: ownKey, cost: { userId: a.userId, attemptId: a.id, sessionId: a.sessionId ?? undefined, promptId: a.promptId, skill: a.skill === 'writing' ? 'writing' : 'speaking', part: a.part }, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a, payer?.tier ?? 'community'));
 }
 
 async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Promise<void> {

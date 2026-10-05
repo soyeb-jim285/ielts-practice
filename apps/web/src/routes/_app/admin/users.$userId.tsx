@@ -1,12 +1,13 @@
 import type { CambridgeInfo, UserDetail } from '@server/admin/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { ActivityTable } from '@/components/admin/ActivityTable';
 import { band, dhakaDay, dhakaTime, userLabel } from '@/components/admin/format';
 import { Load, Section } from '@/components/admin/Load';
 import { LineChart } from '@/components/admin/MiniChart';
-import { Badge, buttonStyles, PageContainer, PageHeader, Switch, toast } from '@/components/ui';
+import { Badge, buttonStyles, PageContainer, Switch, toast } from '@/components/ui';
 import { useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
 
@@ -39,7 +40,7 @@ function UserPage() {
       <Load q={q} lines={4}>
         {(d) => (
           <>
-            <PageHeader
+            <AdminHeader
               back={
                 <Link to="/admin/users" className={buttonStyles({ variant: 'link', className: 'hit' })}>
                   <ArrowLeft className="size-4" aria-hidden /> All users

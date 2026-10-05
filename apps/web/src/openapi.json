@@ -4706,6 +4706,722 @@
           "status"
         ]
       },
+      "AdminSpendSummary": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "First recorded call; earlier attempts have no cost rows (\"not recorded\")"
+          },
+          "today": {
+            "type": "object",
+            "properties": {
+              "house": {
+                "type": "number",
+                "description": "USD"
+              },
+              "ownKey": {
+                "type": "number",
+                "description": "USD"
+              },
+              "calls": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "house",
+              "ownKey",
+              "calls"
+            ]
+          },
+          "last7d": {
+            "type": "object",
+            "properties": {
+              "house": {
+                "type": "number",
+                "description": "USD"
+              },
+              "ownKey": {
+                "type": "number",
+                "description": "USD"
+              },
+              "calls": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "house",
+              "ownKey",
+              "calls"
+            ]
+          },
+          "last30d": {
+            "type": "object",
+            "properties": {
+              "house": {
+                "type": "number",
+                "description": "USD"
+              },
+              "ownKey": {
+                "type": "number",
+                "description": "USD"
+              },
+              "calls": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "house",
+              "ownKey",
+              "calls"
+            ]
+          },
+          "allTime": {
+            "type": "object",
+            "properties": {
+              "house": {
+                "type": "number",
+                "description": "USD"
+              },
+              "ownKey": {
+                "type": "number",
+                "description": "USD"
+              },
+              "calls": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "house",
+              "ownKey",
+              "calls"
+            ]
+          },
+          "okRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "0-1 share of successful calls, last 30 d (all payers)"
+          },
+          "waste": {
+            "type": "object",
+            "properties": {
+              "usd": {
+                "type": "number",
+                "description": "USD"
+              },
+              "share": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "usd",
+              "share"
+            ],
+            "description": "Wasted spend and its share of all spend in the window"
+          },
+          "perAttempt": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "speaking",
+                    "writing"
+                  ]
+                },
+                "part": {
+                  "type": "integer"
+                },
+                "n": {
+                  "type": "integer"
+                },
+                "avgUsd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "medianUsd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "p90Usd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "wasteUsd": {
+                  "type": "number",
+                  "description": "Waste per finished attempt"
+                }
+              },
+              "required": [
+                "skill",
+                "part",
+                "n",
+                "avgUsd",
+                "medianUsd",
+                "p90Usd",
+                "wasteUsd"
+              ]
+            },
+            "description": "Finished attempts (status done) that have cost rows, in the window"
+          },
+          "unrecordedAttempts": {
+            "type": "integer",
+            "description": "Finished speaking/writing attempts in the window with no cost rows (ran before tracking started)"
+          },
+          "drift": {
+            "type": "object",
+            "properties": {
+              "recorded": {
+                "type": "object",
+                "properties": {
+                  "day": {
+                    "type": "number",
+                    "description": "USD"
+                  },
+                  "week": {
+                    "type": "number",
+                    "description": "USD"
+                  },
+                  "month": {
+                    "type": "number",
+                    "description": "USD"
+                  }
+                },
+                "required": [
+                  "day",
+                  "week",
+                  "month"
+                ]
+              },
+              "openrouter": {
+                "type": "object",
+                "properties": {
+                  "day": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "description": "USD"
+                  },
+                  "week": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "description": "USD"
+                  },
+                  "month": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "description": "USD"
+                  }
+                },
+                "required": [
+                  "day",
+                  "week",
+                  "month"
+                ]
+              },
+              "warn": {
+                "type": "boolean",
+                "description": "Recorded house OpenRouter spend and OpenRouter usage_weekly differ by more than 5 percent: some call site is not recorded"
+              }
+            },
+            "required": [
+              "recorded",
+              "openrouter",
+              "warn"
+            ]
+          }
+        },
+        "required": [
+          "since",
+          "today",
+          "last7d",
+          "last30d",
+          "allTime",
+          "okRate",
+          "waste",
+          "perAttempt",
+          "unrecordedAttempts",
+          "drift"
+        ]
+      },
+      "AdminSpendSeries": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "description": "Dhaka bucket start, YYYY-MM-DD"
+                },
+                "house": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "ownKey": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "calls": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "house",
+                "ownKey",
+                "calls"
+              ]
+            }
+          }
+        },
+        "required": [
+          "bucket",
+          "points"
+        ]
+      },
+      "AdminSpendBy": {
+        "type": "object",
+        "properties": {
+          "dim": {
+            "type": "string",
+            "enum": [
+              "stage",
+              "model",
+              "provider",
+              "skill_part",
+              "user",
+              "prompt"
+            ]
+          },
+          "total": {
+            "type": "number",
+            "description": "USD"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "calls": {
+                  "type": "integer"
+                },
+                "attempts": {
+                  "type": "integer"
+                },
+                "avgPerCall": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "share": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "costUsd",
+                "calls",
+                "attempts",
+                "avgPerCall",
+                "share"
+              ]
+            }
+          }
+        },
+        "required": [
+          "dim",
+          "total",
+          "items"
+        ]
+      },
+      "AdminSpendAttempt": {
+        "type": "object",
+        "properties": {
+          "attempt": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "skill": {
+                "$ref": "#/components/schemas/AdminSkill"
+              },
+              "part": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "description": "ISO-8601 UTC"
+              },
+              "userId": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "description": "'' for a guest"
+              },
+              "isGuest": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "skill",
+              "part",
+              "status",
+              "createdAt",
+              "userId",
+              "email",
+              "isGuest",
+              "title"
+            ]
+          },
+          "recorded": {
+            "type": "boolean",
+            "description": "false: no cost rows exist (the attempt ran before tracking started); show \"not recorded\", not $0"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "description": "ISO-8601 UTC"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "paidBy": {
+                  "type": "string",
+                  "enum": [
+                    "house",
+                    "own_key"
+                  ]
+                },
+                "inputTokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "outputTokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "audioSeconds": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "characters": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "costUsd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "retry": {
+                  "type": "boolean"
+                },
+                "estimated": {
+                  "type": "boolean"
+                },
+                "criterion": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sample": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "extra": {
+                  "type": "boolean"
+                },
+                "kept": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "timeout": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "at",
+                "stage",
+                "provider",
+                "model",
+                "paidBy",
+                "inputTokens",
+                "outputTokens",
+                "audioSeconds",
+                "characters",
+                "costUsd",
+                "ok",
+                "retry",
+                "estimated",
+                "criterion",
+                "sample",
+                "extra",
+                "kept",
+                "timeout"
+              ]
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "calls": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "stage",
+                "costUsd",
+                "calls"
+              ]
+            }
+          },
+          "totalUsd": {
+            "type": "number",
+            "description": "USD"
+          },
+          "wasteUsd": {
+            "type": "number",
+            "description": "USD"
+          },
+          "sessionTotal": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "usd": {
+                "type": "number",
+                "description": "USD"
+              },
+              "parts": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "usd",
+              "parts"
+            ],
+            "description": "Everything recorded for the test session this attempt belongs to"
+          }
+        },
+        "required": [
+          "attempt",
+          "recorded",
+          "items",
+          "stages",
+          "totalUsd",
+          "wasteUsd",
+          "sessionTotal"
+        ]
+      },
+      "AdminSpendWaste": {
+        "type": "object",
+        "properties": {
+          "totalUsd": {
+            "type": "number",
+            "description": "USD"
+          },
+          "spendUsd": {
+            "type": "number",
+            "description": "USD"
+          },
+          "share": {
+            "type": "number"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "failed",
+                    "retry",
+                    "discarded_stt",
+                    "extra_samples",
+                    "failed_attempt"
+                  ]
+                },
+                "usd": {
+                  "type": "number",
+                  "description": "USD"
+                },
+                "calls": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "usd",
+                "calls"
+              ]
+            }
+          }
+        },
+        "required": [
+          "totalUsd",
+          "spendUsd",
+          "share",
+          "parts"
+        ]
+      },
+      "AdminSpendForecast": {
+        "type": "object",
+        "properties": {
+          "remaining": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "OpenRouter key limit minus usage"
+          },
+          "burnPerDay7d": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "House OpenRouter spend per day, mean of the last 7 full Dhaka days; null with nothing recorded"
+          },
+          "burnPerDay14d": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD"
+          },
+          "daysLeft": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "runsOutOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Dhaka date YYYY-MM-DD"
+          },
+          "usableLeft": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "remaining minus COMMUNITY_MIN_BALANCE"
+          },
+          "avgCostPerTest": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mean house cost of a finished speaking/writing attempt, last 30 d"
+          },
+          "testsLeft": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "low",
+              "critical",
+              "unknown"
+            ],
+            "description": "low < 7 days left, critical < 3, unknown without a burn rate or balance"
+          }
+        },
+        "required": [
+          "remaining",
+          "burnPerDay7d",
+          "burnPerDay14d",
+          "daysLeft",
+          "runsOutOn",
+          "usableLeft",
+          "avgCostPerTest",
+          "testsLeft",
+          "status"
+        ]
+      },
       "FeedbackCreated": {
         "type": "object",
         "properties": {
@@ -8235,6 +8951,341 @@
           },
           "404": {
             "description": "Unknown id"
+          }
+        }
+      }
+    },
+    "/api/admin/spend/summary": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Spend totals (today / 7 d / 30 d / all time, house vs own key), waste, cost per finished attempt and the drift against OpenRouter's own usage",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "house",
+                "own_key",
+                "all"
+              ],
+              "default": "house",
+              "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both"
+            },
+            "required": false,
+            "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both",
+            "name": "paidBy",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/spend/series": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Spend per Dhaka day / week / month, house vs own key",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "default": "day"
+            },
+            "required": false,
+            "name": "bucket",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "house",
+                "own_key",
+                "all"
+              ],
+              "default": "house",
+              "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both"
+            },
+            "required": false,
+            "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both",
+            "name": "paidBy",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendSeries"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/spend/by": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Spend ranked by stage, model, provider, skill+part, user or prompt (test)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "stage",
+                "model",
+                "provider",
+                "skill_part",
+                "user",
+                "prompt"
+              ]
+            },
+            "required": true,
+            "name": "dim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "house",
+                "own_key",
+                "all"
+              ],
+              "default": "house",
+              "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both"
+            },
+            "required": false,
+            "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both",
+            "name": "paidBy",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendBy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/spend/attempt/{id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Line items, per-stage subtotals, waste and session total of one attempt",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cost of an attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendAttempt"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/spend/waste": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Spend on failed calls, retries, discarded primed transcriptions, extra scoring samples and failed or refunded attempts",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "house",
+                "own_key",
+                "all"
+              ],
+              "default": "house",
+              "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both"
+            },
+            "required": false,
+            "description": "Who paid: the owner's server keys ('house', default), the user's own keys, or both",
+            "name": "paidBy",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Waste",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendWaste"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/spend/forecast": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Days of OpenRouter balance left at the 7-day house burn rate, and finished tests left above the community floor",
+        "responses": {
+          "200": {
+            "description": "Forecast",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSpendForecast"
+                }
+              }
+            }
           }
         }
       }

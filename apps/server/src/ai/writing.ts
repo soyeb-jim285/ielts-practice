@@ -113,7 +113,7 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
   const anchors = await loadAnchors();
   const hash = promptHash(anchors, mode);
   const served: Served[] = [];
-  const call = (n: number, keys: WritingKey[]) =>
+  const call = (n: number, keys: WritingKey[], extra?: boolean) =>
     chatJson({
       model,
       system: scorerSystem(i.task, pickAnchors(anchors, fam, n, i.prompt.body, o.skipAnchor)),
@@ -127,13 +127,14 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
       effort: WRITING_EFFORT,
       timeoutMs: SCORER_TIMEOUT_MS,
       onServed: (s) => served.push(s),
+      cost: { stage: 'score', meta: { sample: n, ...(keys.length === 1 && { criterion: keys[0] }), ...(extra && { extra: true }) } },
     }) as Promise<Partial<Sample>>;
   const calls = Array.from({ length: k }, (_, n) => (mode === 'joint' ? [() => call(n, sampleOrder(n))] : WRITING_KEYS.map((c) => () => call(n, [c])))).flat();
   const parts = await scoringSamples(calls, o.early && mode === 'joint' ? agree : undefined);
   // Production only (`early`): three samples that still disagree by 2+ bands on a criterion are a noisy read (the same script moved a full band between runs),
   // so two more are drawn. The harness keeps K samples: its cache and the fitted map are for K = 3.
   if (o.early && mode === 'joint' && parts.length >= k && jagged(parts as Sample[]))
-    parts.push(...(await scoringSamples([k, k + 1].map((n) => () => call(n, sampleOrder(n))))));
+    parts.push(...(await scoringSamples([k, k + 1].map((n) => () => call(n, sampleOrder(n), true)))));
   return { samples: mergeSamples(parts, o.early && parts.length >= 2 ? parts.length : k), used: parts.length, served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
 }
 
@@ -307,6 +308,7 @@ export async function feedbackWriting(i: WritingInput, figure: Figure) {
       schemaName: 'writing_analysis',
       temperature: 0.2,
       effort: 'low',
+      cost: { stage: 'feedback' },
     }),
   );
   return { fb, errors: locateQuotes(i.text, fb.errors) };

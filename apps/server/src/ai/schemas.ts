@@ -1,5 +1,6 @@
 // zod schemas for LLM outputs. The stored result shape is AnalysisResult in ./types.ts.
 import { z } from 'zod';
+import { asRetry } from './cost';
 import { AiError } from './openrouter';
 
 export const MISTAKE_CATEGORIES = [
@@ -179,7 +180,7 @@ export const retryOnce = <T>(f: () => Promise<T>): Promise<T> =>
   f().catch((e: unknown) => {
     if (!(e instanceof AiError && e.retryable)) throw e;
     console.error('AI call failed, retrying once', e.code, e.status ?? '');
-    return f();
+    return asRetry(f);
   });
 
 /** Runs the scoring calls in parallel and returns every successful sample; failed calls are dropped, all failing throws the first error.

@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { ActivityTable } from '@/components/admin/ActivityTable';
 import { Load } from '@/components/admin/Load';
 import { Pager } from '@/components/admin/Pager';
-import { EmptyState, Input, PageContainer, PageHeader, Segmented } from '@/components/ui';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { EmptyState, Input, PageContainer, Segmented } from '@/components/ui';
 import { type Page, useAdmin } from '@/lib/admin';
 
 const SKILLS = ['speaking', 'writing', 'listening', 'reading'] as const;
@@ -29,7 +30,7 @@ function ActivityPage() {
   const set = (s: Search) => void navigate({ search: (prev) => ({ ...prev, page: undefined, ...s }) });
   return (
     <PageContainer>
-      <PageHeader title="Activity" description="Every test, newest first. Open a result or the recording from that time." />
+      <AdminHeader title="Activity" description="Every test, newest first. Open a result or the recording from that time." />
       <div className="mb-6 flex flex-wrap items-end gap-4">
         <Segmented
           label="Skill"

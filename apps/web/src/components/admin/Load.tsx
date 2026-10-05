@@ -16,11 +16,11 @@ export function Load<T>({ q, children, lines = 3 }: { q: UseQueryResult<T>; chil
   return <>{children(q.data)}</>;
 }
 
-/** Section heading used on every admin page. */
-export const Section = ({ title, aside, children }: { title: ReactNode; aside?: ReactNode; children: ReactNode }) => (
-  <section className="mt-10 first:mt-0">
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="type-heading">{title}</h2>
+/** Section heading used on every admin page: quiet sans heading over a hairline, so the numbers below stay the loudest thing. */
+export const Section = ({ title, aside, children, className }: { title: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) => (
+  <section className={`mt-8 min-w-0 first:mt-0 ${className ?? ''}`}>
+    <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-line pb-2">
+      <h2 className="text-base font-semibold tracking-tight">{title}</h2>
       {aside && <div className="type-caption">{aside}</div>}
     </div>
     {children}

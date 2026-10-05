@@ -5,7 +5,7 @@ import { Button, Dialog, Textarea, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 
 const MAX = 2000;
-const HIDDEN = /^\/(login|signup|forgot-password|reset-password)(\/|$)/;
+const HIDDEN = /^\/(login|signup|forgot-password|reset-password|admin)(\/|$)/; // the owner has the Feedback inbox
 const sid = () => {
   try {
     return sessionStorage.getItem('ielts.replay.sid') ?? undefined; // set by ReplayRecorder
@@ -46,7 +46,7 @@ export function FeedbackButton() {
         size="sm"
         icon={<MessageSquareWarning />}
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 z-30 text-muted md:bottom-4"
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 z-30 text-muted md:right-4 md:left-auto md:bottom-4"
       >
         Report a problem
       </Button>
