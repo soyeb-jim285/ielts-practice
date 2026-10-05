@@ -14,7 +14,7 @@ export const user = pgTable('user', {
   isAnonymous: boolean('is_anonymous').default(false), // Better Auth anonymous plugin: guests get a real user row until they sign up (docs/community.md)
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index('user_created_idx').on(t.createdAt)]);
 
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
@@ -123,6 +123,8 @@ export const attempts = pgTable('attempts', {
   index('attempts_user_created_idx').on(t.userId, t.createdAt),
   index('attempts_user_prompt_idx').on(t.userId, t.promptId),
   index('attempts_session_idx').on(t.sessionId),
+  index('attempts_status_updated_idx').on(t.status, t.updatedAt),
+  index('attempts_created_idx').on(t.createdAt),
 ]);
 
 export const analyses = pgTable('analyses', {
@@ -282,6 +284,7 @@ export const lrAttempts = pgTable('lr_attempts', {
 }, (t) => [
   index('lr_attempts_user_started_idx').on(t.userId, t.startedAt),
   index('lr_attempts_user_test_idx').on(t.userId, t.testId, t.status),
+  index('lr_attempts_started_idx').on(t.startedAt),
 ]);
 
 // ---------- Auth emails: one row per send attempt (sign-up / verification / password-reset codes), so a failed send leaves a record that survives deploys ----------
@@ -296,3 +299,45 @@ export const emailLog = pgTable('email_log', {
   attempts: integer('attempts').notNull().default(0),
   createdAt: createdAt(),
 }, (t) => [index('email_log_lookup_idx').on(t.email, t.purpose, t.createdAt)]);
+
+// ---------- Owner admin (docs/admin/DESIGN.md) ----------
+// Emails granted Cambridge access from the admin UI; merged with OWNER_EMAILS and env CAMBRIDGE_ALLOWED_EMAILS in auth.ts (isCambridgeAllowed).
+export const cambridgeAccess = pgTable('cambridge_access', {
+  email: text('email').primaryKey(), // lowercased
+  grantedBy: text('granted_by').notNull(), // owner email
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per browser tab recording (rrweb). Events live in R2: replay/<yyyy-mm-dd of started_at, UTC>/<id>/<seq>.json.gz. Deleted after 14 days (src/replay.ts).
+export const replaySessions = pgTable('replay_sessions', {
+  id: text('id').primaryKey(), // client-generated UUID, one per tab (sessionStorage)
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }), // guest or account; moves with link.ts when a guest signs up
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+  pages: jsonb('pages').$type<{ path: string; at: number }[]>().notNull().default([]), // visited paths with epoch ms, capped at 200
+  bytes: integer('bytes').notNull().default(0), // uncompressed JSON bytes accepted so far (cap 30 MB)
+  chunks: integer('chunks').notNull().default(0), // next expected seq (= highest accepted seq + 1)
+  userAgent: text('user_agent'),
+}, (t) => [index('replay_sessions_user_idx').on(t.userId, t.startedAt), index('replay_sessions_last_idx').on(t.lastAt)]);
+
+// "Report a problem" inbox.
+export const feedback = pgTable('feedback', {
+  id: id(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }), // null for a visitor with no session
+  email: text('email'), // snapshot at send time; null for guests/visitors
+  message: text('message').notNull(), // 1..2000 chars
+  page: text('page').notNull(), // path + search, max 300
+  replaySessionId: text('replay_session_id'), // replay_sessions.id when recording; no FK (replays expire)
+  userAgent: text('user_agent'),
+  status: text('status').$type<'new' | 'seen' | 'done'>().notNull().default('new'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index('feedback_status_created_idx').on(t.status, t.createdAt)]);
+
+// A guest who signed up or signed in to an existing account (the anonymous user row is deleted by Better Auth, so this is the only trace): guest→account conversion.
+export const guestConversions = pgTable('guest_conversions', {
+  guestId: text('guest_id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  guestCreatedAt: timestamp('guest_created_at', { withTimezone: true }).notNull(),
+  linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('guest_conversions_linked_idx').on(t.linkedAt)]);

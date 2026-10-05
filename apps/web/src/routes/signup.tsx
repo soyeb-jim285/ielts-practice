@@ -90,6 +90,13 @@ function Signup() {
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Create account
         </Button>
+        <p className="type-caption text-center">
+          By creating an account you agree to the{' '}
+          <Link to="/privacy" className="font-medium underline underline-offset-2">
+            privacy policy
+          </Link>
+          .
+        </p>
       </form>
     </AuthLayout>
   );

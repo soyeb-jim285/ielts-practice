@@ -162,6 +162,10 @@ export function speechStats(m: SpeechMetrics): Stat[] {
   const perMin = (n: number) => n / Math.max(m.durationS / 60, 0.25);
   const rate = m.speechRate;
   const long = m.pauses.filter(isLongPause).length;
+  // Same fused events as the breakdown cards, so the two always agree.
+  const events = disfluencyEvents(m);
+  const reps = events.filter((e) => e.kind === 'repetition').length;
+  const repairs = events.filter((e) => e.kind === 'repair').length;
   const stats: Stat[] = [
     { key: 'rate', label: 'Speech rate', value: `${Math.round(rate)} wpm`, tone: paceTone(rate), info: 'Words per minute over the whole answer, pauses included. Band 7+ speakers usually sit around 120–170.' },
     { key: 'artic', label: 'Articulation rate', value: `${Math.round(m.articulationRate)} wpm`, tone: atLeast(m.articulationRate, 150, 130), info: 'Words per minute while you are actually speaking (pauses removed). Low values mean slow, effortful delivery.' },
@@ -170,8 +174,8 @@ export function speechStats(m: SpeechMetrics): Stat[] {
     { key: 'long', label: 'Long pauses', value: String(long), tone: upTo(perMin(long), 1, 2), info: 'Silences of 1 second or more. Examiners hear these as searching for words.' },
     { key: 'mid', label: 'Mid-clause pauses', value: String(m.midClausePauses), tone: upTo(perMin(m.midClausePauses), 1, 2.5), info: 'Pauses inside a clause rather than at a natural boundary. These hurt fluency more than pauses between ideas.' },
     { key: 'fillers', label: 'Fillers', value: `${m.fillersPerMin.toFixed(1)}/min`, tone: upTo(m.fillersPerMin, 2, 4), info: 'um, uh, er, "you know", "sort of" and voiced hesitations per minute.' },
-    { key: 'reps', label: 'Repetitions', value: String(m.repetitions.length), tone: upTo(perMin(m.repetitions.length), 1, 2), info: 'Words or phrases repeated back-to-back while you search for the next idea.' },
-    { key: 'self', label: 'Self-corrections', value: String(m.selfCorrections.length), tone: upTo(perMin(m.selfCorrections.length), 1, 2), info: 'Restarts like "I go— I went". A few are natural; many suggest hesitation.' },
+    { key: 'reps', label: 'Repetitions', value: String(reps), tone: upTo(perMin(reps), 1, 2), info: 'Words or phrases repeated back-to-back while you search for the next idea.' },
+    { key: 'self', label: 'Self-corrections', value: String(repairs), tone: upTo(perMin(repairs), 1, 2), info: 'Restarts like "I go— I went". A few are natural; many suggest hesitation.' },
     { key: 'var', label: 'Pace variability', value: `±${Math.round(m.wpmStdDev)} wpm`, tone: upTo(m.wpmStdDev, 20, 35), info: 'Standard deviation of your pace across 10-second windows. Big swings = uneven pace.' },
   ];
   return tooShortToMeasure(m) ? stats.map((s) => ({ ...s, value: '—', tone: 'na' })) : stats;

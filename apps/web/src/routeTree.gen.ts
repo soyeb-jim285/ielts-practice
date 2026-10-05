@@ -15,12 +15,23 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
+import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStyleguideRouteImport } from './routes/_app/styleguide'
+import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
+import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
+import { Route as AppAdminContentRouteImport } from './routes/_app/admin/content'
+import { Route as AppAdminCostsRouteImport } from './routes/_app/admin/costs'
+import { Route as AppAdminFeedbackRouteImport } from './routes/_app/admin/feedback'
+import { Route as AppAdminFunnelRouteImport } from './routes/_app/admin/funnel'
+import { Route as AppAdminGrowthRouteImport } from './routes/_app/admin/growth'
+import { Route as AppAdminHealthRouteImport } from './routes/_app/admin/health'
+import { Route as AppAdminTestsRouteImport } from './routes/_app/admin/tests'
 import { Route as AppListeningIndexRouteImport } from './routes/_app/listening/index'
 import { Route as AppReadingIndexRouteImport } from './routes/_app/reading/index'
 import { Route as AppSpeakingIndexRouteImport } from './routes/_app/speaking/index'
@@ -28,6 +39,10 @@ import { Route as AppSpeakingLiveRouteImport } from './routes/_app/speaking/live
 import { Route as AppSpeakingSessionRouteImport } from './routes/_app/speaking/session'
 import { Route as AppWritingIndexRouteImport } from './routes/_app/writing/index'
 import { Route as AppWritingFullRouteImport } from './routes/_app/writing/full'
+import { Route as AppAdminReplaysIndexRouteImport } from './routes/_app/admin/replays.index'
+import { Route as AppAdminReplaysSessionIdRouteImport } from './routes/_app/admin/replays.$sessionId'
+import { Route as AppAdminUsersIndexRouteImport } from './routes/_app/admin/users.index'
+import { Route as AppAdminUsersUserIdRouteImport } from './routes/_app/admin/users.$userId'
 import { Route as AppLrResultAttemptIdRouteImport } from './routes/_app/lr/result.$attemptId'
 import { Route as AppLrRunAttemptIdRouteImport } from './routes/_app/lr/run.$attemptId'
 import { Route as AppSpeakingResultAttemptIdRouteImport } from './routes/_app/speaking/result.$attemptId'
@@ -63,6 +78,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBankRoute = AppBankRouteImport.update({
   id: '/bank',
   path: '/bank',
@@ -76,6 +96,11 @@ const AppHistoryRoute = AppHistoryRouteImport.update({
 const AppMistakesRoute = AppMistakesRouteImport.update({
   id: '/mistakes',
   path: '/mistakes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPrivacyRoute = AppPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReviewRoute = AppReviewRouteImport.update({
@@ -92,6 +117,51 @@ const AppStyleguideRoute = AppStyleguideRouteImport.update({
   id: '/styleguide',
   path: '/styleguide',
   getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminActivityRoute = AppAdminActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminContentRoute = AppAdminContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCostsRoute = AppAdminCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminFeedbackRoute = AppAdminFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminFunnelRoute = AppAdminFunnelRouteImport.update({
+  id: '/funnel',
+  path: '/funnel',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminGrowthRoute = AppAdminGrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminHealthRoute = AppAdminHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTestsRoute = AppAdminTestsRouteImport.update({
+  id: '/tests',
+  path: '/tests',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppListeningIndexRoute = AppListeningIndexRouteImport.update({
   id: '/listening/',
@@ -128,6 +198,27 @@ const AppWritingFullRoute = AppWritingFullRouteImport.update({
   path: '/writing/full',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminReplaysIndexRoute = AppAdminReplaysIndexRouteImport.update({
+  id: '/replays/',
+  path: '/replays/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminReplaysSessionIdRoute =
+  AppAdminReplaysSessionIdRouteImport.update({
+    id: '/replays/$sessionId',
+    path: '/replays/$sessionId',
+    getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppAdminUsersIndexRoute = AppAdminUsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminUsersUserIdRoute = AppAdminUsersUserIdRouteImport.update({
+  id: '/users/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppLrResultAttemptIdRoute = AppLrResultAttemptIdRouteImport.update({
   id: '/lr/result/$attemptId',
   path: '/lr/result/$attemptId',
@@ -162,24 +253,39 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AppAdminRouteWithChildren
   '/bank': typeof AppBankRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
+  '/privacy': typeof AppPrivacyRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
+  '/admin/activity': typeof AppAdminActivityRoute
+  '/admin/content': typeof AppAdminContentRoute
+  '/admin/costs': typeof AppAdminCostsRoute
+  '/admin/feedback': typeof AppAdminFeedbackRoute
+  '/admin/funnel': typeof AppAdminFunnelRoute
+  '/admin/growth': typeof AppAdminGrowthRoute
+  '/admin/health': typeof AppAdminHealthRoute
+  '/admin/tests': typeof AppAdminTestsRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
+  '/admin/': typeof AppAdminIndexRoute
   '/listening/': typeof AppListeningIndexRoute
   '/reading/': typeof AppReadingIndexRoute
   '/speaking/': typeof AppSpeakingIndexRoute
   '/writing/': typeof AppWritingIndexRoute
+  '/admin/replays/$sessionId': typeof AppAdminReplaysSessionIdRoute
+  '/admin/users/$userId': typeof AppAdminUsersUserIdRoute
   '/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
   '/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
+  '/admin/replays/': typeof AppAdminReplaysIndexRoute
+  '/admin/users/': typeof AppAdminUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -189,22 +295,36 @@ export interface FileRoutesByTo {
   '/bank': typeof AppBankRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
+  '/privacy': typeof AppPrivacyRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
   '/': typeof AppIndexRoute
+  '/admin/activity': typeof AppAdminActivityRoute
+  '/admin/content': typeof AppAdminContentRoute
+  '/admin/costs': typeof AppAdminCostsRoute
+  '/admin/feedback': typeof AppAdminFeedbackRoute
+  '/admin/funnel': typeof AppAdminFunnelRoute
+  '/admin/growth': typeof AppAdminGrowthRoute
+  '/admin/health': typeof AppAdminHealthRoute
+  '/admin/tests': typeof AppAdminTestsRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
+  '/admin': typeof AppAdminIndexRoute
   '/listening': typeof AppListeningIndexRoute
   '/reading': typeof AppReadingIndexRoute
   '/speaking': typeof AppSpeakingIndexRoute
   '/writing': typeof AppWritingIndexRoute
+  '/admin/replays/$sessionId': typeof AppAdminReplaysSessionIdRoute
+  '/admin/users/$userId': typeof AppAdminUsersUserIdRoute
   '/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
   '/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
+  '/admin/replays': typeof AppAdminReplaysIndexRoute
+  '/admin/users': typeof AppAdminUsersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -213,25 +333,40 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/bank': typeof AppBankRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/mistakes': typeof AppMistakesRoute
+  '/_app/privacy': typeof AppPrivacyRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/styleguide': typeof AppStyleguideRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/activity': typeof AppAdminActivityRoute
+  '/_app/admin/content': typeof AppAdminContentRoute
+  '/_app/admin/costs': typeof AppAdminCostsRoute
+  '/_app/admin/feedback': typeof AppAdminFeedbackRoute
+  '/_app/admin/funnel': typeof AppAdminFunnelRoute
+  '/_app/admin/growth': typeof AppAdminGrowthRoute
+  '/_app/admin/health': typeof AppAdminHealthRoute
+  '/_app/admin/tests': typeof AppAdminTestsRoute
   '/_app/speaking/live': typeof AppSpeakingLiveRoute
   '/_app/speaking/session': typeof AppSpeakingSessionRoute
   '/_app/writing/full': typeof AppWritingFullRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/listening/': typeof AppListeningIndexRoute
   '/_app/reading/': typeof AppReadingIndexRoute
   '/_app/speaking/': typeof AppSpeakingIndexRoute
   '/_app/writing/': typeof AppWritingIndexRoute
+  '/_app/admin/replays/$sessionId': typeof AppAdminReplaysSessionIdRoute
+  '/_app/admin/users/$userId': typeof AppAdminUsersUserIdRoute
   '/_app/lr/result/$attemptId': typeof AppLrResultAttemptIdRoute
   '/_app/lr/run/$attemptId': typeof AppLrRunAttemptIdRoute
   '/_app/speaking/result/$attemptId': typeof AppSpeakingResultAttemptIdRoute
   '/_app/writing/result/$attemptId': typeof AppWritingResultAttemptIdRoute
   '/_app/writing/task/$promptId': typeof AppWritingTaskPromptIdRoute
+  '/_app/admin/replays/': typeof AppAdminReplaysIndexRoute
+  '/_app/admin/users/': typeof AppAdminUsersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -241,24 +376,39 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/admin'
     | '/bank'
     | '/history'
     | '/mistakes'
+    | '/privacy'
     | '/review'
     | '/settings'
     | '/styleguide'
+    | '/admin/activity'
+    | '/admin/content'
+    | '/admin/costs'
+    | '/admin/feedback'
+    | '/admin/funnel'
+    | '/admin/growth'
+    | '/admin/health'
+    | '/admin/tests'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
+    | '/admin/'
     | '/listening/'
     | '/reading/'
     | '/speaking/'
     | '/writing/'
+    | '/admin/replays/$sessionId'
+    | '/admin/users/$userId'
     | '/lr/result/$attemptId'
     | '/lr/run/$attemptId'
     | '/speaking/result/$attemptId'
     | '/writing/result/$attemptId'
     | '/writing/task/$promptId'
+    | '/admin/replays/'
+    | '/admin/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -268,22 +418,36 @@ export interface FileRouteTypes {
     | '/bank'
     | '/history'
     | '/mistakes'
+    | '/privacy'
     | '/review'
     | '/settings'
     | '/styleguide'
     | '/'
+    | '/admin/activity'
+    | '/admin/content'
+    | '/admin/costs'
+    | '/admin/feedback'
+    | '/admin/funnel'
+    | '/admin/growth'
+    | '/admin/health'
+    | '/admin/tests'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
+    | '/admin'
     | '/listening'
     | '/reading'
     | '/speaking'
     | '/writing'
+    | '/admin/replays/$sessionId'
+    | '/admin/users/$userId'
     | '/lr/result/$attemptId'
     | '/lr/run/$attemptId'
     | '/speaking/result/$attemptId'
     | '/writing/result/$attemptId'
     | '/writing/task/$promptId'
+    | '/admin/replays'
+    | '/admin/users'
   id:
     | '__root__'
     | '/_app'
@@ -291,25 +455,40 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/_app/admin'
     | '/_app/bank'
     | '/_app/history'
     | '/_app/mistakes'
+    | '/_app/privacy'
     | '/_app/review'
     | '/_app/settings'
     | '/_app/styleguide'
     | '/_app/'
+    | '/_app/admin/activity'
+    | '/_app/admin/content'
+    | '/_app/admin/costs'
+    | '/_app/admin/feedback'
+    | '/_app/admin/funnel'
+    | '/_app/admin/growth'
+    | '/_app/admin/health'
+    | '/_app/admin/tests'
     | '/_app/speaking/live'
     | '/_app/speaking/session'
     | '/_app/writing/full'
+    | '/_app/admin/'
     | '/_app/listening/'
     | '/_app/reading/'
     | '/_app/speaking/'
     | '/_app/writing/'
+    | '/_app/admin/replays/$sessionId'
+    | '/_app/admin/users/$userId'
     | '/_app/lr/result/$attemptId'
     | '/_app/lr/run/$attemptId'
     | '/_app/speaking/result/$attemptId'
     | '/_app/writing/result/$attemptId'
     | '/_app/writing/task/$promptId'
+    | '/_app/admin/replays/'
+    | '/_app/admin/users/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -364,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bank': {
       id: '/_app/bank'
       path: '/bank'
@@ -383,6 +569,13 @@ declare module '@tanstack/react-router' {
       path: '/mistakes'
       fullPath: '/mistakes'
       preLoaderRoute: typeof AppMistakesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/privacy': {
+      id: '/_app/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof AppPrivacyRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/review': {
@@ -405,6 +598,69 @@ declare module '@tanstack/react-router' {
       fullPath: '/styleguide'
       preLoaderRoute: typeof AppStyleguideRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/activity': {
+      id: '/_app/admin/activity'
+      path: '/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AppAdminActivityRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/content': {
+      id: '/_app/admin/content'
+      path: '/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AppAdminContentRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/costs': {
+      id: '/_app/admin/costs'
+      path: '/costs'
+      fullPath: '/admin/costs'
+      preLoaderRoute: typeof AppAdminCostsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/feedback': {
+      id: '/_app/admin/feedback'
+      path: '/feedback'
+      fullPath: '/admin/feedback'
+      preLoaderRoute: typeof AppAdminFeedbackRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/funnel': {
+      id: '/_app/admin/funnel'
+      path: '/funnel'
+      fullPath: '/admin/funnel'
+      preLoaderRoute: typeof AppAdminFunnelRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/growth': {
+      id: '/_app/admin/growth'
+      path: '/growth'
+      fullPath: '/admin/growth'
+      preLoaderRoute: typeof AppAdminGrowthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/health': {
+      id: '/_app/admin/health'
+      path: '/health'
+      fullPath: '/admin/health'
+      preLoaderRoute: typeof AppAdminHealthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/tests': {
+      id: '/_app/admin/tests'
+      path: '/tests'
+      fullPath: '/admin/tests'
+      preLoaderRoute: typeof AppAdminTestsRouteImport
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/listening/': {
       id: '/_app/listening/'
@@ -455,6 +711,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWritingFullRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/replays/': {
+      id: '/_app/admin/replays/'
+      path: '/replays'
+      fullPath: '/admin/replays/'
+      preLoaderRoute: typeof AppAdminReplaysIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/replays/$sessionId': {
+      id: '/_app/admin/replays/$sessionId'
+      path: '/replays/$sessionId'
+      fullPath: '/admin/replays/$sessionId'
+      preLoaderRoute: typeof AppAdminReplaysSessionIdRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/users/': {
+      id: '/_app/admin/users/'
+      path: '/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AppAdminUsersIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/users/$userId': {
+      id: '/_app/admin/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AppAdminUsersUserIdRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/lr/result/$attemptId': {
       id: '/_app/lr/result/$attemptId'
       path: '/lr/result/$attemptId'
@@ -493,10 +777,48 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminActivityRoute: typeof AppAdminActivityRoute
+  AppAdminContentRoute: typeof AppAdminContentRoute
+  AppAdminCostsRoute: typeof AppAdminCostsRoute
+  AppAdminFeedbackRoute: typeof AppAdminFeedbackRoute
+  AppAdminFunnelRoute: typeof AppAdminFunnelRoute
+  AppAdminGrowthRoute: typeof AppAdminGrowthRoute
+  AppAdminHealthRoute: typeof AppAdminHealthRoute
+  AppAdminTestsRoute: typeof AppAdminTestsRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+  AppAdminReplaysSessionIdRoute: typeof AppAdminReplaysSessionIdRoute
+  AppAdminUsersUserIdRoute: typeof AppAdminUsersUserIdRoute
+  AppAdminReplaysIndexRoute: typeof AppAdminReplaysIndexRoute
+  AppAdminUsersIndexRoute: typeof AppAdminUsersIndexRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminActivityRoute: AppAdminActivityRoute,
+  AppAdminContentRoute: AppAdminContentRoute,
+  AppAdminCostsRoute: AppAdminCostsRoute,
+  AppAdminFeedbackRoute: AppAdminFeedbackRoute,
+  AppAdminFunnelRoute: AppAdminFunnelRoute,
+  AppAdminGrowthRoute: AppAdminGrowthRoute,
+  AppAdminHealthRoute: AppAdminHealthRoute,
+  AppAdminTestsRoute: AppAdminTestsRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
+  AppAdminReplaysSessionIdRoute: AppAdminReplaysSessionIdRoute,
+  AppAdminUsersUserIdRoute: AppAdminUsersUserIdRoute,
+  AppAdminReplaysIndexRoute: AppAdminReplaysIndexRoute,
+  AppAdminUsersIndexRoute: AppAdminUsersIndexRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMistakesRoute: typeof AppMistakesRoute
+  AppPrivacyRoute: typeof AppPrivacyRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStyleguideRoute: typeof AppStyleguideRoute
@@ -516,9 +838,11 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
   AppBankRoute: AppBankRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMistakesRoute: AppMistakesRoute,
+  AppPrivacyRoute: AppPrivacyRoute,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStyleguideRoute: AppStyleguideRoute,

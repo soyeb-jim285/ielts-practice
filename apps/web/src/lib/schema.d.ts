@@ -2340,6 +2340,912 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Counts: accounts, guests, signups, active users, tests today */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOverview"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/growth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Daily signups, new guests and active users; guest to account conversion */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminGrowth"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every test anyone started, newest first */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    skill?: components["schemas"]["AdminSkill"];
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminActivityPage"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Users and guests with usage counts */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    q?: string;
+                    kind?: "all" | "accounts" | "guests";
+                    sort?: "created" | "active";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUsersPage"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One user: attempts, band trend, recordings, replays */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserDetail"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-prompt and per-L/R-test completion and scores */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminTests"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/tests/{testId}/missed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Most-missed questions of a Listening/Reading test */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    testId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminMissed"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Visited, started, finished, signed up, returned */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminFunnel"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Question bank counts and examiner-audio coverage */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminContent"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OpenRouter + ElevenLabs balances, community balance and low-balance warnings (cached 5 min) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Costs */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCosts"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Failed and stuck analyses, failed emails, recent errors */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Health */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminHealth"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/attempts/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-run the analysis of a failed (or stuck) attempt, free for the user */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Analysis restarted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            id: string;
+                            /** @enum {string} */
+                            status: "analyzing";
+                        };
+                    };
+                };
+                /** @description Unknown attempt */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Not retryable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}/cambridge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grant or revoke Cambridge access (owner and server-config emails are read-only) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        granted: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description New state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCambridgeInfo"];
+                    };
+                };
+                /** @description Unknown user */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Managed in server config */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session recordings, newest first */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    userId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["AdminReplayItem"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/replays/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One session recording */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminReplayItem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/replays/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All rrweb events of a session, in order */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            events: unknown[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feedback inbox (new first, then newest) */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    status?: "new" | "seen" | "done" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminFeedbackPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/feedback/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set a feedback item status */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminFeedbackPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminFeedbackItem"];
+                    };
+                };
+                /** @description Unknown id */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/replay/{sessionId}/chunks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload one chunk of rrweb events for a tab recording
+         * @description JSON body `{ seq, events[], pages?[] }`, at most 1 MB. A session holds at most 30 MB.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stored (or a duplicate retry) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            ok: true;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report a problem (session optional) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackBody"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackCreated"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2371,6 +3277,8 @@ export interface components {
                 blockPaste: boolean;
             };
             cambridgeAccess: boolean;
+            /** @description The site owner: shows the Admin area */
+            isOwner: boolean;
             /** @description This user has an OpenAI key (or is the owner) */
             gptLiveAvailable: boolean;
             /**
@@ -3147,6 +4055,362 @@ export interface components {
                 typed: string[];
                 lastAt: string;
             }[];
+        };
+        AdminOverview: {
+            accounts: number;
+            guests: number;
+            signups: {
+                today: number;
+                d7: number;
+                d30: number;
+            };
+            newGuests: {
+                today: number;
+                d7: number;
+                d30: number;
+            };
+            activeUsers: {
+                today: {
+                    accounts: number;
+                    guests: number;
+                };
+                d7: {
+                    accounts: number;
+                    guests: number;
+                };
+            };
+            testsToday: {
+                speaking?: {
+                    started: number;
+                    finished: number;
+                };
+                writing?: {
+                    started: number;
+                    finished: number;
+                };
+                listening?: {
+                    started: number;
+                    finished: number;
+                };
+                reading?: {
+                    started: number;
+                    finished: number;
+                };
+            };
+            feedbackNew: number;
+            /** @description ISO-8601 UTC */
+            generatedAt: string;
+        };
+        AdminGrowth: {
+            days: number;
+            series: {
+                /** @description YYYY-MM-DD, Asia/Dhaka */
+                date: string;
+                signups: number;
+                newGuests: number;
+                active: number;
+            }[];
+            conversion: {
+                guests: number;
+                converted: number;
+                rate: number;
+            };
+        };
+        AdminActivityPage: {
+            items: components["schemas"]["AdminActivityItem"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AdminActivityItem: {
+            id: string;
+            /** @enum {string} */
+            kind: "attempt" | "lr";
+            userId: string;
+            /** @description '' for a guest */
+            email: string;
+            isGuest: boolean;
+            skill: components["schemas"]["AdminSkill"];
+            /** @description Prompt title / test title */
+            title: string;
+            /** @enum {string} */
+            mode: "practice" | "live" | "exam";
+            /** @description 'Part 2' | 'Task 1' | 'Parts 1, 3' | 'All' */
+            parts: string;
+            /** @description Overall band (speaking/writing), band (L/R); null while pending or partial L/R */
+            score: number | null;
+            /** @description L/R only */
+            raw: {
+                raw: number;
+                total: number;
+            } | null;
+            /** @enum {string} */
+            status: "recording" | "analyzing" | "done" | "failed" | "in_progress" | "submitted";
+            /** @description ISO-8601 UTC */
+            startedAt: string;
+            /** @description '/speaking/result/<id>' | '/writing/result/<id>' | '/lr/result/<id>' | '/lr/run/<id>' when in_progress */
+            resultPath: string;
+            /** @description Replay sessions of that user whose [startedAt-5min, lastAt+5min] covers the attempt time, max 3 */
+            replays: {
+                id: string;
+                /** @description ISO-8601 UTC */
+                startedAt: string;
+            }[];
+        };
+        /** @enum {string} */
+        AdminSkill: "speaking" | "writing" | "listening" | "reading";
+        AdminUsersPage: {
+            items: components["schemas"]["AdminUserRow"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AdminUserRow: {
+            id: string;
+            email: string;
+            name: string;
+            isGuest: boolean;
+            emailVerified: boolean;
+            /** @description ISO-8601 UTC */
+            createdAt: string;
+            /** @description ISO-8601 UTC */
+            lastActiveAt: string | null;
+            counts: {
+                speaking: number;
+                writing: number;
+                listening: number;
+                reading: number;
+            };
+            replays: number;
+            cambridge: components["schemas"]["AdminCambridgeInfo"];
+        };
+        AdminCambridgeInfo: {
+            allowed: boolean;
+            /** @enum {string|null} */
+            source: "owner" | "server-config" | "granted" | null;
+            /** @description source is null or granted */
+            canToggle: boolean;
+        };
+        AdminUserDetail: {
+            user: components["schemas"]["AdminUserRow"];
+            attempts: components["schemas"]["AdminActivityItem"][];
+            bandTrend: {
+                speaking?: {
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    band: number;
+                }[];
+                writing?: {
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    band: number;
+                }[];
+                listening?: {
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    band: number;
+                }[];
+                reading?: {
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    band: number;
+                }[];
+            };
+            recordings: {
+                attemptId: string;
+                part: number;
+                /** @description ISO-8601 UTC */
+                createdAt: string;
+                durationMs: number | null;
+                audioUrl: string | null;
+            }[];
+            replays: components["schemas"]["AdminReplayItem"][];
+            cambridge: components["schemas"]["AdminCambridgeInfo"];
+        };
+        AdminReplayItem: {
+            id: string;
+            userId: string | null;
+            email: string | null;
+            /** @description ISO-8601 UTC */
+            startedAt: string;
+            /** @description ISO-8601 UTC */
+            lastAt: string;
+            durationS: number;
+            pages: {
+                path: string;
+                at: number;
+            }[];
+            bytes: number;
+            chunks: number;
+            userAgent: string | null;
+        };
+        AdminTests: {
+            prompts: components["schemas"]["AdminTestHealth"][];
+            lr: components["schemas"]["AdminTestHealth"][];
+        };
+        AdminTestHealth: {
+            id: string;
+            title: string;
+            skill: components["schemas"]["AdminSkill"];
+            part: number | null;
+            source: string;
+            started: number;
+            finished: number;
+            completionRate: number;
+            avgBand: number | null;
+            avgRaw: number | null;
+        };
+        AdminMissed: {
+            testId: string;
+            title: string;
+            submitted: number;
+            questions: {
+                n: number;
+                answered: number;
+                missed: number;
+                missRate: number;
+            }[];
+        };
+        AdminFunnel: {
+            days: number;
+            steps: {
+                /** @enum {string} */
+                key: "visited" | "started" | "finished" | "signedUp" | "returned";
+                label: string;
+                users: number;
+                pctOfVisited: number;
+            }[];
+        };
+        AdminContent: {
+            prompts: {
+                /** @enum {string} */
+                skill: "speaking" | "writing";
+                part: number;
+                /** @enum {string} */
+                source: "generated" | "cambridge";
+                count: number;
+            }[];
+            lr: {
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                /** @enum {string} */
+                source: "cambridge" | "generated";
+                /** @enum {string} */
+                variant: "academic" | "general";
+                tests: number;
+            }[];
+            speakingAudio: {
+                prompts: number;
+                promptsFullyRendered: number;
+                lines: number;
+                linesRendered: number;
+                manifestEntries: number | null;
+            };
+        };
+        AdminCosts: {
+            openrouter: {
+                available: boolean;
+                limit: number | null;
+                usage: number | null;
+                remaining: number | null;
+                usageDaily: number | null;
+                usageWeekly: number | null;
+                usageMonthly: number | null;
+                /** @enum {string} */
+                warn: "ok" | "low" | "critical";
+            };
+            elevenlabs: {
+                available: boolean;
+                tier: string | null;
+                characterCount: number | null;
+                characterLimit: number | null;
+                remaining: number | null;
+                /** @description ISO-8601 UTC */
+                resetsAt: string | null;
+                /** @enum {string} */
+                warn: "ok" | "low" | "critical";
+            };
+            community: components["schemas"]["CommunityBalance"];
+            minBalance: number;
+            warnings: string[];
+            /** @description ISO-8601 UTC */
+            cachedAt: string;
+        };
+        AdminHealth: {
+            counts: {
+                failed24h: number;
+                stuckAnalyzing: number;
+                emailFailed24h: number;
+            };
+            attempts: {
+                id: string;
+                userId: string;
+                email: string;
+                isGuest: boolean;
+                /** @enum {string} */
+                skill: "speaking" | "writing";
+                part: number;
+                /** @enum {string} */
+                status: "analyzing" | "failed";
+                stage: string | null;
+                error: string | null;
+                errorRetryable: boolean;
+                ageMin: number;
+                /** @description ISO-8601 UTC */
+                createdAt: string;
+                /** @description ISO-8601 UTC */
+                updatedAt: string;
+                canRetry: boolean;
+                resultPath: string;
+            }[];
+            emailFailures: {
+                id: string;
+                email: string;
+                purpose: string;
+                status: string;
+                error: string | null;
+                attempts: number;
+                /** @description ISO-8601 UTC */
+                createdAt: string;
+            }[];
+            recentErrors: {
+                error: string;
+                count: number;
+                /** @description ISO-8601 UTC */
+                lastAt: string;
+            }[];
+        };
+        AdminFeedbackPage: {
+            items: components["schemas"]["AdminFeedbackItem"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AdminFeedbackItem: {
+            id: string;
+            userId: string | null;
+            email: string | null;
+            message: string;
+            page: string;
+            replaySessionId: string | null;
+            userAgent: string | null;
+            /** @enum {string} */
+            status: "new" | "seen" | "done";
+            /** @description ISO-8601 UTC */
+            createdAt: string;
+        };
+        AdminFeedbackPatch: {
+            /** @enum {string} */
+            status: "new" | "seen" | "done";
+        };
+        FeedbackCreated: {
+            id: string;
+        };
+        FeedbackBody: {
+            message: string;
+            page: string;
+            /** Format: uuid */
+            replaySessionId?: string;
         };
     };
     responses: never;

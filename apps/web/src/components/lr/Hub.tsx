@@ -21,8 +21,11 @@ const COPY = {
   reading: { title: 'Reading', lede: 'Three passages, 40 questions, 60 minutes. Highlight the passage as you read, flag what to revisit.', icon: BookOpen },
 };
 
+/** Natural order: "Test 9" before "Test 10". */
+const byTitle = (a: Item, b: Item) => a.title.localeCompare(b.title, undefined, { numeric: true });
+
 /** Cambridge tests are grouped by book, newest first; our own tests sit under one heading. */
-function groups(items: Item[]) {
+export function groups(items: Item[]) {
   const books = new Map<number, Item[]>();
   const own: Item[] = [];
   const other: Item[] = [];
@@ -32,8 +35,8 @@ function groups(items: Item[]) {
     else (t.source === 'cambridge' ? other : own).push(t);
   }
   const out = [...books].sort((a, b) => b[0] - a[0]).map(([book, ts]) => ({ key: `c${book}`, heading: `Cambridge IELTS ${book}`, tests: ts.sort((a, b) => parseRef(a.ref)!.test - parseRef(b.ref)!.test) }));
-  if (other.length) out.push({ key: 'c', heading: 'Cambridge IELTS', tests: other });
-  if (own.length) out.push({ key: 'own', heading: 'Original practice tests', tests: own });
+  if (other.length) out.push({ key: 'c', heading: 'Cambridge IELTS', tests: other.sort(byTitle) });
+  if (own.length) out.push({ key: 'own', heading: 'Original practice tests', tests: own.sort(byTitle) });
   return out;
 }
 

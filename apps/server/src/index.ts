@@ -3,9 +3,11 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createApp } from './app';
+import { loadCambridgeGrants } from './auth';
 import { env } from './env';
 import { purgeGuests, recoverStale } from './jobs';
 import { attachLiveRelay } from './routes/live-ws';
+import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
 const app = createApp();
@@ -33,5 +35,11 @@ setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become sta
 const purge = () => purgeGuests().catch((e) => console.error('purgeGuests failed', e));
 void purge();
 setInterval(purge, 6 * 3_600_000).unref();
+const purgeRec = () => purgeReplays().catch((e) => console.error('purgeReplays failed', e));
+void purgeRec();
+setInterval(purgeRec, 24 * 3_600_000).unref();
+const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
+await grants();
+setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute
 const server = serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
 injectWebSocket(server);

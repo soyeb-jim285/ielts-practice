@@ -121,7 +121,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [mark, partIdx, selected]);
+  }, [mark, partIdx, selected, tab]);
   const play = (n: number) => {
     const f = flat.find((x) => x.n === n);
     const s = test.sections.find((x) => x.part === f?.part);

@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { analyseAttempt, lrTypeLabel, maskWord, pickParts, scoreLr, stripAnswers, tfngPattern, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
 import { and, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { currentUser, isCambridgeAllowed, requireUser } from '../auth';
+import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { cards, lrAttempts, lrTests } from '../db/schema';
 import { lrSaveLimit } from '../ratelimit';
@@ -184,11 +184,13 @@ async function assetUrls(test: LrTest) {
   return Object.fromEntries(await Promise.all([...keys].map(async (k) => [k, await storage.presignGet(lrAssetKey(k), 6 * 3600)] as const)));
 }
 
-async function ownAttempt(id: string, user: { id: string; email: string; emailVerified: boolean }) {
-  const a = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.id, id), eq(lrAttempts.userId, user.id)) });
+/** `readAny`: the owner (admin area) may open anyone's attempt; only GET passes it, every write stays own-rows-only. */
+async function ownAttempt(id: string, user: { id: string; email: string; emailVerified: boolean; isAnonymous?: boolean }, readAny = false) {
+  const any = readAny && isOwner(user);
+  const a = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.id, id), any ? undefined : eq(lrAttempts.userId, user.id)) });
   if (!a) throw new HTTPException(404, { message: 'Attempt not found' });
   const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, a.testId) });
-  if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
+  if (!t || (!any && !canOpen(t, user))) throw new HTTPException(404, { message: 'Test not found' });
   return { a, t };
 }
 
@@ -360,7 +362,7 @@ export function register(app: App) {
       responses: { 200: json(AttemptSchema, 'Attempt'), ...errors },
     }),
     async (c) => {
-      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c));
+      const { a, t } = await ownAttempt(c.req.valid('param').id, currentUser(c), true);
       return c.json(await toAttempt(a, t), 200);
     },
   );

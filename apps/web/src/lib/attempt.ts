@@ -31,6 +31,8 @@ export type Attempt = {
   stage?: AnalysisStage | null;
   partial?: AnalysisPartial | null;
   createdAt: string;
+  /** Every top fix is already in the review deck. */
+  topFixesInDeck?: boolean;
   analysis: AnalysisResult | null;
   prompt: {
     id: string;

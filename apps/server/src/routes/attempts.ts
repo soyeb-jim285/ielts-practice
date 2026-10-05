@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { and, count, desc, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { visiblePromptWhere } from '../access';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { analyses, attempts, prompts } from '../db/schema';
 import { ApiError } from '../errors';
@@ -144,6 +144,9 @@ async function ownAttempt(id: string, userId: string) {
   return a;
 }
 
+/** Read-only lookup: the owner may open anyone's attempt (admin area); everyone else only their own. Writes keep using ownAttempt. */
+const viewAttempt = (id: string, user: Parameters<typeof isOwner>[0] & { id: string }) => (isOwner(user) ? db.query.attempts.findFirst({ where: eq(attempts.id, id) }).then((a) => a ?? Promise.reject(new HTTPException(404, { message: 'Attempt not found' }))) : ownAttempt(id, user.id));
+
 export function register(app: App) {
   app.openapi(
     createRoute({
@@ -240,7 +243,7 @@ export function register(app: App) {
       responses: { 200: json(AttemptStatusSchema, 'Status'), ...notFound },
     }),
     async (c) => {
-      const a = await ownAttempt(c.req.valid('param').id, currentUser(c).id);
+      const a = await viewAttempt(c.req.valid('param').id, currentUser(c));
       return c.json({ status: a.status, stage: a.status === 'analyzing' ? a.stage : null, error: a.error, retryable: a.errorRetryable }, 200);
     },
   );
@@ -256,8 +259,8 @@ export function register(app: App) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const uid = currentUser(c).id;
-      const a = await ownAttempt(id, uid);
+      const a = await viewAttempt(id, currentUser(c));
+      const uid = a.userId; // the owner viewing another user's result sees that user's deck state
       const [p, an] = await Promise.all([
         db.query.prompts.findFirst({ where: eq(prompts.id, a.promptId) }),
         db.query.analyses.findFirst({ where: eq(analyses.attemptId, id), columns: { result: true, models: true } }),

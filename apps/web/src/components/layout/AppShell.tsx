@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -19,13 +19,13 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/shadcn/sidebar';
-import { signOut } from '@/lib/auth';
+import { signOut, useIsOwner } from '@/lib/auth';
 import { BalanceMeter } from '@/components/community/BalanceMeter';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { Logo, LogoMark } from './Logo';
 
-type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings'; label: string; short?: string; icon: LucideIcon };
+type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings' | '/admin'; label: string; short?: string; icon: LucideIcon };
 
 const DASHBOARD: NavItem = { to: '/', label: 'Dashboard', short: 'Home', icon: House };
 const SPEAKING: NavItem = { to: '/speaking', label: 'Speaking', short: 'Speak', icon: Mic };
@@ -37,6 +37,7 @@ const MISTAKES: NavItem = { to: '/mistakes', label: 'Mistakes', icon: TriangleAl
 const REVIEW: NavItem = { to: '/review', label: 'Review', icon: Layers };
 const HISTORY: NavItem = { to: '/history', label: 'History', icon: History };
 const SETTINGS: NavItem = { to: '/settings', label: 'Settings', icon: Settings };
+const ADMIN: NavItem = { to: '/admin', label: 'Admin', icon: ShieldCheck }; // owner only (me.isOwner)
 
 /** Sidebar groups: the dashboard on its own, then practise, then look back. Settings sits with the account at the bottom. */
 const GROUPS: { label?: string; items: NavItem[] }[] = [
@@ -182,6 +183,8 @@ function SidebarBalance() {
 function AppSidebar() {
   const me = useAccount();
   const signedIn = !!me;
+  const owner = useIsOwner();
+  const { state } = useSidebar();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-3 pb-1">
@@ -208,9 +211,15 @@ function AppSidebar() {
         {signedIn && (
           <SidebarMenu>
             <SideLink item={SETTINGS} />
+            {owner && <SideLink item={ADMIN} />}
           </SidebarMenu>
         )}
         <UserMenu />
+        {state !== 'collapsed' && (
+          <Link to="/privacy" className="px-2 text-caption text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            Privacy
+          </Link>
+        )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
@@ -239,7 +248,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const backTo = useBackTo();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // On a page that lives under More, the tab takes that page's icon and name so the bar still says where you are.
-  const here = MORE.find((n) => isCurrent(pathname, n.to));
+  const owner = useIsOwner();
+  const moreItems = owner ? [...MORE, ADMIN] : MORE;
+  const here = moreItems.find((n) => isCurrent(pathname, n.to));
   const MoreIcon = here?.icon ?? Ellipsis;
 
   return (
@@ -280,7 +291,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={more} onClose={() => setMore(false)} returnFocusRef={moreButton} title="More" description={me?.user.email ?? 'Browsing as a guest'}>
         <nav aria-label="More" className="-mx-2 space-y-0.5">
-          {(me ? MORE : [LISTENING, READING, BANK]).map((n) => { // a visitor's pages under More are the open hubs and the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
+          {(me ? moreItems : [LISTENING, READING, BANK]).map((n) => { // a visitor's pages under More are the open hubs and the prompt bank; the sidebar buttons stay secondary so a page's own CTA is the one primary
             const Icon = n.icon;
             return (
               <Link
@@ -295,6 +306,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        <Link to="/privacy" onClick={() => setMore(false)} className="mt-2 inline-block px-1 text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          Privacy
+        </Link>
         <Separator className="my-4" />
         <BalanceMeter className="mb-4" />
         {me ? (

@@ -63,7 +63,7 @@ function KeyRow({ provider, info }: { provider: Provider; info?: KeyInfo }) {
   };
 
   return (
-    <div className="py-5 first:pt-0 last:pb-0">
+    <div className="py-5 first:pt-0 last:pb-0" data-replay-block>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 className="text-sm font-medium">
           {p.name} <span className="font-normal text-muted">· {p.unlocks}</span>

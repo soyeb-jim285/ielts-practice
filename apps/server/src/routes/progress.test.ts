@@ -100,7 +100,7 @@ describe('mistakes + cards', () => {
     expect((await body(await req('/api/cards/due', { headers }))).total).toBe(3);
 
     const g1 = await body(await req(`/api/cards/${card.id}/review`, { headers, body: { grade: 4 } }));
-    expect(g1.interval).toBe(1); // first successful review: SM-2 day 1
+    expect(g1.interval).toBe(3); // first Good review: 3 days
     const g2 = await body(await req(`/api/cards/${card.id}/review`, { headers, body: { grade: 4 } }));
     expect(g2.interval).toBe(6);
     expect(Date.parse(g2.due)).toBeGreaterThan(Date.now() + 5 * DAY);

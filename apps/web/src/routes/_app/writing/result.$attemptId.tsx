@@ -3,7 +3,7 @@ import type { AnalysisResult } from '@server/ai/types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { ArrowLeft, BookmarkPlus, FileText, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookmarkCheck, BookmarkPlus, FileText, RotateCcw } from 'lucide-react';
 import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
 import { Alert, Badge, Button, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, toast } from '@/components/ui';
@@ -124,7 +124,7 @@ function ResultPage() {
       ) : !r ? (
         <FailedState attemptId={a.id} message={a.error} retryable={a.retryable} />
       ) : (
-        <Done a={a} r={r} offTopic={offTopic} under={under} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true })} />
+        <Done a={a} r={r} offTopic={offTopic} under={under} tab={tab} target={target} setTab={(t) => void navigate({ search: (s) => ({ ...s, tab: t }), replace: true, resetScroll: false })} />
       )}
     </PageContainer>
   );
@@ -229,6 +229,7 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
     onSuccess: () => toast('Fixes added to your review deck', { tone: 'good' }),
     onError: (e) => toast(e.message, { tone: 'bad' }),
   });
+  const added = !!a.topFixesInDeck || addFixes.isSuccess;
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -236,8 +237,8 @@ function Improve({ a, r, text }: { a: Attempt; r: AnalysisResult; text: string }
           <RotateCcw aria-hidden /> Retry this prompt
         </Link>
         {r.topFixes.length > 0 && (
-          <Button variant="outline" icon={<BookmarkPlus />} loading={addFixes.isPending} disabled={addFixes.isSuccess} onClick={() => addFixes.mutate()}>
-            {addFixes.isSuccess ? 'Fixes in your deck' : 'Add top fixes to review deck'}
+          <Button variant="outline" icon={added ? <BookmarkCheck /> : <BookmarkPlus />} loading={addFixes.isPending} disabled={added} onClick={() => addFixes.mutate()}>
+            {added ? 'Added to review deck' : 'Add top fixes to review deck'}
           </Button>
         )}
       </div>

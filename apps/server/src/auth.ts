@@ -11,6 +11,7 @@ import { sendOtpEmail } from './auth-email';
 import { sendEmail } from './email';
 import { ApiError } from './errors';
 import { linkGuest } from './link';
+import { replayPrefix } from './replay';
 import { storage } from './storage';
 import type { AppEnv } from './types';
 
@@ -59,6 +60,9 @@ export const auth = betterAuth({
         const sessions = await db.select({ id: schema.liveSessions.id }).from(schema.liveSessions).where(eq(schema.liveSessions.userId, u.id));
         await storage.deletePrefix(`audio/${u.id}/`);
         for (const { id } of sessions) await storage.deletePrefix(`live/${id}/`);
+        const replays = await db.select().from(schema.replaySessions).where(eq(schema.replaySessions.userId, u.id));
+        for (const r of replays) await storage.deletePrefix(replayPrefix(r));
+        await db.delete(schema.replaySessions).where(eq(schema.replaySessions.userId, u.id));
       },
     },
   },
@@ -83,10 +87,33 @@ export const auth = betterAuth({
 /** The app owner: always an owner (Cambridge access, no test limits, server keys for live), whatever CAMBRIDGE_ALLOWED_EMAILS says. */
 export const OWNER_EMAILS = ['soyeb.jim@gmail.com'];
 
-/** Cambridge content is licensed to specific owners: allow-listed (or the hard-coded owner) AND verified email (prevents sign-up spoofing).
+// Emails granted Cambridge access from the admin UI (cambridge_access table). isCambridgeAllowed stays synchronous, so the table is cached here.
+// ponytail: per-process; boot loads it and index.ts reloads every minute, so another process's toggle is honoured within a minute.
+let granted = new Set<string>();
+export async function loadCambridgeGrants() {
+  granted = new Set((await db.select({ email: schema.cambridgeAccess.email }).from(schema.cambridgeAccess)).map((r) => r.email));
+}
+export const setCambridgeGrant = (email: string, on: boolean) => void (on ? granted.add(email.toLowerCase()) : granted.delete(email.toLowerCase()));
+
+export type CambridgeSource = 'owner' | 'server-config' | 'granted' | null;
+export const cambridgeSource = (email: string): CambridgeSource => {
+  const e = email.toLowerCase();
+  return OWNER_EMAILS.includes(e) ? 'owner' : env.CAMBRIDGE_ALLOWED_EMAILS.includes(e) ? 'server-config' : granted.has(e) ? 'granted' : null;
+};
+
+/** Cambridge content is licensed to specific owners: allow-listed (hard-coded owner, env list or admin grant) AND verified email (prevents sign-up spoofing).
  *  Also the "owner" flag in quota.ts: exempt from test limits. */
-export const isCambridgeAllowed = (u: { email: string; emailVerified: boolean } | null | undefined) =>
-  !!u && u.emailVerified && (OWNER_EMAILS.includes(u.email.toLowerCase()) || env.CAMBRIDGE_ALLOWED_EMAILS.includes(u.email.toLowerCase()));
+export const isCambridgeAllowed = (u: { email: string; emailVerified: boolean } | null | undefined) => !!u && u.emailVerified && cambridgeSource(u.email) !== null;
+
+/** The signed-in, verified, non-guest owner (docs/admin/DESIGN.md). */
+export const isOwner = (u: { email: string; emailVerified: boolean; isAnonymous?: boolean } | null | undefined) =>
+  !!u && !u.isAnonymous && u.emailVerified && OWNER_EMAILS.includes(u.email.toLowerCase());
+
+/** Admin endpoints: 404 for everyone but the owner, so the area is invisible. */
+export const requireOwner = createMiddleware<AppEnv>(async (c, next) => {
+  if (!isOwner(c.get('user'))) throw new HTTPException(404, { message: 'Not found' });
+  await next();
+});
 
 // Bearer (iOS) has no cookie cache: keep token → user for 30 s.
 // ponytail: per-process, cleared wholesale on any session-ending auth call (see app.ts); other processes may honour a revoked token for up to 30 s.

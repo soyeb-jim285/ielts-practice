@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { redirect } from '@tanstack/react-router';
-import { ApiError } from './api';
-import { isAccount, meQuery, queryClient } from './query';
+import { ApiError, type Me } from './api';
+import { isAccount, meQuery, queryClient, useMe } from './query';
 
 export type EmailStatus = { status: 'sent' | 'failed' | 'none'; sentAt: string | null; maskedEmail: string | null; resendAvailableIn: number; alreadySent: boolean; error: 'rate_limited' | 'rejected' | 'network' | 'unavailable' | null };
 
@@ -88,3 +88,7 @@ export async function ensureSession() {
 
 /** After a sign-in or sign-up: the guest's tests now count on the account, so every cached answer about who you are and what you may do is stale. */
 export const refreshSession = () => queryClient.removeQueries({ predicate: (q) => ['me', 'quota', 'keys', 'attempts', 'attempt'].includes(String(q.queryKey[0])) });
+
+/** The site owner (me.isOwner): the only one who sees the Admin area. */
+// ponytail: the cast goes when schema.d.ts is regenerated (pnpm gen:api) and Me carries isOwner.
+export const useIsOwner = () => !!(useMe().data as (Me & { isOwner?: boolean }) | null | undefined)?.isOwner;

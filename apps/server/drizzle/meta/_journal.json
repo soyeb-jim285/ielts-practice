@@ -78,6 +78,13 @@
       "when": 1791071258714,
       "tag": "0010_lr_parts",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791208109072,
+      "tag": "0011_admin",
+      "breakpoints": true
     }
   ]
 }

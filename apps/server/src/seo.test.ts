@@ -23,3 +23,10 @@ it('inserts a hostile path literally: no $-pattern expansion, no markup', () => 
   expect(html.match(/<p>after<\/p>/g)).toHaveLength(1);
   expect(html).toContain('href="https://ielts.example/x$&#39;$`&quot;&lt;script&gt;&#39;"');
 });
+
+it('titles the privacy page and keeps /admin noindex', () => {
+  expect(renderShell(shell, '/privacy', 'https://ielts.example')).toContain('<title>Privacy policy | IELTS Practice</title>');
+  const admin = renderShell(shell, '/admin/users', 'https://ielts.example');
+  expect(admin).toContain('<title>Admin | IELTS Practice</title>');
+  expect(admin).toContain('content="noindex, follow"');
+});

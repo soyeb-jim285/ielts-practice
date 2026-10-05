@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Schemas } from '@/lib/api';
-import { StartDialog } from './Hub';
+import { groups, StartDialog } from './Hub';
 
 afterEach(cleanup);
 // jsdom has no ResizeObserver (Segmented measures its thumb)
@@ -36,5 +36,12 @@ describe('StartDialog', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(2 + 5);
     fireEvent.click(screen.getByRole('button', { name: 'Start exam test' }));
     expect(p.onStart).toHaveBeenCalledWith('exam', null);
+  });
+});
+
+describe('groups', () => {
+  it('sorts own tests naturally: Test 9 before Test 10', () => {
+    const t = (title: string) => ({ ...base, id: title, title });
+    expect(groups([t('Reading 10'), t('Reading 9'), t('Reading 1')])[0]!.tests.map((x) => x.title)).toEqual(['Reading 1', 'Reading 9', 'Reading 10']);
   });
 });

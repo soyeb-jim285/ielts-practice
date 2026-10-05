@@ -10,7 +10,10 @@ import * as mistakes from './mistakes';
 import * as cards from './cards';
 import * as community from './community';
 import * as lr from './lr';
+import * as admin from '../admin';
+import * as replay from './replay';
+import * as feedback from './feedback';
 
 export function registerRoutes(app: App) {
-  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards, community, lr]) m.register(app);
+  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards, community, lr, admin, replay, feedback]) m.register(app);
 }

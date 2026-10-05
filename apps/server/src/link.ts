@@ -2,12 +2,16 @@
 // The plugin deletes the anonymous user right after, which would cascade-delete these rows.
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { attempts, cards, liveSessions, lrAttempts, mistakes, quotaUsage } from './db/schema';
+import { attempts, cards, feedback, guestConversions, liveSessions, lrAttempts, mistakes, quotaUsage, replaySessions, user } from './db/schema';
 import { storage } from './storage';
 
 export async function linkGuest(anonId: string, newId: string) {
   if (anonId === newId) return;
   const moved = await db.transaction(async (tx) => {
+    const guest = await tx.query.user.findFirst({ where: eq(user.id, anonId), columns: { createdAt: true } });
+    if (guest) await tx.insert(guestConversions).values({ guestId: anonId, userId: newId, guestCreatedAt: guest.createdAt }).onConflictDoNothing(); // the guest row is deleted right after: this is its only trace
+    await tx.update(replaySessions).set({ userId: newId }).where(eq(replaySessions.userId, anonId));
+    await tx.update(feedback).set({ userId: newId }).where(eq(feedback.userId, anonId));
     // Used tests move too, with their IP hash: the guest's test still counts in today's window and in the IP's weekly cap.
     await tx.update(quotaUsage).set({ userId: newId }).where(eq(quotaUsage.userId, anonId));
     await tx.update(liveSessions).set({ userId: newId }).where(eq(liveSessions.userId, anonId));

@@ -217,7 +217,7 @@ function Panel({ tab, a, timeline, target, audio, retry, parentLink, off, lean, 
     case 'language':
       return <LanguagePanel result={r} audio={audio} lean={lean} onLean={onLean} />;
     case 'improve':
-      return <ImprovePanel result={r} retry={retry} />;
+      return <ImprovePanel result={r} retry={retry} inDeck={!!a.topFixesInDeck} />;
   }
 }
 

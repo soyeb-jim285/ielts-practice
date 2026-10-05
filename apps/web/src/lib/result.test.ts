@@ -139,6 +139,17 @@ describe('offTopicAnswers', () => {
   });
 });
 
+describe('speechStats counts', () => {
+  it('Repetitions and Self-corrections come from the fused events, like the breakdown cards', () => {
+    const ev = (kind: 'repetition' | 'repair', start: number) => ({ kind, start, end: start, sources: ['audio' as const] });
+    const m = { ...metrics(), fluency: { events: [ev('repetition', 1), ev('repetition', 2), ev('repair', 3)] } } as SpeechMetrics;
+    const val = (k: string) => speechStats(m).find((s) => s.key === k)!.value;
+    expect([val('reps'), val('self')]).toEqual(['2', '1']);
+    const cards = disfluencyTypes(m);
+    expect([cards.find((c) => c.kind === 'repetition')!.count, cards.find((c) => c.kind === 'repair')!.count]).toEqual([2, 1]);
+  });
+});
+
 describe('disfluencies', () => {
   const words = ['he', 'go', 'um', 'he', 'goes', 'to', 'the', 'the', 'shop'].map((w, i) => ({ w, start: i, end: i + 0.9 }));
   const m = metrics({

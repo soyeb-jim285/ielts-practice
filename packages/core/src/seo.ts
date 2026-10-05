@@ -46,6 +46,11 @@ const PAGES: Record<string, Omit<PageMeta, 'index'>> = {
     image: '/og/home.png',
   },
   '/signup': { title: `Create your free account | ${SITE_NAME}`, description: DEFAULT.description, image: DEFAULT.image },
+  '/privacy': {
+    title: `Privacy policy | ${SITE_NAME}`,
+    description: 'What IELTS Practice collects, how session recording works, who sees it, and how long it is kept.',
+    image: DEFAULT.image,
+  },
   '/login': { title: `Sign in | ${SITE_NAME}`, description: DEFAULT.description, image: DEFAULT.image },
 };
 
@@ -60,6 +65,7 @@ const NOINDEX_TITLES: [RegExp, string][] = [
   [/^\/review/, 'Review cards'],
   [/^\/mistakes/, 'Mistakes'],
   [/^\/settings/, 'Settings'],
+  [/^\/admin/, 'Admin'],
   [/^\/(forgot|reset)-password/, 'Reset password'],
 ];
 

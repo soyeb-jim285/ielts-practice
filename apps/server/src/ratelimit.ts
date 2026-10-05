@@ -55,3 +55,12 @@ export const codeRequestOk = (ipHash: string) => take(ipBuckets, `code-ip:${ipHa
 
 /** Code checks (verify-email, reset-password, ...) per client address, on top of the per-email wrong-code budget. A person types a code a few times; 20 at once, then 1 per 6 s. */
 export const codeCheckOk = (ipHash: string) => take(ipBuckets, `code-check:${ipHash}`, 20, 6_000);
+
+/** Replay chunk uploads per account: a recorder flushes every 10 s, so 12 at once + 1 per 5 s never blocks a real tab. `key` is the user id. */
+export const replayChunkOk = (key: string) => take(ipBuckets, `replay:${key}`, 12, 5_000);
+
+/** The same uploads per client address, a looser net over many accounts (a school or office shares one): 200 at once, then 1 per second. */
+export const replayIpOk = (ipHash: string) => take(ipBuckets, `replay-ip:${ipHash}`, 200, 1_000);
+
+/** "Report a problem" posts per client address: 5, then 1 per 10 min. */
+export const feedbackOk = (key: string) => take(ipBuckets, `feedback:${key}`, 5, 600_000);

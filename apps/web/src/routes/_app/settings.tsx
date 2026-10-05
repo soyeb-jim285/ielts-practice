@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, LogOut, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -8,7 +8,7 @@ import { LiveProvider } from '@/components/settings/LiveProvider';
 import { DEFAULT_MODELS, ModelPicker, TtsPicker, useModels } from '@/components/settings/ModelPicker';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
-import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
+import { Alert, Button, buttonStyles, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
 import { authClient, signOut } from '@/lib/auth';
 import type { Settings } from '@/lib/api';
 import { useAccount, useMe } from '@/lib/query';
@@ -185,6 +185,11 @@ function Account({ email }: { email: string }) {
           <Button variant="outline" icon={<LogOut />} onClick={out}>
             Sign out
           </Button>
+        </InlineRow>
+        <InlineRow title="Privacy policy" description="What we collect, including session recording, and how long we keep it.">
+          <Link to="/privacy" className={buttonStyles({ variant: 'outline' })}>
+            Read
+          </Link>
         </InlineRow>
       </Section>
       <Section title="Danger zone" description="Permanent actions.">
