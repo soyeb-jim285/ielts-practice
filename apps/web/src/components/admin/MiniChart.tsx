@@ -16,7 +16,9 @@ const pointer = (e: React.PointerEvent<SVGSVGElement>, n: number) => {
 /** Hidden data table behind every chart, for screen readers. */
 function DataTableSr({ labels, series, fmt = String }: { labels: string[]; series: Series[]; fmt?: (n: number) => string }) {
   return (
-    <table className="sr-only">
+    // the wrapper hides it: a table's <caption> escapes sr-only on the table itself and paints on screen
+    <div className="sr-only">
+    <table>
       <caption>Chart data</caption>
       <thead>
         <tr>
@@ -39,6 +41,7 @@ function DataTableSr({ labels, series, fmt = String }: { labels: string[]; serie
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

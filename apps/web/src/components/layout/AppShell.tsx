@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -20,6 +20,7 @@ import {
   useSidebar,
 } from '@/components/ui/shadcn/sidebar';
 import { signOut, useIsOwner } from '@/lib/auth';
+import { ADMIN_ITEMS, Marker, useAdminNav } from '@/components/admin/AdminNav';
 import { BalanceMeter } from '@/components/community/BalanceMeter';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
@@ -180,18 +181,52 @@ function SidebarBalance() {
   );
 }
 
+/** On /admin the sidebar is the admin's own nav (one sidebar, not the app's plus a second rail), with a way back to the app. */
+function AdminSideNav() {
+  const { marks, current } = useAdminNav();
+  return (
+    <nav aria-label="Admin">
+      <SidebarGroup className="px-0 py-1.5">
+        <SidebarMenu className="gap-0.5">
+          <SideLink item={{ ...DASHBOARD, label: 'Back to app', icon: ArrowLeft }} />
+        </SidebarMenu>
+      </SidebarGroup>
+      <SidebarGroup className="px-0 py-1.5">
+        <SidebarGroupLabel className="h-7 px-2 text-caption font-medium">Admin</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-0.5">
+            {ADMIN_ITEMS.map((t) => (
+              <SidebarMenuItem key={t.to}>
+                <SidebarMenuButton asChild isActive={current === t.to} tooltip={t.label} className={rowClass}>
+                  <Link to={t.to} aria-current={current === t.to ? 'page' : undefined}>
+                    <t.icon />
+                    <span>{t.label}</span>
+                    <Marker m={marks[t.to] ?? {}} />
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </nav>
+  );
+}
+
 function AppSidebar() {
   const me = useAccount();
   const signedIn = !!me;
   const owner = useIsOwner();
   const { state } = useSidebar();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const inAdmin = owner && isCurrent(pathname, '/admin');
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-3 pb-1">
         <SidebarTop />
       </SidebarHeader>
       <SidebarContent className="gap-0 px-2">
-        <nav aria-label="Main">
+        {inAdmin ? <AdminSideNav /> : <nav aria-label="Main">
           {GROUPS.map((g, i) => (
             <SidebarGroup key={i} className="px-0 py-1.5">
               {g.label && <SidebarGroupLabel className="h-7 px-2 text-caption font-medium">{g.label}</SidebarGroupLabel>}
@@ -204,14 +239,14 @@ function AppSidebar() {
               </SidebarGroupContent>
             </SidebarGroup>
           ))}
-        </nav>
+        </nav>}
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
         <SidebarBalance />
         {signedIn && (
           <SidebarMenu>
             <SideLink item={SETTINGS} />
-            {owner && <SideLink item={ADMIN} />}
+            {owner && !inAdmin && <SideLink item={ADMIN} />}
           </SidebarMenu>
         )}
         <UserMenu />
@@ -262,7 +297,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppSidebar />
 
       <SidebarInset id="main" className="min-w-0">
-        <div className="mx-auto w-full max-w-[1080px] [--gutter:1rem] px-(--gutter) pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:[--gutter:1.5rem] md:[--gutter:2.5rem] md:pt-10 md:pb-16">{children}</div>
+        <div className={cn('mx-auto w-full [--gutter:1rem] px-(--gutter) pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:[--gutter:1.5rem] md:[--gutter:2.5rem] md:pt-10 md:pb-16', isCurrent(pathname, '/admin') ? 'max-w-[1320px]' : 'max-w-[1080px]')}>{children}</div>
       </SidebarInset>
 
       {/* Mobile tab bar */}

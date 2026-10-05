@@ -151,7 +151,10 @@ export function isCorrect(given: string, accepted: string[]): boolean {
   if (!g) return false;
   // short forms (t/f/ng…) only where the key is a TRUE/FALSE/YES/NO/NOT GIVEN word, so option letter F stays F
   if (accepted.some((a) => /^(true|false|yes|no|not given)$/i.test(a.trim()))) g = TFNG[g] ?? g;
-  return accepted.some((a) => expandAnswer(a).includes(g));
+  // a number written in groups or not ("0412 665 903" = "0412665903") is the same answer
+  const digits = (s: string) => (/^[\d ]+$/.test(s) ? s.replace(/ /g, '') : s);
+  g = digits(g);
+  return accepted.some((a) => expandAnswer(a).some((x) => digits(x) === g));
 }
 
 export function scoreLr(test: LrTest, responses: LrResponses): LrScore {

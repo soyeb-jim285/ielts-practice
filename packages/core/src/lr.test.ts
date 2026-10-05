@@ -23,6 +23,10 @@ describe('answer matching', () => {
     ['2nd floor', ['second floor'], true],
     ['5', ['four'], false],
     ['f', ['FALSE'], true],
+    ['0412665903', ['0412 665 903'], true],
+    ['0412 665 903', ['0412665903'], true],
+    ['0412 665 904', ['0412 665 903'], false],
+    ['b 12', ['b12'], false],
   ])('%s vs %j → %s', (g, a, ok) => expect(isCorrect(g, a)).toBe(ok));
 });
 
