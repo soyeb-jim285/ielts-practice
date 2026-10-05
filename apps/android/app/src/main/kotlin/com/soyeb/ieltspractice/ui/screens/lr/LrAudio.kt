@@ -306,6 +306,8 @@ class ExamPlaylist(private val urls: List<String>, private val startElapsed: Dou
 
     val total: Double get() = durations?.sum() ?: 0.0
     val reviewLeft: Int get() = max(0, ceil(LISTENING_REVIEW_SECONDS - (elapsed - total)).toInt())
+    /** Whole sitting left: rest of the recording plus the review window. */
+    val timeLeft: Int get() = max(0, ceil(total + LISTENING_REVIEW_SECONDS - elapsed).toInt())
     private fun starts(): List<Double> = durations.orEmpty().runningFold(0.0) { a, d -> a + d }
 
     fun attach(context: Context) {
@@ -375,11 +377,16 @@ fun ExamAudioBar(p: ExamPlaylist, modifier: Modifier = Modifier, parts: List<Int
                 if (p.phase == ExamPhase.Review) "Recording finished. Check your answers." else if (parts != null) "Part ${parts.getOrNull(p.idx) ?: (p.idx + 1)} is playing" else "Part ${p.idx + 1} of ${p.durations?.size ?: 4} is playing",
                 style = MaterialTheme.typography.titleSmall, color = e.ink,
             )
-            LinearProgressIndicator(
-                progress = { if (p.total > 0) (p.elapsed / p.total).toFloat().coerceIn(0f, 1f) else 0f },
-                Modifier.fillMaxWidth().semantics { contentDescription = "Recording progress" },
-                color = e.brand, trackColor = e.surface2,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LinearProgressIndicator(
+                    progress = { if (p.total > 0) (p.elapsed / p.total).toFloat().coerceIn(0f, 1f) else 0f },
+                    Modifier.weight(1f).semantics { contentDescription = "Recording progress" },
+                    color = e.brand, trackColor = e.surface2,
+                )
+                if (p.total > 0 && p.phase != ExamPhase.Review) {
+                    Text("${clock(minOf(p.elapsed, p.total).toInt())} / ${clock(p.total.toInt())}", style = MaterialTheme.typography.labelSmall, color = e.muted)
+                }
+            }
         }
         if (p.stalled && p.phase == ExamPhase.Audio) SecondaryButton("Resume audio", p::resume)
     }

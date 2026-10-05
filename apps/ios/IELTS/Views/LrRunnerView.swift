@@ -187,7 +187,10 @@ private struct LrRunnerBody: View {
 
     @ViewBuilder private var clock: some View {
         if examListening {
-            if let pl = playlist, pl.phase == .review { LrReviewPill(playlist: pl) }
+            if let pl = playlist {
+                if pl.phase == .review { LrReviewPill(playlist: pl) }
+                else if pl.total > 0 { LrClockPill(seconds: pl.timeLeft, countdown: true, label: "Time left") }
+            }
         } else {
             LrWallClock(session: session, countdown: exam ? Lr.readingLimit(attempt.parts) : nil) { Task { await submit() } }
         }
@@ -465,7 +468,13 @@ private struct LrExamBar: View {
                     .font(.subheadline.weight(.medium).monospacedDigit()).foregroundStyle(Color.ink)
                 Spacer(minLength: 0)
             }
-            ProgressView(value: playlist.total > 0 ? min(1, playlist.elapsed / playlist.total) : 0).tint(.brand).accessibilityLabel("Recording progress")
+            HStack(spacing: 12) {
+                ProgressView(value: playlist.total > 0 ? min(1, playlist.elapsed / playlist.total) : 0).tint(.brand).accessibilityLabel("Recording progress")
+                if playlist.total > 0 && playlist.phase != .review {
+                    Text("\(clock(Int(min(playlist.elapsed, playlist.total)))) / \(clock(Int(playlist.total)))")
+                        .font(.caption.monospacedDigit()).foregroundStyle(Color.muted).fixedSize()
+                }
+            }
             if playlist.stalled && playlist.phase == .audio {
                 Button("Resume audio") { playlist.resume() }.primaryButton().controlSize(.regular)
             }

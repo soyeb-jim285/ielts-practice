@@ -215,7 +215,10 @@ private fun LrRunner(attempt: LrAttempt, nav: AppNav) {
         if (exam) "Exam" else "Practice", Modifier.imePadding(), onBack = { if (exam) leave = true else exit() }, scroll = false,
         actions = {
             SaveIndicator(session.state)
-            if (examListening) { if (playlist.phase == ExamPhase.Review) ClockPill(playlist.reviewLeft, true, "Review time left") }
+            if (examListening) {
+                if (playlist.phase == ExamPhase.Review) ClockPill(playlist.reviewLeft, true, "Review time left")
+                else if (playlist.total > 0) ClockPill(playlist.timeLeft, true, "Time left")
+            }
             else if (exam) ClockPill(readingLeft.coerceAtLeast(0), true, "Time left")
             else ClockPill(wall.toInt(), false, "Time spent")
             PrimaryButton("Submit", { confirm = true }, Modifier.padding(start = 6.dp, end = 8.dp), enabled = started)

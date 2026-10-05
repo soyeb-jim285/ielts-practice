@@ -157,6 +157,8 @@ final class LrExamPlaylist {
     private var starts: [Double] { (durations ?? []).reduce(into: [0]) { $0.append($0.last! + $1) } }
     var total: Double { starts.last ?? 0 }
     var reviewLeft: Int { max(0, Int((Double(Lr.listeningReviewSeconds) - (elapsed - total)).rounded(.up))) }
+    /// Whole sitting left: rest of the recording plus the review window.
+    var timeLeft: Int { max(0, Int((total + Double(Lr.listeningReviewSeconds) - elapsed).rounded(.up))) }
     var finishedReview: Bool { phase == .review && reviewLeft == 0 }
 
     func start() {
