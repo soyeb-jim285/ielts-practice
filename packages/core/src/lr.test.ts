@@ -26,7 +26,16 @@ describe('answer matching', () => {
     ['0412665903', ['0412 665 903'], true],
     ['0412 665 903', ['0412665903'], true],
     ['0412 665 904', ['0412 665 903'], false],
-    ['b 12', ['b12'], false],
+    ['b 12', ['b12'], true],
+    ['AC936', ['AC 936'], true],
+    ['AC 937', ['AC 936'], false],
+    ['flat 6', ['flat6'], false],
+    ['city center', ['city centre'], true],
+    ['colour', ['color'], true],
+    ['organized', ['organised'], true],
+    ['analyze', ['analyse'], true],
+    ['size', ['seize'], false],
+    ['water', ['waiter'], false],
   ])('%s vs %j → %s', (g, a, ok) => expect(isCorrect(g, a)).toBe(ok));
 });
 

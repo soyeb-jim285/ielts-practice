@@ -151,10 +151,22 @@ export function isCorrect(given: string, accepted: string[]): boolean {
   if (!g) return false;
   // short forms (t/f/ng…) only where the key is a TRUE/FALSE/YES/NO/NOT GIVEN word, so option letter F stays F
   if (accepted.some((a) => /^(true|false|yes|no|not given)$/i.test(a.trim()))) g = TFNG[g] ?? g;
-  // a number written in groups or not ("0412 665 903" = "0412665903") is the same answer
-  const digits = (s: string) => (/^[\d ]+$/.test(s) ? s.replace(/ /g, '') : s);
-  g = digits(g);
-  return accepted.some((a) => expandAnswer(a).some((x) => digits(x) === g));
+  g = sameForm(g);
+  return accepted.some((a) => expandAnswer(a).some((x) => sameForm(x) === g));
+}
+
+// IELTS accepts British and American spelling; both sides are compared in the British form.
+const US_UK: Record<string, string> = {
+  center: 'centre', centers: 'centres', theater: 'theatre', theaters: 'theatres', meter: 'metre', meters: 'metres', liter: 'litre', liters: 'litres', fiber: 'fibre', kilometer: 'kilometre', kilometers: 'kilometres', centimeter: 'centimetre', centimeters: 'centimetres',
+  color: 'colour', colors: 'colours', colorful: 'colourful', favor: 'favour', favorite: 'favourite', honor: 'honour', labor: 'labour', neighbor: 'neighbour', neighbors: 'neighbours', neighborhood: 'neighbourhood', behavior: 'behaviour', flavor: 'flavour', harbor: 'harbour', humor: 'humour', rumor: 'rumour', vapor: 'vapour', odor: 'odour', armor: 'armour', parlor: 'parlour',
+  traveler: 'traveller', travelers: 'travellers', traveling: 'travelling', traveled: 'travelled', canceled: 'cancelled', canceling: 'cancelling', jewelry: 'jewellery', counselor: 'counsellor', modeling: 'modelling', fueling: 'fuelling',
+  catalog: 'catalogue', dialog: 'dialogue', program: 'programme', programs: 'programmes', gray: 'grey', mold: 'mould', plow: 'plough', aluminum: 'aluminium', defense: 'defence', offense: 'offence', license: 'licence', pajamas: 'pyjamas', mustache: 'moustache', cozy: 'cosy', skeptical: 'sceptical', anesthetic: 'anaesthetic', pediatric: 'paediatric', encyclopedia: 'encyclopaedia', maneuver: 'manoeuvre', fetus: 'foetus', ax: 'axe', donut: 'doughnut',
+};
+/** Answer forms IELTS treats as the same: US/UK spelling (incl. -ize/-yze), and a number or code with or without spaces ("0412 665 903", "AC 936" = "AC936"). */
+function sameForm(s: string): string {
+  const w = s.split(' ').map((x) => US_UK[x] ?? x.replace(/^([a-z]{3,})iz(e|es|ed|er|ers|ing|ation|ations)$/, '$1is$2').replace(/yz(e|es|ed|ing)$/, 'ys$1'));
+  // ponytail: "code" = has a digit and every token is digits or at most 3 letters (or mixed); "flat 6" stays two words
+  return /\d/.test(s) && w.every((x) => /^(\d+|[a-z]{1,3}|[a-z]{0,3}\d+[a-z]{0,3})$/.test(x)) ? w.join('') : w.join(' ');
 }
 
 export function scoreLr(test: LrTest, responses: LrResponses): LrScore {
