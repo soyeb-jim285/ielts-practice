@@ -73,7 +73,7 @@ describe('POST /api/replay/{sessionId}/chunks', () => {
   it('rejects excluded pages and malformed bodies with 400', async () => {
     const { headers } = await testUser();
     const sid = crypto.randomUUID();
-    for (const path of ['/login', '/signup', '/forgot-password', '/reset-password?x']) expect((await post(sid, headers, { seq: 0, events: ev(1), pages: [{ path, at: 1 }] })).status).toBe(400);
+    for (const path of ['/login', '/signup', '/forgot-password', '/reset-password?x', '<img src=x onerror=alert(1)>', 'javascript:alert(1)', '/a b']) expect((await post(sid, headers, { seq: 0, events: ev(1), pages: [{ path, at: 1 }] })).status).toBe(400);
     expect((await post(sid, headers, { seq: 0, events: [] })).status).toBe(400);
     expect((await req(`/api/replay/${sid}/chunks`, { method: 'POST', headers, body: undefined })).status).toBe(400);
     expect((await post('not-a-uuid', headers, { seq: 0, events: ev(1) })).status).toBe(400);

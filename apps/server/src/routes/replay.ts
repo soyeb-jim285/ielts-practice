@@ -26,7 +26,8 @@ const fail = (status: 400 | 413, error: string, code: string) => new ApiError(st
 const Body = z.object({
   seq: z.number().int().min(0),
   events: z.array(z.unknown()).min(1).max(5000),
-  pages: z.array(z.object({ path: z.string().max(200), at: z.number() })).max(20).optional(),
+  // paths are shown in the owner's admin page: app paths only (leading slash, URL-safe characters), never arbitrary text
+  pages: z.array(z.object({ path: z.string().max(200).regex(/^\/[A-Za-z0-9\-._~/?=&%#+]*$/), at: z.number() })).max(20).optional(),
 });
 
 export function register(app: App) {
