@@ -59,7 +59,20 @@ private struct LrRunnerBody: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.colorScheme) private var systemScheme
 
+    init(session: LrSession, onSubmitted: @escaping (LrAttempt) -> Void) {
+        self.session = session
+        self.onSubmitted = onSubmitted
+        _markStore = State(initialValue: LrMarkStore(attemptId: session.attempt.id))
+    }
+
+    @State private var markStore: LrMarkStore
+    @State private var settings = LrSettingsStore()
+    @State private var showNotes = false
+    @State private var showHelp = false
+    @State private var showSettings = false
+    @State private var hidden = false
     @State private var partIdx = 0
     @State private var current = 1
     @State private var active: Int?
@@ -93,13 +106,25 @@ private struct LrRunnerBody: View {
               onFocus: { current = $0; session.noteFocus($0) }, onBlur: { session.noteBlur($0) })
     }
 
+    private var style: LrStyle { LrStyle.make(settings.value.scheme) }
+    private var caption: String {
+        "\(test.title), \(test.partNoun) \(section.part) \u{00B7} \(exam ? "Exam mode" : "Practice mode")"
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            if started { partPicker }
-            content
+        ZStack {
+            VStack(spacing: 0) {
+                Text(caption).font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                    .frame(maxWidth: .infinity).padding(.horizontal, 16).padding(.bottom, 4)
+                if started { partPicker }
+                content
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .accessibilityHidden(hidden)
+            if hidden { LrHidePanel(listening: listening) { hidden = false } }
         }
         .background(Color.canvas)
-        .safeAreaInset(edge: .bottom, spacing: 0) { if started { bottomBar } }
+        .safeAreaInset(edge: .bottom, spacing: 0) { if started && !hidden { bottomBar } }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .tabBar)
@@ -108,9 +133,23 @@ private struct LrRunnerBody: View {
                 Button { if exam { confirmLeave = true } else { dismiss() } } label: { Image(systemName: "xmark") }
                     .accessibilityLabel("Exit test")
             }
-            ToolbarItem(placement: .principal) { HStack(spacing: 10) { LrSaveIndicator(session: session); clock } }
+            ToolbarItem(placement: .principal) { clock }
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Submit") { confirmSubmit = true }.disabled(!started).fontWeight(.semibold)
+                HStack(spacing: 8) {
+                    LrSaveIndicator(session: session)
+                    Menu {
+                        if !markStore.marks.isEmpty {
+                            Button { showNotes = true } label: { Label("Notes (\(markStore.marks.count))", systemImage: "note.text") }
+                        }
+                        Button { showHelp = true } label: { Label("Help", systemImage: "questionmark.circle") }
+                        Button { showSettings = true } label: { Label("Settings", systemImage: "textformat.size") }
+                        Button { hidden = true } label: { Label("Hide", systemImage: "eye.slash") }.disabled(!started)
+                    } label: {
+                        Image(systemName: "ellipsis.circle").frame(minWidth: 32, minHeight: 32)
+                    }
+                    .accessibilityLabel("More")
+                    Button("Submit") { confirmSubmit = true }.disabled(!started).fontWeight(.semibold)
+                }
             }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -121,6 +160,13 @@ private struct LrRunnerBody: View {
             LrNavigatorSheet(test: test, responses: session.responses, flagged: session.flagged, current: current) { jump($0) }
                 .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showNotes) {
+            LrNotesSheet(store: markStore, test: test, canJump: canJump, onJump: openMark)
+                .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+        }
+        .sheet(item: Binding<LrMarkStore.Editor?>(get: { showNotes ? nil : markStore.editor }, set: { markStore.editor = $0 })) { LrMarkEditor(store: markStore, editor: $0) }
+        .sheet(isPresented: $showHelp) { LrHelpSheet() }
+        .sheet(isPresented: $showSettings) { LrSettingsSheet(store: settings) }
         .sheet(isPresented: $confirmSubmit) {
             LrSubmitSheet(unanswered: unanswered, flagged: session.flagged.sorted(), submitting: session.submitting,
                           onJump: { confirmSubmit = false; jump($0) }, onSubmit: { Task { await submit() } })
@@ -189,7 +235,7 @@ private struct LrRunnerBody: View {
         if examListening {
             if let pl = playlist {
                 if pl.phase == .review { LrReviewPill(playlist: pl) }
-                else if pl.total > 0 { LrClockPill(seconds: pl.timeLeft, countdown: true, label: "Time left") }
+                else if pl.total > 0 { LrClockPill(seconds: pl.timeLeft, countdown: true, label: "Time left") } // listening stays neutral
             }
         } else {
             LrWallClock(session: session, countdown: exam ? Lr.readingLimit(attempt.parts) : nil) { Task { await submit() } }
@@ -226,6 +272,22 @@ private struct LrRunnerBody: View {
         scrollTo = n
         scrollStamp += 1
         Task { try? await Task.sleep(for: .seconds(2.5)); if active == n { active = nil } }
+    }
+
+    private func canJump(_ m: LrAnnot) -> Bool {
+        guard let si = LrMarkOps.partIndex(m.region, test: test) else { return false }
+        return !examListening || si == partIdx // the recording moves the parts in a Listening exam
+    }
+
+    private func openMark(_ m: LrAnnot) {
+        guard canJump(m), let si = LrMarkOps.partIndex(m.region, test: test) else { return }
+        showNotes = false
+        if let n = LrMarkOps.question(m.region) {
+            jump(n)
+        } else {
+            partIdx = si
+            tab = .passage
+        }
     }
 
     private var flaggedNow: Bool { session.flagged.contains(current) }
@@ -274,6 +336,7 @@ private struct LrRunnerBody: View {
         ScrollView {
             LrPassageView(section: section).padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }
+        .lrThemed(style, size: settings.value.size, marks: markStore, system: systemScheme)
         .frame(maxWidth: .infinity)
         .id(section.part)
     }
@@ -291,6 +354,7 @@ private struct LrRunnerBody: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            .lrThemed(style, size: settings.value.size, marks: markStore, system: systemScheme)
             .task(id: scrollStamp) {
                 guard let n = scrollTo else { return }
                 try? await Task.sleep(for: .milliseconds(180))
@@ -391,19 +455,46 @@ private struct LrClockPill: View {
     let seconds: Int
     let countdown: Bool
     let label: String
+    /// Reading exam: the total limit, which switches on the 10 and 5 minute rules. Nil keeps the neutral tone.
+    var limit: Int?
+    /// A fixed tone (the Listening review window).
+    var fixed: LrClockTone?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulseStamp = 0
+    @State private var pulseOn = false
+
     var body: some View {
-        let urgent = countdown && seconds <= 300
-        let tone: Color = urgent ? (seconds <= 60 ? .bad : .warnText) : .ink
+        let t: LrClockTone = fixed ?? limit.map { LrClockRule.tone(left: seconds, limit: $0) } ?? .neutral
+        let tone: Color = switch t {
+        case .neutral: .ink
+        case .warn: .warnText
+        case .strong: .bad
+        }
+        let inverted = pulseOn && t != .neutral
         HStack(spacing: 5) {
             Image(systemName: "timer").font(.footnote)
             Text(clock(seconds)).font(.subheadline.weight(.semibold).monospacedDigit())
         }
-        .foregroundStyle(tone)
+        .foregroundStyle(inverted ? Color.canvas : tone)
         .padding(.horizontal, 10).frame(minHeight: 32)
-        .background(urgent ? tone.opacity(0.14) : Color.surface2, in: Capsule())
+        .background(inverted ? tone : (t != .neutral ? tone.opacity(0.14) : Color.surface2), in: Capsule())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(clock(seconds))")
         .accessibilityAddTraits(.updatesFrequently)
+        .onChange(of: seconds) { old, new in
+            guard let limit, let mark = LrClockRule.crossed(prev: old, now: new, limit: limit) else { return }
+            UIAccessibility.post(notification: .announcement, argument: LrClockRule.announcement(mark))
+            pulseStamp += 1
+        }
+        .task(id: pulseStamp) { // about 10 s at 1 Hz; reduced motion gets the static tone only
+            guard pulseStamp > 0, !reduceMotion else { return }
+            for _ in 0..<20 {
+                pulseOn.toggle()
+                try? await Task.sleep(for: .milliseconds(500))
+                if Task.isCancelled { break }
+            }
+            pulseOn = false
+        }
     }
 }
 
@@ -413,11 +504,18 @@ private struct LrWallClock: View {
     let countdown: Int?
     let onTimeUp: () -> Void
     @State private var start = Date()
-    @State private var seconds = 0
+    @State private var seconds: Int
     @State private var fired = false
 
+    init(session: LrSession, countdown: Int?, onTimeUp: @escaping () -> Void) {
+        self.session = session
+        self.countdown = countdown
+        self.onTimeUp = onTimeUp
+        _seconds = State(initialValue: Int(session.elapsed)) // resuming does not read as a crossing
+    }
+
     var body: some View {
-        LrClockPill(seconds: countdown.map { max(0, $0 - seconds) } ?? seconds, countdown: countdown != nil, label: countdown != nil ? "Time left" : "Time spent")
+        LrClockPill(seconds: countdown.map { max(0, $0 - seconds) } ?? seconds, countdown: countdown != nil, label: countdown != nil ? "Time left" : "Time spent", limit: countdown)
             .task {
                 start = Date().addingTimeInterval(-session.elapsed)
                 while !Task.isCancelled {
@@ -433,7 +531,7 @@ private struct LrWallClock: View {
 
 private struct LrReviewPill: View {
     let playlist: LrExamPlaylist
-    var body: some View { LrClockPill(seconds: playlist.reviewLeft, countdown: true, label: "Review time left") }
+    var body: some View { LrClockPill(seconds: playlist.reviewLeft, countdown: true, label: "Review time left", fixed: .warn) }
 }
 
 private struct LrSaveIndicator: View {
@@ -610,6 +708,7 @@ struct LrPracticeBar: View {
 // MARK: Passage
 
 struct LrPassageView: View {
+    @Environment(\.lrStyle) private var st
     let section: LrSection
     /// Review: the span holding the answer (paragraph index and UTF-16 offsets into that paragraph's text).
     var evidence: LrReview.Span?
@@ -617,39 +716,40 @@ struct LrPassageView: View {
     var body: some View {
         if let p = section.passage {
             VStack(alignment: .leading, spacing: 14) {
-                Text(p.title).font(.title2.weight(.semibold)).fontDesign(.serif).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
-                if let s = p.subtitle { Text(s).font(.system(.subheadline, design: .serif).italic()).foregroundStyle(Color.muted) }
+                Text(p.title).font(.title2.weight(.semibold)).fontDesign(.serif).foregroundStyle(st.ink).accessibilityAddTraits(.isHeader)
+                if let s = p.subtitle { Text(s).font(.system(.subheadline, design: .serif).italic()).foregroundStyle(st.muted) }
                 ForEach(Array(p.paragraphs.enumerated()), id: \.offset) { pi, para in
                     if para.text.hasPrefix("### ") {
                         // "### " marks a text heading (GT reading); "• " lines are bullets
-                        Text(String(para.text.dropFirst(4))).font(.headline).fontDesign(.serif).foregroundStyle(Color.ink)
+                        Text(String(para.text.dropFirst(4))).font(.headline).fontDesign(.serif).foregroundStyle(st.ink)
                             .accessibilityAddTraits(.isHeader).padding(.top, 4)
                     } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         if let l = para.label {
                             Text(l).font(.subheadline.weight(.bold).monospacedDigit()).foregroundStyle(Color.brand)
                                 .frame(minWidth: 22, alignment: .leading).accessibilityLabel("Paragraph \(l)")
                         }
                         if let ev = evidence, ev.p == pi {
                             Text(lrMarked(para.text, ev)).textSelection(.enabled).id("ev")
-                                .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
+                                .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(st.ink)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .accessibilityHint("Contains where the answer is")
                         } else {
+                        let lines = para.text.components(separatedBy: "\n")
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(para.text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
+                            ForEach(Array(lines.enumerated()), id: \.offset) { li, line in
+                                let region = "passage:\(section.part):\(pi)" + (lines.count > 1 ? ".\(li)" : "")
                                 if line.hasPrefix("• ") {
-                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                        Text("•").foregroundStyle(Color.muted)
-                                        Text(String(line.dropFirst(2))).textSelection(.enabled)
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("•").font(.body).fontDesign(.serif).foregroundStyle(st.muted)
+                                        LrMarkText(text: String(line.dropFirst(2)), region: region, p: pi, font: LrFont(serif: true), spacing: 5)
                                     }
                                     .padding(.leading, 8)
                                 } else {
-                                    Text(line).textSelection(.enabled)
+                                    LrMarkText(text: line, region: region, p: pi, font: LrFont(serif: true), spacing: 5)
                                 }
                             }
                         }
-                        .font(.body).fontDesign(.serif).lineSpacing(5).foregroundStyle(Color.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }

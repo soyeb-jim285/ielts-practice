@@ -164,6 +164,7 @@ final class LrSession {
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):flags")
             UserDefaults.standard.removeObject(forKey: "lr:\(attempt.id):pos")
             LrAudioState.clearLocal(attempt.id)
+            LrMarkStore.clear(attempt.id) // highlights and notes live only on the device and go with the attempt
             return a
         } catch {
             done = false

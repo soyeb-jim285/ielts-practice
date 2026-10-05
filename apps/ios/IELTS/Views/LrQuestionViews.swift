@@ -16,27 +16,28 @@ struct LrCtx {
     var isReview: Bool { review != nil }
 }
 
-private func markFill(_ m: LrMark?, selected: Bool = false) -> Color {
-    guard let m else { return selected ? .brandSoft : .surface }
+private func markFill(_ st: LrStyle, _ m: LrMark?, selected: Bool = false) -> Color {
+    guard let m else { return selected ? Color.brandSoft : st.surface }
     return m.correct ? Color.good.opacity(0.14) : Color.bad.opacity(0.12)
 }
-private func markStroke(_ m: LrMark?, active: Bool, selected: Bool = false) -> Color {
+private func markStroke(_ st: LrStyle, _ m: LrMark?, active: Bool, selected: Bool = false) -> Color {
     if let m { return m.correct ? .good : .bad }
-    return active || selected ? .brand : .line
+    return active || selected ? Color.brand : st.line
 }
 
 /// Number chip in front of an item: teal once answered, green or red once marked.
 struct LrQNum: View {
+    @Environment(\.lrStyle) private var st
     let n: Int
     var done = false
     var mark: LrMark?
     var body: some View {
         Text("\(n)")
             .font(.subheadline.weight(.semibold).monospacedDigit())
-            .foregroundStyle(mark.map { $0.correct ? Color.goodText : Color.bad } ?? (done ? Color.brand : Color.muted))
+            .foregroundStyle(mark.map { $0.correct ? Color.goodText : Color.bad } ?? (done ? Color.brand : st.muted))
             .frame(minWidth: 28, minHeight: 28)
             .padding(.horizontal, 2)
-            .background(mark.map { $0.correct ? Color.good.opacity(0.14) : Color.bad.opacity(0.12) } ?? (done ? Color.brandSoft : Color.surface2),
+            .background(mark.map { $0.correct ? Color.good.opacity(0.14) : Color.bad.opacity(0.12) } ?? (done ? Color.brandSoft : st.surface2),
                         in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .accessibilityHidden(true)
     }
@@ -67,6 +68,7 @@ private struct LrStatus: View {
 // MARK: Gap field and picker
 
 struct LrGapField: View {
+    @Environment(\.lrStyle) private var st
     let n: Int
     let ctx: LrCtx
     var wordLimit: String?
@@ -81,7 +83,7 @@ struct LrGapField: View {
     var body: some View {
         let v = text, m = ctx.mark(n), last = part == of - 1
         HStack(spacing: 6) {
-            TextField("", text: Binding(get: { text }, set: { ctx.set(n, of > 1 ? Lr.setGapPart(ctx.value(n), part, of, $0) : $0) }), prompt: Text("\(n)").foregroundStyle(Color.muted))
+            TextField("", text: Binding(get: { text }, set: { ctx.set(n, of > 1 ? Lr.setGapPart(ctx.value(n), part, of, $0) : $0) }), prompt: Text("\(n)").foregroundStyle(st.muted))
                 .focused($focused)
                 .font(.body.weight(.medium))
                 .multilineTextAlignment(.center)
@@ -91,8 +93,8 @@ struct LrGapField: View {
                 .allowsHitTesting(!ctx.isReview)
                 .padding(.horizontal, 8)
                 .frame(width: max(84, min(230, CGFloat(v.count + 3) * unit)), height: 40 * max(1, unit / 9))
-                .background(markFill(m), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(m, active: ctx.active == n || focused), lineWidth: m != nil || ctx.active == n || focused ? 2 : 1))
+                .background(markFill(st, m), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(st, m, active: ctx.active == n || focused), lineWidth: m != nil || ctx.active == n || focused ? 2 : st.inputBorder))
                 .accessibilityLabel("Question \(n)" + (of > 1 ? ", blank \(part + 1) of \(of)" : "") + (wordLimit.map { ", \($0.lowercased())" } ?? ""))
                 .onChange(of: focused) { _, on in if on { ctx.onFocus(n) } else { ctx.onBlur(n) } }
             if last {
@@ -107,6 +109,7 @@ struct LrGapField: View {
 
 /// A match item or word-box gap: a menu of the group's option letters.
 struct LrPick: View {
+    @Environment(\.lrStyle) private var st
     let n: Int
     let options: [LrOption]
     let ctx: LrCtx
@@ -137,14 +140,14 @@ struct LrPick: View {
         HStack(spacing: 6) {
             Text(v.isEmpty ? (m != nil ? "No answer" : "\(n)") : v)
                 .font(.body.weight(.semibold).monospacedDigit())
-                .foregroundStyle(v.isEmpty ? Color.muted : Color.ink)
-            if m == nil { Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.bold)).foregroundStyle(Color.muted) }
+                .foregroundStyle(v.isEmpty ? st.muted : st.ink)
+            if m == nil { Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.bold)).foregroundStyle(st.muted) }
         }
         .padding(.horizontal, 12)
         .frame(minWidth: 72, minHeight: 44, alignment: .center)
         .frame(maxWidth: fullWidth ? .infinity : nil)
-        .background(markFill(m, selected: !v.isEmpty), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(m, active: ctx.active == n, selected: !v.isEmpty), lineWidth: m != nil || ctx.active == n ? 2 : 1))
+        .background(markFill(st, m, selected: !v.isEmpty), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(markStroke(st, m, active: ctx.active == n, selected: !v.isEmpty), lineWidth: m != nil || ctx.active == n ? 2 : st.inputBorder))
     }
 }
 
@@ -152,8 +155,11 @@ struct LrPick: View {
 
 /// Text that wraps like a paragraph with {{n}} placeholders replaced by `gap(n, part, of)`.
 struct LrInline<Gap: View>: View {
+    @Environment(\.lrStyle) private var st
     let items: [Lr.Inline]
     var bold = false
+    /// Region prefix of this text, e.g. "q:5:"; each word is its own markable region.
+    var scope = ""
     @ViewBuilder let gap: (Int, Int, Int) -> Gap
 
     private enum Tok: Hashable { case word(String, bold: Bool, label: String?, hidden: Bool), gap(Int, Int, Int) }
@@ -175,11 +181,11 @@ struct LrInline<Gap: View>: View {
 
     var body: some View {
         FlowLayout(spacing: 4, lineSpacing: 8) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { _, t in
+            ForEach(Array(tokens.enumerated()), id: \.offset) { ti, t in
                 switch t {
                 case let .word(w, b, label, hidden):
                     // VoiceOver reads each run of words once (on its first word) instead of word by word.
-                    Text(w).font(.body.weight(b ? .bold : .regular)).foregroundStyle(Color.ink)
+                    LrWordText(word: w, region: scope + "w\(ti)", bold: b)
                         .accessibilityLabel(label ?? w).accessibilityHidden(hidden)
                 case let .gap(n, part, of): gap(n, part, of)
                 }
@@ -189,51 +195,53 @@ struct LrInline<Gap: View>: View {
 }
 
 private struct LrContent: View {
+    @Environment(\.lrStyle) private var st
     let blocks: [Lr.Block]
+    var scope = ""
     let gap: (Int, Int, Int) -> AnyView
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, b in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { bi, b in
                 switch b {
-                case let .p(items): LrInline(items: items) { gap($0, $1, $2) }
+                case let .p(items): LrInline(items: items, scope: "\(scope)b\(bi).") { gap($0, $1, $2) }
                 case let .list(ordered, items):
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.offset) { i, it in
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(ordered ? "\(i + 1)." : "•").font(.body.weight(.semibold)).foregroundStyle(Color.muted)
-                                LrInline(items: it) { gap($0, $1, $2) }
+                                Text(ordered ? "\(i + 1)." : "•").font(.body.weight(.semibold)).foregroundStyle(st.muted)
+                                LrInline(items: it, scope: "\(scope)b\(bi).\(i).") { gap($0, $1, $2) }
                             }
                         }
                     }
                     .padding(.leading, 12)
-                    .overlay(alignment: .leading) { Rectangle().fill(Color.line).frame(width: 2) }
+                    .overlay(alignment: .leading) { Rectangle().fill(st.line).frame(width: 2) }
                 case let .table(head, rows):
-                    table(head, rows)
+                    table(head, rows, bi)
                 }
             }
         }
     }
 
-    private func table(_ head: [[Lr.Inline]], _ rows: [[[Lr.Inline]]]) -> some View {
+    private func table(_ head: [[Lr.Inline]], _ rows: [[[Lr.Inline]]], _ bi: Int) -> some View {
         VStack(spacing: 0) {
             if head.contains(where: { !$0.isEmpty }) {
-                row(head, bold: true).background(Color.surface2)
+                row(head, at: "\(scope)b\(bi)h", bold: true).background(st.surface2)
             }
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
-                Divider().overlay(Color.line)
-                row(r, firstBold: true)
+            ForEach(Array(rows.enumerated()), id: \.offset) { ri, r in
+                Divider().overlay(st.line)
+                row(r, at: "\(scope)b\(bi)r\(ri)", firstBold: true)
             }
         }
-        .background(Color.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(st.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.line))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(st.line))
     }
 
-    private func row(_ cells: [[Lr.Inline]], bold: Bool = false, firstBold: Bool = false) -> some View {
+    private func row(_ cells: [[Lr.Inline]], at: String, bold: Bool = false, firstBold: Bool = false) -> some View {
         HStack(alignment: .center, spacing: 0) {
             ForEach(Array(cells.enumerated()), id: \.offset) { i, c in
-                LrInline(items: c, bold: bold || (firstBold && i == 0)) { gap($0, $1, $2) }
+                LrInline(items: c, bold: bold || (firstBold && i == 0), scope: "\(at)c\(i).") { gap($0, $1, $2) }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12).padding(.vertical, 10)
             }
@@ -244,6 +252,7 @@ private struct LrContent: View {
 // MARK: Group
 
 struct LrGroupView: View {
+    @Environment(\.lrStyle) private var st
     let group: LrGroup
     let ctx: LrCtx
     @State private var zoom: LrZoomItem?
@@ -253,7 +262,7 @@ struct LrGroupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
-            if let t = group.title { Text(t).font(.display(.headline)).foregroundStyle(Color.ink) }
+            if let t = group.title { Text(t).font(.display(.headline)).foregroundStyle(st.ink) }
             figure
             if (group.type == "match" || wordBox), let o = group.options, o.contains(where: { !$0.text.isEmpty }) {
                 optionList(wordBox ? "Word box" : o.contains { $0.key.range(of: "^[ivx]+$", options: [.regularExpression, .caseInsensitive]) != nil } ? "List of headings" : "Options", o)
@@ -267,11 +276,10 @@ struct LrGroupView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(group.from == group.to ? "Question \(group.from)" : "Questions \(group.from) to \(group.to)")
-                .font(.display(.title3)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
-            Text(group.instructions.replacingOccurrences(of: #"^Questions? [\d\s–\-and]+\.\s*"#, with: "", options: [.regularExpression, .caseInsensitive]))
-                .font(.subheadline).foregroundStyle(Color.ink.opacity(0.8))
+                .font(.display(.title3)).foregroundStyle(st.ink).accessibilityAddTraits(.isHeader)
+            LrMarkText(text: group.instructions.replacingOccurrences(of: #"^Questions? [\d\s–\-and]+\.\s*"#, with: "", options: [.regularExpression, .caseInsensitive]), region: "grp:\(group.from):instr", font: LrFont(style: .subheadline), alpha: 0.8)
             if let w = group.wordLimit, !group.instructions.uppercased().contains(w.uppercased()) {
-                Text("Write \(w).").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                Text("Write \(w).").font(.subheadline.weight(.semibold)).foregroundStyle(st.ink)
             }
         }
     }
@@ -290,9 +298,9 @@ struct LrGroupView: View {
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right").font(.caption.weight(.bold)).padding(8)
-                        .background(.regularMaterial, in: Circle()).padding(8).foregroundStyle(Color.ink)
+                        .background(.regularMaterial, in: Circle()).padding(8).foregroundStyle(st.ink)
                 }
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.line))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(st.line))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(group.title ?? "Figure for the questions below")
@@ -302,18 +310,18 @@ struct LrGroupView: View {
 
     private func optionList(_ title: String, _ options: [LrOption]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline).foregroundStyle(Color.ink)
+            Text(title).font(.headline).foregroundStyle(st.ink)
             ForEach(options, id: \.key) { o in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(o.key).font(.body.weight(.semibold).monospacedDigit()).foregroundStyle(Color.brand).frame(minWidth: 24, alignment: .leading)
-                    Text(o.text).font(.body).foregroundStyle(Color.ink)
+                    LrMarkText(text: o.text, region: "grp:\(group.from):opt:\(o.key)")
                 }
                 .accessibilityElement(children: .combine)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(st.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func gapItems(_ q: LrQuestion) -> [Lr.Inline] {
@@ -330,14 +338,14 @@ struct LrGroupView: View {
         switch group.type {
         case "gap":
             if let c = group.content {
-                LrContent(blocks: Lr.parseContent(c), gap: gapNode)
+                LrContent(blocks: Lr.parseContent(c), scope: "grp:\(group.from):", gap: gapNode)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(group.questions, id: \.n) { q in
                         let items = gapItems(q)
                         HStack(alignment: .top, spacing: 10) {
                             LrQNum(n: q.n, done: !ctx.value(q.n).isEmpty, mark: ctx.mark(q.n))
-                            LrInline(items: items) { gapNode($0, $1, $2) }
+                            LrInline(items: items, scope: "q:\(q.n):") { gapNode($0, $1, $2) }
                         }
                         .padding(6).background(ctx.active == q.n ? Color.brandSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
@@ -349,7 +357,7 @@ struct LrGroupView: View {
                     HStack(alignment: .top, spacing: 10) {
                         LrQNum(n: q.n, done: !ctx.value(q.n).isEmpty, mark: ctx.mark(q.n))
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(q.text ?? "").font(.body.weight(.medium)).foregroundStyle(Color.ink)
+                            LrMarkText(text: q.text ?? "", region: "q:\(q.n):text", font: LrFont(w: .medium))
                             choices(q.n, q.options ?? [])
                         }
                     }
@@ -365,7 +373,7 @@ struct LrGroupView: View {
                     HStack(alignment: .top, spacing: 10) {
                         LrQNum(n: q.n, done: !ctx.value(q.n).isEmpty, mark: ctx.mark(q.n))
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(q.text ?? "").font(.body).foregroundStyle(Color.ink)
+                            LrMarkText(text: q.text ?? "", region: "q:\(q.n):text")
                             segmented(q.n, keys)
                         }
                     }
@@ -377,7 +385,7 @@ struct LrGroupView: View {
                 ForEach(group.questions, id: \.n) { q in
                     HStack(alignment: .center, spacing: 10) {
                         LrQNum(n: q.n, done: !ctx.value(q.n).isEmpty, mark: ctx.mark(q.n))
-                        Text(q.text ?? "").font(.body).foregroundStyle(Color.ink).frame(maxWidth: .infinity, alignment: .leading)
+                        LrMarkText(text: q.text ?? "", region: "q:\(q.n):text").frame(maxWidth: .infinity, alignment: .leading)
                         LrPick(n: q.n, options: group.options ?? [], ctx: ctx)
                     }
                     .padding(6).background(ctx.active == q.n ? Color.brandSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -402,14 +410,14 @@ struct LrGroupView: View {
                 Button { if !ctx.isReview { ctx.set(n, on ? "" : key) } } label: {
                     HStack(spacing: 12) {
                         Text(key).font(.subheadline.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(on ? Color.onBrand : Color.muted).frame(minWidth: 28, minHeight: 28)
-                            .background(on ? Color.brand : Color.surface2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        Text(text).font(.body).foregroundStyle(Color.ink).multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(on ? Color.onBrand : st.muted).frame(minWidth: 28, minHeight: 28)
+                            .background(on ? Color.brand : st.surface2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        LrMarkText(text: text, region: "q:\(n):opt:\(key)", onPlainTap: { if !ctx.isReview { ctx.set(n, on ? "" : key) } }).frame(maxWidth: .infinity, alignment: .leading)
                         if m != nil, right, !on { Image(systemName: "checkmark").foregroundStyle(Color.goodText).accessibilityLabel("Correct answer") }
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 44)
-                    .background(markFill(mm, selected: on), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(markStroke(mm, active: ctx.active == n, selected: on), lineWidth: on || mm != nil || ctx.active == n ? 2 : 1))
+                    .background(markFill(st, mm, selected: on), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(markStroke(st, mm, active: ctx.active == n, selected: on), lineWidth: on || mm != nil || ctx.active == n ? 2 : 1))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(key), \(text)")
@@ -429,9 +437,9 @@ struct LrGroupView: View {
                 Button { if !ctx.isReview { ctx.set(n, on ? "" : k) } } label: {
                     Text(k == "NOT GIVEN" ? "Not given" : k.capitalized)
                         .font(.subheadline.weight(.medium)).lineLimit(2).minimumScaleFactor(0.8).multilineTextAlignment(.center)
-                        .foregroundStyle(m != nil && on ? (right ? Color.goodText : Color.bad) : on ? Color.ink : Color.muted)
+                        .foregroundStyle(m != nil && on ? (right ? Color.goodText : Color.bad) : on ? st.ink : st.muted)
                         .frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal, 4)
-                        .background(on ? (m == nil ? Color.surface : (right ? Color.good.opacity(0.18) : Color.bad.opacity(0.16))) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .background(on ? (m == nil ? st.surface : (right ? Color.good.opacity(0.18) : Color.bad.opacity(0.16))) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(on ? (m == nil ? Color.brand : (right ? Color.good : Color.bad)) : (right ? Color.good : Color.clear), lineWidth: on || right ? 1.5 : 0))
                 }
                 .buttonStyle(.plain)
@@ -440,8 +448,8 @@ struct LrGroupView: View {
             }
         }
         .padding(3)
-        .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(ctx.active == n ? Color.brand : Color.line, lineWidth: ctx.active == n ? 2 : 1))
+        .background(st.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(ctx.active == n ? Color.brand : st.line, lineWidth: ctx.active == n ? 2 : 1))
     }
 
     /// "Choose TWO letters": one stem, shared options, up to N picks stored one letter per question slot.
@@ -452,28 +460,29 @@ struct LrGroupView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 8) {
                 HStack(spacing: 4) { ForEach(group.questions, id: \.n) { LrQNum(n: $0.n, done: !ctx.value($0.n).isEmpty, mark: ctx.mark($0.n)).id($0.n) } }
-                Text(group.questions.first?.text ?? "Choose \(maxPicks) answers").font(.body.weight(.medium)).foregroundStyle(Color.ink)
+                LrMarkText(text: group.questions.first?.text ?? "Choose \(maxPicks) answers", region: "q:\(group.from):text", font: LrFont(w: .medium)).frame(maxWidth: .infinity, alignment: .leading)
             }
             Text(ctx.isReview ? "Choose \(maxPicks)." : "Choose \(maxPicks). \(picks.count) of \(maxPicks) selected\(picks.count >= maxPicks ? "; untick one to change" : "").")
-                .font(.footnote).foregroundStyle(picks.count >= maxPicks && !ctx.isReview ? Color.brand : Color.muted)
+                .font(.footnote).foregroundStyle(picks.count >= maxPicks && !ctx.isReview ? Color.brand : st.muted)
             ForEach(group.options ?? [], id: \.key) { o in
                 let on = picks.contains(o.key)
                 let full = picks.count >= maxPicks && !on
                 let right = ctx.isReview && correct.contains(o.key.uppercased())
                 let mm: LrMark? = ctx.isReview && (on || right) ? LrMark(n: group.from, given: o.key, correct: right, answer: []) : nil
-                Button {
+                let toggle: () -> Void = {
                     guard !ctx.isReview, !full else { return }
                     ctx.replace(Lr.setMultiPicks(group, ctx.responses, on ? picks.filter { $0 != o.key } : picks + [o.key]))
-                } label: {
+                }
+                Button(action: toggle) {
                     HStack(spacing: 12) {
-                        Image(systemName: on ? "checkmark.square.fill" : "square").font(.title3).foregroundStyle(on ? Color.brand : Color.muted)
-                        Text(o.key).font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.muted).frame(minWidth: 18)
-                        Text(o.text).font(.body).foregroundStyle(Color.ink).multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: on ? "checkmark.square.fill" : "square").font(.title3).foregroundStyle(on ? Color.brand : st.muted)
+                        Text(o.key).font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(st.muted).frame(minWidth: 18)
+                        LrMarkText(text: o.text, region: "grp:\(group.from):opt:\(o.key)", onPlainTap: toggle).frame(maxWidth: .infinity, alignment: .leading)
                         if right && !on { Image(systemName: "checkmark").foregroundStyle(Color.goodText).accessibilityLabel("Correct answer") }
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 44)
-                    .background(markFill(mm, selected: on), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(markStroke(mm, active: false, selected: on), lineWidth: on || mm != nil ? 2 : 1))
+                    .background(markFill(st, mm, selected: on), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(markStroke(st, mm, active: false, selected: on), lineWidth: on || mm != nil ? 2 : 1))
                     .opacity(full ? 0.55 : 1)
                 }
                 .buttonStyle(.plain)
