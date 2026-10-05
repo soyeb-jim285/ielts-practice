@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 import { controlStyles } from '@/components/ui';
 import { gapPart, multiPicks, numberGapParts, parseContent, parseInline, setGapPart, setMultiPicks, type Block, type Inline, type LrGroup, type LrQuestion, type LrResponses } from '@/lib/lr';
 import { cn } from '@/lib/utils';
+import { keepSelection, Marked } from './Marks';
 
 export type Mark = { n: number; given: string; correct: boolean; answer: string[] };
 export type GroupProps = {
@@ -119,6 +120,7 @@ export function ChoiceGroup({ name, label, choices, value, onChange, layout, mar
         return (
           <label
             key={c.key}
+            onClick={keepSelection}
             className={cn(
               'relative flex cursor-pointer items-center gap-3 text-body transition-colors duration-[120ms] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
               layout === 'cards'
@@ -155,28 +157,36 @@ export function ChoiceGroup({ name, label, choices, value, onChange, layout, mar
 }
 
 // ---------- gap content: markdown with {{n}} placeholders ----------
-function Inlines({ inline, render }: { inline: Inline[]; render: (n: number, part?: { i: number; of: number }) => ReactNode }) {
+/** `region` names this run of inline content for highlights (each text piece is `<region>.<index>`); gaps are never part of a region. */
+function Inlines({ inline, render, region }: { inline: Inline[]; render: (n: number, part?: { i: number; of: number }) => ReactNode; region: string }) {
   return (
     <>
       {inline.map((p, i) =>
-        p.kind === 'gap' ? <Fragment key={i}>{render(p.n, p.of ? { i: p.part!, of: p.of } : undefined)}</Fragment> : p.kind === 'bold' ? <strong key={i}>{p.text}</strong> : <Fragment key={i}>{p.text}</Fragment>,
+        p.kind === 'gap' ? (
+          <Fragment key={i}>{render(p.n, p.of ? { i: p.part!, of: p.of } : undefined)}</Fragment>
+        ) : p.kind === 'bold' ? (
+          <strong key={i}><Marked region={`${region}.${i}`} text={p.text} /></strong>
+        ) : (
+          <Marked key={i} region={`${region}.${i}`} text={p.text} />
+        ),
       )}
     </>
   );
 }
 
-function Content({ blocks, render }: { blocks: Block[]; render: (n: number, part?: { i: number; of: number }) => ReactNode }) {
+function Content({ blocks, render, from }: { blocks: Block[]; render: (n: number, part?: { i: number; of: number }) => ReactNode; from: number }) {
+  const at = (path: string) => `grp:${from}:c${path}`;
   return (
     <div className="space-y-3">
       {blocks.map((b, i) => {
-        if (b.kind === 'p') return <p key={i} className="type-body leading-10 max-md:leading-[3rem]"><Inlines inline={b.inline} render={render} /></p>;
+        if (b.kind === 'p') return <p key={i} className="type-body leading-10 max-md:leading-[3rem]"><Inlines inline={b.inline} render={render} region={at(String(i))} /></p>;
         if (b.kind === 'list')
           return (
             <ul key={i} className="space-y-1.5 border-l-2 border-line pl-4">
               {b.items.map((it, j) => (
                 <li key={j} className="type-body leading-10 max-md:leading-[3rem]">
                   {b.ordered && <span className="type-num mr-2 font-semibold text-muted">{j + 1}.</span>}
-                  <Inlines inline={it} render={render} />
+                  <Inlines inline={it} render={render} region={at(`${i}.${j}`)} />
                 </li>
               ))}
             </ul>
@@ -189,7 +199,7 @@ function Content({ blocks, render }: { blocks: Block[]; render: (n: number, part
                   <tr>
                     {b.head.map((h, j) => (
                       <th key={j} scope="col" className="border-b border-line px-3 py-2 text-sm font-semibold">
-                        <Inlines inline={h} render={render} />
+                        <Inlines inline={h} render={render} region={at(`${i}h${j}`)} />
                       </th>
                     ))}
                   </tr>
@@ -200,7 +210,7 @@ function Content({ blocks, render }: { blocks: Block[]; render: (n: number, part
                   <tr key={j}>
                     {r.map((c, k) => (
                       <td key={k} className={cn('px-3 py-2 align-middle', k === 0 && 'font-medium')}>
-                        <Inlines inline={c} render={render} />
+                        <Inlines inline={c} render={render} region={at(`${i}.${j}.${k}`)} />
                       </td>
                     ))}
                   </tr>
@@ -215,7 +225,7 @@ function Content({ blocks, render }: { blocks: Block[]; render: (n: number, part
 }
 
 /** The option list of a match / word-box group, shown once. Keys that carry no text (map letters) are not listed. */
-export function OptionList({ title, options }: { title: string; options: { key: string; text: string }[] }) {
+export function OptionList({ title, options, region }: { title: string; options: { key: string; text: string }[]; /** highlight region prefix; omit to leave the list unmarkable */ region?: string }) {
   if (!options.some((o) => o.text)) return null;
   return (
     <div className="rounded-lg border border-line bg-surface-2 p-4">
@@ -224,7 +234,7 @@ export function OptionList({ title, options }: { title: string; options: { key: 
         {options.map((o) => (
           <li key={o.key} className="flex gap-2.5 text-body">
             <span className="type-num min-w-6 font-semibold text-accent-text">{o.key}</span>
-            <span className="min-w-0 text-pretty">{o.text}</span>
+            <span className="min-w-0 text-pretty">{region ? <Marked region={`${region}:opt:${o.key}`} text={o.text} /> : o.text}</span>
           </li>
         ))}
       </ul>
@@ -267,14 +277,14 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
 
   let body: ReactNode;
   if (g.type === 'gap' && g.content) {
-    body = <Content blocks={parseContent(g.content)} render={gapNode} />;
+    body = <Content blocks={parseContent(g.content)} render={gapNode} from={g.from} />;
   } else if (g.type === 'gap') {
     body = (
       <ol className="divide-y divide-line">
         {g.questions.map((q) => (
           <Row key={q.n} q={q} done={!!val(q.n)} mark={mark(q.n)} active={act(q.n)}>
             <p className="type-body min-w-0 flex-1 leading-10 max-md:leading-[3rem]">
-              {q.text?.includes(`{{${q.n}}}`) ? <Inlines inline={parseInline(numberGapParts(q.text))} render={gapNode} /> : (<>{q.text} {gapNode(q.n)}</>)}
+              {q.text?.includes(`{{${q.n}}}`) ? <Inlines inline={parseInline(numberGapParts(q.text))} render={gapNode} region={`q:${q.n}:t`} /> : (<>{q.text && <Marked region={`q:${q.n}:text`} text={q.text} />} {gapNode(q.n)}</>)}
             </p>
           </Row>
         ))}
@@ -287,8 +297,8 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
           <li key={q.n} data-q={q.n} id={`qrow-${q.n}`} className="flex items-start gap-3">
             <QNum n={q.n} done={!!val(q.n)} mark={mark(q.n)} />
             <div className="min-w-0 flex-1 space-y-2.5">
-              <p id={`q-${q.n}`} className="type-body font-medium text-pretty">{q.text}</p>
-              <ChoiceGroup name={`q${q.n}`} label={`Question ${q.n}`} layout="cards" choices={(q.options ?? []).map((o) => ({ key: o.key, label: o.text }))} value={val(q.n)} onChange={(v) => set(q.n, v)} mark={mark(q.n)} active={act(q.n)} />
+              <p id={`q-${q.n}`} className="type-body font-medium text-pretty">{q.text && <Marked region={`q:${q.n}:text`} text={q.text} />}</p>
+              <ChoiceGroup name={`q${q.n}`} label={`Question ${q.n}`} layout="cards" choices={(q.options ?? []).map((o) => ({ key: o.key, label: <Marked region={`q:${q.n}:opt:${o.key}`} text={o.text} /> }))} value={val(q.n)} onChange={(v) => set(q.n, v)} mark={mark(q.n)} active={act(q.n)} />
             </div>
           </li>
         ))}
@@ -302,7 +312,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
       <fieldset className="space-y-2.5" data-q={g.from} id={`q-${g.from}`}>
         <legend className="type-body mb-1 flex items-center gap-2 font-medium">
           <span className="inline-flex gap-1">{g.questions.map((q) => <QNum key={q.n} n={q.n} done={!!val(q.n)} mark={mark(q.n)} />)}</span>
-          <span className="text-pretty">{g.questions[0]?.text ?? `Choose ${max} answers`}</span>
+          <span className="text-pretty"><Marked region={`grp:${g.from}:stem`} text={g.questions[0]?.text ?? `Choose ${max} answers`} /></span>
         </legend>
         <p className={cn('type-caption', picks.length >= max && !review && 'font-medium text-accent-text')} role="status">
           Choose {max}. {review ? '' : `${picks.length} of ${max} selected${picks.length >= max ? '; untick one to change' : ''}.`}
@@ -315,6 +325,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
             return (
               <label
                 key={o.key}
+                onClick={keepSelection}
                 className={cn(
                   'flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3.5 py-2.5 text-body transition-colors duration-[120ms] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
                   on ? 'border-brand bg-accent-soft' : 'border-line hover:border-input',
@@ -331,7 +342,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
                   onChange={() => onChange(setMultiPicks(g, r, on ? picks.filter((p) => p !== o.key) : [...picks, o.key]))}
                 />
                 <span aria-hidden className={cn('type-num grid size-6 shrink-0 place-items-center rounded-md text-sm font-semibold', on ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted')}>{o.key}</span>
-                <span className="min-w-0 flex-1 text-pretty">{o.text}</span>
+                <span className="min-w-0 flex-1 text-pretty"><Marked region={`grp:${g.from}:opt:${o.key}`} text={o.text} /></span>
                 {right && <Check className="size-4 text-good-text" aria-label="Correct answer" />}
               </label>
             );
@@ -347,7 +358,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
           <li key={q.n} data-q={q.n} id={`qrow-${q.n}`} className="flex items-start gap-3">
             <QNum n={q.n} done={!!val(q.n)} mark={mark(q.n)} />
             <div className="min-w-0 flex-1 space-y-2.5">
-              <p id={`q-${q.n}`} className="type-body text-pretty">{q.text}</p>
+              <p id={`q-${q.n}`} className="type-body text-pretty">{q.text && <Marked region={`q:${q.n}:text`} text={q.text} />}</p>
               <ChoiceGroup name={`q${q.n}`} label={`Question ${q.n}`} layout="segmented" choices={choices} value={val(q.n)} onChange={(v) => set(q.n, v)} mark={mark(q.n)} active={act(q.n)} />
             </div>
           </li>
@@ -360,7 +371,7 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
       <ol className="divide-y divide-line">
         {g.questions.map((q) => (
           <Row key={q.n} q={q} done={!!val(q.n)} mark={mark(q.n)} active={act(q.n)}>
-            <span className="type-body min-w-0 flex-1 self-center text-pretty">{q.text}</span>
+            <span className="type-body min-w-0 flex-1 self-center text-pretty">{q.text && <Marked region={`q:${q.n}:text`} text={q.text} />}</span>
             <MatchSelect n={q.n} value={val(q.n)} options={opts} onChange={(v) => set(q.n, v)} mark={mark(q.n)} active={act(q.n)} className="max-md:w-full" />
           </Row>
         ))}
@@ -373,17 +384,17 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
     <section data-group={`${g.from}-${g.to}`} className="space-y-4">
       <header className="space-y-1">
         <h3 className="type-subheading">{range}</h3>
-        <p className="type-caption max-w-[62ch] text-pretty text-ink/80">{g.instructions.replace(/^Questions? [\d\s–\-and]+\.\s*/i, '')}</p>
+        <p className="type-caption max-w-[62ch] text-pretty text-ink/80"><Marked region={`grp:${g.from}:instr`} text={g.instructions.replace(/^Questions? [\d\s–\-and]+\.\s*/i, '')} /></p>
         {g.wordLimit && !g.instructions.toUpperCase().includes(g.wordLimit.toUpperCase()) && <p className="type-caption font-medium text-ink">Write {g.wordLimit}.</p>}
       </header>
-      {g.title && <h4 className="type-reading-sm font-medium">{g.title}</h4>}
+      {g.title && <h4 className="type-reading-sm font-medium"><Marked region={`grp:${g.from}:title`} text={g.title} /></h4>}
       {image && (
         // The one literal white of the system: raster exam figures are drawn on white.
         <figure className="overflow-x-auto rounded-lg border border-line bg-white p-2">
           <img src={image} alt={g.title ?? 'Figure for the questions below'} className="mx-auto max-h-[26rem] w-full max-w-xl object-contain" />
         </figure>
       )}
-      {(g.type === 'match' || wordBox) && opts.length > 0 && <OptionList title={wordBox ? 'Word box' : g.options?.some((o) => /^[ivx]+$/i.test(o.key)) ? 'List of headings' : 'Options'} options={opts} />}
+      {(g.type === 'match' || wordBox) && opts.length > 0 && <OptionList title={wordBox ? 'Word box' : g.options?.some((o) => /^[ivx]+$/i.test(o.key)) ? 'List of headings' : 'Options'} options={opts} region={`grp:${g.from}`} />}
       {body}
     </section>
   );

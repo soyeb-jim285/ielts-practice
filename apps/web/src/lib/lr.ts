@@ -135,6 +135,69 @@ export function addHighlight(all: Highlight[], h: Highlight): Highlight[] {
   return [...all.filter((x) => !same.includes(x)), merged];
 }
 
+// ---- marks: highlights with optional notes, per attempt, on this device only (docs/exam-fidelity.md) ----
+/** `region` is `passage:<part>:<paragraph>`, `q:<n>:<field>` or `grp:<groupFrom>:<field>`; s/e are offsets into that region's plain text. `p` is the paragraph (passage), question or group number. `text` is the marked excerpt for the Notes list (optional extension). */
+export type LrMark = { id: string; region: string; p: number; s: number; e: number; note?: string; text?: string };
+export const NOTE_MAX = 500;
+
+export const newMarkId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+const overlaps = (a: { s: number; e: number }, b: { s: number; e: number }) => a.s < b.e && b.s < a.e;
+
+/** A plain highlight merges with overlapping plain highlights of its region; a mark with a note never merges. */
+export function addMark(all: LrMark[], m: LrMark): LrMark[] {
+  if (m.note) return [...all, m];
+  const same = all.filter((x) => !x.note && x.region === m.region && x.s <= m.e && m.s <= x.e);
+  const merged = { ...m, s: Math.min(m.s, ...same.map((x) => x.s)), e: Math.max(m.e, ...same.map((x) => x.e)) };
+  return [...all.filter((x) => !same.includes(x)), merged];
+}
+/** The first noted mark a selection overlaps: selecting over it edits it instead of adding a mark. */
+export const notedAt = (all: LrMark[], region: string, s: number, e: number) => all.find((x) => x.note && x.region === region && overlaps(x, { s, e }));
+/** Sets (or, when blank, clears) a note; trimmed and capped at NOTE_MAX. */
+export const setMarkNote = (all: LrMark[], id: string, note: string): LrMark[] =>
+  all.map((x) => (x.id === id ? { ...x, note: note.trim().slice(0, NOTE_MAX) || undefined } : x));
+export const removeMark = (all: LrMark[], id: string) => all.filter((x) => x.id !== id);
+
+/** Cuts a region of `len` characters into runs, each with the marks that cover it (overlapping marks share runs). */
+export function markRuns(len: number, marks: LrMark[]): { s: number; e: number; marks: LrMark[] }[] {
+  const cuts = [...new Set([0, len, ...marks.flatMap((m) => [m.s, m.e])])].filter((c) => c >= 0 && c <= len).sort((a, b) => a - b);
+  return cuts.slice(0, -1).map((s, i) => ({ s, e: cuts[i + 1]!, marks: marks.filter((m) => m.s <= s && m.e >= cuts[i + 1]!) }));
+}
+
+/** Reads stored marks defensively (storage is user-editable). */
+export function parseMarks(raw: unknown): LrMark[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((m): m is LrMark => !!m && typeof m.id === 'string' && typeof m.region === 'string' && Number.isFinite(m.s) && Number.isFinite(m.e) && m.e > m.s);
+}
+/** Old passage highlights {p,s,e} become note-less passage marks, so earlier attempts keep theirs. */
+export const migrateHighlights = (part: number, old: Highlight[]): LrMark[] =>
+  old.filter((h) => Number.isFinite(h?.p) && h.e > h.s).map((h) => ({ id: `hl-${part}-${h.p}-${h.s}-${h.e}`, region: `passage:${part}:${h.p}`, p: h.p, s: h.s, e: h.e }));
+
+// ---- reading countdown ----
+/** Reading exam clock: flashes ~10 s at 10:00 and 5:00 left, warn tone from 10:00, strong from 5:00. Short partial attempts (limit <= 10 min) never warn. */
+export function readingClock(left: number, limit: number): { tone: 'neutral' | 'warn' | 'bad'; flash: boolean } {
+  if (limit <= 600 || left > 600) return { tone: 'neutral', flash: false };
+  if (left > 300) return { tone: 'warn', flash: left > 590 };
+  return { tone: 'bad', flash: left > 290 };
+}
+/** The announcement due when the countdown moves from `prev` to `now` seconds left (once per crossing, never on a resumed attempt that starts below it). */
+export function clockAlert(prev: number | null, now: number, limit: number): string | null {
+  if (prev === null || limit <= 600) return null;
+  for (const m of [5, 10]) if (prev > m * 60 && now <= m * 60) return `${m} minutes remaining`;
+  return null;
+}
+
+// ---- display settings (per device) ----
+export type LrSettings = { size: 'std' | 'lg' | 'xl'; scheme: 'std' | 'bw' | 'cream' | 'yb' };
+export const DEFAULT_SETTINGS: LrSettings = { size: 'std', scheme: 'std' };
+export const SETTINGS_KEY = 'lr:settings';
+export function parseSettings(raw: unknown): LrSettings {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<LrSettings>;
+  return {
+    size: r.size === 'lg' || r.size === 'xl' ? r.size : 'std',
+    scheme: r.scheme === 'bw' || r.scheme === 'cream' || r.scheme === 'yb' ? r.scheme : 'std',
+  };
+}
+
 export function lsGet<T>(key: string, fallback: T): T {
   try {
     const v = localStorage.getItem(key);
