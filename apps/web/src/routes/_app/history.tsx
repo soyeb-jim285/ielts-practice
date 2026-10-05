@@ -2,7 +2,7 @@ import { infiniteQueryOptions, useSuspenseInfiniteQuery } from '@tanstack/react-
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { RemoveAttempt } from '@/components/history/RemoveAttempt';
 import { AccountGate } from '@/components/community/AccountGate';
-import { BookOpen, Headphones, History, Mic, PenLine } from 'lucide-react';
+import { BookOpen, ClipboardCheck, Headphones, History, Mic, PenLine } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { LoadMore, nextPage } from '@/components/bank/LoadMore';
 import { GroupHeading, listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
@@ -13,6 +13,7 @@ import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { loadForAccount, useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { lrAttemptsQuery, partsLabel } from '@/lib/lr';
+import { mockListQuery } from '@/lib/mock';
 import { bandColor, type AttemptListItem as AttemptItem } from '@/lib/result';
 
 type Skill = 'speaking' | 'writing';
@@ -58,6 +59,7 @@ function HistoryPage() {
   const lrOn = !!useAccount();
   const lr = useQuery({ ...lrAttemptsQuery, enabled: lrOn }).data?.items.filter((a) => !isLr(skill) || a.skill === skill) ?? [];
   const showLr = lrOn && (!skill || isLr(skill));
+  const mocks = useQuery({ ...mockListQuery, enabled: lrOn && !skill }).data ?? [];
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseInfiniteQuery(historyQuery(isLr(skill) ? undefined : skill));
   const items = isLr(skill) ? [] : data.pages.flatMap((p) => p.items);
   const total = data.pages[0]?.total ?? 0;
@@ -82,6 +84,34 @@ function HistoryPage() {
           />
         }
       />
+      {mocks.length > 0 && (
+        <section aria-label="Mock tests" className="mb-8">
+          <GroupHeading>Mock tests</GroupHeading>
+          <ul className={listStyles}>
+            {mocks.slice(0, 5).map((m) => (
+              <li key={m.id}>
+                <Link to="/mock/$id" params={{ id: m.id }} className={cn(rowStyles, 'min-w-0')}>
+                  <RowIcon>
+                    <ClipboardCheck />
+                  </RowIcon>
+                  <span className="min-w-0 flex-1">
+                    <span className="type-subheading block font-medium">Mock test{m.ref ? `, ${m.ref}` : ''}</span>
+                    <span className="type-caption mt-0.5 block">
+                      {m.variant === 'academic' ? 'Academic' : 'General Training'}, {formatDate(m.startedAt)}
+                      {m.status === 'in_progress' ? ', in progress' : m.status === 'closed' ? ', finished without Speaking' : ''}
+                    </span>
+                  </span>
+                  <span className={cn('type-band text-lg', m.overall != null ? BAND_TEXT[bandColor(m.overall, target)] : 'text-muted')}>
+                    <span className="sr-only">Overall band </span>
+                    {m.overall != null ? formatBand(m.overall) : <span aria-hidden>-</span>}
+                  </span>
+                  <RowChevron />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {showLr && lr.length > 0 && (
         <section aria-label="Listening and Reading" className="mb-8">
           <GroupHeading>Listening and Reading</GroupHeading>

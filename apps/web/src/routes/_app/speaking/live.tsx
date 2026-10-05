@@ -7,20 +7,21 @@ import { LiveStage } from '@/components/live/LiveStage';
 import { PreScreen } from '@/components/live/PreScreen';
 import { buttonStyles, IconTile, Skeleton, toast } from '@/components/ui';
 import { rememberSession } from '@/lib/attempt';
+import { api } from '@/lib/api';
 import { useQuota } from '@/lib/community';
-import { useMe } from '@/lib/query';
+import { queryClient, useMe } from '@/lib/query';
 import { useGeminiExaminer } from '@/live/gemini';
 import { useGptLiveExaminer } from '@/live/gptLive';
 import { useTurnExaminer, type LiveExaminer, type LiveSource } from '@/live/turn';
 
 export const Route = createFileRoute('/_app/speaking/live')({
-  validateSearch: (s: Record<string, unknown>): { source?: 'cambridge' | 'generated' } => ({ source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined }),
+  validateSearch: (s: Record<string, unknown>): { source?: 'cambridge' | 'generated'; mock?: string } => ({ source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined, mock: typeof s.mock === 'string' ? s.mock : undefined }),
   staticData: { exam: true },
   component: LivePage,
 });
 
 type Style = 'turn' | 'gpt-live' | 'gemini-live';
-type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
+type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; mockId?: string; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
 
 /** The live examiner runs on the person's own key and is never paid from the community balance: no key, no live. */
 function LivePage() {
@@ -76,11 +77,23 @@ function Locked({ guest }: { guest: boolean }) {
 function Live({ providers }: { providers: Style[] }) {
   const { data: me } = useMe();
   const navigate = useNavigate();
-  const { source } = Route.useSearch();
+  const { source, mock } = Route.useSearch();
   // Set when the chosen conversation provider couldn't connect: the turn-based examiner runs the same test instead (when the person has an OpenRouter key).
   const [failed, setFailed] = useState(false);
   const onFinished = useCallback(
     (sessionId: string, [first, ...rest]: string[]) => {
+      if (mock) {
+        // Mock test: tie the live session to the mock, then go back to it (it shows the Speaking row being marked).
+        if (first) rememberSession(sessionId, [first, ...rest]);
+        void api
+          .post(`/mock/${mock}/speaking/attach`, { sessionId })
+          .catch(() => toast('Saved, but the mock test could not be linked to it. Open the result from History.', { tone: 'bad' }))
+          .finally(() => {
+            void queryClient.invalidateQueries({ queryKey: ['mock'] });
+            void navigate({ to: '/mock/$id', params: { id: mock }, replace: true });
+          });
+        return;
+      }
       if (first) {
         rememberSession(sessionId, [first, ...rest]);
         return void navigate({ to: '/speaking/result/$attemptId', params: { attemptId: first }, search: { session: sessionId }, replace: true });
@@ -88,7 +101,7 @@ function Live({ providers }: { providers: Style[] }) {
       toast('Nothing was recorded, so there is nothing to score.');
       void navigate({ to: '/speaking' });
     },
-    [navigate],
+    [navigate, mock],
   );
   const wanted = me?.settings.liveProvider ?? 'turn';
   const canTurn = providers.includes('turn');
@@ -96,21 +109,21 @@ function Live({ providers }: { providers: Style[] }) {
   // The saved choice if it is allowed; else turn-based; else whichever conversation provider their key unlocks.
   const chosen: Style = providers.includes(wanted) && !(failed && wanted !== 'turn') ? wanted : canTurn ? 'turn' : (natural ?? 'turn');
   const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : 'locked') : false;
-  const run: Run = { style: chosen, fallback, source, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
+  const run: Run = { style: chosen, fallback, source, mockId: mock, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
   // Separate components so each provider's hook is always called unconditionally.
   return chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
 }
 
 function TurnLive(p: Run) {
-  return <Stage ex={useTurnExaminer(p.onFinished, p.source)} {...p} />;
+  return <Stage ex={useTurnExaminer(p.onFinished, p.source, p.mockId)} {...p} />;
 }
 
 function GptLive(p: Run) {
-  return <Stage ex={useGptLiveExaminer(p.onFinished, p.onUnavailable, p.source)} {...p} />;
+  return <Stage ex={useGptLiveExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
 }
 
 function GeminiLive(p: Run) {
-  return <Stage ex={useGeminiExaminer(p.onFinished, p.onUnavailable, p.source)} {...p} />;
+  return <Stage ex={useGeminiExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
 }
 
 function Stage({ ex, style, fallback }: Run & { ex: LiveExaminer }) {

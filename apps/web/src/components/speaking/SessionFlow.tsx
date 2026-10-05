@@ -55,7 +55,7 @@ const hintSeen = () => {
  * The recording flow for one or more segments (a full test = P1 topics, P2 card, P3 discussion).
  * Each segment is one recording → one attempt (sharing `sessionId`), uploaded in the background while you continue.
  */
-export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments: Segment[]; sessionId?: string; parentAttemptId?: string }) {
+export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { segments: Segment[]; sessionId?: string; parentAttemptId?: string; mockId?: string }) {
   const navigate = useNavigate();
   const rec = useRecorder();
   const [segIdx, setSegIdx] = useState(0);
@@ -145,7 +145,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
       windows.current.push({ q: qIdx, startMs: openAt.current, endMs: Math.round(rec.clock()) });
       marks.current = windows.current.map((w) => w.startMs);
       const r = await rec.stop();
-      const p: Pending = { key: crypto.randomUUID(), promptId: seg.prompt.id, part: seg.part, sessionId, parentAttemptId, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, createdAt: Date.now(), mime: r.mime, blob: r.blob, durationMs: r.durationMs, energy: r.energy, marks: marks.current, segments: windows.current };
+      const p: Pending = { key: crypto.randomUUID(), promptId: seg.prompt.id, part: seg.part, sessionId, parentAttemptId, mockId, label: `${label(seg, segIdx)}: ${seg.prompt.topic || seg.prompt.title}`, createdAt: Date.now(), mime: r.mime, blob: r.blob, durationMs: r.durationMs, energy: r.energy, marks: marks.current, segments: windows.current };
       pending.current[segIdx] = p;
       kept.current[segIdx] = await savePending(p); // before anything can fail: the recording survives a failed upload, a reload or a closed tab
       setUploads((u) => [...u, { key: segIdx, label: p.label, status: 'uploading', kept: kept.current[segIdx]! }]);
@@ -198,8 +198,12 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
     const first = uploads.find((u) => u.key === 0)!.id!;
     void queryClient.invalidateQueries({ queryKey: ['quota'] }); // this test is now used
     if (sessionId) rememberSession(sessionId, [...uploads].sort((a, b) => a.key - b.key).map((u) => u.id!));
+    if (mockId) {
+      void queryClient.invalidateQueries({ queryKey: ['mock'] });
+      return void navigate({ to: '/mock/$id', params: { id: mockId }, replace: true });
+    }
     void navigate({ to: '/speaking/result/$attemptId', params: { attemptId: first }, search: sessionId ? { session: sessionId } : {}, replace: true });
-  }, [allDone, uploads, navigate, sessionId]);
+  }, [allDone, uploads, navigate, sessionId, mockId]);
 
   // Warn before leaving while a recording exists only in this tab (being recorded, or finished but not stored).
   const notDone = uploads.some((u) => u.status !== 'done');
@@ -214,7 +218,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId }: { segments
 
   const exit = () => {
     if (recording) void rec.stop().catch(() => {});
-    void navigate({ to: '/speaking' });
+    void (mockId ? navigate({ to: '/mock/$id', params: { id: mockId } }) : navigate({ to: '/speaking' }));
   };
 
   const answerS = Math.max(0, rec.elapsedMs - openAt.current) / 1000;

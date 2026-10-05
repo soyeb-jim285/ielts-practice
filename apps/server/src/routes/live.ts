@@ -21,6 +21,7 @@ import { aiLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
 import type { App } from '../types';
 import { CodedError } from './community';
+import { liveMock } from './mock';
 import { pickP1Branches, pickSpeakingTest, PromptSchema } from './prompts';
 
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
@@ -121,6 +122,7 @@ export function register(app: App) {
         z
           .object({
             source: z.enum(['generated', 'cambridge', 'any']).default('any'),
+            mockId: z.string().optional().openapi({ description: 'Full mock test: use the mock\'s Cambridge test (ref) and require its speaking mode to be live' }),
             skipTts: z.boolean().default(false).openapi({ description: 'Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)' }),
           })
           .openapi('LiveStart'),
@@ -141,11 +143,13 @@ export function register(app: App) {
     }),
     async (c) => {
       const user = currentUser(c);
-      const { source, skipTts } = c.req.valid('json');
+      const { source: asked, skipTts, mockId } = c.req.valid('json');
+      const mock = mockId ? await liveMock(user.id, mockId) : null;
+      const source = mock?.source ?? asked;
       const payer = c.get('payer')!;
       requireLive(payer, skipTts ? 'duplex' : 'turn');
       await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
-      const picked = await pickSpeakingTest(user, source);
+      const picked = await pickSpeakingTest(user, source, mock?.ref);
       if (!picked) return c.json({ error: 'No speaking test available' }, 404);
       const test = { ...picked, branches: await pickP1Branches(user) };
       const sessionId = crypto.randomUUID();

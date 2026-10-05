@@ -1,10 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { visiblePromptWhere } from '../access';
 import { currentUser, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
-import { analyses, attempts, prompts } from '../db/schema';
+import { analyses, attempts, mockExams, prompts } from '../db/schema';
 import { ApiError } from '../errors';
 import { clientIpHash } from '../ip';
 import { runAnalysis } from '../jobs';
@@ -15,6 +15,7 @@ import type { AnalysisResult } from '../ai/types';
 import type { App } from '../types';
 import { fixCard, inDeck } from './cards';
 import { CodedError } from './community';
+import { checkMockAttempt } from './mock';
 
 const PAGE_SIZE = 20;
 const GUEST_RECENT = 10; // guests get a short "your recent tests" list, never the full History
@@ -41,6 +42,7 @@ const CreateAttempt = z
     part: z.number().int().min(1).max(3),
     mode: Mode.default('practice'),
     sessionId: z.string().optional(),
+    mockId: z.string().optional().openapi({ description: 'Full mock test: the attempt belongs to this open mock of the caller; sessionId must be the mock\'s writing/speaking session' }),
     parentAttemptId: z.string().optional(),
     text: z.string().max(20000).optional(),
     audioContentType: z.string().optional().openapi({ description: 'Speaking only: audio/webm | audio/mp4 | audio/m4a | audio/wav (codec params allowed). Default audio/webm.' }),
@@ -172,9 +174,11 @@ export function register(app: App) {
       }
 
       const id = crypto.randomUUID();
+      if (b.mockId) await checkMockAttempt(user.id, b.mockId, b);
       await checkAttempt(await payerOf(user), { id, userId: user.id, skill: b.skill, part: b.part, sessionId: b.sessionId ?? null }, clientIpHash(c));
       if (b.skill === 'writing') {
         await db.insert(attempts).values({ id, userId: user.id, promptId: b.promptId, skill: b.skill, part: b.part, mode: b.mode, sessionId: b.sessionId, parentAttemptId: b.parentAttemptId, text: b.text });
+        if (b.mockId) await db.update(mockExams).set({ writingAttemptIds: sql`array_append(${mockExams.writingAttemptIds}, ${id})` }).where(eq(mockExams.id, b.mockId));
         return c.json({ id }, 201);
       }
       const mime = b.audioContentType ?? 'audio/webm';

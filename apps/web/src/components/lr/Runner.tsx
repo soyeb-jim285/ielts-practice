@@ -101,7 +101,7 @@ export function scrollToQuestion(n: number, focus = true) {
 const wideQuery = () => matchMedia('(min-width: 40rem)');
 const subWide = (f: () => void) => (wideQuery().addEventListener('change', f), () => wideQuery().removeEventListener('change', f));
 
-export function Runner({ attempt }: { attempt: LrAttempt }) {
+export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: string }) {
   const { test, assets } = attempt;
   const exam = attempt.mode === 'exam';
   const listening = test.skill === 'listening';
@@ -109,7 +109,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   const wide = useSyncExternalStore(subWide, () => wideQuery().matches, () => true); // 640 px and up: labelled header buttons
   const navigate = useNavigate();
   const lateFrom = useRef(Infinity); // elapsed seconds after which answers count as last-minute (set once the playlist is known)
-  const session = useLrSession(attempt, lateFrom);
+  const session = useLrSession(attempt, lateFrom, mockId);
   const { responses, change, state, submit, submitting } = session;
   const sections = test.sections; // only the chosen parts of a partial attempt
   const limit = readingSeconds(attempt.parts);
@@ -254,6 +254,8 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
   const unanswered = flat.filter((f) => !answered(f.n)).length;
   const idx = flat.findIndex((f) => f.n === current);
   const hub = listening ? '/listening' : '/reading';
+  // Exit never discards: inside a mock test it goes back to the mock, which resumes this section.
+  const leave = () => void (mockId ? navigate({ to: '/mock/$id', params: { id: mockId } }) : navigate({ to: hub }));
 
   // ---- leaving mid-exam warns ----
   const blocker = useBlocker({ shouldBlockFn: () => exam && !leaving.current, enableBeforeUnload: () => exam && !leaving.current, withResolver: true });
@@ -295,7 +297,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
           <Button size="lg" loading={!playlist.durations && !playlist.error} disabled={playlist.error} onClick={playlist.start}>
             {attempt.elapsedS > 0 ? 'Resume test' : 'Start test'}
           </Button>
-          <Button size="lg" variant="ghost" onClick={() => navigate({ to: hub })}>
+          <Button size="lg" variant="ghost" onClick={leave}>
             Back
           </Button>
         </div>
@@ -346,7 +348,7 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
       {examListening && <audio ref={playlist.el} preload="auto" className="hidden" />}
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 pt-[env(safe-area-inset-top)] sm:gap-3 sm:px-5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
-          <Button variant="ghost" size="sm" className="-ml-1 shrink-0 text-muted hover:text-ink" aria-label="Exit" onClick={() => navigate({ to: hub })}>
+          <Button variant="ghost" size="sm" className="-ml-1 shrink-0 text-muted hover:text-ink" aria-label="Exit" onClick={leave}>
             <X aria-hidden />
             <span className="hidden sm:inline">Exit</span>
           </Button>

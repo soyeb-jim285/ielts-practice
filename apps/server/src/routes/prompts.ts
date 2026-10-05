@@ -1,6 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { P1_TEST_QUESTIONS } from '@ielts/core';
-import { and, asc, count, eq, getTableColumns, ilike, isNotNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, ilike, inArray, isNotNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { etag } from 'hono/etag';
 import { visiblePromptWhere } from '../access';
 import { currentUser, requireUser } from '../auth';
@@ -46,7 +46,7 @@ export const PromptSchema = z
   .openapi('Prompt');
 export type Prompt = z.infer<typeof PromptSchema>;
 
-const SpeakingTestSchema = z.object({ part1: z.array(PromptSchema), part2: PromptSchema, part3: PromptSchema }).openapi('SpeakingTest');
+export const SpeakingTestSchema = z.object({ part1: z.array(PromptSchema), part2: PromptSchema, part3: PromptSchema }).openapi('SpeakingTest');
 export type SpeakingTest = z.infer<typeof SpeakingTestSchema>;
 const TestSource = z.enum(['generated', 'cambridge', 'any']);
 
@@ -85,15 +85,15 @@ const filters = (user: SessionUser | null, f: Partial<z.infer<typeof ListQuery>>
   );
 
 /** Random visible prompts, undone first. Without a user there is no done flag to sort by (and Postgres rejects ORDER BY false). */
-const pick = (user: SessionUser | null, where: SQL | undefined, limit: number) =>
+export const pick = (user: SessionUser | null, where: SQL | undefined, limit: number) =>
   selectWithDone(user?.id ?? null)
     .where(and(visiblePromptWhere(user), where))
     .orderBy(...(user ? [doneExpr(user.id)] : []), sql`random()`)
     .limit(limit);
 
 /** A full speaking test: a random P1 intro frame plus 2 familiar topics (P1_TEST_QUESTIONS each), a P2 cue card and its linked P3 set. Null when the bank has no card. */
-export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any'): Promise<SpeakingTest | null> {
-  const src = source === 'any' ? undefined : eq(prompts.source, source);
+export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any', ref?: string | null): Promise<SpeakingTest | null> {
+  const src = and(source === 'any' ? undefined : eq(prompts.source, source), ref ? eq(prompts.sourceRef, ref) : undefined);
   const speaking = (p: number) => and(eq(prompts.skill, 'speaking'), eq(prompts.part, p), src);
   // Real Part 1: one introductory frame (hometown, home, work/study), then two familiar topics. Falls back to topics only when the bank has no frame.
   const frameTypes = ['p1-intro', 'p1-branch'];
@@ -111,6 +111,20 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
     part2: await toPrompt(card).then(withAudio),
     part3: await toPrompt(linked).then(withAudio),
   };
+}
+
+/** Visible prompts by id, in the order asked (a full mock test stores the ids it picked). Null if any is missing or no longer visible to this user. */
+export async function promptsByIds(user: SessionUser, ids: string[]): Promise<Prompt[] | null> {
+  const rows = await selectWithDone(user.id).where(and(inArray(prompts.id, ids), visiblePromptWhere(user)));
+  const by = new Map(rows.map((r) => [r.id, r]));
+  const ordered = ids.map((i) => by.get(i));
+  return ordered.every(Boolean) ? Promise.all(ordered.map((r) => toPrompt(r!).then(withAudio))) : null;
+}
+
+/** The speaking test stored by ids [p1.., p2, p3] (Part 1 questions cut as pickSpeakingTest does). */
+export async function speakingTestByIds(user: SessionUser, ids: string[]): Promise<SpeakingTest | null> {
+  const ps = await promptsByIds(user, ids);
+  return ps && { part1: ps.slice(0, -2).map((p) => ({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null })), part2: ps.at(-2)!, part3: ps.at(-1)! };
 }
 
 /** The Part 1 work and study sets (bank p1-work, p1-study) the live examiner switches to once the candidate says which applies. Undefined if the bank lacks them. */

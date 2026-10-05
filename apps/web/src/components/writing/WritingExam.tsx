@@ -14,9 +14,9 @@ import { PromptPanel, type WritingPrompt } from './PromptPanel';
 import { countWords, NO_ASSIST, useDrafts, WritingEditor } from './WritingEditor';
 
 /** Seconds left on a wall-clock deadline; negative once overtime. Survives tab throttling (derived from Date.now()). */
-function useDeadline(seconds: number) {
-  const [deadline] = useState(() => Date.now() + seconds * 1000);
-  const [left, setLeft] = useState(seconds);
+function useDeadline(seconds: number, usedS = 0) {
+  const [deadline] = useState(() => Date.now() + (seconds - usedS) * 1000);
+  const [left, setLeft] = useState(seconds - usedS);
   useEffect(() => {
     const t = setInterval(() => setLeft(Math.ceil((deadline - Date.now()) / 1000)), 250);
     return () => clearInterval(t);
@@ -44,17 +44,25 @@ function TimerPill({ left }: { left: number }) {
 /**
  * The timed writing screen for one task (practice) or Task 1 + Task 2 sharing one clock (full test).
  * Owns drafts, paste policy, auto-submit/overtime and the create → submit calls; lands on the result page.
+ * Inside a mock test (`mockId`): the session id comes from the mock, the clock resumes from `initialElapsedS` and is saved to the server
+ * every 15 s, and Exit and the end of the test return to the mock instead of the result.
  */
 export function WritingExam({
   prompts,
   seconds,
   mode,
   parentAttemptId,
+  mockId,
+  sessionId: givenSessionId,
+  initialElapsedS = 0,
 }: {
   prompts: WritingPrompt[];
   seconds: number;
   mode: 'practice' | 'exam';
   parentAttemptId?: string;
+  mockId?: string;
+  sessionId?: string;
+  initialElapsedS?: number;
 }) {
   const navigate = useNavigate();
   const settings = useMe().data?.settings;
@@ -67,9 +75,13 @@ export function WritingExam({
   const [promptOpen, setPromptOpen] = useState(() => !drafts[prompts[0]!.id]!.text); // phones: collapse the question once the answer is under way
   const [error, setError] = useState<string | null>(null);
   const [blocker, setBlocker] = useState<Blocker | null>(null); // the quota ran out (a second tab, the window rolled): the draft stays, the reason is shown
-  const left = useDeadline(seconds);
+  const left = useDeadline(seconds, initialElapsedS);
   const created = useRef<Record<string, string>>({}); // promptId → attemptId, so a retried submit never duplicates attempts
-  const sessionId = useRef(prompts.length > 1 ? crypto.randomUUID() : undefined);
+  const sessionId = useRef(givenSessionId ?? (prompts.length > 1 ? crypto.randomUUID() : undefined));
+  const leftRef = useRef(left);
+  leftRef.current = left;
+  const saveClock = () => void api.patch(`/mock/${mockId}/writing/clock`, { elapsedS: Math.max(0, Math.min(seconds, seconds - leftRef.current)) }).catch(() => {});
+  const toMock = () => void navigate({ to: '/mock/$id', params: { id: mockId! } });
   const autoFired = useRef(false);
 
   async function submit() {
@@ -85,7 +97,7 @@ export function WritingExam({
       for (const p of prompts) {
         const { text, plan } = drafts[p.id]!;
         created.current[p.id] ??= (
-          await api.post<{ id: string }>('/attempts', { promptId: p.id, skill: 'writing', part: p.part, mode, sessionId: sessionId.current, parentAttemptId, text })
+          await api.post<{ id: string }>('/attempts', { promptId: p.id, skill: 'writing', part: p.part, mode, sessionId: sessionId.current, parentAttemptId, text, ...(mockId && { mockId }) })
         ).id;
         const id = created.current[p.id]!;
         await api.post(`/attempts/${id}/submit`, { text, overtime, durationMs, ...(p.part === 2 && plan.trim() ? { plan } : {}) }).catch((e: unknown) => {
@@ -95,7 +107,10 @@ export function WritingExam({
       }
       clear();
       void queryClient.invalidateQueries({ queryKey: ['quota'] }); // this test is now used
-      void navigate({ to: '/writing/result/$attemptId', params: { attemptId: ids[0]! }, search: ids[1] ? { pair: ids[1] } : {} });
+      if (mockId) {
+        void queryClient.invalidateQueries({ queryKey: ['mock'] });
+        void navigate({ to: '/mock/$id', params: { id: mockId }, replace: true });
+      } else void navigate({ to: '/writing/result/$attemptId', params: { attemptId: ids[0]! }, search: ids[1] ? { pair: ids[1] } : {} });
     } catch (e) {
       const b = blockerOf(e);
       if (b) setBlocker(b);
@@ -104,6 +119,18 @@ export function WritingExam({
       setConfirm(null);
     }
   }
+
+  // Mock test: keep the used time on the server (monotonic there), every 15 s and whenever the tab is hidden, so a reload resumes the clock.
+  useEffect(() => {
+    if (!mockId) return;
+    const hidden = () => document.visibilityState === 'hidden' && saveClock();
+    const t = setInterval(saveClock, 15_000);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, [mockId, seconds]);
 
   // Time's up: auto-submit once (setting), otherwise keep counting as overtime. Warn at 5 and 1 minutes.
   useEffect(() => {
@@ -260,7 +287,7 @@ export function WritingExam({
             <Button variant="ghost" onClick={() => setConfirm(null)}>
               Stay
             </Button>
-            <Button variant="outline" onClick={() => void navigate({ to: '/writing' })}>
+            <Button variant="outline" onClick={() => (mockId ? (saveClock(), toMock()) : void navigate({ to: '/writing' }))}>
               Leave
             </Button>
           </>

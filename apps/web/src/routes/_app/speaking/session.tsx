@@ -7,11 +7,11 @@ import { TestGate } from '@/components/community/TestGate';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { SessionFlow, toSegment, type Segment } from '@/components/speaking/SessionFlow';
 import { Alert, Button, buttonStyles, EmptyState, Skeleton } from '@/components/ui';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, call, client } from '@/lib/api';
 
 const MODES = ['full', 'p1', 'p2', 'p3'] as const;
 type Mode = (typeof MODES)[number];
-type Search = { mode: Mode; promptId?: string; parent?: string; source?: 'cambridge' | 'generated' };
+type Search = { mode: Mode; promptId?: string; parent?: string; source?: 'cambridge' | 'generated'; mock?: string };
 
 export const Route = createFileRoute('/_app/speaking/session')({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -19,10 +19,18 @@ export const Route = createFileRoute('/_app/speaking/session')({
     promptId: typeof s.promptId === 'string' ? s.promptId : undefined,
     parent: typeof s.parent === 'string' ? s.parent : undefined,
     source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined,
+    mock: typeof s.mock === 'string' ? s.mock : undefined,
   }),
   staticData: { exam: true },
   component: SessionPage,
 });
+
+/** Inside a mock test the mock picks the questions and owns the session id; choosing again before any answer exists just refreshes them. */
+async function loadMockSegments(mock: string): Promise<{ segments: Segment[]; sessionId: string }> {
+  const r = await call(client.POST('/api/mock/{id}/speaking/choose', { params: { path: { id: mock } }, body: { mode: 'recorded' } }));
+  const t = r.test as unknown as SpeakingTest;
+  return { segments: [...t.part1, t.part2, t.part3].map(toSegment), sessionId: r.sessionId! };
+}
 
 async function loadSegments({ mode, promptId, source }: Search): Promise<Segment[]> {
   if (promptId) return [toSegment(await api.get<Prompt>(`/prompts/${promptId}`))];
@@ -45,13 +53,18 @@ function SessionPage() {
 function Session() {
   const search = Route.useSearch();
   // A fresh test each visit, stable while you're on the page.
-  const q = useQuery({ queryKey: ['speaking-session', search.mode, search.promptId ?? null, search.source ?? null], queryFn: () => loadSegments(search), staleTime: Infinity, gcTime: 0 });
-  const [sessionId] = useState(() => (search.mode === 'full' && !search.promptId ? crypto.randomUUID() : undefined));
+  const q = useQuery({
+    queryKey: ['speaking-session', search.mode, search.promptId ?? null, search.source ?? null, search.mock ?? null],
+    queryFn: async () => (search.mock ? await loadMockSegments(search.mock) : { segments: await loadSegments(search), sessionId: undefined }),
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+  const [localId] = useState(() => (search.mode === 'full' && !search.promptId ? crypto.randomUUID() : undefined));
 
-  return q.data ? <SessionFlow segments={q.data} sessionId={sessionId} parentAttemptId={search.parent} /> : <Loading q={q} />;
+  return q.data ? <SessionFlow segments={q.data.segments} sessionId={q.data.sessionId ?? localId} parentAttemptId={search.parent} mockId={search.mock} /> : <Loading q={q} />;
 }
 
-function Loading({ q }: { q: ReturnType<typeof useQuery<Segment[]>> }) {
+function Loading({ q }: { q: { isPending: boolean; error: Error | null; refetch: () => unknown } }) {
   return (
     <ExamShell title="Speaking">
       {q.isPending ? (

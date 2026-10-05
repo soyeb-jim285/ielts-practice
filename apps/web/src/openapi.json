@@ -866,6 +866,10 @@
           "sessionId": {
             "type": "string"
           },
+          "mockId": {
+            "type": "string",
+            "description": "Full mock test: the attempt belongs to this open mock of the caller; sessionId must be the mock's writing/speaking session"
+          },
           "parentAttemptId": {
             "type": "string"
           },
@@ -1459,6 +1463,10 @@
               "any"
             ],
             "default": "any"
+          },
+          "mockId": {
+            "type": "string",
+            "description": "Full mock test: use the mock's Cambridge test (ref) and require its speaking mode to be live"
           },
           "skipTts": {
             "type": "boolean",
@@ -5455,6 +5463,364 @@
           "message",
           "page"
         ]
+      },
+      "MockOptions": {
+        "type": "object",
+        "properties": {
+          "cambridge": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "bookTest": {
+                  "type": "string"
+                },
+                "started": {
+                  "type": "boolean",
+                  "description": "You already started a mock on this test"
+                }
+              },
+              "required": [
+                "ref",
+                "bookTest",
+                "started"
+              ]
+            },
+            "description": "Complete Cambridge tests; empty unless this account has Cambridge access"
+          },
+          "own": {
+            "type": "boolean",
+            "description": "Our own tests can make a complete set"
+          },
+          "quota": {
+            "type": "object",
+            "properties": {
+              "writing": {
+                "$ref": "#/components/schemas/SkillQuota"
+              },
+              "speaking": {
+                "$ref": "#/components/schemas/SkillQuota"
+              }
+            },
+            "required": [
+              "writing",
+              "speaking"
+            ]
+          }
+        },
+        "required": [
+          "cambridge",
+          "own",
+          "quota"
+        ]
+      },
+      "CurrentMock": {
+        "type": "object",
+        "properties": {
+          "mock": {
+            "$ref": "#/components/schemas/Mock"
+          }
+        },
+        "required": [
+          "mock"
+        ]
+      },
+      "Mock": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "academic",
+              "general"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cambridge",
+              "generated"
+            ]
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "completed",
+              "closed"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "listening",
+              "reading",
+              "writing",
+              "speaking",
+              null
+            ],
+            "description": "First section not yet submitted; null once the mock is completed or closed"
+          },
+          "overall": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mean of the four section bands to the nearest 0.5; null until all four exist"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "listening",
+                    "reading",
+                    "writing",
+                    "speaking"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "todo",
+                    "in_progress",
+                    "submitted",
+                    "marking",
+                    "done",
+                    "failed",
+                    "skipped"
+                  ]
+                },
+                "band": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "attemptId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "LR attempt, first writing attempt, first speaking attempt (link target)"
+                },
+                "sessionId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Writing / speaking session for the result switcher"
+                },
+                "elapsedS": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "limitS": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Listening 1800 (plus the 2-minute check), reading 3600, writing 3600, speaking none"
+                },
+                "mode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "recorded",
+                    "live",
+                    null
+                  ]
+                }
+              },
+              "required": [
+                "skill",
+                "state",
+                "band",
+                "attemptId",
+                "sessionId",
+                "elapsedS",
+                "limitS",
+                "mode"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "variant",
+          "source",
+          "ref",
+          "status",
+          "startedAt",
+          "expiresAt",
+          "completedAt",
+          "next",
+          "overall",
+          "sections"
+        ]
+      },
+      "MockError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "mockId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "CreateMock": {
+        "type": "object",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": [
+              "academic",
+              "general"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cambridge",
+              "generated"
+            ]
+          },
+          "ref": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "\"C19 T2\"; Cambridge only"
+          }
+        },
+        "required": [
+          "variant",
+          "source"
+        ]
+      },
+      "MockList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mock"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "MockSectionStarted": {
+        "type": "object",
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attemptId"
+        ]
+      },
+      "MockWritingStarted": {
+        "type": "object",
+        "properties": {
+          "prompts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Prompt"
+            }
+          },
+          "writingSessionId": {
+            "type": "string"
+          },
+          "elapsedS": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "prompts",
+          "writingSessionId",
+          "elapsedS"
+        ]
+      },
+      "MockSpeakingChosen": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "recorded",
+              "live"
+            ]
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "test": {
+            "$ref": "#/components/schemas/SpeakingTest"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cambridge",
+              "generated"
+            ]
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
       }
     },
     "parameters": {}
@@ -9361,6 +9727,753 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FeedbackCreated"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/options": {
+      "get": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "What a full mock test can be started from, and whether the writing and speaking allowance lets it start",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "academic",
+                "general"
+              ]
+            },
+            "required": true,
+            "name": "variant",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Options",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/current": {
+      "get": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My open mock test, or null",
+        "responses": {
+          "200": {
+            "description": "The open mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentMock"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a full mock test: picks the tests and checks the writing and speaking allowance (reserves nothing)",
+        "description": "One open mock per person: 409 mock_open (with `mockId`) unless `replace=true`, which deletes the open mock row only (its attempts stay). 404 no_complete_set when there is no complete set (also a Cambridge ref this account may not open). Quota errors as for any test: 429, 402, 503.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "replace",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMock"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mock"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "no_complete_set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "quota_exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My mock tests, newest first",
+        "responses": {
+          "200": {
+            "description": "Mocks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}": {
+      "get": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One mock test with the state and band of each section",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mock"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Abandon a mock test: deletes the mock only, its attempts stay as practice history",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/sections/{skill}/start": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start (or resume) the Listening or Reading attempt of a mock: an exam-mode whole-test attempt",
+        "description": "Listening first; Reading only after Listening is submitted (409 out_of_order). A submitted section is 409 section_done. Load the attempt with GET /api/lr/attempts/{attemptId}.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "listening",
+                "reading"
+              ]
+            },
+            "required": true,
+            "name": "skill",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockSectionStarted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/writing/start": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start (or resume) Writing: both prompts, the shared session id and the time already used",
+        "description": "Only after Reading is submitted (409 out_of_order). Send `mockId` and `sessionId` with each POST /api/attempts; keep the clock with PATCH writing/clock.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockWritingStarted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/writing/clock": {
+      "patch": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Autosave the Writing clock (only ever increases)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "elapsedS": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 7200
+                  }
+                },
+                "required": [
+                  "elapsedS"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "elapsedS": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "elapsedS"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/speaking/choose": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Choose how to do Speaking: recorded test or live examiner",
+        "description": "Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the person's own key (403 live_requires_own_key); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "recorded",
+                      "live"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chosen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockSpeakingChosen"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "quota_exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/speaking/attach": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live examiner: link the finished live session to the mock",
+        "description": "After POST /api/live/finish. 400 unless that session has attempts of this person.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sessionId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mock"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not your finished live session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/{id}/close": {
+      "post": {
+        "tags": [
+          "Mock exam"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Finish without Speaking: closes the mock, Speaking is skipped and there is no overall band",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mock"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also for another person's mock)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "mock_closed | out_of_order | section_done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockError"
                 }
               }
             }

@@ -12,6 +12,8 @@ export type ExaminerLine = { examinerText: string; audioUrl: string | null; voic
 export type LiveStarted = ExaminerLine & { sessionId: string; test: SpeakingTest };
 /** Which bank /live/start draws the test from; undefined = the server default (any visible prompt). */
 export type LiveSource = 'cambridge' | 'generated' | undefined;
+/** The /live/start body: inside a mock test the server picks the questions from the mock, so only `mockId` is sent. */
+export const liveStartBody = (source: LiveSource, mockId?: string) => (mockId ? { mockId } : { source });
 type Part = 1 | 2 | 3;
 
 export const PREP_S = 60;
@@ -137,7 +139,7 @@ function useExaminerAudio() {
   };
 }
 
-export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, source?: LiveSource): LiveExaminer {
+export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, source?: LiveSource, mockId?: string): LiveExaminer {
   const [status, setStatus] = useState<LiveExaminer['status']>('idle');
   const [phase, setPhase] = useState<Phase>('intro');
   const [caption, setCaption] = useState('');
@@ -247,7 +249,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     audio.prime();
     setStatus('starting');
     try {
-      const st = await api.post<LiveStarted>('/live/start', { source });
+      const st = await api.post<LiveStarted>('/live/start', liveStartBody(source, mockId));
       s.current.sessionId = st.sessionId;
       await play(st);
     } catch (e) {

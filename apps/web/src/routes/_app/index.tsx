@@ -10,6 +10,8 @@ import { CRITERION_SHORT, PRACTICE, practiceTarget, type Progress } from '@/comp
 import { GuestHome } from '@/components/dashboard/GuestHome';
 import { LrInsights } from '@/components/dashboard/LrInsights';
 import { Onboarding } from '@/components/dashboard/Onboarding';
+import { MockCta } from '@/components/mock/MockCta';
+import { useCurrentMock } from '@/components/mock/useMock';
 import { QuotaStrip } from '@/components/community/QuotaNote';
 import { Alert, Badge, buttonStyles, Card, CountUp, PageContainer, PageHeader, ProgressBar, Segmented } from '@/components/ui';
 import { call, client } from '@/lib/api';
@@ -71,6 +73,7 @@ function Dashboard() {
 
       <div className="space-y-6 md:space-y-8">
         <QuotaStrip />
+        {useCurrentMock().data && <MockCta />}
         {p.lastFailed && (
           <Alert
             tone="warn"
@@ -110,6 +113,9 @@ function Dashboard() {
           <section aria-labelledby="practise-h" className="min-w-0">
             <PanelHeader id="practise-h" title="Practise" />
             <ul className={cn(listStyles, 'stagger')}>
+              <li>
+                <MockCta variant="row" />
+              </li>
               <li>
                 <Link {...speakingSession('full')} className={rowStyles}>
                   <RowIcon>

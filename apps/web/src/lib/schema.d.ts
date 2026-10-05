@@ -3494,6 +3494,685 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mock/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What a full mock test can be started from, and whether the writing and speaking allowance lets it start */
+        get: {
+            parameters: {
+                query: {
+                    variant: "academic" | "general";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockOptions"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My open mock test, or null */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The open mock */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CurrentMock"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My mock tests, newest first */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Mocks */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Start a full mock test: picks the tests and checks the writing and speaking allowance (reserves nothing)
+         * @description One open mock per person: 409 mock_open (with `mockId`) unless `replace=true`, which deletes the open mock row only (its attempts stay). 404 no_complete_set when there is no complete set (also a Cambridge ref this account may not open). Quota errors as for any test: 429, 402, 503.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    replace?: "true" | "false";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateMock"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Mock"];
+                    };
+                };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description no_complete_set */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_open */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description quota_exceeded */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One mock test with the state and band of each section */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Mock */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Mock"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Abandon a mock test: deletes the mock only, its attempts stay as practice history */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}/sections/{skill}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start (or resume) the Listening or Reading attempt of a mock: an exam-mode whole-test attempt
+         * @description Listening first; Reading only after Listening is submitted (409 out_of_order). A submitted section is 409 section_done. Load the attempt with GET /api/lr/attempts/{attemptId}.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    skill: "listening" | "reading";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Attempt */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockSectionStarted"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}/writing/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start (or resume) Writing: both prompts, the shared session id and the time already used
+         * @description Only after Reading is submitted (409 out_of_order). Send `mockId` and `sessionId` with each POST /api/attempts; keep the clock with PATCH writing/clock.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Prompts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockWritingStarted"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}/writing/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Autosave the Writing clock (only ever increases) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        elapsedS: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            elapsedS: number;
+                        };
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/mock/{id}/speaking/choose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose how to do Speaking: recorded test or live examiner
+         * @description Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the person's own key (403 live_requires_own_key); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        mode: "recorded" | "live";
+                    };
+                };
+            };
+            responses: {
+                /** @description Chosen */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockSpeakingChosen"];
+                    };
+                };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description quota_exceeded */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}/speaking/attach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Live examiner: link the finished live session to the mock
+         * @description After POST /api/live/finish. 400 unless that session has attempts of this person.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        sessionId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Mock */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Mock"];
+                    };
+                };
+                /** @description Not your finished live session */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mock/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish without Speaking: closes the mock, Speaking is skipped and there is no overall band */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Mock */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Mock"];
+                    };
+                };
+                /** @description Not found (also for another person's mock) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+                /** @description mock_closed | out_of_order | section_done */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MockError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3719,6 +4398,8 @@ export interface components {
              */
             mode: "practice" | "live" | "exam";
             sessionId?: string;
+            /** @description Full mock test: the attempt belongs to this open mock of the caller; sessionId must be the mock's writing/speaking session */
+            mockId?: string;
             parentAttemptId?: string;
             text?: string;
             /** @description Speaking only: audio/webm | audio/mp4 | audio/m4a | audio/wav (codec params allowed). Default audio/webm. */
@@ -3860,6 +4541,8 @@ export interface components {
              * @enum {string}
              */
             source: "generated" | "cambridge" | "any";
+            /** @description Full mock test: use the mock's Cambridge test (ref) and require its speaking mode to be live */
+            mockId?: string;
             /**
              * @description Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)
              * @default false
@@ -4857,6 +5540,93 @@ export interface components {
             page: string;
             /** Format: uuid */
             replaySessionId?: string;
+        };
+        MockOptions: {
+            /** @description Complete Cambridge tests; empty unless this account has Cambridge access */
+            cambridge: {
+                ref: string;
+                bookTest: string;
+                /** @description You already started a mock on this test */
+                started: boolean;
+            }[];
+            /** @description Our own tests can make a complete set */
+            own: boolean;
+            quota: {
+                writing: components["schemas"]["SkillQuota"];
+                speaking: components["schemas"]["SkillQuota"];
+            };
+        };
+        CurrentMock: {
+            mock: components["schemas"]["Mock"];
+        };
+        Mock: {
+            id: string;
+            /** @enum {string} */
+            variant: "academic" | "general";
+            /** @enum {string} */
+            source: "cambridge" | "generated";
+            ref: string | null;
+            /** @enum {string} */
+            status: "in_progress" | "completed" | "closed";
+            startedAt: string;
+            expiresAt: string;
+            completedAt: string | null;
+            /**
+             * @description First section not yet submitted; null once the mock is completed or closed
+             * @enum {string|null}
+             */
+            next: "listening" | "reading" | "writing" | "speaking" | null;
+            /** @description Mean of the four section bands to the nearest 0.5; null until all four exist */
+            overall: number | null;
+            sections: {
+                /** @enum {string} */
+                skill: "listening" | "reading" | "writing" | "speaking";
+                /** @enum {string} */
+                state: "todo" | "in_progress" | "submitted" | "marking" | "done" | "failed" | "skipped";
+                band: number | null;
+                /** @description LR attempt, first writing attempt, first speaking attempt (link target) */
+                attemptId: string | null;
+                /** @description Writing / speaking session for the result switcher */
+                sessionId: string | null;
+                elapsedS: number | null;
+                /** @description Listening 1800 (plus the 2-minute check), reading 3600, writing 3600, speaking none */
+                limitS: number | null;
+                /** @enum {string|null} */
+                mode: "recorded" | "live" | null;
+            }[];
+        } | null;
+        MockError: {
+            error: string;
+            code?: string;
+            mockId?: string;
+        };
+        CreateMock: {
+            /** @enum {string} */
+            variant: "academic" | "general";
+            /** @enum {string} */
+            source: "cambridge" | "generated";
+            /** @description "C19 T2"; Cambridge only */
+            ref?: string;
+        };
+        MockList: {
+            items: components["schemas"]["Mock"][];
+        };
+        MockSectionStarted: {
+            attemptId: string;
+        };
+        MockWritingStarted: {
+            prompts: components["schemas"]["Prompt"][];
+            writingSessionId: string;
+            elapsedS: number;
+        };
+        MockSpeakingChosen: {
+            /** @enum {string} */
+            mode: "recorded" | "live";
+            sessionId?: string;
+            test?: components["schemas"]["SpeakingTest"];
+            /** @enum {string} */
+            source?: "cambridge" | "generated";
+            ref?: string | null;
         };
     };
     responses: never;

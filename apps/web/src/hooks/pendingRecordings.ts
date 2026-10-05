@@ -16,6 +16,8 @@ export type Pending = {
   segments?: { q: number; startMs: number; endMs: number }[];
   sessionId?: string;
   parentAttemptId?: string;
+  /** Set when the recording is a speaking section of a mock test. */
+  mockId?: string;
   // upload progress, so a retry resumes at the step that failed
   attemptId?: string;
   uploadUrl?: string;
@@ -58,7 +60,7 @@ export async function uploadPending(p: Pending, kept = true): Promise<string> {
   const save = () => (kept ? savePending(p) : undefined);
   if (!p.attemptId) {
     const created = await within(
-      api.post<{ id: string; uploadUrl?: string }>('/attempts', { promptId: p.promptId, skill: 'speaking', part: p.part, mode: 'practice', sessionId: p.sessionId, parentAttemptId: p.parentAttemptId, audioContentType: p.mime }),
+      api.post<{ id: string; uploadUrl?: string }>('/attempts', { promptId: p.promptId, skill: 'speaking', part: p.part, mode: 'practice', sessionId: p.sessionId, parentAttemptId: p.parentAttemptId, ...(p.mockId && { mockId: p.mockId }), audioContentType: p.mime }),
       API_MS,
       'Starting the upload',
     );

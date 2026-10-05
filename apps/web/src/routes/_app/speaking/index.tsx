@@ -9,6 +9,7 @@ import { buttonStyles, PageContainer, PageHeader, Skeleton } from '@/components/
 import { api } from '@/lib/api';
 import { formatBand, formatRelative } from '@/lib/format';
 import { bandColor, sentenceCase, type AttemptListItem } from '@/lib/result';
+import { MockCta } from '@/components/mock/MockCta';
 import { QuotaNote } from '@/components/community/QuotaNote';
 import { useAccount } from '@/lib/query';
 import { GuestRecent } from '@/components/dashboard/GuestRecent';
@@ -48,6 +49,7 @@ function SpeakingHome() {
       <div className="flex flex-col gap-12">
         <PendingUploads />
         <GuestRecent skill="speaking" />
+        <MockCta />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
           <ModeCard
             link={{ to: '/speaking/session', search: { mode: 'full', source } }}

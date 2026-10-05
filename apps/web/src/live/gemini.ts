@@ -194,6 +194,6 @@ export class GeminiDuplex implements Duplex {
   }
 }
 
-export function useGeminiExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource): LiveExaminer {
-  return useDuplexExaminer(() => new GeminiDuplex(), onFinished, onUnavailable, source);
+export function useGeminiExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource, mockId?: string): LiveExaminer {
+  return useDuplexExaminer(() => new GeminiDuplex(), onFinished, onUnavailable, source, mockId);
 }

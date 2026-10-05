@@ -33,6 +33,8 @@ import { Route as AppAdminGrowthRouteImport } from './routes/_app/admin/growth'
 import { Route as AppAdminHealthRouteImport } from './routes/_app/admin/health'
 import { Route as AppAdminTestsRouteImport } from './routes/_app/admin/tests'
 import { Route as AppListeningIndexRouteImport } from './routes/_app/listening/index'
+import { Route as AppMockIndexRouteImport } from './routes/_app/mock/index'
+import { Route as AppMockIdRouteImport } from './routes/_app/mock/$id'
 import { Route as AppReadingIndexRouteImport } from './routes/_app/reading/index'
 import { Route as AppSpeakingIndexRouteImport } from './routes/_app/speaking/index'
 import { Route as AppSpeakingLiveRouteImport } from './routes/_app/speaking/live'
@@ -168,6 +170,16 @@ const AppListeningIndexRoute = AppListeningIndexRouteImport.update({
   path: '/listening/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMockIndexRoute = AppMockIndexRouteImport.update({
+  id: '/mock/',
+  path: '/mock/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMockIdRoute = AppMockIdRouteImport.update({
+  id: '/mock/$id',
+  path: '/mock/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReadingIndexRoute = AppReadingIndexRouteImport.update({
   id: '/reading/',
   path: '/reading/',
@@ -269,11 +281,13 @@ export interface FileRoutesByFullPath {
   '/admin/growth': typeof AppAdminGrowthRoute
   '/admin/health': typeof AppAdminHealthRoute
   '/admin/tests': typeof AppAdminTestsRoute
+  '/mock/$id': typeof AppMockIdRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
   '/admin/': typeof AppAdminIndexRoute
   '/listening/': typeof AppListeningIndexRoute
+  '/mock/': typeof AppMockIndexRoute
   '/reading/': typeof AppReadingIndexRoute
   '/speaking/': typeof AppSpeakingIndexRoute
   '/writing/': typeof AppWritingIndexRoute
@@ -308,11 +322,13 @@ export interface FileRoutesByTo {
   '/admin/growth': typeof AppAdminGrowthRoute
   '/admin/health': typeof AppAdminHealthRoute
   '/admin/tests': typeof AppAdminTestsRoute
+  '/mock/$id': typeof AppMockIdRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
   '/admin': typeof AppAdminIndexRoute
   '/listening': typeof AppListeningIndexRoute
+  '/mock': typeof AppMockIndexRoute
   '/reading': typeof AppReadingIndexRoute
   '/speaking': typeof AppSpeakingIndexRoute
   '/writing': typeof AppWritingIndexRoute
@@ -350,11 +366,13 @@ export interface FileRoutesById {
   '/_app/admin/growth': typeof AppAdminGrowthRoute
   '/_app/admin/health': typeof AppAdminHealthRoute
   '/_app/admin/tests': typeof AppAdminTestsRoute
+  '/_app/mock/$id': typeof AppMockIdRoute
   '/_app/speaking/live': typeof AppSpeakingLiveRoute
   '/_app/speaking/session': typeof AppSpeakingSessionRoute
   '/_app/writing/full': typeof AppWritingFullRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/listening/': typeof AppListeningIndexRoute
+  '/_app/mock/': typeof AppMockIndexRoute
   '/_app/reading/': typeof AppReadingIndexRoute
   '/_app/speaking/': typeof AppSpeakingIndexRoute
   '/_app/writing/': typeof AppWritingIndexRoute
@@ -392,11 +410,13 @@ export interface FileRouteTypes {
     | '/admin/growth'
     | '/admin/health'
     | '/admin/tests'
+    | '/mock/$id'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
     | '/admin/'
     | '/listening/'
+    | '/mock/'
     | '/reading/'
     | '/speaking/'
     | '/writing/'
@@ -431,11 +451,13 @@ export interface FileRouteTypes {
     | '/admin/growth'
     | '/admin/health'
     | '/admin/tests'
+    | '/mock/$id'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
     | '/admin'
     | '/listening'
+    | '/mock'
     | '/reading'
     | '/speaking'
     | '/writing'
@@ -472,11 +494,13 @@ export interface FileRouteTypes {
     | '/_app/admin/growth'
     | '/_app/admin/health'
     | '/_app/admin/tests'
+    | '/_app/mock/$id'
     | '/_app/speaking/live'
     | '/_app/speaking/session'
     | '/_app/writing/full'
     | '/_app/admin/'
     | '/_app/listening/'
+    | '/_app/mock/'
     | '/_app/reading/'
     | '/_app/speaking/'
     | '/_app/writing/'
@@ -669,6 +693,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppListeningIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/mock/': {
+      id: '/_app/mock/'
+      path: '/mock'
+      fullPath: '/mock/'
+      preLoaderRoute: typeof AppMockIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mock/$id': {
+      id: '/_app/mock/$id'
+      path: '/mock/$id'
+      fullPath: '/mock/$id'
+      preLoaderRoute: typeof AppMockIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reading/': {
       id: '/_app/reading/'
       path: '/reading'
@@ -823,10 +861,12 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppStyleguideRoute: typeof AppStyleguideRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppMockIdRoute: typeof AppMockIdRoute
   AppSpeakingLiveRoute: typeof AppSpeakingLiveRoute
   AppSpeakingSessionRoute: typeof AppSpeakingSessionRoute
   AppWritingFullRoute: typeof AppWritingFullRoute
   AppListeningIndexRoute: typeof AppListeningIndexRoute
+  AppMockIndexRoute: typeof AppMockIndexRoute
   AppReadingIndexRoute: typeof AppReadingIndexRoute
   AppSpeakingIndexRoute: typeof AppSpeakingIndexRoute
   AppWritingIndexRoute: typeof AppWritingIndexRoute
@@ -847,10 +887,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppStyleguideRoute: AppStyleguideRoute,
   AppIndexRoute: AppIndexRoute,
+  AppMockIdRoute: AppMockIdRoute,
   AppSpeakingLiveRoute: AppSpeakingLiveRoute,
   AppSpeakingSessionRoute: AppSpeakingSessionRoute,
   AppWritingFullRoute: AppWritingFullRoute,
   AppListeningIndexRoute: AppListeningIndexRoute,
+  AppMockIndexRoute: AppMockIndexRoute,
   AppReadingIndexRoute: AppReadingIndexRoute,
   AppSpeakingIndexRoute: AppSpeakingIndexRoute,
   AppWritingIndexRoute: AppWritingIndexRoute,

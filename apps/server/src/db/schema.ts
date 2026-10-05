@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, pgEnum, text, timestamp, boolean, integer, jsonb, numeric, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
 
 const id = () => text('id').primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -371,4 +372,32 @@ export const aiCosts = pgTable('ai_costs', {
   index('ai_costs_user_created_idx').on(t.userId, t.createdAt),
   index('ai_costs_attempt_idx').on(t.attemptId),
   index('ai_costs_stage_idx').on(t.stage),
+]);
+
+// ---------- Full mock test (docs/mock-exam.md): one guided run of L, R, W, S. Section state is derived from the linked attempts; only the links live here ----------
+export const mockExams = pgTable('mock_exams', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  variant: variantEnum('variant').notNull(),
+  source: text('source').$type<'cambridge' | 'generated'>().notNull(),
+  ref: text('ref'), // "C19 T2" when source = cambridge
+  listeningTestId: text('listening_test_id').notNull().references(() => lrTests.id),
+  readingTestId: text('reading_test_id').notNull().references(() => lrTests.id),
+  writingPromptIds: text('writing_prompt_ids').array().notNull(), // [task1, task2]
+  speakingPromptIds: text('speaking_prompt_ids').array(), // recorded: [p1.., p2, p3]; null until Recorded is chosen
+  listeningAttemptId: text('listening_attempt_id'),
+  readingAttemptId: text('reading_attempt_id'),
+  writingSessionId: text('writing_session_id').notNull(),
+  writingAttemptIds: text('writing_attempt_ids').array().notNull().default(sql`'{}'::text[]`),
+  writingStartedAt: timestamp('writing_started_at', { withTimezone: true }),
+  writingElapsedS: integer('writing_elapsed_s').notNull().default(0),
+  speakingMode: text('speaking_mode').$type<'recorded' | 'live'>(),
+  speakingSessionId: text('speaking_session_id'),
+  status: text('status').$type<'in_progress' | 'completed' | 'closed'>().notNull().default('in_progress'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => [
+  index('mock_exams_user_started_idx').on(t.userId, t.startedAt),
+  uniqueIndex('mock_exams_one_open_idx').on(t.userId).where(sql`status = 'in_progress'`),
 ]);

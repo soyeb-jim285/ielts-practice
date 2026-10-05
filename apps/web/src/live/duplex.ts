@@ -4,7 +4,7 @@ import type { Prompt } from '@server/routes/prompts';
 import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
 import { api, ApiError } from '@/lib/api';
-import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, type LiveStarted, type Phase } from './turn';
+import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, type LiveStarted, type Phase, liveStartBody } from './turn';
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
 const CUE_TIMEOUT_MS = 45_000; // a cue whose examiner line never starts or ends must not stall the test
@@ -39,6 +39,7 @@ export function useDuplexExaminer(
   /** Called instead of showing an error when the examiner can't connect, so the page can fall back to the turn-based one. */
   onUnavailable?: (reason: string) => void,
   source?: LiveSource,
+  mockId?: string,
 ): LiveExaminer {
   const [status, setStatus] = useState<LiveExaminer['status']>('idle');
   const [phase, setPhase] = useState<Phase>('intro');
@@ -188,7 +189,7 @@ export function useDuplexExaminer(
     setStatus('starting');
     try {
       if (!c.sessionId) {
-        const st = await api.post<LiveStarted>('/live/start', { skipTts: true, source });
+        const st = await api.post<LiveStarted>('/live/start', { skipTts: true, ...liveStartBody(source, mockId) });
         c.sessionId = st.sessionId;
         c.cueCard = st.test.part2;
       }

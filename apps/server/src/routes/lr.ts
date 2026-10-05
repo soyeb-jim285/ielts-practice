@@ -10,6 +10,10 @@ import { storage } from '../storage';
 import type { App } from '../types';
 import { insertCards } from './cards';
 
+/** The one place a Listening & Reading attempt row is created (the normal start and the full mock test). */
+export const insertLrAttempt = (userId: string, testId: string, mode: 'exam' | 'practice', parts: number[] | null) =>
+  db.insert(lrAttempts).values({ userId, testId, mode, parts }).returning().then((r) => r[0]!);
+
 /** Where importer-uploaded assets live in storage (scripts/lr-import.ts). */
 export const lrAssetKey = (key: string) => `lr/${key}`;
 
@@ -27,7 +31,7 @@ const errors = { 404: json(ErrorSchema, 'Not found (also for a Cambridge test th
 
 type Viewer = Parameters<typeof isCambridgeAllowed>[0];
 /** Our own tests are open to everyone; Cambridge (restricted) tests only to allow-listed, verified accounts. */
-const canOpen = (t: { restricted: boolean }, u: Viewer) => !t.restricted || isCambridgeAllowed(u);
+export const canOpen = (t: { restricted: boolean }, u: Viewer) => !t.restricted || isCambridgeAllowed(u);
 const visibleWhere = (u: Viewer): SQL | undefined => (isCambridgeAllowed(u) ? undefined : eq(lrTests.restricted, false));
 
 const Option = z.object({ key: z.string(), text: z.string() });
@@ -301,7 +305,7 @@ export function register(app: App) {
       const mineOpen = and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress'));
       if (fresh) await db.delete(lrAttempts).where(mineOpen);
       const open = fresh ? undefined : await db.query.lrAttempts.findFirst({ where: mineOpen });
-      const a = open ?? (await db.insert(lrAttempts).values({ userId: user.id, testId: t.id, mode, parts: chosen }).returning())[0]!;
+      const a = open ?? await insertLrAttempt(user.id, t.id, mode, chosen);
       return c.json(await toAttempt(a, t), 200);
     },
   );

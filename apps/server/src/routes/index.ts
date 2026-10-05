@@ -13,7 +13,8 @@ import * as lr from './lr';
 import * as admin from '../admin';
 import * as replay from './replay';
 import * as feedback from './feedback';
+import * as mock from './mock';
 
 export function registerRoutes(app: App) {
-  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards, community, lr, admin, replay, feedback]) m.register(app);
+  for (const m of [me, settings, models, prompts, attempts, live, progress, mistakes, cards, community, lr, admin, replay, feedback, mock]) m.register(app);
 }

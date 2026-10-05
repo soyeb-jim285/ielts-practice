@@ -151,6 +151,6 @@ function iceComplete(pc: RTCPeerConnection) {
   });
 }
 
-export function useGptLiveExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource): LiveExaminer {
-  return useDuplexExaminer(() => new GptLiveDuplex(), onFinished, onUnavailable, source);
+export function useGptLiveExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource, mockId?: string): LiveExaminer {
+  return useDuplexExaminer(() => new GptLiveDuplex(), onFinished, onUnavailable, source, mockId);
 }

@@ -15,7 +15,7 @@ const roundStats = (s: LrStats): LrStats => ({ ...s, partS: Object.fromEntries(O
  */
 export type LrStats = { partS: Record<string, number>; changes: Record<string, number>; late: number[]; audio?: AudioState };
 
-export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) {
+export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }, mockId?: string) {
   const id = attempt.id;
   const [responses, setResponses] = useState<LrResponses>(attempt.responses);
   const [state, setState] = useState<SaveState>('saved');
@@ -143,13 +143,15 @@ export function useLrSession(attempt: LrAttempt, lateFrom: { current: number }) 
       queryClient.setQueryData(['lr-attempt', id], res);
       void queryClient.invalidateQueries({ queryKey: ['lr-tests'] });
       void queryClient.invalidateQueries({ queryKey: ['lr-attempts'] });
-      await navigate({ to: '/lr/result/$attemptId', params: { attemptId: id }, replace: true });
+      if (mockId) void queryClient.invalidateQueries({ queryKey: ['mock'] });
+      // Inside a mock test the next stop is the mock's transition screen, not this section's result.
+      await (mockId ? navigate({ to: '/mock/$id', params: { id: mockId }, replace: true }) : navigate({ to: '/lr/result/$attemptId', params: { attemptId: id }, replace: true }));
     } catch (e) {
       done.current = false;
       setSubmitting(false);
       throw e;
     }
-  }, [id, navigate]);
+  }, [id, navigate, mockId]);
 
   return { responses, change, state, elapsed, submit, submitting, flush, stats, audio, noteFocus, noteBlur };
 }
