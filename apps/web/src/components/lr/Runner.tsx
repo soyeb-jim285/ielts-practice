@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Dialog, Segmented, Sheet, Tabs, toast } from '@/components/ui';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatClock, plural } from '@/lib/format';
-import { flatQuestions, isAnswered, lsGet, lsSet, partsLabel, readingSeconds, type LrAttempt, type LrSection } from '@/lib/lr';
+import { flatQuestions, isAnswered, LISTENING_REVIEW_SECONDS, lsGet, lsSet, partsLabel, readingSeconds, type LrAttempt, type LrSection } from '@/lib/lr';
 import { cn } from '@/lib/utils';
 import { ExamAudioBar, PracticeAudio, useExamPlaylist } from './Audio';
 import { Navigator, type NavPart } from './Navigator';
@@ -251,8 +251,13 @@ export function Runner({ attempt }: { attempt: LrAttempt }) {
     body = <Split left={<>{passage}{hint}</>} right={questions} />;
   }
 
+  // Exam listening counts down the whole sitting (rest of the recording + the review window), as on the computer test; it was blank while the audio played.
   const clock = examListening ? (
-    playlist.phase === 'review' ? <ClockPill seconds={playlist.reviewLeft} countdown label="Review time left" /> : null
+    playlist.phase === 'review' ? (
+      <ClockPill seconds={playlist.reviewLeft} countdown label="Review time left" />
+    ) : playlist.total ? (
+      <ClockPill seconds={Math.max(0, Math.ceil(playlist.total + LISTENING_REVIEW_SECONDS - playlist.elapsed))} countdown label="Time left" />
+    ) : null
   ) : exam ? (
     <ClockPill seconds={Math.max(0, Math.ceil(readingLeft))} countdown label="Time left" />
   ) : (

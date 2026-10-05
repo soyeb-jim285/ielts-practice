@@ -331,7 +331,10 @@ export function ExamAudioBar({ playlist, parts }: { playlist: ReturnType<typeof 
         <p className="type-num text-sm font-medium">
           {phase === 'review' ? 'Recording finished. Check your answers.' : parts ? `Part ${parts[idx]} is playing` : `Part ${idx + 1} of ${durations?.length ?? 4} is playing`}
         </p>
-        <ProgressBar label="Recording progress" value={total ? Math.min(1, elapsed / total) : 0} className="mt-1.5 h-1.5" />
+        <div className="mt-1.5 flex items-center gap-3">
+          <ProgressBar label="Recording progress" value={total ? Math.min(1, elapsed / total) : 0} className="h-1.5 flex-1" />
+          {total > 0 && phase !== 'review' && <span className="type-num shrink-0 text-xs text-muted">{formatClock(Math.min(elapsed, total))} / {formatClock(total)}</span>}
+        </div>
       </div>
       {phase === 'review' && <span className="type-num rounded-md bg-warn-soft px-2.5 py-1 text-sm font-semibold text-warn-text">{formatClock(reviewLeft)} left to review</span>}
       {stalled && phase === 'audio' && (
