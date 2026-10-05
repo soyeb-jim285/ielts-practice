@@ -351,24 +351,24 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                   <div className="sticky top-0 z-10 rounded-lg border border-line bg-card px-4 py-3">
                     <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} cue={cue?.part === section.part ? cue : null} pins={pins} pinned={selected} onPin={pickQ} />
                   </div>
-                  {section.transcript && (
-                    <details className="group rounded-lg border border-line bg-card" open>
-                      <summary className="type-subheading cursor-pointer px-4 py-3 select-none">Transcript</summary>
-                      <div data-scrollpane className="type-reading max-h-[28rem] overflow-y-auto border-t border-line px-4 py-4">
-                        <Transcript text={section.transcript} evidence={mark} pins={tpins} picked={selected} onPin={(n) => setSelected(n)} />
-                      </div>
-                    </details>
-                  )}
                 </div>
               )}
               <VocabList section={section} />
-              <div className={cn(!listening && 'grid gap-8 lg:grid-cols-2')}>
+              <div className={cn("grid gap-8 lg:items-start", listening ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : "lg:grid-cols-2")}>
                 {!listening && (
                   <div data-scrollpane className="max-h-[75vh] overflow-y-auto rounded-lg border border-line bg-card p-5 lg:sticky lg:top-4">
                     <Passage section={section} evidence={mark} />
                   </div>
                 )}
-                <div data-scrollpane={listening ? undefined : ''} className={cn(!listening && 'max-h-[75vh] overflow-y-auto pr-1')}>
+                {listening && section.transcript && (
+                    <details className="group min-w-0 rounded-lg border border-line bg-card lg:sticky lg:top-24" open>
+                      <summary className="type-subheading cursor-pointer px-4 py-3 select-none">Transcript</summary>
+                      <div data-scrollpane className="type-reading max-h-[75vh] overflow-y-auto border-t border-line px-4 py-4">
+                        <Transcript text={section.transcript} evidence={mark} pins={tpins} picked={selected} onPin={(n) => setSelected(n)} />
+                      </div>
+                    </details>
+                )}
+                <div data-scrollpane={listening ? undefined : ''} className={cn('min-w-0', !listening && 'max-h-[75vh] overflow-y-auto pr-1')}>
                   <GroupsPane section={section} responses={attempt.responses} onChange={() => {}} assets={assets} active={active} review={marks} />
                 </div>
               </div>

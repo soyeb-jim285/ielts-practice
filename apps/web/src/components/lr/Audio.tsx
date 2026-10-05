@@ -161,7 +161,7 @@ export function PracticeAudio({ src, label, className, cue, resume, pins, pinned
             const key = ns[0]!;
             return (
               <div key={key} style={{ left }} onKeyDown={(e) => e.key === "Escape" && setGroup(null)} className="absolute top-0 -translate-x-1/2 max-md:hidden">
-                <button type="button" aria-label={label} title={label} aria-expanded={group === key} onClick={() => setGroup(group === key ? null : key)} className="type-num inline-flex h-5 cursor-pointer items-center justify-center rounded-md border border-line-strong bg-card px-1.5 text-[11px] font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                <button type="button" aria-label={label} title={label} aria-expanded={group === key} onClick={() => setGroup(group === key ? null : key)} className="type-num inline-flex h-5 cursor-pointer whitespace-nowrap items-center justify-center rounded-md border border-line-strong bg-card px-1.5 text-[11px] font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                   {ns[0]}–{ns[ns.length - 1]}
                 </button>
                 {group === key && (
