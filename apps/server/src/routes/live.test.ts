@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // helpers first: it loads the app (and @hono/zod-openapi's zod extension) before the settings schema is built
 import { chatReply, fakeFetch, json, req, seedPrompt, setKey, testUser } from '../test/helpers';
 import { eq } from 'drizzle-orm';
@@ -12,6 +12,7 @@ import { storage } from '../storage';
 import { clearSpeechCache } from './live';
 import { endRun, setUpstream } from '../ai/gpt-live';
 import { fakeSocket } from '../test/fakeSocket';
+import * as deadlines from '../ai/live-deadline';
 
 let ai: ReturnType<typeof fakeFetch>;
 let analyzed: string[];
@@ -224,6 +225,50 @@ it('TTS failure (402) degrades to captions: start and turn still work with audio
   expect(s).toMatchObject({ phase: 'intro', audioUrl: null, voiceError: expect.stringContaining('captions') });
   const t = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey: await upload(headers, s.sessionId) } })).json()) as any;
   expect(t).toMatchObject({ phase: 'p1', audioUrl: null });
+});
+
+it('a TTS request that never settles starts the test on captions within 12 seconds', async () => {
+  const { headers } = await testUser();
+  let invoked!: () => void;
+  const entered = new Promise<void>((resolve) => { invoked = resolve; });
+  setFetch(fakeFetch({ '/audio/speech': () => { invoked(); return new Promise(() => {}); } }));
+  const bounded = deadlines.liveDeadline;
+  const deadline = vi.spyOn(deadlines, 'liveDeadline').mockImplementation((operation) => bounded(operation, 100));
+  try {
+    const pending = req('/api/live/start', { headers, body: {} });
+    await entered;
+    const response = await pending;
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ phase: 'intro', audioUrl: null, voiceError: expect.stringContaining('captions') });
+    expect(deadline).toHaveBeenCalledWith(expect.any(Promise), 12_000);
+  } finally {
+    deadline.mockRestore();
+  }
+});
+
+it('a stalled examiner LLM uses the scripted next question within 15 seconds', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const st = await state(s.sessionId);
+  await db.update(liveSessions).set({ state: { ...st, phase: 'p2-follow' } }).where(eq(liveSessions.id, s.sessionId));
+  let invoked!: () => void;
+  const entered = new Promise<void>((resolve) => { invoked = resolve; });
+  setFetch(fakeFetch({
+    '/chat/completions': () => { invoked(); return new Promise(() => {}); },
+    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
+  }));
+  const bounded = deadlines.liveDeadline;
+  const deadline = vi.spyOn(deadlines, 'liveDeadline').mockImplementation((operation) => bounded(operation, 100));
+  try {
+    const pending = req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } });
+    await entered;
+    const response = await pending;
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ phase: 'p3', examinerText: expect.stringContaining('Do people read less today?') });
+    expect(deadline).toHaveBeenCalledWith(expect.any(Promise), 15_000);
+  } finally {
+    deadline.mockRestore();
+  }
 });
 
 it('skipTts starts a (realtime) session without calling TTS', async () => {

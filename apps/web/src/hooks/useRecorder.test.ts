@@ -37,6 +37,46 @@ describe('useRecorder', () => {
     await act(() => result.current.start());
     expect(result.current.state).toBe('unsupported');
   });
+
+  it('resets the recording clock and live hints before starting another part', async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    class Recorder {
+      static isTypeSupported() { return true; }
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      onstop?: () => void;
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; this.onstop?.(); }
+      pause() { this.state = 'paused'; }
+    }
+    vi.stubGlobal('MediaRecorder', Recorder);
+    vi.stubGlobal('AudioContext', class {
+      createAnalyser() { return { fftSize: 2048, getFloatTimeDomainData: (b: Float32Array) => b.fill(0.1) }; }
+      createMediaStreamSource() { return { connect() {} }; }
+      close() { return Promise.resolve(); }
+    });
+    setMedia({ getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop() {} }] }) });
+    const { result, unmount } = renderHook(() => useRecorder());
+    try {
+      await act(() => result.current.start());
+      now = 130_000;
+      act(() => vi.advanceTimersByTime(50));
+      expect(result.current.elapsedMs).toBeGreaterThanOrEqual(130_000);
+      await act(() => result.current.stop());
+      await act(() => result.current.start({ paused: true }));
+      expect(result.current.elapsedMs).toBe(0);
+      expect(result.current.level).toBe(0);
+      expect(result.current.liveWpm).toBe(0);
+      expect(result.current.silenceMs).toBe(0);
+      expect(result.current.clock()).toBe(0);
+    } finally {
+      unmount();
+      clock.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('estimateWpm', () => {

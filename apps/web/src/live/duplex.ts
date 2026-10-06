@@ -4,6 +4,7 @@ import type { Prompt } from '@server/routes/prompts';
 import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
 import { api, ApiError } from '@/lib/api';
+import { withDeadline } from './deadline';
 import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, type LiveStarted, type Phase, liveStartBody } from './turn';
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
@@ -19,6 +20,8 @@ export type Handlers = {
   caption(text: string, append?: boolean): void;
   /** The candidate finished an answer (the examiner is about to reply). */
   answered(): void;
+  /** Candidate transcript activity: arm a reply watchdog without cutting off a long answer. */
+  pending?(): void;
   /** The connection dropped for good. */
   lost(): void;
 };
@@ -60,6 +63,8 @@ export function useDuplexExaminer(
     after: () => {},
     timer: undefined as ReturnType<typeof setTimeout> | undefined,
     waitTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+    responseTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+    output: false,
   });
 
   const prep = useCountdown(PREP_S, { onEnd: () => void go('p2-talk') });
@@ -70,25 +75,41 @@ export function useDuplexExaminer(
     clearTimeout(c.waitTimer);
     if (!c.wait) return;
     c.wait = null;
+    if (c.ended) return;
+    setStatus(c.phase === 'p2-prep' ? 'waiting' : 'candidate');
     c.after();
   };
   const cue = (key: CueKey, text: string, after?: () => void, heard = false) => {
     const c = r.current;
     clearTimeout(c.waitTimer);
+    clearTimeout(c.responseTimer);
+    // cue() can synchronously emit speaking(false) while cutting off the old line.
+    c.wait = null;
     c.x?.cue(text, heard, key);
+    if (!c.x || c.ended) return;
     c.wait = after ? 'cued' : null;
     c.after = after ?? (() => {});
+    setStatus('thinking');
     if (after) c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
+    else watchResponse();
   };
+
+  function watchResponse() {
+    const c = r.current;
+    clearTimeout(c.responseTimer);
+    c.responseTimer = setTimeout(() => handlers.lost(), CUE_TIMEOUT_MS);
+  }
 
   function close() {
     const c = r.current;
     clearTimeout(c.timer);
     clearTimeout(c.waitTimer);
+    clearTimeout(c.responseTimer);
+    c.wait = null;
     c.x?.close();
     c.x = undefined;
   }
-  useEffect(() => close, []);
+  useEffect(() => () => { r.current.ended = true; close(); }, []);
 
   async function finish() {
     const c = r.current;
@@ -112,44 +133,52 @@ export function useDuplexExaminer(
     c.phase = next;
     setPhase(next);
     clearTimeout(c.timer);
-    switch (next) {
-      case 'p1': // the model moves from the introduction into Part 1 by itself
-        void parts.start(1);
-        c.timer = setTimeout(() => void go('p2-prep'), PART_MS);
-        break;
-      case 'p2-prep':
-        await parts.stop();
-        setCueCard(c.cueCard);
-        c.x?.listen(false);
-        cue('part2', 'Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.', prep.start);
-        break;
-      case 'p2-talk':
-        prep.stop();
-        void parts.start(2);
-        c.x?.listen(false, true);
-        cue('talk', 'The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.', talk.start);
-        break;
-      case 'p2-follow':
-        talk.stop();
-        await parts.stop();
-        cue(
-          timeUp ? 'follow-timeup' : 'follow',
-          timeUp
-            ? `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`
-            : 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
-          undefined,
-          true,
-        );
-        c.x?.listen(true);
-        break;
-      case 'p3': // the model moves from the rounding-off answer into Part 3 by itself
-        void parts.start(3);
-        c.timer = setTimeout(() => void go('closing'), PART_MS);
-        break;
-      case 'closing':
-        await parts.stop();
-        cue('closing', 'The test is over. Say the closing line now and nothing more.', () => void finish());
-        break;
+    try {
+      switch (next) {
+        case 'p1': // the model moves from the introduction into Part 1 by itself
+          void parts.start(1).catch(() => handlers.lost());
+          c.timer = setTimeout(() => void go('p2-prep'), PART_MS);
+          break;
+        case 'p2-prep':
+          c.x?.listen(false);
+          await parts.stop();
+          if (c.ended) return;
+          setCueCard(c.cueCard);
+          cue('part2', 'Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.', prep.start);
+          break;
+        case 'p2-talk':
+          prep.stop();
+          await parts.start(2);
+          if (c.ended) return;
+          c.x?.listen(false, true);
+          cue('talk', 'The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.', talk.start);
+          break;
+        case 'p2-follow':
+          talk.stop();
+          await parts.stop();
+          if (c.ended) return;
+          cue(
+            timeUp ? 'follow-timeup' : 'follow',
+            timeUp
+              ? `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`
+              : 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
+            undefined,
+            true,
+          );
+          c.x?.listen(true);
+          break;
+        case 'p3': // the model moves from the rounding-off answer into Part 3 by itself
+          void parts.start(3).catch(() => handlers.lost());
+          c.timer = setTimeout(() => void go('closing'), PART_MS);
+          break;
+        case 'closing':
+          await parts.stop();
+          if (c.ended) return;
+          cue('closing', 'The test is over. Say the closing line now and nothing more.', () => void finish());
+          break;
+      }
+    } catch {
+      handlers.lost();
     }
   }
 
@@ -158,6 +187,8 @@ export function useDuplexExaminer(
       const c = r.current;
       if (c.ended) return;
       if (on) {
+        c.output = true;
+        clearTimeout(c.responseTimer);
         if (c.wait === 'cued') c.wait = 'speaking';
         setStatus('examiner');
       } else {
@@ -173,29 +204,40 @@ export function useDuplexExaminer(
       else if (c.phase === 'p2-follow') void go('p3');
       if (c.phase !== 'p2-talk') setStatus('thinking');
     },
+    pending() {
+      const c = r.current;
+      if (!c.ended && !c.wait && c.phase !== 'p2-prep' && c.phase !== 'p2-talk') watchResponse();
+    },
     lost() {
       const c = r.current;
       if (c.ended) return;
       close();
+      prep.stop();
+      talk.stop();
       setError('The connection to the examiner dropped. The parts you recorded are safe.');
-      setRetryLabel('Score what I recorded');
-      setRetry(() => () => (setError(undefined), void finish()));
+      setRetryLabel(c.output ? 'Score what I recorded' : 'Reconnect examiner');
+      setRetry(() => () => (setError(undefined), c.output ? void finish() : void start()));
       setStatus('error');
     },
   };
 
   async function start() {
     const c = r.current;
+    c.ended = false;
     setStatus('starting');
     try {
       if (!c.sessionId) {
-        const st = await api.post<LiveStarted>('/live/start', { skipTts: true, ...liveStartBody(source, mockId) });
+        const st = await withDeadline(api.post<LiveStarted>('/live/start', { skipTts: true, ...liveStartBody(source, mockId) }));
+        if (c.ended) return;
         c.sessionId = st.sessionId;
         c.cueCard = st.test.part2;
       }
       c.x = make();
-      await c.x.connect(handlers, c.sessionId);
-      setStatus('thinking');
+      await withDeadline(c.x.connect(handlers, c.sessionId));
+      if (!c.output && !c.ended) {
+        setStatus('thinking');
+        watchResponse();
+      }
     } catch (e) {
       close();
       const denied = (e as DOMException)?.name === 'NotAllowedError';

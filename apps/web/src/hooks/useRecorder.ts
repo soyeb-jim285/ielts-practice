@@ -119,6 +119,7 @@ export function useRecorder() {
       c.pausedAt = c.t0;
     }
     setPaused(!!opts?.paused);
+    setLive({ level: 0, elapsedMs: 0, liveWpm: 0, silenceMs: 0 });
     c.timer = setInterval(() => {
       if (c.pausedAt != null) return;
       analyser.getFloatTimeDomainData(buf);

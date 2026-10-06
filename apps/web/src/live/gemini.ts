@@ -47,13 +47,19 @@ export class GeminiDuplex implements Duplex {
   async connect(h: Handlers, sessionId: string) {
     this.h = h;
     const t = await api.post<{ value: string; model: string }>('/live/gemini-token', { sessionId });
+    if (this.closed) throw new Error('The examiner connection was cancelled.');
     this.token = t.value;
     this.model = t.model;
     const ctx = (this.ctx = new AudioContext());
     if (!ctx.audioWorklet) throw new Error(`This browser can't capture audio for the Gemini examiner. ${FALLBACK_HINT}`);
     void ctx.resume().catch(() => {});
     this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    if (this.closed) {
+      this.mic.getTracks().forEach((t) => t.stop());
+      throw new Error('The examiner connection was cancelled.');
+    }
     await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
+    if (this.closed) throw new Error('The examiner connection was cancelled.');
     const enc = new MicEncoder(ctx.sampleRate);
     const node = new AudioWorkletNode(ctx, 'pcm-capture');
     node.port.onmessage = (e) => {
@@ -73,7 +79,10 @@ export class GeminiDuplex implements Duplex {
     return new Promise((resolve, reject) => {
       const ws = (this.ws = new WebSocket(geminiUrl(this.token)));
       let settled = false;
-      const timer = setTimeout(() => ws.close(), CONNECT_MS);
+        const timer = setTimeout(() => {
+          reject(new Error(`The Gemini examiner did not answer. ${FALLBACK_HINT}`));
+          ws.close();
+        }, CONNECT_MS);
       ws.onopen = () => ws.send(JSON.stringify(setupMessage(this.model, this.handle)));
       ws.onmessage = (e) => {
         this.chain = this.chain.then(async () => {
@@ -85,6 +94,10 @@ export class GeminiDuplex implements Duplex {
               if (this.queued) (this.send(cueMessage(this.queued)), (this.queued = undefined));
             } else this.onEvent(ev);
           }
+        }).catch((e) => {
+          clearTimeout(timer);
+          if (!settled) reject(e);
+          else if (!this.closed) this.h.lost();
         });
       };
       ws.onclose = (e) => {
@@ -127,9 +140,12 @@ export class GeminiDuplex implements Duplex {
     }
   }
 
-  private scheduleEnd() {
+  private scheduleEnd(graceMs = 100) {
     clearTimeout(this.endTimer);
-    this.endTimer = setTimeout(() => this.speak(false), (this.player?.queued ?? 0) * 1000 + 100);
+    this.endTimer = setTimeout(() => {
+      this.fresh = true;
+      this.speak(false);
+    }, (this.player?.queued ?? 0) * 1000 + graceMs);
   }
 
   private onEvent(ev: GeminiEvent) {
@@ -139,15 +155,19 @@ export class GeminiDuplex implements Duplex {
         break;
       case 'inText':
         this.heard = true;
+        this.h.pending?.();
         break;
       case 'audio':
         this.turnStart();
         this.player?.push(bytesToPcm16(fromBase64(ev.data)));
         this.speak(true);
+        this.scheduleEnd(2500);
         break;
       case 'outText':
         this.turnStart();
         this.h.caption(ev.text, true);
+        this.speak(true);
+        this.scheduleEnd(2500);
         break;
       case 'interrupted': // the candidate spoke over the examiner, or a cue replaced the answer
         this.player?.flush();

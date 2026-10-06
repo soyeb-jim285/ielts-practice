@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useDuplexExaminer, type CueKey, type Duplex, type Handlers } from './duplex';
 import { appendEvent, closeEvent, muteEvent, parseLiveEvent, type LiveEvent } from './gptLiveProtocol';
 import type { LiveExaminer, LiveSource } from './turn';
+import { withDeadline } from './deadline';
 
 const CONNECT_MS = 15_000;
 const IDLE_MS = 2500; // no caption delta for this long: the examiner has finished speaking (there is no response.done in GPT-Live)
@@ -35,6 +36,10 @@ export class GptLiveDuplex implements Duplex {
     const pc = (this.pc = new RTCPeerConnection());
     pc.ontrack = (e) => (this.audio.srcObject = e.streams[0] ?? null);
     const mic = (this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }));
+    if (this.closed) {
+      mic.getTracks().forEach((t) => t.stop());
+      throw new Error('The examiner connection was cancelled.');
+    }
     pc.addTrack(mic.getAudioTracks()[0]!, mic);
     const dc = (this.dc = pc.createDataChannel('oai-events')); // before the offer
     dc.onmessage = (e) => {
@@ -43,6 +48,7 @@ export class GptLiveDuplex implements Duplex {
     };
 
     let opened = false;
+    dc.onclose = () => { if (opened && !this.closed) h.lost(); };
     const ready = new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error(`The GPT-Live examiner did not answer. ${FALLBACK_HINT}`)), CONNECT_MS);
       this.onStarted = () => ((opened = true), clearTimeout(t), resolve());
@@ -58,9 +64,8 @@ export class GptLiveDuplex implements Duplex {
 
     await pc.setLocalDescription(await pc.createOffer());
     await iceComplete(pc);
-    const answer = await api.post<{ sdp: string }>('/live/gpt-live/session', { sessionId, sdp: pc.localDescription!.sdp }).catch(() => {
-      throw new Error(`Could not connect to the GPT-Live examiner. ${FALLBACK_HINT}`);
-    });
+    const answer = await withDeadline(api.post<{ sdp: string }>('/live/gpt-live/session', { sessionId, sdp: pc.localDescription!.sdp }));
+    if (this.closed) throw new Error('The examiner connection was cancelled.');
     await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
     await ready; // session.started: do not send anything before it
     this.queueCue('begin');
@@ -73,6 +78,7 @@ export class GptLiveDuplex implements Duplex {
         break;
       case 'inText':
         this.heard = true;
+        this.h.pending?.();
         break;
       case 'outText':
         if (this.fresh) {
@@ -93,6 +99,7 @@ export class GptLiveDuplex implements Duplex {
         break;
       case 'error':
         console.warn('gpt-live', ev.message);
+        if (!this.closed) this.h.lost();
         break;
     }
   }
@@ -106,11 +113,14 @@ export class GptLiveDuplex implements Duplex {
   /** The server appends the instruction through its sideband; if it can't, it hands the text back and we append it on the data channel. */
   private queueCue(key: CueKey | 'begin') {
     this.chain = this.chain.then(async () => {
+      if (this.closed) return;
       try {
-        const r = await api.post<{ sent: boolean; content: string }>('/live/gpt-live/cue', { sessionId: this.sessionId, cue: key });
+        const r = await withDeadline(api.post<{ sent: boolean; content: string }>('/live/gpt-live/cue', { sessionId: this.sessionId, cue: key }), 15_000);
+        if (this.closed) return;
         if (!r.sent) this.send(appendEvent(r.content));
       } catch (e) {
         console.warn('gpt-live cue failed', key, e);
+        if (!this.closed) this.h.lost();
       }
     });
   }

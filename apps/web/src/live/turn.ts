@@ -6,6 +6,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useRecorder, type Recording } from '@/hooks/useRecorder';
 import { useVad } from '@/hooks/useVad';
 import { api } from '@/lib/api';
+import { withDeadline } from './deadline';
 
 export type { Phase };
 export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
@@ -52,8 +53,8 @@ const message = (e: unknown) => (e instanceof Error && e.message) || 'Something 
 
 /** Presigned upload of one candidate recording into this live session; returns the storage key. */
 export async function uploadRecording(sessionId: string, r: Recording): Promise<string> {
-  const { key, uploadUrl } = await api.post<{ key: string; uploadUrl: string }>('/live/upload-url', { sessionId, audioContentType: r.mime });
-  const res = await fetch(uploadUrl, { method: 'PUT', body: r.blob, headers: { 'content-type': r.mime } }).catch(() => null);
+  const { key, uploadUrl } = await withDeadline(api.post<{ key: string; uploadUrl: string }>('/live/upload-url', { sessionId, audioContentType: r.mime }));
+  const res = await withDeadline(fetch(uploadUrl, { method: 'PUT', body: r.blob, headers: { 'content-type': r.mime }, signal: AbortSignal.timeout(45_000) })).catch(() => null);
   if (!res?.ok) throw new Error("Couldn't upload your recording. Check your connection and try again.");
   return key;
 }
@@ -72,7 +73,7 @@ export function usePartRecorder() {
     const c = cur.current;
     if (!c) return;
     cur.current = null;
-    const r = await recStop().catch(() => null);
+    const r = await withDeadline(recStop(), 10_000).catch(() => null);
     if (r) parts.current.set(c.part, { rec: r, marks: c.marks.length ? c.marks : undefined });
   }, [recStop]);
 
@@ -81,7 +82,12 @@ export function usePartRecorder() {
       if (cur.current?.part === part) return;
       await stop();
       cur.current = { part, t0: performance.now(), marks: [] };
-      await recStart();
+      try {
+        if (!(await recStart())) throw new Error('Could not start recording. Check your microphone permissions and retry.');
+      } catch (e) {
+        cur.current = null;
+        throw e;
+      }
       if (cur.current) cur.current.t0 = performance.now();
     },
     [stop, recStart],
@@ -104,7 +110,7 @@ export function usePartRecorder() {
       if (!list.length) return [];
       await Promise.all(list.map(async ([, p]) => (p.key ??= await uploadRecording(sessionId, p.rec))));
       const body = list.map(([part, p]) => ({ part, audioKey: p.key!, durationMs: p.rec.durationMs, energy: p.rec.energy, marks: p.marks?.slice(0, 200) }));
-      return (await api.post<{ attemptIds: string[] }>('/live/finish', { sessionId, parts: body })).attemptIds;
+      return (await withDeadline(api.post<{ attemptIds: string[] }>('/live/finish', { sessionId, parts: body }))).attemptIds;
     },
     [stop],
   );
@@ -117,11 +123,12 @@ function useExaminerAudio() {
   const el = useRef<HTMLAudioElement | null>(null);
   const [needsTap, setNeedsTap] = useState(false);
   const pending = useRef<() => void>(() => {});
-  useEffect(() => () => el.current?.pause(), []);
+  const complete = useRef<() => void>(() => {});
+  useEffect(() => () => { el.current?.pause(); complete.current(); }, []);
   return {
     needsTap,
     prime: () => (el.current ??= new Audio()),
-    stop: () => el.current?.pause(),
+    stop: () => { el.current?.pause(); complete.current(); },
     resume: () => {
       setNeedsTap(false);
       pending.current();
@@ -129,10 +136,20 @@ function useExaminerAudio() {
     play: (url: string) =>
       new Promise<void>((resolve) => {
         const a = (el.current ??= new Audio());
-        a.onended = a.onerror = () => resolve();
+        complete.current();
+        const timer = setTimeout(() => { a.pause(); done(); }, 30_000);
+        const done = () => {
+          clearTimeout(timer);
+          a.onended = a.onerror = null;
+          complete.current = pending.current = () => {};
+          setNeedsTap(false);
+          resolve();
+        };
+        complete.current = done;
+        a.onended = a.onerror = done;
         a.src = url;
         a.play().catch(() => {
-          pending.current = () => void a.play().catch(() => resolve());
+          pending.current = () => void a.play().catch(done);
           setNeedsTap(true);
         });
       }),
@@ -174,7 +191,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     talk.stop();
     setStatus('finishing');
     if (turn.state === 'recording') {
-      const r = await turn.stop().catch(() => null);
+      const r = await withDeadline(turn.stop(), 10_000).catch(() => null);
       if (r && c.phase === 'p2-talk') parts.add(2, r);
     }
     try {
@@ -198,15 +215,19 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     } else await parts.stop();
     if (line.phase === 'p2-prep') {
       setCueCard(line.cueCard);
-      if (!prep.running && prep.left === PREP_S) prep.start();
-      else c.prepTimer = setTimeout(() => void submit(null), (line.prepSeconds ?? 5) * 1000);
     }
-    setStatus(line.phase === 'p2-prep' ? 'waiting' : 'examiner');
+    setStatus('examiner');
     if (line.audioUrl) await audio.play(line.audioUrl); // null = TTS failed: captions only, go straight to listening
     if (c.ended) return;
     if (line.phase === 'done') return void finish();
-    if (line.phase === 'p2-prep') return;
-    await turn.start();
+    if (line.phase === 'p2-prep') {
+      setStatus('waiting');
+      if (prep.left === PREP_S) prep.start();
+      else c.prepTimer = setTimeout(() => void submit(null), Math.max(1, line.prepSeconds ?? 5) * 1000);
+      return;
+    }
+    if (!(await turn.start())) throw new Error('Could not start recording. Check your microphone permissions and retry.');
+    if (c.ended) return;
     setStatus('candidate');
     if (line.phase === 'p2-talk') talk.start();
   }
@@ -217,13 +238,15 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     if (c.ended) return;
     setStatus('thinking');
     try {
+      if (r && c.phase === 'p2-talk') parts.add(2, r);
       const audioKey = r && r.blob.size ? await uploadRecording(c.sessionId, r) : undefined;
+      if (c.ended) return;
       if (r && audioKey && c.phase === 'p2-talk') parts.add(2, r, audioKey);
-      const line = await api.post<ExaminerLine>('/live/turn', { sessionId: c.sessionId, audioKey, skipped: !audioKey });
+      const line = await withDeadline(api.post<ExaminerLine>('/live/turn', { sessionId: c.sessionId, audioKey, skipped: !audioKey }), 90_000);
       c.busy = false;
       await play(line);
     } catch (e) {
-      fail(e, () => void submit(r));
+      if (!c.ended) fail(e, () => void submit(r));
     }
   }
 
@@ -233,7 +256,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     c.busy = true;
     talk.stop();
     setStatus('thinking');
-    void turn.stop().then(submit, () => submit(null));
+    void withDeadline(turn.stop(), 10_000).then(submit, () => submit(null));
   }
 
   // The Part 2 long turn is ended by the candidate or the 2:00 hard stop, never by a pause.
@@ -243,13 +266,15 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     if ((turn.state === 'denied' || turn.state === 'unsupported') && !s.current.ended) fail(new Error(turn.error), () => void turn.start().then(() => setStatus('candidate')));
   }, [turn.state]);
 
-  useEffect(() => () => clearTimeout(s.current.prepTimer), []);
+  useEffect(() => () => { s.current.ended = true; clearTimeout(s.current.prepTimer); }, []);
 
   async function start() {
+    s.current.ended = false;
     audio.prime();
     setStatus('starting');
     try {
-      const st = await api.post<LiveStarted>('/live/start', liveStartBody(source, mockId));
+      const st = await withDeadline(api.post<LiveStarted>('/live/start', liveStartBody(source, mockId)));
+      if (s.current.ended) return;
       s.current.sessionId = st.sessionId;
       await play(st);
     } catch (e) {

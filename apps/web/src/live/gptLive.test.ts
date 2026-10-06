@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { GptLiveDuplex } from './gptLive';
 import { appendEvent, closeEvent, muteEvent, parseLiveEvent } from './gptLiveProtocol';
+import { api } from '@/lib/api';
 
 it('parses the events the examiner needs and ignores the rest', () => {
   expect(parseLiveEvent('{"type":"session.started","session":{"id":"s"}}')).toEqual({ type: 'started' });
@@ -71,4 +72,22 @@ it('a session.closed the client did not ask for is a lost connection', () => {
   const { d, log } = setup();
   d.onEvent({ type: 'closed', reason: 'connection_lost' });
   expect(log).toEqual(['lost']);
+});
+
+it('provider errors are surfaced instead of leaving the stage thinking', () => {
+  const { d, log } = setup();
+  d.onEvent({ type: 'error', message: 'Session failed' });
+  expect(log).toContain('lost');
+});
+
+it('a failed cue request is surfaced instead of silently losing the script', async () => {
+  const { d, log } = setup();
+  const post = vi.spyOn(api, 'post').mockRejectedValue(new Error('offline'));
+  try {
+    d.cue('Begin', false, 'part2');
+    await d.chain;
+    expect(log).toContain('lost');
+  } finally {
+    post.mockRestore();
+  }
 });

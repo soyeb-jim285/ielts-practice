@@ -7,6 +7,7 @@ import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { recordCost } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
+import { liveDeadline } from '../ai/live-deadline';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
 import { attempts, liveSessions } from '../db/schema';
@@ -75,17 +76,19 @@ export const clearSpeechCache = () => speechCache.clear();
 async function voice(s: LiveState, n: number, text: string, settings: Settings): Promise<{ key?: string; url: string | null; voiceError?: string }> {
   const { tts, ttsVoice } = settings.models;
   try {
-    const k = `${tts}|${ttsVoice}|${text}`;
-    let speech = speechCache.get(k);
-    if (!speech) {
-      speech = await speak({ model: tts, voice: ttsVoice, text });
-      speechCache.set(k, speech);
-      if (speechCache.size > 40) speechCache.delete(speechCache.keys().next().value!);
-    }
-    const { audio, contentType } = speech;
-    const key = `live/${s.sessionId}/e${n}.${contentType === 'audio/wav' ? 'wav' : 'mp3'}`;
-    await storage.put(key, audio, contentType);
-    return { key, url: await storage.presignGet(key) };
+    return await liveDeadline((async () => {
+      const k = `${tts}|${ttsVoice}|${text}`;
+      let speech = speechCache.get(k);
+      if (!speech) {
+        speech = await speak({ model: tts, voice: ttsVoice, text });
+        speechCache.set(k, speech);
+        if (speechCache.size > 40) speechCache.delete(speechCache.keys().next().value!);
+      }
+      const { audio, contentType } = speech;
+      const key = `live/${s.sessionId}/e${n}.${contentType === 'audio/wav' ? 'wav' : 'mp3'}`;
+      await storage.put(key, audio, contentType);
+      return { key, url: await storage.presignGet(key) };
+    })(), 12_000);
   } catch (e) {
     if (!(e instanceof AiError)) throw e;
     console.error('examiner TTS failed, captions only', e.status, e.message);
@@ -220,7 +223,7 @@ export function register(app: App) {
       // verbatim: false: live turns need the words, not the disfluency-primed second Whisper pass; Scribe (when configured) is verbatim anyway.
       const transcribed = (async () => {
         if (!cand || !audioKey) return undefined;
-        const r = await ai(async () => transcribe({ model: settings.models.stt, audio: await storage.get(audioKey!), format: audioKey!.split('.').pop() as 'webm', verbatim: false }));
+        const r = await ai(() => liveDeadline((async () => transcribe({ model: settings.models.stt, audio: await storage.get(audioKey!), format: audioKey!.split('.').pop() as 'webm', verbatim: false }))(), 20_000));
         ms.sttMs = Date.now() - t0;
         const transcript = r.text.trim();
         Object.assign(cand, { text: transcript || '[no response]', durationMs: Math.round(r.duration * 1000) });
@@ -245,7 +248,13 @@ export function register(app: App) {
         transcript = await transcribed;
         const t = Date.now();
         const messages = s.history.map((h) => ({ role: h.role === 'examiner' ? ('assistant' as const) : ('user' as const), content: h.text }));
-        text = (await ai(() => chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages], effort: 'low', maxTokens: 200, cost: { stage: 'examiner_llm' } }))).trim() || direction(s).fallback;
+        try {
+          text = (await liveDeadline(chatText({ model: settings.models.examiner, messages: [{ role: 'system', content: EXAMINER_SYSTEM(s) }, ...messages], effort: 'low', maxTokens: 200, cost: { stage: 'examiner_llm' } }), 15_000)).trim() || direction(s).fallback;
+        } catch (e) {
+          if (!(e instanceof AiError)) throw e;
+          if (e.code !== 'timeout') throw new HTTPException(502, { message: e.message });
+          text = direction(s).fallback;
+        }
         ms.llmMs = Date.now() - t;
         audio = await speakLine(text);
       }

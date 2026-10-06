@@ -71,7 +71,8 @@ it('interruption flushes playback at once and the next output is a new turn', ()
   expect(player.flushed).toBe(1);
   expect(log.at(-1)).toBe('speaking:false');
   d.onEvent({ type: 'outText', text: 'Sorry, go on.' });
-  expect(log.at(-1)).toBe('caption:+Sorry, go on.');
+  expect(log).toContain('caption:+Sorry, go on.');
+  expect(log.at(-1)).toBe('speaking:true');
   expect(log.filter((l) => l === 'caption:=')).toHaveLength(2);
 });
 
@@ -80,4 +81,19 @@ it('a cue cuts the examiner off and is queued while the socket is down', () => {
   d.cue('Move to Part 2.');
   expect(player.flushed).toBe(1);
   expect(d.queued).toBe('Move to Part 2.');
+});
+
+it('caption-only output completes the speaking lifecycle', () => {
+  const { d, log } = setup();
+  d.onEvent({ type: 'outText', text: 'Please begin.' });
+  d.onEvent({ type: 'turnComplete' });
+  vi.advanceTimersByTime(1000);
+  expect(log.filter((l) => l.startsWith('speaking'))).toEqual(['speaking:true', 'speaking:false']);
+});
+
+it('missing turnComplete still ends output after the audio queue drains', () => {
+  const { d, log } = setup();
+  d.onEvent(audio);
+  vi.advanceTimersByTime(6000);
+  expect(log.at(-1)).toBe('speaking:false');
 });

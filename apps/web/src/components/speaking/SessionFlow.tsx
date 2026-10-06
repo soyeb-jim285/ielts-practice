@@ -75,6 +75,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
   /** Which question's text the candidate chose to read ("seg:q"); a spoken question is heard, not read, as in the real test. */
   const [shownQ, setShownQ] = useState('');
   const stopping = useRef(false);
+  const starting = useRef(false);
+  const [saving, setSaving] = useState(false);
   useEffect(() => () => askCtl.current?.abort(), []);
 
   const seg = segments[segIdx]!;
@@ -82,6 +84,9 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
   const lastQ = qIdx >= seg.questions.length - 1;
   const p1Count = segments.filter((s) => s.part === 1).length;
   const p1Pos = segments.slice(0, segIdx + 1).filter((s) => s.part === 1).length;
+  const nextSeg = segments[segIdx + 1];
+  const topicOnly = seg.part === 1 && p1Count > 1;
+  const continueLabel = nextSeg ? nextSeg.part === seg.part ? 'Continue to next topic' : `Continue to Part ${nextSeg.part}` : 'Finish test';
 
   const prep = useCountdown(P2_PREP_S, { onEnd: () => void startRecording() });
 
@@ -111,15 +116,6 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
     if (!(await rec.start({ paused: true }))) return;
     await ask([segIdx === 0 && seg.part === 1 && segments.length > 1 ? seg.prompt.audio?.intro : null, seg.prompt.audio?.lead, lineFor(seg, seg.questions[0]!)]);
   };
-  // After the first part the next one starts by itself (the Finish tap is the gesture that lets audio play); the first waits for the mic tap.
-  const introduced = useRef(-1);
-  useEffect(() => {
-    if (segIdx === 0 && seg.part !== 2) return;
-    if (phase !== 'ready' || introduced.current === segIdx) return;
-    introduced.current = segIdx;
-    void introduce();
-    // once per segment
-  }, [segIdx, phase]);
 
   // ---- upload: create attempt → PUT audio → submit (hard timeouts). A retry resumes from the step that failed. ----
   const pending = useRef<Record<number, Pending>>({});
@@ -136,11 +132,12 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
     }
   };
 
-  const label = (s: Segment, i: number) => (s.part === 1 && p1Count > 1 ? `Part 1, ${segments.slice(0, i + 1).filter((x) => x.part === 1).length} of ${p1Count}` : `Part ${s.part}`);
+  const label = (s: Segment, i: number) => (s.part === 1 && p1Count > 1 ? `Part 1, topic ${segments.slice(0, i + 1).filter((x) => x.part === 1).length} of ${p1Count}` : `Part ${s.part}`);
 
   const finishPart = async () => {
     if (stopping.current || rec.state !== 'recording') return;
     stopping.current = true;
+    setSaving(true);
     try {
       windows.current.push({ q: qIdx, startMs: openAt.current, endMs: Math.round(rec.clock()) });
       marks.current = windows.current.map((w) => w.startMs);
@@ -154,31 +151,53 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
         setSegIdx(segIdx + 1);
         setQIdx(0);
         setNotes('');
+        setExaminer('idle');
         prep.reset();
         setPhase('ready');
       } else setPhase('finishing');
     } finally {
       stopping.current = false;
+      setSaving(false);
     }
   };
 
   const startRecording = async () => {
-    prep.stop();
+    if (starting.current || stopping.current || recording) return;
+    starting.current = true;
     try {
-      localStorage.setItem(HINT_KEY, '1');
-    } catch {}
-    setHint(false);
-    windows.current = [];
-    if (seg.part === 2) {
-      // the card was introduced before the preparation minute: recording starts now, with the cue
-      if (!(await rec.start())) return;
-      openAt.current = 0;
-      setExaminer('cue');
-      setTimeout(() => setExaminer((e) => (e === 'cue' ? 'idle' : e)), 2500);
-    } else void introduce(); // first tap of the test (later parts start themselves)
+      prep.stop();
+      try {
+        localStorage.setItem(HINT_KEY, '1');
+      } catch {}
+      setHint(false);
+      windows.current = [];
+      if (seg.part === 2) {
+        // The card was introduced before preparation; open the mic for the long turn now.
+        if (!(await rec.start())) return;
+        openAt.current = 0;
+        setExaminer('cue');
+        setTimeout(() => setExaminer((e) => (e === 'cue' ? 'idle' : e)), 2500);
+      } else await introduce();
+    } finally {
+      starting.current = false;
+    }
+  };
+
+  const startPreparation = async () => {
+    if (starting.current || stopping.current) return;
+    starting.current = true;
+    try {
+      await introduce();
+      if (askCtl.current?.signal.aborted) return;
+      setPhase('prep');
+      prep.start();
+    } finally {
+      starting.current = false;
+    }
   };
 
   const nextQuestion = () => {
+    if (examiner === 'asking' || stopping.current || lastQ) return;
     windows.current.push({ q: qIdx, startMs: openAt.current, endMs: Math.round(rec.clock()) });
     setQIdx(qIdx + 1);
     void ask([lineFor(seg, seg.questions[qIdx + 1]!)]);
@@ -314,16 +333,16 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
               <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-3 self-stretch border-t border-line bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:flex-row sm:justify-start md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                 {seg.part !== 2 && !lastQ ? (
                   <>
-                    <Button variant="outline" size="lg" disabled={asking} onClick={() => setEarlyOpen(true)}>
-                      Finish part early
+                    <Button variant="outline" size="lg" disabled={asking || saving} onClick={() => setEarlyOpen(true)}>
+                      {topicOnly ? 'Finish topic early' : 'Finish part early'}
                     </Button>
-                    <Button size="lg" disabled={asking} onClick={nextQuestion} icon={<ChevronRight />}>
+                    <Button size="lg" disabled={asking || saving} onClick={nextQuestion} icon={<ChevronRight />}>
                       Next question
                     </Button>
                   </>
                 ) : (
-                  <Button size="lg" className="w-full sm:w-auto" disabled={asking} onClick={() => void finishPart()} icon={<Check />}>
-                    {segIdx + 1 < segments.length ? 'Finish and continue' : 'Finish'}
+                  <Button size="lg" className="w-full sm:w-auto" disabled={asking} loading={saving} onClick={() => void finishPart()} icon={<Check />}>
+                    {continueLabel}
                   </Button>
                 )}
               </div>
@@ -359,14 +378,12 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
                 <Stat label="Speaking" value={`up to ${formatClock(SPEAKING_ZONES[2].max)}`} />
               </dl>
               <p className="max-w-[60ch] type-lede">{INTRO[2]}</p>
+              {asking && <p role="status" className="type-caption">The examiner is introducing your cue card. Your preparation minute starts when the introduction finishes.</p>}
               <Button
                 size="lg"
                 className="w-full sm:w-auto"
-                disabled={asking}
-                onClick={() => {
-                  setPhase('prep');
-                  prep.start();
-                }}
+                disabled={asking || saving}
+                onClick={() => void startPreparation()}
               >
                 Start 1-minute preparation
               </Button>
@@ -374,16 +391,20 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-5 sm:gap-7">
-                <MicButton state={rec.state} level={rec.level} onStart={() => void startRecording()} onStop={() => void finishPart()} />
+                {segIdx === 0 ? <MicButton state={rec.state} level={rec.level} disabled={saving} onStart={() => void startRecording()} onStop={() => void finishPart()} /> : (
+                  <Button size="lg" loading={rec.state === 'requesting'} disabled={saving || asking} onClick={() => void startRecording()}>
+                    {seg.part === 1 ? 'Start next topic' : `Start Part ${seg.part}`}
+                  </Button>
+                )}
                 <div className="min-w-0">
-                  <p className="type-subheading">Press to start recording</p>
+                  <p className="type-subheading">{saving ? 'Saving your answer' : segIdx === 0 ? 'Press to start recording' : `Ready for ${seg.part === 1 ? 'the next topic' : `Part ${seg.part}`}?`}</p>
                   <p className="type-caption mt-1 max-w-[46ch]">{INTRO[seg.part]}</p>
                 </div>
               </div>
               {hint && (
                 <p className="type-caption flex items-center gap-2 text-brand-text">
                   <Info className="size-4 shrink-0" aria-hidden />
-                  Tap to start, your whole Part {seg.part} is one recording.
+                  Tap to start, {topicOnly ? 'this topic' : `your whole Part ${seg.part}`} is one recording.
                 </p>
               )}
             </div>
@@ -403,7 +424,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
         open={earlyOpen}
         onClose={() => setEarlyOpen(false)}
         title={`Finish with ${qIdx + 1} of ${seg.questions.length} answered?`}
-        description={`Your whole Part ${seg.part} is one recording, so finishing now ends it and skips the last ${seg.questions.length - qIdx - 1} ${seg.questions.length - qIdx - 1 === 1 ? 'question' : 'questions'}.`}
+        description={`Finishing now saves this ${topicOnly ? 'topic' : 'part'} and skips its remaining ${seg.questions.length - qIdx - 1} ${seg.questions.length - qIdx - 1 === 1 ? 'question' : 'questions'}.${nextSeg ? ` You will continue to ${nextSeg.part === seg.part ? 'the next topic in Part 1' : `Part ${nextSeg.part}`}.` : ' This ends the test.'}`}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEarlyOpen(false)}>
@@ -415,7 +436,7 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
                 void finishPart();
               }}
             >
-              Finish now
+              {continueLabel}
             </Button>
           </>
         }
