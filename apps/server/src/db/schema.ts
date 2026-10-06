@@ -262,6 +262,8 @@ export const lrTests = pgTable('lr_tests', {
   title: text('title').notNull(),
   data: jsonb('data').$type<import('@ielts/core').LrTest>().notNull(), // LrTest with answers + transcripts: never sent unstripped before submit
   restricted: boolean('restricted').notNull().default(true),
+  /** Replaced by a newer version: hidden from lists and new attempts, still readable for past results. */
+  retired: boolean('retired').notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [index('lr_tests_skill_source_idx').on(t.skill, t.source)]);
 

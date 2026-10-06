@@ -197,7 +197,7 @@ const pickLr = async (userId: string, skill: 'listening' | 'reading', variant: '
     await db
       .select({ id: lrTests.id })
       .from(lrTests)
-      .where(and(eq(lrTests.skill, skill), where))
+      .where(and(eq(lrTests.skill, skill), eq(lrTests.retired, false), where))
       .orderBy(
         sql`exists(select 1 from lr_attempts a where a.test_id = "lr_tests".id and a.user_id = ${userId} and a.status = 'submitted')`,
         ...(skill === 'listening' ? [sql`(${lrTests.variant} = ${variant}) desc`] : []),

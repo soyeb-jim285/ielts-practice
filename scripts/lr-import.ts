@@ -1,7 +1,8 @@
 // Sidecars: <dir>/enrich/<slug>.json and <dir>/timings/<slug>.json (optional) are merged into the test before validation.
 // Imports Listening & Reading tests (LrTest JSON) as lr_tests rows (Cambridge = restricted to allow-listed users, generated = open to all) and uploads their assets to storage under lr/<key>.
 // Reads data/cambridge-lr/*.json and data/lr-generated/*.json (assets in <dir>/assets/<key>); PRIVATE data, never commit it.
-// Usage: pnpm tsx scripts/lr-import.ts [--dry] [--force] [--dev] [dir...]   (--dev adds the committed dev fixtures; --force imports tests that fail validation)
+// Usage: pnpm tsx scripts/lr-import.ts [--dry] [--force] [--dev] [--retire slug,slug] [dir...]   (--dev adds the committed dev fixtures; --force imports tests that fail validation;
+//        --retire marks replaced tests retired: hidden from lists and new attempts, past results still open)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,8 @@ import { normalizeLrTest, validateLrTest, type LrQuestionReview, type LrTest, ty
 const args = process.argv.slice(2);
 const [dry, force, dev] = ['--dry', '--force', '--dev'].map((f) => args.includes(f));
 const root = (p: string) => fileURLToPath(new URL(`../${p}`, import.meta.url));
-const dirs = args.filter((a) => !a.startsWith('--'));
+const retire = args.includes('--retire') ? args[args.indexOf('--retire') + 1]!.split(',').filter(Boolean) : [];
+const dirs = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--retire');
 if (!dirs.length) dirs.push(root('data/cambridge-lr'), root('data/lr-generated'));
 if (dev) dirs.push(root('apps/server/src/test/fixtures/lr'));
 
@@ -82,6 +84,13 @@ for (const dir of dirs) {
     ok++;
     console.log(`${dry ? 'OK  ' : 'UP  '} ${t.slug} (${t.skill}, ${t.ref}, ${keys.length} assets)${merged}`);
   }
+}
+if (retire.length) {
+  if (server) {
+    // plain SQL: scripts/ cannot resolve drizzle-orm (pnpm, no hoisting)
+    const done = await server.sql<{ slug: string }[]>`update lr_tests set retired = true where slug = any(${retire}) returning slug`;
+    console.log(`retired: ${done.map((r) => r.slug).join(', ') || 'none'}${done.length < retire.length ? ` (not found: ${retire.filter((x) => !done.some((r) => r.slug === x)).join(', ')})` : ''}`);
+  } else console.log(`would retire: ${retire.join(', ')} [dry run]`);
 }
 console.log(`lr-import: ${ok} ${dry ? 'valid' : 'upserted'}, ${skipped} skipped, ${uploaded} assets uploaded${dry ? ' [dry run]' : ''}`);
 if (server) await server.sql.end();

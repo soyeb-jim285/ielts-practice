@@ -1,0 +1,1 @@
+ALTER TABLE "lr_tests" ADD COLUMN "retired" boolean DEFAULT false NOT NULL;

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import type { LrTest } from '@ielts/core';
 import { db } from '../db/client';
 import { lrTests } from '../db/schema';
@@ -205,6 +206,18 @@ describe('listening & reading tests', () => {
       expect((await body(await req('/api/lr/attempts', { headers }))).items.map((x: any) => x.id)).toEqual([b.id]);
       const again = (await body(await req('/api/lr/tests?skill=listening', { headers }))).items[0];
       expect([again.attemptId, again.parts, again.total]).toEqual([b.id, [1], 10]);
+    });
+
+    it('a retired test leaves the list and takes no new attempts, but an open one resumes and old results still read', async () => {
+      const a = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }));
+      await db.update(lrTests).set({ retired: true }).where(eq(lrTests.id, lid));
+      expect((await body(await req('/api/lr/tests?skill=listening', { headers }))).items).toEqual([]);
+      expect((await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }))).id).toBe(a.id);
+      expect((await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice', fresh: true } })).status).toBe(404);
+      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200); // fresh was refused before discarding anything
+      expect((await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} })).status).toBe(200);
+      expect((await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } })).status).toBe(404);
+      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200);
     });
 
     it("cannot read, save or submit another user's attempt", async () => {

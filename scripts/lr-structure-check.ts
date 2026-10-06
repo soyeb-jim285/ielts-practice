@@ -239,9 +239,10 @@ function main() {
       }
     }
   } else {
-    const slugs = args.length ? args : readdirSync(join(root, 'lr-generated')).filter((f) => /^gen-l-\d+\.json$/.test(f)).map((f) => f.slice(0, -5));
+    // LR_GEN_DIR: another generated set (e.g. data/lr-generated/v2) with the same layout
+    const G = process.env.LR_GEN_DIR ?? join(root, 'lr-generated');
+    const slugs = args.length ? args : readdirSync(G).filter((f) => /^gen-l-\d+\.json$/.test(f)).map((f) => f.slice(0, -5));
     for (const slug of slugs) {
-      const G = join(root, 'lr-generated');
       const test = JSON.parse(readFileSync(join(G, `${slug}.json`), 'utf8'));
       const script = JSON.parse(readFileSync(join(G, 'scripts', `${slug}.json`), 'utf8'));
       const ev = existsSync(join(G, 'enrich', `${slug}.json`)) ? JSON.parse(readFileSync(join(G, 'enrich', `${slug}.json`), 'utf8')).questions : {};

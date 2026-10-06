@@ -8,7 +8,7 @@ Refuses to render a part whose script fails scripts/lr-structure-check.ts (answe
 Reads  data/lr-generated/scripts/<slug>.json
          {"parts":[{"part":1,"voices":{LABEL: voice_id},"turns":[{"speaker":LABEL,"text":"...[tags] allowed","pause":seconds_of_silence_after?}]}]}
          speaker NARRATOR is the exam voice. Silence ("pause") is made by ffmpeg, it costs no credits.
-Writes data/lr-generated/assets/lr/gen/<slug>-p<N>.mp3 (mono, 64 kbps, 44.1 kHz, about -16 LUFS).
+Writes $LR_GEN_DIR (default data/lr-generated)/assets/lr/gen/<slug>-p<N>.mp3 (mono, 64 kbps, 44.1 kHz, about -16 LUFS).
 Resumable: every speech block is cached in data/lr-generated/.el-cache/<sha1(model+voices+text)>.mp3.
 Every API call appends its `character-cost` header to data/lr-generated/elevenlabs-cost.log.
 Blocks: consecutive turns without a long pause are one text-to-dialogue request (split at turn boundaries, <= 9000 chars).
@@ -17,9 +17,10 @@ import base64, hashlib, json, os, subprocess, sys, tempfile, time, urllib.error,
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "data/lr-generated"
-CACHE = OUT / ".el-cache"
-LOG = OUT / "elevenlabs-cost.log"
+GEN = ROOT / "data/lr-generated"
+OUT = Path(os.environ.get("LR_GEN_DIR") or GEN)  # LR_GEN_DIR: another generated set with the same layout (e.g. data/lr-generated/v2)
+CACHE = GEN / ".el-cache"
+LOG = GEN / "elevenlabs-cost.log"
 MODEL = "eleven_v4_turbo"
 MAXCH = 9000
 GAP = 0.35  # seconds of room between consecutive speech blocks without an explicit pause

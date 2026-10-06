@@ -244,7 +244,7 @@ export function register(app: App) {
           sizes: sql<Record<string, number>>`(select jsonb_object_agg(s->>'part', (select count(*) from jsonb_array_elements(s->'groups') g, jsonb_array_elements(g->'questions'))) from jsonb_array_elements(${lrTests.data}->'sections') s)`,
         })
         .from(lrTests)
-        .where(and(visibleWhere(user), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
+        .where(and(visibleWhere(user), eq(lrTests.retired, false), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
         .orderBy(lrTests.ref);
       const mine = user ? await db.select().from(lrAttempts).where(eq(lrAttempts.userId, user.id)).orderBy(desc(lrAttempts.startedAt)) : [];
       const byTest = new Map<string, typeof mine>();
@@ -303,9 +303,11 @@ export function register(app: App) {
       // every part chosen = the whole test (keeps the band)
       const chosen = parts && have.some((p) => !parts.includes(p)) ? [...new Set(parts)].sort((x, y) => x - y) : null;
       const mineOpen = and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress'));
-      if (fresh) await db.delete(lrAttempts).where(mineOpen);
-      const open = fresh ? undefined : await db.query.lrAttempts.findFirst({ where: mineOpen });
-      const a = open ?? await insertLrAttempt(user.id, t.id, mode, chosen);
+      const open = await db.query.lrAttempts.findFirst({ where: mineOpen });
+      // a replaced test can still be finished, never started again
+      if (t.retired && (fresh || !open)) throw new HTTPException(404, { message: 'This test has been replaced by a newer version' });
+      if (fresh && open) await db.delete(lrAttempts).where(mineOpen);
+      const a = (!fresh && open) || await insertLrAttempt(user.id, t.id, mode, chosen);
       return c.json(await toAttempt(a, t), 200);
     },
   );
