@@ -17,7 +17,7 @@ export const lrAttemptQuery = (id: string) =>
 export const lrProgressQuery = queryOptions({ queryKey: ['lr-progress'], queryFn: () => call(client.GET('/api/lr/progress')), staleTime: 60_000 });
 export const lrAttemptsQuery = queryOptions({ queryKey: ['lr-attempts'], queryFn: () => call(client.GET('/api/lr/attempts')), staleTime: 0 });
 
-/** Reading is 60 minutes; Listening exam has 2 minutes to check answers after the last recording. */
+/** Reading is 60 minutes; Listening exam: the checking time its recording announces (test.checkEndsAt), else the computer-delivered 2 minutes. */
 export const READING_SECONDS = 3600;
 export const LISTENING_REVIEW_SECONDS = 120;
 /** Exam reading clock: 60 minutes for the whole test, 20 per passage when taking only some. */

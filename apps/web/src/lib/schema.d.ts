@@ -4892,6 +4892,8 @@ export interface components {
                     }[];
                 }[];
             }[];
+            /** @description Listening, before submission: when the checking time the recording announces at its end runs out, in seconds into the last part's audio (word timings). Absent: use 2 minutes after the recording. */
+            checkEndsAt?: number;
         };
         /** @description Only after submission */
         LrQuestionReview: {

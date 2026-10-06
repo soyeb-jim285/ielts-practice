@@ -76,6 +76,8 @@ struct LrTest: Codable, Hashable {
     let ref: String
     let title: String
     let sections: [LrSection]
+    /// Listening, before submit: when the checking time the recording announces runs out, in seconds into the last part's audio. Nil: 2 minutes.
+    var checkEndsAt: Double? = nil
 
     var isListening: Bool { skill == "listening" }
     var partNoun: String { isListening ? "Part" : "Passage" }

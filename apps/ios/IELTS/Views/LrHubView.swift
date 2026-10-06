@@ -190,7 +190,7 @@ struct LrModeSheet: View {
     private var noun: String { listening ? "Part" : "Passage" }
     private var parts: [Int]? { part == 0 ? nil : [part] }
     private var modes: [(key: String, title: String, hint: String, icon: String)] {
-        [("exam", "Exam", listening ? "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself." : "\(Lr.readingLimit(parts) / 60)-minute countdown. Submits itself when time is up.", "timer"),
+        [("exam", "Exam", listening ? "The recording plays once, with no pause or rewind. Then the checking time the recording announces, and it submits itself." : "\(Lr.readingLimit(parts) / 60)-minute countdown. Submits itself when time is up.", "timer"),
          ("practice", "Practice", listening ? "Pause, rewind, slow down to 0.75× and replay any part. No time limit." : "No time limit. A clock counts up so you can see your pace.", "slider.horizontal.3")]
     }
 

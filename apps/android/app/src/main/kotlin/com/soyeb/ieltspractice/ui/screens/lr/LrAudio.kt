@@ -287,7 +287,7 @@ enum class ExamPhase { Idle, Audio, Review }
  * In demo mode ([demoPhase] set) there is no engine; it sits in that phase at a fixed spot.
  */
 @Stable
-class ExamPlaylist(private val urls: List<String>, private val startElapsed: Double, private val demoPhase: ExamPhase? = null) {
+class ExamPlaylist(private val urls: List<String>, private val startElapsed: Double, private val demoPhase: ExamPhase? = null, private val checkEndsAt: Double? = null) {
     var durations by mutableStateOf<List<Double>?>(if (demoPhase != null) listOf(412.0, 405.0, 420.0, 398.0) else null)
         private set
     var error by mutableStateOf(false)
@@ -305,9 +305,16 @@ class ExamPlaylist(private val urls: List<String>, private val startElapsed: Dou
     private var reviewStart = 0L
 
     val total: Double get() = durations?.sum() ?: 0.0
-    val reviewLeft: Int get() = max(0, ceil(LISTENING_REVIEW_SECONDS - (elapsed - total)).toInt())
+    /** Follows the recording: "ten minutes to transfer your answers" (Cambridge books), "one minute to check" (often already silence in the file). */
+    val reviewSeconds: Double get() {
+        val d = durations
+        val c = checkEndsAt ?: return LISTENING_REVIEW_SECONDS.toDouble()
+        if (d.isNullOrEmpty()) return LISTENING_REVIEW_SECONDS.toDouble()
+        return max(0.0, Math.round(starts()[d.size - 1] + c - total).toDouble())
+    }
+    val reviewLeft: Int get() = max(0, ceil(reviewSeconds - (elapsed - total)).toInt())
     /** Whole sitting left: rest of the recording plus the review window. */
-    val timeLeft: Int get() = max(0, ceil(total + LISTENING_REVIEW_SECONDS - elapsed).toInt())
+    val timeLeft: Int get() = max(0, ceil(total + reviewSeconds - elapsed).toInt())
     private fun starts(): List<Double> = durations.orEmpty().runningFold(0.0) { a, d -> a + d }
 
     fun attach(context: Context) {
@@ -400,7 +407,7 @@ fun ExamGate(p: ExamPlaylist, resumed: Boolean, onBack: () -> Unit, modifier: Mo
         Icon(painterResource(R.drawable.ic_sp_headphones), null, Modifier.size(32.dp), tint = e.brand)
         Text(if (resumed) "Ready to continue?" else "Ready to listen?", style = MaterialTheme.typography.headlineSmall, color = e.ink)
         Text(
-            "The recording plays once, ${if (parts.size > 1) "from Part ${parts.first()} to Part ${parts.last()}" else "Part ${parts.firstOrNull()} only"}, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.",
+            "The recording plays once, ${if (parts.size > 1) "from Part ${parts.first()} to Part ${parts.last()}" else "Part ${parts.firstOrNull()} only"}, with no pause or rewind. Questions appear as you start. At the end you get the checking time the recording announces, then the test submits itself.",
             style = MaterialTheme.typography.bodyLarge, color = e.ink,
         )
         Text("Check your volume first. Use headphones if you can.", style = MaterialTheme.typography.bodyMedium, color = e.muted)

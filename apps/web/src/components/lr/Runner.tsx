@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Alert, Button, Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Popover, Segmented, Sheet, Tabs, toast } from '@/components/ui';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatClock, plural } from '@/lib/format';
-import { clockAlert, flatQuestions, isAnswered, LISTENING_REVIEW_SECONDS, lsGet, lsSet, partsLabel, readingClock, readingSeconds, type LrAttempt, type LrMark, type LrSection } from '@/lib/lr';
+import { clockAlert, flatQuestions, isAnswered, lsGet, lsSet, partsLabel, readingClock, readingSeconds, type LrAttempt, type LrMark, type LrSection } from '@/lib/lr';
 import { cn } from '@/lib/utils';
 import { ExamAudioBar, PracticeAudio, useExamPlaylist } from './Audio';
 import { Navigator, type NavPart } from './Navigator';
@@ -163,7 +163,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
   };
 
   // ---- clocks ----
-  const playlist = useExamPlaylist(useMemo(() => (listening ? sections.map((s) => assets[s.audio ?? ''] ?? '') : []), [listening, sections, assets]), attempt.elapsedS);
+  const playlist = useExamPlaylist(useMemo(() => (listening ? sections.map((s) => assets[s.audio ?? ''] ?? '') : []), [listening, sections, assets]), attempt.elapsedS, test.checkEndsAt);
   const examListening = listening && exam;
   lateFrom.current = listening ? (exam && playlist.total ? playlist.total : Infinity) : limit - 300; // last 5 min of reading; exam listening: after the recording ends
   const wall = useWallClock(attempt.elapsedS, !examListening, session.elapsed);
@@ -290,7 +290,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
       <div className="mx-auto max-w-lg px-4 py-14">
         <Headphones className="mb-4 size-7 text-accent-text" aria-hidden />
         <h2 className="type-title-sm">{attempt.elapsedS > 0 ? 'Ready to continue?' : 'Ready to listen?'}</h2>
-        <p className="type-lede mt-2">The recording plays once, {sections.length > 1 ? `from Part ${sections[0]!.part} to Part ${sections.at(-1)!.part}` : `Part ${sections[0]?.part} only`}, with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.</p>
+        <p className="type-lede mt-2">The recording plays once, {sections.length > 1 ? `from Part ${sections[0]!.part} to Part ${sections.at(-1)!.part}` : `Part ${sections[0]?.part} only`}, with no pause or rewind. Questions appear as you start. {test.checkEndsAt === undefined ? 'You get 2 minutes at the end to check your answers' : 'At the end you get the checking time the recording announces'}, then the test submits itself.</p>
         <p className="type-caption mt-3">Check your volume first. Use headphones if you can.</p>
         {playlist.error && <Alert tone="bad" className="mt-4">The recording could not be loaded. Check your connection and reload.</Alert>}
         <div className="mt-6 flex gap-2">
@@ -332,7 +332,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
     playlist.phase === 'review' ? (
       <ClockPill seconds={playlist.reviewLeft} warn label="Review time left" />
     ) : playlist.total ? (
-      <ClockPill seconds={Math.max(0, Math.ceil(playlist.total + LISTENING_REVIEW_SECONDS - playlist.elapsed))} label="Time left" />
+      <ClockPill seconds={Math.max(0, Math.ceil(playlist.total + playlist.reviewSeconds - playlist.elapsed))} label="Time left" />
     ) : null
   ) : exam ? (
     <ClockPill seconds={Math.max(0, Math.ceil(readingLeft))} limit={limit} label="Time left" />

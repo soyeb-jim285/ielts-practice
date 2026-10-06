@@ -219,7 +219,8 @@ export type ExamPhase = 'idle' | 'audio' | 'review';
  * Exam listening: the recordings of all parts play once, in order, with no pause or seek for the learner. The clock IS the audio position
  * (so a resumed attempt picks the recording up where it was), then a 2-minute review countdown runs on the wall clock.
  */
-export function useExamPlaylist(urls: string[], startElapsed: number) {
+/** checkEndsAt: when the checking time the recording announces runs out, in seconds into the last part's audio (server, from word timings); without it the computer-delivered 2 minutes. */
+export function useExamPlaylist(urls: string[], startElapsed: number, checkEndsAt?: number) {
   const el = useRef<HTMLAudioElement>(null);
   const [durations, setDurations] = useState<number[] | null>(null);
   const [error, setError] = useState(false);
@@ -253,6 +254,8 @@ export function useExamPlaylist(urls: string[], startElapsed: number) {
 
   const starts = durations?.reduce<number[]>((acc, d, i) => [...acc, (acc[i] ?? 0) + d], [0]) ?? [0];
   const total = durations ? starts[durations.length]! : 0;
+  // follow the recording: "ten minutes to transfer your answers" (Cambridge books), "one minute to check" (often already silence in the file)
+  const reviewSeconds = durations && checkEndsAt !== undefined ? Math.max(0, Math.round(starts[durations.length - 1]! + checkEndsAt - total)) : LISTENING_REVIEW_SECONDS;
 
   const load = useCallback(
     (i: number, offset: number) => {
@@ -317,8 +320,8 @@ export function useExamPlaylist(urls: string[], startElapsed: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, total]);
 
-  const reviewLeft = Math.max(0, Math.ceil(LISTENING_REVIEW_SECONDS - (elapsed - total)));
-  return { el, durations, error, phase, idx, elapsed, total, start, resume, stalled, reviewLeft };
+  const reviewLeft = Math.max(0, Math.ceil(reviewSeconds - (elapsed - total)));
+  return { el, durations, error, phase, idx, elapsed, total, start, resume, stalled, reviewLeft, reviewSeconds };
 }
 
 /** Exam recording bar: whole-test progress, which part is playing, volume. No transport controls on purpose. */

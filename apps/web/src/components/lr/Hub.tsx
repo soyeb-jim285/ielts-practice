@@ -64,7 +64,7 @@ function Status({ t, target }: { t: Item; target: number }) {
 }
 
 const MODES = {
-  exam: { label: 'Exam', hint: (s: LrSkill, parts: number[] | null) => (s === 'reading' ? `${readingSeconds(parts) / 60}-minute countdown. Submits itself when time is up.` : 'The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself.') },
+  exam: { label: 'Exam', hint: (s: LrSkill, parts: number[] | null) => (s === 'reading' ? `${readingSeconds(parts) / 60}-minute countdown. Submits itself when time is up.` : 'The recording plays once, with no pause or rewind. Then the checking time the recording announces, and it submits itself.') },
   practice: { label: 'Practice', hint: (s: LrSkill, _parts: number[] | null) => (s === 'reading' ? 'No time limit. A clock counts up so you can see your pace.' : 'Pause, rewind, slow down to 0.75× and replay any part. No time limit.') },
 } as const;
 

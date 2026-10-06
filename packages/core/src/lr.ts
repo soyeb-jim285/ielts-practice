@@ -91,6 +91,8 @@ export interface LrTest {
   ref: string;
   title: string;
   sections: LrSection[];
+  /** listening, stripped copy only: when the answer-checking time the recording announces at its end runs out, in seconds into the last part's audio (see checkEndsAt) */
+  checkEndsAt?: number;
 }
 
 export type LrResponses = Record<number, string>;
@@ -211,10 +213,25 @@ export function pickParts(test: LrTest, parts?: number[] | null): LrTest {
   return parts?.length ? { ...test, sections: test.sections.filter((s) => parts.includes(s.part)) } : test;
 }
 
-/** Copy safe to send before submission: no answers, no transcript. */
+// "You now have ten minutes to transfer your answers" (Cambridge books, the paper test), "one minute to check", "half a minute"
+const ANNOUNCED: [RegExp, number][] = [[/\bhalf a minute\b|\b(thirty|30) seconds\b/, 30], [/\b(ten|10) minutes\b/, 600], [/\b(two|2) minutes\b/, 120], [/\b(a|one|1) minute\b/, 60]];
+/** Listening: when the checking time the recording announces at its very end runs out, as seconds into the last part's audio
+ *  (last spoken word + the announced time; the silence may or may not be in the file). Undefined without timings or an announcement. */
+export function checkEndsAt(test: LrTest): number | undefined {
+  const w = test.skill === 'listening' ? test.sections.at(-1)?.timings : undefined;
+  if (!w?.length) return undefined;
+  const tail = w.slice(-30);
+  const text = tail.map((x) => x[0]).join(' ').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ');
+  const hit = /\b(check|transfer)\b/.test(text) ? ANNOUNCED.find(([re]) => re.test(text)) : undefined;
+  return hit && Math.round(tail.at(-1)![2] + hit[1]);
+}
+
+/** Copy safe to send before submission: no answers, no transcript (timings go too; only the announced end of the checking time is kept). */
 export function stripAnswers(test: LrTest): LrTest {
+  const end = checkEndsAt(test);
   return {
     ...test,
+    ...(end !== undefined && { checkEndsAt: end }),
     sections: test.sections.map(({ transcript: _t, timings: _w, vocab: _v, ...s }) => ({
       ...s,
       groups: s.groups.map((g) => ({ ...g, questions: g.questions.map(({ answer: _a, review: _r, ...q }) => q) })),

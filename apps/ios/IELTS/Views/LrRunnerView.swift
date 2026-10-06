@@ -218,7 +218,7 @@ private struct LrRunnerBody: View {
         default: break
         }
         if examListening && playlist == nil {
-            playlist = LrExamPlaylist(urls: test.sections.map { Lr.assetURL(attempt.assets[$0.audio ?? ""]) }, startElapsed: attempt.elapsedS)
+            playlist = LrExamPlaylist(urls: test.sections.map { Lr.assetURL(attempt.assets[$0.audio ?? ""]) }, startElapsed: attempt.elapsedS, checkEndsAt: test.checkEndsAt)
         }
     }
 
@@ -390,7 +390,7 @@ private struct LrRunnerBody: View {
             Spacer()
             Image(systemName: "headphones").font(.system(size: 34)).foregroundStyle(Color.brand).accessibilityHidden(true)
             Text(attempt.elapsedS > 0 ? "Ready to continue?" : "Ready to listen?").font(.display(.title)).foregroundStyle(Color.ink)
-            Text("The recording plays once, \(partSpan), with no pause or rewind. Questions appear as you start. You get 2 minutes at the end to check your answers, then the test submits itself.")
+            Text("The recording plays once, \(partSpan), with no pause or rewind. Questions appear as you start. At the end you get the checking time the recording announces, then the test submits itself.")
                 .font(.body).foregroundStyle(Color.ink)
             Text("Check your volume first. Use headphones if you can.").font(.subheadline).foregroundStyle(Color.muted)
             if playlist?.error == true { ErrorLine(message: "The recording could not be loaded. Check your connection and try again.") }

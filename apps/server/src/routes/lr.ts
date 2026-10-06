@@ -103,6 +103,7 @@ const LrTestSchema = z
         ),
       }),
     ),
+    checkEndsAt: z.number().optional().openapi({ description: "Listening, before submission: when the checking time the recording announces at its end runs out, in seconds into the last part's audio (word timings). Absent: use 2 minutes after the recording." }),
   })
   .openapi('LrTest');
 

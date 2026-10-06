@@ -2,6 +2,17 @@ import XCTest
 @testable import IELTS
 
 final class LrTests: XCTestCase {
+    func testCheckEndsAtDecodesAndDefaults() throws {
+        let t = try JSONDecoder().decode(LrTest.self, from: Data(#"{"slug":"s","skill":"listening","variant":"academic","source":"cambridge","ref":"C10 T1","title":"T","sections":[],"checkEndsAt":996}"#.utf8))
+        XCTAssertEqual(t.checkEndsAt, 996)
+        let old = try JSONDecoder().decode(LrTest.self, from: Data(#"{"slug":"s","skill":"listening","variant":"academic","source":"generated","ref":"G1","title":"T","sections":[]}"#.utf8))
+        XCTAssertNil(old.checkEndsAt)
+    }
+
+    @MainActor func testReviewFallsBackToTwoMinutesWithoutDurations() {
+        XCTAssertEqual(LrExamPlaylist(urls: [], startElapsed: 0, checkEndsAt: 996).reviewSeconds, Double(Lr.listeningReviewSeconds))
+    }
+
     func testParseInline() {
         XCTAssertEqual(Lr.parseInline("Fee £{{4}} per **week**"), [.text("Fee £"), .gap(4), .text(" per "), .bold("week")])
     }

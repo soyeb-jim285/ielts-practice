@@ -193,7 +193,7 @@ private fun TestRow(t: LrTestItem, listening: Boolean, target: Double, onClick: 
 private class ModeInfo(val key: String, val label: String, val reading: (List<Int>?) -> String, val listening: String)
 
 private val modes = listOf(
-    ModeInfo("exam", "Exam", { p -> "${readingSeconds(p) / 60}-minute countdown. Submits itself when time is up." }, "The recording plays once, with no pause or rewind. Then 2 minutes to check, and it submits itself."),
+    ModeInfo("exam", "Exam", { p -> "${readingSeconds(p) / 60}-minute countdown. Submits itself when time is up." }, "The recording plays once, with no pause or rewind. Then the checking time the recording announces, and it submits itself."),
     ModeInfo("practice", "Practice", { _ -> "No time limit. A clock counts up so you can see your pace." }, "Pause, rewind, slow down to 0.75× and replay any part. No time limit."),
 )
 

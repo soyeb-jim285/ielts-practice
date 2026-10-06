@@ -162,7 +162,7 @@ private fun LrRunner(attempt: LrAttempt, mockId: String?, nav: AppNav) {
     // ---- clocks ----
     val playlist = remember(attempt.id) {
         val urls = if (examListening) sections.map { attempt.assets[it.audio.orEmpty()].orEmpty() } else emptyList()
-        ExamPlaylist(urls, attempt.elapsedS.toDouble(), if (demo != null && examListening) when (ds) { "lr-listening-gate" -> ExamPhase.Idle; "lr-listening-review" -> ExamPhase.Review; else -> ExamPhase.Audio } else null)
+        ExamPlaylist(urls, attempt.elapsedS.toDouble(), if (demo != null && examListening) when (ds) { "lr-listening-gate" -> ExamPhase.Idle; "lr-listening-review" -> ExamPhase.Review; else -> ExamPhase.Audio } else null, test.checkEndsAt)
     }
     DisposableEffect(playlist) { if (examListening) playlist.attach(context); onDispose { playlist.release() } }
     LaunchedEffect(playlist) { if (examListening) playlist.tick() }

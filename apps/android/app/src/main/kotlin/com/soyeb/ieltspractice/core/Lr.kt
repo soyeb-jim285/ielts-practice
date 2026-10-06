@@ -6,7 +6,7 @@ import kotlinx.serialization.json.JsonElement
 // Listening & Reading tests (cambridge-gated). Wire types for /api/lr/*, plus the pure logic ported from apps/web/src/lib/lr.ts.
 // Decode with `AppJson`. Rules for answers and bands live on the server (packages/core/src/lr.ts); the app only displays them.
 
-/** Reading is 60 minutes; the listening exam gives 2 minutes to check answers after the last recording. */
+/** Reading is 60 minutes; the listening exam: the checking time its recording announces (LrTest.checkEndsAt), else 2 minutes after the last recording. */
 const val READING_SECONDS = 3600
 const val LISTENING_REVIEW_SECONDS = 120
 
@@ -71,6 +71,8 @@ fun partsLabel(skill: String, parts: List<Int>?): String =
     val ref: String = "",
     val title: String,
     val sections: List<LrSection> = emptyList(),
+    /** Listening, before submit: when the checking time the recording announces runs out, in seconds into the last part's audio. Null: 2 minutes. */
+    val checkEndsAt: Double? = null,
 ) {
     val listening get() = skill == "listening"
 }

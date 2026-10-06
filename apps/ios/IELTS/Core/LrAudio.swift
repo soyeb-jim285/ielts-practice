@@ -121,7 +121,7 @@ final class LrPracticePlayer {
 }
 
 /// Exam listening: every recording plays once, in order, with no pause or seek. The clock IS the audio position (so a resumed attempt picks the
-/// recording up where it was); afterwards a 2-minute review countdown runs on the wall clock. Mirrors web useExamPlaylist.
+/// recording up where it was); afterwards the checking time the recording announces (else 2 minutes) runs on the wall clock. Mirrors web useExamPlaylist.
 @MainActor @Observable
 final class LrExamPlaylist {
     enum Phase { case idle, audio, review }
@@ -133,14 +133,16 @@ final class LrExamPlaylist {
     private(set) var stalled = false
     private let urls: [URL?]
     private let startElapsed: Double
+    private let checkEndsAt: Double?
     @ObservationIgnored private var player: AVPlayer?
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var reviewStart = Date()
 
-    init(urls: [URL?], startElapsed: Int) {
+    init(urls: [URL?], startElapsed: Int, checkEndsAt: Double? = nil) {
         self.urls = urls
         self.startElapsed = Double(startElapsed)
+        self.checkEndsAt = checkEndsAt
         elapsed = Double(startElapsed)
         Task { await loadDurations() }
     }
@@ -156,9 +158,14 @@ final class LrExamPlaylist {
 
     private var starts: [Double] { (durations ?? []).reduce(into: [0]) { $0.append($0.last! + $1) } }
     var total: Double { starts.last ?? 0 }
-    var reviewLeft: Int { max(0, Int((Double(Lr.listeningReviewSeconds) - (elapsed - total)).rounded(.up))) }
+    /// Follows the recording: "ten minutes to transfer your answers" (Cambridge books), "one minute to check" (often already silence in the file).
+    var reviewSeconds: Double {
+        guard let c = checkEndsAt, let d = durations, !d.isEmpty else { return Double(Lr.listeningReviewSeconds) }
+        return max(0, (starts[d.count - 1] + c - total).rounded())
+    }
+    var reviewLeft: Int { max(0, Int((reviewSeconds - (elapsed - total)).rounded(.up))) }
     /// Whole sitting left: rest of the recording plus the review window.
-    var timeLeft: Int { max(0, Int((total + Double(Lr.listeningReviewSeconds) - elapsed).rounded(.up))) }
+    var timeLeft: Int { max(0, Int((total + reviewSeconds - elapsed).rounded(.up))) }
     var finishedReview: Bool { phase == .review && reviewLeft == 0 }
 
     func start() {

@@ -1,5 +1,7 @@
 package com.soyeb.ieltspractice.core
 
+import com.soyeb.ieltspractice.ui.screens.lr.ExamPhase
+import com.soyeb.ieltspractice.ui.screens.lr.ExamPlaylist
 import com.soyeb.ieltspractice.ui.screens.lr.LrSettings
 import com.soyeb.ieltspractice.ui.screens.lr.TextMark
 import com.soyeb.ieltspractice.ui.screens.lr.locateSelection
@@ -23,6 +25,14 @@ import kotlin.test.assertTrue
 /** Listening & Reading: wire models against the shared demo fixtures, and the pure logic ported from the web (lib/lr.ts). */
 class LrLogicTest {
     private val fixtures = DemoFixtures.parse(File("../../ios/IELTS/Demo/fixtures.json").readText())
+
+    @Test fun reviewTimeFollowsTheRecording() {
+        // demo part lengths 412, 405, 420, 398 s: the checking time ends checkEndsAt seconds into the last part
+        assertEquals(600.0, ExamPlaylist(emptyList(), 0.0, ExamPhase.Review, checkEndsAt = 398.0 + 600).reviewSeconds) // "ten minutes to transfer"
+        assertEquals(0.0, ExamPlaylist(emptyList(), 0.0, ExamPhase.Review, checkEndsAt = 380.0).reviewSeconds) // the minute is already in the file
+        assertEquals(120.0, ExamPlaylist(emptyList(), 0.0, ExamPhase.Review).reviewSeconds) // nothing announced: computer-delivered 2 minutes
+        assertEquals(998.0, AppJson.decodeFromString(LrTest.serializer(), """{"skill":"listening","title":"T","checkEndsAt":998}""").checkEndsAt)
+    }
 
     @Test fun fixturesDecode() {
         val attempts = fixtures.keys.filter { Regex("^/api/lr/attempts/[a-z-]+$").matches(it) }.map { AppJson.decodeFromString(LrAttempt.serializer(), fixtures.getValue(it)) }
