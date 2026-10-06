@@ -32,42 +32,46 @@ export function SessionSwitcher({ sessionId, currentId }: { sessionId: string; c
   let p1 = 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <nav aria-label="Test parts" className="inline-flex flex-wrap gap-1 rounded-md bg-surface-2 p-0.5 ring-1 ring-line ring-inset">
-        {parts.map((p) => {
-          const d = p.d;
-          const label = p.part === 1 && p1Total > 1 ? `P1.${++p1}` : `P${p.part}`;
-          const current = p.id === currentId;
-          return (
-            <Link
-              key={p.id}
-              to="/speaking/result/$attemptId"
-              params={{ attemptId: p.id }}
-              search={{ session: sessionId }}
-              aria-current={current ? 'page' : undefined}
-              title={p.promptTitle}
-              className={cn(
-                // Same look as Segmented: one raised segment marks the current part.
-                'hit type-num inline-flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ease-(--ease-out-expo) md:h-8',
-                current ? 'bg-card text-ink shadow-card ring-1 ring-line' : 'text-muted hover:text-ink',
-              )}
-            >
-              {label}
-              {d?.status === 'analyzing' ? (
-                <LoaderCircle role="img" className="size-4 animate-spin" aria-label="analysing" />
-              ) : d?.analysis && !notAssessed(d.analysis) ? (
-                <span className="text-muted">{formatBand(d.analysis.overall)}</span>
-              ) : null}
-            </Link>
-          );
-        })}
-      </nav>
-      {summary && (
-        <p className="type-caption type-num">
-          Test overall <span className="font-semibold text-ink">{formatBand(summary.band)}</span>
-          {summary.scored < parts.length && `, ${summary.scored} of ${parts.length} parts scored`}
-        </p>
-      )}
+    <div className="space-y-1">
+      {/* One lighter row: the test overall leads, then the parts. On a phone the row scrolls sideways instead of wrapping. */}
+      <div className="flex items-center gap-x-4 overflow-x-auto [scrollbar-width:none]">
+        {summary && (
+          <p className="type-body type-num shrink-0 whitespace-nowrap">
+            Test overall <span className="type-subheading">{formatBand(summary.band)}</span>
+          </p>
+        )}
+        <nav aria-label="Test parts" className="inline-flex shrink-0 gap-1 rounded-md bg-surface-2 p-0.5 ring-1 ring-line ring-inset">
+          {parts.map((p) => {
+            const d = p.d;
+            const label = p.part === 1 && p1Total > 1 ? `P1.${++p1}` : `P${p.part}`;
+            const current = p.id === currentId;
+            return (
+              <Link
+                key={p.id}
+                to="/speaking/result/$attemptId"
+                params={{ attemptId: p.id }}
+                search={{ session: sessionId }}
+                aria-current={current ? 'page' : undefined}
+                aria-label={p.promptTitle ? `${label}: ${p.promptTitle}` : undefined}
+                title={p.promptTitle}
+                className={cn(
+                  // Same look as Segmented: one raised segment marks the current part.
+                  'hit type-body type-num inline-flex h-9 items-center gap-1.5 rounded-sm px-3 transition-[background-color,color,box-shadow] duration-200 ease-(--ease-out-expo) md:h-8',
+                  current ? 'bg-card text-ink shadow-card ring-1 ring-line' : 'text-muted hover:text-ink',
+                )}
+              >
+                {label}
+                {d?.status === 'analyzing' ? (
+                  <LoaderCircle role="img" className="size-4 animate-spin" aria-label="analysing" />
+                ) : d?.analysis && !notAssessed(d.analysis) ? (
+                  <span className={current ? 'text-ink' : 'text-muted'}>{formatBand(d.analysis.overall)}</span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+      {summary && summary.scored < parts.length && <p className="type-caption type-num">{summary.scored} of {parts.length} parts scored</p>}
     </div>
   );
 }

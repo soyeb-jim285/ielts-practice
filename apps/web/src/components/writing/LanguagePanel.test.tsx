@@ -25,7 +25,7 @@ const result = (over: object) =>
 describe('LanguagePanel', () => {
   it('flags overuse only for repeated linkers, reports templated openings once, drops echo suggestions', () => {
     render(<LanguagePanel r={result({ linkerOpeningRatio: 6 / 13 })} />);
-    expect(screen.getAllByText('Overused')).toHaveLength(1);
+    expect(screen.getAllByText('Overused: moreover')).toHaveLength(1);
     expect(screen.getByText(/6 of 13 sentences start with a linking word/)).toBeTruthy();
     expect(screen.queryByText('more efficient')).toBeNull();
     expect(screen.getByText('substantial')).toBeTruthy();

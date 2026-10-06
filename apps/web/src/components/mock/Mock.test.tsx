@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from '@/lib/mock';
 import { MockResult } from './MockResult';
+import { SectionList } from './SectionList';
 import { Transition } from './Transition';
 
 afterEach(cleanup);
@@ -46,7 +47,23 @@ describe('MockResult', () => {
     expect(screen.getByText(/finished without Speaking/)).toBeTruthy();
   });
   it('shows the overall band', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} })); // reduced motion: no count-up
     render(<MockResult mock={mock({ status: 'completed', next: null, overall: 6.5 })} target={7} />);
-    expect(screen.getByLabelText('Overall band 6.5')).toBeTruthy();
+    expect(screen.getByText(/Overall band/).parentElement!.textContent).toContain('6.5');
+    expect(screen.getByText(/0.5 below/)).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('SectionList', () => {
+  const Wrap = ({ children }: { children: React.ReactNode }) => children;
+  it('shows a band per marked section and state text only where there is no band', () => {
+    const m = mock({ sections: [sec('listening', 'done', 7.5), sec('reading', 'todo'), sec('writing', 'marking'), sec('speaking', 'todo')] });
+    render(<Wrap><SectionList mock={m} target={7} /></Wrap>);
+    expect(screen.getByText('7.5')).toBeTruthy();
+    expect(screen.queryByText('Marked')).toBeNull();
+    expect(screen.getByText('Not started')).toBeTruthy();
+    expect(screen.getByText('Being marked')).toBeTruthy();
+    expect(screen.getByText('Not taken yet')).toBeTruthy();
   });
 });

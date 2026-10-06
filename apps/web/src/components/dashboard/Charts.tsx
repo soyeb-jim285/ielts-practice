@@ -46,15 +46,14 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
 
   return (
     <div>
-      <ul className="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:flex-wrap" aria-label="Latest band per criterion">
+      <ul className="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:flex-wrap" aria-label="Chart key">
         {keys.map((k) => (
-          <li key={k} className="flex min-w-0 items-center gap-2 text-sm">
+          <li key={k} className="type-caption flex min-w-0 items-center gap-2">
             {swatch(k)}
-            <span className="truncate text-muted">{criterionLabel(k)}</span>
-            <span className="type-num font-semibold">{formatBand(latest[k])}</span>
+            <span className="truncate">{criterionLabel(k)}</span>
           </li>
         ))}
-        <li className="flex items-center gap-2 text-sm text-muted">
+        <li className="type-caption flex items-center gap-2">
           <svg width="18" height="8" aria-hidden className="shrink-0">
             <line x1="0" y1="4" x2="18" y2="4" stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="2 3" />
           </svg>
@@ -66,7 +65,7 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
           <svg
             width={w}
             height={h}
-            className="block touch-pan-y text-xs"
+            className="type-caption block touch-pan-y"
             onPointerMove={(e) => {
               const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
               setHover(Math.min(n - 1, Math.max(0, Math.round(n > 1 ? ((px - M.left) / iw) * (n - 1) : 0))));
@@ -109,15 +108,15 @@ export default function CriteriaTrend({ trend, keys, target }: { trend: Progress
         )}
         {row && (
           <div
-            className="pointer-events-none absolute top-2 z-10 min-w-36 rounded-lg border border-line bg-surface p-2.5 text-[13px] shadow-pop"
+            className="pointer-events-none absolute top-2 z-10 min-w-36 rounded-lg border border-line bg-surface p-2.5 type-caption shadow-pop"
             style={{ left: Math.min(Math.max(x(hover!) + 12, 0), Math.max(0, w - 160)) }}
           >
-            <p className="mb-1 text-muted">#{hover! + 1}, {formatDate(row.date, true)}</p>
+            <p className="mb-1">#{hover! + 1}, {formatDate(row.date, true)}</p>
             {keys.map((k) => (
               <p key={k} className="flex items-center gap-2">
                 {swatch(k)}
-                <span className="flex-1 text-muted">{criterionLabel(k)}</span>
-                <span className="type-num font-semibold">{formatBand(row.criteria[k])}</span>
+                <span className="flex-1">{criterionLabel(k)}</span>
+                <span className="type-num font-semibold text-ink">{formatBand(row.criteria[k])}</span>
               </p>
             ))}
           </div>

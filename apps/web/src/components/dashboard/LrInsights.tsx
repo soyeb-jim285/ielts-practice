@@ -1,13 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button, ProgressBar, type Tone } from '@/components/ui';
+import { Section } from '@/components/result';
 import { call, client, type Schemas } from '@/lib/api';
 import { formatBand, formatDate } from '@/lib/format';
-import { lrProgressQuery } from '@/lib/lr';
+import { changeSinceFirst } from './overall';
 import { cn } from '@/lib/utils';
 
 type Trend = Schemas['LrProgress']['trend'];
+export type LrData = Schemas['LrProgress'];
 const SKILL = { listening: 'Listening', reading: 'Reading' } as const;
 const tone = (r: number): Tone => (r >= 0.75 ? 'good' : r >= 0.5 ? 'warn' : 'bad');
 
@@ -29,12 +30,10 @@ function Spark({ rows, target, label }: { rows: Trend; target: number; label: st
   );
 }
 
-/** Dashboard section for Listening & Reading: band trends, accuracy of your weakest question types, and a test to practise them on. */
-export function LrInsights({ target }: { target: number }) {
-  const { data } = useQuery(lrProgressQuery);
+/** Starts a practice attempt on one Listening or Reading test; `busy` is true while it is created. */
+export function useStartLr() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  if (!data || !data.trend.length) return null;
   const start = async (id: string) => {
     setBusy(true);
     try {
@@ -44,64 +43,65 @@ export function LrInsights({ target }: { target: number }) {
       setBusy(false);
     }
   };
+  return { start, busy };
+}
+
+/** Progress tab for Listening or Reading: the band over attempts, accuracy on your weakest question types of this skill, and one test to practise them on. */
+export function LrPanel({ skill, data, target }: { skill: 'listening' | 'reading'; data: LrData; target: number }) {
+  const { start, busy } = useStartLr();
+  const rows = data.trend.filter((t) => t.skill === skill);
+  const last = rows.at(-1);
+  const change = changeSinceFirst(rows.map((r) => r.band));
+  const weakest = data.weakest.filter((w) => w.skill === skill);
+  const suggested = data.suggested?.skill === skill ? data.suggested : null;
   return (
-    <section aria-labelledby="lr-h" className="border-t border-line pt-8">
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6">
-        <h2 id="lr-h" className="type-heading">Listening and Reading</h2>
-        <Link to="/history" search={{ skill: 'listening' }} className="type-caption underline decoration-line underline-offset-4 hover:text-accent-text">All results</Link>
+    <div className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
+      <div className="space-y-4">
+        {last ? (
+          <>
+            <p className="type-caption type-num">{SKILL[skill]}, latest of {rows.length}</p>
+            <p className="type-band text-3xl">{formatBand(last.band)}</p>
+            {change != null && (
+              <p className="type-body type-num">
+                {change === 0 ? 'Same as your first' : `${change > 0 ? 'Up' : 'Down'} ${formatBand(Math.abs(change))} from your first`}
+                <span className="sr-only">. </span>
+              </p>
+            )}
+            <Spark rows={rows} target={target} label={`${SKILL[skill]} band over ${rows.length} attempts, latest ${formatBand(last.band)}; dashed line is your ${formatBand(target)} target`} />
+          </>
+        ) : (
+          <p className="type-lede max-w-[68ch]">Your {SKILL[skill]} band trend appears after your first scored whole test.</p>
+        )}
       </div>
-      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
-        <div className="space-y-5">
-          {(['listening', 'reading'] as const).map((k) => {
-            const rows = data.trend.filter((t) => t.skill === k);
-            if (!rows.length) return null;
-            const last = rows.at(-1)!;
-            return (
-              <div key={k} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                <div>
-                  <p className="type-caption">{SKILL[k]}, latest of {rows.length}</p>
-                  <p className="type-band text-4xl">{formatBand(last.band)}</p>
-                  {rows.length > 1 && (
-                    <p className="type-caption type-num">
-                      {rows[0]!.band === last.band ? 'Same as your first' : `${last.band > rows[0]!.band ? 'Up' : 'Down'} ${formatBand(Math.abs(last.band - rows[0]!.band))} from your first`}
-                      <span className="sr-only">. </span>
-                    </p>
-                  )}
-                </div>
-                <Spark rows={rows} target={target} label={`${SKILL[k]} band over ${rows.length} attempts, latest ${formatBand(last.band)}; dashed line is your ${formatBand(target)} target`} />
-              </div>
-            );
-          })}
-        </div>
-        <div>
-          <h3 className="type-subheading mb-2">Weakest question types</h3>
-          {data.weakest.length ? (
+      <div>
+        <Section title="Weakest question types" level={3}>
+          {weakest.length ? (
             <ul className="divide-y divide-line border-y border-line">
-              {data.weakest.map((w) => {
+              {weakest.map((w) => {
                 const r = w.right / w.total;
                 return (
-                  <li key={`${w.skill}-${w.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 py-3">
-                    <span className="min-w-0 type-body">{w.label} <span className="type-caption">({SKILL[w.skill]})</span></span>
-                    <span className={cn('type-num text-sm font-semibold', r < 0.5 ? 'text-bad-text' : 'text-warn-text')}>{Math.round(r * 100)}%</span>
+                  <li key={w.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3">
+                    <span className="min-w-0 type-body">{w.label}</span>
+                    <span className={cn('type-body type-num', r < 0.5 ? 'text-bad-text' : 'text-warn-text')}>{Math.round(r * 100)}%</span>
                     <ProgressBar label={`${w.label}: ${w.right} of ${w.total} correct`} value={r} tone={tone(r)} className="col-span-2 h-1.5" />
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="type-lede">Your weak spots appear after a few more answered questions.</p>
+            <p className="type-lede max-w-[68ch]">Your weak spots appear after a few more answered questions.</p>
           )}
-          {data.suggested && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-card px-4 py-3">
-              <p className="type-body min-w-0">
+          {suggested && (
+            <p className="type-body flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="min-w-0">
                 <span className="type-caption block">Suggested next test</span>
-                {data.suggested.title} <span className="type-caption">has {data.suggested.count} {data.suggested.label.toLowerCase()} questions</span>
-              </p>
-              <Button size="sm" loading={busy} onClick={() => void start(data.suggested!.id)}>Practise</Button>
-            </div>
+                {suggested.title} <span className="type-caption">has {suggested.count} {suggested.label.toLowerCase()} questions</span>
+              </span>
+              <Button size="sm" loading={busy} onClick={() => void start(suggested.id)}>Practise</Button>
+            </p>
           )}
-        </div>
+        </Section>
       </div>
-    </section>
+    </div>
   );
 }

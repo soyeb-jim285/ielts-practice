@@ -1,7 +1,7 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { FeedbackButton } from '@/components/layout/FeedbackButton';
+import { FeedbackDialog } from '@/components/layout/FeedbackButton';
 import { RouteError } from '@/components/layout/RouteError';
 import { ReplayRecorder } from '@/components/ReplayRecorder';
 import { Toaster } from '@/components/ui';
@@ -15,7 +15,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       <Outlet />
       <Toaster />
       <ReplayRecorder />
-      <FeedbackButton />
+      <FeedbackDialog />
     </>
   ),
   notFoundComponent: NotFound,

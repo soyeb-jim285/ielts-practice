@@ -37,6 +37,12 @@ describe('QuestionDetail', () => {
     rerender(<QueryClientProvider client={new QueryClient()}><QuestionDetail q={q} group={{} as any} section={section} mark={{ ...mark, given: '' }} /></QueryClientProvider>);
     expect(screen.getByText(/You left it blank/)).toBeTruthy();
   });
+  it('drops the verdict line when the row above already shows it', () => {
+    wrap(<QuestionDetail q={q} group={{} as any} section={section} mark={mark} verdict={false} />);
+    expect(screen.queryByText(/You wrote/)).toBeNull();
+    expect(screen.getByRole('heading', { level: 3, name: 'Question 7' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 4, name: 'Why this is the answer' })).toBeTruthy();
+  });
   it('shows the spelling label, correction and the misspelt-before note', () => {
     const entry: any = { n: 7, kind: 'spelling', label: 'Spelling slip', message: 'Learn it.', word: 'accommodation', typed: 'acommodation', before: 2 };
     wrap(<QuestionDetail q={{ n: 7 } as any} group={{} as any} section={section} mark={mark} entry={entry} />);

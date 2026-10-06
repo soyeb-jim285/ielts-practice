@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router';
-import { X } from 'lucide-react';
+import { MessageSquareWarning, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { buttonStyles, WIDTH } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { openFeedback } from './FeedbackButton';
 
 /**
  * Distraction-free full-screen frame for timed tasks. Routes using it set `staticData: { exam: true }`
@@ -36,7 +37,17 @@ export function ExamShell({
           )}
         </div>
         {title && <div className={cn('min-w-0 truncate text-center text-sm font-semibold tracking-tight', status && 'hidden sm:block')}>{title}</div>}
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">{status}</div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">{status}
+          <button
+            type="button"
+            aria-label="Report a problem"
+            title="Report a problem"
+            onClick={(e) => openFeedback(e.currentTarget)}
+            className={buttonStyles({ variant: 'ghost', size: 'icon-sm', className: 'text-muted hover:text-ink' })}
+          >
+            <MessageSquareWarning aria-hidden />
+          </button>
+        </div>
       </header>
       <main id="main" className="min-h-0 flex-1 overflow-y-auto">
         <div className={wide ? 'h-full' : `mx-auto w-full ${WIDTH.reading} px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 md:py-12`}>{children}</div>

@@ -1,58 +1,21 @@
-import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Check, ChevronRight, Play, RotateCcw, X } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { Check, Play, RotateCcw, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { audioWindow, evidenceSpan, questionMoments, sectionParagraphs, type GapEntry, type LrTimings } from '@ielts/core';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { RemoveAttempt } from '@/components/history/RemoveAttempt';
-import { Badge, Button, buttonStyles, CountUp, PageContainer, PageHeader, ProgressBar, Segmented, Tabs, type Tone } from '@/components/ui';
+import { ActionRow, Disclosure, RankedList, ResultScaffold, ScoreHero, Section, StatusLine } from '@/components/result';
+import { Button, Segmented, Tabs } from '@/components/ui';
 import { call, client } from '@/lib/api';
-import { formatBand, formatClock, formatDate, formatDuration } from '@/lib/format';
+import { formatClock, formatDate, formatDuration } from '@/lib/format';
 import { accuracyBy, flatQuestions, lrProgressQuery, partsLabel, readingSeconds, typeLabel, type LrAttempt } from '@/lib/lr';
 import { useMe } from '@/lib/query';
-import { bandColor } from '@/lib/result';
 import { cn } from '@/lib/utils';
 import { PracticeAudio } from './Audio';
 import { Passage, Transcript } from './Passage';
-import { Dictation, PacingPanel, QuestionDetail, TfngPanel, VocabList } from './ReviewPanels';
+import { Dictation, PacingPanel, QuestionDetail, TextButton, TfngPanel, VocabList } from './ReviewPanels';
 import { GroupsPane } from './Runner';
 import type { Mark } from './QuestionGroup';
-
-const TONE_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' };
-const ratioTone = (r: number): Tone => (r >= 0.75 ? 'good' : r >= 0.5 ? 'warn' : 'bad');
-
-function Disclose({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
-  return (
-    <details className="group/d mb-3 rounded-lg border border-line bg-card">
-      <summary className="flex min-h-14 cursor-pointer select-none items-center gap-2 px-4 py-2">
-        <ChevronRight className="size-4 shrink-0 text-muted transition-transform group-open/d:rotate-90" aria-hidden />
-        <span className="min-w-0">
-          <span className="type-subheading block">{title}</span>
-          <span className="type-caption block">{hint}</span>
-        </span>
-      </summary>
-      <div className="border-t border-line px-4 pt-5">{children}</div>
-    </details>
-  );
-}
-
-function Accuracy({ title, rows }: { title: string; rows: { label: string; right: number; total: number }[] }) {
-  return (
-    <section>
-      {title && <h2 className="type-heading mb-3">{title}</h2>}
-      <ul className="divide-y divide-line border-y border-line">
-        {rows.map((r) => (
-          <li key={r.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 py-3">
-            <span className="type-body min-w-0">{r.label}</span>
-            <span className="type-num type-subheading">
-              {r.right}/{r.total}
-            </span>
-            <ProgressBar label={`${r.label}: ${r.right} of ${r.total} correct`} value={r.total ? r.right / r.total : 0} tone={ratioTone(r.total ? r.right / r.total : 0)} className="col-span-2 h-1.5" />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 export function Results({ attempt }: { attempt: LrAttempt }) {
   const { test, assets } = attempt;
@@ -63,6 +26,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   const flat = useMemo(() => flatQuestions(test), [test]);
   const wrongCount = (attempt.total ?? flat.length) - (attempt.raw ?? 0);
   const [wrongOnly, setWrongOnly] = useState(wrongCount > 0);
+  const [pace, setPace] = useState(0);
   const [by, setBy] = useState<'type' | 'part'>('type');
   const [tab, setTab] = useState<'overview' | 'answers' | 'context'>('overview');
   const [partIdx, setPartIdx] = useState(0);
@@ -75,8 +39,6 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   const insights = useQuery(lrProgressQuery);
   const entries = useMemo(() => new Map<number, GapEntry>((attempt.analysis?.gaps ?? []).map((g) => [g.n, g as GapEntry])), [attempt.analysis]);
   const section = test.sections[partIdx]!;
-  const band = attempt.band ?? 0;
-  const gap = target - band;
   const noun = listening ? 'Part' : 'Passage';
 
   const byPart = test.sections.map((s) => {
@@ -115,9 +77,11 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
     if (!mark) return;
     const t = setTimeout(() => {
       // each pane scrolls on its own: the passage / transcript to the evidence, the question list to the question
-      for (const m of [document.querySelector<HTMLElement>('[data-evidence]'), selected ? (document.getElementById(`q-${selected}`) ?? document.getElementById(`qrow-${selected}`)) : null]) {
+      // phones have no inner scroll panes (the page scrolls), so a pane that does not overflow leaves the page to bring the evidence into view
+      for (const [i, m] of [document.querySelector<HTMLElement>('[data-evidence]'), selected ? (document.getElementById(`q-${selected}`) ?? document.getElementById(`qrow-${selected}`)) : null].entries()) {
         const pane = m?.closest<HTMLElement>('[data-scrollpane]');
-        if (m && pane) pane.scrollTop += m.getBoundingClientRect().top - pane.getBoundingClientRect().top - pane.clientHeight / 3;
+        if (m && pane && pane.scrollHeight > pane.clientHeight + 1) pane.scrollTop += m.getBoundingClientRect().top - pane.getBoundingClientRect().top - pane.clientHeight / 3;
+        else if (m && i === 0) m.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
     }, 500);
     return () => clearTimeout(t);
@@ -148,180 +112,165 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   const rows = flat.filter((f) => !wrongOnly || !marks.get(f.n)?.correct);
   const slips = (attempt.analysis?.gaps ?? []).filter((g) => g.kind === 'spelling' || g.kind === 'plural').length;
   const weak = byType.filter((r) => r.total >= 3 && r.right < r.total).sort((a, b) => a.right / a.total - b.right / b.total)[0];
-  const takeaways = [
-    weak && `Weakest: ${weak.label.toLowerCase()}, ${weak.right} of ${weak.total} right.`,
-    slips > 0 && `${slips} ${slips === 1 ? 'answer was' : 'answers were'} the right word with a spelling or plural slip.`,
-    blank.length > 0 && `${blank.length} left blank. There is no penalty for guessing.`,
-    wrongCount === 0 && 'Every answer was correct.',
-  ].filter(Boolean).slice(0, 3) as string[];
   const time = attempt.elapsedS ? formatDuration(attempt.elapsedS * 1000) : null;
+  const toMistakes = () => { setWrongOnly(true); setTab('answers'); };
+  const toPacing = () => {
+    setTab('overview');
+    setPace((n) => n + 1);
+    setTimeout(() => document.getElementById('pacing')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+  };
+  // two plain sentences at most, each ending in the place that explains it. The weakest type leads "Where you lost marks" instead.
+  const takeaways = [
+    wrongCount === 0 && <>Every answer was correct.</>,
+    slips > 0 && <>{slips} {slips === 1 ? 'answer was' : 'answers were'} the right word with a spelling or plural slip. <TextButton onClick={toMistakes}>See {slips === 1 ? 'it' : 'them'}</TextButton></>,
+    blank.length > 0 && <>{blank.length} left blank. <TextButton onClick={attempt.stats ? toPacing : toMistakes}>See which</TextButton></>,
+  ].filter(Boolean).slice(0, 2);
+  const rowsBy = (by === 'type' ? byType : byPart).map((r) => ({ label: r.label, right: r.right, total: r.total }));
+  const wrongLabel = `${wrongCount} ${wrongCount === 1 ? 'mistake' : 'mistakes'}`;
+  const whole = !attempt.parts;
 
   return (
-    <PageContainer>
-      <PageHeader
-        back={
-          <Link to={listening ? '/listening' : '/reading'} className={buttonStyles({ variant: 'link' })}>
-            <ArrowLeft className="size-4" aria-hidden /> All {test.skill} tests
-          </Link>
-        }
-        title={test.title}
-        description={`${listening ? 'Listening' : 'Reading'}, ${test.variant === 'academic' ? 'Academic' : 'General Training'}, ${attempt.parts ? `${partsLabel(test.skill, attempt.parts)}, ` : ''}${attempt.mode} mode, ${formatDate(attempt.submittedAt ?? attempt.startedAt)}${time ? `, ${time}` : ''}`}
-        actions={
-          <>
-            <Button icon={<RotateCcw />} loading={busy} onClick={retake}>
-              Retake
-            </Button>
-            <RemoveAttempt kind="lr" id={attempt.id} title={test.title} variant="menu" onRemoved={() => void navigate({ to: listening ? '/listening' : '/reading' })} />
-          </>
-        }
-      />
-
-      <div className="mb-8 border-y border-line py-5 sm:py-6">
-        {attempt.parts ? (
-          // a part on its own has no band: IELTS bands only map from all 40 questions
-          <div>
-            <p className="type-caption">Score</p>
-            <p className="type-band text-6xl sm:text-7xl">
-              {attempt.raw}
-              <span className="text-muted">/{attempt.total}</span>
-            </p>
-            <p className="type-lede mt-1.5">{partsLabel(test.skill, attempt.parts)} only. Take the full test for a band score.</p>
-          </div>
+    <ResultScaffold
+      back={{ to: listening ? '/listening' : '/reading', label: `All ${test.skill} tests` }}
+      title={test.title}
+      meta={<StatusLine items={[test.variant === 'academic' ? 'Academic' : 'General Training', attempt.parts && partsLabel(test.skill, attempt.parts), `${attempt.mode} mode`, formatDate(attempt.submittedAt ?? attempt.startedAt), time]} />}
+      actions={<RemoveAttempt kind="lr" id={attempt.id} title={test.title} variant="menu" onRemoved={() => void navigate({ to: listening ? '/listening' : '/reading' })} />}
+      hero={
+        whole ? (
+          <ScoreHero value={attempt.band ?? null} label="Band" target={target} secondary={`${attempt.raw} of ${attempt.total} correct`} emptyText="No band for this attempt." />
         ) : (
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
-            <div>
-              <p className="type-caption">Band</p>
-              <p className="type-band text-6xl sm:text-7xl">
-                <span className="sr-only">Band </span>
-                <CountUp value={band} decimals={1} />
-              </p>
+          // a part on its own has no band: IELTS bands only map from all 40 questions
+          <ScoreHero unit="raw" value={attempt.raw ?? 0} total={attempt.total ?? 0} label="Score" lede={`${partsLabel(test.skill, attempt.parts!)} only. Take the full test for a band score.`} />
+        )
+      }
+      action={
+        <div className="space-y-4">
+          <ActionRow
+            primary={wrongCount > 0 ? <Button onClick={toMistakes}>Review your {wrongLabel}</Button> : <Button variant="outline" icon={<RotateCcw />} loading={busy} onClick={retake}>Retake</Button>}
+            links={wrongCount > 0 ? [<Button key="r" variant="outline" icon={<RotateCcw />} loading={busy} onClick={retake}>Retake</Button>] : undefined}
+          />
+          {takeaways.length > 0 && (
+            <div className="max-w-[68ch] space-y-1">
+              <h3 className="type-caption font-semibold text-ink">Worth a second look</h3>
+              {takeaways.map((t, i) => (
+                <p key={i} className="type-caption text-pretty">{t}</p>
+              ))}
             </div>
-            <div className="space-y-1.5 pb-1">
-              <p className="type-band text-3xl">
-                {attempt.raw}
-                <span className="text-muted">/{attempt.total}</span>
-                <span className="type-caption ml-2 font-normal">correct</span>
-              </p>
-              <p className="type-lede type-num">
-                <span className={cn('font-medium', TONE_TEXT[bandColor(band, target)])}>{gap <= 0 ? 'At or above' : `${formatBand(gap)} below`}</span> your {formatBand(target)} target
-              </p>
-            </div>
-          </div>
-        )}
-        {wrongCount > 0 && (
-          <Button className="mt-5" onClick={() => { setWrongOnly(true); setTab('answers'); }}>
-            See your {wrongCount} {wrongCount === 1 ? 'mistake' : 'mistakes'}
-          </Button>
-        )}
-        {takeaways.length > 0 && (
-          <ul className="mt-5 space-y-1.5 border-t border-line pt-4">
-            {takeaways.map((t) => (
-              <li key={t} className="type-body flex max-w-[68ch] gap-2 text-pretty">
-                <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand" />
-                {t}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          )}
+        </div>
+      }
+    >
+      <div>
+        <div ref={tabsTop} className="scroll-mt-4">
+          <Tabs
+            id="res-tab"
+            value={tab}
+            onChange={setTab}
+            items={[
+              { value: 'overview', label: 'Summary' },
+              { value: 'answers', label: 'Answers', count: wrongCount > 0 ? wrongCount : undefined },
+              { value: 'context', label: listening ? 'Transcript' : 'Passage' },
+            ]}
+          />
+        </div>
+        <div role="tabpanel" id="res-tab-panel" aria-labelledby={`res-tab-${tab}`} className="space-y-8 pt-6 sm:pt-8 md:space-y-12">
+          {tab === 'overview' && (
+            <>
+              <Section
+                title="Where you lost marks"
+                caption={weak ? `Weakest: ${weak.label.toLowerCase()}, ${weak.right} of ${weak.total} right.` : undefined}
+                aside={<Segmented label="Group by" size="sm" value={by} onChange={setBy} options={[{ value: 'type', label: 'Question type' }, { value: 'part', label: noun }]} />}
+              >
+                <RankedList mode="accuracy" rows={rowsBy} />
+              </Section>
+              {(attempt.stats || (attempt.analysis?.tfng ?? []).length > 0) && (
+                <div id="pacing" className="scroll-mt-4">
+                  {attempt.stats && (
+                    <Disclosure key={`pace${pace}`} level={2} title="How you used your time" defaultOpen={pace > 0}>
+                      <p className="type-caption">Minutes per part, answers you changed, last-minute answers.</p>
+                      <PacingPanel
+                        stats={attempt.stats}
+                        parts={test.sections.map((s) => ({ part: s.part, questions: s.groups.flatMap((g) => g.questions.map((q) => q.n)) }))}
+                        noun={noun}
+                        totalS={listening ? undefined : readingSeconds(attempt.parts)}
+                        marks={marks}
+                        blank={blank}
+                      />
+                    </Disclosure>
+                  )}
+                  {(attempt.analysis?.tfng ?? []).length > 0 && (
+                    <Disclosure level={2} title="True / False / Not Given">
+                      <p className="type-caption">Which statements you mix up, and the rule for each.</p>
+                      <TfngPanel rows={(attempt.analysis?.tfng ?? []) as never} pattern={insights.data?.tfng.pattern as never} />
+                    </Disclosure>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
-      <div ref={tabsTop} className="scroll-mt-4">
-        <Tabs
-          id="res-tab"
-          value={tab}
-          onChange={setTab}
-          items={[
-            { value: 'overview', label: 'Summary' },
-            { value: 'answers', label: 'Answers', count: wrongCount > 0 ? wrongCount : undefined },
-            { value: 'context', label: listening ? 'Transcript' : 'Passage' },
-          ]}
-        />
-      </div>
-      <div role="tabpanel" id="res-tab-panel" aria-labelledby={`res-tab-${tab}`} className="pt-6 sm:pt-8">
-        {tab === 'overview' && (
-          <>
-            <section aria-labelledby="lost-h" className="mb-8">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 id="lost-h" className="type-heading">Where you lost marks</h2>
-                <Segmented label="Group by" size="sm" value={by} onChange={setBy} options={[{ value: 'type', label: 'Question type' }, { value: 'part', label: noun }]} />
-              </div>
-              <Accuracy title="" rows={(by === 'type' ? byType : byPart).slice().sort((a, b) => a.right / a.total - b.right / b.total)} />
-            </section>
-            {attempt.stats && (
-              <Disclose title="How you used your time" hint="Minutes per part, answers you changed, last-minute answers">
-                <PacingPanel
-                  stats={attempt.stats}
-                  parts={test.sections.map((s) => ({ part: s.part, questions: s.groups.flatMap((g) => g.questions.map((q) => q.n)) }))}
-                  noun={noun}
-                  totalS={listening ? undefined : readingSeconds(attempt.parts)}
-                  marks={marks}
-                  blank={blank}
-                />
-              </Disclose>
-            )}
-            {((attempt.analysis?.tfng ?? []).length > 0) && (
-              <Disclose title="True / False / Not Given" hint="Which statements you mix up, and the rule for each">
-                <TfngPanel rows={(attempt.analysis?.tfng ?? []) as never} pattern={insights.data?.tfng.pattern as never} />
-              </Disclose>
-            )}
-          </>
-        )}
-
-        {tab === 'answers' && (
-          <section aria-labelledby="review-h">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 id="review-h" className="type-heading">
-                Your answers
-              </h2>
-              <Segmented label="Filter" size="sm" value={wrongOnly ? 'wrong' : 'all'} onChange={(v) => setWrongOnly(v === 'wrong')} options={[{ value: 'all', label: `All ${flat.length}` }, { value: 'wrong', label: `Wrong only (${wrongCount})` }]} />
-            </div>
-            <p className="type-caption mb-3">Tap a question to see why it is wrong and where the answer is.</p>
-            {rows.length === 0 ? (
-              <p className="type-lede border-t border-line pt-4">Nothing wrong. Every answer was correct.</p>
-            ) : (
-              <div className="overflow-x-auto border-y border-line">
-                <table className="w-full text-left text-body">
-                  <thead className="type-caption">
+          {tab === 'answers' && (
+            <Section
+              title="Your answers"
+              caption="Tap a question to see why it is wrong and where the answer is."
+              aside={<Segmented label="Filter" size="sm" value={wrongOnly ? 'wrong' : 'all'} onChange={(v) => setWrongOnly(v === 'wrong')} options={[{ value: 'all', label: `All ${flat.length}` }, { value: 'wrong', label: `Wrong only (${wrongCount})` }]} />}
+            >
+              {rows.length === 0 ? (
+                <p className="type-lede border-t border-line pt-4">Nothing wrong. Every answer was correct.</p>
+              ) : (
+                <table className="w-full max-w-[720px] text-left">
+                  <thead className="type-caption max-sm:sr-only">
                     <tr className="border-b border-line">
-                      <th scope="col" className="w-14 py-2 pr-2 font-medium">No.</th>
-                      <th scope="col" className="py-2 pr-3 font-medium">Your answer</th>
-                      <th scope="col" className="py-2 pr-3 font-medium">Correct answer</th>
-                      {listening && <th scope="col" className="py-2 pr-3 font-medium max-sm:sr-only">Listen from</th>}
+                      <th scope="col" className="w-16 py-2 pr-2 font-normal">No.</th>
+                      <th scope="col" className="py-2 pr-3 font-normal">Your answer</th>
+                      <th scope="col" className="py-2 pr-3 font-normal">Correct answer</th>
+                      {listening && <th scope="col" className="w-24 py-2 pr-1 font-normal">Listen from</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-line">
-                    {rows.map((f) => {
+                  <tbody>
+                    {rows.map((f, i) => {
                       const m = marks.get(f.n);
                       const open = selected === f.n;
                       const fs = test.sections.find((x) => x.part === f.part)!;
                       const mo = moments.get(f.n);
                       return (
                         <Fragment key={f.n}>
-                          {/* ponytail: whole row toggles via click bubbling; the No. button is the keyboard/AT control */}
-                          <tr id={`qrow-${f.n}`} onClick={() => setSelected(open ? null : f.n)} className={cn('cursor-pointer hover:bg-hover', open && 'bg-accent-soft/40')}>
-                            <td className="py-0">
-                              <button type="button" aria-expanded={open} aria-controls={`qdetail-${f.n}`} aria-label={`Question ${f.n}, ${m?.correct ? 'correct' : 'wrong'}: explain`} className="type-num flex h-11 w-full items-center gap-1.5 font-semibold text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                          {listening && rows[i - 1]?.part !== f.part && (
+                            <tr>
+                              <th scope="rowgroup" colSpan={4} className="type-subheading pb-1 pt-6 text-left first:pt-3">Part {f.part}</th>
+                            </tr>
+                          )}
+                          {/* ponytail: whole row toggles via click bubbling; the No. button is the keyboard/AT control. On phones each row is a 2-line grid, not a table row. */}
+                          <tr id={`qrow-${f.n}`} onClick={() => setSelected(open ? null : f.n)} className={cn('cursor-pointer border-t border-line hover:bg-hover max-sm:grid max-sm:grid-cols-[4rem_minmax(0,1fr)_auto] max-sm:items-center', open && 'bg-accent-soft/40')}>
+                            <td className="py-0 max-sm:row-span-2">
+                              <button type="button" aria-expanded={open} aria-controls={`qdetail-${f.n}`} aria-label={`Question ${f.n}, ${m?.correct ? 'correct' : 'wrong'}: explain`} className="type-subheading type-num flex h-11 w-full items-center gap-1.5 text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                                 {m?.correct ? <Check className="size-4 shrink-0 text-good-text" aria-hidden /> : <X className="size-4 shrink-0 text-bad-text" aria-hidden />}
                                 {f.n}
                               </button>
                             </td>
-                            <td className={cn('py-2 pr-3', !m?.given && 'text-muted italic', m && !m.correct && 'text-bad-text')}>{m?.given || 'No answer'}</td>
-                            <td className="py-2 pr-3 font-medium">{m?.answer.join(' / ')}</td>
+                            <td className={cn('type-body py-2 pr-3 max-sm:col-start-2 max-sm:pb-0', !m?.given && 'text-muted', m && !m.correct && 'text-bad-text')}>
+                              <span className="type-caption mr-2 sm:hidden">You wrote</span>
+                              {m?.given || 'No answer'}
+                            </td>
+                            <td className="type-body py-2 pr-3 max-sm:col-start-2 max-sm:pt-0">
+                              <span className="type-caption mr-2 sm:hidden">Answer</span>
+                              {m?.answer.join(' / ')}
+                            </td>
                             {listening && (
-                              <td className="py-0 pr-1">
+                              <td className="py-0 pr-1 max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1">
                                 {mo && (
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); pickQ(f.n); }} aria-label={`Question ${f.n}: play from Part ${f.part} at ${formatClock(mo.at)}${mo.exact ? '' : ', approximate'}`} className="type-num inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-sm font-medium text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); pickQ(f.n); }} aria-label={`Question ${f.n}: play from Part ${f.part} at ${formatClock(mo.at)}${mo.exact ? '' : ', approximate'}`} className="type-body type-num inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                                     <Play className="size-3 fill-current" aria-hidden />
-                                    <span className="max-sm:hidden">Part {f.part} · </span>{mo.exact ? '' : '~'}{formatClock(mo.at)}
+                                    {mo.exact ? '' : '~'}{formatClock(mo.at)}
                                   </button>
                                 )}
                               </td>
                             )}
                           </tr>
                           {open && (
-                            <tr id={`qdetail-${f.n}`}>
-                              <td colSpan={listening ? 4 : 3} className="bg-surface-2/40 px-0 py-3 sm:px-3">
-                                <QuestionDetail q={f.q} group={f.group} section={fs} mark={m} entry={entries.get(f.n)} onClose={() => setSelected(null)} onShow={() => jump(f.n)} onPlay={() => play(f.n)} onDictate={() => setDict(f.n)} />
+                            <tr id={`qdetail-${f.n}`} className="max-sm:block">
+                              <td colSpan={listening ? 4 : 3} className="pb-6 pt-2 max-sm:block sm:pl-16">
+                                <QuestionDetail q={f.q} group={f.group} section={fs} mark={m} entry={entries.get(f.n)} verdict={false} onClose={() => setSelected(null)} onShow={() => jump(f.n)} onPlay={() => play(f.n)} onDictate={() => setDict(f.n)} />
                               </td>
                             </tr>
                           )}
@@ -330,53 +279,49 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
                     })}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </section>
-        )}
+              )}
+            </Section>
+          )}
 
-        {tab === 'context' && (
-          <section aria-labelledby="ctx-h">
-            <h2 id="ctx-h" className="sr-only">{listening ? 'Transcript and questions' : 'Passage and questions'}</h2>
-            <p className="type-caption mb-3 max-w-[68ch]">{listening ? 'Replay any part, read the transcript, and see every question with its marking. Coloured numbers on the audio bar show where each answer is spoken.' : 'Read the passage next to your marked answers. Tap a question number in Answers to highlight where its answer is.'}</p>
-            <Tabs id="res-part" value={String(section.part)} onChange={(v) => setPartIdx(test.sections.findIndex((s) => s.part === +v))} items={test.sections.map((s) => ({ value: String(s.part), label: `${noun} ${s.part}` }))} />
-            <div role="tabpanel" id="res-part-panel" aria-labelledby={`res-part-${section.part}`} className="pt-6">
-              {sel && selSection && (
-                <div className="mb-6">
-                  <QuestionDetail q={sel.q} group={sel.group} section={selSection} mark={marks.get(sel.n)} entry={entries.get(sel.n)} onClose={() => setSelected(null)} onShow={sel.part !== section.part ? () => jump(sel.n) : undefined} onPlay={() => play(sel.n)} onDictate={() => setDict(sel.n)} />
-                </div>
-              )}
+          {tab === 'context' && (
+            <Section
+              title={listening ? 'Transcript' : 'Passage'}
+              caption={listening ? 'Replay any part, read the transcript, and see every question with its marking. Coloured numbers on the audio bar show where each answer is spoken.' : 'Read the passage next to your marked answers. Tap a question number in Answers to highlight where its answer is.'}
+            >
               {listening && (
-                <div className="mb-8 space-y-4">
-                  <div className="sticky top-0 z-10 rounded-lg border border-line bg-card px-4 py-3">
-                    <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} cue={cue?.part === section.part ? cue : null} pins={pins} pinned={selected} onPin={pickQ} />
-                  </div>
+                <div className="sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 py-3 sm:mx-0 sm:px-0">
+                  <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} cue={cue?.part === section.part ? cue : null} pins={pins} pinned={selected} onPin={pickQ} />
                 </div>
               )}
-              <VocabList section={section} />
-              <div className={cn("grid gap-8 lg:items-start", listening ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : "lg:grid-cols-2")}>
-                {!listening && (
-                  <div data-scrollpane className="max-h-[75vh] overflow-y-auto rounded-lg border border-line bg-card p-5 lg:sticky lg:top-4">
-                    <Passage section={section} evidence={mark} />
+              <Tabs id="res-part" value={String(section.part)} onChange={(v) => setPartIdx(test.sections.findIndex((s) => s.part === +v))} items={test.sections.map((s) => ({ value: String(s.part), label: `${noun} ${s.part}` }))} />
+              <div role="tabpanel" id="res-part-panel" aria-labelledby={`res-part-${section.part}`} className="space-y-6">
+                {sel && selSection && (
+                  <div className="border-y border-line py-4">
+                    <QuestionDetail q={sel.q} group={sel.group} section={selSection} mark={marks.get(sel.n)} entry={entries.get(sel.n)} onClose={() => setSelected(null)} onShow={sel.part !== section.part ? () => jump(sel.n) : undefined} onPlay={() => play(sel.n)} onDictate={() => setDict(sel.n)} />
                   </div>
                 )}
-                {listening && section.transcript && (
-                    <details className="group min-w-0 rounded-lg border border-line bg-card lg:sticky lg:top-24" open>
-                      <summary className="type-subheading cursor-pointer px-4 py-3 select-none">Transcript</summary>
-                      <div data-scrollpane className="type-reading max-h-[75vh] overflow-y-auto border-t border-line px-4 py-4">
-                        <Transcript text={section.transcript} evidence={mark} pins={tpins} picked={selected} onPin={(n) => setSelected(n)} />
-                      </div>
-                    </details>
-                )}
-                <div data-scrollpane={listening ? undefined : ''} className={cn('min-w-0', !listening && 'max-h-[75vh] overflow-y-auto pr-1')}>
-                  <GroupsPane section={section} responses={attempt.responses} onChange={() => {}} assets={assets} active={active} review={marks} />
+                <VocabList section={section} />
+                <div className={cn('grid gap-x-10 gap-y-8 lg:items-start', listening ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'xl:grid-cols-2')}>
+                  {!listening && (
+                    <div data-scrollpane className="min-w-0 xl:sticky xl:top-4 xl:max-h-[75vh] xl:overflow-y-auto xl:pr-2">
+                      <Passage section={section} evidence={mark} />
+                    </div>
+                  )}
+                  {listening && section.transcript && (
+                    <div data-scrollpane className="type-reading min-w-0 lg:sticky lg:top-24 lg:max-h-[75vh] lg:overflow-y-auto lg:pr-2">
+                      <Transcript text={section.transcript} evidence={mark} pins={tpins} picked={selected} onPin={(n) => setSelected(n)} />
+                    </div>
+                  )}
+                  <div data-scrollpane={listening ? undefined : ''} className={cn('min-w-0', !listening && 'xl:max-h-[75vh] xl:overflow-y-auto xl:pr-1')}>
+                    <GroupsPane section={section} responses={attempt.responses} onChange={() => {}} assets={assets} active={active} review={marks} />
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
-        )}
+            </Section>
+          )}
+        </div>
       </div>
       {dict != null && sel && sel.n === dict && selSection && <Dictation open onClose={() => setDict(null)} src={assets[selSection.audio ?? ''] ?? ''} section={selSection} q={sel.q} />}
-    </PageContainer>
+    </ResultScaffold>
   );
 }

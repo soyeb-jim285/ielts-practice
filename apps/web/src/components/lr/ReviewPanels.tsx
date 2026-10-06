@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { audioWindow, dictationDiff, dictationScore, TFNG_RULES, tfngValue, wordsBetween, type GapEntry, type LrTimings, type TfngPattern, type TfngRow, type LrStats } from '@ielts/core';
 import { Check, ChevronRight, Ear, Plus, Play, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Disclosure } from '@/components/result';
 import { Badge, Button, Dialog, Textarea, toast } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatClock, formatDuration, plural } from '@/lib/format';
@@ -24,18 +25,27 @@ export function wrongNote(q: LrQuestion, given: string): string | undefined {
 
 export const timesText = (n: number) => (n === 1 ? 'once' : n === 2 ? '2 times' : `${n} times`);
 
+/** A labelled run of prose in a question review: label (type-subheading h4) over body, so the label is never smaller than what it names. */
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div>
-      <h4 className="type-caption mb-1 font-semibold text-ink">{title}</h4>
+    <div className="space-y-1">
+      <h4 className="type-subheading">{title}</h4>
       {children}
     </div>
   );
 }
 
-/** What went wrong and where to look, for the selected question. */
-export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow, onPlay, onDictate }: {
-  q: LrQuestion; group: LrGroup; section: LrSection; mark?: Mark; entry?: GapEntry; onClose?: () => void; onShow?: () => void; onPlay?: () => void; onDictate?: () => void;
+/** Quiet in-text action: accent text, underline on hover, 44px touch target on phones. */
+export function TextButton({ className, ...rest }: React.ComponentProps<'button'>) {
+  return <button type="button" className={cn('type-body hit rounded-sm text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring', className)} {...rest} />;
+}
+
+/**
+ * What went wrong and where to look, for one question. Flat (no card): the caller supplies the surrounding rule.
+ * `verdict={false}` drops the "You wrote X, the answer is Y" line when the row directly above already shows that pair (Answers tab).
+ */
+export function QuestionDetail({ q, group, section, mark, entry, verdict = true, onClose, onShow, onPlay, onDictate }: {
+  q: LrQuestion; group: LrGroup; section: LrSection; mark?: Mark; entry?: GapEntry; verdict?: boolean; onClose?: () => void; onShow?: () => void; onPlay?: () => void; onDictate?: () => void;
 }) {
   const r = q.review;
   const wrong = mark && !mark.correct ? wrongNote(q, mark.given) : undefined;
@@ -44,37 +54,33 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
   const canDictate = listening && !!timingsOf(section)?.length && win?.exact && mark && !mark.correct;
   const nothing = !r && !entry && !win;
   return (
-    <section id={`detail-${q.n}`} aria-label={`Question ${q.n} review`} className="space-y-4 rounded-lg border border-line bg-card px-4 py-4 text-body">
+    <section id={`detail-${q.n}`} aria-label={`Question ${q.n} review`} className="type-body space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h3 className="type-subheading">Question {q.n}</h3>
-          {mark && (
-            <p className={cn('type-num flex items-start gap-1.5 font-medium', mark.correct ? 'text-good-text' : 'text-bad-text')}>
+          {verdict && mark && (
+            <p className={cn('type-num flex items-start gap-1.5', mark.correct ? 'text-good-text' : 'text-bad-text')}>
               {mark.correct ? <Check className="mt-1 size-4 shrink-0" aria-hidden /> : <X className="mt-1 size-4 shrink-0" aria-hidden />}
-              <span>{mark.correct ? 'Correct' : <>{mark.given ? <>You wrote <span className="rounded bg-bad-soft px-1">{mark.given}</span></> : 'You left it blank'}<span className="text-ink">, the answer is <span className="rounded bg-good-soft px-1 font-semibold text-good-text">{mark.answer.join(' / ')}</span></span></>}</span>
+              <span>{mark.correct ? 'Correct' : <>{mark.given ? <>You wrote <span className="rounded bg-bad-soft px-1">{mark.given}</span></> : 'You left it blank'}<span className="text-ink">, the answer is <span className="rounded bg-good-soft px-1 text-good-text">{mark.answer.join(' / ')}</span></span></>}</span>
             </p>
           )}
         </div>
-        {onClose && (
-          <Button size="sm" variant="ghost" className="-mr-2 -mt-1 shrink-0" onClick={onClose}>
-            Close
-          </Button>
-        )}
+        {onClose && <TextButton className="-mr-2 shrink-0 px-2" onClick={onClose}>Close</TextButton>}
       </div>
       {entry && (
-        <div role="note" className="space-y-1 rounded-md bg-warn-soft px-3 py-2.5">
+        <div role="note" className="max-w-[68ch] space-y-1">
           <p className="flex flex-wrap items-center gap-2">
             <Badge tone="warn">{entry.label}</Badge>
             {entry.word && entry.typed && (
-              <span className="type-num text-sm">
+              <span className="type-num">
                 <del className="text-bad-text">{entry.typed}</del> <span aria-hidden>→</span> <span className="sr-only">should be </span>
-                <ins className="font-semibold text-good-text no-underline">{entry.word}</ins>
+                <ins className="text-good-text no-underline">{entry.word}</ins>
               </span>
             )}
           </p>
           <p className="text-pretty">{entry.message}</p>
-          {entry.kind === 'spelling' && !!entry.before && <p className="font-medium text-warn-text">You've misspelt '{entry.word}' {timesText(entry.before)} before.</p>}
-          {entry.kind === 'plural' && !!entry.before && <p className="font-medium text-warn-text">You've slipped on the ending of '{entry.word}' {timesText(entry.before)} before.</p>}
+          {entry.kind === 'spelling' && !!entry.before && <p className="text-warn-text">You've misspelt '{entry.word}' {timesText(entry.before)} before.</p>}
+          {entry.kind === 'plural' && !!entry.before && <p className="text-warn-text">You've slipped on the ending of '{entry.word}' {timesText(entry.before)} before.</p>}
         </div>
       )}
       {r?.why && (
@@ -89,10 +95,10 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
       )}
       {!!r?.paraphrase?.length && (
         <details className="group/p">
-          <summary className="type-caption flex min-h-9 cursor-pointer select-none items-center gap-1 font-semibold text-ink"><ChevronRight className="size-4 transition-transform group-open/p:rotate-90" aria-hidden />How the question is reworded ({r.paraphrase.length})</summary>
-          <ul className="mt-1 space-y-1">
+          <summary className="type-subheading flex min-h-11 cursor-pointer select-none items-center gap-1"><ChevronRight className="size-4 text-muted transition-transform group-open/p:rotate-90" aria-hidden />How the question is reworded ({r.paraphrase.length})</summary>
+          <ul className="mt-1 space-y-2 pl-5">
             {r.paraphrase.map(([a, b], i) => (
-              <li key={i} className="flex flex-wrap items-baseline gap-x-2">
+              <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="rounded bg-surface-2 px-1.5 py-0.5">{a}</span>
                 <span aria-label="means" className="text-muted">=</span>
                 <span className="rounded bg-accent-soft px-1.5 py-0.5 text-accent-text">{b}</span>
@@ -107,27 +113,19 @@ export function QuestionDetail({ q, group, section, mark, entry, onClose, onShow
         </Block>
       )}
       {(onShow || win) && (
-        <div className="flex flex-wrap gap-2">
-          {onShow && (
-            <Button size="sm" variant="outline" onClick={onShow}>
-              Show {listening ? 'in transcript' : 'in passage'}
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           {win && onPlay && (
             <Button size="sm" variant="outline" icon={<Play />} onClick={onPlay}>
               Play from {formatClock(win.from)}
             </Button>
           )}
+          {onShow && <TextButton onClick={onShow}>Show {listening ? 'in transcript' : 'in passage'}</TextButton>}
+          {canDictate && onDictate && <TextButton onClick={onDictate}>Dictation: type what you hear</TextButton>}
           {win && (
-            <p className="type-num type-caption flex items-center self-center">
+            <p className="type-num type-caption">
               Answer heard at {formatClock(win.start)}
               {!win.exact && ' (approx.)'}
             </p>
-          )}
-          {canDictate && onDictate && (
-            <Button size="sm" variant="outline" icon={<Ear />} onClick={onDictate}>
-              Dictation: type what you hear
-            </Button>
           )}
         </div>
       )}
@@ -151,7 +149,7 @@ export function DictationResult({ typed, expected }: { typed: string; expected: 
             {o.status === 'correct' && <span className="rounded px-1 text-good-text">{o.word}</span>}
             {o.status === 'wrong' && (
               <span className="rounded bg-bad-soft px-1">
-                <del className="text-bad-text">{o.typed}</del> <ins className="font-semibold text-good-text no-underline">{o.word}</ins>
+                <del className="text-bad-text">{o.typed}</del> <ins className="text-good-text no-underline">{o.word}</ins>
                 <span className="sr-only"> (wrong)</span>
               </span>
             )}
@@ -250,24 +248,21 @@ export function TfngPanel({ rows, pattern }: { rows: TfngRow[]; pattern?: TfngPa
   const kinds = (['tfng', 'ynng'] as const).filter((k) => rows.some((r) => r.kind === k));
   if (!kinds.length) return null;
   return (
-    <section aria-labelledby="tfng-h">
-      <h2 id="tfng-h" className="sr-only">
-        True / False / Not Given
-      </h2>
-      {pattern && <p className="mb-4 rounded-md bg-warn-soft px-3 py-2.5 font-medium text-warn-text">{pattern.text} <span className="font-normal">Across all your attempts.</span></p>}
+    <div className="space-y-6">
+      {pattern && <p className="type-body max-w-[68ch] text-warn-text">{pattern.text} <span className="text-ink">Across all your attempts.</span></p>}
       {kinds.map((k) => {
         const vals = TFNG_RULES[k].map((r) => r.value);
         const mine = rows.filter((r) => r.kind === k);
         return (
-          <div key={k} className="mb-6 grid gap-x-10 gap-y-5 md:grid-cols-2">
+          <div key={k} className="grid gap-x-10 gap-y-6 md:grid-cols-2">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-body">
                 <caption className="type-caption mb-2 text-left">This attempt: the answer (rows) against what you chose (columns)</caption>
                 <thead className="type-caption">
                   <tr className="border-b border-line">
-                    <th scope="col" className="py-2 pr-3 font-medium">Answer</th>
+                    <th scope="col" className="py-2 pr-3 font-normal">Answer</th>
                     {vals.map((v) => (
-                      <th key={v} scope="col" className="px-2 py-2 text-center font-medium">
+                      <th key={v} scope="col" className="px-2 py-2 text-center font-normal">
                         <span className="sr-only">You chose </span>
                         {v}
                       </th>
@@ -277,11 +272,11 @@ export function TfngPanel({ rows, pattern }: { rows: TfngRow[]; pattern?: TfngPa
                 <tbody className="divide-y divide-line">
                   {vals.map((a) => (
                     <tr key={a}>
-                      <th scope="row" className="py-2 pr-3 text-left font-medium">{a}</th>
+                      <th scope="row" className="type-body py-2 pr-3 text-left font-normal">{a}</th>
                       {vals.map((c) => {
                         const n = mine.filter((r) => r.answer === a && r.chose === c).length;
                         return (
-                          <td key={c} className={cn('type-num px-2 py-2 text-center', a === c ? (n ? 'font-semibold text-good-text' : 'text-muted') : n ? 'bg-bad-soft font-semibold text-bad-text' : 'text-muted')}>
+                          <td key={c} className={cn('type-num px-2 py-2 text-center', a === c ? (n ? 'text-good-text' : 'text-muted') : n ? 'bg-bad-soft text-bad-text' : 'text-muted')}>
                             {n || '·'}
                             {n > 0 && a !== c && <span className="sr-only"> wrong</span>}
                           </td>
@@ -292,18 +287,18 @@ export function TfngPanel({ rows, pattern }: { rows: TfngRow[]; pattern?: TfngPa
                 </tbody>
               </table>
             </div>
-            <dl className="space-y-2.5 rounded-lg border border-line bg-card px-4 py-3">
+            <dl className="space-y-4">
               {TFNG_RULES[k].map((r) => (
-                <div key={r.value}>
-                  <dt className="font-semibold">{r.value}</dt>
-                  <dd className="type-caption text-pretty">{r.rule}</dd>
+                <div key={r.value} className="space-y-1">
+                  <dt className="type-subheading">{r.value}</dt>
+                  <dd className="type-body text-pretty">{r.rule}</dd>
                 </div>
               ))}
             </dl>
           </div>
         );
       })}
-    </section>
+    </div>
   );
 }
 
@@ -320,21 +315,18 @@ export function PacingPanel({ stats, parts, noun, totalS, marks, blank }: {
   const lateWrong = stats.late.filter((n) => marks.get(n) && !marks.get(n)!.correct);
   const list = (ns: readonly number[]) => ns.slice().sort((a, b) => a - b).join(', ');
   return (
-    <section aria-labelledby="pace-h" className="pb-6">
-      <h2 id="pace-h" className="sr-only">
-        Pacing
-      </h2>
+    <div>
       <div className="grid gap-x-12 gap-y-8 md:grid-cols-2">
         <div>
-          <h3 className="type-caption mb-2">Time per {noun.toLowerCase()}{split ? `, against ${formatDuration(split * 1000)} each` : ''}</h3>
+          <h3 className="type-subheading mb-3">Time per {noun.toLowerCase()}{split ? `, against ${formatDuration(split * 1000)} each` : ''}</h3>
           <ul className="space-y-3">
             {times.map((t) => {
               const over = split != null && t.s > split * 1.15;
               return (
                 <li key={t.part}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <span>{noun} {t.part}</span>
-                    <span className={cn('type-num text-sm', over ? 'font-semibold text-warn-text' : 'text-muted')}>
+                    <span className="type-body">{noun} {t.part}</span>
+                    <span className={cn('type-num type-caption', over && 'text-warn-text')}>
                       {formatDuration(t.s * 1000)}
                       {over && <span className="sr-only"> (over the suggested time)</span>}
                     </span>
@@ -349,13 +341,13 @@ export function PacingPanel({ stats, parts, noun, totalS, marks, blank }: {
           </ul>
           {split != null && <p className="type-caption mt-3">The marker is an even split of the 60 minutes.</p>}
         </div>
-        <dl className="space-y-4">
-          <div>
-            <dt className="type-caption">Answers you changed</dt>
-            <dd>
+        <dl className="space-y-6">
+          <div className="space-y-1">
+            <dt className="type-subheading">Answers you changed</dt>
+            <dd className="type-body">
               {changed.length ? (
                 <>
-                  <span className="type-num font-semibold">{changed.reduce((n, [, c]) => n + c, 0)}</span> changes across {plural(changed.length, 'question')}
+                  <span className="type-num">{changed.reduce((n, [, c]) => n + c, 0)}</span> changes across {plural(changed.length, 'question')}
                   <span className="type-caption block">Most: {changed.slice(0, 5).map(([n, c]) => `Q${n} (${c}×)`).join(', ')}</span>
                 </>
               ) : (
@@ -363,12 +355,12 @@ export function PacingPanel({ stats, parts, noun, totalS, marks, blank }: {
               )}
             </dd>
           </div>
-          <div>
-            <dt className="type-caption">Answered in the last 5 minutes</dt>
-            <dd>
+          <div className="space-y-1">
+            <dt className="type-subheading">Answered in the last 5 minutes</dt>
+            <dd className="type-body">
               {stats.late.length ? (
                 <>
-                  <span className="type-num font-semibold">{stats.late.length}</span> {stats.late.length === 1 ? 'question' : 'questions'}: {list(stats.late)}
+                  <span className="type-num">{stats.late.length}</span> {stats.late.length === 1 ? 'question' : 'questions'}: {list(stats.late)}
                   {lateWrong.length > 0 && <span className="type-caption block text-warn-text">{lateWrong.length} of them wrong ({list(lateWrong)}). Rushed guesses cost marks.</span>}
                 </>
               ) : (
@@ -376,13 +368,13 @@ export function PacingPanel({ stats, parts, noun, totalS, marks, blank }: {
               )}
             </dd>
           </div>
-          <div>
-            <dt className="type-caption">Left blank</dt>
-            <dd>{blank.length ? <><span className="type-num font-semibold">{blank.length}</span>: {list(blank)}. There is no penalty for guessing.</> : 'None.'}</dd>
+          <div className="space-y-1">
+            <dt className="type-subheading">Left blank</dt>
+            <dd className="type-body">{blank.length ? <><span className="type-num">{blank.length}</span>: {list(blank)}. There is no penalty for guessing.</> : 'None.'}</dd>
           </div>
         </dl>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -401,18 +393,14 @@ export function VocabList({ section }: { section: LrSection }) {
   });
   if (!section.vocab?.length) return null;
   return (
-    <details className="group/v mb-6 rounded-lg border border-line bg-card" aria-label="Key vocabulary">
-      <summary className="type-subheading flex min-h-11 cursor-pointer select-none items-center gap-1 px-4">
-        <ChevronRight className="size-4 transition-transform group-open/v:rotate-90" aria-hidden />
-        Key vocabulary <span className="flex-1" /><span className="type-caption font-normal">{section.vocab.length} words</span>
-      </summary>
-      <ul className="divide-y divide-line border-t border-line px-4">
+    <Disclosure title="Key vocabulary" meta={`${section.vocab.length} words`}>
+      <ul className="divide-y divide-line">
         {section.vocab.map((v) => (
           <li key={v.word} className="flex items-start justify-between gap-4 py-3">
-            <div className="min-w-0">
-              <p className="font-semibold">{v.word}</p>
-              <p className="text-pretty">{v.meaning}</p>
-              {v.example && <p className="type-reading-sm mt-0.5 text-pretty italic text-muted">{v.example}</p>}
+            <div className="min-w-0 max-w-[68ch] space-y-1">
+              <p className="type-subheading">{v.word}</p>
+              <p className="type-body text-pretty">{v.meaning}</p>
+              {v.example && <p className="type-reading-sm text-pretty text-muted">{v.example}</p>}
             </div>
             {account && (
               <Button size="sm" variant="ghost" className="shrink-0 max-md:min-h-11" disabled={added.has(v.word)} loading={add.isPending && add.variables?.word === v.word} icon={added.has(v.word) ? <Check /> : <Plus />} onClick={() => add.mutate(v)}>
@@ -423,6 +411,6 @@ export function VocabList({ section }: { section: LrSection }) {
           </li>
         ))}
       </ul>
-    </details>
+    </Disclosure>
   );
 }

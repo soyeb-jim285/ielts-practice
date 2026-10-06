@@ -1,11 +1,13 @@
-import { useLocation, useMatches } from '@tanstack/react-router';
+import { useLocation } from '@tanstack/react-router';
 import { MessageSquareWarning } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Dialog, Textarea, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 
 const MAX = 2000;
-const HIDDEN = /^\/(login|signup|forgot-password|reset-password|admin)(\/|$)/; // the owner has the Feedback inbox
+const EVENT = 'ielts:feedback';
+/** Open the report dialog from any entry point (sidebar row, More sheet, exam bar). `returnTo` gets focus back on close when the opener unmounts. */
+export const openFeedback = (returnTo?: HTMLElement | null) => window.dispatchEvent(new CustomEvent(EVENT, { detail: returnTo }));
 const sid = () => {
   try {
     return sessionStorage.getItem('ielts.replay.sid') ?? undefined; // set by ReplayRecorder
@@ -14,15 +16,22 @@ const sid = () => {
   }
 };
 
-/** "Report a problem": a ghost button (not on auth or exam routes) opening a message dialog; sends the current page and replay session id. */
-export function FeedbackButton() {
+/** "Report a problem" message dialog, mounted once at the root and opened by openFeedback(); sends the current page and replay session id. */
+export function FeedbackDialog() {
   const { pathname, searchStr } = useLocation();
-  const exam = useMatches({ select: (ms) => ms.some((m) => m.staticData.exam) });
   const [open, setOpen] = useState(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      returnFocus.current = (e as CustomEvent<HTMLElement | null | undefined>).detail ?? null;
+      setOpen(true);
+    };
+    window.addEventListener(EVENT, on);
+    return () => window.removeEventListener(EVENT, on);
+  }, []);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (exam || HIDDEN.test(pathname)) return null;
 
   const send = async () => {
     setBusy(true);
@@ -40,19 +49,10 @@ export function FeedbackButton() {
   };
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<MessageSquareWarning />}
-        onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 z-30 text-muted md:right-4 md:left-auto md:bottom-4"
-      >
-        Report a problem
-      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
+        returnFocusRef={returnFocus}
         title="Report a problem"
         description="Tell us what went wrong. We also get the page you are on."
         footer={
@@ -68,6 +68,5 @@ export function FeedbackButton() {
       >
         <Textarea label="What happened?" rows={5} maxLength={MAX} value={message} onChange={(e) => setMessage(e.target.value)} error={error} hint={`${message.length}/${MAX}`} />
       </Dialog>
-    </>
   );
 }

@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { BookOpen, Headphones, Mic, PenLine } from 'lucide-react';
 import { RemoveAttempt } from '@/components/history/RemoveAttempt';
-import { listStyles, PanelHeader, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
+import { Section } from '@/components/result';
+import { listStyles, RowChevron, RowIcon, rowStyles } from '@/components/bank/ListRow';
 import { Badge, buttonStyles } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatBand, formatDate } from '@/lib/format';
@@ -39,8 +40,7 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
   if (!guest || !rows.length) return null;
 
   return (
-    <section aria-labelledby="guest-recent-h" className="mb-10 [.gap-12>&]:mb-0">
-      <PanelHeader id="guest-recent-h" title="Your recent tests" />
+    <Section title="Your recent tests" id="guest-recent">
       <ul className={listStyles}>
         {rows.map((r) => {
           const Icon = ICON[r.skill];
@@ -67,7 +67,7 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
                     {st.label}
                   </Badge>
                 ) : r.band != null ? (
-                  <span className="type-band text-lg">
+                  <span className="type-band text-3xl">
                     <span className="sr-only">Band </span>
                     {formatBand(r.band)}
                   </span>
@@ -79,12 +79,12 @@ export function GuestRecent({ skill }: { skill?: Skill }) {
           );
         })}
       </ul>
-      <p className="type-caption mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <p className="type-caption flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="max-w-[60ch]">These live in this browser only. Create an account to keep them and unlock full History.</span>
         <Link to="/signup" search={{ redirect }} className={buttonStyles({ size: 'sm' })}>
           Create account
         </Link>
       </p>
-    </section>
+    </Section>
   );
 }

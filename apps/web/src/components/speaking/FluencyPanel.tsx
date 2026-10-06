@@ -1,22 +1,23 @@
 import { WPM_WINDOW_S, type SpeechMetrics } from '@ielts/core';
 import type { Criterion } from '@server/ai/types';
-import { ChevronDown, CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Alert, buttonStyles, Card, Chip, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip } from '@/components/ui';
+import { Disclosure, InfoNote, Section, StatList, type StatItem } from '@/components/result';
+import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
+import { Alert, Chip } from '@/components/ui';
 import { formatClock, plural } from '@/lib/format';
 import { DISFLUENCY, disfluencyEvents, disfluencyTypes, isLongPause, pauseSec, speechStats, tooShortToMeasure, type Stat } from '@/lib/result';
 import { MARKER_TYPES, wpmAt, type Marker, type MarkerType, type Timeline } from '@/lib/timeline';
 import type { AudioControls } from './AudioBar';
 import { markerLabel, MarkerDetail, MarkerShape, ShapeEl, TYPE_STYLE } from './timeline';
 
-const TICK = { fill: 'var(--muted)', fontSize: 12 };
+const TICK = { fill: 'var(--muted)', fontSize: 13 };
 
 /** Pace over time (10 s windows, plotted at their midpoint on the same 0–duration axis as the pause strip) with the typical band-7 zone shaded. Mistakes sit on the line (shape and colour per type), questions are bands, long pauses are shaded, and the teal line follows the audio. */
 export function WpmChart({ series, durationS, timeline, audio }: { series: SpeechMetrics['wpmSeries']; durationS: number; timeline: Timeline; audio: AudioControls }) {
   const [off, setOff] = useState<Set<MarkerType>>(new Set());
   const [tip, setTip] = useState<{ m: Marker; x: number; y: number } | null>(null);
-  if (series.length < 2) return <p className="text-sm text-muted">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
+  if (series.length < 2) return <p className="type-body">This answer is too short for a pace chart (it needs at least 15 seconds).</p>;
   const max = Math.max(200, ...series.map((p) => p.wpm));
   const top = Math.ceil(max / 40) * 40;
   const counts = Object.fromEntries(MARKER_TYPES.map((t) => [t, timeline.markers.filter((m) => m.type === t).length])) as Record<MarkerType, number>;
@@ -29,21 +30,21 @@ export function WpmChart({ series, durationS, timeline, audio }: { series: Speec
         <ResponsiveContainer>
           <AreaChart data={series.map((p) => ({ ...p, x: p.t + WPM_WINDOW_S / 2 }))} margin={{ top: 16, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
-            <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'Typical band 7', position: 'insideTopRight', fill: 'var(--muted)', fontSize: 12 }} />
+            <ReferenceArea y1={120} y2={160} fill="var(--good)" fillOpacity={0.1} stroke="none" label={{ value: 'Typical band 7', position: 'insideTopRight', fill: 'var(--muted)', fontSize: 13 }} />
             {multi && timeline.questions.map((q) => q.idx % 2 === 1 && <ReferenceArea key={`b${q.idx}`} x1={q.start} x2={q.end} fill="var(--ink)" fillOpacity={0.04} stroke="none" />)}
             {timeline.pauses.map((p) => <ReferenceArea key={`p${p.start}`} x1={p.start} x2={p.end} fill="var(--chart-3)" fillOpacity={0.25} stroke="none" />)}
-            {multi && timeline.questions.map((q) => <ReferenceLine key={`l${q.idx}`} x={q.start} stroke="var(--line-strong)" strokeDasharray="3 3" label={{ value: `Q${q.idx + 1}`, position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12 }} />)}
+            {multi && timeline.questions.map((q) => <ReferenceLine key={`l${q.idx}`} x={q.start} stroke="var(--line-strong)" strokeDasharray="3 3" label={{ value: `Q${q.idx + 1}`, position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 13 }} />)}
             <XAxis dataKey="x" type="number" domain={[0, Math.max(durationS, 1)]} tickFormatter={(t: number) => formatClock(t)} tick={TICK} tickLine={false} axisLine={{ stroke: 'var(--line)' }} />
             <YAxis domain={[0, top]} tick={TICK} tickLine={false} axisLine={false} width={48} />
             <Tooltip
               cursor={{ stroke: 'var(--line-strong, var(--muted))' }}
               content={({ active, payload }) =>
                 active && payload?.[0] ? (
-                  <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-pop">
-                    <p className="text-muted tabular-nums">
+                  <div className="rounded-md border border-line bg-surface px-3 py-2 shadow-pop">
+                    <p className="type-caption type-num">
                       {formatClock(payload[0].payload.t)}–{formatClock(Math.min(payload[0].payload.t + WPM_WINDOW_S, durationS))}
                     </p>
-                    <p className="font-medium tabular-nums">{Math.round(payload[0].payload.wpm)} wpm</p>
+                    <p className="type-body type-num">{Math.round(payload[0].payload.wpm)} wpm</p>
                   </div>
                 ) : null
               }
@@ -81,22 +82,19 @@ export function WpmChart({ series, durationS, timeline, audio }: { series: Speec
           </AreaChart>
         </ResponsiveContainer>
         {tip && (
-          <div role="tooltip" className="pointer-events-none absolute z-10 max-w-60 -translate-x-1/2 -translate-y-full rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-pop" style={{ left: Math.min(Math.max(tip.x, 100), 9999), top: tip.y - 14 }}>
+          <div role="tooltip" className="pointer-events-none absolute z-10 max-w-60 -translate-x-1/2 -translate-y-full rounded-md border border-line bg-surface px-3 py-2 shadow-pop" style={{ left: Math.min(Math.max(tip.x, 100), 9999), top: tip.y - 14 }}>
             <p className="type-caption type-num">{TYPE_STYLE[tip.m.type].label}, {formatClock(Math.floor(tip.m.t))}</p>
-            <p>{tip.m.label}</p>
+            <p className="type-body">{tip.m.label}</p>
           </div>
         )}
       </div>
-      <figcaption className="type-caption mt-2 text-xs">
-        Words per minute in 10-second windows, every 5 seconds. Shaded green: roughly where band-7 speakers sit.
-      </figcaption>
-      <ul className="mt-3 flex flex-wrap items-center gap-2" aria-label="Show mistake types">
+      <ul className="mt-4 flex flex-wrap items-center gap-2" aria-label="Show mistake types">
         {MARKER_TYPES.filter((t) => counts[t] > 0).map((t) => (
           <li key={t}>
             <Chip selected={!off.has(t)} onClick={() => toggle(t)}>
               <MarkerShape type={t} />
               {TYPE_STYLE[t].label}
-              <span className="tabular-nums opacity-70">{counts[t]}</span>
+              <span className="type-num opacity-70">{counts[t]}</span>
             </Chip>
           </li>
         ))}
@@ -129,7 +127,7 @@ export function PauseTimeline({ metrics, audio }: { metrics: SpeechMetrics; audi
           </button>
         ))}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-[13px] text-muted tabular-nums">
+      <div className="type-caption type-num mt-2 flex items-center justify-between gap-3">
         <span>0:00</span>
         <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-warn/60" />Short, 0.25–1 s</span>
@@ -169,7 +167,7 @@ export function DisfluencyStrip({ metrics, audio }: { metrics: SpeechMetrics; au
           );
         })}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-[13px] text-muted tabular-nums">
+      <div className="type-caption type-num mt-2 flex items-center justify-between gap-3">
         <span>0:00</span>
         <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           {kinds.map((k) => (
@@ -185,51 +183,57 @@ export function DisfluencyStrip({ metrics, audio }: { metrics: SpeechMetrics; au
   );
 }
 
-/** One card per disfluency type: how many, how often, and what is normal versus what hurts coherence. */
-function DisfluencyBreakdown({ metrics }: { metrics: SpeechMetrics }) {
+const INDICATOR = {
+  good: { text: 'On target', tone: 'good' },
+  warn: { text: 'Watch', tone: 'warn' },
+  bad: { text: 'Work on this', tone: 'bad' },
+} as const;
+
+const TONE_TEXT = { good: 'text-good-text', warn: 'text-warn-text', bad: 'text-bad-text' } as const;
+const TONE_ICON = { good: CircleCheck, warn: TriangleAlert, bad: CircleX } as const;
+
+/** One row per disfluency type: name and what it is, the count, and (flat toggle) when it is normal versus when it hurts. */
+function DisfluencyList({ metrics }: { metrics: SpeechMetrics }) {
+  const short = tooShortToMeasure(metrics);
   return (
-    <ul className="grid gap-4 md:grid-cols-2">
+    <ul className="max-w-[68ch] divide-y divide-line">
       {disfluencyTypes(metrics).map((t) => {
         const ind = t.tone === 'na' ? null : INDICATOR[t.tone];
+        const Icon = ind && TONE_ICON[ind.tone];
         return (
-          <li key={t.kind}>
-            <Card className="h-full space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="type-subheading">{t.label}</h3>
-                  <p className="type-caption mt-0.5">{t.what}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="type-num text-2xl font-semibold tracking-tight">{t.count}</p>
-                  <p className="type-caption type-num">{tooShortToMeasure(metrics) ? '' : `${t.perMin.toFixed(1)}/min`}</p>
-                </div>
+          <li key={t.kind} className="py-4 first:pt-0">
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="type-subheading">{t.label}</h3>
+                <p className="type-caption mt-0.5">{t.what}</p>
               </div>
-              {ind && (
-                <p className={`flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
-                  <ind.Icon className="size-3.5" aria-hidden />
-                  {ind.text}
-                </p>
-              )}
-              <Collapsible className="group">
-                <CollapsibleTrigger className={buttonStyles({ variant: 'link', className: 'hit -ml-0.5 text-sm' })}>
-                  <span className="group-data-[state=open]:hidden">When is this a problem?</span>
-                  <span className="hidden group-data-[state=open]:inline">Hide</span>
-                  <ChevronDown className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180" aria-hidden />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <dl className="space-y-1.5 pt-2 text-sm">
-                    <div>
-                      <dt className="inline font-medium">Normal: </dt>
-                      <dd className="inline text-muted">{t.normal}</dd>
-                    </div>
-                    <div>
-                      <dt className="inline font-medium">Hurts when: </dt>
-                      <dd className="inline text-muted">{t.harmful}</dd>
-                    </div>
-                  </dl>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
+              <p className="type-body type-num shrink-0 text-right">
+                {t.count}
+                {!short && <span className="type-caption block">{t.perMin.toFixed(1)}/min</span>}
+              </p>
+            </div>
+            {ind && Icon && (
+              <p className={`type-caption mt-1 flex items-center gap-1 ${TONE_TEXT[ind.tone]}`}>
+                <Icon className="size-3.5" aria-hidden />
+                {ind.text}
+              </p>
+            )}
+            <details className="group mt-1">
+              <summary className="type-body hit cursor-pointer list-none text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <span className="group-open:hidden">When is this a problem?</span>
+                <span className="hidden group-open:inline">Hide</span>
+              </summary>
+              <dl className="type-body mt-2 space-y-2">
+                <div>
+                  <dt className="type-subheading inline">Normal </dt>
+                  <dd className="inline">{t.normal}</dd>
+                </div>
+                <div>
+                  <dt className="type-subheading inline">Hurts when </dt>
+                  <dd className="inline">{t.harmful}</dd>
+                </div>
+              </dl>
+            </details>
           </li>
         );
       })}
@@ -237,102 +241,48 @@ function DisfluencyBreakdown({ metrics }: { metrics: SpeechMetrics }) {
   );
 }
 
-const INDICATOR = {
-  good: { Icon: CircleCheck, text: 'On target', cls: 'text-good-text' },
-  warn: { Icon: TriangleAlert, text: 'Watch', cls: 'text-warn-text' },
-  bad: { Icon: CircleX, text: 'Work on this', cls: 'text-bad-text' },
-};
+// Fillers, repetitions and self-corrections are counted in the fillers list below, so the measures list leaves them out.
+const IN_FILLERS = new Set(['fillers', 'reps', 'self']);
+const HEADLINE = new Set(['rate', 'artic', 'pauseRatio', 'long']);
 
-/** Worst first (bad before warn, then the list's order): the text badge goes on the top few only, so "Work on this" keeps its signal; the rest get a dot with a hidden label. */
-const BADGED = 3;
-const DOT = { good: 'bg-good', warn: 'bg-warn', bad: 'bg-bad' };
-export function StatGrid({ stats }: { stats: Stat[] }) {
-  const worst = new Set(
-    stats
-      .filter((s) => s.tone === 'warn' || s.tone === 'bad')
-      .sort((a, b) => Number(b.tone === 'bad') - Number(a.tone === 'bad'))
-      .slice(0, BADGED)
-      .map((s) => s.key),
-  );
-  return (
-    <Card padded={false} className="overflow-hidden">
-      {/* -mr-px/-mb-px push the last cell borders outside the clipped panel, so no grey gaps show in a short last row. */}
-      <dl className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 [&>div]:border-r [&>div]:border-b [&>div]:border-line">
-        {stats.map((s) => {
-          const ind = s.tone === 'na' ? null : INDICATOR[s.tone];
-          return (
-            <div key={s.key} className="p-4">
-              {/* The icon is glued to the last word, so a wrapped label keeps it attached. */}
-              <dt className="type-caption">
-                {s.label.split(' ').slice(0, -1).join(' ')}{' '}
-                <span className="whitespace-nowrap">
-                  {s.label.split(' ').at(-1)}
-                  <span className="ml-1 inline-flex align-middle [&_button]:hit">
-                    <InfoTip label={`About ${s.label}`}>{s.info}</InfoTip>
-                  </span>
-                </span>
-              </dt>
-              <dd className="type-num mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-                {s.value}
-                {ind && !worst.has(s.key) && s.tone !== 'na' && (
-                  <span title={ind.text} className={`size-2 rounded-full ${DOT[s.tone]}`}>
-                    <span className="sr-only">{ind.text}</span>
-                  </span>
-                )}
-              </dd>
-              {ind && worst.has(s.key) && (
-                <dd className={`mt-1 flex items-center gap-1 text-xs font-medium ${ind.cls}`}>
-                  <ind.Icon className="size-3.5" aria-hidden />
-                  {ind.text}
-                </dd>
-              )}
-            </div>
-          );
-        })}
-      </dl>
-    </Card>
-  );
-}
+/** A measure as a StatList row: label, value, status in words with an icon, and the info note. */
+export const toStatItem = (s: Stat): StatItem => ({
+  label: s.label,
+  value: s.value,
+  status: s.tone === 'na' ? undefined : INDICATOR[s.tone],
+  info: <InfoNote label={`About ${s.label}`}>{s.info}</InfoNote>,
+});
 
-/** Fluency tab: pace chart, pause timeline, measures, then the fillers and restarts. `fc`/`target` explain a low band when the measures look fine. */
+/** Fluency tab: pace and pauses, the key measures, then the fillers and restarts. `fc`/`target` explain a low band when the measures look fine. */
 export function FluencyPanel({ metrics, timeline, audio, fc, target }: { metrics: SpeechMetrics; timeline: Timeline; audio: AudioControls; fc?: Criterion; target: number }) {
-  const stats = speechStats(metrics);
-  const heldBack = fc && fc.band < target && !tooShortToMeasure(metrics) && stats.every((s) => s.tone !== 'bad');
+  const stats = speechStats(metrics).filter((s) => !IN_FILLERS.has(s.key));
+  const heldBack = fc && fc.band < target && !tooShortToMeasure(metrics) && speechStats(metrics).every((s) => s.tone !== 'bad');
+  const more = stats.filter((s) => !HEADLINE.has(s.key));
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 md:space-y-12">
       {heldBack && (
         <Alert title={`Your delivery measures look fine, but Fluency & Coherence is ${fc.band.toFixed(1)}`}>
           The band is limited by something these numbers don't capture, such as answer length, relevance or how ideas connect. {fc.summary}
         </Alert>
       )}
-      <section>
-        <h2 className="type-heading mb-4">Pace</h2>
-        <Card>
-          <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} timeline={timeline} audio={audio} />
-        </Card>
-      </section>
-      <section>
-        <h2 className="type-heading">Pauses</h2>
-        <p className="type-caption mt-1 mb-4 text-sm">
-          {plural(metrics.pauses.length, 'pause')}, {metrics.pauses.filter(isLongPause).length} long, {metrics.midClausePauses} mid-clause. Tap one to hear it.
-        </p>
-        <Card>
+      <Section title="Pace" caption="Words per minute in 10-second windows, every 5 seconds. Shaded green: roughly where band-7 speakers sit.">
+        <WpmChart series={metrics.wpmSeries} durationS={metrics.durationS} timeline={timeline} audio={audio} />
+        <Section level={3} title="Pauses" caption={`${plural(metrics.pauses.length, 'pause')}, ${metrics.pauses.filter(isLongPause).length} long, ${metrics.midClausePauses} mid-clause. Tap one to hear it.`}>
           <PauseTimeline metrics={metrics} audio={audio} />
-        </Card>
-      </section>
-      <section>
-        <h2 className="type-heading">Fluency measures</h2>
-        <p className="type-caption mt-1 mb-4 text-sm">{tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech, not the score. The three furthest from target are labelled; a dot shows the rest (green on target, amber watch, red work on this).'}</p>
-        <StatGrid stats={stats} />
-      </section>
-      <section>
-        <h2 className="type-heading">Fillers, repeats and restarts</h2>
-        <p className="type-caption mt-1 mb-4 text-sm">Each kind is colour-coded the same way in the Transcript tab. Tap a mark to hear it.</p>
-        <Card className="mb-4">
-          <DisfluencyStrip metrics={metrics} audio={audio} />
-        </Card>
-        <DisfluencyBreakdown metrics={metrics} />
-      </section>
+        </Section>
+      </Section>
+      <Section title="Key measures" caption={tooShortToMeasure(metrics) ? 'Not enough speech to measure. Answer for at least 20 seconds to see these.' : 'Compared with typical band-7 speech, not the score. Each measure says whether it is on target, worth watching, or needs work.'}>
+        <StatList cols={2} items={stats.filter((s) => HEADLINE.has(s.key)).map(toStatItem)} />
+        {more.length > 0 && (
+          <Disclosure title="More measures" meta={String(more.length)}>
+            <StatList items={more.map(toStatItem)} />
+          </Disclosure>
+        )}
+      </Section>
+      <Section title="Fillers, repeats and restarts" caption="Each kind is colour-coded the same way in the Transcript tab. Tap a mark to hear it.">
+        <DisfluencyStrip metrics={metrics} audio={audio} />
+        <DisfluencyList metrics={metrics} />
+      </Section>
     </div>
   );
 }

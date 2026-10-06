@@ -46,5 +46,5 @@ export default defineConfig({
     },
   },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  server: { port: 5173, proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: false } } },
+  server: { port: Number(process.env.WEB_PORT ?? 5173), proxy: { '/api': { target: process.env.API_PROXY ?? 'http://localhost:8787', changeOrigin: false } } },
 });

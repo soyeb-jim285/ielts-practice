@@ -1,7 +1,7 @@
 import type { WritingStructure } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Section } from '@/components/result';
 
 const ROLE: Record<WritingStructure['paragraphs'][number]['role'], string> = {
   intro: 'Introduction',
@@ -15,19 +15,19 @@ const ROLE: Record<WritingStructure['paragraphs'][number]['role'], string> = {
 
 type Check = { label: string; ok: boolean };
 
-function CheckRow({ title, checks, note }: { title: string; checks: Check[]; note: string }) {
+function CheckGroup({ title, checks, note }: { title: string; checks: Check[]; note: string }) {
   return (
-    <li className="px-5 py-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
-      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+    <li className="min-w-0 space-y-2">
+      <h3 className="type-subheading">{title}</h3>
+      <ul className="space-y-1">
         {checks.map((c) => (
-          <li key={c.label} className="inline-flex items-center gap-1.5">
-            {c.ok ? <CircleCheck role="img" className="size-4 text-good-text" aria-label="Yes" /> : <CircleX role="img" className="size-4 text-bad-text" aria-label="No" />}
+          <li key={c.label} className="type-body flex items-start gap-2">
+            {c.ok ? <CircleCheck role="img" className="mt-0.5 size-4 shrink-0 text-good-text" aria-label="Yes" /> : <CircleX role="img" className="mt-0.5 size-4 shrink-0 text-bad-text" aria-label="No" />}
             {c.label}
           </li>
         ))}
       </ul>
-      {note && <p className="mt-2 max-w-prose text-sm text-muted text-pretty">{note}</p>}
+      {note && <p className="type-caption">{note}</p>}
     </li>
   );
 }
@@ -37,71 +37,65 @@ export function StructureMap({ structure }: { structure: WritingStructure }) {
   const { paragraphs, overview, position, planFollowed } = structure;
   const hasChecks = overview || position || planFollowed;
   return (
-    <div className="space-y-10">
+    <>
       {hasChecks && (
-        <section>
-          <h2 className="mb-3 type-heading">Checks</h2>
-          <Card padded={false}>
-            <ul className="divide-y divide-line">
-              {overview && (
-                <CheckRow
-                  title="Overview"
-                  note={overview.note}
-                  checks={[
-                    { label: 'Overview present', ok: overview.present },
-                    { label: 'States the main trends', ok: overview.mainTrends },
-                    { label: 'No detailed figures in it', ok: overview.noData },
-                  ]}
-                />
-              )}
-              {position && (
-                <CheckRow
-                  title="Position"
-                  note={position.note}
-                  checks={[
-                    { label: 'Clear position', ok: position.clear },
-                    { label: 'Consistent throughout', ok: position.consistent },
-                  ]}
-                />
-              )}
-              {planFollowed && <CheckRow title="Your plan" note={planFollowed.note} checks={[{ label: 'Essay followed the plan', ok: planFollowed.followed }]} />}
-            </ul>
-          </Card>
-        </section>
+        <Section title="Checks">
+          <ul className="grid gap-6 sm:grid-cols-3">
+            {overview && (
+              <CheckGroup
+                title="Overview"
+                note={overview.note}
+                checks={[
+                  { label: 'Overview present', ok: overview.present },
+                  { label: 'States the main trends', ok: overview.mainTrends },
+                  { label: 'No detailed figures in it', ok: overview.noData },
+                ]}
+              />
+            )}
+            {position && (
+              <CheckGroup
+                title="Position"
+                note={position.note}
+                checks={[
+                  { label: 'Clear position', ok: position.clear },
+                  { label: 'Consistent throughout', ok: position.consistent },
+                ]}
+              />
+            )}
+            {planFollowed && <CheckGroup title="Your plan" note={planFollowed.note} checks={[{ label: 'Essay followed the plan', ok: planFollowed.followed }]} />}
+          </ul>
+        </Section>
       )}
 
-      <section>
-        <h2 className="mb-3 type-heading">Paragraph map</h2>
+      <Section title="Paragraph map">
         {paragraphs.length ? (
-          <Card padded={false}>
-            <ol className="divide-y divide-line">
-              {paragraphs.map((p, i) => (
-                <li key={i} className="flex gap-4 px-5 py-4">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-md bg-surface-2 text-sm font-semibold type-num" aria-hidden>
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                      <span className="font-semibold">
-                        <span className="sr-only">Paragraph {i + 1}: </span>
-                        {ROLE[p.role]}
-                      </span>
-                      <span className={clsx('inline-flex items-center gap-1.5', p.ok ? 'text-good-text' : 'text-warn-text')}>
-                        {p.ok ? <CircleCheck className="size-4" aria-hidden /> : <TriangleAlert className="size-4" aria-hidden />}
-                        {p.ok ? 'Works' : 'Needs work'}
-                      </span>
+          <ol className="max-w-[68ch] divide-y divide-line">
+            {paragraphs.map((p, i) => (
+              <li key={i} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 py-4 first:pt-0">
+                <span className="type-subheading type-num" aria-hidden>
+                  {i + 1}.
+                </span>
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <h3 className="type-subheading">
+                      <span className="sr-only">Paragraph {i + 1}: </span>
+                      {ROLE[p.role]}
+                    </h3>
+                    <p className={clsx('type-body inline-flex items-center gap-1.5', p.ok ? 'text-good-text' : 'text-warn-text')}>
+                      {p.ok ? <CircleCheck className="size-4" aria-hidden /> : <TriangleAlert className="size-4" aria-hidden />}
+                      {p.ok ? 'Works' : 'Needs work'}
                     </p>
-                    {p.topicSentence && <p className="type-reading">“{p.topicSentence}”</p>}
-                    {p.note && <p className="max-w-prose text-sm text-muted text-pretty">{p.note}</p>}
                   </div>
-                </li>
-              ))}
-            </ol>
-          </Card>
+                  {p.topicSentence && <p className="type-reading-sm">“{p.topicSentence}”</p>}
+                  {p.note && <p className="type-caption">{p.note}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
         ) : (
-          <p className="text-sm text-muted">No paragraphs were detected. Separate paragraphs with a blank line.</p>
+          <p className="type-body text-muted">No paragraphs were detected. Separate paragraphs with a blank line.</p>
         )}
-      </section>
-    </div>
+      </Section>
+    </>
   );
 }

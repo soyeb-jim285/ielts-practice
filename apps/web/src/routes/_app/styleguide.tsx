@@ -43,6 +43,7 @@ import {
   Tooltip,
   type Tone,
 } from '@/components/ui';
+import { CountChips, CriteriaStrip, Disclosure, FixList, RankedList, ScoreHero, Section as ResultSection, SkillBandStrip, StatList, StatusLine } from '@/components/result';
 import pairs from '@/lib/contrastPairs.json';
 import { cn } from '@/lib/utils';
 
@@ -86,6 +87,7 @@ const SECTIONS = [
   ['motion', 'Motion'],
   ['layout', 'Layout'],
   ['icons', 'Icons'],
+  ['result', 'Result components'],
   ['rules', 'Do and do not'],
 ] as const;
 
@@ -879,6 +881,34 @@ function MotionSection() {
   );
 }
 
+/* ---------- result components ---------- */
+
+function ResultSection_() {
+  return (
+    <Section id="result" title="Result components" lead="One hero numeral per view, then the strip, then sections. Every heading comes from the result Section, every figure from BandNumeral, every list from StatList, RankedList or FixList.">
+      <div className="space-y-8 md:space-y-12">
+        <StatusLine items={['Speaking', 'Part 2', '3 Oct', '286 words']} />
+        <ScoreHero value={6} target={7} range={[5, 8]} estimate rawAverage={6.25} />
+        <CriteriaStrip items={[{ key: 'fc', label: 'Fluency & Coherence', band: 6.5, target: 7 }, { key: 'lr', label: 'Lexical Resource', band: 6, target: 7, weakest: true }, { key: 'gra', label: 'Grammar', band: 6.5, target: 7 }, { key: 'p', label: 'Pronunciation', band: 7, target: 7 }]} />
+        <SkillBandStrip items={[{ skill: 'listening', band: 7.5, n: 3, target: 7 }, { skill: 'reading', band: 6.5, n: 1, target: 7 }, { skill: 'writing', band: 6, n: 4, target: 7 }, { skill: 'speaking', band: null, offer: 'Take a test' }]} />
+        <ResultSection title="Things to fix next" caption="Section h2 with caption; content mt-4, children space-y-6.">
+          <FixList items={[{ title: 'Use articles', why: 'Singular countable nouns need a or the.', before: 'I have car.', after: 'I have a car.' }]} onAddAll={() => {}} />
+        </ResultSection>
+        <ResultSection title="Where you lost marks">
+          <RankedList mode="accuracy" rows={[{ label: 'Matching headings', right: 2, total: 5 }, { label: 'Gap fill', right: 4, total: 5 }, { label: 'Multiple choice', right: 4, total: 4 }]} />
+        </ResultSection>
+        <ResultSection title="At a glance">
+          <StatList cols={3} items={[{ label: 'Words', value: 286 }, { label: 'Paragraphs', value: 4 }, { label: 'Avg sentence', value: '18 words', status: { text: 'Good', tone: 'good' } }]} />
+          <CountChips items={[{ label: 'however', count: 3, tone: 'warn' }, { label: 'also' }]} />
+        </ResultSection>
+        <Disclosure title="How you used your time" meta="34 min">
+          <StatList items={[{ label: 'Part 1', value: '8 min' }, { label: 'Part 2', value: '9 min' }]} />
+        </Disclosure>
+      </div>
+    </Section>
+  );
+}
+
 /* ---------- layout ---------- */
 
 function LayoutSection() {
@@ -1057,6 +1087,7 @@ function Styleguide() {
           <MotionSection />
           <LayoutSection />
           <IconsSection />
+          <ResultSection_ />
           <RulesSection />
         </div>
         <nav aria-label="On this page" className="sticky top-10 hidden self-start lg:block">

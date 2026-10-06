@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { MockResult } from '@/components/mock/MockResult';
-import { SectionList } from '@/components/mock/SectionList';
+import { resultLink, SectionList } from '@/components/mock/SectionList';
 import { SpeakingChoice } from '@/components/mock/SpeakingChoice';
 import { Transition } from '@/components/mock/Transition';
 import { useMock, useMockActions } from '@/components/mock/useMock';
-import { Alert, Badge, Button, buttonStyles, Dialog, PageContainer, PageHeader, Skeleton } from '@/components/ui';
+import { ResultScaffold, Section, StatusLine } from '@/components/result';
+import { Alert, Button, buttonStyles, Dialog, PageContainer, PageHeader, Skeleton } from '@/components/ui';
 
+import { formatDate } from '@/lib/format';
 import { useAccount, useMe } from '@/lib/query';
 
 export const Route = createFileRoute('/_app/mock/$id')({ component: MockHub });
@@ -25,7 +26,8 @@ function MockHub() {
   if (!account) return <PageContainer><Alert tone="warn" title="Sign in to see your mock test" /></PageContainer>;
   if (isPending)
     return (
-      <PageContainer>
+      <PageContainer aria-busy="true">
+        <h1 className="sr-only">Mock test, loading</h1>
         <Skeleton className="mb-6 h-10 w-64" />
         <Skeleton className="h-48 w-full" />
       </PageContainer>
@@ -48,33 +50,42 @@ function MockHub() {
   };
   const lrErr = a.startLr.error?.message;
 
+  const bands = mock.sections.filter((s) => s.band != null && s.attemptId);
+  const weakSec = !open && bands.length > 1 ? bands.reduce((m, s) => (s.band! < m.band! ? s : m)) : null;
+  const marking = open && mock.sections.some((s) => s.state === 'marking');
   return (
-    <PageContainer>
-      <PageHeader
+    <>
+      <ResultScaffold
+        back={{ to: '/mock', label: 'Mock tests' }}
         title={open ? 'Full mock test' : 'Mock result'}
-        back={<Link to="/mock" className={buttonStyles({ variant: 'link', className: '-ml-1' })}><ArrowLeft className="size-4" aria-hidden /> Mock tests</Link>}
-        description={
-          <span className="inline-flex flex-wrap items-center gap-2">
-            <Badge tone="neutral">{mock.variant === 'academic' ? 'Academic' : 'General Training'}</Badge>
-            {mock.ref && <Badge tone="info">{mock.ref}</Badge>}
-            {mock.status === 'closed' && <Badge tone="warn">Finished without Speaking</Badge>}
-          </span>
+        meta={<StatusLine items={[mock.variant === 'academic' ? 'Academic' : 'General Training', mock.ref, `started ${formatDate(mock.startedAt)}`]} />}
+        hero={
+          open && next === 'speaking' ? (
+            <SpeakingChoice mockId={mock.id} onLive={() => a.chooseLive.mutate()} liveBusy={a.chooseLive.isPending} error={a.chooseLive.error?.message} />
+          ) : open && next ? (
+            <Transition mock={mock} onStart={start} busy={a.startLr.isPending} error={lrErr} />
+          ) : (
+            <MockResult mock={mock} target={target} />
+          )
         }
-      />
-      <div className="space-y-8">
-        {open && (next === 'speaking' ? <SpeakingChoice mockId={mock.id} onLive={() => a.chooseLive.mutate()} liveBusy={a.chooseLive.isPending} error={a.chooseLive.error?.message} /> : <Transition mock={mock} onStart={start} busy={a.startLr.isPending} error={lrErr} />)}
-        {(!open || !next) && <MockResult mock={mock} target={target} />}
-        <section aria-label="Your sections">
+      >
+        <Section title="Your sections" caption={mock.overall != null ? 'Overall is the mean of your four section bands, to the nearest half band.' : undefined}>
           <SectionList mock={mock} target={target} />
-          {open && mock.sections.some((s) => s.state === 'marking') && <p className="type-caption mt-3" role="status">Marking runs in the background. This page updates by itself.</p>}
-        </section>
+          {weakSec && (
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link {...resultLink(weakSec)} className={buttonStyles({})}>Review {`${weakSec.skill[0]!.toUpperCase()}${weakSec.skill.slice(1)}`}, your weakest section</Link>
+              <Link to="/mock" className={buttonStyles({ variant: 'outline' })}>Take another mock</Link>
+            </div>
+          )}
+          {marking && <p className="type-caption" role="status">Marking runs in the background. This page updates by itself.</p>}
+        </Section>
         {open && (
-          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-5">
+          <div className="-ml-3 flex flex-wrap gap-x-2 gap-y-1 border-t border-line pt-4">
             {next === 'speaking' && <Button variant="ghost" onClick={() => setConfirm('close')}>Finish without Speaking</Button>}
             <Button variant="ghost" className="text-muted" onClick={() => setConfirm('abandon')}>Abandon this mock test</Button>
           </div>
         )}
-      </div>
+      </ResultScaffold>
       <Dialog
         open={confirm === 'close'}
         onClose={() => setConfirm(null)}
@@ -89,7 +100,7 @@ function MockHub() {
         description="The mock is removed. Sections you already took stay in your history as normal practice."
         footer={<><Button variant="ghost" onClick={() => setConfirm(null)}>Keep it</Button><Button variant="destructive" loading={a.abandon.isPending} onClick={() => a.abandon.mutate()}>Abandon</Button></>}
       />
-    </PageContainer>
+    </>
   );
 }
 

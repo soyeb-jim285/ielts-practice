@@ -1,24 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowLeft, MicOff, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, MicOff, RotateCcw } from 'lucide-react';
 import type { RepeatedWord } from '@ielts/core';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { KeepResult, RefundNote } from '@/components/community/KeepResult';
 import { RemoveAttempt } from '@/components/history/RemoveAttempt';
-import { AnalyzingState, FailedState, OverviewPanel, ResultHeader } from '@/components/results';
+import { AnalyzingState, FailedState } from '@/components/results';
+import { ActionRow, CriteriaStrip, FixList, DetailField, InfoNote, ResultScaffold, ScoreHero, Section, StatusLine, type CriterionItem } from '@/components/result';
 import { AudioBar, useAudio } from '@/components/speaking/AudioBar';
 import { CueCard } from '@/components/speaking/CueCard';
-import { ImprovePanel } from '@/components/speaking/ImprovePanel';
+import { ImprovePanel, useAddFixes, type AddFixes } from '@/components/speaking/ImprovePanel';
 import { NotSubmittedActions } from '@/components/speaking/PendingUploads';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
 import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
-import { formatDate, formatDuration } from '@/lib/format';
+import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
 import { timelineMarkers, type Timeline } from '@/lib/timeline';
-import { notAssessed, offTopicAnswers, sentenceCase, SPEAKING_CRITERIA, type Attempt } from '@/lib/result';
+import { criterionLabel, notAssessed, offTopicAnswers, pronunciationUnsupported, sentenceCase, SPEAKING_CRITERIA, splitFirstSentence, type Attempt } from '@/lib/result';
+import type { AnalysisResult } from '@server/ai/types';
+import { roundBand } from '@ielts/core';
 
 const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
 type Tab = (typeof TABS)[number];
@@ -48,6 +51,7 @@ function ResultPage() {
   const audio = useAudio();
   const [lean, setLean] = useState<RepeatedWord | null>(null);
   const timeline = useMemo(() => (a?.analysis?.words ? timelineMarkers(a.analysis) : undefined), [a?.analysis]);
+  const deck = useAddFixes(a?.analysis?.topFixes ?? [], !!a?.topFixesInDeck);
   const warm = a?.status === 'analyzing' || (a?.status === 'done' && !!a.analysis?.metrics);
   useEffect(() => {
     if (warm) void loadFluency();
@@ -76,7 +80,8 @@ function ResultPage() {
   // A Part 1 attempt covers several questions on a topic, so say so; the title starts with the part so it is told apart from a Part 3 on the same topic.
   const nq = r?.questions?.length ?? 0;
   const title = a.part === 1 ? `Part 1: ${sentenceCase(a.prompt.title)}` : sentenceCase(a.prompt.title);
-  const meta = `Speaking${a.part === 1 ? '' : `, Part ${a.part}`}${nq > 1 ? `, ${nq} questions` : ''}, ${formatDate(a.createdAt)}${a.durationMs ? `, ${formatDuration(a.durationMs)}` : ''}`;
+  const metaItems = ['Speaking', a.part !== 1 && `Part ${a.part}`, nq > 1 && `${nq} questions`, formatDate(a.createdAt), a.durationMs ? formatDuration(a.durationMs) : false];
+  const meta = metaItems.filter(Boolean).join(', ');
 
   const rm = <RemoveAttempt kind="attempt" id={a.id} title={title} variant="menu" onRemoved={() => void navigate({ to: '/speaking' })} />;
 
@@ -141,71 +146,199 @@ function ResultPage() {
   );
 
   const off = offTopicAnswers(r);
+  const criteria = SPEAKING_CRITERIA.filter((k) => r.criteria[k]);
+  const lowest = Math.min(...criteria.map((k) => r.criteria[k]!.band));
+  const strip = (
+    <>
+      {switcher}
+      {tab !== 'overview' && <CriteriaStrip layout="strip" cols={4} items={criteria.map((k) => ({ key: k, label: criterionLabel(k), band: r.criteria[k]!.band, target, weakest: r.criteria[k]!.band === lowest && lowest < Math.max(...criteria.map((c) => r.criteria[c]!.band)) }))} />}
+      <RetryLine result={r} />
+    </>
+  );
   return (
-    <PageContainer>
-      <ResultHeader
-        result={r}
-        title={title}
-        meta={meta}
-        target={target}
-        back={back}
-        actions={rm}
-        flags={
-          off && (
-            <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="rounded-full">
-              <Badge tone="bad">Off topic</Badge>
-            </Link>
-          )
-        }
-      >
-        {switcher}
-      </ResultHeader>
-      <KeepResult />
-      {/* One sticky strip: the tabs, plus the player on the tabs that seek into the recording. */}
-      <StickyTabs>
-        <Tabs id="res" value={tab} onChange={setTab} className="max-sm:[&_button]:px-1.5" items={[
-          { value: 'overview', label: 'Overview' },
-          // "Text" on phones so all five tabs fit without scrolling.
-          { value: 'transcript', label: <><span className="sm:hidden">Text</span><span className="max-sm:hidden">Transcript</span></>, count: r.errors.length },
-          { value: 'fluency', label: 'Fluency' },
-          { value: 'language', label: 'Language' },
-          { value: 'improve', label: 'Improve' },
-        ]} />
-        {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
-          <div className="mt-3 pb-3">
-            <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} timeline={timeline} onPick={audio.controls.pick} />
-          </div>
-        )}
-      </StickyTabs>
-      <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1} className="pt-5 pb-8">
-        <Panel tab={tab} a={a} timeline={timeline} target={target} audio={audio.controls} retry={retry} parentLink={parentLink} off={off} lean={lean} onLean={onLean} />
+    <ResultScaffold
+      back={{ to: '/speaking', label: 'Speaking' }}
+      title={title}
+      promptFull={<PromptFull a={a} />}
+      meta={<StatusLine items={metaItems} />}
+      actions={rm}
+      hero={
+        <>
+          <KeepResult />
+          <ScoreHero
+            value={r.overall}
+            target={target}
+            range={r.range}
+            estimate={r.overall > 0 && r.calibrated === false}
+            rawAverage={r.overallRaw}
+            note={<p>Overall is the average of the four criteria, rounded to the nearest half band.</p>}
+            exceptions={
+              off && (
+                <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className="rounded-full">
+                  <Badge tone="bad">Off topic</Badge>
+                </Link>
+              )
+            }
+          />
+        </>
+      }
+      strip={strip}
+      action={<ActionRow primary={retry} links={parentLink ? [parentLink] : undefined} />}
+      tabs={
+        // One sticky strip: the tabs, plus the player on the tabs that seek into the recording.
+        <StickyTabs>
+          <Tabs id="res" value={tab} onChange={setTab} items={[
+            { value: 'overview', label: 'Overview' },
+            { value: 'transcript', label: 'Transcript', count: r.errors.length },
+            { value: 'fluency', label: 'Fluency' },
+            { value: 'language', label: 'Language' },
+            { value: 'improve', label: 'Improve' },
+          ]} />
+          {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
+            <div className="mt-3 pb-3">
+              <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} timeline={timeline} onPick={audio.controls.pick} />
+            </div>
+          )}
+        </StickyTabs>
+      }
+    >
+      <div role="tabpanel" id="res-panel" aria-labelledby={`res-${tab}`} tabIndex={-1}>
+        <Panel tab={tab} a={a} timeline={timeline} target={target} audio={audio.controls} off={off} lean={lean} onLean={onLean} deck={deck} />
       </div>
-    </PageContainer>
+    </ResultScaffold>
   );
 }
 
-function Panel({ tab, a, timeline, target, audio, retry, parentLink, off, lean, onLean }: { lean: RepeatedWord | null; onLean: (w: RepeatedWord | null) => void; tab: Tab; a: Attempt; timeline?: Timeline; target: number; audio: ReturnType<typeof useAudio>['controls']; retry: ReactNode; parentLink: ReactNode; off: ReturnType<typeof offTopicAnswers> }) {
+/** The whole prompt, behind "Show prompt" (the h1 is clamped to two lines). */
+function PromptFull({ a }: { a: Attempt }) {
+  if (a.part === 2) return <p className="whitespace-pre-wrap">{a.prompt.body}</p>;
+  const qs = a.prompt.followUps?.length ? a.prompt.followUps : [a.prompt.body];
+  return qs.length > 1 ? <ol className="list-decimal space-y-1 pl-6 marker:font-sans marker:text-muted">{qs.map((q) => <li key={q}>{q}</li>)}</ol> : <p>{qs[0]}</p>;
+}
+
+const Delta = ({ d }: { d: number }) =>
+  d > 0 ? (
+    <span className="inline-flex items-center gap-0.5 font-medium text-good-text">
+      <ArrowUp role="img" className="size-4" aria-label="up" />+{d}
+    </span>
+  ) : d < 0 ? (
+    <span className="inline-flex items-center gap-0.5 font-medium text-bad-text">
+      <ArrowDown role="img" className="size-4" aria-label="down" />
+      {`−${Math.abs(d)}`}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-0.5">
+      <Minus role="img" className="size-4" aria-label="no change" />0
+    </span>
+  );
+
+/** Retry comparison under the hero: last try to now, then each criterion's change. Nothing renders on a first attempt. */
+function RetryLine({ result }: { result: AnalysisResult }) {
+  const c = result.comparison;
+  if (!c) return null;
+  const overall = Math.round((result.overall - c.parentOverall) * 10) / 10;
+  return (
+    <div className="space-y-1">
+      <p className="type-body type-num flex flex-wrap items-center gap-x-2">
+        <span>Since your last try</span>
+        <span className="inline-flex items-center gap-1.5">
+          {formatBand(c.parentOverall)}
+          <ArrowRight role="img" className="size-4 text-muted" aria-label="to" />
+          {formatBand(result.overall)}
+        </span>
+        <Delta d={overall} />
+      </p>
+      <ul className="type-caption type-num flex flex-wrap gap-x-5 gap-y-1">
+        {Object.entries(c.deltas).map(([k, d]) => (
+          <li key={k} className="flex items-center gap-1.5">
+            {criterionLabel(k)}
+            <Delta d={d!} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Overview: the four criteria (weakest opens first), then what to fix next. */
+function Overview({ result: r, target, off, deck }: { result: AnalysisResult; target: number; off: ReturnType<typeof offTopicAnswers>; deck: AddFixes }) {
+  const bands = SPEAKING_CRITERIA.filter((k) => r.criteria[k]).map((k) => ({ k, band: r.criteria[k]!.band }));
+  const low = bands.reduce((m, x) => (x.band < m.band ? x : m), bands[0] ?? { k: SPEAKING_CRITERIA[0]!, band: 0 });
+  const spread = bands.length ? Math.max(...bands.map((x) => x.band)) - low.band : 0;
+  const avg = bands.length ? roundBand(bands.reduce((t, x) => t + x.band, 0) / bands.length) : 0;
+  const items: CriterionItem[] = bands.map(({ k, band }) => {
+    const c = r.criteria[k]!;
+    const d = r.comparison?.deltas[k];
+    const soft = pronunciationUnsupported(r.criteria, k);
+    const [lo, hi] = soft ? [Math.max(0, Math.min(c.range[0], band - 1.5)), Math.min(9, Math.max(c.range[1], band + 1.5))] : c.range;
+    const [first, rest] = splitFirstSentence(c.summary);
+    return {
+      key: k,
+      label: criterionLabel(k),
+      band,
+      target,
+      weakest: spread > 0 && k === low.k,
+      gist: (
+        <>
+          {d ? <span className="type-caption type-num mb-1 block"><Delta d={d} /> <span>vs last try</span></span> : null}
+          {soft && (
+            <span className="type-caption mb-1 flex items-center gap-1 text-warn-text">
+              Audio check only, low confidence
+              <InfoNote label="About this pronunciation band">The pronunciation band comes from the audio alone. Halting or very short speech is hard to judge, so treat it as a rough guide.</InfoNote>
+            </span>
+          )}
+          {first}
+        </>
+      ),
+      detail: (
+        <>
+          {rest && <p className="type-body max-w-[68ch]">{rest}</p>}
+          <DetailField label="Likely band"><p className="type-body type-num">{lo === hi ? formatBand(lo) : `${formatBand(lo)}–${formatBand(hi)}`}</p></DetailField>
+          {c.evidence.length > 0 && (
+            <DetailField label="Evidence from your answer">
+              <ul className="space-y-2">
+                {c.evidence.map((q) => (
+                  <li key={q} className="type-reading-sm border-l-2 border-line pl-3">
+                    {'“'}{q}{'”'}
+                  </li>
+                ))}
+              </ul>
+            </DetailField>
+          )}
+          {c.descriptor && (
+            <DetailField label="Band descriptor"><p className="type-body">{c.descriptor}</p></DetailField>
+          )}
+        </>
+      ),
+    };
+  });
+  return (
+    <div className="space-y-8 md:space-y-12">
+      {off && (
+        <Alert tone="bad" title="Off topic">
+          {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
+          <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
+            See details in Language
+          </Link>
+        </Alert>
+      )}
+      <Section title="Summary" caption={spread >= 2 ? `${criterionLabel(low.k)} (${formatBand(low.band)}) pulls the overall ${formatBand(avg)} down. Fix it first.` : 'Your four criteria, each against your target. The tick on a bar is the target.'}>
+        <CriteriaStrip layout="rows" items={items} />
+      </Section>
+      {r.topFixes.length > 0 && (
+        <Section title={r.topFixes.length === 1 ? 'One thing to fix next' : `${r.topFixes.length} things to fix next`}>
+          <FixList items={r.topFixes.map((f) => ({ title: f.title, why: f.why, before: f.before, after: f.after }))} onAddAll={deck.add} added={deck.added} />
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function Panel({ tab, a, timeline, target, audio, off, lean, onLean, deck }: { lean: RepeatedWord | null; onLean: (w: RepeatedWord | null) => void; tab: Tab; a: Attempt; timeline?: Timeline; target: number; audio: ReturnType<typeof useAudio>['controls']; off: ReturnType<typeof offTopicAnswers>; deck: AddFixes }) {
   const r = a.analysis!;
   switch (tab) {
     case 'overview':
-      return (
-        <OverviewPanel
-          result={r}
-          order={SPEAKING_CRITERIA}
-          target={target}
-          parentLink={parentLink}
-          alert={
-            off && (
-              <Alert tone="bad" title="Off topic">
-                {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
-                <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
-                  See details in Language
-                </Link>
-              </Alert>
-            )
-          }
-        />
-      );
+      return <Overview result={r} target={target} off={off} deck={deck} />;
     case 'transcript':
       return <Transcript result={r} audio={audio} lean={lean} onClear={() => onLean(null)} />;
     case 'fluency':
@@ -217,7 +350,7 @@ function Panel({ tab, a, timeline, target, audio, retry, parentLink, off, lean, 
     case 'language':
       return <LanguagePanel result={r} audio={audio} lean={lean} onLean={onLean} />;
     case 'improve':
-      return <ImprovePanel result={r} retry={retry} inDeck={!!a.topFixesInDeck} />;
+      return <ImprovePanel result={r} deck={deck} />;
   }
 }
 

@@ -39,14 +39,14 @@ function Parts({ parts }: { parts: Change[] }) {
  * Word-level diff of the original essay against a rewrite (band+1 or a retry), with a clean-read toggle.
  * Unchanged sentences collapse to a marker on phones (a wall of text otherwise); "Show unchanged text" brings them back.
  */
-export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite' }: { original: string; rewrite: string; cleanLabel?: string }) {
-  const [view, setView] = useState<'diff' | 'clean'>('diff');
+export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite', defaultView = 'clean' }: { original: string; rewrite: string; cleanLabel?: string; defaultView?: 'diff' | 'clean' }) {
+  const [view, setView] = useState<'diff' | 'clean'>(defaultView);
   const chunks = useMemo(() => chunk(original, rewrite), [original, rewrite]);
   const changed = chunks.some((c) => 'parts' in c);
   const [full, setFull] = useState(() => globalThis.matchMedia?.('(min-width: 48rem)').matches ?? true);
   const collapse = changed && !full;
   return (
-    <div className="mx-auto max-w-[68ch] space-y-5">
+    <div className="max-w-[68ch] space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Segmented
           label="Rewrite view"
@@ -59,7 +59,7 @@ export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite' }: { 
           ]}
         />
         {view === 'diff' && (
-          <p className="flex items-center gap-3 text-sm text-muted">
+          <p className="type-caption flex items-center gap-3">
             <del className="rounded-sm bg-bad-soft px-1.5 text-bad-text">removed</del>
             <ins className="rounded-sm bg-good-soft px-1.5 text-good-text no-underline">added</ins>
           </p>
@@ -72,9 +72,11 @@ export function DiffView({ original, rewrite, cleanLabel = 'Clean rewrite' }: { 
               'parts' in c ? (
                 <Parts key={i} parts={c.parts} />
               ) : collapse ? (
-                <span key={i} className="mx-1 inline-block rounded-sm bg-surface-2 px-2 font-sans text-sm whitespace-normal text-muted">
-                  {countWords(c.same)} unchanged words
-                </span>
+                countWords(c.same) > 0 && (
+                  <span key={i} className="type-caption mx-1 inline-block rounded-sm bg-surface-2 px-2 font-sans whitespace-normal">
+                    {countWords(c.same)} unchanged words
+                  </span>
+                )
               ) : (
                 <span key={i}>{c.same}</span>
               ),

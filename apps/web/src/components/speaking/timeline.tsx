@@ -37,13 +37,13 @@ export function MarkerDetail({ marker, audio }: { marker: Marker; audio: AudioCo
     <Card className="space-y-3" aria-live="polite">
       <div className="flex items-center gap-2">
         <MarkerShape type={marker.type} />
-        <span className="text-sm font-medium">{TYPE_STYLE[marker.type].label}</span>
+        <span className="type-subheading">{TYPE_STYLE[marker.type].label}</span>
         <span className="type-caption type-num">{formatClock(Math.floor(marker.t))}</span>
         <Button size="icon" variant="ghost" aria-label="Close" className="ml-auto" onClick={() => audio.clear()}>
           <X />
         </Button>
       </div>
-      {marker.error ? <ErrorDetails error={marker.error} onPlay={() => audio.seek(marker.t, (marker.end ?? marker.t + 2) + 0.3)} /> : <p className="text-sm">{marker.label}</p>}
+      {marker.error ? <ErrorDetails error={marker.error} onPlay={() => audio.seek(marker.t, (marker.end ?? marker.t + 2) + 0.3)} /> : <p className="type-body">{marker.label}</p>}
     </Card>
   );
 }

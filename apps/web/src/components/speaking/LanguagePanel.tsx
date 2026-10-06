@@ -3,14 +3,21 @@ import type { AnalysisError, AnalysisResult } from '@server/ai/types';
 import { ArrowRight, ChevronDown, CircleCheck, Play, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import { ErrorDetails } from '@/components/results';
-import { Badge, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, InfoTip, ProgressBar } from '@/components/ui';
+import { InfoNote, Section, StatList } from '@/components/result';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, ProgressBar } from '@/components/ui';
 import { LeanChip } from '@/components/LeanPill';
 import { answeredRelevance, categoryLabel, questionHead } from '@/lib/result';
+import { plural } from '@/lib/format';
 import type { AudioControls } from './AudioBar';
 
 const ISSUE = { sound: 'Sound', stress: 'Word stress', intonation: 'Intonation', unclear: 'Unclear' };
 
-/** Language tab: errors by category, vocabulary upgrades, lexical diversity, relevance, pronunciation hints. */
+/** Words worth listing as unclear: real words (letters only, 3+), not "-", "v" or "a...". Lowest confidence first. Pure for testing. */
+export const isRealWord = (w: string) => /^[a-z']{3,}$/i.test(w);
+
+const UNCLEAR_SHOWN = 6;
+
+/** Language tab: errors by category, vocabulary upgrades, did you answer, word choice, pronunciation. */
 export function LanguagePanel({ result, audio, lean, onLean }: { result: AnalysisResult; audio: AudioControls; lean?: RepeatedWord | null; onLean?: (w: RepeatedWord | null) => void }) {
   const words = result.words ?? [];
   const text = useMemo(() => computeTextMetrics(words.map((w) => w.w).join(' ')), [words]);
@@ -20,49 +27,49 @@ export function LanguagePanel({ result, audio, lean, onLean }: { result: Analysi
     return [...m].sort((a, b) => b[1].length - a[1].length);
   }, [result.errors]);
   const maxCount = groups[0]?.[1].length ?? 1;
+  const bars = new Set(groups.map(([, e]) => e.length)).size > 1; // bars only say something when the counts differ
   const play = ({ time, end }: AnalysisError) => (time != null ? () => audio.seek(time, (words[end]?.end ?? time + 2) + 0.3) : undefined);
   // Same labels as the writing tab; spoken thresholds sit lower (around 70+ is typical of band 7 speech).
   const [mtldTone, mtldLabel] = text.mtld >= 70 ? (['good', 'Wide range'] as const) : text.mtld >= 50 ? (['warn', 'Adequate range'] as const) : (['bad', 'Limited range'] as const);
+  const relevance = answeredRelevance(result);
 
   return (
-    <div className="space-y-10">
-      <section>
-        <h2 className="type-heading mb-4">Mistakes by type</h2>
+    <div className="space-y-8 md:space-y-12">
+      <Section title="Mistakes by type" caption={groups.length ? `${plural(result.errors.length, 'mistake')} in ${plural(groups.length, 'type')}. Select a type to see each one.` : undefined}>
         {groups.length ? (
-          <Card padded={false} className="divide-y divide-line overflow-hidden">
+          <ul className="max-w-[68ch] divide-y divide-line">
             {groups.map(([cat, errs]) => (
-              <Collapsible key={cat} className="group">
-                <CollapsibleTrigger className="flex min-h-14 w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-hover">
-                  <span className="w-32 shrink-0 text-sm font-medium sm:w-56">{categoryLabel(cat)}</span>
-                  <ProgressBar value={errs.length / Math.max(maxCount, 5)} label={`${errs.length} ${categoryLabel(cat)} mistakes`} className="min-w-0 flex-1" />
-                  <span className="w-6 text-right text-sm tabular-nums">{errs.length}</span>
-                  <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-data-[state=open]:rotate-180" aria-hidden />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <ul className="divide-y divide-line bg-surface-2">
-                    {errs.map((e) => (
-                      <li key={e.id} className="px-5 py-4">
-                        <ErrorDetails error={e} onPlay={play(e)} />
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleContent>
-              </Collapsible>
+              <li key={cat}>
+                <Collapsible className="group">
+                  <CollapsibleTrigger className="flex min-h-12 w-full items-center gap-3 py-3 text-left">
+                    <span className="type-body min-w-0 flex-1">{categoryLabel(cat)}</span>
+                    {bars && <ProgressBar value={errs.length / Math.max(maxCount, 5)} label={`${errs.length} ${categoryLabel(cat)} mistakes`} className="w-24 shrink-0 sm:w-40" />}
+                    <span className="type-body type-num w-8 text-right">{errs.length}</span>
+                    <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className="divide-y divide-line border-t border-line pl-3">
+                      {errs.map((e) => (
+                        <li key={e.id} className="py-4">
+                          <ErrorDetails error={e} onPlay={play(e)} />
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
+              </li>
             ))}
-          </Card>
+          </ul>
         ) : (
-          <Card>
-            <p className="text-sm text-muted">No grammar or vocabulary mistakes were flagged in this answer.</p>
-          </Card>
+          <p className="type-body">No grammar or vocabulary mistakes were flagged in this answer.</p>
         )}
-      </section>
+      </Section>
 
       {result.vocabUpgrades.length > 0 && (
-        <section>
-          <h2 className="type-heading mb-4">Vocabulary upgrades</h2>
-          <Card padded={false} className="divide-y divide-line">
+        <Section title="Vocabulary upgrades">
+          <ul className="max-w-[68ch] divide-y divide-line">
             {result.vocabUpgrades.map((v) => (
-              <div key={v.original} className="space-y-2 px-5 py-4">
+              <li key={v.original} className="space-y-2 py-4 first:pt-0">
                 <p className="type-reading-sm flex flex-wrap items-center gap-2">
                   <span className="text-muted line-through decoration-muted/50">{v.original}</span>
                   <ArrowRight role="img" className="size-4 shrink-0 text-muted" aria-label="try" />
@@ -72,64 +79,55 @@ export function LanguagePanel({ result, audio, lean, onLean }: { result: Analysi
                     </span>
                   ))}
                 </p>
-                <p className="max-w-[68ch] text-sm text-muted">{v.note}</p>
-              </div>
+                <p className="type-body">{v.note}</p>
+              </li>
             ))}
-          </Card>
-        </section>
+          </ul>
+        </Section>
       )}
 
-      <section>
-        <Card padded={false} className="grid md:grid-cols-2 md:divide-x md:divide-line">
-          <div className="p-5">
-            <h2 className="type-subheading flex items-center gap-1">
-              Lexical diversity
-              <InfoTip label="About lexical diversity">MTLD: how long you keep using new words before repeating yourself. Higher means a wider range. Around 70+ is typical of band 7 speech.</InfoTip>
-            </h2>
-            <p className="type-band mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-4xl">
-              {Math.round(text.mtld)} <span className="font-sans text-sm font-medium tracking-normal text-muted">MTLD</span>
-              <Badge tone={mtldTone} className="font-sans tracking-normal">{mtldLabel}</Badge>
-            </p>
-            {(text.words < 50 || mtldTone !== 'good') && <p className="type-caption mt-3">{text.words < 50 ? 'Short answer, so treat this number as rough.' : 'Try synonyms and more precise words for repeated ideas.'}</p>}
-          </div>
-          <div className="border-t border-line p-5 md:border-t-0">
-            <h2 className="type-subheading">Words you leaned on</h2>
-            {text.repeated.length ? (
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {text.repeated.slice(0, 10).map((r) => (
-                  <li key={r.word}>
-                    <LeanChip r={r} lean={lean} onLean={onLean} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="type-caption mt-2">No content word stood out as overused.</p>
-            )}
-          </div>
-        </Card>
-      </section>
-
-      {answeredRelevance(result).length > 0 && (
-        <section id="relevance" className="scroll-mt-20">
-          <h2 className="type-heading mb-4">Did you answer the question?</h2>
-          <Card padded={false} className="divide-y divide-line">
-            {answeredRelevance(result).map((r) => {
+      {relevance.length > 0 && (
+        <Section id="relevance" title="Did you answer the question?" className="scroll-mt-20">
+          <ul className="max-w-[68ch] divide-y divide-line">
+            {relevance.map((r) => {
               // Cue-card text is title + body (which restates the title): show the title, then the rest muted.
               const q = questionHead(result.questions?.[r.questionIdx]?.text ?? `Question ${r.questionIdx + 1}`);
               return (
-                <div key={r.questionIdx} className="flex gap-3 px-5 py-4">
-                  {r.onTopic ? <CircleCheck role="img" className="mt-0.5 size-5 shrink-0 text-good-text" aria-label="On topic" /> : <TriangleAlert role="img" className="mt-0.5 size-5 shrink-0 text-warn-text" aria-label="Off topic" />}
-                  <div className="min-w-0">
-                    <p className="text-body font-medium">{q.head}</p>
-                    {q.rest && <p className="mt-0.5 text-xs text-muted">{q.rest}</p>}
-                    <p className="mt-1.5 text-sm text-muted">{r.note}</p>
+                <li key={r.questionIdx} className="flex gap-3 py-4 first:pt-0">
+                  {r.onTopic ? <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-good-text" /> : <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-warn-text" />}
+                  <div className="min-w-0 space-y-1">
+                    <p className="type-subheading">
+                      Question {r.questionIdx + 1}: <span className={r.onTopic ? 'text-good-text' : 'text-warn-text'}>{r.onTopic ? 'On topic' : 'Off topic'}</span>
+                    </p>
+                    <p className="type-caption">{q.rest ? `${q.head} ${q.rest}` : q.head}</p>
+                    <p className="type-body">{r.note}</p>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </Card>
-        </section>
+          </ul>
+        </Section>
       )}
+
+      <Section title="Word choice">
+        <StatList
+          cols={2}
+          items={[{ label: 'Lexical diversity (MTLD)', value: Math.round(text.mtld), status: { text: mtldLabel, tone: mtldTone }, info: <InfoNote label="About lexical diversity">MTLD: how long you keep using new words before repeating yourself. Higher means a wider range. Around 70+ is typical of band 7 speech.</InfoNote>, hint: text.words < 50 ? 'Short answer, so treat this number as rough.' : mtldTone !== 'good' ? 'Try synonyms and more precise words for repeated ideas.' : undefined }]}
+        />
+        <Section level={3} title="Words you leaned on">
+          {text.repeated.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {text.repeated.slice(0, 10).map((r) => (
+                <li key={r.word}>
+                  <LeanChip r={r} lean={lean} onLean={onLean} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="type-body">No content word stood out as overused.</p>
+          )}
+        </Section>
+      </Section>
 
       <Pronunciation result={result} audio={audio} />
     </div>
@@ -140,45 +138,74 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
   const words = result.words ?? [];
   const unclear = result.pronunciation?.unclear ?? [];
   const llm = result.pronunciation?.llm;
+  // Lowest confidence first; the first few real words are shown, everything else sits behind a toggle.
+  const ranked = [...unclear].sort((a, b) => a.conf - b.conf);
+  const top = ranked.filter((u) => isRealWord(u.w)).slice(0, UNCLEAR_SHOWN);
+  const rest = ranked.filter((u) => !top.includes(u));
+  const row = (u: (typeof unclear)[number]) => {
+    const w = words[u.wordIdx];
+    return (
+      <li key={u.wordIdx} className="flex items-center gap-3 py-1">
+        <Button size="icon" variant="ghost" aria-label={`Play "${u.w}"`} disabled={!w} onClick={() => w && audio.seek(w.start, w.end + 0.4)}>
+          <Play />
+        </Button>
+        <span className="type-body min-w-0 flex-1">{u.w}</span>
+        <span className="type-body type-num w-12 text-right">{Math.round(u.conf * 100)}%</span>
+      </li>
+    );
+  };
+  // One badge per group instead of one per row.
+  const grouped = (list: typeof unclear) =>
+    ([3, 2] as const).map((tier) => ({ tier, items: list.filter((u) => (u.tier === 3 ? 3 : 2) === tier) })).filter((g) => g.items.length > 0);
+  const groupBlock = (list: typeof unclear) =>
+    grouped(list).map((g) => (
+      <div key={g.tier} className="space-y-1">
+        <Badge tone={g.tier === 3 ? 'bad' : 'warn'}>{g.tier === 3 ? 'Hard to recognise' : 'Slightly unclear'}</Badge>
+        <ul className="max-w-[68ch]">{g.items.map(row)}</ul>
+      </div>
+    ));
   return (
-    <section>
-      <h2 className="type-heading">Pronunciation</h2>
-      <p className="type-caption mt-1 mb-4 text-sm">Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.</p>
-      <Card padded={false} className="divide-y divide-line">
-        {unclear.length === 0 && !llm && <p className="px-5 py-4 text-sm text-muted">Speech recognition understood every word clearly.</p>}
-        {unclear.map((u) => {
-          const w = words[u.wordIdx];
-          return (
-            <div key={u.wordIdx} className="flex items-center gap-3 px-3 py-2 sm:px-4">
-              <Button size="icon" variant="ghost" aria-label={`Play "${u.w}"`} disabled={!w} onClick={() => w && audio.seek(w.start, w.end + 0.4)}>
-                <Play />
-              </Button>
-              <span className="min-w-0 flex-1 font-medium">{u.w}</span>
-              <Badge tone={u.tier === 3 ? 'bad' : 'warn'}>{u.tier === 3 ? 'Hard to recognise' : 'Slightly unclear'}</Badge>
-              <span className="w-12 text-right text-xs text-muted tabular-nums">{Math.round(u.conf * 100)}%</span>
-            </div>
-          );
-        })}
-        {llm?.words.map((w) => (
-          <div key={`${w.word}-${w.time}`} className="flex items-start gap-3 px-3 py-2 sm:px-4">
-            <Button size="icon" variant="ghost" aria-label={`Play "${w.word}"`} onClick={() => audio.seek(w.time, w.time + 1.2)}>
-              <Play />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">
-                {w.word} <Badge tone="neutral">{ISSUE[w.issue]}</Badge>
-              </p>
-              <p className="mt-0.5 text-sm text-muted">{w.tip}</p>
-            </div>
-          </div>
-        ))}
-        {llm?.prosody && (
-          <div className="px-5 py-4">
-            <p className="text-sm font-medium">Rhythm and intonation</p>
-            <p className="mt-1 text-sm text-muted">{llm.prosody}</p>
-          </div>
-        )}
-      </Card>
-    </section>
+    <Section title="Pronunciation" caption="Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.">
+      {unclear.length === 0 && !llm && <p className="type-body">Speech recognition understood every word clearly.</p>}
+      {llm?.prosody && (
+        <div className="max-w-[68ch] space-y-1">
+          <h3 className="type-subheading">Rhythm and intonation</h3>
+          <p className="type-body">{llm.prosody}</p>
+        </div>
+      )}
+      {llm && llm.words.length > 0 && (
+        <Section level={3} title="Word tips">
+          <ul className="max-w-[68ch] divide-y divide-line">
+            {llm.words.map((w) => (
+              <li key={`${w.word}-${w.time}`} className="flex items-start gap-3 py-2 first:pt-0">
+                <Button size="icon" variant="ghost" aria-label={`Play "${w.word}"`} onClick={() => audio.seek(w.time, w.time + 1.2)}>
+                  <Play />
+                </Button>
+                <div className="min-w-0 flex-1">
+                  <p className="type-subheading flex flex-wrap items-center gap-2">
+                    {w.word} <Badge tone="neutral">{ISSUE[w.issue]}</Badge>
+                  </p>
+                  <p className="type-body mt-0.5">{w.tip}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+      {unclear.length > 0 && (
+        <Section level={3} title="Words speech recognition found unclear" caption={`Lowest confidence first. The percentage is how sure the recogniser was of the word.`}>
+          {groupBlock(top.length ? top : ranked)}
+          {top.length > 0 && rest.length > 0 && (
+            <Collapsible className="group">
+              <CollapsibleTrigger className="type-body hit text-accent-text underline-offset-2 hover:underline">
+                <span className="group-data-[state=open]:hidden">Show all {unclear.length}</span>
+                <span className="hidden group-data-[state=open]:inline">Show fewer</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-3">{groupBlock(rest)}</CollapsibleContent>
+            </Collapsible>
+          )}
+        </Section>
+      )}
+    </Section>
   );
 }

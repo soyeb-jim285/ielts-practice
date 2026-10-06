@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ArrowLeft, BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, MessageSquareWarning, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -24,6 +24,7 @@ import { ADMIN_ITEMS, Marker, useAdminNav } from '@/components/admin/AdminNav';
 import { BalanceMeter } from '@/components/community/BalanceMeter';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
+import { openFeedback } from './FeedbackButton';
 import { Logo, LogoMark } from './Logo';
 
 type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings' | '/admin'; label: string; short?: string; icon: LucideIcon };
@@ -243,12 +244,16 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
         <SidebarBalance />
-        {signedIn && (
-          <SidebarMenu>
-            <SideLink item={SETTINGS} />
-            {owner && !inAdmin && <SideLink item={ADMIN} />}
-          </SidebarMenu>
-        )}
+        <SidebarMenu>
+          {signedIn && <SideLink item={SETTINGS} />}
+          {signedIn && owner && !inAdmin && <SideLink item={ADMIN} />}
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Report a problem" className={rowClass} onClick={(e) => openFeedback(e.currentTarget)}>
+              <MessageSquareWarning />
+              <span>Report a problem</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <UserMenu />
         {state !== 'collapsed' && (
           <Link to="/privacy" className="px-2 text-caption text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
@@ -341,6 +346,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        <button
+          type="button"
+          onClick={() => {
+            setMore(false);
+            openFeedback(moreButton.current);
+          }}
+          className="-mx-2 mt-1 flex h-11 w-[calc(100%+1rem)] items-center gap-3 rounded-md px-3 text-body font-medium text-muted transition-colors duration-150 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <MessageSquareWarning className="size-5 shrink-0" aria-hidden />
+          Report a problem
+        </button>
         <Link to="/privacy" onClick={() => setMore(false)} className="mt-2 inline-block px-1 text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Privacy
         </Link>

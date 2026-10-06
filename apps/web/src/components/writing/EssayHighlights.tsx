@@ -2,10 +2,11 @@ import type { RepeatedWord } from '@ielts/core';
 import type { AnalysisError } from '@server/ai/types';
 import { clsx } from 'clsx';
 import { ArrowRight, MapPinOff } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import { highlightWords, LeanPill } from '@/components/LeanPill';
 import { ErrorDetails } from '@/components/results';
-import { Badge, Card, Chip, Popover, Sheet } from '@/components/ui';
+import { Disclosure, Section } from '@/components/result';
+import { Chip, Popover, Sheet } from '@/components/ui';
 import { categoryLabel } from '@/lib/result';
 import { countWords } from './WritingEditor';
 
@@ -65,15 +66,57 @@ function revealMistake(id: string) {
   setTimeout(() => el.click(), 250);
 }
 
+const LG = '(min-width: 64rem)';
+/** True from `lg` up, where the mistakes list sits beside the essay instead of under it. */
+function useWide() {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = matchMedia(LG);
+      m.addEventListener('change', cb);
+      return () => m.removeEventListener('change', cb);
+    },
+    () => matchMedia(LG).matches,
+    () => true,
+  );
+}
+
+/** One row of the mistakes list: the fix first, why in one line, then category and severity. Full detail opens on select. */
+function MistakeRow({ e, placed, onSelect, onHover }: { e: AnalysisError; placed: boolean; onSelect: () => void; onHover: (on: boolean) => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => onHover(false)}
+        onFocus={() => onHover(true)}
+        onBlur={() => onHover(false)}
+        className="flex min-h-11 w-full flex-col items-start gap-1 px-1 py-3 text-left transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-inset"
+      >
+        {e.original && <span className="type-caption line-clamp-2 text-muted line-through decoration-bad/50">{e.original}</span>}
+        <span className="type-body line-clamp-3 text-ink">{e.correction || e.explanation}</span>
+        {e.correction && e.explanation && <span className="type-caption line-clamp-1">{e.explanation}</span>}
+        <span className="type-caption flex items-center gap-1.5">
+          <span className={e.severity === 'major' ? 'text-bad-text' : 'text-warn-text'}>{e.severity === 'major' ? 'Major' : 'Minor'}</span>
+          <span aria-hidden>·</span>
+          <span>{errorTitle(e.category)}</span>
+          {!placed && <MapPinOff role="img" className="size-4 shrink-0" aria-label="Not located in the text" />}
+        </span>
+      </button>
+    </li>
+  );
+}
+
 /**
  * The submitted essay with every located mistake underlined; tap one for the correction.
- * From `lg` a sticky margin list sits beside the essay (every mistake with its fix, click to jump to it); on phones it follows the essay.
+ * From `lg` a sticky margin list sits beside the essay (every mistake with its fix, click to jump to it); below that it is a disclosure under the essay.
  */
 export function EssayHighlights({ text, errors, lean, onClear }: { text: string; errors: AnalysisError[]; lean?: RepeatedWord | null; onClear?: () => void }) {
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<AnalysisError | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const essay = useRef<HTMLDivElement>(null);
+  const wide = useWide();
   useEffect(() => {
     if (lean) essay.current?.querySelector('[data-lean]')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }, [lean]);
@@ -83,35 +126,50 @@ export function EssayHighlights({ text, errors, lean, onClear }: { text: string;
   const unplacedIds = useMemo(() => new Set(unplaced.map((e) => e.id)), [unplaced]);
   const list = useMemo(() => [...errors].sort((a, b) => Number(unplacedIds.has(a.id)) - Number(unplacedIds.has(b.id)) || a.start - b.start).filter(shown), [errors, unplacedIds, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const rows =
+    list.length === 0 ? (
+      <p className="type-caption">No mistakes in this category.</p>
+    ) : (
+      <ul className="divide-y divide-line">
+        {list.map((e) => {
+          const placed = !unplacedIds.has(e.id);
+          return <MistakeRow key={e.id} e={e} placed={placed} onSelect={() => (placed ? revealMistake(e.id) : setOpen(e))} onHover={(on) => setHover(on ? e.id : null)} />;
+        })}
+      </ul>
+    );
+
   return (
-    <div className="space-y-5">
-      {categories.length > 1 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter mistakes">
-          <Chip selected={!filter} onClick={() => setFilter(null)}>
-            All <span className="type-num opacity-70">{errors.length}</span>
-          </Chip>
-          {categories.map((c) => (
-            <Chip key={c} selected={filter === c} onClick={() => setFilter(filter === c ? null : c)}>
-              {categoryLabel(c)} <span className="type-num opacity-70">{errors.filter((e) => group(e) === c).length}</span>
-            </Chip>
-          ))}
-        </div>
-      )}
+    <div className="grid items-start gap-8 md:gap-12 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-8 md:space-y-12">
+        <Section title="Your essay" caption="Select an underlined phrase for the fix.">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            {categories.length > 1 ? (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filter mistakes">
+                <Chip selected={!filter} onClick={() => setFilter(null)}>
+                  All <span className="type-num opacity-70">{errors.length}</span>
+                </Chip>
+                {categories.map((c) => (
+                  <Chip key={c} selected={filter === c} onClick={() => setFilter(filter === c ? null : c)}>
+                    {categoryLabel(c)} <span className="type-num opacity-70">{errors.filter((e) => group(e) === c).length}</span>
+                  </Chip>
+                ))}
+              </div>
+            ) : (
+              <span />
+            )}
+            <p className="type-caption flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-4 rounded bg-bad" aria-hidden /> Major
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0 w-4 border-t-2 border-dotted border-warn" aria-hidden /> Minor
+              </span>
+            </p>
+          </div>
 
-      {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
+          {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card padded={false} className="px-5 py-6 sm:px-10 sm:py-9">
-          <p className="type-caption mb-6 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-0.5 w-4 rounded bg-bad" aria-hidden /> Major
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-0 w-4 border-t-2 border-dotted border-warn" aria-hidden /> Minor
-            </span>
-            <span>Select an underlined phrase for the fix.</span>
-          </p>
-          <div ref={essay} className="type-reading whitespace-pre-wrap text-ink">
+          <div ref={essay} className="type-reading max-w-[68ch] whitespace-pre-wrap text-ink">
             {segments.map(({ text: t, error: err }, i) =>
               err && shown(err) ? (
                 <Mistake key={i} error={err} onSheet={setOpen}>
@@ -145,55 +203,24 @@ export function EssayHighlights({ text, errors, lean, onClear }: { text: string;
               ),
             )}
           </div>
-        </Card>
+        </Section>
 
-        <aside aria-label="All mistakes" className="lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto">
-          <h2 className="type-heading mb-2 flex items-baseline justify-between">
-            Mistakes <span className="type-num text-sm font-normal text-muted">{list.length}</span>
-          </h2>
-          {list.length === 0 ? (
-            <p className="type-caption">No mistakes in this category.</p>
-          ) : (
-            <ul className="divide-y divide-line border-y border-line">
-              {list.map((e) => {
-                const placed = !unplacedIds.has(e.id);
-                return (
-                  <li key={e.id}>
-                    <button
-                      type="button"
-                      onClick={() => (placed ? revealMistake(e.id) : setOpen(e))}
-                      onMouseEnter={() => setHover(e.id)}
-                      onMouseLeave={() => setHover(null)}
-                      onFocus={() => setHover(e.id)}
-                      onBlur={() => setHover(null)}
-                      className="flex min-h-11 w-full flex-col items-start gap-1 px-1 py-3 text-left text-sm transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-inset"
-                    >
-                      <span className="flex w-full items-center gap-2">
-                        <Badge tone={e.severity === 'major' ? 'bad' : 'warn'}>{e.severity}</Badge>
-                        <span className="type-caption min-w-0 flex-1 truncate">{errorTitle(e.category)}</span>
-                        {!placed && <MapPinOff role="img" className="size-4 shrink-0 text-muted" aria-label="Not located in the text" />}
-                      </span>
-                      {e.original || e.correction ? (
-                        <span className="flex flex-col gap-0.5 text-body leading-snug">
-                          {e.original && <span className="line-clamp-2 text-muted line-through decoration-bad/50">{e.original}</span>}
-                          {e.correction && (
-                            <span className="flex items-start gap-1.5 font-medium text-good-text">
-                              <ArrowRight role="img" className="mt-0.5 size-4 shrink-0" aria-label="should be" />
-                              <span className="line-clamp-3">{e.correction}</span>
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="line-clamp-2 text-body leading-snug text-muted">{e.explanation}</span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </aside>
+        {!wide && (
+          <section aria-label="All mistakes">
+            <Disclosure level={2} title="Mistakes" meta={list.length}>
+              {rows}
+            </Disclosure>
+          </section>
+        )}
       </div>
+
+      {wide && (
+        <aside aria-label="All mistakes" className="lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto">
+          <Section title="Mistakes" caption={`${list.length} ${list.length === 1 ? 'mistake' : 'mistakes'}${filter ? ` in ${categoryLabel(filter)}` : ''}`}>
+            {rows}
+          </Section>
+        </aside>
+      )}
 
       <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? errorTitle(open.category) : ''}>
         {open && <ErrorDetails key={open.id} error={open} hideCategory />}

@@ -167,7 +167,7 @@ export function AudioBar({ src, audioRef, durationS, timeline, onPick }: { src: 
           </button>
         ))}
       </div>
-      <span className="type-num shrink-0 text-xs text-muted">
+      <span className="type-caption type-num shrink-0">
         {formatClock(Math.floor(t))} / {formatClock(Math.round(max))}
       </span>
       <Segmented

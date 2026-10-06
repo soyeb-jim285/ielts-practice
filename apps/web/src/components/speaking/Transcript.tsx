@@ -4,7 +4,8 @@ import { clsx } from 'clsx';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LEAN_CLASS, LeanPill } from '@/components/LeanPill';
 import { ErrorDetails, ErrorPopover } from '@/components/results';
-import { Card, Chip } from '@/components/ui';
+import { Section } from '@/components/result';
+import { Chip } from '@/components/ui';
 import { buildTokens, errorGroup, errorType, isLongPause, isSentenceNote, pauseSec, questionHead, type DisfluencyMark, type Token, type TranscriptFilter } from '@/lib/result';
 import { timelineMarkers, wordAt, type MarkerType } from '@/lib/timeline';
 import type { AudioControls } from './AudioBar';
@@ -130,7 +131,7 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
             um
           </button>{' '}
         </Fragment>
-      ) : (
+      ) : filter !== 'fluency' ? null : ( // the grey tags interrupt reading, so they appear only under the Fluency filter
       <button
         key={k}
         type="button"
@@ -138,9 +139,7 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
         aria-label={d.detail}
         onClick={() => audio.seek(d.time)}
         className={clsx(
-          'mr-1 inline-flex h-5 cursor-pointer items-center gap-1 rounded-sm bg-surface-2 px-1.5 align-middle font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap text-muted',
-          filter !== 'all' && filter !== 'fluency' && 'opacity-35',
-          filter === 'fluency' && 'ring-1 ring-chart-3',
+          'type-caption mr-1 inline-flex h-6 cursor-pointer items-center gap-1 rounded-sm bg-surface-2 px-1.5 align-middle font-sans leading-none whitespace-nowrap ring-1 ring-chart-3',
         )}
       >
         <MarkerShape type="fluency" size={8} />
@@ -152,15 +151,14 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
   const pause = (t: Token) => {
     const p = t.pauseAfter!;
     const long = isLongPause(p);
-    if (!long && filter !== 'pauses') return null; // short pauses would break the reading flow; the Pauses filter shows them
+    if (filter !== 'pauses' && !(long && filter === 'fluency')) return null; // pause tags break the reading flow, so they show under the Pauses filter (all) or Fluency (long ones)
     return (
       <span
         data-p={t.i}
         onClick={() => audio.seek(p.start)}
         className={clsx(
-          'type-num mx-0.5 inline-flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 align-middle font-sans text-xs font-medium',
-          long ? 'bg-bad-soft text-bad-text' : 'bg-surface-2 text-muted',
-          filter !== 'all' && filter !== 'pauses' && 'opacity-35',
+          'type-caption type-num mx-0.5 inline-flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 align-middle font-sans',
+          long ? 'bg-bad-soft text-bad-text' : 'bg-surface-2',
           filter === 'pauses' && 'ring-1 ring-current',
         )}
       >
@@ -180,10 +178,11 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
     const q = heads.get(i);
     if (q)
       out.push(
-        <p key={`q${i}`} className={clsx('mb-1.5 font-sans text-sm font-medium text-muted', i > 0 && 'mt-6 border-t border-line pt-5')}>
-          Q{q.n}. {q.head}
-          {q.rest && <span className="mt-0.5 block font-normal">{q.rest}</span>}
-        </p>,
+        <div key={`q${i}`} className={clsx('mb-2 font-sans leading-snug', i > 0 && 'mt-10')}>
+          <p className="type-caption">Question {q.n}</p>
+          <p className="type-subheading">{q.head}</p>
+          {q.rest && <p className="type-caption mt-0.5">{q.rest}</p>}
+        </div>,
       );
     const e = t.errorIds.map((id) => errors.get(id)!).find((x) => x.start === i && shown(x));
     if (e) {
@@ -233,66 +232,67 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
     if (lean) root.current?.querySelector('[data-lean]')?.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
   }, [lean]);
 
-  // Phones: filters, transcript, legend. lg+: the 68ch transcript on the left, filters and legend sticky on the right.
+  // One column: filters (which double as the key), one line of marks, the text, then what could not be placed in it.
   return (
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-x-10">
-      <div className="order-3 space-y-5 lg:col-start-1 lg:row-start-1">
-        {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
-        {marker && <MarkerDetail marker={marker} audio={audio} />}
-        <Card className="p-5 sm:p-8">
-          <div ref={root} className="type-reading leading-[2]">{out}</div>
-        </Card>
+    <Section title="Your answer, annotated" caption="Tap any word to hear it. Underlines mark mistakes; pick a filter to look at one kind.">
+      {/* Phones: one scrolling row; the right edge fades and the end padding lets the last chip scroll fully clear of the fade. */}
+      <div role="toolbar" aria-label="Show" className="-mx-4 flex snap-x scroll-pl-4 gap-2 overflow-x-auto pr-12 pb-1 pl-4 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 sm:[mask-image:none] *:snap-start">
+        {FILTERS.filter((f) => f.value === 'all' || f.value === filter || counts[f.value] > 0).map((f) => (
+          <Chip key={f.value} selected={filter === f.value} onClick={() => setFilter(f.value)}>
+            {f.label}
+            {f.value !== 'all' && <span className="type-num opacity-70">{counts[f.value]}</span>}
+          </Chip>
+        ))}
       </div>
-      <aside className="contents lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block lg:space-y-5">
-        {/* Phones: one scrolling row; the right edge fades and the end padding lets the last chip scroll fully clear of the fade. */}
-        <div role="toolbar" aria-label="Show" className="order-1 -mx-4 flex snap-x scroll-pl-4 gap-2 overflow-x-auto pr-12 pb-1 pl-4 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 sm:[mask-image:none] *:snap-start">
-          {FILTERS.filter((f) => f.value === 'all' || f.value === filter || counts[f.value] > 0).map((f) => (
-            <Chip key={f.value} selected={filter === f.value} onClick={() => setFilter(f.value)}>
-              {f.label}
-              {f.value !== 'all' && <span className="tabular-nums opacity-70">{counts[f.value]}</span>}
-            </Chip>
-          ))}
-        </div>
-        <Legend notes={result.errors.some(isSentenceNote)} fillers={hasFillers} marks={hasMarks} unclear={hasUnclear} />
-      </aside>
+      <Legend notes={result.errors.some(isSentenceNote)} fillers={hasFillers} marks={hasMarks} unclear={hasUnclear} />
+      {lean && onClear && <LeanPill lean={lean} onClear={onClear} />}
+      {marker && <MarkerDetail marker={marker} audio={audio} />}
+      <div ref={root} className="type-reading max-w-[68ch] leading-[1.9]">{out}</div>
       {unplaced.length > 0 && <Unplaced errors={unplaced} />}
-    </div>
+    </Section>
   );
 }
 
-/** What the marks mean, above the transcript; only the marks that appear in it. */
+/** What the marks mean: one line for the four mistake types, the rest behind a toggle. Only marks that appear in the text. */
 function Legend({ notes, fillers, marks, unclear }: { notes: boolean; fillers: boolean; marks: boolean; unclear: boolean }) {
   const shown: Record<MarkerType, boolean> = { grammar: true, vocabulary: true, pronunciation: unclear, fluency: fillers || marks };
   return (
-    <ul className="type-caption order-2 flex flex-wrap gap-x-5 gap-y-2 lg:flex-col">
-      {(Object.keys(TYPE_STYLE) as MarkerType[]).filter((k) => shown[k]).map((k) => (
-        <li key={k} className="flex items-center gap-1.5">
-          <MarkerShape type={k} size={9} />
-          <span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE[k].underline)}>word</span> {TYPE_STYLE[k].label.toLowerCase()}
-        </li>
-      ))}
-      {fillers && <li className="flex items-center gap-1.5"><span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE.fluency.underline)}>um</span> filler (italic when only heard in the audio)</li>}
-      {marks && <li>Tap a grey tag for the detail</li>}
-      <li className="flex items-center gap-1.5"><span className="rounded-sm bg-bad-soft px-1 text-xs font-medium whitespace-nowrap text-bad-text">pause 1.3s</span> long pause; short ones show under Pauses</li>
-      {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
-      <li className="flex items-center gap-1.5"><span className="rounded-sm bg-brand-soft px-1 text-ink">word</span> playing now; tap any word to hear it</li>
-    </ul>
+    <div className="space-y-2">
+      <ul className="type-caption flex flex-wrap gap-x-5 gap-y-2">
+        {(Object.keys(TYPE_STYLE) as MarkerType[]).filter((k) => shown[k]).map((k) => (
+          <li key={k} className="flex items-center gap-1.5">
+            <MarkerShape type={k} size={9} />
+            <span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE[k].underline)}>word</span> {TYPE_STYLE[k].label.toLowerCase()}
+          </li>
+        ))}
+      </ul>
+      <details className="group">
+        <summary className="type-body hit cursor-pointer list-none text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          <span className="group-open:hidden">More about the marks</span>
+          <span className="hidden group-open:inline">Hide the marks key</span>
+        </summary>
+        <ul className="type-caption mt-2 space-y-2">
+          {fillers && <li className="flex items-center gap-1.5"><span className={clsx('underline decoration-2 underline-offset-4', TYPE_STYLE.fluency.underline)}>um</span> filler (italic when only heard in the audio)</li>}
+          {marks && <li>Grey tags (repeat, repair, false start, cut-off) show under Fluency. Tap one for the detail.</li>}
+          <li className="flex items-center gap-1.5"><span className="type-num rounded-sm bg-bad-soft px-1 whitespace-nowrap text-bad-text">pause 1.3s</span> long pause; short ones show under Pauses</li>
+          {notes && <li className="flex items-center gap-1.5"><span className="rounded-sm bg-warn-soft px-1">…</span> task note (select Task &amp; other)</li>}
+          <li className="flex items-center gap-1.5"><span className="rounded-sm bg-brand-soft px-1 text-ink">word</span> playing now</li>
+        </ul>
+      </details>
+    </div>
   );
 }
 
 function Unplaced({ errors }: { errors: AnalysisError[] }) {
   return (
-    <section className="order-4 lg:col-start-1">
-      <h3 className="type-heading mb-3">Also noted</h3>
-      <Card padded={false} className="overflow-hidden">
-        <ul className="divide-y divide-line">
-          {errors.map((e) => (
-            <li key={e.id} className="px-5 py-4">
-              <ErrorDetails error={e} />
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </section>
+    <Section title="Also noted" level={3} caption="Notes that could not be placed on a word in the text.">
+      <ul className="max-w-[68ch] divide-y divide-line">
+        {errors.map((e) => (
+          <li key={e.id} className="py-4 first:pt-0">
+            <ErrorDetails error={e} />
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
