@@ -296,17 +296,22 @@ export function register(app: App) {
     }),
     async (c) => {
       const user = currentUser(c);
-      const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
+      let t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
       if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
       const { mode, parts, fresh } = c.req.valid('json');
+      if (t.retired && (fresh || !(await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')) })))) {
+        // replaced (Retake on an old result): start its newer version, the live test with the same ref; an open attempt on the old one still resumes below
+        const next = await db.query.lrTests.findFirst({ where: and(eq(lrTests.ref, t.ref), eq(lrTests.skill, t.skill), eq(lrTests.variant, t.variant), eq(lrTests.retired, false)) });
+        if (!next || !canOpen(next, user)) throw new HTTPException(404, { message: 'This test has been replaced and is no longer available' });
+        if (fresh) await db.delete(lrAttempts).where(and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')));
+        t = next;
+      }
       const have = t.data.sections.map((s) => s.part);
       if (parts?.some((p) => !have.includes(p))) throw new HTTPException(400, { message: 'This test has no such part' });
       // every part chosen = the whole test (keeps the band)
       const chosen = parts && have.some((p) => !parts.includes(p)) ? [...new Set(parts)].sort((x, y) => x - y) : null;
       const mineOpen = and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress'));
       const open = await db.query.lrAttempts.findFirst({ where: mineOpen });
-      // a replaced test can still be finished, never started again
-      if (t.retired && (fresh || !open)) throw new HTTPException(404, { message: 'This test has been replaced by a newer version' });
       if (fresh && open) await db.delete(lrAttempts).where(mineOpen);
       const a = (!fresh && open) || await insertLrAttempt(user.id, t.id, mode, chosen);
       return c.json(await toAttempt(a, t), 200);

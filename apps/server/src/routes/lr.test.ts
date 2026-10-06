@@ -208,16 +208,20 @@ describe('listening & reading tests', () => {
       expect([again.attemptId, again.parts, again.total]).toEqual([b.id, [1], 10]);
     });
 
-    it('a retired test leaves the list and takes no new attempts, but an open one resumes and old results still read', async () => {
+    it('a retired test leaves the list; an open attempt resumes and old results still read; a retake starts its newer version', async () => {
       const a = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }));
+      const [old] = await db.select().from(lrTests).where(eq(lrTests.id, lid));
       await db.update(lrTests).set({ retired: true }).where(eq(lrTests.id, lid));
       expect((await body(await req('/api/lr/tests?skill=listening', { headers }))).items).toEqual([]);
       expect((await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }))).id).toBe(a.id);
-      expect((await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice', fresh: true } })).status).toBe(404);
-      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200); // fresh was refused before discarding anything
       expect((await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: {} })).status).toBe(200);
+      // no newer version yet: nothing to start
       expect((await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } })).status).toBe(404);
-      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200);
+      const [next] = await db.insert(lrTests).values({ ...old!, id: undefined, slug: `${old!.slug}-v2`, retired: false, data: { ...old!.data, slug: `${old!.slug}-v2` } }).returning();
+      const r = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }));
+      expect(r.testId).toBe(next!.id);
+      expect((await body(await req('/api/lr/tests?skill=listening', { headers }))).items.map((i: any) => i.id)).toEqual([next!.id]);
+      expect((await req(`/api/lr/attempts/${a.id}`, { headers })).status).toBe(200); // the old result still reads
     });
 
     it("cannot read, save or submit another user's attempt", async () => {
