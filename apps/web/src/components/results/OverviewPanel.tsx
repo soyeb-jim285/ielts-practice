@@ -15,6 +15,7 @@ export function OverviewPanel({ result, order, target, parentLink, alert, capNot
   const spread = Math.max(...bands.map((x) => x.band)) - low.band;
   const avg = bands.length ? roundBand(bands.reduce((t, x) => t + x.band, 0) / bands.length) : 0;
   const capped = !!capNote && avg > result.overall;
+  const recognitionOnly = result.skill === 'speaking' && !result.pronunciation?.llm;
   return (
     <div className="space-y-10">
       {alert}
@@ -30,7 +31,8 @@ export function OverviewPanel({ result, order, target, parentLink, alert, capNot
             </>
           )}
         </p>
-        <CriteriaGrid criteria={result.criteria} order={order} target={target} deltas={result.comparison?.deltas} />
+        {recognitionOnly && <p className="type-caption mb-4 max-w-[68ch]">Pronunciation uses limited recognition evidence, so the overall speaking band is provisional. Recognition confidence cannot assess sounds, stress or intonation.</p>}
+        <CriteriaGrid criteria={result.criteria} order={order} target={target} deltas={result.comparison?.deltas} recognitionOnly={recognitionOnly} />
       </section>
       <ComparisonStrip result={result} parentLink={parentLink} />
       {result.topFixes.length > 0 && (

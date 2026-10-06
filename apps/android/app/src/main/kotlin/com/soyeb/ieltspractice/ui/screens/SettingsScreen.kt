@@ -230,10 +230,6 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
             ModelRow("Examiner voice model", null, s.models.tts, DefaultModels.TTS, { picking = "tts" to "Examiner voice model" }) { setTts(it) }
             val list = voices[s.models.tts].orEmpty()
             FilterMenu("Voice", (if (s.models.ttsVoice in list) list else listOf(s.models.ttsVoice) + list).map { it to it }, s.models.ttsVoice, { v -> setModels { copy(ttsVoice = v) } })
-            SwitchRow("Audio pronunciation check", "Sends your recording to an audio model for prosody and pronunciation notes. Slower and costs more.", s.audioPronEnabled) { update(s.copy(audioPronEnabled = it)) }
-            if (s.audioPronEnabled) {
-                ModelRow("Pronunciation model", "Must accept audio input.", s.models.audioPron, DefaultModels.AUDIO_PRON, { picking = "audio-in" to "Pronunciation model" }) { setModels { copy(audioPron = it) } }
-            }
         }
     }
 
@@ -259,15 +255,14 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
     picking?.let { (capability, title) ->
         val current = when (title) {
             "Scoring and feedback" -> s.models.analysis; "Examiner" -> s.models.examiner; "Speech to text" -> s.models.stt
-            "Examiner voice model" -> s.models.tts; else -> s.models.audioPron
+            else -> s.models.tts
         }
         ModelPickerDialog(title, capability, current, { id ->
             when (title) {
                 "Scoring and feedback" -> setModels { copy(analysis = id) }
                 "Examiner" -> setModels { copy(examiner = id) }
                 "Speech to text" -> setModels { copy(stt = id) }
-                "Examiner voice model" -> setTts(id)
-                else -> setModels { copy(audioPron = id) }
+                else -> setTts(id)
             }
             picking = null
         }) { picking = null }

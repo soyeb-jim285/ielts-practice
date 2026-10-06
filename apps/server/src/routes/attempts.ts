@@ -102,7 +102,7 @@ const AttemptSchema = z
     stage: z.enum(['transcribing', 'analyzing', 'feedback', 'scoring', 'finalizing']).nullable().openapi({ description: 'While analyzing: the pipeline step now running. writing: feedback → scoring (feedback is ready in `partial`) → finalizing; speaking: transcribing → analyzing → finalizing. null once done|failed or before the first step.' }),
     partial: z.unknown().nullable().openapi({ description: 'Writing, while stage is scoring: the feedback that is ready before the scores (errors, structure, top fixes, vocab upgrades, rewrite, text metrics: AnalysisResult fields without criteria/overall). null otherwise.' }),
     analysis: z.unknown().nullable().openapi({ description: 'AnalysisResult (spec §6) once status is done' }),
-    models: z.record(z.string(), z.string()).nullable().openapi({ description: 'OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done' }),
+    models: z.record(z.string(), z.string()).nullable().openapi({ description: 'Models that produced the analysis, by role (stt, analysis); null until done' }),
     topFixesInDeck: z.boolean().openapi({ description: "Every top fix is already in the review deck (as POST /api/cards/bulk with source 'fix' adds them)" }),
     prompt: z
       .object({

@@ -293,7 +293,6 @@ object DefaultModels {
     const val EXAMINER = "openai/gpt-6-luna"
     const val STT = "openai/whisper-large-v3"
     const val TTS = "google/gemini-3.8-flash-tts"
-    const val AUDIO_PRON = "google/gemini-2.5-flash"
 }
 
 

@@ -4194,9 +4194,7 @@ export interface components {
                     stt: string;
                     tts: string;
                     ttsVoice: string;
-                    audioPron: string;
                 };
-                audioPronEnabled: boolean;
                 /** @enum {string} */
                 liveProvider: "turn" | "gpt-live" | "gemini-live";
                 targetBand: number;
@@ -4258,9 +4256,7 @@ export interface components {
                 stt: string;
                 tts: string;
                 ttsVoice: string;
-                audioPron: string;
             };
-            audioPronEnabled: boolean;
             /** @enum {string} */
             liveProvider: "turn" | "gpt-live" | "gemini-live";
             targetBand: number;
@@ -4274,9 +4270,7 @@ export interface components {
                 stt?: string;
                 tts?: string;
                 ttsVoice?: string;
-                audioPron?: string;
             };
-            audioPronEnabled?: boolean;
             /** @enum {string} */
             liveProvider?: "turn" | "gpt-live" | "gemini-live";
             targetBand?: number;
@@ -4463,7 +4457,7 @@ export interface components {
             partial?: unknown;
             /** @description AnalysisResult (spec §6) once status is done */
             analysis?: unknown;
-            /** @description OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done */
+            /** @description Models that produced the analysis, by role (stt, analysis); null until done */
             models: {
                 [key: string]: string;
             } | null;

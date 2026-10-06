@@ -19,4 +19,11 @@ describe('OverviewPanel summary', () => {
     show();
     expect(screen.getByText(/is the average of these 4 bands/).textContent).toMatch(/without capping it/);
   });
+
+  it('labels recognition-only pronunciation and the overall score as provisional', () => {
+    const speaking = { ...r, skill: 'speaking', criteria: { fc: cr(6), lr: cr(6), gra: cr(6), p: cr(6) }, pronunciation: { unclear: [] } } as unknown as AnalysisResult;
+    render(<OverviewPanel result={speaking} order={['fc', 'lr', 'gra', 'p']} target={7} />);
+    expect(screen.getByText('Recognition-based estimate')).toBeTruthy();
+    expect(screen.getByText(/overall speaking band is provisional/)).toBeTruthy();
+  });
 });

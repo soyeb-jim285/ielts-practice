@@ -1911,12 +1911,12 @@ struct LanguageView: View {
         let unclear = result.pronunciation?.unclear ?? []
         let llm = result.pronunciation?.llm
         VStack(alignment: .leading, spacing: 4) {
-            SectionTitle("Pronunciation")
-            Text("Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.").font(.footnote).foregroundStyle(.muted)
+            SectionTitle(llm == nil ? "Speech clarity hints" : "Pronunciation")
+            Text("Low recognition confidence does not prove a pronunciation mistake. Percentages may be approximated from a whole segment; listen again to check.").font(.footnote).foregroundStyle(.muted)
         }
         VStack(spacing: 0) {
             if unclear.isEmpty && llm == nil {
-                Text("Speech recognition understood every word clearly.").font(.callout).foregroundStyle(.muted)
+                Text(words.contains(where: { $0.conf != nil }) ? "No low-confidence words were flagged. This does not confirm correct pronunciation." : "The recogniser did not return confidence scores. Pronunciation cannot be checked from the transcript alone.").font(.callout).foregroundStyle(.muted)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(16)
             }
             ForEach(Array(unclear.enumerated()), id: \.offset) { i, u in
@@ -1930,7 +1930,7 @@ struct LanguageView: View {
                     }
                     Text(u.w).font(.body.weight(.medium))
                     Spacer(minLength: 8)
-                    Chip(text: u.tier >= 3 ? "Hard to recognise" : "Slightly unclear", color: u.tier >= 3 ? .bad : .warnText)
+                    Chip(text: u.tier >= 3 ? "Low confidence" : "Lower confidence", color: .warnText)
                     Text("\(Int((u.conf * 100).rounded()))%").font(.caption.monospacedDigit()).foregroundStyle(.muted).frame(minWidth: 36, alignment: .trailing)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 4)

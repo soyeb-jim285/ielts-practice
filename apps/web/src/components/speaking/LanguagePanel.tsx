@@ -160,13 +160,13 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
   const groupBlock = (list: typeof unclear) =>
     grouped(list).map((g) => (
       <div key={g.tier} className="space-y-1">
-        <Badge tone={g.tier === 3 ? 'bad' : 'warn'}>{g.tier === 3 ? 'Hard to recognise' : 'Slightly unclear'}</Badge>
+        <Badge tone="warn">{g.tier === 3 ? 'Very low recognition confidence' : 'Lower recognition confidence'}</Badge>
         <ul className="max-w-[68ch]">{g.items.map(row)}</ul>
       </div>
     ));
   return (
-    <Section title="Pronunciation" caption="Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.">
-      {unclear.length === 0 && !llm && <p className="type-body">Speech recognition understood every word clearly.</p>}
+    <Section title={llm ? 'Pronunciation' : 'Speech clarity hints'} caption="Low recognition confidence can reflect noise, microphone quality or unfamiliar words. It does not prove a pronunciation mistake.">
+      {unclear.length === 0 && !llm && <p className="type-body">{words.some((w) => w.conf != null) ? 'No low-confidence words were flagged. This does not confirm correct pronunciation.' : 'The recogniser did not return confidence scores. Pronunciation cannot be checked from the transcript alone.'}</p>}
       {llm?.prosody && (
         <div className="max-w-[68ch] space-y-1">
           <h3 className="type-subheading">Rhythm and intonation</h3>
@@ -193,7 +193,7 @@ function Pronunciation({ result, audio }: { result: AnalysisResult; audio: Audio
         </Section>
       )}
       {unclear.length > 0 && (
-        <Section level={3} title="Words speech recognition found unclear" caption={`Lowest confidence first. The percentage is how sure the recogniser was of the word.`}>
+        <Section level={3} title="Possibly unclear words: listen again" caption="Lowest confidence first. Percentages are recognition confidence, not pronunciation accuracy, and may be approximated from a whole segment.">
           {groupBlock(top.length ? top : ranked)}
           {top.length > 0 && rest.length > 0 && (
             <Collapsible className="group">

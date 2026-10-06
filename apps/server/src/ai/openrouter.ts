@@ -362,7 +362,7 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
   recordStt(plain, o.model, 'stt', fallbackFrom ? { fallbackFrom } : {});
   if (v) recordStt(v, o.model, 'stt_verbatim', { kept: verbatim }); // the primed pass is a second full charge; kept=false is pure waste
   // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
-  // ponytail: segment-level, so a poorly recognised segment flags all its words; the audio pronunciation pass is the precise signal.
+  // Segment-level confidence can flag several words together; it is not proof of a pronunciation error.
   const segConf = (t: number) => {
     const lp = d.segments?.find((s) => t >= s.start && t < s.end)?.avg_logprob;
     return lp == null ? undefined : Math.round(Math.exp(lp) * 100) / 100;

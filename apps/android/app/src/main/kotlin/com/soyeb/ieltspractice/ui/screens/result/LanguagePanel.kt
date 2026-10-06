@@ -249,19 +249,19 @@ private fun Pronunciation(r: AnalysisResult, player: ResultPlayer) {
     val unclear = r.pronunciation?.unclear.orEmpty()
     val llm = r.pronunciation?.llm
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionTitle("Pronunciation")
-        Text("Pronunciation hints are estimates from speech recognition, not a phoneme-level assessment.", style = MaterialTheme.typography.bodySmall, color = e.muted)
+        SectionTitle(if (llm == null) "Speech clarity hints" else "Pronunciation")
+        Text("Low recognition confidence does not prove a pronunciation mistake. Percentages may be approximated from a whole segment; listen again to check.", style = MaterialTheme.typography.bodySmall, color = e.muted)
     }
     RowsCard {
         if (unclear.isEmpty() && llm == null) {
-            Text("Speech recognition understood every word clearly.", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = e.muted)
+            Text(if (words.any { it.conf != null }) "No low-confidence words were flagged. This does not confirm correct pronunciation." else "The recogniser did not return confidence scores. Pronunciation cannot be checked from the transcript alone.", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = e.muted)
         }
         unclear.forEachIndexed { i, u ->
             if (i > 0) RowDivider()
             Row(Modifier.fillMaxWidth().padding(end = 16.dp, start = if (player.isLoaded) 0.dp else 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (player.isLoaded && u.wordIdx in words.indices) PlayWordButton(u.w) { player.seek(max(0.0, words[u.wordIdx].start - 0.3)) }
                 Text(u.w, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium), color = e.ink)
-                Chip(if (u.tier >= 3) "Hard to recognise" else "Slightly unclear", color = if (u.tier >= 3) e.badText else e.warnText)
+                Chip(if (u.tier >= 3) "Low confidence" else "Lower confidence", color = e.warnText)
                 Text("${(u.conf * 100).roundToInt()}%", Modifier.width(36.dp), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = e.muted, textAlign = androidx.compose.ui.text.style.TextAlign.End)
             }
         }

@@ -55,37 +55,6 @@ export const SpeakingLlmSchema = z.object({
   rewrite: z.string(),
 });
 
-export const PronLlmSchema = z.object({
-  words: z
-    .array(
-      z.object({
-        word: z.string(),
-        time: z.number(),
-        issue: z.enum(['sound', 'stress', 'intonation', 'unclear']),
-        heard: z.string().describe('What the candidate actually said'),
-        expected: z.string().describe('The dictionary pronunciation'),
-        tip: z.string(),
-      }),
-    )
-    .max(20),
-  misheard: z
-    .array(
-      z.object({
-        time: z.number(),
-        transcript: z.string().describe('The transcript word ("" when the transcript left out a spoken word)'),
-        spoken: z.string().describe('What was actually said ("" when the transcript added a word that was not said)'),
-      }),
-    )
-    .max(20),
-  disfluencies: z.object({
-    filledPauses: z.array(z.number()).describe('Start times (s) of each um/uh/er heard'),
-    repetitions: z.array(z.number()).describe('Start times (s) of each repeated word or phrase'),
-    falseStarts: z.array(z.number()).describe('Start times (s) of each abandoned or restarted sentence'),
-  }),
-  prosody: z.string(),
-  band: Band,
-});
-
 export const WritingLlmSchema = z.object({
   criteria: z.object({ ta: CriterionSchema, cc: CriterionSchema, lr: CriterionSchema, gra: CriterionSchema }),
   topFixes: z.array(FixSchema).length(3),

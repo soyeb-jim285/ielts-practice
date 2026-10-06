@@ -136,8 +136,8 @@ class CommunityTest {
     @Test fun meCarriesTheQuota() {
         val me = AppJson.decodeFromString(
             Me.serializer(),
-            """{"user":{"id":"u","email":"","name":"Guest","isAnonymous":true},"settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v","audioPron":"p"},
-              "audioPronEnabled":false,"liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
+            """{"user":{"id":"u","email":"","name":"Guest","isAnonymous":true},"settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v"},
+              "liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
               "tier":"guest","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$week","window":"week","blocked":null},
               "writing":{"used":1,"limit":1,"remaining":0,"resetAt":"$week","window":"week","blocked":"quota_exceeded"},
               "liveProviders":[],"communityBalance":{"limit":20,"used":7.6,"remaining":12.4,"updatedAt":"x"}}""",
@@ -180,7 +180,7 @@ class CommunityTest {
 
     private fun me(anonymous: Boolean, tier: String) =
         """{"user":{"id":"${if (anonymous) "g1" else "u1"}","email":"${if (anonymous) "" else "a@b.c"}","name":"N","isAnonymous":$anonymous},
-          "settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v","audioPron":"p"},"audioPronEnabled":false,"liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
+          "settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v"},"liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
           "tier":"$tier","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},
           "writing":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},"liveProviders":[],"communityBalance":null}"""
 

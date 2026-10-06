@@ -41,7 +41,7 @@ class GPTLiveTest {
     }
 
     @Test fun meAcceptsBothAvailabilityFlagsAndMigratesTheOldProvider() {
-        val base = """"user":{"id":"u","email":"a@b.c","name":"A"},"settings":{"models":{"analysis":"a","examiner":"e","stt":"s","tts":"t","ttsVoice":"v","audioPron":"p"},"audioPronEnabled":true,"liveProvider":"openai-realtime","targetBand":7,"writingAutoSubmit":true,"blockPaste":true}"""
+        val base = """"user":{"id":"u","email":"a@b.c","name":"A"},"settings":{"models":{"analysis":"a","examiner":"e","stt":"s","tts":"t","ttsVoice":"v"},"liveProvider":"openai-realtime","targetBand":7,"writingAutoSubmit":true,"blockPaste":true}"""
         val both = AppJson.decodeFromString(Me.serializer(), "{$base,\"gptLiveAvailable\":true,\"realtimeAvailable\":true}")
         assertTrue(both.gptLive)
         assertEquals("gpt-live", both.settings.provider)

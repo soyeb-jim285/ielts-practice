@@ -70,10 +70,6 @@
                   "ttsVoice": {
                     "type": "string",
                     "minLength": 1
-                  },
-                  "audioPron": {
-                    "type": "string",
-                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
                   }
                 },
                 "required": [
@@ -81,12 +77,8 @@
                   "examiner",
                   "stt",
                   "tts",
-                  "ttsVoice",
-                  "audioPron"
+                  "ttsVoice"
                 ]
-              },
-              "audioPronEnabled": {
-                "type": "boolean"
               },
               "liveProvider": {
                 "type": "string",
@@ -110,7 +102,6 @@
             },
             "required": [
               "models",
-              "audioPronEnabled",
               "liveProvider",
               "targetBand",
               "writingAutoSubmit",
@@ -304,10 +295,6 @@
               "ttsVoice": {
                 "type": "string",
                 "minLength": 1
-              },
-              "audioPron": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
               }
             },
             "required": [
@@ -315,12 +302,8 @@
               "examiner",
               "stt",
               "tts",
-              "ttsVoice",
-              "audioPron"
+              "ttsVoice"
             ]
-          },
-          "audioPronEnabled": {
-            "type": "boolean"
           },
           "liveProvider": {
             "type": "string",
@@ -344,7 +327,6 @@
         },
         "required": [
           "models",
-          "audioPronEnabled",
           "liveProvider",
           "targetBand",
           "writingAutoSubmit",
@@ -376,15 +358,8 @@
               "ttsVoice": {
                 "type": "string",
                 "minLength": 1
-              },
-              "audioPron": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
               }
             }
-          },
-          "audioPronEnabled": {
-            "type": "boolean"
           },
           "liveProvider": {
             "type": "string",
@@ -1139,7 +1114,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "OpenRouter models that produced the analysis, by role (stt, analysis, audioPron); null until done"
+            "description": "Models that produced the analysis, by role (stt, analysis); null until done"
           },
           "topFixesInDeck": {
             "type": "boolean",

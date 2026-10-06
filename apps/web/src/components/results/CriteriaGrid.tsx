@@ -10,7 +10,7 @@ import { BandBar } from './BandBar';
  * The learner's own words (evidence) are set in the reading serif; the interface's words stay in the sans.
  * Props: criteria (AnalysisResult.criteria), order (keys to show, e.g. SPEAKING_CRITERIA), target band, deltas (retry comparison).
  */
-export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: AnalysisResult['criteria']; order: CriterionKey[]; target: number; deltas?: Partial<Record<CriterionKey, number>> }) {
+export function CriteriaGrid({ criteria, order, target, deltas, recognitionOnly = false }: { criteria: AnalysisResult['criteria']; order: CriterionKey[]; target: number; deltas?: Partial<Record<CriterionKey, number>>; recognitionOnly?: boolean }) {
   const keys = order.filter((k) => criteria[k]);
   return (
     <div className="space-y-4">
@@ -20,6 +20,7 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
           const d = deltas?.[k];
           const name = criterionLabel(k);
           const soft = pronunciationUnsupported(criteria, k);
+          const limited = k === 'p' && recognitionOnly;
           const [lo, hi] = soft ? ([Math.max(0, Math.min(c.range[0], c.band - 1.5)), Math.min(9, Math.max(c.range[1], c.band + 1.5))] as const) : c.range;
           return (
             <section key={k} aria-labelledby={`crit-${k}`} className="grid gap-x-10 gap-y-3 py-6 md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -31,7 +32,7 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
                   <p className="type-band text-4xl">{formatBand(c.band)}</p>
                 </div>
                 <p className="type-caption type-num">
-                  likely {formatRange([lo, hi])}
+                  {limited ? 'rough range' : 'likely'} {formatRange([lo, hi])}
                   {d ? (
                     <span className={`ml-2 inline-flex items-center gap-0.5 font-medium ${d > 0 ? 'text-good-text' : 'text-bad-text'}`}>
                       {d > 0 ? <ArrowUp className="size-4" aria-hidden /> : <ArrowDown className="size-4" aria-hidden />}
@@ -42,7 +43,11 @@ export function CriteriaGrid({ criteria, order, target, deltas }: { criteria: An
               </div>
               <div className="min-w-0 space-y-3">
                 <BandBar band={c.band} target={target} label={`${name} band`} />
-                {soft && (
+                {limited ? (
+                  <Badge tone="warn" title="Recognition confidence is not pronunciation accuracy. This is a limited estimate, not a calibrated IELTS pronunciation score.">
+                    Recognition-based estimate
+                  </Badge>
+                ) : soft && (
                   <Badge tone="warn" title="The pronunciation band comes from the audio alone. Halting or very short speech is hard to judge, so treat it as a rough guide.">
                     Audio check only, low confidence
                   </Badge>

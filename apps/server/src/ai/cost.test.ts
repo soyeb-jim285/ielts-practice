@@ -78,14 +78,14 @@ it('asRetry marks everything inside as a retry', async () => {
   expect((await all())[0]).toMatchObject({ retry: true, attemptId: 'a1' });
 });
 
-it('speaking pipeline: STT (plain + primed, kept flag), pronunciation-off stages, feedback, every scorer sample', async () => {
+it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedback, every scorer sample', async () => {
   const score = { checks: [], evidence: [], descriptor: 'd', summary: 's', injection: false, band: 6 };
   const chat = (_: string, init: RequestInit) => {
     const name = JSON.parse(String(init.body)).response_format?.json_schema?.name;
     return name === 'speaking_feedback' ? chatReply(speakingLlm) : name === 'disfluency_tags' ? chatReply({ tags: [] }) : chatReply(score);
   };
   setFetch(fakeFetch({ '/audio/transcriptions': () => json({ ...sttWords, usage: { cost: 0.002 } }), '/chat/completions': withUsage(chat, 0.01) }));
-  await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, settings: settings({ audioPronEnabled: false, models: { ...settings().models, stt: 'openai/whisper-large-v3' } }) }));
+  await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, settings: settings({ models: { ...settings().models, stt: 'openai/whisper-large-v3' } }) }));
   const rows = await all();
   const by = (stage: string) => rows.filter((r) => r.stage === stage);
   expect(by('stt')).toHaveLength(1);

@@ -12,8 +12,8 @@ const out = join(dirname(fileURLToPath(import.meta.url)), '../IELTS/Demo/fixture
 const day = (n) => new Date(Date.UTC(2026, 8, 30 - n, 9, 30)).toISOString();
 
 const settings = {
-  models: { analysis: 'openai/gpt-6-luna', examiner: 'openai/gpt-6-luna', stt: 'elevenlabs/scribe_v2', tts: 'google/gemini-3.8-flash-tts', ttsVoice: 'Charon', audioPron: 'google/gemini-2.5-flash' },
-  audioPronEnabled: true, liveProvider: 'turn', targetBand: 7, writingAutoSubmit: true, blockPaste: true,
+  models: { analysis: 'openai/gpt-6-luna', examiner: 'openai/gpt-6-luna', stt: 'elevenlabs/scribe_v2', tts: 'google/gemini-3.8-flash-tts', ttsVoice: 'Charon' },
+  liveProvider: 'turn', targetBand: 7, writingAutoSubmit: true, blockPaste: true,
 };
 const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true, isAnonymous: false }, settings, cambridgeAccess: true, gptLiveAvailable: true, geminiLiveAvailable: true };
 
@@ -110,7 +110,7 @@ const speakingAnalysis = {
     },
   },
   questions: [{ text: sp2.title, startWord: 0 }, { text: 'Do you think people read enough history?', startWord: Math.floor(words.length * 0.6) }],
-  pronunciation: { unclear: [], llm: { words: [{ word: 'Sapiens', time: at('Sapiens'), issue: 'Stress on the wrong syllable.', tip: 'SAY-pee-enz, stress the first syllable.' }, { word: 'species', time: at('species'), issue: 'Final /z/ dropped.', tip: 'End with a buzzing /z/: SPEE-sheez.' }], prosody: 'Clear overall; intonation flattens in the middle third.', band: 6 } },
+  pronunciation: { unclear: [{ wordIdx: words.findIndex((w) => w.w === 'Sapiens'), w: 'Sapiens', conf: 0.62, tier: 2 }, { wordIdx: words.findIndex((w) => w.w === 'species'), w: 'species', conf: 0.71, tier: 1 }] },
   relevance: [{ questionIdx: 0, onTopic: true, note: 'Covers all four cue-card points.' }],
   noSpeech: false,
 };

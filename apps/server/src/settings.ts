@@ -13,9 +13,7 @@ export const SettingsSchema = z.object({
     stt: ModelId,
     tts: ModelId,
     ttsVoice: z.string().min(1),
-    audioPron: ModelId,
   }),
-  audioPronEnabled: z.boolean(),
   liveProvider: z.enum(['turn', 'gpt-live', 'gemini-live']),
   targetBand: z.number().min(4).max(9).multipleOf(0.5),
   writingAutoSubmit: z.boolean(),
@@ -34,9 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
     stt: env.ELEVENLABS_API_KEY ? 'elevenlabs/scribe_v2' : 'openai/whisper-large-v3', // Scribe v2 when its key is set (spec §5.2), falling back to Whisper on error
     tts: 'google/gemini-3.8-flash-tts',
     ttsVoice: 'Charon', // must be one of the model's supported_voices (GET /api/models → voices)
-    audioPron: 'google/gemini-2.5-flash',
   },
-  audioPronEnabled: true,
   liveProvider: 'turn',
   targetBand: 7,
   writingAutoSubmit: true,
@@ -47,7 +43,7 @@ export function mergeSettings(patch: SettingsPatch | Record<string, unknown> | u
   const p = { ...(patch ?? {}) } as SettingsPatch;
   // The OpenAI provider used to be "openai-realtime" (gpt-realtime); stored values and old clients map to GPT-Live.
   if ((p.liveProvider as string) === 'openai-realtime') p.liveProvider = 'gpt-live';
-  return { ...DEFAULT_SETTINGS, ...p, models: { ...DEFAULT_SETTINGS.models, ...(p.models ?? {}) } };
+  return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...p, models: { ...DEFAULT_SETTINGS.models, ...(p.models ?? {}) } });
 }
 
 export async function getSettings(userId: string): Promise<Settings> {

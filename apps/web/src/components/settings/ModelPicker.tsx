@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Button, Combobox, type ComboOption } from '@/components/ui';
 import { call, client, type Schemas, type Settings } from '@/lib/api';
 
-export type Capability = 'text' | 'audio-in' | 'stt' | 'tts';
+export type Capability = 'text' | 'stt' | 'tts';
 type Model = Omit<Schemas['Model'], 'voices'> & { voices?: string[] };
 
 // ponytail: mirrors DEFAULT_SETTINGS.models in apps/server/src/settings.ts (that module imports the db, so the web can't import it
@@ -14,7 +14,6 @@ export const DEFAULT_MODELS: Settings['models'] = {
   stt: 'openai/whisper-large-v3',
   tts: 'google/gemini-3.8-flash-tts',
   ttsVoice: 'Charon',
-  audioPron: 'google/gemini-2.5-flash',
 };
 
 /** Voice to keep when the TTS model changes: the current one if the new model supports it, else its first voice (unknown list → keep). */
@@ -32,14 +31,12 @@ export const RECOMMENDED: Record<Capability, string[]> = {
   text: ['openai/gpt-6-luna', 'google/gemini-3.8-flash', 'anthropic/claude-sonnet-5.5', 'deepseek/deepseek-v4-flash'],
   stt: ['elevenlabs/scribe_v2', 'openai/whisper-large-v3', 'nvidia/parakeet-tdt-0.6b-v3'],
   tts: ['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts'],
-  'audio-in': ['google/gemini-2.5-flash', 'google/gemini-3.8-flash'],
 };
 
 // ponytail: rough token budgets for one scored essay / spoken answer (prompt + rubric + answer in, JSON feedback out); tune from real usage.
 // Speech models price per second or per character, so no per-use estimate for stt/tts.
 const PER_USE: Partial<Record<Capability, { in: number; out: number; unit: string }>> = {
   text: { in: 8000, out: 3000, unit: 'essay' },
-  'audio-in': { in: 6000, out: 1500, unit: 'answer' },
 };
 
 /** Approximate USD cost of one use from per-token prices: "<1¢", "~3¢", "~$0.12"; undefined when OpenRouter reports variable pricing. */

@@ -102,7 +102,7 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
       data-w={t.i}
       data-lean={isLean(t.w) || undefined}
       onClick={() => audio.seek(t.start)}
-      title={t.unclearTier ? `Unclear to speech recognition (${Math.round((t.conf ?? 0) * 100)}% confidence)` : undefined}
+      title={t.unclearTier ? `Possibly unclear to speech recognition (approximately ${Math.round((t.conf ?? 0) * 100)}% confidence, not pronunciation accuracy)` : undefined}
       className={clsx(
         'cursor-pointer rounded-sm transition-colors duration-100 hover:bg-hover',
         filler(t),

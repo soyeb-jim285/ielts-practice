@@ -75,7 +75,7 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
         part,
         settings,
       });
-      models = { stt: result.sttModel ?? settings.models.stt, analysis: settings.models.analysis, ...(result.pronunciation?.llm && { audioPron: settings.models.audioPron }) };
+      models = { stt: result.sttModel ?? settings.models.stt, analysis: settings.models.analysis };
     } else {
       result = await analyzeWriting({
         text: a.text ?? '',

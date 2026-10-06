@@ -6,7 +6,6 @@ private enum DefaultModels {
     static let examiner = "openai/gpt-6-luna"
     static let stt = "openai/whisper-large-v3"
     static let tts = "google/gemini-3.8-flash-tts"
-    static let audioPron = "google/gemini-2.5-flash"
 }
 
 private func shortModel(_ id: String) -> String { id.split(separator: "/").last.map(String.init) ?? id }
@@ -197,10 +196,6 @@ struct SettingsView: View {
                 Picker("Voice", selection: b.models.ttsVoice) {
                     let list = voices[b.wrappedValue.models.tts] ?? []
                     ForEach(list.contains(b.wrappedValue.models.ttsVoice) ? list : [b.wrappedValue.models.ttsVoice] + list, id: \.self) { Text($0).tag($0) }
-                }
-                toggle("Audio pronunciation check", "Sends your recording to an audio model for prosody and pronunciation notes. Slower and costs more.", b.audioPronEnabled)
-                if b.wrappedValue.audioPronEnabled {
-                    ModelRow(title: "Pronunciation model", capability: "audio-in", hint: "Must accept audio input.", defaultID: DefaultModels.audioPron, value: b.models.audioPron)
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 2) {

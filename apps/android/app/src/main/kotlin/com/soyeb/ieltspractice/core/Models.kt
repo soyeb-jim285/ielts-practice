@@ -16,12 +16,11 @@ import kotlinx.serialization.json.doubleOrNull
 )
 
 @Serializable data class ModelChoices(
-    val analysis: String, val examiner: String, val stt: String, val tts: String, val ttsVoice: String, val audioPron: String,
+    val analysis: String, val examiner: String, val stt: String, val tts: String, val ttsVoice: String,
 )
 
 @Serializable data class AppSettings(
     val models: ModelChoices,
-    val audioPronEnabled: Boolean,
     val liveProvider: String, // "turn" | "gpt-live" | "gemini-live" (an old "openai-realtime" reads as "gpt-live", see [provider])
     val targetBand: Double,
     val writingAutoSubmit: Boolean,

@@ -128,19 +128,6 @@ function SettingsPage() {
                 <Row>
                   <TtsPicker value={s.models.tts} voice={s.models.ttsVoice} onChange={(models) => mutate({ models })} />
                 </Row>
-                <Row>
-                  <div className="space-y-4">
-                    <Switch
-                      label="Audio pronunciation check"
-                      description="Sends your recording to an audio model for prosody and pronunciation notes. Slower and costs more."
-                      checked={s.audioPronEnabled}
-                      onChange={(v) => mutate({ audioPronEnabled: v })}
-                    />
-                    {s.audioPronEnabled && (
-                      <ModelPicker label="Pronunciation model" capability="audio-in" value={s.models.audioPron} defaultValue={DEFAULT_MODELS.audioPron} onChange={setModel('audioPron')} hint="Must accept audio input." />
-                    )}
-                  </div>
-                </Row>
               </div>
             </CollapsibleContent>
           </Collapsible>

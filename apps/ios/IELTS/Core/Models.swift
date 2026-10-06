@@ -11,14 +11,13 @@ struct User: Codable { let id: String; let email: String; let name: String; let 
 // openapi: Settings.models
 
 struct ModelChoices: Codable, Equatable {
-    var analysis: String, examiner: String, stt: String, tts: String, ttsVoice: String, audioPron: String
+    var analysis: String, examiner: String, stt: String, tts: String, ttsVoice: String
 }
 
 // openapi: Settings
 
 struct AppSettings: Codable, Equatable {
     var models: ModelChoices
-    var audioPronEnabled: Bool
     var liveProvider: String // "turn" | "gpt-live" | "gemini-live"
     var targetBand: Double
     var writingAutoSubmit: Bool
