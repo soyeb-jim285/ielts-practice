@@ -4,7 +4,8 @@ import { eq } from 'drizzle-orm';
 import type { LrTest } from '@ielts/core';
 import { db } from '../db/client';
 import { lrTests } from '../db/schema';
-import { guestUser, req, testUser } from '../test/helpers';
+import { setFetch } from '../ai/openrouter';
+import { fakeFetch, guestUser, json, req, testUser } from '../test/helpers';
 
 const body = async (r: Response) => (await r.json()) as any;
 const fixture = (n: string) => JSON.parse(readFileSync(new URL(`../test/fixtures/lr/lr-${n}.json`, import.meta.url), 'utf8')) as LrTest;
@@ -153,6 +154,32 @@ describe('listening & reading tests', () => {
       // a retake creates a new attempt
       const again = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'exam' } }));
       expect(again.id).not.toBe(a.id);
+    });
+
+    it('submit explains every lost mark: rule reasons, a model reason for the rest, causes and their progress totals', async () => {
+      const f = fakeFetch({ '/systemone': () => json({ model: 'typesafe/jev-1.13', answers: { q: { type: 'choice', choice: 'synonym', confidence: 0.9 } }, usage: { input_tokens: 90, output_tokens: 4, cost: 0.00002 } }) });
+      setFetch(f);
+      const a = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }));
+      const answers = { ...perfect(fixture('listening')), '2': 'Whitlock', '4': 'eight', '5': 'pinafore', '9': '' };
+      const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: answers } }));
+      const gaps = Object.fromEntries(s.analysis.gaps.map((g: any) => [g.n, g]));
+      expect(gaps[2]).toMatchObject({ kind: 'lost-place', other: 1 });
+      expect(gaps[4]).toMatchObject({ kind: 'trap', label: 'Distractor' });
+      expect(gaps[5]).toMatchObject({ kind: 'synonym', label: 'Right idea, wrong words' });
+      expect(gaps[9]).toMatchObject({ kind: 'blank' });
+      expect(f.calls.filter((c) => c.url.endsWith('/systemone')).map((c) => c.body.state.candidate_answer)).toEqual(['pinafore']); // only what no rule explains
+      expect(s.analysis.causes.map((c: any) => [c.family, c.questions])).toEqual([['slip', [2, 5]], ['trap', [4]], ['blank', [9]]]);
+      const p = await body(await req('/api/lr/progress', { headers }));
+      expect(p.causes).toEqual([
+        { skill: 'listening', family: 'slip', label: 'Right idea, lost the mark', count: 2 },
+        { skill: 'listening', family: 'trap', label: 'Picked a distractor', count: 1 },
+        { skill: 'listening', family: 'blank', label: 'Left blank', count: 1 },
+      ]);
+    });
+    it('a failing decision model never fails the submit: the answer reads "Different detail"', async () => {
+      const a = await body(await req(`/api/lr/tests/${lid}/attempts`, { headers, body: { mode: 'practice' } }));
+      const s = await body(await req(`/api/lr/attempts/${a.id}/submit`, { headers, body: { responses: { ...perfect(fixture('listening')), '5': 'pinafore' } } }));
+      expect(s.analysis.gaps).toEqual([expect.objectContaining({ n: 5, kind: 'other', label: 'Different detail' })]);
     });
 
     it('submit without a body scores the autosaved responses; an empty attempt is band 0', async () => {

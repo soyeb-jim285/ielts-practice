@@ -220,6 +220,40 @@ export async function chatText(o: {
   return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: { effort: o.effort } }) }, undefined, undefined, { stage: 'examiner_llm', ...o.cost });
 }
 
+/** TypeSafe Jev (System One): typed decisions with probabilities, not text. ~$0.00002 a call. */
+export const DECISION_MODEL = 'typesafe/jev-1.13';
+
+export type JevQuestion =
+  | { type: 'choice'; instructions: string; criteria: Record<string, string> }
+  | { type: 'score'; instructions: string; criteria: string[] }
+  | { type: 'noul'; instructions: string };
+/** One Jev answer: `choice` labels, `score` expected step (0-based, continuous) with per-step probabilities, `noul` a yes-probability. */
+export type JevAnswer = { choice?: string; score?: number; noul?: number; confidence?: number; probabilities?: Record<string, number> };
+
+/** One Jev call with any set of named questions. Every question must come back answered, or it throws AiError. */
+export async function decide<K extends string>(o: { state: unknown; questions: Record<K, JevQuestion>; timeoutMs?: number; cost?: CostTag }): Promise<Record<K, JevAnswer>> {
+  const stage = o.cost?.stage ?? 'other';
+  type Res = { id?: string; model?: string; provider?: string; answers?: Record<string, JevAnswer>; usage?: { input_tokens?: number; output_tokens?: number; cost?: number } };
+  let d: Res;
+  try {
+    d = (await (await call('/systemone', { model: DECISION_MODEL, state: o.state, questions: o.questions }, o.timeoutMs ?? 10_000)).json()) as Res;
+  } catch (e) {
+    recordFailure(e, { stage, model: DECISION_MODEL, meta: o.cost?.meta });
+    throw e;
+  }
+  recordCost({ stage, provider: 'openrouter', model: d.model ?? DECISION_MODEL, costUsd: d.usage?.cost ?? 0, inputTokens: d.usage?.input_tokens, outputTokens: d.usage?.output_tokens, meta: { ...o.cost?.meta, generationId: d.id, served: d.provider, ...(d.usage?.cost === undefined && { estimated: true }) } });
+  const ok = (q: JevQuestion, a?: JevAnswer) =>
+    !!a && (q.type === 'choice' ? !!a.choice && Object.hasOwn(q.criteria, a.choice) : q.type === 'score' ? Number.isFinite(a.score) && a.score! >= 0 && a.score! <= q.criteria.length - 1 : Number.isFinite(a.noul));
+  for (const [k, q] of Object.entries(o.questions) as [string, JevQuestion][]) if (!ok(q, d.answers?.[k])) throw new AiError('invalid_json', 'The decision model returned no usable answer.');
+  return d.answers as Record<K, JevAnswer>;
+}
+
+/** One Jev `choice` question: the label of `criteria` that best fits `state`, with its confidence. Throws AiError on failure or an unknown label. */
+export async function decideChoice(o: { state: unknown; instructions: string; criteria: Record<string, string>; timeoutMs?: number; cost?: CostTag }): Promise<{ choice: string; confidence: number }> {
+  const { q } = await decide({ state: o.state, questions: { q: { type: 'choice', instructions: o.instructions, criteria: o.criteria } }, timeoutMs: o.timeoutMs, cost: o.cost });
+  return { choice: q.choice!, confidence: q.confidence ?? 0 };
+}
+
 type SttResponse = {
   text?: string;
   duration?: number;

@@ -2,7 +2,8 @@
  * Listening & Reading review helpers: mistake classification for gap answers, TRUE/FALSE/NOT GIVEN analysis, answer location
  * in a passage / transcript / word timings, dictation diff and the per-attempt analysis. All deterministic, no AI.
  */
-import { expandAnswer, numberWord, type LrGroup, type LrMark, type LrResponses, type LrTest } from './lr';
+import { COMMON_WORDS } from './common-words';
+import { canonAnswerText, expandAnswer, numberWord, type LrGroup, type LrMark, type LrResponses, type LrSkill, type LrTest } from './lr';
 
 const fold = (s: string) =>
   s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
@@ -11,8 +12,11 @@ const words = (s: string) => fold(s).split(' ').filter(Boolean);
 
 // ---------------------------------------------------------------- gap mistakes
 
-export type GapKind = 'blank' | 'spelling' | 'plural' | 'word-limit' | 'article' | 'extra-word' | 'missing-word' | 'number-format';
-export const GAP_COACH: Record<GapKind, { label: string; message: string }> = {
+export type GapKind =
+  | 'blank' | 'spelling' | 'plural' | 'word-limit' | 'article' | 'extra-word' | 'missing-word' | 'number-format'
+  | 'lost-place' | 'wrong-type' | 'trap' | 'number' | 'synonym' | 'misheard' | 'other';
+type Coach = { label: string; message: string; reading?: string };
+export const GAP_COACH: Record<GapKind, Coach> = {
   blank: { label: 'Left blank', message: 'No answer given. There is no penalty for a wrong answer, so always write your best guess.' },
   spelling: { label: 'Spelling slip', message: 'You heard or found the right word but spelt it wrongly, and a misspelt answer scores nothing. Learn the correct spelling.' },
   plural: { label: 'Singular or plural', message: 'The word is right but the ending is not. Listen or look for the final -s, and check the sentence for a plural cue.' },
@@ -21,9 +25,53 @@ export const GAP_COACH: Record<GapKind, { label: string; message: string }> = {
   'extra-word': { label: 'Extra word', message: 'Your answer contains the right words plus one that is not in the key. Write only the words that fill the gap.' },
   'missing-word': { label: 'Part of the answer missing', message: 'You gave only part of the answer. Check the words before and after the gap to see how much is needed.' },
   'number-format': { label: 'Number format', message: 'Right figure, wrong format. Write numbers the way the question shows them: digits, without commas or extra symbols.' },
+  'lost-place': { label: 'Answer in the wrong box', message: 'You may have lost your place. Check the question number before you write, and expect the answers to come in question order.' },
+  'wrong-type': { label: 'Wrong kind of answer', message: 'The gap needs a different kind of answer, for example a number, a name or a thing. Before the audio or the reading starts, decide what kind of word fits each gap.' },
+  trap: {
+    label: 'Distractor',
+    message: 'The speaker does say this, but it is not the answer: it is mentioned and then corrected, rejected or used for something else. Keep listening after the first thing that fits.',
+    reading: 'This is in the passage, but not in the place that answers the question. Find the sentence that matches the meaning of the question, not just a word that fits the gap.',
+  },
+  number: {
+    label: 'Wrong number',
+    message: "You wrote a different number. Numbers are often corrected ('not fifteen, fifty'), and -teen and -ty sound alike: write the final number you hear.",
+    reading: 'You wrote a different number from the one the question asks about. Check which figure in the passage belongs to the thing in the question.',
+  },
+  synonym: {
+    label: 'Right idea, wrong words',
+    message: 'Your answer means the same as the key, but it is not what the speaker says. Write the exact words you hear.',
+    reading: 'Your answer means the same as the key, but it is not the wording of the passage. Copy the words from the passage exactly.',
+  },
+  misheard: { label: 'Misheard word', message: 'Your answer sounds like the right one but is a different word. Replay the moment, and try Dictation to train your ear for it.' },
+  other: {
+    label: 'Different detail',
+    message: 'Your answer is a different detail from the one asked for. Replay from where the answer is heard and listen for the words that match the question.',
+    reading: 'Your answer is a different detail from the one asked for. Read the sentence that gives the answer and compare it with the question.',
+  },
 };
 
-export interface GapMistake { kind: GapKind; label: string; message: string; word?: string; typed?: string }
+/** Why marks were lost, grouped the way a candidate can act on them. */
+export type CauseFamily = 'slip' | 'trap' | 'missed' | 'blank';
+export const CAUSES: Record<CauseFamily, { label: string; message: string }> = {
+  slip: { label: 'Right idea, lost the mark', message: 'You had the answer but lost the mark on spelling, form, wording, the word limit or the box you wrote in. These are the easiest marks to win back: check each answer as you write it.' },
+  trap: { label: 'Picked a distractor', message: 'You chose something that is in the recording or passage but is not the answer. IELTS mentions wrong options on purpose: wait for the one that matches the question exactly.' },
+  missed: { label: 'Missed the answer', message: 'Your answer was a different detail: a mishearing, the wrong number or item, or a statement read the wrong way. Practise finding the exact place the answer is given before you write.' },
+  blank: { label: 'Left blank', message: 'No answer given. A wrong answer costs nothing, so always write your best guess.' },
+};
+const FAMILY: Record<GapKind, CauseFamily> = {
+  blank: 'blank', spelling: 'slip', plural: 'slip', 'word-limit': 'slip', article: 'slip', 'extra-word': 'slip', 'missing-word': 'slip', 'number-format': 'slip', 'lost-place': 'slip', synonym: 'slip',
+  trap: 'trap', 'wrong-type': 'missed', number: 'missed', misheard: 'missed', other: 'missed',
+};
+/** Reasons only a model can tell apart (meaning, sound); the server asks one for answers classifyGap leaves unexplained. */
+export type AiGapKind = 'synonym' | 'misheard' | 'other';
+
+/** A kind's label and message, in the reading wording where it has one. */
+const coach = (kind: GapKind, skill?: LrSkill): GapMistake => {
+  const { reading, ...c } = GAP_COACH[kind];
+  return { kind, ...c, ...(skill === 'reading' && reading && { message: reading }) };
+};
+
+export interface GapMistake { kind: GapKind; label: string; message: string; word?: string; typed?: string; /** lost-place: the question this answer belongs to */ other?: number }
 
 const NUM_WORD: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
 /** "NO MORE THAN TWO WORDS AND/OR A NUMBER" → 2; "ONE WORD ONLY" → 1; "ONE NUMBER" → 1; unparseable → null. */
@@ -69,9 +117,20 @@ const runAt = (hay: string[], needle: string[]) => (needle.length ? hay.findInde
 /**
  * Why a gap answer was marked wrong, when a deterministic reason exists (else null: simply a different answer).
  * `wordLimit` is the group's instruction ("NO MORE THAN TWO WORDS AND/OR A NUMBER").
+ * With `ctx` (the section's text and the nearby questions' keys) it also spots answers in the wrong box, the wrong kind of answer, distractors and wrong numbers.
  */
-export function classifyGap(given: string, accepted: string[], wordLimit?: string): GapMistake | null {
-  const mk = (kind: GapKind, extra?: { word?: string; typed?: string }): GapMistake => ({ kind, ...GAP_COACH[kind], ...extra });
+export interface GapContext {
+  skill: LrSkill;
+  /** the section's passage / transcript in canonAnswerText form, padded with spaces */
+  text: string;
+  /** keys of the gap questions near this one, canonAnswerText form */
+  others: { n: number; keys: string[] }[];
+}
+let common: Set<string> | undefined;
+const isWord = (w: string) => (common ??= new Set(COMMON_WORDS.split(' '))).has(w);
+const STOP = new Set(['a', 'an', 'the', 'of', 'to', 'in', 'on', 'at', 'by', 'for', 'and', 'or', 'with', 'is', 'it', 'its', 'be', 'was', 'are']);
+export function classifyGap(given: string, accepted: string[], wordLimit?: string, ctx?: GapContext): GapMistake | null {
+  const mk = (kind: GapKind, extra?: { word?: string; typed?: string; other?: number }): GapMistake => ({ ...coach(kind, ctx?.skill), ...extra });
   if (!given?.trim()) return mk('blank');
   const g = words(given);
   const variants = [...new Set(accepted.flatMap(expandAnswer))].filter(Boolean).map((v) => v.split(' '));
@@ -112,8 +171,19 @@ export function classifyGap(given: string, accepted: string[], wordLimit?: strin
     if (sig(gs) === sig(v.join(' ')) && !/\d/.test(gs)) return mk('spelling', { word: v.join(' '), typed: gs }); // check-in vs checkin
     if (v.length !== g.length) continue;
     const diff = g.map((w, i) => [w, v[i]!] as const).filter(([w, k]) => w !== k);
-    if (diff.length && diff.every(([w, k]) => isSpellingSlip(w, k))) return mk('spelling', { word: diff[0]![1], typed: diff[0]![0] });
+    // in listening, a near miss that is itself a real word ("beach" for "peach") was misheard, not misspelt
+    if (diff.length && diff.every(([w, k]) => isSpellingSlip(w, k))) return mk(ctx?.skill === 'listening' && diff.every(([w]) => isWord(w)) ? 'misheard' : 'spelling', { word: diff[0]![1], typed: diff[0]![0] });
   }
+  if (!ctx) return null;
+
+  const cg = canonAnswerText(given);
+  const keys = accepted.flatMap(expandAnswer);
+  for (const o of ctx.others) if (o.keys.some((k) => k === cg || (!/\d/.test(cg) && isSpellingSlip(cg, k)))) return mk('lost-place', { other: o.n });
+  const keyNum = keys.length > 0 && keys.every((k) => /\d/.test(k)), givenNum = /\d/.test(cg);
+  if (keyNum ? !givenNum : /^[\d\s]+$/.test(cg)) return mk('wrong-type');
+  // a distractor: the answer is said / written in this section, but it is not (part of) the key
+  if (cg.split(' ').some((w) => !STOP.has(w)) && ctx.text.includes(` ${cg} `) && !keys.some((k) => ` ${k} `.includes(` ${cg} `))) return mk('trap');
+  if (keyNum) return mk('number');
   return null;
 }
 
@@ -433,18 +503,46 @@ export function lrTypeLabel(g: Pick<LrGroup, 'type' | 'title' | 'instructions'> 
 }
 
 export interface GapEntry extends GapMistake { n: number; before?: number }
+export interface LrCause { family: CauseFamily; label: string; message: string; questions: number[] }
 export interface LrAnalysis {
-  /** wrong gap answers with a deterministic reason */
+  /** wrong gap answers with their reason */
   gaps: GapEntry[];
   tfng: TfngRow[];
   byType: { label: string; right: number; total: number }[];
+  /** every lost mark grouped by cause, largest first (absent on analyses stored before causes existed) */
+  causes?: LrCause[];
 }
 
-/** Classifies a submitted attempt. `before(word)` = how often the user misspelt that word in earlier attempts. */
-export function analyseAttempt(test: LrTest, marks: LrMark[], responses: LrResponses, before: (word: string) => number = () => 0): LrAnalysis {
+const isGap = (g: LrGroup) => g.type === 'gap' && !g.options;
+/** Wrong gap answers with their deterministic reason (null when only a model can tell). */
+function wrongGaps(test: LrTest, marks: LrMark[], responses: LrResponses) {
   const by = new Map(marks.map((m) => [m.n, m]));
-  const gaps: GapEntry[] = [];
+  return test.sections.flatMap((s) => {
+    const gapQs = s.groups.filter(isGap).flatMap((g) => g.questions);
+    const text = ` ${canonAnswerText(sectionParagraphs(s).join(' '))} `;
+    return s.groups.filter(isGap).flatMap((g) =>
+      g.questions.flatMap((q) => {
+        const m = by.get(q.n);
+        if (!m || m.correct) return [];
+        const others = gapQs.filter((o) => o.n !== q.n && Math.abs(o.n - q.n) <= 3).map((o) => ({ n: o.n, keys: (o.answer ?? []).flatMap(expandAnswer) }));
+        const given = responses[q.n] ?? m.given;
+        return [{ s, g, q, given, c: classifyGap(given, q.answer ?? [], g.wordLimit, { skill: test.skill, text, others }) }];
+      }),
+    );
+  });
+}
+
+/** What the server asks a model about: wrong gap answers no rule explains. */
+export interface ResidualGap { n: number; skill: LrSkill; given: string; answer: string[]; evidence?: string }
+export function residualGaps(test: LrTest, marks: LrMark[], responses: LrResponses): ResidualGap[] {
+  return wrongGaps(test, marks, responses).filter((x) => !x.c).map(({ q, given }) => ({ n: q.n, skill: test.skill, given, answer: q.answer ?? [], ...(q.review?.evidence && { evidence: q.review.evidence }) }));
+}
+
+/** Classifies a submitted attempt. `before(word)` = how often the user misspelt that word in earlier attempts; `ai` = model reasons for residualGaps (else "Different detail"). */
+export function analyseAttempt(test: LrTest, marks: LrMark[], responses: LrResponses, before: (word: string) => number = () => 0, ai: ReadonlyMap<number, AiGapKind> = new Map()): LrAnalysis {
+  const by = new Map(marks.map((m) => [m.n, m]));
   const types = new Map<string, { right: number; total: number }>();
+  const family = new Map<number, CauseFamily>();
   for (const s of test.sections) for (const g of s.groups) {
     const label = lrTypeLabel(g);
     for (const q of g.questions) {
@@ -453,16 +551,23 @@ export function analyseAttempt(test: LrTest, marks: LrMark[], responses: LrRespo
       t.total++;
       if (m?.correct) t.right++;
       types.set(label, t);
-      if (g.type !== 'gap' || g.options || !m || m.correct) continue;
-      const c = classifyGap(responses[q.n] ?? m.given, q.answer ?? [], g.wordLimit);
-      if (!c) continue;
-      // keep the key's own capitalisation (proper nouns) for the word shown and put on a card
-      const cased = c.word ? (q.answer ?? []).flatMap((a) => a.replace(/[()]/g, ' ').split(/\s+/)).map((t) => t.replace(/[^\p{L}\p{N}'-]/gu, '')).find((t) => fold(t) === c.word) : undefined;
-      const word = cased ?? c.word;
-      gaps.push({ n: q.n, ...c, ...(word ? { word } : {}), ...(c.kind === 'spelling' || c.kind === 'plural' ? { before: before(word!) } : {}) });
+      // option picks are distractors by design; a misread statement is a missed answer (gaps are set below)
+      if (m && !m.correct) family.set(q.n, !m.given?.trim() ? 'blank' : g.type === 'tfng' || g.type === 'ynng' ? 'missed' : 'trap');
     }
   }
-  return { gaps, tfng: tfngRows(test, marks), byType: [...types].map(([label, v]) => ({ label, ...v })) };
+  const gaps = wrongGaps(test, marks, responses).map(({ q, c }): GapEntry => {
+    const entry = c ?? coach(ai.get(q.n) ?? 'other', test.skill);
+    // keep the key's own capitalisation (proper nouns) for the word shown and put on a card
+    const cased = entry.word ? (q.answer ?? []).flatMap((a) => a.replace(/[()]/g, ' ').split(/\s+/)).map((t) => t.replace(/[^\p{L}\p{N}'-]/gu, '')).find((t) => fold(t) === entry.word) : undefined;
+    const word = cased ?? entry.word;
+    family.set(q.n, FAMILY[entry.kind]);
+    return { n: q.n, ...entry, ...(word ? { word } : {}), ...(entry.kind === 'spelling' || entry.kind === 'plural' ? { before: before(word!) } : {}) };
+  });
+  const causes = (Object.keys(CAUSES) as CauseFamily[])
+    .map((f) => ({ family: f, ...CAUSES[f], questions: [...family].filter(([, x]) => x === f).map(([n]) => n).sort((a, b) => a - b) }))
+    .filter((c) => c.questions.length)
+    .sort((a, b) => b.questions.length - a.questions.length);
+  return { gaps, tfng: tfngRows(test, marks), byType: [...types].map(([label, v]) => ({ label, ...v })), causes };
 }
 
 /** What the runner measured (stored with the attempt): seconds per part, answer changes per question, questions answered in the last 5 minutes. */

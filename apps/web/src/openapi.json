@@ -2549,6 +2549,13 @@
                 "total"
               ]
             }
+          },
+          "causes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LrCause"
+            },
+            "description": "Largest first; absent on attempts submitted before causes existed"
           }
         },
         "required": [
@@ -2582,6 +2589,10 @@
           "before": {
             "type": "number",
             "description": "Times misspelt in earlier attempts"
+          },
+          "other": {
+            "type": "number",
+            "description": "lost-place: the question this answer belongs to"
           }
         },
         "required": [
@@ -2590,6 +2601,39 @@
           "label",
           "message"
         ]
+      },
+      "LrCause": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string",
+            "enum": [
+              "slip",
+              "trap",
+              "missed",
+              "blank"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "family",
+          "label",
+          "message",
+          "questions"
+        ],
+        "description": "Lost marks grouped by cause: slip (had the answer, lost the mark), trap (picked a distractor), missed (different detail), blank"
       },
       "LrTest": {
         "type": "object",
@@ -3182,6 +3226,43 @@
               "pattern",
               "rows"
             ]
+          },
+          "causes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill": {
+                  "type": "string",
+                  "enum": [
+                    "listening",
+                    "reading"
+                  ]
+                },
+                "family": {
+                  "type": "string",
+                  "enum": [
+                    "slip",
+                    "trap",
+                    "missed",
+                    "blank"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "skill",
+                "family",
+                "label",
+                "count"
+              ]
+            },
+            "description": "Lost marks by cause over the last 300 attempts (those analysed with causes), per skill, largest first"
           }
         },
         "required": [
@@ -3189,7 +3270,8 @@
           "byType",
           "weakest",
           "suggested",
-          "tfng"
+          "tfng",
+          "causes"
         ]
       },
       "LrSpelling": {

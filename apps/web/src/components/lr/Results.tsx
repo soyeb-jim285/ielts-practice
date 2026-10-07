@@ -110,7 +110,18 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   const pickQ = (n: number) => { jump(n); play(n); };
   const blank = flat.filter((f) => !marks.get(f.n)?.given).map((f) => f.n);
   const rows = flat.filter((f) => !wrongOnly || !marks.get(f.n)?.correct);
-  const slips = (attempt.analysis?.gaps ?? []).filter((g) => g.kind === 'spelling' || g.kind === 'plural').length;
+  const causes = attempt.analysis?.causes ?? [];
+  const slips = causes.find((c) => c.family === 'slip')?.questions.length ?? (attempt.analysis?.gaps ?? []).filter((g) => g.kind === 'spelling' || g.kind === 'plural').length;
+  // across tests: the cause that costs this skill the most, once there is enough to say so
+  const pastCauses = (insights.data?.causes ?? []).filter((c) => c.skill === test.skill);
+  const pastLost = pastCauses.reduce((n, c) => n + c.count, 0);
+  const trend = pastLost >= 10 && pastCauses[0] ? `Across your ${test.skill} tests, "${pastCauses[0].label.toLowerCase()}" costs you the most: ${pastCauses[0].count} of ${pastLost} lost marks.` : undefined;
+  const openAnswer = (n: number) => {
+    setWrongOnly(true);
+    setTab('answers');
+    setSelected(n);
+    setTimeout(() => document.getElementById(`qrow-${n}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
+  };
   const weak = byType.filter((r) => r.total >= 3 && r.right < r.total).sort((a, b) => a.right / a.total - b.right / b.total)[0];
   const time = attempt.elapsedS ? formatDuration(attempt.elapsedS * 1000) : null;
   const toMistakes = () => { setWrongOnly(true); setTab('answers'); };
@@ -122,7 +133,7 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
   // two plain sentences at most, each ending in the place that explains it. The weakest type leads "Where you lost marks" instead.
   const takeaways = [
     wrongCount === 0 && <>Every answer was correct.</>,
-    slips > 0 && <>{slips} {slips === 1 ? 'answer was' : 'answers were'} the right word with a spelling or plural slip. <TextButton onClick={toMistakes}>See {slips === 1 ? 'it' : 'them'}</TextButton></>,
+    slips > 0 && <>{slips} {slips === 1 ? 'answer had' : 'answers had'} the right idea but lost the mark on spelling, wording or the box. <TextButton onClick={toMistakes}>See {slips === 1 ? 'it' : 'them'}</TextButton></>,
     blank.length > 0 && <>{blank.length} left blank. <TextButton onClick={attempt.stats ? toPacing : toMistakes}>See which</TextButton></>,
   ].filter(Boolean).slice(0, 2);
   const rowsBy = (by === 'type' ? byType : byPart).map((r) => ({ label: r.label, right: r.right, total: r.total }));
@@ -176,6 +187,30 @@ export function Results({ attempt }: { attempt: LrAttempt }) {
         <div role="tabpanel" id="res-tab-panel" aria-labelledby={`res-tab-${tab}`} className="space-y-8 pt-6 sm:pt-8 md:space-y-12">
           {tab === 'overview' && (
             <>
+              {causes.length > 0 && (
+                <Section title="Why you lost marks" caption={trend ?? 'Every wrong or blank answer, grouped by what went wrong. Tap a number to see that answer.'}>
+                  <RankedList
+                    mode="count"
+                    rows={causes.map((c) => ({
+                      label: c.label,
+                      right: c.questions.length,
+                      total: wrongCount,
+                      hint: (
+                        <>
+                          <span className="block max-w-[68ch] text-pretty">{c.message}</span>
+                          <span className="mt-1 flex flex-wrap gap-1" aria-label={`Questions: ${c.label}`}>
+                            {c.questions.map((n) => (
+                              <button key={n} type="button" onClick={() => openAnswer(n)} aria-label={`Question ${n}: see why`} className="type-caption type-num hit inline-flex h-7 min-w-7 items-center justify-center rounded-sm border border-line px-1.5 text-accent-text hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-md:h-9 max-md:min-w-9">
+                                {n}
+                              </button>
+                            ))}
+                          </span>
+                        </>
+                      ),
+                    }))}
+                  />
+                </Section>
+              )}
               <Section
                 title="Where you lost marks"
                 caption={weak ? `Weakest: ${weak.label.toLowerCase()}, ${weak.right} of ${weak.total} right.` : undefined}

@@ -78,6 +78,7 @@ export function QuestionDetail({ q, group, section, mark, entry, verdict = true,
               </span>
             )}
           </p>
+          {entry.other != null && <p>This is the answer to question {entry.other}.</p>}
           <p className="text-pretty">{entry.message}</p>
           {entry.kind === 'spelling' && !!entry.before && <p className="text-warn-text">You've misspelt '{entry.word}' {timesText(entry.before)} before.</p>}
           {entry.kind === 'plural' && !!entry.before && <p className="text-warn-text">You've slipped on the ending of '{entry.word}' {timesText(entry.before)} before.</p>}

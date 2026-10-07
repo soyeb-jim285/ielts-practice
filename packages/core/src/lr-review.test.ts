@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LrTest, LrTimings } from './lr';
-import { analyseAttempt, answerSentence, audioWindow, clusterMoments, questionMoments, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
+import { canonAnswerText, type LrTest, type LrTimings } from './lr';
+import { analyseAttempt, answerSentence, residualGaps, audioWindow, clusterMoments, questionMoments, classifyGap, dictationDiff, dictationScore, editDistance, evidenceSpan, locatePhrase, maskWord, tfngPattern, wordLimitOf } from './lr-review';
 
 describe('wordLimitOf', () => {
   it.each([['ONE WORD ONLY', 1], ['NO MORE THAN TWO WORDS AND/OR A NUMBER', 2], ['Write THREE WORDS', 3], ['ONE WORD AND/OR A NUMBER', 1], ['A NUMBER', null], [undefined, null]])('%s', (s, n) => expect(wordLimitOf(s as string)).toBe(n));
@@ -169,4 +169,63 @@ it('analyseAttempt keeps the key capitalisation of the word', () => {
   const a = analyseAttempt(t, [{ n: 1, given: 'ethiopa', correct: false, answer: ['Ethiopia'] }], { 1: 'ethiopa' }, (w) => (seen.push(w), 0));
   expect(a.gaps[0]).toMatchObject({ word: 'Ethiopia', typed: 'ethiopa' });
   expect(seen).toEqual(['Ethiopia']);
+});
+
+describe('classifyGap with section context', () => {
+  const text = ` ${canonAnswerText('We sent sixty invitations, but fourteen cannot come, so plan for forty-six. The venue is the Memorial Hall, and there is a garden behind it.')} `;
+  const ctx = (skill: 'listening' | 'reading' = 'listening') => ({ skill, text, others: [{ n: 2, keys: ['hargreaves'] }, { n: 4, keys: ['74'] }] });
+  const kind = (g: string, a: string[], skill?: 'listening' | 'reading') => classifyGap(g, a, undefined, ctx(skill))?.kind ?? null;
+  it('answer that belongs to a nearby question', () => {
+    expect(classifyGap('Hargreeves', ['46'], undefined, ctx())).toMatchObject({ kind: 'lost-place', other: 2 });
+    expect(kind('seventy four', ['garden'])).toBe('lost-place');
+  });
+  it('wrong kind of answer: a word for a number, digits for a word', () => {
+    expect(kind('afternoon', ['07700 900316'])).toBe('wrong-type');
+    expect(kind('12', ['garden'])).toBe('wrong-type');
+  });
+  it('distractor: said in the section, not the key (number words and digits alike)', () => {
+    expect(kind('sixty', ['46'])).toBe('trap');
+    expect(kind('60', ['46'])).toBe('trap');
+    expect(kind('garden', ['Memorial Hall'])).toBe('trap');
+    expect(kind('the', ['Memorial Hall'])).not.toBe('trap'); // a stopword alone is no distractor
+  });
+  it('different number not in the section', () => {
+    expect(kind('50', ['46'])).toBe('number');
+  });
+  it('reading wording for reading tests', () => {
+    expect(classifyGap('garden', ['Memorial Hall'], undefined, ctx('reading'))?.message).toMatch(/passage/);
+    expect(classifyGap('garden', ['Memorial Hall'], undefined, ctx('listening'))?.message).toMatch(/speaker/);
+  });
+  it('unexplained answers stay null for the model to judge', () => expect(kind('cheap', ['inexpensive'])).toBeNull());
+  it('form rules still win', () => expect(kind('memorial hal', ['Memorial Hall'])).toBe('spelling'));
+  it('listening: a near miss that is a real word was misheard; reading keeps it a spelling slip', () => {
+    expect(kind('beach', ['peach'])).toBe('misheard');
+    expect(kind('beach', ['peach'], 'reading')).toBe('spelling');
+    expect(kind('libary', ['library'])).toBe('spelling');
+  });
+});
+
+describe('analyseAttempt causes', () => {
+  const test: LrTest = {
+    slug: 't', skill: 'listening', variant: 'academic', source: 'generated', ref: 'G', title: 'T',
+    sections: [{ part: 1, audio: 'a', transcript: 'The rooms are fairly inexpensive. We sent sixty invitations but plan for forty-six.', groups: [
+      { from: 1, to: 4, type: 'gap', instructions: 'x', content: '{{1}} {{2}} {{3}} {{4}}', questions: [{ n: 1, answer: ['inexpensive'] }, { n: 2, answer: ['46'] }, { n: 3, answer: ['receive'] }, { n: 4, answer: ['apricot'] }] },
+      { from: 5, to: 6, type: 'mcq', instructions: 'x', questions: [{ n: 5, answer: ['A'] }, { n: 6, answer: ['B'] }] },
+    ] }],
+  };
+  const marks = [
+    { n: 1, given: 'cheap', correct: false, answer: ['inexpensive'] }, { n: 2, given: 'sixty', correct: false, answer: ['46'] },
+    { n: 3, given: 'recieve', correct: false, answer: ['receive'] }, { n: 4, given: 'apple', correct: false, answer: ['apricot'] },
+    { n: 5, given: 'C', correct: false, answer: ['A'] }, { n: 6, given: '', correct: false, answer: ['B'] },
+  ];
+  const responses = { 1: 'cheap', 2: 'sixty', 3: 'recieve', 4: 'apple', 5: 'C' };
+  it('residual gaps are the ones no rule explains', () => expect(residualGaps(test, marks, responses).map((r) => r.n)).toEqual([1, 4]));
+  it('groups every lost mark by cause, largest first, with model reasons merged', () => {
+    const a = analyseAttempt(test, marks, responses, () => 0, new Map([[1, 'synonym'], [4, 'misheard']] as const));
+    expect(a.gaps.map((g) => [g.n, g.kind])).toEqual([[1, 'synonym'], [2, 'trap'], [3, 'spelling'], [4, 'misheard']]);
+    expect(a.causes!.map((c) => [c.family, c.questions])).toEqual([['slip', [1, 3]], ['trap', [2, 5]], ['missed', [4]], ['blank', [6]]]);
+  });
+  it('without a model reason the answer is a different detail', () => {
+    expect(analyseAttempt(test, marks, responses).gaps.find((g) => g.n === 4)).toMatchObject({ kind: 'other', label: 'Different detail' });
+  });
 });

@@ -1,7 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { analyseAttempt, lrTypeLabel, maskWord, pickParts, scoreLr, stripAnswers, tfngPattern, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
+import { analyseAttempt, CAUSES, lrTypeLabel, maskWord, pickParts, residualGaps, scoreLr, stripAnswers, tfngPattern, type CauseFamily, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
 import { and, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
+import { aiGapReasons } from '../ai/lr-mistakes';
 import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { cards, lrAttempts, lrTests } from '../db/schema';
@@ -60,13 +61,22 @@ const Stats = z
 /** Clients that do not know `audio` (older apps) must not wipe it: keep the stored one when the incoming stats omit it. */
 const keepAudio = (next: z.infer<typeof Stats>, old: z.infer<typeof Stats> | null) => (next.audio || !old?.audio ? next : { ...next, audio: old.audio });
 const GapEntrySchema = z
-  .object({ n: z.number(), kind: z.string(), label: z.string(), message: z.string(), word: z.string().optional(), typed: z.string().optional(), before: z.number().optional().openapi({ description: 'Times misspelt in earlier attempts' }) })
+  .object({
+    n: z.number(), kind: z.string(), label: z.string(), message: z.string(), word: z.string().optional(), typed: z.string().optional(),
+    before: z.number().optional().openapi({ description: 'Times misspelt in earlier attempts' }),
+    other: z.number().optional().openapi({ description: 'lost-place: the question this answer belongs to' }),
+  })
   .openapi('LrGapMistake');
+const CauseFamilySchema = z.enum(['slip', 'trap', 'missed', 'blank']);
+const CauseSchema = z
+  .object({ family: CauseFamilySchema, label: z.string(), message: z.string(), questions: z.array(z.number()) })
+  .openapi('LrCause', { description: 'Lost marks grouped by cause: slip (had the answer, lost the mark), trap (picked a distractor), missed (different detail), blank' });
 const AnalysisSchema = z
   .object({
     gaps: z.array(GapEntrySchema),
     tfng: z.array(z.object({ n: z.number(), kind: z.enum(['tfng', 'ynng']), chose: z.string(), answer: z.string() })),
     byType: z.array(z.object({ label: z.string(), right: z.number(), total: z.number() })),
+    causes: z.array(CauseSchema).optional().openapi({ description: 'Largest first; absent on attempts submitted before causes existed' }),
   })
   .openapi('LrAnalysis');
 const LrTestSchema = z
@@ -425,7 +435,10 @@ export function register(app: App) {
       const score = scoreLr(test, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])));
       const user = currentUser(c);
       const prior = await priorGaps(user.id);
-      const analysis = analyseAttempt(test, score.marks, Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v])), (w) => prior.filter((g) => g.word === w).length);
+      const given = Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v]));
+      // answers no rule explains get a model reason (same meaning / misheard), within a short budget; without one they read "Different detail"
+      const ai = await aiGapReasons(residualGaps(test, score.marks, given), user.id);
+      const analysis = analyseAttempt(test, score.marks, given, (w) => prior.filter((g) => g.word === w).length, ai);
       // status guard in WHERE: two concurrent submits cannot both score
       const [row] = await db
         .update(lrAttempts)
@@ -454,6 +467,7 @@ export function register(app: App) {
               weakest: z.array(z.object({ skill: Skill, label: z.string(), right: z.number(), total: z.number() })).openapi({ description: 'Up to 3 types with the lowest accuracy (at least 4 questions seen)' }),
               suggested: z.object({ id: z.string(), title: z.string(), skill: Skill, label: z.string(), count: z.number() }).nullable().openapi({ description: 'A test you have not done with the most questions of your weakest type' }),
               tfng: z.object({ pattern: z.object({ kind: z.enum(['tfng', 'ynng']), answer: z.string(), chose: z.string(), count: z.number(), of: z.number(), pct: z.number(), text: z.string() }).nullable(), rows: z.number() }),
+              causes: z.array(z.object({ skill: Skill, family: CauseFamilySchema, label: z.string(), count: z.number() })).openapi({ description: 'Lost marks by cause over the last 300 attempts (those analysed with causes), per skill, largest first' }),
             })
             .openapi('LrProgress'),
           'Progress',
@@ -494,7 +508,14 @@ export function register(app: App) {
         ? rowsT.map((t) => ({ id: t.id, title: t.title, count: t.groups.filter((g) => lrTypeLabel(g) === w.label).reduce((n, g) => n + g.n, 0) })).filter((t) => t.count > 0).sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))[0]
         : undefined;
       const tf = rows.flatMap((r) => r.analysis?.tfng ?? []);
-      return c.json({ trend, byType, weakest, suggested: best && w ? { ...best, skill: w.skill, label: w.label } : null, tfng: { pattern: tfngPattern(tf), rows: tf.length } }, 200);
+      const lost = new Map<string, { skill: 'listening' | 'reading'; family: CauseFamily; label: string; count: number }>();
+      for (const r of rows) for (const k of r.analysis?.causes ?? []) {
+        const e = lost.get(`${r.skill}|${k.family}`) ?? { skill: r.skill as 'listening' | 'reading', family: k.family, label: CAUSES[k.family].label, count: 0 };
+        e.count += k.questions.length;
+        lost.set(`${r.skill}|${k.family}`, e);
+      }
+      const causes = [...lost.values()].sort((a, b) => a.skill.localeCompare(b.skill) || b.count - a.count);
+      return c.json({ trend, byType, weakest, suggested: best && w ? { ...best, skill: w.skill, label: w.label } : null, tfng: { pattern: tfngPattern(tf), rows: tf.length }, causes }, 200);
     },
   );
 

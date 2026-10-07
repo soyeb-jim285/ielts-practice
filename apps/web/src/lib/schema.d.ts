@@ -4813,6 +4813,8 @@ export interface components {
                 right: number;
                 total: number;
             }[];
+            /** @description Largest first; absent on attempts submitted before causes existed */
+            causes?: components["schemas"]["LrCause"][];
         } | null;
         LrGapMistake: {
             n: number;
@@ -4823,6 +4825,16 @@ export interface components {
             typed?: string;
             /** @description Times misspelt in earlier attempts */
             before?: number;
+            /** @description lost-place: the question this answer belongs to */
+            other?: number;
+        };
+        /** @description Lost marks grouped by cause: slip (had the answer, lost the mark), trap (picked a distractor), missed (different detail), blank */
+        LrCause: {
+            /** @enum {string} */
+            family: "slip" | "trap" | "missed" | "blank";
+            label: string;
+            message: string;
+            questions: number[];
         };
         /** @description Only the chosen parts; stripped (no answers, no transcript) until submitted */
         LrTest: {
@@ -4972,6 +4984,15 @@ export interface components {
                 } | null;
                 rows: number;
             };
+            /** @description Lost marks by cause over the last 300 attempts (those analysed with causes), per skill, largest first */
+            causes: {
+                /** @enum {string} */
+                skill: "listening" | "reading";
+                /** @enum {string} */
+                family: "slip" | "trap" | "missed" | "blank";
+                label: string;
+                count: number;
+            }[];
         };
         LrSpelling: {
             items: {

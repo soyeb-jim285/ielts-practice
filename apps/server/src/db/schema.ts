@@ -356,7 +356,7 @@ export const aiCosts = pgTable('ai_costs', {
   promptId: text('prompt_id'),
   skill: text('skill'), // 'speaking' | 'writing'
   part: integer('part'),
-  stage: text('stage').notNull(), // stt | stt_verbatim | pronunciation | disfluency | feedback | score | examiner_llm | examiner_tts | live_realtime | other
+  stage: text('stage').notNull(), // stt | stt_verbatim | pronunciation | disfluency | feedback | score | examiner_llm | examiner_tts | live_realtime | lr_mistake | other
   provider: text('provider').notNull(), // openrouter | elevenlabs | openai | gemini
   model: text('model').notNull(),
   paidBy: text('paid_by').notNull(), // 'house' | 'own_key'
