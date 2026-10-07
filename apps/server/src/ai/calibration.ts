@@ -20,7 +20,10 @@ export const UNCALIBRATED_LABEL = 'Estimated with an unvalidated model: scores m
  *  but the model stays "unvalidated" (calibrated: false, q = 1) because the CV gate is not met. Fitted by
  *  `pnpm eval:scoring --split calib --fit --with-anchors --with-ceilings` on the current promptHash and feedback prompt: refit and paste when either changes. */
 export const DEFAULT_MAPS: Record<string, KnotMap> = {
-  'openai/gpt-6-luna': { w: -0.16, gd0: 4.31, knots: [[3.5, 4.34], [4.5, 5.34], [7.5, 7.65], [8.5, 8.65]] }, // fitted 2026-10-01 on promptHash c2c869d31a9fcf39 (98 calibration scripts: 64 gold + 22 anchors + 6 model answers at 8.5 + 6 authored floors; leave-one-prompt-out CV: MAE 0.52, bias >=7 -0.37, <=5 +0.04)
+  'openai/gpt-6-luna': { w: -0.16, gd0: 4.31, knots: [[3.5, 4.34], [4.5, 5.34], [7.5, 7.65], [8.5, 8.65]] },
+  // Jev writing scorer (writing.ts jevScoreWriting, request JEV_WRITING_HASH): fitted 2026-10-07 on the 70 calibration scripts (apps/server/.eval/jev/fit-writing-map.mts);
+  // leave-one-prompt-out CV MAE 0.53 / QWK 0.78; frozen TEST MAE 0.52 / QWK 0.80 (luna 0.45 / 0.85).
+  'typesafe/jev-1.13': { w: -0.22, gd0: 4.39, knots: [[3.5, 4.39], [4.5, 5.39], [7.5, 7.42], [8.5, 8.1]] }, // fitted 2026-10-01 on promptHash c2c869d31a9fcf39 (98 calibration scripts: 64 gold + 22 anchors + 6 model answers at 8.5 + 6 authored floors; leave-one-prompt-out CV: MAE 0.52, bias >=7 -0.37, <=5 +0.04)
 };
 
 export const calibrationKey = (modelId: string, promptHash: string, effort: string, k: number) =>

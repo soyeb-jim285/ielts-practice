@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { fakeFetch } from '../test/helpers';
+import { fakeFetch, json } from '../test/helpers';
 import { db, sql } from '../db/client';
 import { scoringCalibrations, scoringScripts } from '../db/schema';
 import { setFetch } from './openrouter';
@@ -7,8 +7,8 @@ import { analyzeWriting, applyRules, densityCap, grammarDensity, scoreWriting, s
 import { criterionScore, settings, writingChat, writingLlm } from './fixtures';
 import type { LlmCriterion } from './schemas';
 import { keepVerbatimEvidence } from './schemas';
-import { roundBand, taskBand } from '@ielts/core';
-import { calibrationKey, clearCalibrationCache } from './calibration';
+import { applyKnotMap, countWords, roundBand, taskBand } from '@ielts/core';
+import { calibrationKey, clearCalibrationCache, DEFAULT_MAPS } from './calibration';
 import { clearAnchorCache, loadAnchors, pickAnchors, promptHash } from './prompts';
 
 const prompt = { title: 'Technology', body: 'Some people think technology makes life harder. Discuss.' };
@@ -70,6 +70,47 @@ it('one feedback call without bands plus K joint scoring calls: essay wrapped as
   expect(r).toMatchObject({ calibrated: false, q: 1, overallRaw: 6, overall: 6, range: [5, 7] });
   expect(bandsOf(r)).toEqual([6, 6, 6, 6]);
   expect(r.criteria.ta!.evidence).toEqual(['people has']);
+});
+
+/** Jev answer: `score` is the 0-based step on bands 3-9, so 3 = band 6. */
+const jevReply = (scores: Record<string, number>) => () =>
+  json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(Object.entries(scores).map(([k, score]) => [k, { type: 'score', score, confidence: 0.9, probabilities: {} }])), usage: { input_tokens: 900, output_tokens: 20, cost: 0.00002 } });
+const jevCalls = (f: ReturnType<typeof fakeFetch>) => f.calls.filter((c) => c.url.endsWith('/systemone'));
+
+it('Jev scores the essay in one call instead of K LLM samples: its knot map sets the overall, criterion evidence comes from the feedback errors', async () => {
+  const f = fakeFetch({ '/chat/completions': writingChat(), '/systemone': jevReply({ ta: 3, cc: 3, lr: 3, gra: 3 }) });
+  setFetch(f);
+  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: settings() });
+  expect(chatCalls(f, 'writing_scores')).toHaveLength(0);
+  expect(chatCalls(f, 'writing_analysis')).toHaveLength(1); // feedback still runs
+  const [j] = jevCalls(f);
+  expect(j!.body).toMatchObject({ model: 'typesafe/jev-1.13', state: { task: 'Task 2 (argument essay, minimum 250 words)', candidate_response: essay } });
+  expect(Object.keys(j!.body.questions)).toEqual(['ta', 'cc', 'lr', 'gra']);
+  expect(j!.body.questions.gra.criteria).toHaveLength(7); // bands 3-9
+  expect(j!.body.questions.gra.criteria[0]).toMatch(/^Band 3: /);
+  const gd = (r.errors.filter((e) => e.category.startsWith('grammar.')).length * 100) / countWords(essay);
+  expect(r.overall).toBe(roundBand(applyKnotMap(DEFAULT_MAPS['typesafe/jev-1.13']!, 6, gd)));
+  expect(r).toMatchObject({ calibrated: false, q: 1 });
+  expect(r.criteria.gra!.evidence).toEqual(['people has']); // the located grammar error; the unlocated lexis quote is dropped
+  for (const c of Object.values(r.criteria)) {
+    expect(c!.descriptor).not.toBe('');
+    expect(c!.summary).toMatch(/^To reach band \d: /);
+  }
+});
+
+it('a figure only available as an image stays on the LLM scorer (Jev cannot see it); a Jev failure falls back to it too', async () => {
+  const image = fakeFetch({ '/chat/completions': writingChat(), '/systemone': jevReply({ ta: 3, cc: 3, lr: 3, gra: 3 }), '/models': () => json({ data: [{ id: 'other/model', architecture: { input_modalities: ['text', 'image'] } }] }) });
+  setFetch(image);
+  await analyzeWriting({ text: essay, task: 1, variant: 'academic', prompt: { ...prompt, image: 'data:image/png;base64,AAAA' }, settings: plain() });
+  expect(jevCalls(image)).toHaveLength(0);
+  expect(chatCalls(image, 'writing_scores').length).toBeGreaterThan(0);
+
+  const down = fakeFetch({ '/chat/completions': writingChat(), '/systemone': () => json({ error: 'down' }, 503) });
+  setFetch(down);
+  const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, settings: plain() });
+  expect(jevCalls(down).length).toBeGreaterThan(0);
+  expect(chatCalls(down, 'writing_scores')).toHaveLength(WRITING_K);
+  expect(r.overall).toBe(6); // the LLM scorer's result (identity map for this model)
 });
 
 it('early exit: the two fastest samples agree, so the score is their mean (not K replicas); disagreement waits for the third', async () => {

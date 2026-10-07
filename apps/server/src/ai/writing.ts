@@ -3,7 +3,7 @@ import { repeatedLabel, computeTextMetrics, countWords, MIN_WORDS, promptOverlap
 import type { Settings } from '../settings';
 import { asCalibration, calibrationFor, calibrationKey, type Calibration } from './calibration';
 import { bandDescriptor, EXAMINER_RULES, fmt, WRITING_DESCRIPTORS } from './descriptors';
-import { acceptsImages, chatJson, type ContentPart, type Served } from './openrouter';
+import { acceptsImages, chatJson, decide, DECISION_MODEL, type ContentPart, type JevQuestion, type Served } from './openrouter';
 import {
   loadAnchors, pickAnchors, promptHash, sampleOrder, SCORER_TEMPERATURE, scorerSystem, scorerUser, scoreSchema, WRITING_KEYS,
   type Family, type Figure, type ScoringMode, type WritingKey,
@@ -136,6 +136,46 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
   if (o.early && mode === 'joint' && parts.length >= k && jagged(parts as Sample[]))
     parts.push(...(await scoringSamples([k, k + 1].map((n) => () => call(n, sampleOrder(n), true)))));
   return { samples: mergeSamples(parts, o.early && parts.length >= 2 ? parts.length : k), used: parts.length, served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
+}
+
+/** Jev scoring (docs/HANDOFF.md §2): one call rating the four criteria as `score` questions on bands 3-9. On the gold TEST split, with its knot map, it
+ *  is within noise of the LLM scorer (MAE 0.52 vs 0.45) at about a tenth of the cost and ~1 s. It cannot see figure images, so those stay on the LLM scorer.
+ *  ponytail: this is the experiment's `raw` request (apps/server/.eval/jev/variants.mts) verbatim, because DEFAULT_MAPS[DECISION_MODEL] was fitted on it:
+ *  change the wording or the band range and the map must be refitted (apps/server/.eval/jev/fit-writing-map.mts). */
+export const JEV_WRITING_HASH = 'jev-raw-v1';
+const JEV_LO = 3;
+const JEV_TASK: Record<Family, string> = {
+  t2: 'Task 2 (argument essay, minimum 250 words)',
+  t1g: 'General Training Task 1 (letter, minimum 150 words)',
+  t1a: 'Academic Task 1 (describe a chart/graph/diagram, minimum 150 words)',
+};
+const JEV_NAME: Record<WritingKey, string> = { ta: 'Task Achievement (Task 1) / Task Response (Task 2)', cc: 'Coherence and Cohesion', lr: 'Lexical Resource', gra: 'Grammatical Range and Accuracy' };
+export async function jevScoreWriting(i: WritingInput, figure: Figure): Promise<Scored> {
+  const fam = family(i), d = DESCRIPTORS(i.task), metrics = computeTextMetrics(i.text);
+  const questions = Object.fromEntries(WRITING_KEYS.map((k): [WritingKey, JevQuestion] => [k, {
+    type: 'score',
+    instructions: `You are a certified IELTS Writing examiner. Rate the candidate_response in the state on ${JEV_NAME[k]} using the official public band descriptors. Choose the band whose descriptor best fits the response as a whole.`,
+    criteria: Array.from({ length: 10 - JEV_LO }, (_, n) => `Band ${JEV_LO + n}: ${(d[k] as Record<number, string>)[JEV_LO + n] ?? ''}`),
+  }])) as Record<WritingKey, JevQuestion>;
+  const a = await decide({
+    state: { task: JEV_TASK[fam], task_prompt: { title: i.prompt.title, body: i.prompt.body, bullets: i.prompt.bullets ?? undefined, ...(i.prompt.chart ? { chart_data: i.prompt.chart } : {}) }, candidate_response: i.text },
+    questions,
+    timeoutMs: 20_000,
+    cost: { stage: 'score', meta: { scorer: 'jev' } },
+  });
+  // The expected band (continuous) is the sample: pooling then apportions the calibrated overall across the criteria.
+  const sample = Object.fromEntries(WRITING_KEYS.map((k): [WritingKey, CriterionScore] => [k, { placement: { closest: '', relation: 'similar' }, checks: [], evidence: [], descriptor: '', summary: '', injection: false, band: JEV_LO + a[k].score! }])) as Sample;
+  return {
+    samples: [sample], used: 1, served: [{ model: DECISION_MODEL }], flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words,
+    copied: promptOverlap(i.text, promptText(i.prompt)), figure, family: fam, promptHash: JEV_WRITING_HASH, key: calibrationKey(DECISION_MODEL, JEV_WRITING_HASH, 'none', 1),
+  };
+}
+
+/** Evidence for each criterion from the feedback call's located errors (verbatim spans of the essay): Jev scores carry no quotes of their own. */
+const CATEGORY_OF: [string, WritingKey][] = [['task.', 'ta'], ['cohesion.', 'cc'], ['lexis.', 'lr'], ['grammar.', 'gra']];
+function errorEvidence(text: string, errors: { category: string; start: number; end: number }[], k: WritingKey) {
+  const prefix = CATEGORY_OF.find(([, key]) => key === k)![0];
+  return [...new Set(errors.filter((e) => e.category.startsWith(prefix) && e.start >= 0).map((e) => text.slice(e.start, e.end)))].slice(0, 3);
 }
 
 /** Early-exit test for the first samples: every criterion within one band of the other sample's and their overall means within half a band. */
@@ -341,13 +381,17 @@ export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; on
     await i.onPartial?.({ skill: 'writing', part: i.task, text: i.text, textMetrics, structure: r.fb.structure, errors: r.errors, topFixes: r.fb.topFixes, vocabUpgrades: r.fb.vocabUpgrades, rewrite: { text: r.fb.rewrite, note: WRITING_REWRITE_NOTE } });
     return r;
   });
-  const scoredP = scoreWriting(i, { figure, k: scorerK(own, min), early: true, skipAnchor: i.skipAnchor }).then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
+  // Jev scores in about a second; it cannot see figure images, and any Jev failure falls back to the LLM scorer.
+  const llmScore = () => scoreWriting(i, { figure, k: scorerK(own, min), early: true, skipAnchor: i.skipAnchor });
+  const scoredP = (figure === 'image' ? llmScore() : jevScoreWriting(i, figure).catch((e: Error) => (console.error('Jev writing scoring failed, using the LLM scorer:', e.message), llmScore())))
+    .then((r) => ((timings.scorerMs = Date.now() - t0), (scoring = false), r));
   const [{ fb, errors }, scored] = await Promise.all([fbP, scoredP]);
   i.onScored?.(scored);
   i.onStage?.('finalizing');
 
   const t1 = Date.now();
-  const cal = await calibrationFor(scored.key, i.settings.models.analysis);
+  const jev = scored.promptHash === JEV_WRITING_HASH;
+  const cal = await calibrationFor(scored.key, jev ? DECISION_MODEL : i.settings.models.analysis);
   // A record fitted in one output mode does not carry over to the other (json_object fallback, §2.3).
   const mode = cal.record?.cv && (cal.record.cv as { mode?: string }).mode;
   const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key, undefined, i.settings.models.analysis) : cal;
@@ -355,9 +399,17 @@ export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; on
     task: i.task, text: i.text,
     rules: { task: i.task, variant: i.variant, words: own, text: i.text, facts: feedbackFacts(fb, errors, textMetrics.sentences) },
   });
+  if (jev)
+    for (const k of WRITING_KEYS) {
+      const c = r.criteria[k], d = DESCRIPTORS(i.task);
+      c.evidence = c.evidence.length ? c.evidence : errorEvidence(i.text, errors, k);
+      if (!c.descriptor) c.descriptor = bandDescriptor(d[k], c.band) ?? '';
+      const next = bandDescriptor(d[k], c.band + 1);
+      if (!c.summary && next) c.summary = `To reach band ${c.band + 1}: ${next}`;
+    }
   timings.calibrationMs = Date.now() - t1;
   timings.totalMs = Date.now() - t0;
-  console.log(`writing analysis timings ${JSON.stringify(timings)} k=${scored.used ?? scored.samples.length}/${scored.samples.length} words=${own} rules=${r.rules.length} spread=${JSON.stringify(r.spread)}`);
+  console.log(`writing analysis timings ${JSON.stringify(timings)} scorer=${jev ? 'jev' : 'llm'} k=${scored.used ?? scored.samples.length}/${scored.samples.length} words=${own} rules=${r.rules.length} spread=${JSON.stringify(r.spread)}`);
   return {
     v: 1, skill: 'writing', part: i.task, overall: r.overall, overallRaw: r.overallRaw, range: r.range, criteria: r.criteria,
     topFixes: fb.topFixes, errors, vocabUpgrades: fb.vocabUpgrades, rewrite: { text: fb.rewrite, note: WRITING_REWRITE_NOTE },

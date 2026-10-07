@@ -139,7 +139,8 @@ describe('reserve, refund, retry', () => {
     setFetch(fakeFetch({ '/chat/completions': () => chatReply('garbage') }));
     const { id } = await writing(headers, w);
     await settled(id, 'failed');
-    expect((await rows(user.id))[0]).toMatchObject({ refundedAt: expect.any(Date) });
+    // the refund is written after the status: wait for it rather than assume settled's 30 ms covers it under load
+    await vi.waitFor(async () => expect((await rows(user.id))[0]).toMatchObject({ refundedAt: expect.any(Date) }), { timeout: 8000 });
     expect((await quota(headers)).writing).toMatchObject({ used: 0, remaining: 1 });
 
     setFetch(fakeFetch({ '/chat/completions': writingChat() }));

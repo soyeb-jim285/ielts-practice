@@ -78,13 +78,14 @@ it('asRetry marks everything inside as a retry', async () => {
   expect((await all())[0]).toMatchObject({ retry: true, attemptId: 'a1' });
 });
 
-it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedback, every scorer sample', async () => {
+it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedback, one Jev scoring call', async () => {
   const score = { checks: [], evidence: [], descriptor: 'd', summary: 's', injection: false, band: 6 };
   const chat = (_: string, init: RequestInit) => {
     const name = JSON.parse(String(init.body)).response_format?.json_schema?.name;
     return name === 'speaking_feedback' ? chatReply(speakingLlm) : name === 'disfluency_tags' ? chatReply({ tags: [] }) : chatReply(score);
   };
-  setFetch(fakeFetch({ '/audio/transcriptions': () => json({ ...sttWords, usage: { cost: 0.002 } }), '/chat/completions': withUsage(chat, 0.01) }));
+  const jev = () => json({ answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { score: 2, probabilities: { 2: 1 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.01 } });
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json({ ...sttWords, usage: { cost: 0.002 } }), '/chat/completions': withUsage(chat, 0.01), '/systemone': jev }));
   await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, settings: settings({ models: { ...settings().models, stt: 'openai/whisper-large-v3' } }) }));
   const rows = await all();
   const by = (stage: string) => rows.filter((r) => r.stage === stage);
@@ -95,9 +96,8 @@ it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedbac
   expect(by('feedback')).toHaveLength(1);
   expect(by('disfluency')).toHaveLength(1);
   const scores = by('score');
-  expect(scores).toHaveLength(12); // 4 criteria (no pronunciation pass) x 3 samples
-  expect(new Set(scores.map((r) => `${r.meta!.criterion}${r.meta!.sample}`)).size).toBe(12);
-  expect(scores.every((r) => r.costUsd === 0.01 && r.attemptId === 'a1' && r.part === 2)).toBe(true);
+  expect(scores).toHaveLength(1); // one Jev call replaces the 4 criteria x 3 LLM samples
+  expect(scores[0]).toMatchObject({ model: 'typesafe/jev-1.13', costUsd: 0.01, attemptId: 'a1', part: 2, ok: true });
 });
 
 it('Scribe: house-paid ElevenLabs row from audio seconds, a failed call as ok=false and the Whisper fallback tagged', async () => {
@@ -125,14 +125,15 @@ it('TTS: one estimated row per synthesised chunk with its characters', async () 
   expect(r!.meta).toMatchObject({ estimated: true });
 });
 
-it('writing: the feedback call and every scoring sample leave a row with the mocked usage.cost', async () => {
-  setFetch(fakeFetch({ '/chat/completions': withUsage(writingChat(), 0.02) }));
+it('writing: the feedback call and the Jev scoring call each leave a row with the mocked usage.cost', async () => {
+  const jev = () => json({ answers: Object.fromEntries(['ta', 'cc', 'lr', 'gra'].map((k) => [k, { score: 3, probabilities: {} }])), usage: { input_tokens: 900, output_tokens: 20, cost: 0.02 } });
+  setFetch(fakeFetch({ '/chat/completions': withUsage(writingChat(), 0.02), '/systemone': jev }));
   const essay = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(16)}`;
   await keyCtx.run({ cost: { ...ctx, skill: 'writing' } }, () => analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt: { title: 'T', body: 'Discuss.' }, settings: settings({ models: { ...settings().models, analysis: 'other/model' } }) }));
   await flushCosts();
   const done = await all();
   expect(done.filter((r) => r.stage === 'feedback')).toHaveLength(1);
-  expect(done.filter((r) => r.stage === 'score').length).toBeGreaterThanOrEqual(3);
+  expect(done.filter((r) => r.stage === 'score')).toMatchObject([{ model: 'typesafe/jev-1.13', ok: true }]);
   expect(done.every((r) => r.costUsd === 0.02 && r.skill === 'writing')).toBe(true);
 });
 

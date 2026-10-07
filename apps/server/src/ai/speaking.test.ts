@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries, transitionsOf } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, transitionsOf } from './speaking';
+import { fluencyComposite } from '@ielts/core';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
 const score = (band: number) => ({ checks: [{ band: Math.min(9, band + 1), feature: 'Error-free sentences are frequent', verdict: 'not_met', quote: 'I goes' }], evidence: ['I goes'], descriptor: 'A range of structures flexibly used.', summary: 'More complex sentences.', injection: false, band });
@@ -36,6 +37,33 @@ it('scores, rounds and locates errors in time', async () => {
   const user = JSON.parse(f.calls.find((c) => c.body?.response_format?.json_schema?.name === 'speaking_feedback')!.body.messages[1].content);
   expect(user.transcript).toContain('Q1: What did you do yesterday?');
   expect(user.transcript).toContain('[1]goes');
+});
+
+/** Jev answer on bands 4-9: `score` is the 0-based step (2 = band 6); probabilities per step. */
+const jev = (score: number, high = 0) => () =>
+  json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { type: 'score', score, confidence: 0.8, probabilities: { 0: 0, 1: 0.1, 2: 0.8 - high, 3: 0.1, 4: high, 5: 0 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.00002 } });
+
+it('Jev scores in one call instead of 12 LLM samples: the curve on its mean, P(8+) and measured fluency sets the overall', async () => {
+  const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat(), '/systemone': jev(2, 0.05) });
+  setFetch(f);
+  const r = await run();
+  const chats = f.calls.filter((c) => c.url.includes('/chat'));
+  expect(chats.map((c) => c.body.response_format?.json_schema?.name).sort()).toEqual(['disfluency_tags', 'speaking_feedback']); // no criterion_score calls
+  const [j] = f.calls.filter((c) => c.url.endsWith('/systemone'));
+  expect(Object.keys(j!.body.questions)).toEqual(['fc', 'lr', 'gra']);
+  expect(j!.body.questions.lr.criteria[0]).toMatch(/^Band 4: /);
+  expect(j!.body.state.answers[0]).toMatchObject({ examiner_question: 'What did you do yesterday?' });
+  const y = speakingCurve(6, 0.05, fluencyComposite((r.metrics as unknown as { fluency: never }).fluency, SPEAKING_FLUENCY_NORMS));
+  expect(Math.abs(r.overallRaw! - y)).toBeLessThanOrEqual(0.25); // whole criterion bands apportion the curve's overall
+  expect(r.criteria.gra!.summary).toMatch(/^To reach band \d: /);
+  expect(r.criteria.p!.summary).toMatch(/limited recognition-based estimate/i);
+});
+
+it('the curve stretches the top: a higher Jev mean and more band 8+ probability reach band 8+, and it never leaves 0-9', () => {
+  expect(speakingCurve(7, 0.3, 1.5)).toBeGreaterThanOrEqual(8);
+  expect(speakingCurve(6.5, 0, 0) - speakingCurve(6, 0, 0)).toBeGreaterThan(3 * (speakingCurve(5.5, 0, 0) - speakingCurve(5, 0, 0))); // much steeper above 6
+  expect(speakingCurve(9, 1, 3)).toBeLessThanOrEqual(9);
+  expect(speakingCurve(4, 0, -3)).toBeGreaterThanOrEqual(0);
 });
 
 it('default analysis never sends input_audio or requests a pronunciation report', async () => {
