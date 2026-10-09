@@ -49,6 +49,60 @@ function Waterfall({ stages, total }: { stages: SpendAttempt['stages']; total: n
   );
 }
 
+/** One cost line: stage, amount, model and detail, with badges for retries, failures, estimates and own-key calls. */
+function Item({ i }: { i: SpendAttempt['items'][number] }) {
+  return (
+    <li className="py-2.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="min-w-0 font-medium">{stageLabel(i.stage)}</span>
+        <span className="type-num shrink-0 font-semibold">{usdFine(i.costUsd)}</span>
+      </div>
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="type-caption min-w-0 truncate" title={i.model}>{i.model.split('/').pop()}</span>
+        <span className="type-caption type-num">{detail(i)}</span>
+        {i.retry && <Badge tone="warn">retry</Badge>}
+        {!i.ok && <Badge tone="bad">failed</Badge>}
+        {i.estimated && <Badge title="Priced from the model rate, not the billed amount">estimated</Badge>}
+        {i.paidBy === 'own_key' && <Badge tone="info">own key</Badge>}
+      </div>
+    </li>
+  );
+}
+
+/** The live session's own calls (shared by all its parts) and its transcript as the live model heard it, for comparing with the analysis transcript. */
+function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
+  return (
+    <section className="mt-6" aria-labelledby="live-h">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="live-h" className="text-sm font-semibold">Live session, shared by all parts</h3>
+        <span className="type-num text-sm font-semibold">{usdFine(live.totalUsd)}</span>
+      </div>
+      {live.items.length ? (
+        <ul className="mt-2 divide-y divide-line border-y border-line">
+          {live.items.map((i, k) => <Item key={k} i={i} />)}
+        </ul>
+      ) : (
+        <p className="type-caption mt-1">No live-model costs recorded (Gemini Live is not metered).</p>
+      )}
+      <details className="mt-4">
+        <summary className="cursor-pointer text-sm font-semibold">Live transcript ({live.transcript.length} turns)</summary>
+        {live.transcript.length ? (
+          <ol className="mt-2 space-y-2">
+            {live.transcript.map((t, k) => (
+              <li key={k} className="text-sm">
+                <span className="type-caption mr-2 font-semibold">{t.role === 'examiner' ? 'Examiner' : 'Candidate'} · {t.phase} · {dhakaTime(t.at)}</span>
+                <span className="block text-pretty">{t.text}</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="type-caption mt-1">No server-side transcript for this session (Gemini Live keeps none).</p>
+        )}
+      </details>
+    </section>
+  );
+}
+
 function Body({ d }: { d: SpendAttempt }) {
   const a = d.attempt;
   if (!d.recorded) return <p className="text-sm text-muted">No costs were recorded for this attempt. It ran before cost tracking started.</p>;
@@ -62,23 +116,9 @@ function Body({ d }: { d: SpendAttempt }) {
       {d.sessionTotal && <p className="type-caption">Whole session {usdFine(d.sessionTotal.usd)} across {d.sessionTotal.parts} parts.</p>}
       <Waterfall stages={d.stages} total={d.totalUsd} />
       <ul className="mt-5 divide-y divide-line border-y border-line">
-        {d.items.map((i, k) => (
-          <li key={k} className="py-2.5">
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="min-w-0 font-medium">{stageLabel(i.stage)}</span>
-              <span className="type-num shrink-0 font-semibold">{usdFine(i.costUsd)}</span>
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="type-caption min-w-0 truncate" title={i.model}>{i.model.split('/').pop()}</span>
-              <span className="type-caption type-num">{detail(i)}</span>
-              {i.retry && <Badge tone="warn">retry</Badge>}
-              {!i.ok && <Badge tone="bad">failed</Badge>}
-              {i.estimated && <Badge title="Priced from the model rate, not the billed amount">estimated</Badge>}
-              {i.paidBy === 'own_key' && <Badge tone="info">own key</Badge>}
-            </div>
-          </li>
-        ))}
+        {d.items.map((i, k) => <Item key={k} i={i} />)}
       </ul>
+      {d.live && <Live live={d.live} />}
     </>
   );
 }

@@ -143,16 +143,26 @@ export function register(app: App) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const [a] = await rows<{ id: string; skill: 'speaking' | 'writing'; part: number; status: string; at: string; session_id: string | null; user_id: string; email: string; guest: boolean; title: string }>(sql`
-        select a.id, a.skill::text as skill, a.part, a.status::text as status, ${iso('a.created_at')} as at, a.session_id, a.user_id, u.email, coalesce(u.is_anonymous, false) as guest, p.title
+      const [a] = await rows<{ id: string; skill: 'speaking' | 'writing'; part: number; status: string; at: string; session_id: string | null; mode: string; user_id: string; email: string; guest: boolean; title: string }>(sql`
+        select a.id, a.skill::text as skill, a.part, a.status::text as status, ${iso('a.created_at')} as at, a.session_id, a.mode::text as mode, a.user_id, u.email, coalesce(u.is_anonymous, false) as guest, p.title
         from attempts a join "user" u on u.id = a.user_id join prompts p on p.id = a.prompt_id where a.id = ${id}`);
       if (!a) throw new HTTPException(404, { message: 'Attempt not found' });
-      const [items, [sess]] = await Promise.all([
-        rows<{ at: string; stage: string; provider: string; model: string; paid_by: 'house' | 'own_key'; input_tokens: number | null; output_tokens: number | null; audio_seconds: string | null; characters: number | null; cost: string; ok: boolean; retry: boolean; w: boolean; meta: Record<string, unknown> | null }>(sql`
-          select ${iso('c.created_at')} as at, c.stage, c.provider, c.model, c.paid_by, c.input_tokens, c.output_tokens, c.audio_seconds, c.characters, c.cost_usd as cost, c.ok, c.retry, ${KIND} is not null as w, c.meta
-          from ai_costs c ${WASTE_JOIN} where c.attempt_id = ${id} order by c.created_at, c.id`),
+      type Row = { at: string; stage: string; provider: string; model: string; paid_by: 'house' | 'own_key'; input_tokens: number | null; output_tokens: number | null; audio_seconds: string | null; characters: number | null; cost: string; ok: boolean; retry: boolean; w: boolean; meta: Record<string, unknown> | null };
+      const cols = sql`${iso('c.created_at')} as at, c.stage, c.provider, c.model, c.paid_by, c.input_tokens, c.output_tokens, c.audio_seconds, c.characters, c.cost_usd as cost, c.ok, c.retry, ${KIND} is not null as w, c.meta`;
+      const live = a.mode === 'live' && a.session_id ? a.session_id : null;
+      const [items, [sess], liveItems, [ls]] = await Promise.all([
+        rows<Row>(sql`select ${cols} from ai_costs c ${WASTE_JOIN} where c.attempt_id = ${id} order by c.created_at, c.id`),
         a.session_id ? rows<{ usd: string; parts: string }>(sql`select coalesce(sum(cost_usd), 0) as usd, count(distinct attempt_id) as parts from ai_costs where session_id = ${a.session_id}`) : Promise.resolve([undefined]),
+        // the live session's own calls carry its id but no attempt: they are shared by all its parts
+        live ? rows<Row>(sql`select ${cols} from ai_costs c ${WASTE_JOIN} where c.session_id = ${live} and c.attempt_id is null order by c.created_at, c.id`) : Promise.resolve([] as Row[]),
+        live ? rows<{ state: { history?: { role: 'examiner' | 'candidate'; text: string; at: number; phase: string }[] } }>(sql`select state from live_sessions where id = ${live}`) : Promise.resolve([undefined]),
       ]);
+      const item = (i: Row) => ({
+        at: i.at, stage: i.stage, provider: i.provider, model: i.model, paidBy: i.paid_by, inputTokens: i.input_tokens, outputTokens: i.output_tokens, audioSeconds: i.audio_seconds == null ? null : num(i.audio_seconds), characters: i.characters,
+        costUsd: r6(i.cost), ok: i.ok, retry: i.retry,
+        estimated: i.meta?.estimated === true, criterion: typeof i.meta?.criterion === 'string' ? i.meta.criterion : null, sample: typeof i.meta?.sample === 'number' ? i.meta.sample : null,
+        extra: i.meta?.extra === true, kept: typeof i.meta?.kept === 'boolean' ? i.meta.kept : null, timeout: i.meta?.timeout === true,
+      });
       const stages = new Map<string, { costUsd: number; calls: number }>();
       for (const i of items) {
         const s = stages.get(i.stage) ?? { costUsd: 0, calls: 0 };
@@ -162,16 +172,18 @@ export function register(app: App) {
         {
           attempt: { id: a.id, skill: a.skill, part: a.part, status: a.status, createdAt: a.at, userId: a.user_id, email: a.guest ? '' : a.email, isGuest: a.guest, title: a.title },
           recorded: items.length > 0,
-          items: items.map((i) => ({
-            at: i.at, stage: i.stage, provider: i.provider, model: i.model, paidBy: i.paid_by, inputTokens: i.input_tokens, outputTokens: i.output_tokens, audioSeconds: i.audio_seconds == null ? null : num(i.audio_seconds), characters: i.characters,
-            costUsd: r6(i.cost), ok: i.ok, retry: i.retry,
-            estimated: i.meta?.estimated === true, criterion: typeof i.meta?.criterion === 'string' ? i.meta.criterion : null, sample: typeof i.meta?.sample === 'number' ? i.meta.sample : null,
-            extra: i.meta?.extra === true, kept: typeof i.meta?.kept === 'boolean' ? i.meta.kept : null, timeout: i.meta?.timeout === true,
-          })),
+          items: items.map(item),
           stages: [...stages].map(([stage, s]) => ({ stage, costUsd: r6(s.costUsd), calls: s.calls })),
           totalUsd: r6(items.reduce((s, i) => s + num(i.cost), 0)),
           wasteUsd: r6(items.filter((i) => i.w).reduce((s, i) => s + num(i.cost), 0)),
           sessionTotal: sess ? { usd: r6(sess.usd), parts: Number(sess.parts) } : null,
+          live: live
+            ? {
+                items: liveItems.map(item),
+                totalUsd: r6(liveItems.reduce((s, i) => s + num(i.cost), 0)),
+                transcript: (ls?.state.history ?? []).filter((t) => t.text?.trim()).map((t) => ({ role: t.role, text: t.text, at: new Date(t.at).toISOString(), phase: t.phase })),
+              }
+            : null,
         },
         200,
       );

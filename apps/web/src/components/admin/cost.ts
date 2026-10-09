@@ -7,6 +7,8 @@ const STAGES: Record<string, string> = {
   examiner_llm: 'Examiner reply',
   examiner_tts: 'Examiner voice',
   live_realtime: 'Live realtime',
+  stt_verbatim: 'Verbatim transcription',
+  lr_mistake: 'Mistake reasons',
 };
 export const stageLabel = (s: string) => STAGES[s] ?? s.replace(/_/g, ' ');
 

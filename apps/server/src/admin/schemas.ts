@@ -243,20 +243,29 @@ export const SpendBy = z
   .openapi('AdminSpendBy');
 export type SpendBy = z.infer<typeof SpendBy>;
 
+const SpendItem = z.object({
+  at: iso, stage: z.string(), provider: z.string(), model: z.string(), paidBy: z.enum(['house', 'own_key']),
+  inputTokens: int.nullable(), outputTokens: int.nullable(), audioSeconds: z.number().nullable(), characters: int.nullable(),
+  costUsd: Usd, ok: z.boolean(), retry: z.boolean(), estimated: z.boolean(),
+  criterion: z.string().nullable(), sample: int.nullable(), extra: z.boolean(), kept: z.boolean().nullable(), timeout: z.boolean(),
+});
 export const SpendAttempt = z
   .object({
     attempt: z.object({ id: z.string(), skill: SkillS, part: int, status: z.string(), createdAt: iso, userId: z.string(), email: z.string().openapi({ description: "'' for a guest" }), isGuest: z.boolean(), title: z.string() }),
     recorded: z.boolean().openapi({ description: 'false: no cost rows exist (the attempt ran before tracking started); show "not recorded", not $0' }),
-    items: z.array(z.object({
-      at: iso, stage: z.string(), provider: z.string(), model: z.string(), paidBy: z.enum(['house', 'own_key']),
-      inputTokens: int.nullable(), outputTokens: int.nullable(), audioSeconds: z.number().nullable(), characters: int.nullable(),
-      costUsd: Usd, ok: z.boolean(), retry: z.boolean(), estimated: z.boolean(),
-      criterion: z.string().nullable(), sample: int.nullable(), extra: z.boolean(), kept: z.boolean().nullable(), timeout: z.boolean(),
-    })),
+    items: z.array(SpendItem),
     stages: z.array(z.object({ stage: z.string(), costUsd: Usd, calls: int })),
     totalUsd: Usd,
     wasteUsd: Usd,
     sessionTotal: z.object({ usd: Usd, parts: int }).nullable().openapi({ description: 'Everything recorded for the test session this attempt belongs to' }),
+    live: z
+      .object({
+        items: z.array(SpendItem).openapi({ description: 'Costs of the live session itself (realtime model, examiner voice and lines, per-turn transcription), shared by all its parts' }),
+        totalUsd: Usd,
+        transcript: z.array(z.object({ role: z.enum(['examiner', 'candidate']), text: z.string(), at: iso, phase: z.string() })).openapi({ description: "The live session's own transcript (GPT-Live sideband or turn-based STT); empty for Gemini Live" }),
+      })
+      .nullable()
+      .openapi({ description: 'Live-mode attempts only' }),
   })
   .openapi('AdminSpendAttempt');
 export type SpendAttempt = z.infer<typeof SpendAttempt>;

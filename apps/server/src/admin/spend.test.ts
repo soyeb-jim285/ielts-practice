@@ -4,7 +4,7 @@ import { setFetch } from '../ai/openrouter';
 import { OWNER_EMAILS } from '../auth';
 import { clearBalanceCache } from '../community';
 import { db } from '../db/client';
-import { aiCosts, attempts, quotaUsage } from '../db/schema';
+import { aiCosts, attempts, liveSessions, quotaUsage } from '../db/schema';
 import { env } from '../env';
 import { clearCostsCache } from './costs';
 
@@ -126,6 +126,28 @@ describe('aggregation', () => {
     expect(r.wasteUsd).toBeCloseTo(0.07); // discarded primed pass + the retry
     expect(r.sessionTotal).toMatchObject({ parts: 2 });
     expect(r.sessionTotal.usd).toBeCloseTo(0.24);
+  });
+
+  it('a live attempt also lists the live session\'s own calls (shared by its parts) and its transcript; practice attempts have no live block', async () => {
+    const [ls] = await db.insert(liveSessions).values({ userId: uid, state: { history: [
+      { role: 'examiner', text: 'Do you work or study?', at: Date.now() - 5000, phase: 'p1' },
+      { role: 'candidate', text: 'I study physics.', at: Date.now() - 3000, phase: 'p1' },
+      { role: 'candidate', text: '  ', at: Date.now() - 2000, phase: 'p1' },
+    ] } }).returning();
+    const a = await attempt('done', { sessionId: ls!.id, mode: 'live', part: 1 });
+    await db.insert(aiCosts).values([
+      cost({ stage: 'feedback', costUsd: 0.01, attemptId: a.id, sessionId: ls!.id }),
+      cost({ stage: 'live_realtime', provider: 'openai', model: 'gpt-live-1', costUsd: 0.5, sessionId: ls!.id, audioSeconds: 600, meta: { estimated: true } }),
+      cost({ stage: 'examiner_tts', costUsd: 0.002, sessionId: ls!.id }),
+      cost({ stage: 'live_realtime', costUsd: 9, sessionId: 'another-session' }),
+    ]);
+    const r = await get(`/api/admin/spend/attempt/${a.id}`);
+    expect(r.items.map((i: any) => i.stage)).toEqual(['feedback']);
+    expect(r.live.items.map((i: any) => i.stage).sort()).toEqual(['examiner_tts', 'live_realtime']);
+    expect(r.live.items.find((i: any) => i.stage === 'live_realtime')).toMatchObject({ model: 'gpt-live-1', audioSeconds: 600, estimated: true });
+    expect(r.live.totalUsd).toBeCloseTo(0.502);
+    expect(r.live.transcript.map((t: any) => [t.role, t.text])).toEqual([['examiner', 'Do you work or study?'], ['candidate', 'I study physics.']]); // blank turns dropped
+    expect((await get(`/api/admin/spend/attempt/${(await attempt('done')).id}`)).live).toBeNull();
   });
 
   it('attempt without cost rows is "not recorded", not zero; unknown attempt is 404', async () => {
