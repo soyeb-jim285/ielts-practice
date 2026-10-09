@@ -378,11 +378,11 @@ export const aiCosts = pgTable('ai_costs', {
 ]);
 
 // ---------- AI call log (admin AI logs): the full request and response of every OpenRouter call, for debugging prompts and outputs. Audio and other
-// base64 payloads are replaced by a size note; rows go after AI_LOG_DAYS (ai/ailog.ts) and with the user's account. ----------
+// base64 payloads are replaced by a size note; rows go after AI_LOG_DAYS (ai/ailog.ts), and when the account is deleted. ----------
 export const aiLogs = pgTable('ai_logs', {
   id: id(),
   createdAt: createdAt(),
-  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id'), // no FK (like ai_costs): an FK lock on every AI call deadlocked with user deletes; account deletion removes rows (auth.ts)
   attemptId: text('attempt_id'),
   sessionId: text('session_id'),
   stage: text('stage').notNull(), // as in ai_costs

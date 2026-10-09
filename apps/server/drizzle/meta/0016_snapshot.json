@@ -1,5 +1,5 @@
 {
-  "id": "2eb3b44e-1643-48c5-89a0-672e363aa6b5",
+  "id": "b248bd7d-1761-418d-8ad4-a089aa738ac7",
   "prevId": "fdd998d7-3d14-43e9-98a9-b634f6db1464",
   "version": "7",
   "dialect": "postgresql",
@@ -492,21 +492,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "ai_logs_user_id_user_id_fk": {
-          "name": "ai_logs_user_id_user_id_fk",
-          "tableFrom": "ai_logs",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

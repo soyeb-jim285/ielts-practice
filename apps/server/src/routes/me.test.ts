@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import { req, testUser } from '../test/helpers';
 import { DEFAULT_SETTINGS } from '../settings';
 import { db } from '../db/client';
-import { liveSessions, replaySessions } from '../db/schema';
+import { aiLogs, liveSessions, replaySessions } from '../db/schema';
 import { storage } from '../storage';
 import { replayKey } from '../replay';
 import { eq } from 'drizzle-orm';
@@ -34,9 +34,11 @@ it('deleting the account also deletes its recordings', async () => {
   const [rrow] = await db.select().from(replaySessions).where(eq(replaySessions.id, rid));
   const rkey = replayKey(rrow!, 0);
   expect(await storage.size(rkey)).not.toBeNull();
+  await db.insert(aiLogs).values({ userId: user.id, stage: 'feedback', path: '/chat/completions', ok: true, latencyMs: 1, request: { messages: [{ role: 'user', content: 'my essay' }] } });
   const res = await req('/api/auth/delete-user', { headers, body: { password: 'password1234' } });
   expect(res.status).toBe(200);
   expect(await Promise.all(keys.map((k) => storage.size(k)))).toEqual([null, null, 1]);
   expect(await storage.size(rkey)).toBeNull();
   expect(await db.select().from(replaySessions).where(eq(replaySessions.id, rid))).toHaveLength(0);
+  expect(await db.select().from(aiLogs).where(eq(aiLogs.userId, user.id))).toHaveLength(0); // AI logs hold their answers
 });

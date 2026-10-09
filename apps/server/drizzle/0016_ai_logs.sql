@@ -17,7 +17,6 @@ CREATE TABLE "ai_logs" (
 	"error" text
 );
 --> statement-breakpoint
-ALTER TABLE "ai_logs" ADD CONSTRAINT "ai_logs_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "ai_logs_created_idx" ON "ai_logs" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "ai_logs_attempt_idx" ON "ai_logs" USING btree ("attempt_id");--> statement-breakpoint
 CREATE INDEX "ai_logs_stage_created_idx" ON "ai_logs" USING btree ("stage","created_at");

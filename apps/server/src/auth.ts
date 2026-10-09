@@ -63,6 +63,7 @@ export const auth = betterAuth({
         const replays = await db.select().from(schema.replaySessions).where(eq(schema.replaySessions.userId, u.id));
         for (const r of replays) await storage.deletePrefix(replayPrefix(r));
         await db.delete(schema.replaySessions).where(eq(schema.replaySessions.userId, u.id));
+        await db.delete(schema.aiLogs).where(eq(schema.aiLogs.userId, u.id)); // prompts hold their answers; guests need none (logs go after 14 days, guests after 30)
       },
     },
   },
