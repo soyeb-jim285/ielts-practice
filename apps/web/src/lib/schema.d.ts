@@ -1327,6 +1327,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/part": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send one finished part while the test goes on: its attempt is created and analysed now, so the result is ready sooner. Idempotent per part. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LivePartSubmit"];
+                };
+            };
+            responses: {
+                /** @description Attempt created (or the existing one for this part) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LivePartCreated"];
+                    };
+                };
+                /** @description Bad upload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Already finished */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description community_busy */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/progress": {
         parameters: {
             query?: never;
@@ -4592,22 +4686,31 @@ export interface components {
         };
         LiveFinish: {
             sessionId: string;
-            parts: {
-                part: 1 | 2 | 3;
-                audioKey: string;
-                durationMs: number;
-                energy?: number[];
-                /** @description Question start offsets (ms) within this part */
-                marks?: number[];
-                /** @description Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback */
-                conversationKey?: string;
-                /** @description Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses */
-                segments?: {
-                    q: number;
-                    startMs: number;
-                    endMs: number;
-                }[];
+            /** @description The parts not already sent with /live/part (may be empty) */
+            parts: components["schemas"]["LivePart"][];
+        };
+        LivePart: {
+            part: 1 | 2 | 3;
+            audioKey: string;
+            durationMs: number;
+            energy?: number[];
+            /** @description Question start offsets (ms) within this part */
+            marks?: number[];
+            /** @description Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback */
+            conversationKey?: string;
+            /** @description Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses */
+            segments?: {
+                q: number;
+                startMs: number;
+                endMs: number;
             }[];
+        };
+        LivePartCreated: {
+            attemptId: string;
+        };
+        LivePartSubmit: {
+            sessionId: string;
+            part: components["schemas"]["LivePart"];
         };
         Progress: {
             /** @description Last 30 analysed attempts, oldest first */

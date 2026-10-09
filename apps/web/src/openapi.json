@@ -1630,100 +1630,129 @@
           "parts": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "part": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                      "enum": [
-                        1
-                      ]
-                    },
-                    {
-                      "type": "number",
-                      "enum": [
-                        2
-                      ]
-                    },
-                    {
-                      "type": "number",
-                      "enum": [
-                        3
-                      ]
-                    }
-                  ]
-                },
-                "audioKey": {
-                  "type": "string"
-                },
-                "durationMs": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "energy": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 255
-                  },
-                  "maxItems": 20000
-                },
-                "marks": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "maxItems": 200,
-                  "description": "Question start offsets (ms) within this part"
-                },
-                "conversationKey": {
-                  "type": "string",
-                  "description": "Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback"
-                },
-                "segments": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "q": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "startMs": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "endMs": {
-                        "type": "integer",
-                        "minimum": 0
-                      }
-                    },
-                    "required": [
-                      "q",
-                      "startMs",
-                      "endMs"
-                    ]
-                  },
-                  "maxItems": 200,
-                  "description": "Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses"
-                }
-              },
-              "required": [
-                "part",
-                "audioKey",
-                "durationMs"
-              ]
+              "$ref": "#/components/schemas/LivePart"
             },
-            "minItems": 1,
-            "maxItems": 3
+            "maxItems": 3,
+            "description": "The parts not already sent with /live/part (may be empty)"
           }
         },
         "required": [
           "sessionId",
           "parts"
+        ]
+      },
+      "LivePart": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  1
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  3
+                ]
+              }
+            ]
+          },
+          "audioKey": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "energy": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "maxItems": 20000
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxItems": 200,
+            "description": "Question start offsets (ms) within this part"
+          },
+          "conversationKey": {
+            "type": "string",
+            "description": "Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "startMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "endMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "q",
+                "startMs",
+                "endMs"
+              ]
+            },
+            "maxItems": 200,
+            "description": "Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses"
+          }
+        },
+        "required": [
+          "part",
+          "audioKey",
+          "durationMs"
+        ]
+      },
+      "LivePartCreated": {
+        "type": "object",
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attemptId"
+        ]
+      },
+      "LivePartSubmit": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "part": {
+            "$ref": "#/components/schemas/LivePart"
+          }
+        },
+        "required": [
+          "sessionId",
+          "part"
         ]
       },
       "Progress": {
@@ -7483,6 +7512,101 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LiveFinished"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad upload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "community_balance_exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "community_busy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/part": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send one finished part while the test goes on: its attempt is created and analysed now, so the result is ready sooner. Idempotent per part.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LivePartSubmit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attempt created (or the existing one for this part)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivePartCreated"
                 }
               }
             }
