@@ -301,6 +301,18 @@ export function verbatimSane(verbatim: string[], plain: string[]) {
   return !grams(v, 5).some((g) => PROMPT_5GRAMS.has(g));
 }
 
+/** The primed pass judged without a plain pass to compare with: no loop, no echo of the priming prompt, and no long stretch of the recording without words
+ *  (a dropped stretch: over 8 s and over a quarter of the recording, inside or at the end). Candidate-only recordings rarely hold such a silence. */
+export function verbatimAlone(d: { words?: { word: string; start: number; end: number }[]; duration?: number }) {
+  const w = d.words ?? [];
+  if (w.length < 3) return false;
+  const v = w.map((x) => bare(x.word)).filter(Boolean);
+  const loops = (n: number, times: number) => v.some((_, i) => i + n * times <= v.length && Array.from({ length: times }, (_, k) => v.slice(i + k * n, i + k * n + n).join(' ')).every((g, _k, all) => g === all[0]));
+  if (loops(1, 4) || [2, 3, 4, 5, 6].some((n) => loops(n, 3)) || grams(v, 5).some((g) => PROMPT_5GRAMS.has(g))) return false;
+  const dur = Math.max(d.duration ?? 0, w.at(-1)!.end), gap = (x: number) => x > 8 && x > dur / 4;
+  return !w.some((x, i) => i > 0 && gap(x.start - w[i - 1]!.end)) && !gap(dur - w.at(-1)!.end) && !gap(w[0]!.start);
+}
+
 type Format = 'webm' | 'm4a' | 'wav' | 'mp3' | 'ogg';
 async function stt(o: { model: string; audio: Uint8Array; format: Format }, stage: string, extra?: object) {
   const res = await call(
@@ -382,19 +394,25 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
     return transcribe({ ...o, model: WHISPER_FALLBACK }, o.model);
   }
   const primed = o.verbatim && /whisper/.test(o.model);
-  // allSettled: a billed primed pass is recorded even when the plain pass fails
-  const [plainR, vR] = await Promise.allSettled([stt(o, 'stt'), primed ? stt(o, 'stt_verbatim', { provider: VERBATIM_PROVIDER }) : Promise.resolve(undefined)]);
-  const v = vR.status === 'fulfilled' ? vR.value : undefined;
-  if (plainR.status === 'rejected') {
-    if (v) recordStt(v, o.model, 'stt_verbatim', { kept: false });
-    throw plainR.reason;
+  // One pass when it can: the disfluency-primed pass alone, checked on its own (verbatimAlone). The plain pass runs only when the primed one fails or is not sane,
+  // then the old comparison decides (verbatimSane). ponytail: the two-pass check caught more drops, at double the cost on every recording.
+  let d: SttResponse, verbatim = false;
+  const v = primed ? await stt(o, 'stt_verbatim', { provider: VERBATIM_PROVIDER }).catch(() => undefined) : undefined;
+  const toks = (x: SttResponse) => (x.words ?? []).map((w) => w.word);
+  if (v && verbatimAlone(v)) {
+    d = v;
+    verbatim = true;
+    recordStt(v, o.model, 'stt', { verbatim: true, ...(fallbackFrom && { fallbackFrom }) });
+  } else {
+    const plain = await stt(o, 'stt').catch((e) => {
+      if (v) recordStt(v, o.model, 'stt_verbatim', { kept: false });
+      throw e;
+    });
+    verbatim = !!v && verbatimSane(toks(v), toks(plain));
+    d = verbatim ? v! : plain;
+    recordStt(plain, o.model, 'stt', fallbackFrom ? { fallbackFrom } : {});
+    if (v) recordStt(v, o.model, 'stt_verbatim', { kept: verbatim }); // a second full charge; kept=false is pure waste
   }
-  const plain = plainR.value!;
-  const toks = (d: SttResponse) => (d.words ?? []).map((w) => w.word);
-  const verbatim = !!v && verbatimSane(toks(v), toks(plain));
-  const d = verbatim ? v! : plain;
-  recordStt(plain, o.model, 'stt', fallbackFrom ? { fallbackFrom } : {});
-  if (v) recordStt(v, o.model, 'stt_verbatim', { kept: verbatim }); // the primed pass is a second full charge; kept=false is pure waste
   // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
   // Segment-level confidence can flag several words together; it is not proof of a pronunciation error.
   const segConf = (t: number) => {

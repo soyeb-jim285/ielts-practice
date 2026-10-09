@@ -78,7 +78,7 @@ it('asRetry marks everything inside as a retry', async () => {
   expect((await all())[0]).toMatchObject({ retry: true, attemptId: 'a1' });
 });
 
-it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedback, one Jev scoring call', async () => {
+it('speaking pipeline: one primed STT pass, no audio review, feedback, one Jev scoring call', async () => {
   const score = { checks: [], evidence: [], descriptor: 'd', summary: 's', injection: false, band: 6 };
   const chat = (_: string, init: RequestInit) => {
     const name = JSON.parse(String(init.body)).response_format?.json_schema?.name;
@@ -89,10 +89,9 @@ it('speaking pipeline: STT (plain + primed, kept flag), no audio review, feedbac
   await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, settings: settings({ models: { ...settings().models, stt: 'openai/whisper-large-v3' } }) }));
   const rows = await all();
   const by = (stage: string) => rows.filter((r) => r.stage === stage);
-  expect(by('stt')).toHaveLength(1);
-  expect(by('stt_verbatim')).toHaveLength(1);
-  expect(by('stt')[0]).toMatchObject({ costUsd: 0.002, model: 'openai/whisper-large-v3' });
-  expect(typeof by('stt_verbatim')[0]!.meta!.kept).toBe('boolean');
+  expect(by('stt')).toHaveLength(1); // the primed pass was sane on its own: one Whisper charge, no plain pass
+  expect(by('stt_verbatim')).toHaveLength(0);
+  expect(by('stt')[0]).toMatchObject({ costUsd: 0.002, model: 'openai/whisper-large-v3', meta: expect.objectContaining({ verbatim: true }) });
   expect(by('feedback')).toHaveLength(1);
   expect(by('disfluency')).toHaveLength(1);
   const scores = by('score');
@@ -137,8 +136,9 @@ it('writing: the feedback call and the Jev scoring call each leave a row with th
   expect(done.every((r) => r.costUsd === 0.02 && r.skill === 'writing')).toBe(true);
 });
 
-it('a billed primed transcription is recorded even when the plain pass fails', async () => {
-  setFetch(fakeFetch({ '/audio/transcriptions': (_u, init) => (String((init as RequestInit).body).includes('"provider"') ? json({ ...sttWords, usage: { cost: 0.002 } }) : new Response('no', { status: 500 })) }));
+it('a billed primed transcription is recorded even when the fallback plain pass fails', async () => {
+  const looping = { text: 'I think um I think um I think um', duration: 3, words: 'I think um I think um I think um'.split(' ').map((word, i) => ({ word, start: i * 0.3, end: i * 0.3 + 0.2 })), usage: { cost: 0.002 } };
+  setFetch(fakeFetch({ '/audio/transcriptions': (_u, init) => (String((init as RequestInit).body).includes('"provider"') ? json(looping) : new Response('no', { status: 500 })) }));
   await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm', verbatim: true })).catch(() => {});
   const rows = await all();
   expect(rows.some((r) => r.stage === 'stt_verbatim' && r.ok && r.costUsd === 0.002)).toBe(true);

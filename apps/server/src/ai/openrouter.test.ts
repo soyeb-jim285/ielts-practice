@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { chatReply, fakeFetch, json } from '../test/helpers';
-import { AiError, chatJson, punctuate, setFetch, speak, speechChunks, toStrictSchema, transcribe, verbatimSane } from './openrouter';
+import { AiError, chatJson, punctuate, setFetch, speak, speechChunks, toStrictSchema, transcribe, verbatimAlone, verbatimSane } from './openrouter';
 
 const schema = z.object({ band: z.number().int(), range: z.tuple([z.number(), z.number()]) });
 const ask = () => chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x' });
@@ -75,7 +75,7 @@ it('transcribe: maps words, falls back to segment confidence, restores punctuati
   expect(f.calls).toHaveLength(1); // not verbatim: one plain pass
 });
 
-it('transcribe verbatim: primes Whisper through provider.options (top-level prompt is ignored), keeps it when sane, else falls back', async () => {
+it('transcribe verbatim: one primed Whisper pass (provider.options; top-level prompt is ignored) when it is sane on its own, else a plain pass decides', async () => {
   const stt = (ws: string[]) => json({ text: ws.join(' '), duration: 3, words: ws.map((word, i) => ({ word, start: i * 0.3, end: i * 0.3 + 0.2 })) });
   const plain = ['I', 'go', 'there'];
   const go = (primed: string[]) => {
@@ -85,12 +85,25 @@ it('transcribe verbatim: primes Whisper through provider.options (top-level prom
   };
   const { r, f } = await go(['um', 'I', 'go', 'uh', 'there']);
   expect(r).toMatchObject({ verbatim: true, text: 'um I go uh there' });
+  expect(f.calls).toHaveLength(1); // sane on its own: no plain pass is paid for
   const primed = f.calls.find((c) => c.body.provider)!.body;
   expect(primed.prompt).toBeUndefined();
   expect(primed.provider.options.groq.prompt).toContain('uh');
   expect(Object.keys(primed.provider.options)).toEqual(expect.arrayContaining(['groq', 'deepinfra/us', 'together']));
-  expect((await go(['I', 'think', 'um', 'I', 'think', 'um', 'I', 'think', 'um'])).r).toMatchObject({ verbatim: false, text: 'I go there' });
+  const loop = await go(['I', 'think', 'um', 'I', 'think', 'um', 'I', 'think', 'um']);
+  expect(loop.r).toMatchObject({ verbatim: false, text: 'I go there' });
+  expect(loop.f.calls).toHaveLength(2); // the plain pass only runs when the primed one is not sane
   expect((await transcribe({ model: 'deepgram/nova-3', audio: new Uint8Array([1]), format: 'webm', verbatim: true })).verbatim).toBe(false); // only Whisper is primed
+});
+
+it('verbatimAlone: a primed pass is kept on its own unless it loops, echoes the prompt or leaves a long stretch without words', () => {
+  const at = (ws: string[], step = 0.4, from = 0) => ws.map((word, i) => ({ word, start: from + i * step, end: from + i * step + 0.3 }));
+  const ok = 'um because my father he say he say it is uh important for safety'.split(' ');
+  expect(verbatimAlone({ words: at(ok), duration: 6 })).toBe(true);
+  expect(verbatimAlone({ words: [...at(ok.slice(0, 6)), ...at(ok.slice(6), 0.4, 20)], duration: 25 })).toBe(false); // 17 s in the middle with no words: a dropped stretch
+  expect(verbatimAlone({ words: at(ok), duration: 30 })).toBe(false); // the last 24 s have no words
+  expect(verbatimAlone({ words: at('I think um I think um I think um'.split(' ')), duration: 4 })).toBe(false); // loop
+  expect(verbatimAlone({ words: at('so uh she have um two book you know'.split(' ')), duration: 4 })).toBe(false); // prompt echo
 });
 
 it('verbatimSane: rejects loops, prompt echoes and dropped or invented content', () => {
