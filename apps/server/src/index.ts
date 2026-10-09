@@ -7,6 +7,7 @@ import { loadCambridgeGrants } from './auth';
 import { env } from './env';
 import { purgeGuests, recoverStale } from './jobs';
 import { attachLiveRelay } from './routes/live-ws';
+import { purgeAiLogs } from './ai/ailog';
 import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
@@ -38,6 +39,9 @@ setInterval(purge, 6 * 3_600_000).unref();
 const purgeRec = () => purgeReplays().catch((e) => console.error('purgeReplays failed', e));
 void purgeRec();
 setInterval(purgeRec, 24 * 3_600_000).unref();
+const purgeLogs = () => purgeAiLogs().catch((e) => console.error('purgeAiLogs failed', e));
+void purgeLogs();
+setInterval(purgeLogs, 24 * 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute

@@ -31,6 +31,7 @@ import { Route as AppAdminFeedbackRouteImport } from './routes/_app/admin/feedba
 import { Route as AppAdminFunnelRouteImport } from './routes/_app/admin/funnel'
 import { Route as AppAdminGrowthRouteImport } from './routes/_app/admin/growth'
 import { Route as AppAdminHealthRouteImport } from './routes/_app/admin/health'
+import { Route as AppAdminLogsRouteImport } from './routes/_app/admin/logs'
 import { Route as AppAdminPlaygroundRouteImport } from './routes/_app/admin/playground'
 import { Route as AppAdminTestsRouteImport } from './routes/_app/admin/tests'
 import { Route as AppListeningIndexRouteImport } from './routes/_app/listening/index'
@@ -161,6 +162,11 @@ const AppAdminHealthRoute = AppAdminHealthRouteImport.update({
   path: '/health',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminLogsRoute = AppAdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminPlaygroundRoute = AppAdminPlaygroundRouteImport.update({
   id: '/playground',
   path: '/playground',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/admin/funnel': typeof AppAdminFunnelRoute
   '/admin/growth': typeof AppAdminGrowthRoute
   '/admin/health': typeof AppAdminHealthRoute
+  '/admin/logs': typeof AppAdminLogsRoute
   '/admin/playground': typeof AppAdminPlaygroundRoute
   '/admin/tests': typeof AppAdminTestsRoute
   '/mock/$id': typeof AppMockIdRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/admin/funnel': typeof AppAdminFunnelRoute
   '/admin/growth': typeof AppAdminGrowthRoute
   '/admin/health': typeof AppAdminHealthRoute
+  '/admin/logs': typeof AppAdminLogsRoute
   '/admin/playground': typeof AppAdminPlaygroundRoute
   '/admin/tests': typeof AppAdminTestsRoute
   '/mock/$id': typeof AppMockIdRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/_app/admin/funnel': typeof AppAdminFunnelRoute
   '/_app/admin/growth': typeof AppAdminGrowthRoute
   '/_app/admin/health': typeof AppAdminHealthRoute
+  '/_app/admin/logs': typeof AppAdminLogsRoute
   '/_app/admin/playground': typeof AppAdminPlaygroundRoute
   '/_app/admin/tests': typeof AppAdminTestsRoute
   '/_app/mock/$id': typeof AppMockIdRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/admin/funnel'
     | '/admin/growth'
     | '/admin/health'
+    | '/admin/logs'
     | '/admin/playground'
     | '/admin/tests'
     | '/mock/$id'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/admin/funnel'
     | '/admin/growth'
     | '/admin/health'
+    | '/admin/logs'
     | '/admin/playground'
     | '/admin/tests'
     | '/mock/$id'
@@ -504,6 +515,7 @@ export interface FileRouteTypes {
     | '/_app/admin/funnel'
     | '/_app/admin/growth'
     | '/_app/admin/health'
+    | '/_app/admin/logs'
     | '/_app/admin/playground'
     | '/_app/admin/tests'
     | '/_app/mock/$id'
@@ -691,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminHealthRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/logs': {
+      id: '/_app/admin/logs'
+      path: '/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AppAdminLogsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/playground': {
       id: '/_app/admin/playground'
       path: '/playground'
@@ -842,6 +861,7 @@ interface AppAdminRouteChildren {
   AppAdminFunnelRoute: typeof AppAdminFunnelRoute
   AppAdminGrowthRoute: typeof AppAdminGrowthRoute
   AppAdminHealthRoute: typeof AppAdminHealthRoute
+  AppAdminLogsRoute: typeof AppAdminLogsRoute
   AppAdminPlaygroundRoute: typeof AppAdminPlaygroundRoute
   AppAdminTestsRoute: typeof AppAdminTestsRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
@@ -859,6 +879,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminFunnelRoute: AppAdminFunnelRoute,
   AppAdminGrowthRoute: AppAdminGrowthRoute,
   AppAdminHealthRoute: AppAdminHealthRoute,
+  AppAdminLogsRoute: AppAdminLogsRoute,
   AppAdminPlaygroundRoute: AppAdminPlaygroundRoute,
   AppAdminTestsRoute: AppAdminTestsRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,

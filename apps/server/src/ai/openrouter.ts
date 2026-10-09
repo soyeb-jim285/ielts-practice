@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Word } from '@ielts/core';
 import { env, IS_TEST } from '../env';
 import { recordCost, scribeUsd, usageCost, whisperUsd } from './cost';
+import { type AiLogRow, logAi } from './ailog';
 import { keyCtx, redact } from './keyctx';
 
 const BASE = 'https://openrouter.ai/api/v1';
@@ -53,12 +54,27 @@ const RETRIES = 2;
 /** Jittered exponential backoff: ~1 s, ~2 s (instant under vitest). */
 const backoff = (n: number) => new Promise((r) => setTimeout(r, IS_TEST ? 1 : 1000 * 2 ** n * (0.5 + Math.random())));
 
-/** Retries network errors, 429 and 5xx twice with jittered backoff; timeouts are not retried (they already waited minutes). */
-async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'POST'): Promise<Response> {
+/** What an OpenRouter response body was, for the AI log: parsed JSON, text, or a note for audio. */
+function logBody(buf: ArrayBuffer, type: string): unknown {
+  if (/audio|octet-stream/.test(type)) return { binary: type, bytes: buf.byteLength };
+  const text = new TextDecoder().decode(buf);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { text };
+  }
+}
+
+/** Retries network errors, 429 and 5xx twice with jittered backoff; timeouts are not retried (they already waited minutes).
+ *  Every POST is written to the AI log (ai/ailog.ts) once, with its final outcome; `stage` names the pipeline step, as in the cost ledger. */
+async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'POST', stage = 'other'): Promise<Response> {
   const ctx = keyCtx.getStore();
   const apiKey = ctx?.openrouter ?? env.OPENROUTER_API_KEY; // the user's own key when they have one: their credit, not the community's
+  const t0 = Date.now();
+  const log = (r: Pick<AiLogRow, 'ok' | 'status' | 'response' | 'error' | 'served' | 'costUsd'>) =>
+    method === 'POST' && logAi({ stage, path, model: (body as { model?: string } | undefined)?.model, latencyMs: Date.now() - t0, request: body, ...r });
   for (let attempt = 0; ; attempt++) {
-    let res: Response;
+    let res: Response, buf: ArrayBuffer | undefined;
     try {
       res = await fetcher(`${BASE}${path}`, {
         method,
@@ -72,23 +88,34 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
         signal: AbortSignal.timeout(timeoutMs),
       });
       // The body is read under the same timeout, so a stall mid-body must also become an AiError, not a raw TimeoutError.
-      if (res.ok) res = new Response(await res.arrayBuffer(), res);
+      if (res.ok) res = new Response((buf = await res.arrayBuffer()), res);
     } catch (e) {
-      if ((e as Error).name === 'TimeoutError') throw new AiError('timeout', 'The AI service took too long to respond. Please retry.');
+      if ((e as Error).name === 'TimeoutError') {
+        log({ ok: false, error: `timeout after ${timeoutMs} ms` });
+        throw new AiError('timeout', 'The AI service took too long to respond. Please retry.');
+      }
       const cause = (e as Error & { cause?: { code?: string; message?: string } }).cause;
       console.error(`openrouter ${path} fetch failed (attempt ${attempt + 1}/${RETRIES + 1}):`, (e as Error).message, cause?.code ?? cause?.message ?? '');
       if (attempt < RETRIES) {
         await backoff(attempt);
         continue;
       }
+      log({ ok: false, error: `network: ${(e as Error).message} ${cause?.code ?? cause?.message ?? ''}`.trim() });
       throw new AiError('network', 'Could not reach the AI service. Please retry.');
     }
-    if (res.ok) return res;
+    if (res.ok) {
+      const out = logBody(buf!, res.headers.get('content-type') ?? '') as { provider?: string; usage?: unknown };
+      const u = usageCost(out?.usage);
+      log({ ok: true, status: res.status, response: out, served: out?.provider, costUsd: u.exact ? u.costUsd : null });
+      return res;
+    }
     if (attempt < RETRIES && (res.status === 429 || res.status >= 500)) {
       await backoff(attempt);
       continue;
     }
-    console.error(`openrouter ${path} ${res.status}`, ctx?.openrouter ? 'own key' : OPERATOR_HINT[res.status] ?? '', redact((await res.text().catch(() => '')).slice(0, 500), apiKey));
+    const detail = redact((await res.text().catch(() => '')).slice(0, 2000), apiKey);
+    console.error(`openrouter ${path} ${res.status}`, ctx?.openrouter ? 'own key' : OPERATOR_HINT[res.status] ?? '', detail.slice(0, 500));
+    log({ ok: false, status: res.status, error: detail || `HTTP ${res.status}` });
     if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
     throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status);
   }
@@ -110,7 +137,7 @@ async function chat(body: Record<string, unknown>, timeoutMs?: number, onServed?
   const stage = tag.stage ?? 'other', model = String(body.model);
   let data: Served & { id?: string; usage?: unknown; choices?: { message?: { content?: string | null } }[] };
   try {
-    data = (await (await call('/chat/completions', { ...body, usage: { include: true } }, timeoutMs)).json()) as typeof data;
+    data = (await (await call('/chat/completions', { ...body, usage: { include: true } }, timeoutMs, 'POST', stage)).json()) as typeof data;
   } catch (e) {
     recordFailure(e, { stage, model, retry: tag.retry, meta: tag.meta });
     throw e;
@@ -236,7 +263,7 @@ export async function decide<K extends string>(o: { state: unknown; questions: R
   type Res = { id?: string; model?: string; provider?: string; answers?: Record<string, JevAnswer>; usage?: { input_tokens?: number; output_tokens?: number; cost?: number } };
   let d: Res;
   try {
-    d = (await (await call('/systemone', { model: DECISION_MODEL, state: o.state, questions: o.questions }, o.timeoutMs ?? 10_000)).json()) as Res;
+    d = (await (await call('/systemone', { model: DECISION_MODEL, state: o.state, questions: o.questions }, o.timeoutMs ?? 10_000, 'POST', o.cost?.stage ?? 'decide')).json()) as Res;
   } catch (e) {
     recordFailure(e, { stage, model: DECISION_MODEL, meta: o.cost?.meta });
     throw e;
@@ -326,6 +353,8 @@ async function stt(o: { model: string; audio: Uint8Array; format: Format }, stag
       ...extra,
     },
     120_000,
+    'POST',
+    stage,
   ).catch((e) => (recordFailure(e, { stage, model: o.model }), Promise.reject(e)));
   return (await res.json()) as SttResponse;
 }
@@ -488,7 +517,7 @@ type Speech = { audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' };
 
 async function speakOnce(o: { model: string; voice: string; text: string }): Promise<Speech> {
   const pcm = pcmOnly(o.model);
-  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' }).catch((e) => {
+  const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' }, undefined, 'POST', 'examiner_tts').catch((e) => {
     recordFailure(e, { stage: 'examiner_tts', model: o.model, meta: { characters: o.text.length } });
     throw e;
   });

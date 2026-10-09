@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Activity, AudioLines, FlaskConical, LayoutDashboard, MessageSquare, ServerCog, Video, Users, Wallet } from 'lucide-react';
+import { Activity, AudioLines, FlaskConical, ScrollText, LayoutDashboard, MessageSquare, ServerCog, Video, Users, Wallet } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useAdmin } from '@/lib/admin';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ export const ADMIN_ITEMS = [
   { to: '/admin/replays', label: 'Recordings', icon: Video },
   { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
   { to: '/admin/playground', label: 'Playground', icon: AudioLines },
+  { to: '/admin/logs', label: 'AI logs', icon: ScrollText },
   { to: '/admin/health', label: 'System', icon: ServerCog },
 ] as const;
 

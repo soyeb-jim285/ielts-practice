@@ -113,6 +113,13 @@
       "when": 1791514268215,
       "tag": "0015_live_conversation",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791542564351,
+      "tag": "0016_ai_logs",
+      "breakpoints": true
     }
   ]
 }

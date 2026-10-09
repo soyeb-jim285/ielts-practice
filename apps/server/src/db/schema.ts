@@ -377,6 +377,27 @@ export const aiCosts = pgTable('ai_costs', {
   index('ai_costs_stage_idx').on(t.stage),
 ]);
 
+// ---------- AI call log (admin AI logs): the full request and response of every OpenRouter call, for debugging prompts and outputs. Audio and other
+// base64 payloads are replaced by a size note; rows go after AI_LOG_DAYS (ai/ailog.ts) and with the user's account. ----------
+export const aiLogs = pgTable('ai_logs', {
+  id: id(),
+  createdAt: createdAt(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  attemptId: text('attempt_id'),
+  sessionId: text('session_id'),
+  stage: text('stage').notNull(), // as in ai_costs
+  path: text('path').notNull(), // OpenRouter endpoint: /chat/completions, /audio/transcriptions, /systemone, /audio/speech
+  model: text('model'),
+  served: text('served'), // the provider that answered
+  ok: boolean('ok').notNull(),
+  status: integer('status'), // HTTP status; null for a network error or timeout
+  latencyMs: integer('latency_ms').notNull(),
+  costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }),
+  request: jsonb('request'),
+  response: jsonb('response'),
+  error: text('error'),
+}, (t) => [index('ai_logs_created_idx').on(t.createdAt), index('ai_logs_attempt_idx').on(t.attemptId), index('ai_logs_stage_created_idx').on(t.stage, t.createdAt)]);
+
 // ---------- Full mock test (docs/mock-exam.md): one guided run of L, R, W, S. Section state is derived from the linked attempts; only the links live here ----------
 export const mockExams = pgTable('mock_exams', {
   id: id(),
