@@ -37,6 +37,7 @@ export function logAi(row: AiLogRow): void {
         response: sanitize(row.response) ?? null,
         error: row.error?.slice(0, 2000),
         latencyMs: Math.round(row.latencyMs),
+        createdAt: new Date(Date.now() - row.latencyMs), // when the call started: the inserts run in parallel and can land out of order
         userId: c?.userId,
         attemptId: c?.attemptId,
         sessionId: c?.sessionId,

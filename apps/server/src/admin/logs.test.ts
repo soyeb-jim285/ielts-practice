@@ -30,20 +30,21 @@ it('AI logs: every OpenRouter call is logged with its request and response (audi
   expect((await req('/api/admin/logs', { headers: (await testUser()).headers })).status).toBe(404);
   const { headers } = await testUser(OWNER_EMAILS[0]!);
   const page = (await (await req('/api/admin/logs?attempt=att-log-1', { headers })).json()) as any;
-  expect(page.items.map((i: any) => [i.stage, i.path, i.ok, i.status])).toEqual([
+  const by = (stage: string) => page.items.find((i: any) => i.stage === stage);
+  expect(page.items.map((i: any) => [i.stage, i.path, i.ok, i.status]).sort()).toEqual([
+    ['feedback', '/chat/completions', true, 200],
     ['score', '/chat/completions', false, 404],
     ['stt', '/audio/transcriptions', true, 200],
-    ['feedback', '/chat/completions', true, 200],
   ]);
-  expect(page.items[2].preview).toBe('{"band": 7}');
-  expect(page.items[0].preview).toContain('model not found');
+  expect(by('feedback').preview).toBe('{"band": 7}');
+  expect(by('score').preview).toContain('model not found');
   expect(page.stages).toEqual(expect.arrayContaining(['feedback', 'score', 'stt']));
   expect((await (await req('/api/admin/logs?attempt=att-log-1&outcome=failed', { headers })).json() as any).total).toBe(1);
 
-  const stt = (await (await req(`/api/admin/logs/${page.items[1].id}`, { headers })).json()) as any;
+  const stt = (await (await req(`/api/admin/logs/${by('stt').id}`, { headers })).json()) as any;
   expect(stt.request.input_audio.data).toBe('[base64, 9 KB]');
   expect(stt.response.text).toBe('Hello there.');
-  const chat = (await (await req(`/api/admin/logs/${page.items[2].id}`, { headers })).json()) as any;
+  const chat = (await (await req(`/api/admin/logs/${by('feedback').id}`, { headers })).json()) as any;
   expect(chat.request.messages).toEqual([{ role: 'system', content: 'You are an examiner.' }, { role: 'user', content: 'Rate this.' }]);
   expect(chat.userId).toBe(user.id);
 });
