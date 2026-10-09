@@ -64,15 +64,18 @@ export async function uploadRecording(sessionId: string, r: Recording): Promise<
 export type AnswerWindow = { q: number; startMs: number; endMs: number };
 /** Shorter windows (a breath, a "yes" over the examiner's tail) do not count as an answer and do not move to the next question. */
 const MIN_ANSWER_MS = 1500;
+/** An answer needs this much voiced audio: a silent wait before the examiner's first line (its captions run ahead of its audio) is not an answer. */
+const MIN_VOICED_MS = 600;
 
 /** Part-recorder bookkeeping, pure so it can be tested: examiner(on) pauses and closes the open window, examiner(off) opens one;
- *  a question index moves on only when the examiner speaks again after a real answer (the server's transcript alternates the same way). */
-export function answerWindows(clock: () => number) {
+ *  a question index moves on only when the examiner speaks again after a real answer (the server's transcript alternates the same way).
+ *  `voicedMs(from, to)`: how much of the window had the candidate's voice; without it every long enough window counts. */
+export function answerWindows(clock: () => number, voicedMs?: (fromMs: number, toMs: number) => number) {
   const w: AnswerWindow[] = [];
   let open: number | null = null, q = 0;
   const close = () => {
     if (open == null) return false;
-    const end = Math.round(clock()), kept = end - open >= MIN_ANSWER_MS;
+    const end = Math.round(clock()), kept = end - open >= MIN_ANSWER_MS && (!voicedMs || voicedMs(open, end) >= MIN_VOICED_MS);
     if (kept) w.push({ q, startMs: open, endMs: end });
     open = null;
     return kept;
@@ -93,7 +96,7 @@ export function answerWindows(clock: () => number) {
  */
 export function usePartRecorder() {
   const rec = useRecorder();
-  const { start: recStart, stop: recStop, pause: recPause, resume: recResume, clock, stream } = rec;
+  const { start: recStart, stop: recStop, pause: recPause, resume: recResume, clock, stream, voicedMs } = rec;
   const cur = useRef<{ part: Part; windows: ReturnType<typeof answerWindows>; mix: MixRecording | null } | null>(null);
   const examinerOn = useRef(false);
   const examinerStream = useRef<MediaStream | null>(null);
@@ -139,7 +142,7 @@ export function usePartRecorder() {
     async (part: Part) => {
       if (cur.current?.part === part) return;
       await stop();
-      const windows = answerWindows(clock);
+      const windows = answerWindows(clock, voicedMs);
       const c = (cur.current = { part, windows, mix: null as MixRecording | null });
       try {
         if (!(await recStart({ paused: examinerOn.current }))) throw new Error('Could not start recording. Check your microphone permissions and retry.');
@@ -151,7 +154,7 @@ export function usePartRecorder() {
       // the playback copy runs only with an examiner stream to mix in (the duplex examiners); the part works without it
       if (examinerStream.current) c.mix = recordMix([stream(), examinerStream.current]);
     },
-    [stop, recStart, clock, stream],
+    [stop, recStart, clock, stream, voicedMs],
   );
 
   /** The examiner's voice as a stream (duplex examiners): mixed into the conversation recording of the next part. */

@@ -67,3 +67,21 @@ it('a missing cue response recovers to waiting and then candidate instead of rem
   expect(result.current.talkRunning).toBe(true);
   unmount();
 });
+
+it('the examiner closing the test on its own during Part 3 ends it, without waiting for the Part 3 timer', async () => {
+  const { result, h, unmount } = await setup();
+  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // intro answered: Part 1
+  await act(async () => vi.advanceTimersByTime(270_000)); // Part 1 time: Part 2 prep
+  act(() => { h.speaking(true); h.speaking(false); });
+  await act(async () => vi.advanceTimersByTime(60_000)); // prep over: the talk
+  act(() => { h.speaking(true); h.speaking(false); });
+  await act(async () => vi.advanceTimersByTime(120_000)); // talk over: rounding-off question
+  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // answered: Part 3
+  expect(result.current.phase).toBe('p3');
+  expect(rec.finish).not.toHaveBeenCalled();
+  await act(async () => { h.speaking(true); h.caption('Thank you. That is the end of the speaking'); h.caption(' test.', true); });
+  expect(rec.finish).not.toHaveBeenCalled(); // still talking
+  await act(async () => h.speaking(false));
+  expect(rec.finish).toHaveBeenCalledTimes(1);
+  unmount();
+});

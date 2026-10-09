@@ -176,6 +176,8 @@ export function useRecorder() {
 
   /** The live microphone stream (the conversation recording mixes it with the examiner). */
   const stream = useCallback(() => r.current.stream ?? null, []);
+  /** Milliseconds of voiced audio (frames at or above the speaking threshold) between two points of the recording clock. */
+  const voicedMs = useCallback((fromMs: number, toMs: number) => r.current.energy.slice(Math.floor(fromMs / FRAME_MS), Math.ceil(toMs / FRAME_MS)).filter((e) => e >= VOICE).length * FRAME_MS, []);
 
-  return { state, error, paused, start, stop, pause, resume, clock, stream, ...live };
+  return { state, error, paused, start, stop, pause, resume, clock, stream, voicedMs, ...live };
 }

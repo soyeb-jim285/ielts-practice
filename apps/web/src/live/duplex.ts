@@ -10,6 +10,10 @@ import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, ty
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
 const CUE_TIMEOUT_MS = 45_000; // a cue whose examiner line never starts or ends must not stall the test
+/** The examiner's own closing line (examiner.ts LINES.closing): said in Part 3 without our cue, it still ends the test. */
+const CLOSING = /\bend of the (speaking )?test\b/i;
+/** Ends the test this long after the closing line is heard if the examiner's "stopped speaking" never arrives. */
+const CLOSING_GRACE_MS = 8000;
 
 export type CueKey = 'part2' | 'talk' | 'follow' | 'follow-timeup' | 'closing';
 
@@ -68,6 +72,7 @@ export function useDuplexExaminer(
     waitTimer: undefined as ReturnType<typeof setTimeout> | undefined,
     responseTimer: undefined as ReturnType<typeof setTimeout> | undefined,
     unwatch: undefined as (() => void) | undefined,
+    line: '', // the examiner's current caption
     output: false,
   });
 
@@ -131,6 +136,20 @@ export function useDuplexExaminer(
       setRetry(() => () => (setError(undefined), void finish()));
       setStatus('error');
     }
+  }
+
+  /** The examiner said the closing line by itself (it ran out of Part 3 questions): stop recording and finish once it stops talking, without cueing it again. */
+  function closingHeard() {
+    const c = r.current;
+    if (c.ended) return;
+    c.phase = 'closing';
+    setPhase('closing');
+    clearTimeout(c.timer);
+    void parts.stop();
+    clearTimeout(c.waitTimer);
+    c.wait = 'speaking';
+    c.after = () => void finish();
+    c.waitTimer = setTimeout(runAfter, CLOSING_GRACE_MS);
   }
 
   async function go(next: Phase, timeUp = false) {
@@ -202,7 +221,12 @@ export function useDuplexExaminer(
         if (c.wait === 'speaking') runAfter();
       }
     },
-    caption: (text, append) => setCaption((t) => (append ? t + text : text)),
+    caption(text, append) {
+      const c = r.current;
+      c.line = append ? c.line + text : text;
+      setCaption(c.line);
+      if (c.phase === 'p3' && CLOSING.test(c.line)) closingHeard();
+    },
     output(stream) {
       const c = r.current;
       c.unwatch?.();

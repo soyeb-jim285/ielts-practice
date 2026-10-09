@@ -43,4 +43,19 @@ describe('answerWindows', () => {
     t = 6000;
     expect(w.finish()).toEqual([{ q: 0, startMs: 0, endMs: 6000 }]);
   });
+  it('a silent wait before the first question is not an answer, so the next answer still gets question 0', () => {
+    let t = 0;
+    const voiced = ([from, to]: [number, number]) => Math.max(0, to - Math.max(from, 3000)); // the candidate only speaks after the examiner's first line, from 3 s on
+    const w = answerWindows(() => t, (a, b) => voiced([a, b]));
+    w.examiner(false); // the part starts before the examiner's question is audible
+    t = 2500;
+    w.examiner(true); // 2.5 s of silence: long enough by time, but nobody spoke
+    w.examiner(false);
+    t = 3000;
+    t = 9000;
+    w.examiner(true); // a real answer
+    w.examiner(false);
+    t = 14_000;
+    expect(w.finish()).toEqual([{ q: 0, startMs: 2500, endMs: 9000 }, { q: 1, startMs: 9000, endMs: 14_000 }]);
+  });
 });
