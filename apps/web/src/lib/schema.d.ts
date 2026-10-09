@@ -4777,6 +4777,8 @@ export interface components {
                 q: number;
                 startMs: number;
                 endMs: number;
+                /** @description The examiner line this window answers, as the examiner said it */
+                question?: string;
             }[];
         };
         LivePartCreated: {

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, transitionsOf } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, spokenQuestions, transitionsOf } from './speaking';
 import { fluencyComposite } from '@ielts/core';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
@@ -201,4 +201,12 @@ it('retains FC timing bounds and the uncalibrated P heuristic cap', async () => 
     expect(r.criteria.fc!.band).toBe(Math.max(Math.ceil(flu - 1), Math.min(Math.floor(flu + 1), fc)));
     expect(r.criteria.p!.band).toBeLessThanOrEqual(Math.min(7, r.criteria.fc!.band + 1));
   }
+});
+
+it('spokenQuestions: the examiner lines as said, one per answer window index; null if any window lacks one (the script is used then)', () => {
+  const seg = (q: number, question?: string) => ({ q, startMs: q * 1000, endMs: q * 1000 + 900, ...(question !== undefined && { question }) });
+  expect(spokenQuestions([seg(0, 'Where is your hometown?'), seg(1, ' What do you like most about it? ')])).toEqual(['Where is your hometown?', 'What do you like most about it?']);
+  expect(spokenQuestions([seg(0, 'Where is your hometown?'), seg(1)])).toBeNull();
+  expect(spokenQuestions([seg(0, '  ')])).toBeNull();
+  expect(spokenQuestions(null)).toBeNull();
 });

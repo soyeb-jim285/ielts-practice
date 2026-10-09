@@ -67,7 +67,11 @@ export class GeminiDuplex implements Duplex {
     const node = new AudioWorkletNode(ctx, 'pcm-capture');
     node.port.onmessage = (e) => {
       if (!this.hearing || !this.ready) return;
-      for (const chunk of enc.push(e.data as Float32Array)) this.send(audioMessage(chunk));
+      // Half duplex: the examiner plays through Web Audio, which the browser's echo cancellation may not cover, so the mic would hear the examiner
+      // and Gemini would take it as the candidate interrupting (it stops after "Hello." and waits). Silence keeps the stream's clock for its VAD.
+      // ponytail: the candidate can't talk over the examiner; route the player through WebRTC if barge-in matters.
+      const block = e.data as Float32Array;
+      for (const chunk of enc.push(this.speaking ? new Float32Array(block.length) : block)) this.send(audioMessage(chunk));
     };
     ctx.createMediaStreamSource(this.mic).connect(node);
     node.connect(ctx.destination); // silent output; keeps the capture node running

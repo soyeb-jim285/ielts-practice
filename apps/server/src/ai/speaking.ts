@@ -172,7 +172,13 @@ export function dropHallucinations(words: Word[]) {
   return words.filter((_, i) => !drop.has(i));
 }
 
-export type Segment = { q: number; startMs: number; endMs: number };
+export type Segment = { q: number; startMs: number; endMs: number; question?: string };
+/** Live answer windows carry the examiner's line as said (duplex examiners adapt the script): the questions, one per window index, or null when any is missing. */
+export function spokenQuestions(segments?: Segment[] | null): string[] | null {
+  if (!segments?.length) return null;
+  const qs = Array.from({ length: Math.max(...segments.map((s) => s.q)) + 1 }, (_, q) => segments.find((s) => s.q === q && s.question?.trim())?.question!.trim());
+  return qs.every(Boolean) ? (qs as string[]) : null;
+}
 /** Maps question start marks (ms into the recording) to the first word spoken after each. With answer windows (`segments`), a question nobody spoke in gets -1. */
 export function questionBoundaries(questions: string[], words: Word[], marks?: number[] | null, segments?: Segment[] | null) {
   return questions.map((text, i) => {

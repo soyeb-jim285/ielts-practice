@@ -12,6 +12,8 @@ const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
 const CUE_TIMEOUT_MS = 45_000; // a cue whose examiner line never starts or ends must not stall the test
 /** The examiner's own closing line (examiner.ts LINES.closing): said in Part 3 without our cue, it still ends the test. */
 const CLOSING = /\bend of the (speaking )?test\b/i;
+/** The examiner's own Part 2 instructions (examiner.ts LINES.prep): said in Part 1 without our cue, the page still moves to the cue card. */
+const PART2 = /\bgoing to give you a topic\b|\bone minute to think\b/i;
 /** Ends the test this long after the closing line is heard if the examiner's "stopped speaking" never arrives. */
 const CLOSING_GRACE_MS = 8000;
 
@@ -152,6 +154,22 @@ export function useDuplexExaminer(
     c.waitTimer = setTimeout(runAfter, CLOSING_GRACE_MS);
   }
 
+  /** The examiner moved to Part 2 by itself (it ran out of Part 1 questions): show the cue card and start the preparation once it stops talking, without cueing it again. */
+  function part2Heard() {
+    const c = r.current;
+    if (c.ended) return;
+    c.phase = 'p2-prep';
+    setPhase('p2-prep');
+    clearTimeout(c.timer);
+    c.x?.listen(false);
+    void parts.stop();
+    setCueCard(c.cueCard);
+    clearTimeout(c.waitTimer);
+    c.wait = 'speaking';
+    c.after = prep.start;
+    c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
+  }
+
   async function go(next: Phase, timeUp = false) {
     const c = r.current;
     if (c.ended || c.phase === next) return;
@@ -225,6 +243,8 @@ export function useDuplexExaminer(
       const c = r.current;
       c.line = append ? c.line + text : text;
       setCaption(c.line);
+      parts.question(c.line);
+      if (c.phase === 'p1' && PART2.test(c.line)) part2Heard();
       if (c.phase === 'p3' && CLOSING.test(c.line)) closingHeard();
     },
     output(stream) {

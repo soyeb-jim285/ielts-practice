@@ -58,4 +58,24 @@ describe('answerWindows', () => {
     t = 14_000;
     expect(w.finish()).toEqual([{ q: 0, startMs: 2500, endMs: 9000 }, { q: 1, startMs: 9000, endMs: 14_000 }]);
   });
+  it('each answer carries the examiner line it followed, as said (the latest line after a breath)', () => {
+    let t = 0, said = '';
+    const w = answerWindows(() => t, undefined, () => said);
+    said = 'Let\'s talk about your hometown. Where is it?';
+    w.examiner(true);
+    w.examiner(false);
+    t = 5000;
+    said = 'And what do you like about it?';
+    w.examiner(true);
+    w.examiner(false);
+    t = 5500; // a breath
+    said = 'What do you like most about living there?'; // the examiner rephrases
+    w.examiner(true);
+    w.examiner(false);
+    t = 11_000;
+    expect(w.finish()).toEqual([
+      { q: 0, startMs: 0, endMs: 5000, question: "Let's talk about your hometown. Where is it?" },
+      { q: 1, startMs: 5500, endMs: 11_000, question: 'What do you like most about living there?' },
+    ]);
+  });
 });

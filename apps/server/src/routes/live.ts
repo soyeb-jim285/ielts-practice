@@ -68,7 +68,7 @@ const LivePart = z.object({
                 marks: z.array(z.number().int().min(0)).max(200).optional().openapi({ description: 'Question start offsets (ms) within this part' }),
                 conversationKey: z.string().optional().openapi({ description: "Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback" }),
                 segments: z
-                  .array(z.object({ q: z.number().int().min(0), startMs: z.number().int().min(0), endMs: z.number().int().min(0) }))
+                  .array(z.object({ q: z.number().int().min(0), startMs: z.number().int().min(0), endMs: z.number().int().min(0), question: z.string().max(2000).optional().openapi({ description: 'The examiner line this window answers, as the examiner said it' }) }))
                   .max(200)
                   .optional()
                   .openapi({ description: 'Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses' }),

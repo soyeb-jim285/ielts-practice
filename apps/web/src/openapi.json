@@ -1781,6 +1781,11 @@
                 "endMs": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "question": {
+                  "type": "string",
+                  "maxLength": 2000,
+                  "description": "The examiner line this window answers, as the examiner said it"
                 }
               },
               "required": [

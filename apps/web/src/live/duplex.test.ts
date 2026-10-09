@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDuplexExaminer, type Handlers } from './duplex';
 
-const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), examiner: vi.fn(), output: vi.fn(), session: vi.fn(), finish: vi.fn(), level: 0 }));
+const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), examiner: vi.fn(), question: vi.fn(), output: vi.fn(), session: vi.fn(), finish: vi.fn(), level: 0 }));
 vi.mock('./turn', async (original) => ({ ...await original<typeof import('./turn')>(), usePartRecorder: () => rec }));
 vi.mock('@/lib/api', async (original) => ({ ...await original<typeof import('@/lib/api')>(), api: { post: vi.fn().mockResolvedValue({ sessionId: 's', test: { part2: { title: 'Topic' } } }) } }));
 
@@ -83,5 +83,23 @@ it('the examiner closing the test on its own during Part 3 ends it, without wait
   expect(rec.finish).not.toHaveBeenCalled(); // still talking
   await act(async () => h.speaking(false));
   expect(rec.finish).toHaveBeenCalledTimes(1);
+  unmount();
+});
+
+it('the examiner moving to Part 2 on its own shows the cue card and starts the prep minute when it stops talking, without a cue', async () => {
+  const { result, h, transport, unmount } = await setup();
+  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // intro answered: Part 1
+  await act(async () => vi.advanceTimersByTime(60_000)); // well before the 4.5-minute Part 1 timer
+  await act(async () => { h.speaking(true); h.caption("Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it"); });
+  expect(result.current.phase).toBe('p2-prep');
+  expect(result.current.cueCard).toEqual({ title: 'Topic' });
+  expect(transport.listen).toHaveBeenCalledWith(false);
+  expect(transport.cue).not.toHaveBeenCalled();
+  expect(result.current.prepLeft).toBe(60);
+  act(() => { vi.advanceTimersByTime(10_000); h.speaking(false); }); // prep starts once the instructions end
+  await act(async () => vi.advanceTimersByTime(60_000));
+  expect(result.current.phase).toBe('p2-talk');
+  await act(async () => vi.advanceTimersByTime(270_000)); // the old Part 1 timer must not fire a second Part 2
+  expect(transport.cue.mock.calls.map((c) => c[2])).toEqual(['talk']);
   unmount();
 });

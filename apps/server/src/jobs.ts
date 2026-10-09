@@ -6,7 +6,7 @@ import { analyses, attempts, liveSessions, mistakes, prompts, user } from './db/
 import { liveQuestions, type LiveState } from './ai/examiner';
 import { AiError } from './ai/openrouter';
 import { keyCtx } from './ai/keyctx';
-import { analyzeSpeaking } from './ai/speaking';
+import { analyzeSpeaking, spokenQuestions } from './ai/speaking';
 import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } from './ai/types';
 import { analyzeWriting } from './ai/writing';
 import { markKeyInvalid } from './keys';
@@ -61,7 +61,8 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tier: Tier): Prom
       const questions =
         part === 2
           ? [[p.title, p.body.startsWith(p.title) ? p.body.slice(p.title.length).trim() : p.body].filter(Boolean).join('\n') + (p.bullets?.length ? `\nYou should say: ${p.bullets.join('; ')}` : '')]
-          : ((session && liveQuestions(session.state as LiveState, part)) ??
+          : ((a.mode === 'live' ? spokenQuestions(a.segments) : null) ??
+            (session && liveQuestions(session.state as LiveState, part)) ??
             (p.followUps?.length ? (a.sessionId && part === 1 ? p.followUps.slice(0, P1_TEST_QUESTIONS) : p.followUps) : [p.body]));
       result = await analyzeSpeaking({
         onStage: (stage) => void setStage({ stage }),
