@@ -7,7 +7,8 @@ type Ctx = Pick<AudioContext, 'currentTime' | 'createBuffer' | 'createBufferSour
 export class PcmPlayer {
   private next = 0;
   private live = new Set<AudioBufferSourceNode>();
-  constructor(private ctx: Ctx) {}
+  /** `tap`: an extra node every chunk also plays into (a MediaStreamDestination that reports the examiner's audio). */
+  constructor(private ctx: Ctx, private tap?: AudioNode) {}
 
   push(pcm: Int16Array) {
     if (!pcm.length) return;
@@ -16,6 +17,7 @@ export class PcmPlayer {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.connect(this.ctx.destination);
+    if (this.tap) src.connect(this.tap);
     const at = Math.max(this.ctx.currentTime + 0.03, this.next); // 30 ms of lead absorbs network jitter at the start
     src.start(at);
     this.next = at + buf.duration;

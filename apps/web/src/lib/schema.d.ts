@@ -4436,6 +4436,8 @@ export interface components {
             parentAttemptId: string | null;
             audioMime: string | null;
             audioUrl: string | null;
+            /** @description Live duplex: the whole conversation (candidate and examiner) for playback */
+            conversationUrl?: string | null;
             text: string | null;
             plan: string | null;
             energy: number[] | null;
@@ -4597,6 +4599,14 @@ export interface components {
                 energy?: number[];
                 /** @description Question start offsets (ms) within this part */
                 marks?: number[];
+                /** @description Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback */
+                conversationKey?: string;
+                /** @description Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses */
+                segments?: {
+                    q: number;
+                    startMs: number;
+                    endMs: number;
+                }[];
             }[];
         };
         Progress: {
@@ -4616,9 +4626,15 @@ export interface components {
             minutesThisWeek: number;
             /** @description Analysed attempts */
             attempts: number;
+            /** @description Lowest criterion in recent work: the latest full test when the latest attempt is part of one, else the last 5 assessed attempts of that skill */
             weakest: {
                 key: string;
                 avg: number;
+                /**
+                 * @description The skill the criterion was judged in (Speaking and Writing share lr / gra keys)
+                 * @enum {string}
+                 */
+                skill?: "speaking" | "writing";
             } | null;
             /** @description Top 5 categories, last 30 days */
             topMistakes: {
@@ -5512,6 +5528,44 @@ export interface components {
                 /** @description USD */
                 usd: number;
                 parts: number;
+            } | null;
+            /** @description Live-mode attempts only */
+            live: {
+                /** @description Costs of the live session itself (realtime model, examiner voice and lines, per-turn transcription), shared by all its parts */
+                items: {
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    stage: string;
+                    provider: string;
+                    model: string;
+                    /** @enum {string} */
+                    paidBy: "house" | "own_key";
+                    inputTokens: number | null;
+                    outputTokens: number | null;
+                    audioSeconds: number | null;
+                    characters: number | null;
+                    /** @description USD */
+                    costUsd: number;
+                    ok: boolean;
+                    retry: boolean;
+                    estimated: boolean;
+                    criterion: string | null;
+                    sample: number | null;
+                    extra: boolean;
+                    kept: boolean | null;
+                    timeout: boolean;
+                }[];
+                /** @description USD */
+                totalUsd: number;
+                /** @description The live session's own transcript (GPT-Live sideband or turn-based STT); empty for Gemini Live */
+                transcript: {
+                    /** @enum {string} */
+                    role: "examiner" | "candidate";
+                    text: string;
+                    /** @description ISO-8601 UTC */
+                    at: string;
+                    phase: string;
+                }[];
             } | null;
         };
         AdminSpendWaste: {

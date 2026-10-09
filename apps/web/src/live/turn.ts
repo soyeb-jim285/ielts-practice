@@ -7,6 +7,7 @@ import { useRecorder, type Recording } from '@/hooks/useRecorder';
 import { useVad } from '@/hooks/useVad';
 import { api } from '@/lib/api';
 import { withDeadline } from './deadline';
+import { recordMix, type MixRecording } from './mix';
 
 export type { Phase };
 export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
@@ -59,63 +60,143 @@ export async function uploadRecording(sessionId: string, r: Recording): Promise<
   return key;
 }
 
+/** One answer window of a part recording, in the recording's own clock (paused examiner time does not count): `q` = the examiner line it answers. */
+export type AnswerWindow = { q: number; startMs: number; endMs: number };
+/** Shorter windows (a breath, a "yes" over the examiner's tail) do not count as an answer and do not move to the next question. */
+const MIN_ANSWER_MS = 1500;
+
+/** Part-recorder bookkeeping, pure so it can be tested: examiner(on) pauses and closes the open window, examiner(off) opens one;
+ *  a question index moves on only when the examiner speaks again after a real answer (the server's transcript alternates the same way). */
+export function answerWindows(clock: () => number) {
+  const w: AnswerWindow[] = [];
+  let open: number | null = null, q = 0;
+  const close = () => {
+    if (open == null) return false;
+    const end = Math.round(clock()), kept = end - open >= MIN_ANSWER_MS;
+    if (kept) w.push({ q, startMs: open, endMs: end });
+    open = null;
+    return kept;
+  };
+  return {
+    examiner(on: boolean) {
+      if (on) { if (close()) q++; }
+      else open ??= Math.round(clock());
+    },
+    finish: () => (close(), w),
+  };
+}
+
 /**
- * Whole-part recordings (one MediaRecorder per part). Recordings stay in memory until /live/finish succeeds,
+ * Whole-part recordings (one MediaRecorder per part). The recorder pauses while the examiner is audible (examiner(true/false)), so the
+ * recording holds the candidate only and each answer window is sent as a segment. Recordings stay in memory until /live/finish succeeds,
  * so a failed upload can be retried without losing audio.
  */
 export function usePartRecorder() {
   const rec = useRecorder();
-  const { start: recStart, stop: recStop } = rec;
-  const cur = useRef<{ part: Part; t0: number; marks: number[] } | null>(null);
-  const parts = useRef(new Map<Part, { rec: Recording; marks?: number[]; key?: string }>());
+  const { start: recStart, stop: recStop, pause: recPause, resume: recResume, clock, stream } = rec;
+  const cur = useRef<{ part: Part; windows: ReturnType<typeof answerWindows>; mix: MixRecording | null } | null>(null);
+  const examinerOn = useRef(false);
+  const examinerStream = useRef<MediaStream | null>(null);
+  type Conversation = { blob: Blob; mime: string; key?: string };
+  type Stored = { rec: Recording; segments?: AnswerWindow[]; key?: string; conversation?: Conversation };
+  const parts = useRef(new Map<Part, Stored>());
+  const sessionId = useRef('');
+  /** Parts already sent with /live/part while the test went on (their analysis is running): resolves to the attempt id, or null to resend at finish. */
+  const sent = useRef(new Map<Part, Promise<string | null>>());
+
+  /** Uploads what is missing (the playback copy is best effort) and returns the part's /live body. */
+  const prepare = useCallback(async (sid: string, part: Part, p: Stored) => {
+    p.key ??= await uploadRecording(sid, p.rec);
+    if (p.conversation) p.conversation.key ??= await uploadRecording(sid, { ...p.conversation, durationMs: 0, energy: [] }).catch(() => undefined);
+    return {
+      part, audioKey: p.key, durationMs: p.rec.durationMs, energy: p.rec.energy,
+      ...(p.segments && { segments: p.segments.slice(0, 200), marks: p.segments.slice(0, 200).map((w) => w.startMs) }),
+      ...(p.conversation?.key && { conversationKey: p.conversation.key }),
+    };
+  }, []);
+
+  /** Sends a finished part now, so its analysis runs while the test goes on. Best effort: a failure leaves it to finish(). */
+  const send = useCallback(
+    (part: Part) => {
+      const sid = sessionId.current, p = parts.current.get(part);
+      if (!sid || !p?.rec.blob.size || sent.current.has(part)) return;
+      sent.current.set(part, prepare(sid, part, p).then((body) => api.post<{ attemptId: string }>('/live/part', { sessionId: sid, part: body })).then((r) => r.attemptId, () => null));
+    },
+    [prepare],
+  );
 
   const stop = useCallback(async () => {
     const c = cur.current;
     if (!c) return;
     cur.current = null;
-    const r = await withDeadline(recStop(), 10_000).catch(() => null);
-    if (r) parts.current.set(c.part, { rec: r, marks: c.marks.length ? c.marks : undefined });
-  }, [recStop]);
+    const segments = c.windows.finish();
+    const [r, mix] = await Promise.all([withDeadline(recStop(), 10_000).catch(() => null), c.mix ? withDeadline(c.mix.stop(), 10_000).catch(() => null) : null]);
+    if (r) parts.current.set(c.part, { rec: r, segments: segments.length ? segments : undefined, conversation: mix ?? undefined });
+    if (r) send(c.part);
+  }, [recStop, send]);
 
   const start = useCallback(
     async (part: Part) => {
       if (cur.current?.part === part) return;
       await stop();
-      cur.current = { part, t0: performance.now(), marks: [] };
+      const windows = answerWindows(clock);
+      const c = (cur.current = { part, windows, mix: null as MixRecording | null });
       try {
-        if (!(await recStart())) throw new Error('Could not start recording. Check your microphone permissions and retry.');
+        if (!(await recStart({ paused: examinerOn.current }))) throw new Error('Could not start recording. Check your microphone permissions and retry.');
       } catch (e) {
         cur.current = null;
         throw e;
       }
-      if (cur.current) cur.current.t0 = performance.now();
+      if (!examinerOn.current) windows.examiner(false);
+      // the playback copy runs only with an examiner stream to mix in (the duplex examiners); the part works without it
+      if (examinerStream.current) c.mix = recordMix([stream(), examinerStream.current]);
     },
-    [stop, recStart],
+    [stop, recStart, clock, stream],
   );
 
-  /** Question start offset within the current part. */
-  const mark = useCallback(() => {
-    const c = cur.current;
-    if (c) c.marks.push(Math.max(0, Math.round(performance.now() - c.t0)));
-  }, []);
+  /** The examiner's voice as a stream (duplex examiners): mixed into the conversation recording of the next part. */
+  const output = useCallback((s: MediaStream) => void (examinerStream.current = s), []);
 
-  /** Use an existing recording as a part (the Part 2 long turn is a single turn). */
-  const add = useCallback((part: Part, r: Recording, key?: string) => void parts.current.set(part, { rec: r, key }), []);
+  /** The examiner became audible (true) or silent (false): pause the part recording over the examiner and open an answer window after. */
+  const examiner = useCallback(
+    (on: boolean) => {
+      examinerOn.current = on;
+      const c = cur.current;
+      if (!c) return;
+      if (on) recPause();
+      c.windows.examiner(on);
+      if (!on) recResume();
+    },
+    [recPause, recResume],
+  );
 
-  /** Stops, uploads what's missing and creates the attempts. Returns [] when nothing was recorded. */
+  /** Use an existing recording as a part (the Part 2 long turn is a single turn); with its upload key it is complete, so it is sent now. */
+  const add = useCallback(
+    (part: Part, r: Recording, key?: string) => {
+      parts.current.set(part, { rec: r, key });
+      if (key) send(part);
+    },
+    [send],
+  );
+
+  /** Stops, waits for the parts already sent, sends the rest and closes the session. Returns the session's attempt ids ([] when nothing was recorded). */
   const finish = useCallback(
-    async (sessionId: string): Promise<string[]> => {
+    async (sid: string): Promise<string[]> => {
       await stop();
       const list = [...parts.current].filter(([, p]) => p.rec.blob.size > 0);
       if (!list.length) return [];
-      await Promise.all(list.map(async ([, p]) => (p.key ??= await uploadRecording(sessionId, p.rec))));
-      const body = list.map(([part, p]) => ({ part, audioKey: p.key!, durationMs: p.rec.durationMs, energy: p.rec.energy, marks: p.marks?.slice(0, 200) }));
-      return (await withDeadline(api.post<{ attemptIds: string[] }>('/live/finish', { sessionId, parts: body }))).attemptIds;
+      const done = new Set<Part>();
+      for (const [part, job] of sent.current) if (await job) done.add(part);
+      const body = await Promise.all(list.filter(([part]) => !done.has(part)).map(([part, p]) => prepare(sid, part, p)));
+      return (await withDeadline(api.post<{ attemptIds: string[] }>('/live/finish', { sessionId: sid, parts: body }))).attemptIds;
     },
-    [stop],
+    [stop, prepare],
   );
 
-  return { start, stop, mark, add, finish, level: rec.level, state: rec.state, error: rec.error };
+  /** The live session the parts belong to: set once it exists, so finished parts can be sent during the test. */
+  const session = useCallback((sid: string) => void (sessionId.current = sid), []);
+
+  return { start, stop, examiner, output, add, finish, session, level: rec.level, state: rec.state, error: rec.error };
 }
 
 /** Plays examiner audio on one element (created on the Start click so autoplay is allowed). */
@@ -210,14 +291,15 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
     if (line.voiceError) setVoiceError(line.voiceError);
     // Part recorders follow the phase; the Part 2 long turn reuses its turn recording.
     if (line.phase === 'p1' || line.phase === 'p3') {
+      parts.examiner(true); // the examiner line plays now: not part of the candidate's recording
       await parts.start(line.phase === 'p1' ? 1 : 3);
-      parts.mark();
     } else await parts.stop();
     if (line.phase === 'p2-prep') {
       setCueCard(line.cueCard);
     }
     setStatus('examiner');
     if (line.audioUrl) await audio.play(line.audioUrl); // null = TTS failed: captions only, go straight to listening
+    parts.examiner(false);
     if (c.ended) return;
     if (line.phase === 'done') return void finish();
     if (line.phase === 'p2-prep') {
@@ -236,6 +318,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
   async function submit(r: Recording | null) {
     const c = s.current;
     if (c.ended) return;
+    parts.examiner(true); // the wait for the examiner's reply is not the candidate's pause: close the answer window now
     setStatus('thinking');
     try {
       if (r && c.phase === 'p2-talk') parts.add(2, r);
@@ -276,6 +359,7 @@ export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: stri
       const st = await withDeadline(api.post<LiveStarted>('/live/start', liveStartBody(source, mockId)));
       if (s.current.ended) return;
       s.current.sessionId = st.sessionId;
+      parts.session(st.sessionId);
       await play(st);
     } catch (e) {
       fail(e, () => void start());

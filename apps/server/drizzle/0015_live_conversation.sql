@@ -1,0 +1,1 @@
+ALTER TABLE "attempts" ADD COLUMN "conversation_key" text;

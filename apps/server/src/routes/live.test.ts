@@ -190,8 +190,12 @@ it('gemini-token: 403 without an own Gemini key, else mints a locked ephemeral t
 it('finish creates one live attempt per part and analyses each, once', async () => {
   const { headers } = await testUser();
   const s = await start(headers);
-  const parts: { part: number; audioKey: string; durationMs: number; energy: number[] }[] = [];
+  const parts: { part: number; audioKey: string; durationMs: number; energy: number[]; segments?: { q: number; startMs: number; endMs: number }[] }[] = [];
   for (const part of [1, 2, 3]) parts.push({ part, audioKey: await upload(headers, s.sessionId), durationMs: 60_000, energy: [1, 2] });
+  parts[0]!.segments = [{ q: 0, startMs: 0, endMs: 20_000 }, { q: 1, startMs: 20_000, endMs: 60_000 }]; // answer windows: the recorder paused while the examiner spoke
+  const conversationKey = await upload(headers, s.sessionId); // part 1's playback copy (mic + examiner)
+  (parts[0] as { conversationKey?: string }).conversationKey = conversationKey;
+  (parts[1] as { conversationKey?: string }).conversationKey = `live/${s.sessionId}/missing.webm`; // an unusable playback copy is dropped, not fatal
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts: [{ ...parts[0], audioKey: `live/${s.sessionId}/nope.webm` }] } })).status).toBe(400);
 
   // Two concurrent finishes (double click / client retry): the session row lock lets exactly one through.
@@ -205,8 +209,36 @@ it('finish creates one live attempt per part and analyses each, once', async () 
   expect(rows.map((r) => [r.part, r.mode, r.status, r.promptId]).sort()).toEqual(
     [[1, 'live', 'analyzing', s.test.part1[0].id], [2, 'live', 'analyzing', s.test.part2.id], [3, 'live', 'analyzing', s.test.part3.id]].sort(),
   );
+  expect(rows.find((r) => r.part === 1)!.segments).toEqual(parts[0]!.segments);
+  expect(rows.find((r) => r.part === 2)!.segments).toBeNull();
+  expect(rows.find((r) => r.part === 1)!.conversationKey).toBe(conversationKey);
+  expect(rows.find((r) => r.part === 2)!.conversationKey).toBeNull();
+  const got = (await (await req(`/api/attempts/${rows.find((r) => r.part === 1)!.id}`, { headers })).json()) as any;
+  expect(got.conversationUrl).toContain(conversationKey);
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(409);
   expect((await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).status).toBe(409);
+});
+
+it('parts sent during the test are analysed at once; a repeat returns the same attempt; finish adds only the rest', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const p1 = { part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000, energy: [1, 2] };
+  const first = await req('/api/live/part', { headers, body: { sessionId: s.sessionId, part: p1 } });
+  expect(first.status).toBe(200);
+  const { attemptId } = (await first.json()) as any;
+  expect(analyzed).toEqual([attemptId]); // analysis starts while the test goes on
+  const again = (await (await req('/api/live/part', { headers, body: { sessionId: s.sessionId, part: p1 } })).json()) as any;
+  expect(again.attemptId).toBe(attemptId); // a retried send is the same part, not a second one
+
+  const rest = [];
+  for (const part of [2, 3]) rest.push({ part, audioKey: await upload(headers, s.sessionId), durationMs: 60_000, energy: [1, 2] });
+  const done = await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts: [p1, ...rest] } }); // a client that resends part 1 too
+  expect(done.status).toBe(200);
+  const { attemptIds } = (await done.json()) as any;
+  expect(attemptIds).toHaveLength(3);
+  expect(attemptIds[0]).toBe(attemptId);
+  expect(analyzed).toHaveLength(3);
+  expect((await req('/api/live/part', { headers, body: { sessionId: s.sessionId, part: p1 } })).status).toBe(409);
 });
 
 it('a TTS model/voice rejected upstream (4xx) says to change it in Settings, captions only', async () => {

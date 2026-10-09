@@ -174,5 +174,8 @@ export function useRecorder() {
     [teardown, clock],
   );
 
-  return { state, error, paused, start, stop, pause, resume, clock, ...live };
+  /** The live microphone stream (the conversation recording mixes it with the examiner). */
+  const stream = useCallback(() => r.current.stream ?? null, []);
+
+  return { state, error, paused, start, stop, pause, resume, clock, stream, ...live };
 }

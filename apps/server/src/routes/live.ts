@@ -1,8 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import { and, eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
-import { activeRun, attachSideband, createWebrtcSession, endRun } from '../ai/gpt-live';
+import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { recordCost } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
@@ -20,7 +21,7 @@ import { checkStart, liveKey, requireLive, reserve, withPayer } from '../quota';
 import { getSettings, type Settings } from '../settings';
 import { aiLimit } from '../ratelimit';
 import { storage, uploadError } from '../storage';
-import type { App } from '../types';
+import type { App, AppEnv } from '../types';
 import { CodedError } from './community';
 import { liveMock } from './mock';
 import { pickP1Branches, pickSpeakingTest, PromptSchema } from './prompts';
@@ -57,6 +58,69 @@ async function loadSession(sessionId: string, userId: string) {
   const cost = keyCtx.getStore()?.cost;
   if (cost) cost.sessionId = sessionId; // the turn's STT / examiner / TTS rows belong to this live session
   return row.state as LiveState;
+}
+
+const LivePart = z.object({
+                part: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+                audioKey: z.string(),
+                durationMs: z.number().int().min(0),
+                energy: z.array(z.number().int().min(0).max(255)).max(20000).optional(),
+                marks: z.array(z.number().int().min(0)).max(200).optional().openapi({ description: 'Question start offsets (ms) within this part' }),
+                conversationKey: z.string().optional().openapi({ description: "Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback" }),
+                segments: z
+                  .array(z.object({ q: z.number().int().min(0), startMs: z.number().int().min(0), endMs: z.number().int().min(0) }))
+                  .max(200)
+                  .optional()
+                  .openapi({ description: 'Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses' }),
+              }).openapi('LivePart');
+type LivePart = z.infer<typeof LivePart>;
+
+/**
+ * Creates the attempts of the parts this session does not have yet, reserves them under the session's one speaking test, starts their analysis, and
+ * (`finish`) closes the session. Returns the session's attempt ids (only part `only` when given), null when the session was already finished,
+ * or an upload error message. A part sent twice (a retried /live/part, then /live/finish) is created once.
+ */
+async function addParts(c: Context<AppEnv>, s: LiveState, userId: string, list: LivePart[], finish: boolean, only?: number): Promise<string[] | null | string> {
+  for (const p of list) {
+    const bad = await uploadError(ownKey(s, p.audioKey));
+    if (bad) return `${bad} (part ${p.part})`;
+    // the playback copy is optional: an unusable one is dropped, never a reason to lose the test
+    if (p.conversationKey && (await uploadError(ownKey(s, p.conversationKey)))) p.conversationKey = undefined;
+  }
+  const ofSession = and(eq(attempts.sessionId, s.sessionId), eq(attempts.userId, userId));
+  const have = new Set((await db.select({ part: attempts.part }).from(attempts).where(ofSession)).map((r) => r.part));
+  const fresh = list.filter((p) => !have.has(p.part)).map((p) => ({ p, id: crypto.randomUUID() }));
+  // One speaking test for the whole session, reserved before any analysis spends community credit; later parts join the same unit.
+  if (fresh.length) await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c), fresh.map(({ p, id }) => ({ part: p.part, id })));
+  const promptId = { 1: s.test.part1[0]!.id, 2: s.test.part2.id, 3: s.test.part3.id };
+  const out = await db.transaction(async (tx) => {
+    // Row lock serialises concurrent sends (double click, client retry, /part racing /finish).
+    const [row] = await tx.select({ state: liveSessions.state }).from(liveSessions).where(and(eq(liveSessions.id, s.sessionId), eq(liveSessions.userId, userId))).for('update');
+    if ((row?.state as LiveState | undefined)?.phase === 'done') return null;
+    const now = new Set((await tx.select({ part: attempts.part }).from(attempts).where(ofSession)).map((r) => r.part));
+    const insert = fresh.filter(({ p }) => !now.has(p.part));
+    if (finish) {
+      s.phase = 'done';
+      await tx.update(liveSessions).set({ state: s }).where(eq(liveSessions.id, s.sessionId));
+    }
+    const inserted = insert.length
+      ? await tx
+          .insert(attempts)
+          .values(
+            insert.map(({ p, id }) => ({
+              id, userId, promptId: promptId[p.part], skill: 'speaking' as const, part: p.part, mode: 'live' as const, sessionId: s.sessionId,
+              audioKey: p.audioKey, audioMime: MIME[p.audioKey.split('.').pop()!] ?? 'audio/webm', durationMs: p.durationMs, energy: p.energy, marks: p.marks,
+              segments: p.segments, conversationKey: p.conversationKey, status: 'analyzing' as const,
+            })),
+          )
+          .returning({ id: attempts.id })
+      : [];
+    const all = await tx.select({ id: attempts.id, part: attempts.part }).from(attempts).where(ofSession).orderBy(attempts.part);
+    return { inserted, all };
+  });
+  if (!out) return null;
+  for (const r of out.inserted) void runAnalysis(r.id);
+  return out.all.filter((r) => only == null || r.part === only).map((r) => r.id);
 }
 
 const save = (s: LiveState) => db.update(liveSessions).set({ state: s }).where(eq(liveSessions.id, s.sessionId));
@@ -369,18 +433,7 @@ export function register(app: App) {
       summary: 'Finish a live session: one attempt per recorded part (mode live, shared sessionId), each analysed',
       request: body(
         SessionRef.extend({
-          parts: z
-            .array(
-              z.object({
-                part: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-                audioKey: z.string(),
-                durationMs: z.number().int().min(0),
-                energy: z.array(z.number().int().min(0).max(255)).max(20000).optional(),
-                marks: z.array(z.number().int().min(0)).max(200).optional().openapi({ description: 'Question start offsets (ms) within this part' }),
-              }),
-            )
-            .min(1)
-            .max(3),
+          parts: z.array(LivePart).max(3).openapi({ description: 'The parts not already sent with /live/part (may be empty)' }),
         }).openapi('LiveFinish'),
       ),
       responses: {
@@ -399,47 +452,41 @@ export function register(app: App) {
       await endRun(b.sessionId, user.id); // a GPT-Live session still open ends here, and its transcript is saved before we read the state
       const s = await loadSession(b.sessionId, user.id);
       if (new Set(b.parts.map((p) => p.part)).size !== b.parts.length) return c.json({ error: 'Each part may be sent once' }, 400);
-      for (const p of b.parts) {
-        const bad = await uploadError(ownKey(s, p.audioKey));
-        if (bad) return c.json({ error: `${bad} (part ${p.part})` }, 400);
-      }
-      const promptId = { 1: s.test.part1[0]!.id, 2: s.test.part2.id, 3: s.test.part3.id };
-      // A retried finish (client retry after a lost response) must not reserve again: if the first one's analysis failed and was refunded, that would charge a test for nothing.
-      if ((await db.select({ id: attempts.id }).from(attempts).where(and(eq(attempts.sessionId, s.sessionId), eq(attempts.userId, user.id))).limit(1)).length) return c.json({ error: 'This session was already finished' }, 409);
-      // One speaking test for the whole session. Normally already checked at start; reserved now, before any analysis spends community credit.
-      const ids = b.parts.map(() => crypto.randomUUID()); // the parts are members of the payment, so none can be re-submitted for free later
-      await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c), b.parts.map((p, i) => ({ part: p.part, id: ids[i]! })));
-      const rows = await db.transaction(async (tx) => {
-        // Row lock serialises concurrent finishes (double click, client retry): the second one then sees the first's attempts.
-        await tx.select({ id: liveSessions.id }).from(liveSessions).where(and(eq(liveSessions.id, s.sessionId), eq(liveSessions.userId, user.id))).for('update');
-        const [existing] = await tx.select({ id: attempts.id }).from(attempts).where(and(eq(attempts.sessionId, s.sessionId), eq(attempts.userId, user.id))).limit(1);
-        if (existing) return null;
-        s.phase = 'done';
-        await tx.update(liveSessions).set({ state: s }).where(eq(liveSessions.id, s.sessionId));
-        return tx
-          .insert(attempts)
-          .values(
-            b.parts.map((p, i) => ({
-              id: ids[i]!,
-              userId: user.id,
-              promptId: promptId[p.part],
-              skill: 'speaking' as const,
-              part: p.part,
-              mode: 'live' as const,
-              sessionId: s.sessionId,
-              audioKey: p.audioKey,
-              audioMime: MIME[p.audioKey.split('.').pop()!] ?? 'audio/webm',
-              durationMs: p.durationMs,
-              energy: p.energy,
-              marks: p.marks,
-              status: 'analyzing' as const,
-            })),
-          )
-          .returning({ id: attempts.id });
-      });
-      if (!rows) return c.json({ error: 'This session was already finished' }, 409);
-      for (const r of rows) void runAnalysis(r.id);
-      return c.json({ attemptIds: rows.map((r) => r.id) }, 200);
+      const ids = await addParts(c, s, user.id, b.parts, true);
+      if (typeof ids === 'string') return c.json({ error: ids }, 400);
+      if (!ids) return c.json({ error: 'This session was already finished' }, 409);
+      return c.json({ attemptIds: ids }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/part',
+      summary: 'Send one finished part while the test goes on: its attempt is created and analysed now, so the result is ready sooner. Idempotent per part.',
+      request: body(SessionRef.extend({ part: LivePart }).openapi('LivePartSubmit')),
+      responses: {
+        200: json(z.object({ attemptId: z.string() }).openapi('LivePartCreated'), 'Attempt created (or the existing one for this part)'),
+        400: json(ErrorSchema, 'Bad upload'),
+        404: json(ErrorSchema, 'Not found'),
+        409: json(ErrorSchema, 'Already finished'),
+        402: json(CodedError, 'community_balance_exhausted'),
+        503: json(CodedError, 'community_busy'),
+        ...tooMany,
+      },
+    }),
+    async (c) => {
+      const user = currentUser(c);
+      const b = c.req.valid('json');
+      // GPT-Live keeps the examiner's lines in memory until the session ends: save them now so this part's questions are known to its analysis.
+      const run = activeRun(b.sessionId, user.id);
+      if (run) await saveTranscript(run).catch((e) => console.error('live/part: saving the transcript failed', e));
+      const s = await loadSession(b.sessionId, user.id);
+      const ids = await addParts(c, s, user.id, [b.part], false, b.part.part);
+      if (typeof ids === 'string') return c.json({ error: ids }, 400);
+      if (!ids) return c.json({ error: 'This session was already finished' }, 409);
+      return c.json({ attemptId: ids[0]! }, 200);
     },
   );
 }

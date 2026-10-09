@@ -34,7 +34,10 @@ export class GptLiveDuplex implements Duplex {
     this.h = h;
     this.sessionId = sessionId;
     const pc = (this.pc = new RTCPeerConnection());
-    pc.ontrack = (e) => (this.audio.srcObject = e.streams[0] ?? null);
+    pc.ontrack = (e) => {
+      this.audio.srcObject = e.streams[0] ?? null;
+      if (e.streams[0]) this.h.output?.(e.streams[0]);
+    };
     const mic = (this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }));
     if (this.closed) {
       mic.getTracks().forEach((t) => t.stop());

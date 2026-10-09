@@ -110,7 +110,8 @@ export const attempts = pgTable('attempts', {
   plan: text('plan'),
   energy: jsonb('energy').$type<number[]>(), // 50ms RMS frames 0-255
   marks: jsonb('marks').$type<number[]>(), // question start offsets (ms) within the recording
-  segments: jsonb('segments').$type<{ q: number; startMs: number; endMs: number }[]>(), // non-live speaking: when each answer window ran within the recording; the gaps between them are app timing, not pauses
+  conversationKey: text('conversation_key'), // live duplex: the candidate's mic mixed with the examiner's voice, for playback only (scoring uses audioKey)
+  segments: jsonb('segments').$type<{ q: number; startMs: number; endMs: number }[]>(), // when each answer window ran within the recording (practice: the app's question audio; live: the recorder paused while the examiner was audible); the gaps between them are examiner/app time, not pauses
   durationMs: integer('duration_ms'),
   overtime: boolean('overtime').notNull().default(false),
   status: statusEnum('status').notNull().default('recording'),

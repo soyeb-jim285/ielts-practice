@@ -89,6 +89,7 @@ const AttemptSchema = z
     parentAttemptId: z.string().nullable(),
     audioMime: z.string().nullable(),
     audioUrl: z.string().nullable(),
+    conversationUrl: z.string().nullable().optional().openapi({ description: 'Live duplex: the whole conversation (candidate and examiner) for playback' }),
     text: z.string().nullable(),
     plan: z.string().nullable(),
     energy: z.array(z.number()).nullable(),
@@ -270,8 +271,9 @@ export function register(app: App) {
         db.query.analyses.findFirst({ where: eq(analyses.attemptId, id), columns: { result: true, models: true } }),
       ]);
       const fixes = (an?.result as AnalysisResult | undefined)?.topFixes ?? [];
-      const [audioUrl, imageUrl, fixesAdded] = await Promise.all([
+      const [audioUrl, conversationUrl, imageUrl, fixesAdded] = await Promise.all([
         a.audioKey ? storage.presignGet(a.audioKey) : null,
+        a.conversationKey ? storage.presignGet(a.conversationKey) : null,
         p?.imageKey ? storage.presignGet(p.imageKey) : null,
         inDeck(uid, fixes.map(fixCard)),
       ]);
@@ -286,6 +288,7 @@ export function register(app: App) {
           parentAttemptId: a.parentAttemptId,
           audioMime: a.audioMime,
           audioUrl,
+          conversationUrl,
           text: a.text,
           plan: a.plan,
           energy: a.energy,

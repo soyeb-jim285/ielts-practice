@@ -1024,6 +1024,13 @@
               "null"
             ]
           },
+          "conversationUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Live duplex: the whole conversation (candidate and examiner) for playback"
+          },
           "text": {
             "type": [
               "string",
@@ -1671,6 +1678,37 @@
                   },
                   "maxItems": 200,
                   "description": "Question start offsets (ms) within this part"
+                },
+                "conversationKey": {
+                  "type": "string",
+                  "description": "Upload key of the whole conversation (the candidate's mic mixed with the examiner's voice), for playback"
+                },
+                "segments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "q": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "startMs": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "endMs": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "q",
+                      "startMs",
+                      "endMs"
+                    ]
+                  },
+                  "maxItems": 200,
+                  "description": "Answer windows in the recording clock: the recorder paused while the examiner was audible, so the gaps between windows are examiner time, not pauses"
                 }
               },
               "required": [
@@ -1754,12 +1792,21 @@
               },
               "avg": {
                 "type": "number"
+              },
+              "skill": {
+                "type": "string",
+                "enum": [
+                  "speaking",
+                  "writing"
+                ],
+                "description": "The skill the criterion was judged in (Speaking and Writing share lr / gra keys)"
               }
             },
             "required": [
               "key",
               "avg"
-            ]
+            ],
+            "description": "Lowest criterion in recent work: the latest full test when the latest attempt is part of one, else the last 5 assessed attempts of that skill"
           },
           "topMistakes": {
             "type": "array",
@@ -5347,6 +5394,166 @@
               "parts"
             ],
             "description": "Everything recorded for the test session this attempt belongs to"
+          },
+          "live": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "type": "string",
+                      "description": "ISO-8601 UTC"
+                    },
+                    "stage": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "paidBy": {
+                      "type": "string",
+                      "enum": [
+                        "house",
+                        "own_key"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "outputTokens": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "audioSeconds": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "characters": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "costUsd": {
+                      "type": "number",
+                      "description": "USD"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "retry": {
+                      "type": "boolean"
+                    },
+                    "estimated": {
+                      "type": "boolean"
+                    },
+                    "criterion": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "sample": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "extra": {
+                      "type": "boolean"
+                    },
+                    "kept": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "timeout": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "stage",
+                    "provider",
+                    "model",
+                    "paidBy",
+                    "inputTokens",
+                    "outputTokens",
+                    "audioSeconds",
+                    "characters",
+                    "costUsd",
+                    "ok",
+                    "retry",
+                    "estimated",
+                    "criterion",
+                    "sample",
+                    "extra",
+                    "kept",
+                    "timeout"
+                  ]
+                },
+                "description": "Costs of the live session itself (realtime model, examiner voice and lines, per-turn transcription), shared by all its parts"
+              },
+              "totalUsd": {
+                "type": "number",
+                "description": "USD"
+              },
+              "transcript": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "examiner",
+                        "candidate"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "at": {
+                      "type": "string",
+                      "description": "ISO-8601 UTC"
+                    },
+                    "phase": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "text",
+                    "at",
+                    "phase"
+                  ]
+                },
+                "description": "The live session's own transcript (GPT-Live sideband or turn-based STT); empty for Gemini Live"
+              }
+            },
+            "required": [
+              "items",
+              "totalUsd",
+              "transcript"
+            ],
+            "description": "Live-mode attempts only"
           }
         },
         "required": [
@@ -5356,7 +5563,8 @@
           "stages",
           "totalUsd",
           "wasteUsd",
-          "sessionTotal"
+          "sessionTotal",
+          "live"
         ]
       },
       "AdminSpendWaste": {

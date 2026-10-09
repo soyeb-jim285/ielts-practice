@@ -10,7 +10,7 @@ vi.mock('@/hooks/useRecorder', () => ({ useRecorder: () => {
   const [state, setState] = useState('idle');
   const start = useCallback(async () => { setState('recording'); return true; }, []);
   const stop = useCallback(async () => { setState('stopped'); return { blob: new Blob(), mime: 'audio/webm', durationMs: 120_000, energy: [] }; }, []);
-  return { state, start, stop, level: 0 };
+  return { state, start, stop, pause: () => {}, resume: () => {}, clock: () => 0, stream: () => null, level: 0 };
 } }));
 
 let audio: { onended?: () => void };

@@ -14,7 +14,7 @@ import { NotSubmittedActions } from '@/components/speaking/PendingUploads';
 import { LanguagePanel } from '@/components/speaking/LanguagePanel';
 import { SessionSwitcher } from '@/components/speaking/SessionSwitcher';
 import { Transcript } from '@/components/speaking/Transcript';
-import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
+import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
 import { attemptQuery } from '@/lib/attempt';
@@ -49,6 +49,9 @@ function ResultPage() {
   const { data: a } = useQuery(attemptQuery(attemptId));
   const { data: me } = useMe();
   const audio = useAudio();
+  const conversation = useAudio();
+  // Live duplex parts also keep the whole conversation (with the examiner); the word-synced player stays on the candidate-only recording.
+  const [listen, setListen] = useState<'answers' | 'conversation'>('answers');
   const [lean, setLean] = useState<RepeatedWord | null>(null);
   const timeline = useMemo(() => (a?.analysis?.words ? timelineMarkers(a.analysis) : undefined), [a?.analysis]);
   const deck = useAddFixes(a?.analysis?.topFixes ?? [], !!a?.topFixesInDeck);
@@ -195,8 +198,15 @@ function ResultPage() {
             { value: 'improve', label: 'Improve' },
           ]} />
           {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
-            <div className="mt-3 pb-3">
-              <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} timeline={timeline} onPick={audio.controls.pick} />
+            <div className="mt-3 space-y-2 pb-3">
+              {a.conversationUrl && (
+                <Segmented label="Recording" size="sm" value={listen} onChange={setListen} options={[{ value: 'answers', label: 'Your answers' }, { value: 'conversation', label: 'With the examiner' }]} />
+              )}
+              {listen === 'conversation' && a.conversationUrl ? (
+                <AudioBar key="conversation" src={a.conversationUrl} audioRef={conversation.ref} />
+              ) : (
+                <AudioBar src={a.audioUrl} audioRef={audio.ref} durationS={a.durationMs ? a.durationMs / 1000 : undefined} timeline={timeline} onPick={audio.controls.pick} />
+              )}
             </div>
           )}
         </StickyTabs>

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
 import { api, ApiError } from '@/lib/api';
 import { withDeadline } from './deadline';
+import { watchExaminer } from './examinerVoice';
 import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, type LiveStarted, type Phase, liveStartBody } from './turn';
 
 const PART_MS = 270_000; // Parts 1 and 3: 4.5 min each
@@ -24,6 +25,8 @@ export type Handlers = {
   pending?(): void;
   /** The connection dropped for good. */
   lost(): void;
+  /** The examiner's output audio, as soon as it exists: the part recorder pauses while it is audible. */
+  output?(stream: MediaStream): void;
 };
 
 export type Duplex = {
@@ -64,6 +67,7 @@ export function useDuplexExaminer(
     timer: undefined as ReturnType<typeof setTimeout> | undefined,
     waitTimer: undefined as ReturnType<typeof setTimeout> | undefined,
     responseTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+    unwatch: undefined as (() => void) | undefined,
     output: false,
   });
 
@@ -106,6 +110,8 @@ export function useDuplexExaminer(
     clearTimeout(c.waitTimer);
     clearTimeout(c.responseTimer);
     c.wait = null;
+    c.unwatch?.();
+    c.unwatch = undefined;
     c.x?.close();
     c.x = undefined;
   }
@@ -197,6 +203,12 @@ export function useDuplexExaminer(
       }
     },
     caption: (text, append) => setCaption((t) => (append ? t + text : text)),
+    output(stream) {
+      const c = r.current;
+      c.unwatch?.();
+      c.unwatch = watchExaminer(stream, parts.examiner);
+      parts.output(stream);
+    },
     answered() {
       const c = r.current;
       if (c.ended) return;
@@ -230,6 +242,7 @@ export function useDuplexExaminer(
         const st = await withDeadline(api.post<LiveStarted>('/live/start', { skipTts: true, ...liveStartBody(source, mockId) }));
         if (c.ended) return;
         c.sessionId = st.sessionId;
+        parts.session(st.sessionId);
         c.cueCard = st.test.part2;
       }
       c.x = make();

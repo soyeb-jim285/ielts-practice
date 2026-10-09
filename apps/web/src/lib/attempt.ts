@@ -17,6 +17,8 @@ export type Attempt = {
   parentAttemptId: string | null;
   audioMime: string | null;
   audioUrl: string | null;
+  /** Live duplex: the whole conversation (candidate and examiner) for playback. */
+  conversationUrl?: string | null;
   text: string | null;
   plan: string | null;
   energy: number[] | null;

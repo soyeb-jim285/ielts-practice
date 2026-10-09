@@ -68,7 +68,9 @@ export class GeminiDuplex implements Duplex {
     };
     ctx.createMediaStreamSource(this.mic).connect(node);
     node.connect(ctx.destination); // silent output; keeps the capture node running
-    this.player = new PcmPlayer(ctx);
+    const tap = ctx.createMediaStreamDestination(); // the examiner's voice as a stream: the part recorder pauses while it is audible
+    this.player = new PcmPlayer(ctx, tap);
+    h.output?.(tap.stream);
 
     await this.open();
     this.send(cueMessage('Begin the test.')); // the examiner opens with the introduction

@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDuplexExaminer, type Handlers } from './duplex';
 
-const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), mark: vi.fn(), finish: vi.fn(), level: 0 }));
+const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), examiner: vi.fn(), output: vi.fn(), session: vi.fn(), finish: vi.fn(), level: 0 }));
 vi.mock('./turn', async (original) => ({ ...await original<typeof import('./turn')>(), usePartRecorder: () => rec }));
 vi.mock('@/lib/api', async (original) => ({ ...await original<typeof import('@/lib/api')>(), api: { post: vi.fn().mockResolvedValue({ sessionId: 's', test: { part2: { title: 'Topic' } } }) } }));
 
