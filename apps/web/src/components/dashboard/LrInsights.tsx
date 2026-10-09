@@ -3,32 +3,14 @@ import { useState } from 'react';
 import { Button, ProgressBar, type Tone } from '@/components/ui';
 import { Section } from '@/components/result';
 import { call, client, type Schemas } from '@/lib/api';
-import { formatBand, formatDate } from '@/lib/format';
+import { formatBand } from '@/lib/format';
 import { changeSinceFirst } from './overall';
+import { BandTrend } from './BandTrend';
 import { cn } from '@/lib/utils';
 
-type Trend = Schemas['LrProgress']['trend'];
 export type LrData = Schemas['LrProgress'];
 const SKILL = { listening: 'Listening', reading: 'Reading' } as const;
 const tone = (r: number): Tone => (r >= 0.75 ? 'good' : r >= 0.5 ? 'warn' : 'bad');
-
-/** Band per attempt as a small line: fixed viewBox, scales with its container; the table-less summary sits beside it. */
-function Spark({ rows, target, label }: { rows: Trend; target: number; label: string }) {
-  const W = 220, H = 56, P = 4;
-  const x = (i: number) => (rows.length < 2 ? W / 2 : P + (i * (W - 2 * P)) / (rows.length - 1));
-  const y = (b: number) => H - P - (Math.min(9, Math.max(0, b)) / 9) * (H - 2 * P);
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="h-14 w-full max-w-[16rem] overflow-visible">
-      <line x1={0} x2={W} y1={y(target)} y2={y(target)} stroke="var(--line-strong)" strokeDasharray="3 4" />
-      {rows.length > 1 && <polyline fill="none" stroke="var(--accent)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" points={rows.map((r, i) => `${x(i)},${y(r.band)}`).join(' ')} />}
-      {rows.map((r, i) => (
-        <circle key={r.attemptId} cx={x(i)} cy={y(r.band)} r={i === rows.length - 1 ? 4 : 2.5} fill="var(--accent)">
-          <title>{`${formatDate(r.date)}: band ${formatBand(r.band)}`}</title>
-        </circle>
-      ))}
-    </svg>
-  );
-}
 
 /** Starts a practice attempt on one Listening or Reading test; `busy` is true while it is created. */
 export function useStartLr() {
@@ -67,7 +49,7 @@ export function LrPanel({ skill, data, target }: { skill: 'listening' | 'reading
                 <span className="sr-only">. </span>
               </p>
             )}
-            <Spark rows={rows} target={target} label={`${SKILL[skill]} band over ${rows.length} attempts, latest ${formatBand(last.band)}; dashed line is your ${formatBand(target)} target`} />
+            {rows.length > 1 && <BandTrend points={rows.map((r) => ({ id: r.attemptId, date: r.date, band: r.band }))} target={target} height={150} label={`${SKILL[skill]} band over ${rows.length} attempts, latest ${formatBand(last.band)}, target ${formatBand(target)}`} />}
           </>
         ) : (
           <p className="type-lede max-w-[68ch]">Your {SKILL[skill]} band trend appears after your first scored whole test.</p>

@@ -1,15 +1,6 @@
 import type { CriterionKey } from '@server/ai/types';
 import type { Schemas } from '@/lib/api';
 
-// Chart series come from the palette (teal, sky, slate, ink); green/amber/red stay reserved for good/warn/bad. Every skill has four criteria,
-// so the fourth (ink) is also dashed: series stay distinguishable without colour.
-const TEAL = 'var(--accent)';
-const SKY = 'var(--sky)';
-const SLATE = 'var(--chart-3)';
-const INK = 'var(--ink)';
-export const SERIES_COLOR: Record<CriterionKey, string> = { fc: TEAL, ta: TEAL, lr: SKY, gra: SLATE, p: INK, cc: INK };
-export const SERIES_DASH: Partial<Record<CriterionKey, string>> = { p: '5 3', cc: '5 3' };
-
 /** Skill each criterion belongs to, and the part to suggest when the user has no scored attempts to tell us where they are weakest. */
 export const PRACTICE: Record<CriterionKey, { skill: 'speaking' | 'writing'; part: 1 | 2 | 3 }> = {
   fc: { skill: 'speaking', part: 2 },
