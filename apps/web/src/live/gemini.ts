@@ -2,7 +2,7 @@
 // Mic: AudioWorklet → 16 kHz PCM16 → realtimeInput.audio. Examiner: 24 kHz PCM16 chunks → PcmPlayer. Docs: ai.google.dev/gemini-api/docs/live-api (+ /ephemeral-tokens, /session-management).
 import { api } from '@/lib/api';
 import { useDuplexExaminer, type Duplex, type Handlers } from './duplex';
-import { audioEndMessage, audioMessage, cueMessage, frameText, geminiUrl, parseGeminiMessage, setupMessage, type GeminiEvent } from './geminiProtocol';
+import { addUsage, audioEndMessage, emptyUsage, audioMessage, cueMessage, frameText, geminiUrl, parseGeminiMessage, setupMessage, type GeminiEvent } from './geminiProtocol';
 import { bytesToPcm16, fromBase64, MicEncoder } from './pcm';
 import { PcmPlayer } from './pcmPlayer';
 import type { LiveExaminer, LiveSource } from './turn';
@@ -32,6 +32,8 @@ export class GeminiDuplex implements Duplex {
   private handle?: string; // latest session resumption handle
   private ready = false; // setupComplete received on the current socket
   private closed = false;
+  private usage = emptyUsage();
+  private sessionId = '';
   private hearing = true; // false during the preparation minute and the long turn
   private fresh = true; // the next model output starts a new examiner turn
   private heard = false; // the candidate spoke since the last cue or answer
@@ -46,6 +48,7 @@ export class GeminiDuplex implements Duplex {
 
   async connect(h: Handlers, sessionId: string) {
     this.h = h;
+    this.sessionId = sessionId;
     const t = await api.post<{ value: string; model: string }>('/live/gemini-token', { sessionId });
     if (this.closed) throw new Error('The examiner connection was cancelled.');
     this.token = t.value;
@@ -88,7 +91,9 @@ export class GeminiDuplex implements Duplex {
       ws.onopen = () => ws.send(JSON.stringify(setupMessage(this.model, this.handle)));
       ws.onmessage = (e) => {
         this.chain = this.chain.then(async () => {
-          for (const ev of parseGeminiMessage(JSON.parse(await frameText(e.data)))) {
+          const m = JSON.parse(await frameText(e.data));
+          addUsage(this.usage, m.usageMetadata);
+          for (const ev of parseGeminiMessage(m)) {
             if (ev.type === 'setupComplete') {
               this.ready = settled = true;
               clearTimeout(timer);
@@ -205,7 +210,15 @@ export class GeminiDuplex implements Duplex {
     if (!on) this.send(audioEndMessage()); // flush audio the server still holds
   }
 
+  /** Sends the session's token totals so the server can price it (the browser is the only one that sees them). Best effort, survives page unload. */
+  private reportUsage() {
+    const u = this.usage;
+    if (!this.sessionId || !Object.values(u).some(Boolean)) return;
+    void fetch('/api/live/gemini-usage', { method: 'POST', credentials: 'include', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: this.sessionId, usage: u }) }).catch(() => {});
+  }
+
   close() {
+    if (!this.closed) this.reportUsage();
     this.closed = true;
     clearTimeout(this.endTimer);
     this.ws?.close();

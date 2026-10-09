@@ -67,6 +67,13 @@ export const scribeUsd = (seconds: number) => (seconds / 3600) * env.ELEVENLABS_
 /** GPT-Live is billed per second: $0.05/min (env.ts). */
 export const gptLiveUsd = (seconds: number) => (seconds / 60) * 0.05;
 
+/** Token counts of a Gemini Live session, summed over its replies (each reply's usageMetadata re-counts the context it read). */
+export type GeminiLiveUsage = { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number; thoughts: number };
+/** USD per 1M tokens, Gemini 3.8 Live paid tier (ai.google.dev/gemini-api/docs/pricing, 2026-10-09); thinking is billed as output text. Gemini returns no cost, only tokens. */
+const GEMINI_LIVE_PER_M = { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 };
+export const geminiLiveUsd = (u: GeminiLiveUsage) =>
+  (u.inputText * GEMINI_LIVE_PER_M.inputText + u.inputAudio * GEMINI_LIVE_PER_M.inputAudio + u.inputMedia * GEMINI_LIVE_PER_M.inputMedia + (u.outputText + u.thoughts) * GEMINI_LIVE_PER_M.outputText + u.outputAudio * GEMINI_LIVE_PER_M.outputAudio) / 1e6;
+
 /** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK key only, the upstream provider cost OpenRouter reports separately (on the house key it is already inside `cost`). */
 export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; outputTokens?: number; exact: boolean } {
   const x = (u ?? {}) as { cost?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown; cost_details?: { upstream_inference_cost?: unknown } };

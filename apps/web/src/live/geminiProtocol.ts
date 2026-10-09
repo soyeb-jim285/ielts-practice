@@ -73,3 +73,25 @@ export async function frameText(data: unknown): Promise<string> {
   if (data instanceof Blob) return data.text();
   return new TextDecoder().decode(data as ArrayBuffer);
 }
+
+/** Token totals of a session, summed over replies (each reply's usageMetadata re-counts the context it read; Google bills it that way). Gemini returns no cost. */
+export type GeminiUsage = { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number; thoughts: number };
+export const emptyUsage = (): GeminiUsage => ({ inputText: 0, inputAudio: 0, inputMedia: 0, outputText: 0, outputAudio: 0, thoughts: 0 });
+type Detail = { modality?: string; tokenCount?: number };
+type UsageMetadata = { promptTokensDetails?: Detail[]; responseTokensDetails?: Detail[]; thoughtsTokenCount?: number };
+/** Adds one server message's usageMetadata (if any) to `total`, in place. */
+export function addUsage(total: GeminiUsage, u: UsageMetadata | undefined) {
+  if (!u) return total;
+  const add = (ds: Detail[] | undefined, side: 'input' | 'output') => {
+    for (const d of ds ?? []) {
+      const n = Math.max(0, Math.round(d.tokenCount ?? 0)), m = (d.modality ?? '').toUpperCase();
+      if (m === 'AUDIO') total[`${side}Audio`] += n;
+      else if (side === 'input' && (m === 'IMAGE' || m === 'VIDEO')) total.inputMedia += n;
+      else total[`${side}Text`] += n;
+    }
+  };
+  add(u.promptTokensDetails, 'input');
+  add(u.responseTokensDetails, 'output');
+  total.thoughts += Math.max(0, Math.round(u.thoughtsTokenCount ?? 0));
+  return total;
+}

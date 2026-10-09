@@ -1,17 +1,17 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, max } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
-import { recordCost } from '../ai/cost';
+import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { liveDeadline } from '../ai/live-deadline';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
-import { attempts, liveSessions } from '../db/schema';
+import { aiCosts, attempts, liveSessions } from '../db/schema';
 import { env } from '../env';
 import { ApiError } from '../errors';
 import { clientIpHash } from '../ip';
@@ -422,6 +422,41 @@ export function register(app: App) {
       // The browser talks to Google directly, so the server never sees usage: one zero-cost marker row keeps the session visible in the ledger.
       recordCost({ stage: 'live_realtime', provider: 'gemini', model, costUsd: 0, userId: currentUser(c).id, sessionId: s.sessionId, paidBy: payer.keys.gemini ? 'own_key' : 'house', meta: { estimated: true, unmetered: true } });
       return c.json({ value: t.name, expiresAt: Math.floor(Date.parse(req.expireTime) / 1000), model }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/gemini-usage',
+      summary: "Gemini Live token usage of this session, summed by the browser (it talks to Google directly): priced and stored as the session's live cost",
+      request: body(
+        SessionRef.extend({
+          usage: z
+            .object(Object.fromEntries((['inputText', 'inputAudio', 'inputMedia', 'outputText', 'outputAudio', 'thoughts'] as const).map((k) => [k, z.number().int().min(0).max(20_000_000)])) as Record<keyof GeminiLiveUsage, z.ZodNumber>)
+            .openapi('GeminiLiveUsage', { description: 'Running totals: each report replaces the previous one' }),
+        }).openapi('LiveGeminiUsage'),
+      ),
+      responses: { 200: json(z.object({ costUsd: z.number() }).openapi('GeminiLiveCost'), 'Recorded'), 404: json(ErrorSchema, 'Not found'), ...tooMany },
+    }),
+    async (c) => {
+      const user = currentUser(c), b = c.req.valid('json');
+      const s = await loadSession(b.sessionId, user.id);
+      const usage = b.usage as GeminiLiveUsage, costUsd = geminiLiveUsd(usage);
+      // One row per session: the token-mint placeholders and any earlier report give way to this running total.
+      // ponytail: client-reported (Google bills the browser's socket, the server never sees tokens); admin ledger only, never charged to users.
+      // Totals only grow, so a later, smaller report never lowers what is recorded.
+      const mine = and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'gemini'), eq(aiCosts.stage, 'live_realtime'));
+      const [prev] = await db.select({ usd: max(aiCosts.costUsd) }).from(aiCosts).where(mine);
+      if ((prev?.usd ?? 0) > costUsd) return c.json({ costUsd: Math.round(prev!.usd! * 1e6) / 1e6 }, 200);
+      await db.delete(aiCosts).where(mine);
+      recordCost({
+        stage: 'live_realtime', provider: 'gemini', model: env.GEMINI_LIVE_MODEL, costUsd, userId: user.id, sessionId: s.sessionId, paidBy: c.get('payer')!.keys.gemini ? 'own_key' : 'house',
+        inputTokens: usage.inputText + usage.inputAudio + usage.inputMedia, outputTokens: usage.outputText + usage.outputAudio + usage.thoughts,
+        meta: { estimated: true, reported: true, usage },
+      });
+      return c.json({ costUsd: Math.round(costUsd * 1e6) / 1e6 }, 200);
     },
   );
 

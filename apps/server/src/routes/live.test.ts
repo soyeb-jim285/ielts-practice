@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // helpers first: it loads the app (and @hono/zod-openapi's zod extension) before the settings schema is built
 import { chatReply, fakeFetch, json, req, seedPrompt, setKey, testUser } from '../test/helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { attempts, liveSessions, quotaUsage } from '../db/schema';
+import { aiCosts, attempts, liveSessions, quotaUsage } from '../db/schema';
 import { setAnalyzer } from '../jobs';
 import { setFetch } from '../ai/openrouter';
 import { clearBalanceCache } from '../community';
@@ -185,6 +185,31 @@ it('gemini-token: 403 without an own Gemini key, else mints a locked ephemeral t
   expect(sent.bidiGenerateContentSetup.systemInstruction.parts[0].text).toContain('Describe a book you enjoyed');
   expect(sent.fieldMask).toContain('systemInstruction.parts');
   expect(sent.fieldMask).not.toContain('sessionResumption');
+});
+
+it('gemini-usage: prices the browser-summed tokens into one row per session, replacing the $0 mint placeholder; a smaller report never lowers it', async () => {
+  const { headers, user } = await testUser();
+  const s = await start(headers);
+  await setKey(user.id, 'gemini', 'g-test');
+  const real = globalThis.fetch;
+  globalThis.fetch = fakeFetch({ '/v1beta/auth_tokens': () => json({ name: 'auth_tokens/abc', expireTime: '2030-01-01T00:20:00Z' }) });
+  try {
+    await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } });
+  } finally {
+    globalThis.fetch = real;
+  }
+  const rows = () => db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'gemini')));
+  await vi.waitFor(async () => expect(await rows()).toHaveLength(1)); // the placeholder
+  const usage = (inputAudio: number) => ({ inputText: 100_000, inputAudio, inputMedia: 0, outputText: 0, outputAudio: 100_000, thoughts: 100_000 });
+  const report = async (inputAudio: number) => (await (await req('/api/live/gemini-usage', { headers, body: { sessionId: s.sessionId, usage: usage(inputAudio) } })).json()) as any;
+
+  // 0.1M text in × $0.75 + 1M audio in × $3 + 0.1M thoughts × $4.50 + 0.1M audio out × $12 = $4.725
+  expect(await report(1_000_000)).toEqual({ costUsd: 4.725 });
+  await vi.waitFor(async () => expect((await rows()).map((r) => [r.costUsd, r.paidBy, r.stage])).toEqual([[4.725, 'own_key', 'live_realtime']]));
+  expect(await report(0)).toEqual({ costUsd: 4.725 });
+  expect((await rows()).map((r) => r.costUsd)).toEqual([4.725]);
+  expect(await report(2_000_000)).toEqual({ costUsd: 7.725 });
+  await vi.waitFor(async () => expect((await rows()).map((r) => r.costUsd)).toEqual([7.725]));
 });
 
 it('finish creates one live attempt per part and analyses each, once', async () => {

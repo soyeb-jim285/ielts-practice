@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { audioEndMessage, audioMessage, cueMessage, frameText, geminiUrl, parseGeminiMessage, setupMessage } from './geminiProtocol';
+import { addUsage, audioEndMessage, emptyUsage, audioMessage, cueMessage, frameText, geminiUrl, parseGeminiMessage, setupMessage } from './geminiProtocol';
 
 it('builds the messages the Live API expects', () => {
   expect(geminiUrl('auth_tokens/abc')).toBe(
@@ -40,4 +40,12 @@ it('reads text, Blob and ArrayBuffer frames', async () => {
   expect(await frameText('{"a":1}')).toBe('{"a":1}');
   expect(await frameText(new Blob(['{"b":2}']))).toBe('{"b":2}');
   expect(await frameText(new TextEncoder().encode('{"c":3}').buffer)).toBe('{"c":3}');
+});
+
+it('sums usageMetadata over replies by modality (each reply re-counts the context, which is how Google bills it)', () => {
+  const t = emptyUsage();
+  addUsage(t, { promptTokensDetails: [{ modality: 'TEXT', tokenCount: 306 }, { modality: 'AUDIO', tokenCount: 222 }], responseTokensDetails: [{ modality: 'AUDIO', tokenCount: 49 }], thoughtsTokenCount: 145 });
+  addUsage(t, { promptTokensDetails: [{ modality: 'TEXT', tokenCount: 323 }, { modality: 'AUDIO', tokenCount: 271 }, { modality: 'IMAGE', tokenCount: 5 }], responseTokensDetails: [{ modality: 'TEXT', tokenCount: 7 }], thoughtsTokenCount: 45 });
+  addUsage(t, undefined);
+  expect(t).toEqual({ inputText: 629, inputAudio: 493, inputMedia: 5, outputText: 7, outputAudio: 49, thoughts: 190 });
 });

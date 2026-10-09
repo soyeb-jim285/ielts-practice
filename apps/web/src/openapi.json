@@ -1607,6 +1607,76 @@
           "sessionId"
         ]
       },
+      "GeminiLiveCost": {
+        "type": "object",
+        "properties": {
+          "costUsd": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "costUsd"
+        ]
+      },
+      "LiveGeminiUsage": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/GeminiLiveUsage"
+          }
+        },
+        "required": [
+          "sessionId",
+          "usage"
+        ]
+      },
+      "GeminiLiveUsage": {
+        "type": "object",
+        "properties": {
+          "inputText": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "inputAudio": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "inputMedia": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "outputText": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "outputAudio": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "thoughts": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000000
+          }
+        },
+        "required": [
+          "inputText",
+          "inputAudio",
+          "inputMedia",
+          "outputText",
+          "outputAudio",
+          "thoughts"
+        ],
+        "description": "Running totals: each report replaces the previous one"
+      },
       "LiveFinished": {
         "type": "object",
         "properties": {
@@ -7477,6 +7547,61 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/gemini-usage": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Gemini Live token usage of this session, summed by the browser (it talks to Google directly): priced and stored as the session's live cost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveGeminiUsage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeminiLiveCost"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }

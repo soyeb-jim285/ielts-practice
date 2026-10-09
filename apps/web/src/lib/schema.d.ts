@@ -1233,6 +1233,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/gemini-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gemini Live token usage of this session, summed by the browser (it talks to Google directly): priced and stored as the session's live cost */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveGeminiUsage"];
+                };
+            };
+            responses: {
+                /** @description Recorded */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeminiLiveCost"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/finish": {
         parameters: {
             query?: never;
@@ -4680,6 +4738,22 @@ export interface components {
         };
         LiveGeminiToken: {
             sessionId: string;
+        };
+        GeminiLiveCost: {
+            costUsd: number;
+        };
+        LiveGeminiUsage: {
+            sessionId: string;
+            usage: components["schemas"]["GeminiLiveUsage"];
+        };
+        /** @description Running totals: each report replaces the previous one */
+        GeminiLiveUsage: {
+            inputText: number;
+            inputAudio: number;
+            inputMedia: number;
+            outputText: number;
+            outputAudio: number;
+            thoughts: number;
         };
         LiveFinished: {
             attemptIds: string[];
