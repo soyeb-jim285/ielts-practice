@@ -80,6 +80,7 @@ export class GptLiveDuplex implements Duplex {
         this.onStarted?.();
         break;
       case 'inText':
+        this.h.heard?.(ev.text);
         this.heard = true;
         this.h.pending?.();
         break;

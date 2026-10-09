@@ -5,6 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
+import { mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
@@ -455,6 +456,70 @@ export function register(app: App) {
         stage: 'live_realtime', provider: 'gemini', model: env.GEMINI_LIVE_MODEL, costUsd, userId: user.id, sessionId: s.sessionId, paidBy: c.get('payer')!.keys.gemini ? 'own_key' : 'house',
         inputTokens: usage.inputText + usage.inputAudio + usage.inputMedia, outputTokens: usage.outputText + usage.outputAudio + usage.thoughts,
         meta: { estimated: true, reported: true, usage },
+      });
+      return c.json({ costUsd: Math.round(costUsd * 1e6) / 1e6 }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/realtime-token',
+      summary: 'OpenAI Realtime (gpt-realtime family) examiner: a short-lived client secret locked to the examiner session (model, voice, instructions, VAD, input transcription)',
+      request: body(SessionRef.extend({ model: z.enum(REALTIME_MODELS) }).openapi('LiveRealtimeToken')),
+      responses: {
+        200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('RealtimeToken'), 'Client secret: Bearer for POST /v1/realtime/calls'),
+        400: json(CodedError, "invalid_key: OpenAI rejected the user's key"),
+        ...needsKey,
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+        502: json(ErrorSchema, 'OpenAI error'),
+      },
+    }),
+    async (c) => {
+      const payer = c.get('payer')!, user = currentUser(c), b = c.req.valid('json');
+      requireLive(payer, 'gpt-live');
+      const s = await loadSession(b.sessionId, user.id);
+      const apiKey = liveKey(payer, 'openai')!;
+      const t = await mintRealtimeSecret(apiKey, b.model, s.test);
+      if (!('value' in t)) {
+        console.error('openai realtime client_secrets', t.status, redact(t.detail, apiKey));
+        if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
+        return c.json({ error: 'Could not start an OpenAI Realtime session. Please retry.' }, 502);
+      }
+      return c.json({ value: t.value, expiresAt: t.expiresAt, model: b.model }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/realtime-usage',
+      summary: 'OpenAI Realtime token usage of this session, summed by the browser from response.done: priced and stored as the session\'s live cost (never lowered by a later report)',
+      request: body(
+        SessionRef.extend({
+          model: z.enum(REALTIME_MODELS),
+          usage: z
+            .object(Object.fromEntries((['textIn', 'audioIn', 'cachedIn', 'textOut', 'audioOut', 'transcribeSeconds'] as const).map((k) => [k, z.number().min(0).max(20_000_000)])) as Record<keyof RealtimeUsage, z.ZodNumber>)
+            .openapi('RealtimeUsage'),
+        }).openapi('LiveRealtimeUsage'),
+      ),
+      responses: { 200: json(z.object({ costUsd: z.number() }).openapi('RealtimeCost'), 'Recorded'), 404: json(ErrorSchema, 'Not found'), ...tooMany },
+    }),
+    async (c) => {
+      const user = currentUser(c), b = c.req.valid('json');
+      const s = await loadSession(b.sessionId, user.id);
+      const usage = b.usage as RealtimeUsage, costUsd = realtimeUsd(b.model, usage);
+      // Same rules as the Gemini report: client-reported (the browser holds the session), one row per session, totals only grow.
+      const mine = and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'openai'), eq(aiCosts.stage, 'live_realtime'), eq(aiCosts.model, b.model));
+      const [prev] = await db.select({ usd: max(aiCosts.costUsd) }).from(aiCosts).where(mine);
+      if ((prev?.usd ?? 0) > costUsd) return c.json({ costUsd: Math.round(prev!.usd! * 1e6) / 1e6 }, 200);
+      await db.delete(aiCosts).where(mine);
+      recordCost({
+        stage: 'live_realtime', provider: 'openai', model: b.model, costUsd, userId: user.id, sessionId: s.sessionId, paidBy: c.get('payer')!.keys.openai ? 'own_key' : 'house',
+        inputTokens: usage.textIn + usage.audioIn + usage.cachedIn, outputTokens: usage.textOut + usage.audioOut, meta: { estimated: true, reported: true, usage },
       });
       return c.json({ costUsd: Math.round(costUsd * 1e6) / 1e6 }, 200);
     },

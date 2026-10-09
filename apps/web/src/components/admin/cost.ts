@@ -10,6 +10,7 @@ const STAGES: Record<string, string> = {
   stt_verbatim: 'Verbatim transcription',
   lr_mistake: 'Mistake reasons',
   relevance: 'Relevance check',
+  playground: 'Playground (admin)',
 };
 export const stageLabel = (s: string) => STAGES[s] ?? s.replace(/_/g, ' ');
 

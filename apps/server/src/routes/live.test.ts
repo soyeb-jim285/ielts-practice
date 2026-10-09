@@ -212,6 +212,32 @@ it('gemini-usage: prices the browser-summed tokens into one row per session, rep
   await vi.waitFor(async () => expect((await rows()).map((r) => r.costUsd)).toEqual([7.725]));
 });
 
+it('realtime-token: 403 without an OpenAI key, else mints a client secret locked to the examiner session; realtime-usage prices the reported tokens', async () => {
+  const { headers, user } = await testUser();
+  const s = await start(headers);
+  expect((await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini' } })).status).toBe(403);
+
+  await setKey(user.id, 'openai', 'sk-test');
+  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_abc', expires_at: 1900000000 }) });
+  const real = globalThis.fetch;
+  globalThis.fetch = openai;
+  try {
+    const r = await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini' } });
+    expect(await r.json()).toEqual({ value: 'ek_abc', expiresAt: 1900000000, model: 'gpt-realtime-mini' });
+  } finally {
+    globalThis.fetch = real;
+  }
+  expect(openai.calls[0]!.headers.authorization).toBe('Bearer sk-test');
+  const sent = openai.calls[0]!.body;
+  expect(sent.session).toMatchObject({ type: 'realtime', model: 'gpt-realtime-mini', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
+  expect(sent.session.instructions).toContain('Describe a book you enjoyed');
+
+  // 1M audio in x $10 + 0.1M audio out x $20 + 1 min transcribed x $0.003 = $12.003
+  const usage = { textIn: 0, audioIn: 1_000_000, cachedIn: 0, textOut: 0, audioOut: 100_000, transcribeSeconds: 60 };
+  expect(await (await req('/api/live/realtime-usage', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini', usage } })).json()).toEqual({ costUsd: 12.003 });
+  await vi.waitFor(async () => expect((await db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'openai')))).map((r) => [r.costUsd, r.model, r.paidBy])).toEqual([[12.003, 'gpt-realtime-mini', 'own_key']]));
+});
+
 it('finish creates one live attempt per part and analyses each, once', async () => {
   const { headers } = await testUser();
   const s = await start(headers);

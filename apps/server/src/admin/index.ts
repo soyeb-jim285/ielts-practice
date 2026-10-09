@@ -4,7 +4,8 @@ import * as ops from './ops';
 import * as replay from './replay';
 import * as spend from './spend';
 import * as stats from './stats';
+import * as stt from './stt';
 
 export function register(app: App) {
-  for (const m of [stats, ops, replay, feedback, spend]) m.register(app);
+  for (const m of [stats, ops, replay, feedback, spend, stt]) m.register(app);
 }

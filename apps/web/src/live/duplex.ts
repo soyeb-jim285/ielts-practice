@@ -29,6 +29,8 @@ export type Handlers = {
   answered(): void;
   /** Candidate transcript activity: arm a reply watchdog without cutting off a long answer. */
   pending?(): void;
+  /** The provider's transcript of the candidate (debug views; the scored transcript comes from the recording). */
+  heard?(text: string): void;
   /** The connection dropped for good. */
   lost(): void;
   /** The examiner's output audio, as soon as it exists: the part recorder pauses while it is audible. */
@@ -52,6 +54,8 @@ export function useDuplexExaminer(
   onUnavailable?: (reason: string) => void,
   source?: LiveSource,
   mockId?: string,
+  /** `record: false` (admin playground): no part recordings, so nothing is uploaded, scored or added to the history. `debug` sees every transport event. */
+  opts: { record?: boolean; debug?: Partial<Handlers> } = {},
 ): LiveExaminer {
   const [status, setStatus] = useState<LiveExaminer['status']>('idle');
   const [phase, setPhase] = useState<Phase>('intro');
@@ -60,7 +64,8 @@ export function useDuplexExaminer(
   const [error, setError] = useState<string>();
   const [retry, setRetry] = useState<() => void>();
   const [retryLabel, setRetryLabel] = useState<string>();
-  const parts = usePartRecorder();
+  const recorder = usePartRecorder();
+  const parts = opts.record === false ? { ...recorder, start: async () => {}, stop: async () => {}, finish: async () => [] as string[] } : recorder;
   const r = useRef({
     x: undefined as Duplex | undefined,
     sessionId: '',
@@ -277,6 +282,16 @@ export function useDuplexExaminer(
     },
   };
 
+  /** Transport handlers with the debug taps in front (each tap sees the event first). */
+  const tapped = (): Handlers => {
+    const d = opts.debug;
+    if (!d) return handlers;
+    const out = { ...handlers } as Record<string, unknown>;
+    for (const k of Object.keys(d) as (keyof Handlers)[])
+      out[k] = (...a: unknown[]) => ((d[k] as (...x: unknown[]) => void)(...a), (handlers[k] as ((...x: unknown[]) => void) | undefined)?.(...a));
+    return out as Handlers;
+  };
+
   async function start() {
     const c = r.current;
     c.ended = false;
@@ -290,7 +305,7 @@ export function useDuplexExaminer(
         c.cueCard = st.test.part2;
       }
       c.x = make();
-      await withDeadline(c.x.connect(handlers, c.sessionId));
+      await withDeadline(c.x.connect(tapped(), c.sessionId));
       if (!c.output && !c.ended) {
         setStatus('thinking');
         watchResponse();

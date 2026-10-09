@@ -32,7 +32,8 @@ export class GeminiDuplex implements Duplex {
   private handle?: string; // latest session resumption handle
   private ready = false; // setupComplete received on the current socket
   private closed = false;
-  private usage = emptyUsage();
+  /** Token totals so far (summed usageMetadata). */
+  readonly usage = emptyUsage();
   private sessionId = '';
   private hearing = true; // false during the preparation minute and the long turn
   private fresh = true; // the next model output starts a new examiner turn
@@ -165,6 +166,7 @@ export class GeminiDuplex implements Duplex {
         this.handle = ev.handle;
         break;
       case 'inText':
+        this.h.heard?.(ev.text);
         this.heard = true;
         this.h.pending?.();
         break;

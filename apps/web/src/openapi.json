@@ -1677,6 +1677,122 @@
         ],
         "description": "Running totals: each report replaces the previous one"
       },
+      "RealtimeToken": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "Unix seconds"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "expiresAt",
+          "model"
+        ]
+      },
+      "LiveRealtimeToken": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "gpt-realtime-mini",
+              "gpt-realtime"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "model"
+        ]
+      },
+      "RealtimeCost": {
+        "type": "object",
+        "properties": {
+          "costUsd": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "costUsd"
+        ]
+      },
+      "LiveRealtimeUsage": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "gpt-realtime-mini",
+              "gpt-realtime"
+            ]
+          },
+          "usage": {
+            "$ref": "#/components/schemas/RealtimeUsage"
+          }
+        },
+        "required": [
+          "sessionId",
+          "model",
+          "usage"
+        ]
+      },
+      "RealtimeUsage": {
+        "type": "object",
+        "properties": {
+          "textIn": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "audioIn": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "cachedIn": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "textOut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "audioOut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          },
+          "transcribeSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000000
+          }
+        },
+        "required": [
+          "textIn",
+          "audioIn",
+          "cachedIn",
+          "textOut",
+          "audioOut",
+          "transcribeSeconds"
+        ]
+      },
       "LiveFinished": {
         "type": "object",
         "properties": {
@@ -5803,6 +5919,169 @@
           "status"
         ]
       },
+      "AdminSttModels": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSttModel"
+            }
+          }
+        },
+        "required": [
+          "models"
+        ]
+      },
+      "AdminSttModel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "usdPerSecond": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "usdPerMTokIn": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "usdPerMTokOut": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "usdPerSecond",
+          "usdPerMTokIn",
+          "usdPerMTokOut"
+        ]
+      },
+      "AdminSttRun": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "w": {
+                  "type": "string"
+                },
+                "start": {
+                  "type": "number"
+                },
+                "end": {
+                  "type": "number"
+                },
+                "conf": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "w",
+                "start",
+                "end"
+              ]
+            }
+          },
+          "duration": {
+            "type": "number"
+          },
+          "latencyMs": {
+            "type": "number"
+          },
+          "costUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "null: token-priced model and OpenRouter sent no usage"
+          },
+          "costExact": {
+            "type": "boolean",
+            "description": "true: OpenRouter's own usage.cost; false: list price x audio seconds"
+          },
+          "raw": {
+            "description": "The provider's response as OpenRouter returned it"
+          }
+        },
+        "required": [
+          "model",
+          "text",
+          "words",
+          "duration",
+          "latencyMs",
+          "costUsd",
+          "costExact"
+        ]
+      },
+      "AdminSttRequest": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "audio": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30000000,
+            "description": "Base64 audio, up to about 22 MB"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "webm",
+              "m4a",
+              "wav",
+              "mp3",
+              "ogg"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Priming prompt (Whisper-style hosts only)"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10,
+            "description": "ISO code; null lets the model detect it"
+          }
+        },
+        "required": [
+          "model",
+          "audio",
+          "format"
+        ]
+      },
       "FeedbackCreated": {
         "type": "object",
         "properties": {
@@ -7587,6 +7866,146 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GeminiLiveCost"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/realtime-token": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "OpenAI Realtime (gpt-realtime family) examiner: a short-lived client secret locked to the examiner session (model, voice, instructions, VAD, input transcription)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveRealtimeToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Client secret: Bearer for POST /v1/realtime/calls",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_key: OpenAI rejected the user's key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenAI error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/realtime-usage": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "OpenAI Realtime token usage of this session, summed by the browser from response.done: priced and stored as the session's live cost (never lowered by a later report)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveRealtimeUsage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeCost"
                 }
               }
             }
@@ -10172,6 +10591,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminSpendForecast"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/stt/models": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "OpenRouter's speech-to-text models with list prices (cached an hour)",
+        "responses": {
+          "200": {
+            "description": "Models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSttModels"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/stt/transcribe": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Transcribe one recording with one model (playground; billed to the house key, logged as stage \"playground\")",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSttRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSttRun"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The model failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

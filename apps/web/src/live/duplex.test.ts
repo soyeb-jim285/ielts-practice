@@ -103,3 +103,19 @@ it('the examiner moving to Part 2 on its own shows the cue card and starts the p
   expect(transport.cue.mock.calls.map((c) => c[2])).toEqual(['talk']);
   unmount();
 });
+
+it('record: false (playground) runs the script without recording parts, and debug taps see transport events before the examiner does', async () => {
+  let h!: Handlers;
+  const seen: string[] = [];
+  const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue: vi.fn(), listen: vi.fn(), close: vi.fn() };
+  const { result, unmount } = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false, debug: { heard: (t) => seen.push(`heard ${t}`), speaking: (on) => seen.push(`speaking ${on}`) } }));
+  await act(() => result.current.start());
+  act(() => { h.speaking(true); h.speaking(false); h.heard?.('My name is Jim'); h.answered(); });
+  expect(result.current.phase).toBe('p1');
+  expect(seen).toEqual(['speaking true', 'speaking false', 'heard My name is Jim']);
+  await act(async () => vi.advanceTimersByTime(270_000));
+  expect(result.current.phase).toBe('p2-prep');
+  expect(rec.start).not.toHaveBeenCalled();
+  expect(rec.stop).not.toHaveBeenCalled();
+  unmount();
+});

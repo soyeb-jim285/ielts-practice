@@ -1291,6 +1291,149 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/realtime-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** OpenAI Realtime (gpt-realtime family) examiner: a short-lived client secret locked to the examiner session (model, voice, instructions, VAD, input transcription) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveRealtimeToken"];
+                };
+            };
+            responses: {
+                /** @description Client secret: Bearer for POST /v1/realtime/calls */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RealtimeToken"];
+                    };
+                };
+                /** @description invalid_key: OpenAI rejected the user's key */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description OpenAI error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/realtime-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** OpenAI Realtime token usage of this session, summed by the browser from response.done: priced and stored as the session's live cost (never lowered by a later report) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveRealtimeUsage"];
+                };
+            };
+            responses: {
+                /** @description Recorded */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RealtimeCost"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/finish": {
         parameters: {
             query?: never;
@@ -3562,6 +3705,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/stt/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OpenRouter's speech-to-text models with list prices (cached an hour) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Models */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSttModels"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/stt/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transcribe one recording with one model (playground; billed to the house key, logged as stage "playground") */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminSttRequest"];
+                };
+            };
+            responses: {
+                /** @description Transcript */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSttRun"];
+                    };
+                };
+                /** @description The model failed */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replay/{sessionId}/chunks": {
         parameters: {
             query?: never;
@@ -4755,6 +4985,34 @@ export interface components {
             outputAudio: number;
             thoughts: number;
         };
+        RealtimeToken: {
+            value: string;
+            /** @description Unix seconds */
+            expiresAt: number;
+            model: string;
+        };
+        LiveRealtimeToken: {
+            sessionId: string;
+            /** @enum {string} */
+            model: "gpt-realtime-mini" | "gpt-realtime";
+        };
+        RealtimeCost: {
+            costUsd: number;
+        };
+        LiveRealtimeUsage: {
+            sessionId: string;
+            /** @enum {string} */
+            model: "gpt-realtime-mini" | "gpt-realtime";
+            usage: components["schemas"]["RealtimeUsage"];
+        };
+        RealtimeUsage: {
+            textIn: number;
+            audioIn: number;
+            cachedIn: number;
+            textOut: number;
+            audioOut: number;
+            transcribeSeconds: number;
+        };
         LiveFinished: {
             attemptIds: string[];
         };
@@ -5781,6 +6039,46 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "low" | "critical" | "unknown";
+        };
+        AdminSttModels: {
+            models: components["schemas"]["AdminSttModel"][];
+        };
+        AdminSttModel: {
+            id: string;
+            name: string;
+            description: string;
+            usdPerSecond: number | null;
+            usdPerMTokIn: number | null;
+            usdPerMTokOut: number | null;
+        };
+        AdminSttRun: {
+            model: string;
+            text: string;
+            words: {
+                w: string;
+                start: number;
+                end: number;
+                conf?: number;
+            }[];
+            duration: number;
+            latencyMs: number;
+            /** @description null: token-priced model and OpenRouter sent no usage */
+            costUsd: number | null;
+            /** @description true: OpenRouter's own usage.cost; false: list price x audio seconds */
+            costExact: boolean;
+            /** @description The provider's response as OpenRouter returned it */
+            raw?: unknown;
+        };
+        AdminSttRequest: {
+            model: string;
+            /** @description Base64 audio, up to about 22 MB */
+            audio: string;
+            /** @enum {string} */
+            format: "webm" | "m4a" | "wav" | "mp3" | "ogg";
+            /** @description Priming prompt (Whisper-style hosts only) */
+            prompt?: string;
+            /** @description ISO code; null lets the model detect it */
+            language?: string | null;
         };
         FeedbackCreated: {
             id: string;

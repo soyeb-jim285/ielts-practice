@@ -413,17 +413,54 @@ export async function transcribe(o: { model: string; audio: Uint8Array; format: 
     recordStt(plain, o.model, 'stt', fallbackFrom ? { fallbackFrom } : {});
     if (v) recordStt(v, o.model, 'stt_verbatim', { kept: verbatim }); // a second full charge; kept=false is pure waste
   }
-  // Whisper via OpenRouter gives no per-word probability; fall back to the word's segment mean token probability.
-  // Segment-level confidence can flag several words together; it is not proof of a pronunciation error.
+  const words = wordsOf(d);
+  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim, model: o.model };
+}
+
+/** Normalised words of an STT response, punctuated from its text. Whisper via OpenRouter gives no per-word probability: a word falls back to its
+ *  segment's mean token probability (segment-level, so it can flag several words together; not proof of a pronunciation error). */
+function wordsOf(d: SttResponse): SttWord[] {
   const segConf = (t: number) => {
     const lp = d.segments?.find((s) => t >= s.start && t < s.end)?.avg_logprob;
     return lp == null ? undefined : Math.round(Math.exp(lp) * 100) / 100;
   };
   const words: SttWord[] = (d.words ?? [])
-    .filter((w) => w.word.trim())
+    .filter((w) => w.word?.trim())
     .map((w) => ({ w: w.word.trim(), start: w.start, end: w.end, conf: w.confidence ?? w.probability ?? segConf(w.start) }));
   if (d.text) punctuate(words, d.text);
-  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim, model: o.model };
+  return words;
+}
+
+/** An OpenRouter transcription model: list price per audio second, or per token for the LLM-style ones. */
+export type SttModel = { id: string; name: string; description: string; usdPerSecond: number | null; usdPerMTokIn: number | null; usdPerMTokOut: number | null };
+let sttModelCache: { at: number; models: SttModel[] } | undefined;
+/** OpenRouter's transcription models (GET /models?output_modalities=transcription), cached for an hour. */
+export async function sttModels(): Promise<SttModel[]> {
+  if (sttModelCache && Date.now() - sttModelCache.at < 3_600_000) return sttModelCache.models;
+  const d = (await (await call('/models?output_modalities=transcription', undefined, 15_000, 'GET')).json()) as { data?: { id: string; name?: string; description?: string; pricing?: { prompt?: string; completion?: string } }[] };
+  const num = (x?: string) => (x == null || Number(x) < 0 || !Number.isFinite(Number(x)) ? null : Number(x));
+  const models = (d.data ?? []).map((m) => {
+    const inP = num(m.pricing?.prompt), outP = num(m.pricing?.completion);
+    // Audio models bill the input per second and nothing for output; a non-zero output price means token billing (prompt and completion per token).
+    const perToken = !!outP;
+    return { id: m.id, name: m.name ?? m.id, description: (m.description ?? '').slice(0, 300), usdPerSecond: perToken ? null : inP, usdPerMTokIn: perToken && inP != null ? inP * 1e6 : null, usdPerMTokOut: perToken ? outP! * 1e6 : null };
+  });
+  sttModelCache = { at: Date.now(), models };
+  return models;
+}
+
+/** One admin playground transcription: any OpenRouter model, optional priming prompt and language, raw response kept. Priced from usage.cost when
+ *  OpenRouter sends it, else list price x audio seconds (null for token-priced models without usage). Recorded under the `playground` stage. */
+export async function transcribeOnce(o: { model: string; audio: Uint8Array; format: Format; prompt?: string; language?: string | null }) {
+  const t0 = Date.now();
+  const options = o.prompt ? { provider: { options: Object.fromEntries(['groq', 'together', 'deepinfra', 'deepinfra/us', 'fireworks'].map((slug) => [slug, { prompt: o.prompt }])) }, prompt: o.prompt } : {};
+  const d = await stt(o, 'playground', { ...options, language: o.language ?? undefined });
+  const ms = Date.now() - t0;
+  const words = wordsOf(d), seconds = d.duration ?? words.at(-1)?.end ?? 0;
+  const u = usageCost(d.usage), price = (await sttModels().catch(() => [])).find((m) => m.id === o.model)?.usdPerSecond;
+  const costUsd = u.exact ? u.costUsd : price != null ? price * seconds : null;
+  recordCost({ stage: 'playground', provider: 'openrouter', model: o.model, costUsd: costUsd ?? 0, audioSeconds: seconds, paidBy: 'house', meta: { generationId: d.id, ...(!u.exact && { estimated: true }), ...(costUsd == null && { unknownCost: true }) } });
+  return { model: o.model, text: d.text ?? words.map((w) => w.w).join(' '), words, duration: seconds, latencyMs: ms, costUsd, costExact: u.exact, raw: d };
 }
 
 /** 44-byte RIFF header around raw s16le PCM so browsers and AVPlayer can play it. */
