@@ -28,7 +28,10 @@ const Progress = z
     streak: z.number(),
     minutesThisWeek: z.number(),
     attempts: z.number().openapi({ description: 'Analysed attempts' }),
-    weakest: z.object({ key: z.string(), avg: z.number() }).nullable(),
+    weakest: z
+      .object({ key: z.string(), avg: z.number(), skill: Skill.optional().openapi({ description: 'The skill the criterion was judged in (Speaking and Writing share lr / gra keys)' }) })
+      .nullable()
+      .openapi({ description: 'Lowest criterion in recent work: the latest full test when the latest attempt is part of one, else the last 5 assessed attempts of that skill' }),
     topMistakes: z.array(z.object({ category: z.string(), count: z.number() })).openapi({ description: 'Top 5 categories, last 30 days' }),
     predicted: z.object({ speaking: z.number().nullable(), writing: z.number().nullable() }).openapi({ description: 'roundBand of the mean of the last 5 overalls per skill (ignores the skill filter)' }),
     lastFailed: z.object({ id: z.string(), skill: Skill }).nullable().openapi({ description: "The user's most recent submitted attempt, when its analysis failed" }),
@@ -65,7 +68,7 @@ export function register(app: App) {
 
       const [trend, days, [week], [total], topMistakes, sp, wr, [last]] = await Promise.all([
         db
-          .select({ attemptId: attempts.id, date: attempts.createdAt, skill: attempts.skill, part: attempts.part, overall: analyses.overall, criteria: analyses.criteria })
+          .select({ attemptId: attempts.id, date: attempts.createdAt, skill: attempts.skill, part: attempts.part, overall: analyses.overall, criteria: analyses.criteria, sessionId: attempts.sessionId })
           .from(attempts)
           .innerJoin(analyses, eq(analyses.attemptId, attempts.id))
           .where(assessed)
@@ -93,8 +96,12 @@ export function register(app: App) {
           .limit(1),
       ]);
 
+      // Recent work in one skill: an average over 30 attempts kept old, weaker tests in it, and Speaking and Writing share the lr / gra keys.
+      const latest = trend[0];
+      const session = latest?.sessionId ? trend.filter((t) => t.sessionId === latest.sessionId) : [];
+      const recent = session.length >= 2 ? session : latest ? trend.filter((t) => t.skill === latest.skill).slice(0, 5) : [];
       const sums: Record<string, { sum: number; n: number }> = {};
-      for (const t of trend)
+      for (const t of recent)
         for (const [k, v] of Object.entries(t.criteria)) {
           const s = (sums[k] ??= { sum: 0, n: 0 });
           s.sum += v;
@@ -103,11 +110,12 @@ export function register(app: App) {
       const weakest = Object.entries(sums)
         .map(([key, { sum, n }]) => ({ key, avg: Math.round((sum / n) * 100) / 100 }))
         .reduce<{ key: string; avg: number } | null>((w, x) => (!w || x.avg < w.avg ? x : w), null);
+      if (weakest && latest) Object.assign(weakest, { skill: latest.skill });
       const predict = (rows: { overall: number }[]) => (rows.length ? roundBand(rows.reduce((s, r) => s + r.overall, 0) / rows.length) : null);
 
       return c.json(
         {
-          trend: trend.reverse().map((t) => ({ ...t, date: t.date.toISOString() })),
+          trend: trend.reverse().map(({ sessionId: _, ...t }) => ({ ...t, date: t.date.toISOString() })),
           streak: streak(days.map((d) => d.day)),
           minutesThisWeek: Math.ceil(Number(week?.ms ?? 0) / 60000),
           attempts: total?.n ?? 0,

@@ -7,10 +7,10 @@ import { streak } from './progress';
 const DAY = 864e5;
 const body = async (r: Response) => (await r.json()) as any;
 
-async function doneAttempt(userId: string, promptId: string, daysAgo: number, overall: number, criteria: Record<string, number>, skill: 'speaking' | 'writing' = 'speaking') {
+async function doneAttempt(userId: string, promptId: string, daysAgo: number, overall: number, criteria: Record<string, number>, skill: 'speaking' | 'writing' = 'speaking', o: { part?: number; sessionId?: string } = {}) {
   const [a] = await db
     .insert(attempts)
-    .values({ userId, promptId, skill, part: 1, status: 'done', durationMs: 120000, createdAt: new Date(Date.now() - daysAgo * DAY) })
+    .values({ userId, promptId, skill, part: o.part ?? 1, sessionId: o.sessionId, status: 'done', durationMs: 120000, createdAt: new Date(Date.now() - daysAgo * DAY) })
     .returning();
   await db.insert(analyses).values({ attemptId: a!.id, result: {}, overall, criteria, models: {} });
   return a!;
@@ -47,7 +47,7 @@ describe('GET /api/progress', () => {
     expect(r.trend.map((t: any) => t.overall)).toEqual([5, 7, 6.5, 6]);
     expect(r.streak).toBe(3);
     expect(r.attempts).toBe(4);
-    expect(r.weakest).toEqual({ key: 'gra', avg: 5.25 });
+    expect(r.weakest).toEqual({ key: 'gra', avg: 5.25, skill: 'speaking' });
     expect(r.topMistakes).toEqual([{ category: 'grammar.article', count: 2 }, { category: 'lexis.collocation', count: 1 }]);
     expect(r.predicted).toEqual({ speaking: 6, writing: 6 }); // mean 6.125 → 6
     expect(r.minutesThisWeek).toBeGreaterThanOrEqual(2);
@@ -55,6 +55,19 @@ describe('GET /api/progress', () => {
     const all = await body(await req('/api/progress', { headers }));
     expect(all.attempts).toBe(5);
     expect(all.trend).toHaveLength(5);
+  });
+
+  it('judges the weakest criterion on the latest full test, not on older weaker attempts; a writing weakness says writing', async () => {
+    const { headers, user } = await testUser();
+    const p = await seedPrompt();
+    for (let d = 5; d < 15; d++) await doneAttempt(user.id, p.id, d, 5, { fc: 4.5, lr: 6, gra: 6, p: 6 }); // early tests: weak fluency
+    // the latest full test (one session, three parts): fluency is fine now, grammar is the lowest
+    for (const [part, fc] of [[1, 7], [2, 7], [3, 6.5]] as const) await doneAttempt(user.id, p.id, 0.01 * part, 6.5, { fc, lr: 6.5, gra: 6, p: 6.5 }, 'speaking', { part, sessionId: 'full-test' });
+    expect((await body(await req('/api/progress', { headers }))).weakest).toEqual({ key: 'gra', avg: 6, skill: 'speaking' });
+
+    const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+    await doneAttempt(user.id, w.id, 0, 6, { ta: 6.5, cc: 6.5, lr: 5.5, gra: 6 }, 'writing'); // the latest attempt is writing on its own
+    expect((await body(await req('/api/progress', { headers }))).weakest).toEqual({ key: 'lr', avg: 5.5, skill: 'writing' });
   });
 
   it('is empty for a new user, then reports a failed latest attempt', async () => {

@@ -23,8 +23,9 @@ export const PRACTICE: Record<CriterionKey, { skill: 'speaking' | 'writing'; par
 export const CRITERION_SHORT: Record<CriterionKey, string> = { fc: 'Fluency', gra: 'Grammar', lr: 'Vocabulary', p: 'Pronunciation', ta: 'Task response', cc: 'Coherence' };
 
 /** Where to practise a weak criterion: its skill, and the part/task where the user's own scores on it are lowest (so the advice matches their history). */
-export function practiceTarget(key: CriterionKey, trend: Progress['trend']) {
-  const { skill, part: fallback } = PRACTICE[key];
+/** `judgedIn`: the skill the weak criterion came from (lr / gra exist in both); defaults to the criterion's usual skill. */
+export function practiceTarget(key: CriterionKey, trend: Progress['trend'], judgedIn?: 'speaking' | 'writing') {
+  const usual = PRACTICE[key], skill = judgedIn ?? usual.skill, fallback = skill === usual.skill ? usual.part : skill === 'speaking' ? 1 : 2;
   const byPart = new Map<number, number[]>();
   for (const t of trend) {
     const v = t.criteria[key];

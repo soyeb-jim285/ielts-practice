@@ -20,8 +20,8 @@ const linkStyles = 'font-medium text-accent-text underline underline-offset-4 ho
 export function NextUp({ p, target, due, lr }: { p: Progress; target: number; due: number; lr?: LrData }) {
   const mock = useCurrentMock().data;
   const { start, busy } = useStartLr();
-  const weakest = p.weakest && CRITERION_SHORT[p.weakest.key as CriterionKey] ? (p.weakest as { key: CriterionKey; avg: number }) : null;
-  const practice = weakest ? practiceTarget(weakest.key, p.trend) : null;
+  const weakest = p.weakest && CRITERION_SHORT[p.weakest.key as CriterionKey] ? (p.weakest as { key: CriterionKey; avg: number; skill?: 'speaking' | 'writing' }) : null;
+  const practice = weakest ? practiceTarget(weakest.key, p.trend, weakest.skill) : null;
   const avg = weakest ? Math.round(weakest.avg * 2) / 2 : 0;
   const suggested = !weakest ? lr?.suggested : null;
 
