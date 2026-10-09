@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { useQuota } from '@/lib/community';
 import { queryClient, useMe } from '@/lib/query';
 import { useGeminiExaminer } from '@/live/gemini';
+import { useRealtimeExaminer } from '@/live/realtime';
 import { useGptLiveExaminer } from '@/live/gptLive';
 import { useTurnExaminer, type LiveExaminer, type LiveSource } from '@/live/turn';
 
@@ -20,7 +21,7 @@ export const Route = createFileRoute('/_app/speaking/live')({
   component: LivePage,
 });
 
-type Style = 'turn' | 'gpt-live' | 'gemini-live';
+type Style = 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
 type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; mockId?: string; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
 
 /** The live examiner runs on the person's own key and is never paid from the community balance: no key, no live. */
@@ -108,14 +109,19 @@ function Live({ providers }: { providers: Style[] }) {
   const natural = providers.find((p) => p !== 'turn');
   // The saved choice if it is allowed; else turn-based; else whichever conversation provider their key unlocks.
   const chosen: Style = providers.includes(wanted) && !(failed && wanted !== 'turn') ? wanted : canTurn ? 'turn' : (natural ?? 'turn');
-  const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : 'locked') : false;
+  // No notice when the default examiner (Realtime mini) is out of reach: most people never chose it, so falling back to turn-based is not news.
+  const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : wanted === 'realtime-mini' ? false : 'locked') : false;
   const run: Run = { style: chosen, fallback, source, mockId: mock, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
   // Separate components so each provider's hook is always called unconditionally.
-  return chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
+  return chosen === 'realtime-mini' ? <RealtimeLive {...run} /> : chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
 }
 
 function TurnLive(p: Run) {
   return <Stage ex={useTurnExaminer(p.onFinished, p.source, p.mockId)} {...p} />;
+}
+
+function RealtimeLive(p: Run) {
+  return <Stage ex={useRealtimeExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
 }
 
 function GptLive(p: Run) {

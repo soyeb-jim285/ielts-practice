@@ -707,11 +707,11 @@ describe('live access', () => {
     const community = await testUser(undefined, { key: false });
     expect(await live(community.headers)).toMatchObject({ liveProviders: [], gptLiveAvailable: false, geminiLiveAvailable: false, realtimeAvailable: false });
     await setKey(community.user.id, 'openai');
-    expect(await live(community.headers)).toMatchObject({ tier: 'community', liveProviders: ['gpt-live'], gptLiveAvailable: true, realtimeAvailable: true, geminiLiveAvailable: false });
+    expect(await live(community.headers)).toMatchObject({ tier: 'community', liveProviders: ['realtime-mini', 'gpt-live'], gptLiveAvailable: true, realtimeAvailable: true, geminiLiveAvailable: false });
     await setKey(community.user.id, 'gemini');
-    expect((await live(community.headers)).liveProviders).toEqual(['gpt-live', 'gemini-live']);
+    expect((await live(community.headers)).liveProviders).toEqual(['realtime-mini', 'gpt-live', 'gemini-live']);
     await setKey(community.user.id, 'openrouter');
-    expect(await live(community.headers)).toMatchObject({ tier: 'own-key', liveProviders: ['turn', 'gpt-live', 'gemini-live'] });
+    expect(await live(community.headers)).toMatchObject({ tier: 'own-key', liveProviders: ['turn', 'realtime-mini', 'gpt-live', 'gemini-live'] });
 
     const orOnly = await testUser();
     expect(await live(orOnly.headers)).toMatchObject({ tier: 'own-key', liveProviders: ['turn'], gptLiveAvailable: false, geminiLiveAvailable: false });
@@ -724,7 +724,7 @@ describe('live access', () => {
       const ordinary = await testUser();
       expect(await live(ordinary.headers)).toMatchObject({ gptLiveAvailable: false, geminiLiveAvailable: false });
       const owner = await testUser('soyebjim@gmail.com', { key: false });
-      expect(await live(owner.headers)).toMatchObject({ tier: 'own-key', gptLiveAvailable: true, geminiLiveAvailable: true, liveProviders: ['turn', 'gpt-live', 'gemini-live'] });
+      expect(await live(owner.headers)).toMatchObject({ tier: 'own-key', gptLiveAvailable: true, geminiLiveAvailable: true, liveProviders: ['turn', 'realtime-mini', 'gpt-live', 'gemini-live'] });
     } finally {
       env.OPENAI_API_KEY = env.GEMINI_API_KEY = undefined;
     }

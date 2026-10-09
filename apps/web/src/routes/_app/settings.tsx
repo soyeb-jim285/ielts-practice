@@ -88,7 +88,7 @@ function SettingsPage() {
         <Section title="Live examiner" description="How the live speaking test talks to you.">
           <LiveProvider
             value={s.liveProvider}
-            available={{ turn: me.liveProviders.includes('turn'), 'gpt-live': me.gptLiveAvailable, 'gemini-live': me.geminiLiveAvailable }}
+            available={{ turn: me.liveProviders.includes('turn'), 'realtime-mini': me.gptLiveAvailable, 'gpt-live': me.gptLiveAvailable, 'gemini-live': me.geminiLiveAvailable }}
             onChange={(v) => mutate({ liveProvider: v })}
           />
         </Section>

@@ -15,7 +15,7 @@ import type { AppEnv } from './types';
 
 export type Skill = 'speaking' | 'writing';
 export type Tier = 'guest' | 'community' | 'own-key';
-export type LiveProvider = 'turn' | 'gpt-live' | 'gemini-live';
+export type LiveProvider = 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
 export const SKILLS: Skill[] = ['speaking', 'writing'];
 /** Tests per window for the shared-balance tiers: guests 1 a week, signed-in users 1 a day, per skill. */
 export const LIMIT = 1;
@@ -36,7 +36,7 @@ export async function payerOf(u: Who): Promise<Payer> {
 export const liveKey = (p: Payer, provider: 'openai' | 'gemini') => p.keys[provider] ?? (p.owner ? (provider === 'openai' ? env.OPENAI_API_KEY : env.GEMINI_API_KEY) : undefined);
 export const liveProviders = (p: Payer): LiveProvider[] => [
   ...(p.keys.openrouter || p.owner ? (['turn'] as const) : []),
-  ...(liveKey(p, 'openai') ? (['gpt-live'] as const) : []),
+  ...(liveKey(p, 'openai') ? (['realtime-mini', 'gpt-live'] as const) : []), // OpenAI Realtime mini first: the default conversation examiner
   ...(liveKey(p, 'gemini') ? (['gemini-live'] as const) : []),
 ];
 
@@ -213,8 +213,8 @@ export const withPayer = createMiddleware<AppEnv>(async (c, next) => {
  *  ('duplex' = either of the last two, for starting a session before the client picks). The owner may use the server's keys. */
 export function requireLive(p: Payer, provider: LiveProvider | 'duplex') {
   const have = liveProviders(p);
-  if (provider === 'duplex' ? have.includes('gpt-live') || have.includes('gemini-live') : have.includes(provider)) return;
-  const need = provider === 'turn' ? 'your own OpenRouter key' : provider === 'gpt-live' ? 'your own OpenAI key' : provider === 'gemini-live' ? 'your own Gemini key' : 'your own OpenAI or Gemini key';
+  if (provider === 'duplex' ? have.some((x) => x !== 'turn') : have.includes(provider)) return;
+  const need = provider === 'turn' ? 'your own OpenRouter key' : provider === 'gpt-live' || provider === 'realtime-mini' ? 'your own OpenAI key' : provider === 'gemini-live' ? 'your own Gemini key' : 'your own OpenAI or Gemini key';
   throw new ApiError(403, {
     error: p.tier === 'guest' ? `The live examiner needs an account and ${need}.` : `The live examiner runs on ${need}. Add it in Settings.`,
     code: 'live_requires_own_key',

@@ -45,7 +45,7 @@ export const QuotaFields = {
   tier: z.enum(['guest', 'community', 'own-key']),
   speaking: SkillQuota,
   writing: SkillQuota,
-  liveProviders: z.array(z.enum(['turn', 'gpt-live', 'gemini-live'])).openapi({ description: 'Live examiner providers this user may use (their own keys; the owner may use the server keys)' }),
+  liveProviders: z.array(z.enum(['turn', 'realtime-mini', 'gpt-live', 'gemini-live'])).openapi({ description: 'Live examiner providers this user may use (their own keys; the owner may use the server keys)' }),
   communityBalance: BalanceSchema,
 };
 const QuotaSchema = z.object(QuotaFields).openapi('Quota');

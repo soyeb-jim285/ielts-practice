@@ -4,7 +4,7 @@
 import type { SpeakingTest } from '../routes/prompts';
 import { realtimeInstructions } from './examiner';
 
-export const REALTIME_MODELS = ['gpt-realtime-mini', 'gpt-realtime'] as const;
+export const REALTIME_MODELS = ['gpt-realtime-mini', 'gpt-realtime', 'gpt-realtime-2.1-mini', 'gpt-realtime-2.1'] as const;
 export type RealtimeModel = (typeof REALTIME_MODELS)[number];
 const VOICE = 'cedar';
 const TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
@@ -37,10 +37,12 @@ export async function mintRealtimeSecret(apiKey: string, model: RealtimeModel, t
 
 /** Token totals of a Realtime session, summed over response.done usage (input counts re-read context, as billed). */
 export type RealtimeUsage = { textIn: number; audioIn: number; cachedIn: number; textOut: number; audioOut: number; transcribeSeconds: number };
-/** USD per 1M tokens. ponytail: OpenAI list prices as of 2025; check platform.openai.com/docs/pricing and update here. */
+/** USD per 1M tokens (developers.openai.com/api/docs/pricing, checked 2026-10-09). ponytail: one cached rate (the audio one; cached text is cheaper), update here when prices move. */
 const PER_M: Record<RealtimeModel, { textIn: number; audioIn: number; cachedIn: number; textOut: number; audioOut: number }> = {
   'gpt-realtime': { textIn: 4, audioIn: 32, cachedIn: 0.4, textOut: 16, audioOut: 64 },
   'gpt-realtime-mini': { textIn: 0.6, audioIn: 10, cachedIn: 0.3, textOut: 2.4, audioOut: 20 },
+  'gpt-realtime-2.1': { textIn: 4, audioIn: 32, cachedIn: 0.4, textOut: 24, audioOut: 64 },
+  'gpt-realtime-2.1-mini': { textIn: 0.6, audioIn: 10, cachedIn: 0.3, textOut: 2.4, audioOut: 20 },
 };
 const TRANSCRIBE_PER_MIN = 0.003; // gpt-4o-mini-transcribe, the candidate's input transcription
 export const realtimeUsd = (model: RealtimeModel, u: RealtimeUsage) => {

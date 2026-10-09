@@ -2,11 +2,12 @@
 // input transcription). Same script convention as Gemini Live: cues are "[APP CUE]" user messages followed by response.create.
 // Docs: platform.openai.com/docs/guides/realtime-webrtc, realtime-conversations; events: platform.openai.com/docs/api-reference/realtime-server-events.
 import { api } from '@/lib/api';
-import type { Duplex, Handlers } from './duplex';
+import { useDuplexExaminer, type Duplex, type Handlers } from './duplex';
+import type { LiveExaminer, LiveSource } from './turn';
 import { withDeadline } from './deadline';
 import { CUE_PREFIX } from './geminiProtocol';
 
-export type RealtimeModel = 'gpt-realtime-mini' | 'gpt-realtime';
+export type RealtimeModel = 'gpt-realtime-mini' | 'gpt-realtime' | 'gpt-realtime-2.1-mini' | 'gpt-realtime-2.1';
 export type RealtimeUsage = { textIn: number; audioIn: number; cachedIn: number; textOut: number; audioOut: number; transcribeSeconds: number };
 export const emptyRealtimeUsage = (): RealtimeUsage => ({ textIn: 0, audioIn: 0, cachedIn: 0, textOut: 0, audioOut: 0, transcribeSeconds: 0 });
 
@@ -41,7 +42,8 @@ export class RealtimeDuplex implements Duplex {
   /** Token totals so far (summed response.done usage) and the candidate audio transcribed. */
   readonly usage = emptyRealtimeUsage();
 
-  constructor(private model: RealtimeModel) {}
+  /** `model`: admin playground only; the live examiner takes the server's default (the token says which). */
+  constructor(private model?: RealtimeModel) {}
 
   private send(ev: object) {
     if (this.dc?.readyState === 'open') this.dc.send(JSON.stringify(ev));
@@ -50,7 +52,8 @@ export class RealtimeDuplex implements Duplex {
   async connect(h: Handlers, sessionId: string) {
     this.h = h;
     this.sessionId = sessionId;
-    const t = await api.post<{ value: string }>('/live/realtime-token', { sessionId, model: this.model });
+    const t = await api.post<{ value: string; model: RealtimeModel }>('/live/realtime-token', { sessionId, model: this.model });
+    this.model = t.model;
     const pc = (this.pc = new RTCPeerConnection());
     pc.ontrack = (e) => {
       this.audio.srcObject = e.streams[0] ?? null;
@@ -155,4 +158,8 @@ export class RealtimeDuplex implements Duplex {
     dc?.close();
     pc?.close();
   }
+}
+
+export function useRealtimeExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource, mockId?: string): LiveExaminer {
+  return useDuplexExaminer(() => new RealtimeDuplex(), onFinished, onUnavailable, source, mockId);
 }

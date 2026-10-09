@@ -10,6 +10,7 @@ export type Provider = Settings['liveProvider'];
 /** The names Settings and the pre-test screen both use. */
 export const PROVIDER_LABEL: Record<Provider, string> = {
   turn: 'Examiner waits for you to finish',
+  'realtime-mini': 'Natural conversation (OpenAI Realtime)',
   'gpt-live': 'Natural conversation (GPT-Live)',
   'gemini-live': 'Natural conversation (Gemini)',
 };
@@ -19,6 +20,7 @@ export function LiveProvider({ value, available, onChange }: { value: Provider; 
   const natural = 'Talk back and forth as in the real test. You can interrupt each other.';
   const options = [
     { value: 'turn' as const, description: available.turn === false ? 'Needs your own OpenRouter key.' : 'The examiner asks a question, then listens until you pause.', disabled: available.turn === false },
+    { value: 'realtime-mini' as const, description: available['realtime-mini'] ? `${natural} Recommended: the lowest cost.` : 'Needs your own OpenAI key.', disabled: !available['realtime-mini'] },
     { value: 'gpt-live' as const, description: available['gpt-live'] ? natural : 'Needs your own OpenAI key.', disabled: !available['gpt-live'] },
     { value: 'gemini-live' as const, description: available['gemini-live'] ? natural : 'Needs your own Gemini key.', disabled: !available['gemini-live'] },
   ];

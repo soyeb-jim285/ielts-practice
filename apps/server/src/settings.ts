@@ -14,7 +14,7 @@ export const SettingsSchema = z.object({
     tts: ModelId,
     ttsVoice: z.string().min(1),
   }),
-  liveProvider: z.enum(['turn', 'gpt-live', 'gemini-live']),
+  liveProvider: z.enum(['turn', 'realtime-mini', 'gpt-live', 'gemini-live']),
   targetBand: z.number().min(4).max(9).multipleOf(0.5),
   writingAutoSubmit: z.boolean(),
   blockPaste: z.boolean(),
@@ -33,7 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tts: 'google/gemini-3.8-flash-tts',
     ttsVoice: 'Charon', // must be one of the model's supported_voices (GET /api/models → voices)
   },
-  liveProvider: 'turn',
+  liveProvider: 'realtime-mini', // OpenAI Realtime mini (~$0.02/min); without an OpenAI key the live page falls back to turn-based, quietly
   targetBand: 7,
   writingAutoSubmit: true,
   blockPaste: true,

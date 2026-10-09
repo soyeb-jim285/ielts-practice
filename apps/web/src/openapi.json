@@ -84,6 +84,7 @@
                 "type": "string",
                 "enum": [
                   "turn",
+                  "realtime-mini",
                   "gpt-live",
                   "gemini-live"
                 ]
@@ -148,6 +149,7 @@
               "type": "string",
               "enum": [
                 "turn",
+                "realtime-mini",
                 "gpt-live",
                 "gemini-live"
               ]
@@ -309,6 +311,7 @@
             "type": "string",
             "enum": [
               "turn",
+              "realtime-mini",
               "gpt-live",
               "gemini-live"
             ]
@@ -365,6 +368,7 @@
             "type": "string",
             "enum": [
               "turn",
+              "realtime-mini",
               "gpt-live",
               "gemini-live"
             ]
@@ -1707,13 +1711,15 @@
             "type": "string",
             "enum": [
               "gpt-realtime-mini",
-              "gpt-realtime"
-            ]
+              "gpt-realtime",
+              "gpt-realtime-2.1-mini",
+              "gpt-realtime-2.1"
+            ],
+            "description": "Admin playground only; the live examiner uses the server default (OPENAI_REALTIME_MODEL)"
           }
         },
         "required": [
-          "sessionId",
-          "model"
+          "sessionId"
         ]
       },
       "RealtimeCost": {
@@ -1737,7 +1743,9 @@
             "type": "string",
             "enum": [
               "gpt-realtime-mini",
-              "gpt-realtime"
+              "gpt-realtime",
+              "gpt-realtime-2.1-mini",
+              "gpt-realtime-2.1"
             ]
           },
           "usage": {
@@ -2340,6 +2348,7 @@
               "type": "string",
               "enum": [
                 "turn",
+                "realtime-mini",
                 "gpt-live",
                 "gemini-live"
               ]
@@ -6080,6 +6089,161 @@
           "model",
           "audio",
           "format"
+        ]
+      },
+      "AdminAiLogPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAiLogItem"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "stages",
+          "models"
+        ]
+      },
+      "AdminAiLogItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "served": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "latencyMs": {
+            "type": "number"
+          },
+          "costUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "userId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "userLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attemptId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "description": "Start of the output text (or the error)"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "stage",
+          "path",
+          "model",
+          "served",
+          "ok",
+          "status",
+          "latencyMs",
+          "costUsd",
+          "userId",
+          "userLabel",
+          "attemptId",
+          "sessionId",
+          "preview"
+        ]
+      },
+      "AdminAiLog": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminAiLogItem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "request": {},
+              "response": {},
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "error"
+            ]
+          }
         ]
       },
       "FeedbackCreated": {
@@ -10657,6 +10821,156 @@
           },
           "502": {
             "description": "The model failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/logs": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AI calls of the last 14 days, newest first, with the stages and models seen for the filters",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "stage",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "required": false,
+            "name": "model",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "failed"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "outcome",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "attempt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "user",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiLogPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/logs/{id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One AI call with its full request and response (base64 payloads replaced by a size note)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiLog"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown id",
             "content": {
               "application/json": {
                 "schema": {

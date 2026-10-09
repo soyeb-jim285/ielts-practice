@@ -467,7 +467,7 @@ export function register(app: App) {
       method: 'post',
       path: '/api/live/realtime-token',
       summary: 'OpenAI Realtime (gpt-realtime family) examiner: a short-lived client secret locked to the examiner session (model, voice, instructions, VAD, input transcription)',
-      request: body(SessionRef.extend({ model: z.enum(REALTIME_MODELS) }).openapi('LiveRealtimeToken')),
+      request: body(SessionRef.extend({ model: z.enum(REALTIME_MODELS).optional().openapi({ description: 'Admin playground only; the live examiner uses the server default (OPENAI_REALTIME_MODEL)' }) }).openapi('LiveRealtimeToken')),
       responses: {
         200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('RealtimeToken'), 'Client secret: Bearer for POST /v1/realtime/calls'),
         400: json(CodedError, "invalid_key: OpenAI rejected the user's key"),
@@ -479,16 +479,17 @@ export function register(app: App) {
     }),
     async (c) => {
       const payer = c.get('payer')!, user = currentUser(c), b = c.req.valid('json');
-      requireLive(payer, 'gpt-live');
+      requireLive(payer, 'realtime-mini');
       const s = await loadSession(b.sessionId, user.id);
       const apiKey = liveKey(payer, 'openai')!;
-      const t = await mintRealtimeSecret(apiKey, b.model, s.test);
+      const model = b.model ?? env.OPENAI_REALTIME_MODEL;
+      const t = await mintRealtimeSecret(apiKey, model, s.test);
       if (!('value' in t)) {
         console.error('openai realtime client_secrets', t.status, redact(t.detail, apiKey));
         if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
         return c.json({ error: 'Could not start an OpenAI Realtime session. Please retry.' }, 502);
       }
-      return c.json({ value: t.value, expiresAt: t.expiresAt, model: b.model }, 200);
+      return c.json({ value: t.value, expiresAt: t.expiresAt, model }, 200);
     },
   );
 

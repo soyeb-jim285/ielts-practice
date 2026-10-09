@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
 import { GeminiDuplex } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
-import { RealtimeDuplex } from '@/live/realtime';
+import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
 
 type Tab = 'stt' | 'live';
 export const Route = createFileRoute('/_app/admin/playground')({
@@ -268,16 +268,18 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 
 // ---------------------------------------------------------------- live examiners
 
-type Engine = 'gemini' | 'gpt-live' | 'gpt-realtime-mini' | 'gpt-realtime';
+type Engine = 'gemini' | 'gpt-live' | RealtimeModel;
 const ENGINES: { value: Engine; label: string; note: string }[] = [
-  { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, priced per token' },
-  { value: 'gpt-realtime', label: 'OpenAI Realtime', note: 'gpt-realtime, priced per token' },
+  { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
+  { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
+  { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
+  { value: 'gpt-realtime', label: 'OpenAI Realtime', note: 'gpt-realtime, ~$0.06/min' },
   { value: 'gpt-live', label: 'OpenAI Live', note: 'gpt-live-1, $0.05/min' },
   { value: 'gemini', label: 'Gemini Live', note: 'gemini-3.8-live, priced per token' },
 ];
 
 function ExaminerLab() {
-  const [engine, setEngine] = useState<Engine>('gpt-realtime-mini');
+  const [engine, setEngine] = useState<Engine>('gpt-realtime-2.1-mini');
   const [run, setRun] = useState(0);
   return (
     <div className="space-y-6">
@@ -359,7 +361,7 @@ function ExaminerRun({ engine }: { engine: Engine }) {
 
   const secs = (now - t0.current) / 1000;
   const d = duplex.current;
-  const cost = d instanceof GeminiDuplex ? geminiUsd(d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as 'gpt-realtime' | 'gpt-realtime-mini', d.usage) : gptLiveUsd(secs);
+  const cost = d instanceof GeminiDuplex ? geminiUsd(d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
   const lat = lines.flatMap((l) => (l.latencyMs != null ? [l.latencyMs] : []));
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);

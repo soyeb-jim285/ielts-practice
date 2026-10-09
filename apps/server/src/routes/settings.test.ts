@@ -26,4 +26,5 @@ it('returns defaults, applies partial updates, rejects bad model ids', async () 
 it('migrates the old "openai-realtime" provider to "gpt-live"', () => {
   expect(mergeSettings({ liveProvider: 'openai-realtime' }).liveProvider).toBe('gpt-live');
   expect(mergeSettings({ liveProvider: 'gemini-live' }).liveProvider).toBe('gemini-live');
+  expect(mergeSettings({}).liveProvider).toBe('realtime-mini'); // the default conversation examiner: OpenAI Realtime mini
 });

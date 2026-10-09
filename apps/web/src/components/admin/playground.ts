@@ -36,7 +36,12 @@ export function audioFormat(mime: string, name = ''): 'webm' | 'm4a' | 'wav' | '
 /** Gemini 3.8 Live, USD per 1M tokens (paid tier). */
 export const geminiUsd = (u: GeminiUsage) => (u.inputText * 0.75 + u.inputAudio * 3 + u.inputMedia * 1 + (u.outputText + u.thoughts) * 4.5 + u.outputAudio * 12) / 1e6;
 /** OpenAI Realtime, USD per 1M tokens, plus the candidate's input transcription per minute. */
-const REALTIME: Record<RealtimeModel, [number, number, number, number, number]> = { 'gpt-realtime': [4, 32, 0.4, 16, 64], 'gpt-realtime-mini': [0.6, 10, 0.3, 2.4, 20] };
+const REALTIME: Record<RealtimeModel, [number, number, number, number, number]> = {
+  'gpt-realtime': [4, 32, 0.4, 16, 64],
+  'gpt-realtime-mini': [0.6, 10, 0.3, 2.4, 20],
+  'gpt-realtime-2.1': [4, 32, 0.4, 24, 64],
+  'gpt-realtime-2.1-mini': [0.6, 10, 0.3, 2.4, 20],
+};
 export const realtimeUsd = (model: RealtimeModel, u: RealtimeUsage) => {
   const [ti, ai, ci, to, ao] = REALTIME[model];
   return (u.textIn * ti + u.audioIn * ai + u.cachedIn * ci + u.textOut * to + u.audioOut * ao) / 1e6 + (u.transcribeSeconds / 60) * 0.003;

@@ -3792,6 +3792,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AI calls of the last 14 days, newest first, with the stages and models seen for the filters */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    stage?: string;
+                    model?: string;
+                    outcome?: "all" | "failed";
+                    attempt?: string;
+                    user?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAiLogPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/logs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One AI call with its full request and response (base64 payloads replaced by a size note) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Log */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAiLog"];
+                    };
+                };
+                /** @description Unknown id */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replay/{sessionId}/chunks": {
         parameters: {
             query?: never;
@@ -4578,7 +4671,7 @@ export interface components {
                     ttsVoice: string;
                 };
                 /** @enum {string} */
-                liveProvider: "turn" | "gpt-live" | "gemini-live";
+                liveProvider: "turn" | "realtime-mini" | "gpt-live" | "gemini-live";
                 targetBand: number;
                 writingAutoSubmit: boolean;
                 blockPaste: boolean;
@@ -4600,7 +4693,7 @@ export interface components {
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
             /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
-            liveProviders: ("turn" | "gpt-live" | "gemini-live")[];
+            liveProviders: ("turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
             communityBalance: components["schemas"]["CommunityBalance"];
         };
         SkillQuota: {
@@ -4640,7 +4733,7 @@ export interface components {
                 ttsVoice: string;
             };
             /** @enum {string} */
-            liveProvider: "turn" | "gpt-live" | "gemini-live";
+            liveProvider: "turn" | "realtime-mini" | "gpt-live" | "gemini-live";
             targetBand: number;
             writingAutoSubmit: boolean;
             blockPaste: boolean;
@@ -4654,7 +4747,7 @@ export interface components {
                 ttsVoice?: string;
             };
             /** @enum {string} */
-            liveProvider?: "turn" | "gpt-live" | "gemini-live";
+            liveProvider?: "turn" | "realtime-mini" | "gpt-live" | "gemini-live";
             targetBand?: number;
             writingAutoSubmit?: boolean;
             blockPaste?: boolean;
@@ -4993,8 +5086,11 @@ export interface components {
         };
         LiveRealtimeToken: {
             sessionId: string;
-            /** @enum {string} */
-            model: "gpt-realtime-mini" | "gpt-realtime";
+            /**
+             * @description Admin playground only; the live examiner uses the server default (OPENAI_REALTIME_MODEL)
+             * @enum {string}
+             */
+            model?: "gpt-realtime-mini" | "gpt-realtime" | "gpt-realtime-2.1-mini" | "gpt-realtime-2.1";
         };
         RealtimeCost: {
             costUsd: number;
@@ -5002,7 +5098,7 @@ export interface components {
         LiveRealtimeUsage: {
             sessionId: string;
             /** @enum {string} */
-            model: "gpt-realtime-mini" | "gpt-realtime";
+            model: "gpt-realtime-mini" | "gpt-realtime" | "gpt-realtime-2.1-mini" | "gpt-realtime-2.1";
             usage: components["schemas"]["RealtimeUsage"];
         };
         RealtimeUsage: {
@@ -5148,7 +5244,7 @@ export interface components {
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
             /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
-            liveProviders: ("turn" | "gpt-live" | "gemini-live")[];
+            liveProviders: ("turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
             communityBalance: components["schemas"]["CommunityBalance"];
         };
         ApiKeyList: {
@@ -6079,6 +6175,37 @@ export interface components {
             prompt?: string;
             /** @description ISO code; null lets the model detect it */
             language?: string | null;
+        };
+        AdminAiLogPage: {
+            items: components["schemas"]["AdminAiLogItem"][];
+            page: number;
+            pageSize: number;
+            total: number;
+            stages: string[];
+            models: string[];
+        };
+        AdminAiLogItem: {
+            id: string;
+            createdAt: string;
+            stage: string;
+            path: string;
+            model: string | null;
+            served: string | null;
+            ok: boolean;
+            status: number | null;
+            latencyMs: number;
+            costUsd: number | null;
+            userId: string | null;
+            userLabel: string | null;
+            attemptId: string | null;
+            sessionId: string | null;
+            /** @description Start of the output text (or the error) */
+            preview: string;
+        };
+        AdminAiLog: components["schemas"]["AdminAiLogItem"] & {
+            request?: unknown;
+            response?: unknown;
+            error: string | null;
         };
         FeedbackCreated: {
             id: string;
