@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, dropHallucinations, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, transitionsOf } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, transitionsOf } from './speaking';
 import { fluencyComposite } from '@ielts/core';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
@@ -39,9 +39,11 @@ it('scores, rounds and locates errors in time', async () => {
   expect(user.transcript).toContain('[1]goes');
 });
 
-/** Jev answer on bands 4-9: `score` is the 0-based step (2 = band 6); probabilities per step. */
-const jev = (score: number, high = 0) => () =>
-  json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { type: 'score', score, confidence: 0.8, probabilities: { 0: 0, 1: 0.1, 2: 0.8 - high, 3: 0.1, 4: high, 5: 0 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.00002 } });
+/** Jev answer on bands 4-9: `score` is the 0-based step (2 = band 6); probabilities per step. A relevance call (one `answers` noul) gets `answered`. */
+const jev = (score: number, high = 0, answered = 0.9) => (_: string, init: RequestInit) =>
+  JSON.parse(String(init.body)).questions.answers
+    ? json({ model: 'typesafe/jev-1.13-20260917', answers: { answers: { type: 'noul', noul: answered } }, usage: { input_tokens: 200, output_tokens: 5, cost: 0.00001 } })
+    : json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { type: 'score', score, confidence: 0.8, probabilities: { 0: 0, 1: 0.1, 2: 0.8 - high, 3: 0.1, 4: high, 5: 0 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.00002 } });
 
 it('Jev scores in one call instead of 12 LLM samples: the curve on its mean, P(8+) and measured fluency sets the overall', async () => {
   const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat(), '/systemone': jev(2, 0.05) });
@@ -57,6 +59,33 @@ it('Jev scores in one call instead of 12 LLM samples: the curve on its mean, P(8
   expect(Math.abs(r.overallRaw! - y)).toBeLessThanOrEqual(0.25); // whole criterion bands apportion the curve's overall
   expect(r.criteria.gra!.summary).toMatch(/^To reach band \d: /);
   expect(r.criteria.p!.summary).toMatch(/limited recognition-based estimate/i);
+});
+
+it('relevance: a clear "no" from the per-answer check flags the answer off topic and lowers the band by the off-topic share, at most 1.5', async () => {
+  expect(offTopicPenalty(0, 100)).toBe(0);
+  expect(offTopicPenalty(50, 100)).toBeCloseTo(0.75);
+  expect(offTopicPenalty(500, 100)).toBe(MAX_OFF_TOPIC_PENALTY);
+  const run2 = (answered: number) => {
+    const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat(), '/systemone': jev(2, 0.05, answered) });
+    setFetch(f);
+    return run().then((r) => ({ r, f }));
+  };
+  const on = await run2(0.9);
+  expect(on.r.relevance).toEqual([expect.objectContaining({ questionIdx: 0, onTopic: true })]);
+  expect(on.r.offTopicPenalty).toBeUndefined();
+  const rel = on.f.calls.filter((c) => c.url.endsWith('/systemone') && c.body.questions.answers);
+  expect(rel).toHaveLength(1);
+  expect(rel[0]!.body.state).toMatchObject({ examiner_question: 'What did you do yesterday?' });
+
+  const offRun = await run2(0.1); // the only answer is clearly off topic: all of the speech
+  expect(offRun.r.relevance).toEqual([{ questionIdx: 0, onTopic: false, note: expect.any(String) }]);
+  expect(offRun.r.offTopicPenalty).toBe(MAX_OFF_TOPIC_PENALTY);
+  expect(on.r.overallRaw! - offRun.r.overallRaw!).toBeGreaterThanOrEqual(1);
+  expect(offRun.r.criteria.fc!.summary).toMatch(/did not address the question/);
+
+  const unsure = await run2(0.45); // borderline: never penalised
+  expect(unsure.r.relevance![0]!.onTopic).toBe(true);
+  expect(unsure.r.offTopicPenalty).toBeUndefined();
 });
 
 it('the curve stretches the top: a higher Jev mean and more band 8+ probability reach band 8+, and it never leaves 0-9', () => {

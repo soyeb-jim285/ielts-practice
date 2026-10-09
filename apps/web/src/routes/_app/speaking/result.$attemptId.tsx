@@ -326,7 +326,8 @@ function Overview({ result: r, target, off, deck }: { result: AnalysisResult; ta
     <div className="space-y-8 md:space-y-12">
       {off && (
         <Alert tone="bad" title="Off topic">
-          {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.{' '}
+          {off.total > 1 ? `${off.off} of ${off.total} answers didn’t` : 'Your answer didn’t'} address the question.
+          {r.offTopicPenalty ? ` Off-topic speech can’t count as evidence, so your band is about ${formatBand(Math.max(0.5, Math.round(r.offTopicPenalty * 2) / 2))} lower.` : ''}{' '}
           <Link to="." search={(s) => ({ ...s, tab: 'language' })} hash="relevance" replace className={buttonStyles({ variant: 'link' })}>
             See details in Language
           </Link>

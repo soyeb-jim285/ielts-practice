@@ -76,6 +76,8 @@ export type AnalysisResult = {
   questions?: { text: string; startWord: number }[]; // question boundaries in transcript
   pronunciation?: { unclear: SpeechMetrics['unclear']; llm?: PronunciationLlm };
   relevance?: { questionIdx: number; onTopic: boolean; note: string }[];
+  /** Speaking: bands taken off because some answers did not address the question (relevance check). */
+  offTopicPenalty?: number;
   noSpeech?: boolean;
   // writing
   text?: string;
