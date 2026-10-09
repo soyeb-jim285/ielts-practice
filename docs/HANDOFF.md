@@ -205,6 +205,19 @@ Report: `apps/server/.eval/jev/OFFICIAL-HIGHBAND.md`; scripts `apps/server/.eval
 - **Tests:** speaking 12/12 and writing 25/25, including new Jev-path and fallback tests. The full server suite was not re-run after the Speaking change.
 - **Next:** refit the Speaking curve when more examiner-banded 7.5–9 audio arrives; consider showing "8–9" instead of an exact band above 8; run the full suites; commit.
 
+### K. Live mode, transcription cost and dashboard (2026-10-09; built and tested, needs one real live test)
+- **One Whisper pass** (`openrouter.ts` `transcribe` / `verbatimAlone`): the disfluency-primed pass alone when it is sane on its own (no loop, no prompt echo, no >8 s / >25% stretch without words); the plain pass only as a fallback. Halves Whisper cost; production has no ElevenLabs key, so every Speaking test was paying two passes.
+- **Live recordings hold the candidate only:**
+  - `web/src/live/examinerVoice.ts` measures when the examiner is audible from the examiner's own output audio (GPT-Live remote track; Gemini via a `MediaStreamDestination` tap on `PcmPlayer`).
+  - `usePartRecorder` (`turn.ts`) pauses the part recorder while the examiner is audible and records answer windows (`answerWindows`) sent as `segments` / `marks` to `/live/finish`. Turn mode drives the same windows from its own examiner playback and closes the window when the candidate's turn ends.
+  - Effects: Whisper is billed only for the candidate's speech, the fluency plot no longer dips while the examiner talks, and answers line up with the examiner's questions (transcript headers).
+  - Risk: speech over the examiner's tail (within ~600 ms) is not in the scoring audio.
+- **Conversation playback:** duplex parts also record the mic mixed with the examiner (`live/mix.ts`). It is uploaded as `conversationKey` (new column `attempts.conversation_key`, migration `0015_live_conversation.sql`, applied on container start by `docker/entrypoint.sh`), served as `conversationUrl`, and played via a "Your answers / With the examiner" switch on the Speaking result.
+- **Parts analysed during the test:** new `POST /api/live/part` creates, reserves (under the session's one test) and analyses a part as soon as it ends; it saves a GPT-Live transcript snapshot first so the part's questions are known. `/live/finish` creates only the missing parts (shared `addParts`, idempotent per part, 409 once the session is done). Mobile clients that send everything at finish still work.
+- **Admin cost drawer:** a live attempt also lists the live session's own calls (realtime model, examiner voice/lines, per-turn STT) and the session's raw transcript (GPT-Live sideband / turn mode; none for Gemini).
+- **Dashboard "holding your band back":** judged on the latest full test when the latest attempt belongs to one, else the last 5 attempts of that skill (was: 30 attempts, both skills mixed). The response carries `skill`, so a Writing LR weakness no longer sends you to Speaking practice.
+- **Open:** false starts written as "word..." are not flagged by the rule tagger (on purpose: "well..." is hesitation). A smarter rule (an unfinished link word like "the" / "to" before "..." followed by a new sentence) waits on real examples from the owner.
+
 ## 4. Gotchas met this session
 - `pgrep -f <pattern>` inside a wait loop matches the loop itself. Match on something more specific, e.g. `"tsx.*ab-speaking"`, and `pkill -f` can kill your own shell.
 - Bare imports (`drizzle-orm`, `@ielts/core`) don't resolve from the repo root `.eval/`. Put scripts in `apps/server/.eval/`.
