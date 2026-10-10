@@ -19,6 +19,8 @@ it('playground: lists OpenRouter transcription models with prices, transcribes w
   const { headers } = await testUser(OWNER_EMAILS[0]!);
   const models = (await (await req('/api/admin/stt/models', { headers })).json()) as any;
   expect(models.models).toEqual([
+    expect.objectContaining({ id: 'hf/crisperwhisper-2-turbo', usdPerSecond: 0 }),
+    expect.objectContaining({ id: 'hf/crisperwhisper-2-small', usdPerSecond: 0 }),
     expect.objectContaining({ id: 'acme/asr-1', usdPerSecond: 0.00001, usdPerMTokIn: null }),
     expect.objectContaining({ id: 'acme/llm-asr', usdPerSecond: null, usdPerMTokIn: 2, usdPerMTokOut: 10 }),
   ]);
@@ -36,4 +38,24 @@ it('playground: lists OpenRouter transcription models with prices, transcribes w
   const bad = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/nope', audio: 'AA==', format: 'wav' } });
   expect(bad.status).toBe(502);
   expect(((await bad.json()) as any).error).toContain('400');
+});
+
+it('playground: CrisperWhisper runs on its Hugging Face Space (Gradio upload, call, event stream) and comes back as words with timings, free', async () => {
+  const seen: string[] = [];
+  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+    seen.push(`${init?.method ?? 'GET'} ${url.replace(/^https:\/\/[^/]+/, '')}`);
+    if (url.endsWith('/gradio_api/upload')) return json(['/tmp/gradio/x/clip.wav']);
+    if (url.endsWith('/gradio_api/call/transcribe')) return json({ event_id: 'ev1' });
+    const out = ['We [UM] we went.', '   0.10 \u2192    0.30  We\n   0.40 \u2192    0.60  [UM]\n   0.90 \u2192    1.00  we\n   1.00 \u2192    1.40  went.', 'Mode: verbatim | Language: en | Duration: 1.6s | Processing time: 2s'];
+    return new Response(`event: generating\ndata: null\n\nevent: complete\ndata: ${JSON.stringify(out)}\n\n`);
+  });
+  try {
+    const { headers } = await testUser(OWNER_EMAILS[0]!);
+    const r = await req('/api/admin/stt/transcribe', { headers, body: { model: 'hf/crisperwhisper-2-turbo', audio: 'UklGRg==', format: 'wav', language: null } });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ text: 'We [UM] we went.', duration: 1.6, costUsd: 0, words: [{ w: 'We', start: 0.1, end: 0.3 }, { w: '[UM]' }, { w: 'we' }, { w: 'went.', end: 1.4 }] });
+    expect(seen).toEqual(['POST /gradio_api/upload', 'POST /gradio_api/call/transcribe', 'GET /gradio_api/call/transcribe/ev1']);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

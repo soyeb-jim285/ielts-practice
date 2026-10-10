@@ -10772,7 +10772,7 @@
             "bearer": []
           }
         ],
-        "summary": "OpenRouter's speech-to-text models with list prices (cached an hour)",
+        "summary": "OpenRouter's speech-to-text models with list prices (cached an hour), plus CrisperWhisper on Hugging Face Spaces",
         "responses": {
           "200": {
             "description": "Models",

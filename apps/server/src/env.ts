@@ -24,6 +24,8 @@ const Env = z.object({
   OPENAI_LIVE_VOICE: z.string().default('vesper'), // British, natural, masculine
   GEMINI_API_KEY: z.string().optional().transform((v) => v || undefined),
   GEMINI_LIVE_MODEL: z.string().default('gemini-3.8-live'),
+  // Optional: Hugging Face token for the CrisperWhisper Spaces in the admin playground (ai/hfspace.ts); raises the ZeroGPU quota. Unset: anonymous quota.
+  HF_TOKEN: z.string().optional().transform((v) => v || undefined),
   // Optional outside production: without them, dev falls back to local-disk storage (storage.ts).
   R2_ACCOUNT_ID: z.string().optional().transform((v) => v || undefined),
   R2_ACCESS_KEY_ID: z.string().optional().transform((v) => v || undefined),

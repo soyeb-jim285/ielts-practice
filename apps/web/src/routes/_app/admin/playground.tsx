@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
-import { audioFormat, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, transcriptStats, type Word } from '@/components/admin/playground';
+import { audioFormat, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
 import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useAdmin } from '@/lib/admin';
@@ -101,12 +101,13 @@ function TranscriptionLab() {
   const run = async (ids: string[]) => {
     if (!clip) return;
     const audioB64 = await toBase64(clip.blob);
+    const wavB64 = clip.format !== 'wav' && ids.some((id) => id.startsWith('hf/')) ? await toWav16k(clip.blob).then(toBase64) : audioB64; // the CrisperWhisper Space takes WAV only
     const p = prompt === 'verbatim' ? VERBATIM_PROMPT : prompt === 'custom' ? customPrompt.trim() || undefined : undefined;
     setRuns((r) => ({ ...r, ...Object.fromEntries(ids.map((id) => [id, { status: 'running' } as RunState])) }));
     await Promise.all(
       ids.map(async (id) => {
         try {
-          const r = await api.post<SttRun>('/admin/stt/transcribe', { model: id, audio: audioB64, format: clip.format, prompt: p, language: language === 'auto' ? null : 'en' });
+          const r = await api.post<SttRun>('/admin/stt/transcribe', { model: id, ...(id.startsWith('hf/') ? { audio: wavB64, format: 'wav' as const } : { audio: audioB64, format: clip.format }), prompt: p, language: language === 'auto' ? null : 'en' });
           setRuns((s) => ({ ...s, [id]: { status: 'done', r } }));
         } catch (e) {
           setRuns((s) => ({ ...s, [id]: { status: 'error', error: e instanceof ApiError ? e.message : (e as Error).message } }));
@@ -152,7 +153,7 @@ function TranscriptionLab() {
 
         <Card>
           <h2 className="type-h4 mb-3">2. Models</h2>
-          <Input label="Filter" hideLabel placeholder="Filter OpenRouter models" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <Input label="Filter" hideLabel placeholder="Filter models" value={filter} onChange={(e) => setFilter(e.target.value)} />
           <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto pr-1" aria-label="Transcription models">
             {models.isLoading && <li><Spinner /></li>}
             {list.map((m) => (
