@@ -2,6 +2,7 @@ import { fakeFetch, json, req, testUser } from '../test/helpers'; // first: load
 import { and, eq } from 'drizzle-orm';
 import { expect, it, vi } from 'vitest';
 import { setFetch } from '../ai/openrouter';
+import { env } from '../env';
 import { OWNER_EMAILS } from '../auth';
 import { db } from '../db/client';
 import { aiCosts } from '../db/schema';
@@ -21,6 +22,7 @@ it('playground: lists OpenRouter transcription models with prices, transcribes w
   expect(models.models).toEqual([
     expect.objectContaining({ id: 'hf/crisperwhisper-2-turbo', usdPerSecond: 0 }),
     expect.objectContaining({ id: 'hf/crisperwhisper-2-small', usdPerSecond: 0 }),
+    expect.objectContaining({ id: 'modal/verbatim-student4', usdPerSecond: null }),
     expect.objectContaining({ id: 'acme/asr-1', usdPerSecond: 0.00001, usdPerMTokIn: null }),
     expect.objectContaining({ id: 'acme/llm-asr', usdPerSecond: null, usdPerMTokIn: 2, usdPerMTokOut: 10 }),
   ]);
@@ -56,6 +58,38 @@ it('playground: CrisperWhisper runs on its Hugging Face Space (Gradio upload, ca
     expect(await r.json()).toMatchObject({ text: 'We [UM] we went.', duration: 1.6, costUsd: 0, words: [{ w: 'We', start: 0.1, end: 0.3 }, { w: '[UM]' }, { w: 'we' }, { w: 'went.', end: 1.4 }] });
     expect(seen).toEqual(['POST /gradio_api/upload', 'POST /gradio_api/call/transcribe', 'GET /gradio_api/call/transcribe/ev1']);
   } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('playground: our verbatim Whisper runs on Modal (multipart with proxy-auth headers, webm as-is) and comes back as words with timings and an estimated cost', async () => {
+  const sent: { url: string; headers: Record<string, string>; body: FormData }[] = [];
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+    sent.push({ url, headers: init.headers as Record<string, string>, body: init.body as FormData });
+    return json({ text: '[uh] we we went [laughter]', words: [{ word: '[uh]', start: 0, end: 0.4 }, { word: 'we', start: 0.5, end: 0.6 }, { word: 'we', start: 0.6, end: 0.7 }, { word: 'went', start: 0.7, end: 1 }, { word: '[laughter]', start: 1.1, end: 1.6 }], audio_seconds: 1.8, realtime_factor: 25 });
+  });
+  const saved = { k: env.MODAL_KEY, s: env.MODAL_SECRET };
+  try {
+    const { headers } = await testUser(OWNER_EMAILS[0]!);
+    const body = { model: 'modal/verbatim-student4', audio: Buffer.from('webm-bytes').toString('base64'), format: 'webm', language: 'en' };
+    env.MODAL_KEY = env.MODAL_SECRET = undefined;
+    const off = await req('/api/admin/stt/transcribe', { headers, body });
+    expect(off.status).toBe(502);
+    expect(((await off.json()) as any).error).toContain('MODAL_KEY');
+    expect(sent).toHaveLength(0);
+
+    Object.assign(env, { MODAL_KEY: 'wk-1', MODAL_SECRET: 'ws-1' });
+    const r = await req('/api/admin/stt/transcribe', { headers, body });
+    expect(r.status).toBe(200);
+    const d = (await r.json()) as any;
+    expect(d).toMatchObject({ model: 'modal/verbatim-student4', text: '[uh] we we went [laughter]', duration: 1.8, costExact: false, words: [{ w: '[uh]', start: 0, end: 0.4 }, { w: 'we' }, { w: 'we' }, { w: 'went' }, { w: '[laughter]', end: 1.6 }] });
+    expect(d.costUsd).toBeGreaterThanOrEqual(0);
+    expect(sent[0]!.url).toBe(`${env.MODAL_ASR_URL}/transcribe`);
+    expect(sent[0]!.headers).toEqual({ 'Modal-Key': 'wk-1', 'Modal-Secret': 'ws-1' });
+    expect(sent[0]!.body.get('word_timestamps')).toBe('true');
+    expect((sent[0]!.body.get('audio') as File).name).toBe('clip.webm');
+  } finally {
+    Object.assign(env, { MODAL_KEY: saved.k, MODAL_SECRET: saved.s });
     vi.unstubAllGlobals();
   }
 });

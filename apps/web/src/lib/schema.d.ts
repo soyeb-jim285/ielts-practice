@@ -3712,7 +3712,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** OpenRouter's speech-to-text models with list prices (cached an hour), plus CrisperWhisper on Hugging Face Spaces */
+        /** OpenRouter's speech-to-text models with list prices (cached an hour), plus CrisperWhisper on Hugging Face Spaces and our verbatim Whisper on Modal */
         get: {
             parameters: {
                 query?: never;

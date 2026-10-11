@@ -2,6 +2,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireOwner } from '../auth';
 import { hfModels, isHfSpace, transcribeHfSpace } from '../ai/hfspace';
+import { isModal, modalModels, transcribeModal } from '../ai/modal';
 import { AiError, sttModels, transcribeOnce } from '../ai/openrouter';
 import type { App } from '../types';
 import { adminRoute } from './common';
@@ -28,8 +29,8 @@ const SttRun = z
 
 export function register(app: App) {
   app.openapi(
-    createRoute({ ...route, method: 'get', path: '/api/admin/stt/models', summary: "OpenRouter's speech-to-text models with list prices (cached an hour), plus CrisperWhisper on Hugging Face Spaces", responses: { 200: json(z.object({ models: z.array(SttModel) }).openapi('AdminSttModels'), 'Models') } }),
-    async (c) => c.json({ models: [...hfModels(), ...(await sttModels())] }, 200),
+    createRoute({ ...route, method: 'get', path: '/api/admin/stt/models', summary: "OpenRouter's speech-to-text models with list prices (cached an hour), plus CrisperWhisper on Hugging Face Spaces and our verbatim Whisper on Modal", responses: { 200: json(z.object({ models: z.array(SttModel) }).openapi('AdminSttModels'), 'Models') } }),
+    async (c) => c.json({ models: [...hfModels(), ...modalModels(), ...(await sttModels())] }, 200),
   );
 
   app.openapi(
@@ -62,7 +63,7 @@ export function register(app: App) {
       const b = c.req.valid('json');
       try {
         const o = { ...b, audio: new Uint8Array(Buffer.from(b.audio, 'base64')), language: b.language === undefined ? 'en' : b.language };
-        const r = isHfSpace(b.model) ? await transcribeHfSpace(o) : await transcribeOnce(o);
+        const r = isHfSpace(b.model) ? await transcribeHfSpace(o) : isModal(b.model) ? await transcribeModal(o) : await transcribeOnce(o);
         return c.json(r, 200);
       } catch (e) {
         return c.json({ error: e instanceof AiError ? `${e.message}${e.status ? ` (${e.status})` : ''}` : (e as Error).message }, 502);

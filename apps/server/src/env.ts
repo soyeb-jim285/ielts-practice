@@ -26,6 +26,11 @@ const Env = z.object({
   GEMINI_LIVE_MODEL: z.string().default('gemini-3.8-live'),
   // Optional: Hugging Face token for the CrisperWhisper Spaces in the admin playground (ai/hfspace.ts); raises the ZeroGPU quota. Unset: anonymous quota.
   HF_TOKEN: z.string().optional().transform((v) => v || undefined),
+  // Optional: our verbatim Whisper on Modal for the admin playground (ai/modal.ts). A Modal proxy-auth token; unset: that model returns an error.
+  MODAL_KEY: z.string().optional().transform((v) => v || undefined),
+  MODAL_SECRET: z.string().optional().transform((v) => v || undefined),
+  MODAL_ASR_URL: z.string().default('https://soyeb-jim--verbatim-asr-asr-web.modal.run'),
+  MODAL_USD_PER_HOUR: z.coerce.number().min(0).default(0.59), // T4 list price; playground cost = wall time x this (estimate)
   // Optional outside production: without them, dev falls back to local-disk storage (storage.ts).
   R2_ACCOUNT_ID: z.string().optional().transform((v) => v || undefined),
   R2_ACCESS_KEY_ID: z.string().optional().transform((v) => v || undefined),
