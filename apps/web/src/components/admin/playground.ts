@@ -1,5 +1,6 @@
 // Admin playground helpers: transcript stats and live-engine price estimates. The price tables mirror the server's (ai/cost.ts geminiLiveUsd,
 // ai/openai-realtime.ts realtimeUsd, ai/cost.ts gptLiveUsd): the ledger keeps the authoritative figure, these only drive the live readout.
+import type { GeminiModel } from '@/live/gemini';
 import type { GeminiUsage } from '@/live/geminiProtocol';
 import type { RealtimeModel, RealtimeUsage } from '@/live/realtime';
 
@@ -69,8 +70,16 @@ export async function toWav16k(blob: Blob): Promise<Blob> {
   }
 }
 
-/** Gemini 3.8 Live, USD per 1M tokens (paid tier). */
-export const geminiUsd = (u: GeminiUsage) => (u.inputText * 0.75 + u.inputAudio * 3 + u.inputMedia * 1 + (u.outputText + u.thoughts) * 4.5 + u.outputAudio * 12) / 1e6;
+/** Gemini Live, USD per 1M tokens (paid tier): [text in, audio in, media in, text out, audio out]. */
+const GEMINI: Record<GeminiModel, [number, number, number, number, number]> = {
+  'gemini-3.8-live': [0.75, 3, 1, 4.5, 12],
+  'gemini-3.1-flash-live-preview': [0.75, 3, 1, 4.5, 12],
+  'gemini-2.5-flash-native-audio-preview-12-2025': [0.5, 3, 3, 2, 12],
+};
+export const geminiUsd = (model: GeminiModel, u: GeminiUsage) => {
+  const [ti, ai, mi, to, ao] = GEMINI[model];
+  return (u.inputText * ti + u.inputAudio * ai + u.inputMedia * mi + (u.outputText + u.thoughts) * to + u.outputAudio * ao) / 1e6;
+};
 /** OpenAI Realtime, USD per 1M tokens, plus the candidate's input transcription per minute. */
 const REALTIME: Record<RealtimeModel, [number, number, number, number, number]> = {
   'gpt-realtime': [4, 32, 0.4, 16, 64],

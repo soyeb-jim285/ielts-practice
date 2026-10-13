@@ -17,7 +17,41 @@ const PART2 = /\bgoing to give you a topic\b|\bone minute to think\b/i;
 /** Ends the test this long after the closing line is heard if the examiner's "stopped speaking" never arrives. */
 const CLOSING_GRACE_MS = 8000;
 
-export type CueKey = 'part2' | 'talk' | 'follow' | 'follow-timeup' | 'closing';
+export type CueKey = 'part2' | 'talk' | 'follow' | 'follow-timeup' | 'closing' | 'continue' | 'repeat';
+
+// Stall watchdog. Real sessions (2026-10-10/11 recordings) showed the examiner going quiet with nobody talking: it announced "let's move on to the next
+// part" and waited for a cue that only the part timer sends, ended a turn on "Thank you for explaining that." with no question, or never answered a
+// finished answer (40+ s). Whoever owes the next turn, the app notices the silence and tells the examiner where it is and what to do.
+/** The examiner owes a turn (the candidate finished, or its last line asked nothing): nudge after this much silence. */
+export const OWE_MS = 6000;
+/** The examiner asked a question and the candidate has said nothing for this long: ask it to repeat the question once. */
+export const ANSWER_MS = 20_000;
+/** Nudges in a row without the candidate speaking; past this, an examiner that stayed silent through them counts as lost. */
+const MAX_NUDGES = 3;
+/** A candidate turn longer than this without a "stopped" event is a stuck voice detector (noise), not speech. */
+const TALK_MAX_MS = 90_000;
+const PART: Partial<Record<Phase, string>> = { intro: 'the introduction', p1: 'Part 1', 'p2-follow': 'the end of Part 2', p3: 'Part 3' };
+const NEXT: Partial<Record<Phase, string>> = {
+  intro: 'if they have told you their name, start Part 1 with its first question; otherwise ask for their full name again',
+  p1: 'ask your next Part 1 question',
+  'p2-follow': 'if they have answered the rounding-off question, start Part 3 with its first question; otherwise ask the rounding-off question again',
+  p3: 'ask your next Part 3 question',
+};
+
+export type StallState = { phase: Phase; examinerOn: boolean; talking: boolean; line: string; examinerEnd: number; candidateAt: number; now: number };
+/** Who is stuck, if anyone: 'continue' (the examiner owes a turn) or 'repeat' (a question went unanswered). Only in the conversational parts. */
+export function stalled(s: StallState): 'continue' | 'repeat' | null {
+  if (!PART[s.phase] || s.examinerOn) return null;
+  if (s.talking && s.now - s.candidateAt < TALK_MAX_MS) return null;
+  const owes = s.candidateAt > s.examinerEnd || !/\?["'”’)]*\s*$/.test(s.line.trim());
+  return s.now - Math.max(s.examinerEnd, s.candidateAt) < (owes ? OWE_MS : ANSWER_MS) ? null : owes ? 'continue' : 'repeat';
+}
+
+/** The app message for a nudge: where the test is and the one thing to do now. */
+export const nudgeText = (phase: Phase, a: 'continue' | 'repeat') =>
+  a === 'repeat'
+    ? `You are in ${PART[phase] ?? 'the test'}. The candidate has not answered. Repeat your last question once, in the same words, then wait.`
+    : `You are in ${PART[phase] ?? 'the test'}. The candidate is waiting for you. Continue now: ${NEXT[phase] ?? 'ask your next question'}. One question, and do not move to another part.`;
 
 /** What a transport reports back. */
 export type Handlers = {
@@ -27,8 +61,8 @@ export type Handlers = {
   caption(text: string, append?: boolean): void;
   /** The candidate finished an answer (the examiner is about to reply). */
   answered(): void;
-  /** Candidate transcript activity: arm a reply watchdog without cutting off a long answer. */
-  pending?(): void;
+  /** Candidate activity (speech or transcript). `talking`: true while the provider's voice detector says they are mid-turn, so the stall watchdog waits. */
+  pending?(talking?: boolean): void;
   /** The provider's transcript of the candidate (debug views; the scored transcript comes from the recording). */
   heard?(text: string): void;
   /** The connection dropped for good. */
@@ -40,7 +74,8 @@ export type Handlers = {
 export type Duplex = {
   /** Opens the mic and the connection and starts the test (the examiner opens with the introduction). Rejects if it can't connect. */
   connect(h: Handlers, sessionId: string): Promise<void>;
-  /** Interrupt the examiner and give it an instruction. `key` names the script moment (GPT-Live: the server owns the wording and ignores `text`). */
+  /** Interrupt the examiner and give it an instruction. `key` names the script moment (GPT-Live: the server owns the wording and ignores `text`).
+   *  `heard`: keep the candidate's unanswered speech, so the examiner's next words still count as the answer being taken (a nudge). */
   cue(text: string, heard?: boolean, key?: CueKey): void;
   /** false: the examiner must not hear the candidate (preparation); `fresh` marks where the long turn starts (Gemini stops streaming, GPT-Live hears it and stays silent by instruction). */
   listen(on: boolean, fresh?: boolean): void;
@@ -81,6 +116,14 @@ export function useDuplexExaminer(
     unwatch: undefined as (() => void) | undefined,
     line: '', // the examiner's current caption
     output: false,
+    // stall watchdog (see stalled())
+    examinerOn: false,
+    examinerEnd: 0,
+    candidateAt: 0,
+    talking: false,
+    nudges: 0,
+    spokeSinceNudge: true,
+    watchdog: undefined as ReturnType<typeof setInterval> | undefined,
   });
 
   const prep = useCountdown(PREP_S, { onEnd: () => void go('p2-talk') });
@@ -102,6 +145,7 @@ export function useDuplexExaminer(
     // cue() can synchronously emit speaking(false) while cutting off the old line.
     c.wait = null;
     c.x?.cue(text, heard, key);
+    c.examinerEnd = Date.now(); // the watchdog counts silence from the cue
     if (!c.x || c.ended) return;
     c.wait = after ? 'cued' : null;
     c.after = after ?? (() => {});
@@ -109,6 +153,27 @@ export function useDuplexExaminer(
     if (after) c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
     else watchResponse();
   };
+
+  /** Once a second: if nobody is talking and the examiner should be, tell it where it is and what to do; an examiner that ignores every nudge is lost. */
+  function tick() {
+    const c = r.current;
+    if (c.ended || !c.x || !c.output || c.wait) return;
+    const now = Date.now();
+    // An ignored nudge still leaves the examiner owing a turn, whatever its last line was.
+    const a = stalled({ phase: c.phase, examinerOn: c.examinerOn, talking: c.talking, line: c.spokeSinceNudge ? c.line : '', examinerEnd: c.examinerEnd, candidateAt: c.candidateAt, now });
+    if (!a) return;
+    if (c.nudges >= MAX_NUDGES) {
+      if (!c.spokeSinceNudge) handlers.lost();
+      return; // it answers the nudges but the candidate is silent: leave the floor to the candidate
+    }
+    c.nudges++;
+    c.spokeSinceNudge = false;
+    console.info('live examiner stalled', c.phase, a);
+    c.x.cue(nudgeText(c.phase, a), a === 'continue', a);
+    c.examinerEnd = now;
+    c.talking = false;
+    setStatus('thinking');
+  }
 
   function watchResponse() {
     const c = r.current;
@@ -121,6 +186,7 @@ export function useDuplexExaminer(
     clearTimeout(c.timer);
     clearTimeout(c.waitTimer);
     clearTimeout(c.responseTimer);
+    clearInterval(c.watchdog);
     c.wait = null;
     c.unwatch?.();
     c.unwatch = undefined;
@@ -210,8 +276,6 @@ export function useDuplexExaminer(
             timeUp
               ? `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`
               : 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
-            undefined,
-            true,
           );
           c.x?.listen(true);
           break;
@@ -234,8 +298,12 @@ export function useDuplexExaminer(
     speaking(on) {
       const c = r.current;
       if (c.ended) return;
+      c.examinerOn = on;
+      if (!on) c.examinerEnd = Date.now();
       if (on) {
         c.output = true;
+        c.spokeSinceNudge = true;
+        c.talking = false;
         clearTimeout(c.responseTimer);
         if (c.wait === 'cued') c.wait = 'speaking';
         setStatus('examiner');
@@ -265,9 +333,12 @@ export function useDuplexExaminer(
       else if (c.phase === 'p2-follow') void go('p3');
       if (c.phase !== 'p2-talk') setStatus('thinking');
     },
-    pending() {
+    pending(talking) {
       const c = r.current;
-      if (!c.ended && !c.wait && c.phase !== 'p2-prep' && c.phase !== 'p2-talk') watchResponse();
+      c.candidateAt = Date.now();
+      c.talking = !!talking;
+      c.nudges = 0;
+      if (!c.ended && !c.output) watchResponse(); // before the examiner's first words the watchdog is off: keep the connect deadline
     },
     lost() {
       const c = r.current;
@@ -306,6 +377,8 @@ export function useDuplexExaminer(
       }
       c.x = make();
       await withDeadline(c.x.connect(tapped(), c.sessionId));
+      clearInterval(c.watchdog);
+      c.watchdog = setInterval(tick, 1000);
       if (!c.output && !c.ended) {
         setStatus('thinking');
         watchResponse();

@@ -39,6 +39,9 @@ export class RealtimeDuplex implements Duplex {
   private heard = false; // the candidate spoke since the last cue or answer
   private speaking = false;
   private replies = true; // false during the long turn: heard, but the VAD must not trigger a reply
+  private inSpeech = false; // the server VAD hears the candidate
+  private active = false; // a response is in progress: a second response.create would fail with conversation_already_has_active_response
+  private createAfter = false; // a cue arrived while a response was active: ask for the reply once it is done
   /** Token totals so far (summed response.done usage) and the candidate audio transcribed. */
   readonly usage = emptyRealtimeUsage();
 
@@ -80,16 +83,21 @@ export class RealtimeDuplex implements Duplex {
     this.say('Begin the test.');
   }
 
-  private onEvent(ev: { type: string; delta?: string; transcript?: string; usage?: { seconds?: number; type?: string }; response?: { usage?: Parameters<typeof addRealtimeUsage>[1] }; error?: { message?: string } }) {
+  private onEvent(ev: { type: string; delta?: string; transcript?: string; usage?: { seconds?: number; type?: string }; response?: { status?: string; usage?: Parameters<typeof addRealtimeUsage>[1] }; error?: { code?: string; message?: string } }) {
     switch (ev.type) {
       case 'input_audio_buffer.speech_started':
-        this.h.pending?.();
+      case 'input_audio_buffer.speech_stopped':
+        this.inSpeech = ev.type === 'input_audio_buffer.speech_started';
+        this.h.pending?.(this.inSpeech);
         break;
       case 'conversation.item.input_audio_transcription.completed':
         if (ev.transcript) this.h.heard?.(ev.transcript);
         if (ev.usage?.type === 'duration') this.usage.transcribeSeconds += ev.usage.seconds ?? 0;
         this.heard = true;
-        this.h.pending?.();
+        this.h.pending?.(this.inSpeech);
+        break;
+      case 'response.created':
+        this.active = true;
         break;
       case 'response.output_audio_transcript.delta':
         if (this.fresh) {
@@ -108,10 +116,15 @@ export class RealtimeDuplex implements Duplex {
         this.speak(false);
         break;
       case 'response.done':
+        this.active = false;
         addRealtimeUsage(this.usage, ev.response?.usage);
+        if (ev.response?.status && ev.response.status !== 'completed' && ev.response.status !== 'cancelled') console.warn('openai realtime response', ev.response.status);
+        if (this.createAfter) (this.createAfter = false), this.send({ type: 'response.create' });
         break;
       case 'error':
-        console.warn('openai realtime', ev.error?.message);
+        // A cue's response.create raced a response the VAD started: the cue item is in the conversation, so reply to it when that one ends.
+        if (ev.error?.code === 'conversation_already_has_active_response') this.createAfter = true;
+        console.warn('openai realtime', ev.error?.code, ev.error?.message);
         break;
     }
   }
@@ -124,14 +137,16 @@ export class RealtimeDuplex implements Duplex {
 
   /** An instruction from the app: interrupt the examiner, add it as a cue message and ask for the reply now. */
   private say(text: string) {
-    this.send({ type: 'response.cancel' });
-    this.send({ type: 'output_audio_buffer.clear' });
+    if (this.active) this.send({ type: 'response.cancel' });
+    this.send({ type: 'output_audio_buffer.clear' }); // a finished response can still be playing
     this.send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: CUE_PREFIX + text }] } });
-    this.send({ type: 'response.create' });
+    // One response at a time: a cancelled one ends with response.done, which sends this response.create.
+    if (this.active) this.createAfter = true;
+    else this.send({ type: 'response.create' });
   }
 
-  cue(text: string) {
-    this.heard = false;
+  cue(text: string, heard = false) {
+    if (!heard) this.heard = false;
     this.fresh = true;
     this.speak(false);
     this.say(text);

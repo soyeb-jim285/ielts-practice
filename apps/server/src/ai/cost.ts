@@ -69,10 +69,17 @@ export const gptLiveUsd = (seconds: number) => (seconds / 60) * 0.05;
 
 /** Token counts of a Gemini Live session, summed over its replies (each reply's usageMetadata re-counts the context it read). */
 export type GeminiLiveUsage = { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number; thoughts: number };
-/** USD per 1M tokens, Gemini 3.8 Live paid tier (ai.google.dev/gemini-api/docs/pricing, 2026-10-09); thinking is billed as output text. Gemini returns no cost, only tokens. */
-const GEMINI_LIVE_PER_M = { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 };
-export const geminiLiveUsd = (u: GeminiLiveUsage) =>
-  (u.inputText * GEMINI_LIVE_PER_M.inputText + u.inputAudio * GEMINI_LIVE_PER_M.inputAudio + u.inputMedia * GEMINI_LIVE_PER_M.inputMedia + (u.outputText + u.thoughts) * GEMINI_LIVE_PER_M.outputText + u.outputAudio * GEMINI_LIVE_PER_M.outputAudio) / 1e6;
+/** USD per 1M tokens, Gemini Live paid tier (ai.google.dev/gemini-api/docs/pricing, 3.8 on 2026-10-09, the others 2026-10-13); thinking is billed as output text.
+ *  Gemini returns no cost, only tokens. Audio costs the same on every Live model; only 2.5's text is cheaper. */
+const GEMINI_LIVE_PER_M: Record<string, { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number }> = {
+  'gemini-3.8-live': { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 },
+  'gemini-3.1-flash-live-preview': { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 },
+  'gemini-2.5-flash-native-audio-preview-12-2025': { inputText: 0.5, inputAudio: 3, inputMedia: 3, outputText: 2, outputAudio: 12 },
+};
+export const geminiLiveUsd = (u: GeminiLiveUsage, model = 'gemini-3.8-live') => {
+  const p = GEMINI_LIVE_PER_M[model] ?? GEMINI_LIVE_PER_M['gemini-3.8-live']!;
+  return (u.inputText * p.inputText + u.inputAudio * p.inputAudio + u.inputMedia * p.inputMedia + (u.outputText + u.thoughts) * p.outputText + u.outputAudio * p.outputAudio) / 1e6;
+};
 
 /** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK key only, the upstream provider cost OpenRouter reports separately (on the house key it is already inside `cost`). */
 export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; outputTokens?: number; exact: boolean } {

@@ -4,7 +4,7 @@ import { and, eq, max } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
-import { geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
+import { GEMINI_LIVE_MODELS, geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
@@ -136,20 +136,23 @@ function ownKey(s: LiveState, key: string) {
  *  ponytail: per process, 40 lines, evicted oldest first. */
 const speechCache = new Map<string, Awaited<ReturnType<typeof speak>>>();
 export const clearSpeechCache = () => speechCache.clear();
+async function cachedSpeech(model: string, voice: string, text: string) {
+  const k = `${model}|${voice}|${text}`;
+  let speech = speechCache.get(k);
+  if (!speech) {
+    speech = await speak({ model, voice, text });
+    speechCache.set(k, speech);
+    if (speechCache.size > 40) speechCache.delete(speechCache.keys().next().value!);
+  }
+  return speech;
+}
 
 /** TTS for history entry n, stored at live/{sessionId}/e{n}.mp3 (or .wav for PCM-only voices). A TTS failure degrades to captions only (url null) instead of failing the turn. */
 async function voice(s: LiveState, n: number, text: string, settings: Settings): Promise<{ key?: string; url: string | null; voiceError?: string }> {
   const { tts, ttsVoice } = settings.models;
   try {
     return await liveDeadline((async () => {
-      const k = `${tts}|${ttsVoice}|${text}`;
-      let speech = speechCache.get(k);
-      if (!speech) {
-        speech = await speak({ model: tts, voice: ttsVoice, text });
-        speechCache.set(k, speech);
-        if (speechCache.size > 40) speechCache.delete(speechCache.keys().next().value!);
-      }
-      const { audio, contentType } = speech;
+      const { audio, contentType } = await cachedSpeech(tts, ttsVoice, text);
       const key = `live/${s.sessionId}/e${n}.${contentType === 'audio/wav' ? 'wav' : 'mp3'}`;
       await storage.put(key, audio, contentType);
       return { key, url: await storage.presignGet(key) };
@@ -397,7 +400,7 @@ export function register(app: App) {
       method: 'post',
       path: '/api/live/gemini-token',
       summary: 'Ephemeral Gemini Live token locked to the examiner setup (model, voice, instructions, VAD) for this session',
-      request: body(SessionRef.openapi('LiveGeminiToken')),
+      request: body(SessionRef.extend({ model: z.enum(GEMINI_LIVE_MODELS).optional().openapi({ description: 'Admin playground only; the live examiner uses the server default (GEMINI_LIVE_MODEL)' }) }).openapi('LiveGeminiToken')),
       responses: {
         200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }), model: z.string() }).openapi('GeminiToken'), 'Ephemeral token: pass as access_token to BidiGenerateContentConstrained'),
         400: json(CodedError, 'invalid_key: Gemini rejected the user\'s key'),
@@ -410,8 +413,9 @@ export function register(app: App) {
     async (c) => {
       const payer = c.get('payer')!;
       requireLive(payer, 'gemini-live');
-      const s = await loadSession(c.req.valid('json').sessionId, currentUser(c).id);
-      const model = env.GEMINI_LIVE_MODEL;
+      const b = c.req.valid('json');
+      const s = await loadSession(b.sessionId, currentUser(c).id);
+      const model = b.model ?? env.GEMINI_LIVE_MODEL;
       const req = geminiTokenRequest(model, s.test);
       const t = await mintGeminiToken(liveKey(payer, 'gemini')!, req);
       if (!('name' in t)) {
@@ -434,6 +438,7 @@ export function register(app: App) {
       summary: "Gemini Live token usage of this session, summed by the browser (it talks to Google directly): priced and stored as the session's live cost",
       request: body(
         SessionRef.extend({
+          model: z.enum(GEMINI_LIVE_MODELS).optional().openapi({ description: 'The model the session ran on (default GEMINI_LIVE_MODEL)' }),
           usage: z
             .object(Object.fromEntries((['inputText', 'inputAudio', 'inputMedia', 'outputText', 'outputAudio', 'thoughts'] as const).map((k) => [k, z.number().int().min(0).max(20_000_000)])) as Record<keyof GeminiLiveUsage, z.ZodNumber>)
             .openapi('GeminiLiveUsage', { description: 'Running totals: each report replaces the previous one' }),
@@ -444,7 +449,8 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c), b = c.req.valid('json');
       const s = await loadSession(b.sessionId, user.id);
-      const usage = b.usage as GeminiLiveUsage, costUsd = geminiLiveUsd(usage);
+      const model = b.model ?? env.GEMINI_LIVE_MODEL;
+      const usage = b.usage as GeminiLiveUsage, costUsd = geminiLiveUsd(usage, model);
       // One row per session: the token-mint placeholders and any earlier report give way to this running total.
       // ponytail: client-reported (Google bills the browser's socket, the server never sees tokens); admin ledger only, never charged to users.
       // Totals only grow, so a later, smaller report never lowers what is recorded.
@@ -453,7 +459,7 @@ export function register(app: App) {
       if ((prev?.usd ?? 0) > costUsd) return c.json({ costUsd: Math.round(prev!.usd! * 1e6) / 1e6 }, 200);
       await db.delete(aiCosts).where(mine);
       recordCost({
-        stage: 'live_realtime', provider: 'gemini', model: env.GEMINI_LIVE_MODEL, costUsd, userId: user.id, sessionId: s.sessionId, paidBy: c.get('payer')!.keys.gemini ? 'own_key' : 'house',
+        stage: 'live_realtime', provider: 'gemini', model, costUsd, userId: user.id, sessionId: s.sessionId, paidBy: c.get('payer')!.keys.gemini ? 'own_key' : 'house',
         inputTokens: usage.inputText + usage.inputAudio + usage.inputMedia, outputTokens: usage.outputText + usage.outputAudio + usage.thoughts,
         meta: { estimated: true, reported: true, usage },
       });

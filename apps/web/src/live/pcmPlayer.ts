@@ -30,6 +30,11 @@ export class PcmPlayer {
     return Math.max(0, this.next - this.ctx.currentTime);
   }
 
+  /** Examiner audio is playing, or ended less than `tailS` ago (room echo). */
+  busy(tailS = 0.15) {
+    return this.next > 0 && this.ctx.currentTime < this.next + tailS;
+  }
+
   flush() {
     for (const s of this.live) {
       s.onended = null;

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useDuplexExaminer, type Handlers } from './duplex';
+import { ANSWER_MS, OWE_MS, stalled, useDuplexExaminer, type Handlers } from './duplex';
 
 const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), examiner: vi.fn(), question: vi.fn(), output: vi.fn(), session: vi.fn(), finish: vi.fn(), level: 0 }));
 vi.mock('./turn', async (original) => ({ ...await original<typeof import('./turn')>(), usePartRecorder: () => rec }));
@@ -9,9 +9,14 @@ vi.mock('@/lib/api', async (original) => ({ ...await original<typeof import('@/l
 beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); rec.start.mockResolvedValue(undefined); rec.stop.mockResolvedValue(undefined); rec.finish.mockResolvedValue([]); });
 afterEach(() => vi.useRealTimers());
 
-async function setup() {
+const NUDGES = ['continue', 'repeat'];
+/** `silent`: the examiner never answers anything. Otherwise it answers the stall watchdog's nudges with a question. */
+async function setup(silent = false) {
   let h!: Handlers;
-  const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue: vi.fn(), listen: vi.fn(), close: vi.fn() };
+  const cue = vi.fn((_t: string, _heard?: boolean, key?: string) => {
+    if (!silent && NUDGES.includes(key!)) (h.speaking(true), h.caption('And why is that?'), h.speaking(false));
+  });
+  const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue, listen: vi.fn(), close: vi.fn() };
   const hook = renderHook(() => useDuplexExaminer(() => transport, vi.fn()));
   await act(() => hook.result.current.start());
   return { ...hook, h, transport };
@@ -25,17 +30,48 @@ it('a connected but silent examiner leaves thinking within a bounded wait', asyn
   unmount();
 });
 
-it('candidate activity resets the reply deadline, but a missing reply eventually offers scoring', async () => {
-  const { result, h, unmount } = await setup();
-  act(() => { h.speaking(true); h.speaking(false); h.pending?.(); });
-  act(() => vi.advanceTimersByTime(40_000));
-  act(() => h.pending?.());
-  act(() => vi.advanceTimersByTime(40_000));
-  expect(result.current.status).toBe('candidate');
-  act(() => vi.advanceTimersByTime(5000));
+it('an examiner that never answers a finished answer is nudged to continue (keeping the answer), then counts as lost', async () => {
+  const { result, h, transport, unmount } = await setup(true);
+  act(() => { h.speaking(true); h.caption('Do you work or are you a student?'); h.speaking(false); h.pending?.(true); });
+  act(() => vi.advanceTimersByTime(60_000)); // a long answer: no nudge while the candidate talks
+  expect(transport.cue).not.toHaveBeenCalled();
+  act(() => h.pending?.(false));
+  act(() => vi.advanceTimersByTime(OWE_MS + 1000));
+  expect(transport.cue.mock.calls.map((c) => [c[1], c[2]])).toEqual([[true, 'continue']]);
+  expect(transport.cue.mock.calls[0]![0]).toMatch(/the introduction/);
+  act(() => vi.advanceTimersByTime(3 * (OWE_MS + 1000)));
   expect(result.current.status).toBe('error');
   expect(result.current.retryLabel).toBe('Score what I recorded');
   unmount();
+});
+
+it('the examiner ending a turn on an announcement is nudged; a question with no answer is repeated once, never while the candidate talks', async () => {
+  const { result, h, transport, unmount } = await setup(true);
+  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // Part 1
+  act(() => { h.speaking(true); h.caption("Thank you. Now let's move on to the next part."); h.speaking(false); });
+  act(() => vi.advanceTimersByTime(OWE_MS + 1000));
+  expect(transport.cue.mock.calls.at(-1)![2]).toBe('continue');
+  expect(transport.cue.mock.calls.at(-1)![0]).toMatch(/Part 1.*do not move to another part/);
+  act(() => { h.speaking(true); h.caption('What do you like about it?'); h.speaking(false); });
+  act(() => vi.advanceTimersByTime(ANSWER_MS - 2000));
+  expect(transport.cue).toHaveBeenCalledTimes(1);
+  act(() => vi.advanceTimersByTime(3000));
+  expect(transport.cue.mock.calls.at(-1)![2]).toBe('repeat');
+  expect(result.current.status).toBe('thinking');
+  unmount();
+});
+
+it('stalled() decides who owes the next turn', () => {
+  const base = { phase: 'p3' as const, examinerOn: false, talking: false, line: 'Why do you think that is?', examinerEnd: 0, candidateAt: 0, now: 0 };
+  expect(stalled({ ...base, now: ANSWER_MS - 1 })).toBeNull();
+  expect(stalled({ ...base, now: ANSWER_MS })).toBe('repeat');
+  expect(stalled({ ...base, line: 'Thank you for explaining that.', now: OWE_MS })).toBe('continue');
+  expect(stalled({ ...base, line: 'He asked, "Why not?"', now: OWE_MS })).toBeNull();
+  expect(stalled({ ...base, candidateAt: 1000, now: 1000 + OWE_MS })).toBe('continue');
+  expect(stalled({ ...base, candidateAt: 1000, talking: true, now: 60_000 })).toBeNull();
+  expect(stalled({ ...base, candidateAt: 1000, talking: true, now: 100_000 })).toBe('continue'); // a stuck voice detector
+  expect(stalled({ ...base, examinerOn: true, now: 99_999 })).toBeNull();
+  expect(stalled({ ...base, phase: 'p2-talk', now: 99_999 })).toBeNull();
 });
 
 it('Part 2 gets a full prep minute and two-minute talk after the cue lines finish', async () => {
@@ -94,20 +130,21 @@ it('the examiner moving to Part 2 on its own shows the cue card and starts the p
   expect(result.current.phase).toBe('p2-prep');
   expect(result.current.cueCard).toEqual({ title: 'Topic' });
   expect(transport.listen).toHaveBeenCalledWith(false);
-  expect(transport.cue).not.toHaveBeenCalled();
+  expect(transport.cue.mock.calls.filter((c) => !NUDGES.includes(c[2]!))).toEqual([]);
   expect(result.current.prepLeft).toBe(60);
   act(() => { vi.advanceTimersByTime(10_000); h.speaking(false); }); // prep starts once the instructions end
   await act(async () => vi.advanceTimersByTime(60_000));
   expect(result.current.phase).toBe('p2-talk');
   await act(async () => vi.advanceTimersByTime(270_000)); // the old Part 1 timer must not fire a second Part 2
-  expect(transport.cue.mock.calls.map((c) => c[2])).toEqual(['talk']);
+  expect(transport.cue.mock.calls.map((c) => c[2]).filter((k) => !NUDGES.includes(k!))).toEqual(['talk']);
   unmount();
 });
 
 it('record: false (playground) runs the script without recording parts, and debug taps see transport events before the examiner does', async () => {
   let h!: Handlers;
   const seen: string[] = [];
-  const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue: vi.fn(), listen: vi.fn(), close: vi.fn() };
+  const cue = vi.fn((_t: string, _heard?: boolean, key?: string) => void (NUDGES.includes(key!) && (h.speaking(true), h.speaking(false))));
+  const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue, listen: vi.fn(), close: vi.fn() };
   const { result, unmount } = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false, debug: { heard: (t) => seen.push(`heard ${t}`), speaking: (on) => seen.push(`speaking ${on}`) } }));
   await act(() => result.current.start());
   act(() => { h.speaking(true); h.speaking(false); h.heard?.('My name is Jim'); h.answered(); });

@@ -5051,7 +5051,7 @@ export interface components {
         LiveGptCue: {
             sessionId: string;
             /** @enum {string} */
-            cue: "begin" | "part2" | "talk" | "follow" | "follow-timeup" | "closing";
+            cue: "begin" | "part2" | "talk" | "follow" | "follow-timeup" | "closing" | "continue" | "repeat";
         };
         GeminiToken: {
             value: string;
@@ -5061,12 +5061,22 @@ export interface components {
         };
         LiveGeminiToken: {
             sessionId: string;
+            /**
+             * @description Admin playground only; the live examiner uses the server default (GEMINI_LIVE_MODEL)
+             * @enum {string}
+             */
+            model?: "gemini-3.8-live" | "gemini-3.1-flash-live-preview" | "gemini-2.5-flash-native-audio-preview-12-2025";
         };
         GeminiLiveCost: {
             costUsd: number;
         };
         LiveGeminiUsage: {
             sessionId: string;
+            /**
+             * @description The model the session ran on (default GEMINI_LIVE_MODEL)
+             * @enum {string}
+             */
+            model?: "gemini-3.8-live" | "gemini-3.1-flash-live-preview" | "gemini-2.5-flash-native-audio-preview-12-2025";
             usage: components["schemas"]["GeminiLiveUsage"];
         };
         /** @description Running totals: each report replaces the previous one */

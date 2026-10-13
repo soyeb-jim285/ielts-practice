@@ -9,7 +9,7 @@ import { useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
-import { GeminiDuplex } from '@/live/gemini';
+import { GeminiDuplex, type GeminiModel } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
 
@@ -269,14 +269,17 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 
 // ---------------------------------------------------------------- live examiners
 
-type Engine = 'gemini' | 'gpt-live' | RealtimeModel;
+type Engine = GeminiModel | 'gpt-live' | RealtimeModel;
+const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
   { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
   { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
   { value: 'gpt-realtime', label: 'OpenAI Realtime', note: 'gpt-realtime, ~$0.06/min' },
   { value: 'gpt-live', label: 'OpenAI Live', note: 'gpt-live-1, $0.05/min' },
-  { value: 'gemini', label: 'Gemini Live', note: 'gemini-3.8-live, priced per token' },
+  { value: 'gemini-3.8-live', label: 'Gemini 3.8 Live', note: 'gemini-3.8-live, ~$0.01/min + context' },
+  { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live', note: 'legacy preview, no proactive audio, same price' },
+  { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Live', note: 'older accounts only, cheaper text, same audio price' },
 ];
 
 function ExaminerLab() {
@@ -310,7 +313,7 @@ function ExaminerRun({ engine }: { engine: Engine }) {
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
-  const make = (): Duplex => (duplex.current = engine === 'gemini' ? new GeminiDuplex() : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+  const make = (): Duplex => (duplex.current = isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {
@@ -362,7 +365,7 @@ function ExaminerRun({ engine }: { engine: Engine }) {
 
   const secs = (now - t0.current) / 1000;
   const d = duplex.current;
-  const cost = d instanceof GeminiDuplex ? geminiUsd(d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
+  const cost = d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
   const lat = lines.flatMap((l) => (l.latencyMs != null ? [l.latencyMs] : []));
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);

@@ -3,6 +3,9 @@
 import type { SpeakingTest } from '../routes/prompts';
 import { realtimeInstructions } from './examiner';
 
+/** Live models the examiner can run on. 3.8 is the default; 3.1 Flash Live (legacy preview) has no proactive audio, so it never chooses to stay silent;
+ *  2.5 Flash native audio is limited to accounts that used 2.5 before. Admin playground picks; the live examiner uses GEMINI_LIVE_MODEL. */
+export const GEMINI_LIVE_MODELS = ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-2.5-flash-native-audio-preview-12-2025'] as const;
 export const GEMINI_VOICE = 'Charon'; // same prebuilt voice set as the Gemini TTS the turn-based examiner uses
 const TOKEN_MS = 20 * 60_000; // first connect and reconnects (sessionResumption) must happen within this window
 

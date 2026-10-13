@@ -195,7 +195,8 @@ export function startRun(o: { userId: string; paidBy?: 'house' | 'own_key'; sess
     },
     cue(c) {
       if (!run.ready) return false;
-      run.transcript.setPhase(CUE_PHASE[c]);
+      const ph = CUE_PHASE[c];
+      if (ph) run.transcript.setPhase(ph);
       return run.send(cueEvent(c, o.test, candidateFacts(run.transcript.turns)));
     },
     end() {

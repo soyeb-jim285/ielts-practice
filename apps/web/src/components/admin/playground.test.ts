@@ -16,7 +16,9 @@ it('maps recorder MIME types and file names to the upload format', () => {
 });
 
 it('prices the live engines', () => {
-  expect(geminiUsd({ inputText: 1e6, inputAudio: 1e6, inputMedia: 0, outputText: 0, outputAudio: 1e6, thoughts: 1e6 })).toBeCloseTo(0.75 + 3 + 12 + 4.5);
+  const g = { inputText: 1e6, inputAudio: 1e6, inputMedia: 0, outputText: 0, outputAudio: 1e6, thoughts: 1e6 };
+  expect(geminiUsd('gemini-3.8-live', g)).toBeCloseTo(0.75 + 3 + 12 + 4.5);
+  expect(geminiUsd('gemini-2.5-flash-native-audio-preview-12-2025', g)).toBeCloseTo(0.5 + 3 + 12 + 2);
   expect(gptLiveUsd(120)).toBeCloseTo(0.1);
   // response.done usage: cached tokens are inside the text/audio counts and are billed at the cached rate instead
   const u = addRealtimeUsage(emptyRealtimeUsage(), { input_token_details: { text_tokens: 1000, audio_tokens: 3000, cached_tokens: 1500, cached_tokens_details: { text_tokens: 500, audio_tokens: 1000 } }, output_token_details: { text_tokens: 100, audio_tokens: 400 } });

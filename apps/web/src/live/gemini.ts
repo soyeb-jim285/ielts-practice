@@ -10,6 +10,8 @@ import type { LiveExaminer, LiveSource } from './turn';
 const CONNECT_MS = 15_000;
 const RECONNECTS = 3; // a connection lives ~10 min; sessionResumption carries the test across it
 const FALLBACK_HINT = 'Try again, or switch to the turn-based examiner in Settings.';
+const VOICE_RMS = 0.02; // mic block loudness that counts as the candidate talking (echo cancellation and noise suppression are on)
+const VOICE_HANG_MS = 800; // quiet this long ends the candidate's talking
 // Posts the mic's samples to the page in ~20 ms blocks (resampling and encoding happen there, in pcm.ts).
 const WORKLET = `class C extends AudioWorkletProcessor {
   constructor() { super(); this.b = new Float32Array(1024); this.n = 0; }
@@ -21,6 +23,8 @@ const WORKLET = `class C extends AudioWorkletProcessor {
 }
 registerProcessor('pcm-capture', C);`;
 
+export type GeminiModel = 'gemini-3.8-live' | 'gemini-3.1-flash-live-preview' | 'gemini-2.5-flash-native-audio-preview-12-2025';
+
 export class GeminiDuplex implements Duplex {
   private h!: Handlers;
   private ws?: WebSocket;
@@ -28,7 +32,7 @@ export class GeminiDuplex implements Duplex {
   private ctx?: AudioContext;
   private player?: PcmPlayer;
   private token = '';
-  private model = '';
+  private model: string;
   private handle?: string; // latest session resumption handle
   private ready = false; // setupComplete received on the current socket
   private closed = false;
@@ -40,8 +44,15 @@ export class GeminiDuplex implements Duplex {
   private heard = false; // the candidate spoke since the last cue or answer
   private speaking = false;
   private endTimer?: ReturnType<typeof setTimeout>;
+  private voiceAt = 0; // last loud mic block, for the stall watchdog (Gemini's own VAD events don't reach the client)
+  private talking = false;
   private queued?: string; // a cue sent while reconnecting
   private chain: Promise<void> = Promise.resolve(); // frames are handled in arrival order even when they need an async Blob read
+
+  /** `model`: admin playground only; the live examiner takes the server's default (the token says which). */
+  constructor(model?: GeminiModel) {
+    this.model = model ?? '';
+  }
 
   private send(m: object) {
     if (this.ready && this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));
@@ -50,7 +61,7 @@ export class GeminiDuplex implements Duplex {
   async connect(h: Handlers, sessionId: string) {
     this.h = h;
     this.sessionId = sessionId;
-    const t = await api.post<{ value: string; model: string }>('/live/gemini-token', { sessionId });
+    const t = await api.post<{ value: string; model: string }>('/live/gemini-token', { sessionId, ...(this.model && { model: this.model }) });
     if (this.closed) throw new Error('The examiner connection was cancelled.');
     this.token = t.value;
     this.model = t.model;
@@ -71,8 +82,12 @@ export class GeminiDuplex implements Duplex {
       // Half duplex: the examiner plays through Web Audio, which the browser's echo cancellation may not cover, so the mic would hear the examiner
       // and Gemini would take it as the candidate interrupting (it stops after "Hello." and waits). Silence keeps the stream's clock for its VAD.
       // ponytail: the candidate can't talk over the examiner; route the player through WebRTC if barge-in matters.
+      // Only while examiner audio is actually playing: the old `speaking` flag stayed on 2.5 s past the last chunk and cut the start of each answer,
+      // so the examiner missed it and asked the same question again (seen 2026-10-11).
       const block = e.data as Float32Array;
-      for (const chunk of enc.push(this.speaking ? new Float32Array(block.length) : block)) this.send(audioMessage(chunk));
+      const playing = !!this.player?.busy();
+      if (!playing) this.voice(block);
+      for (const chunk of enc.push(playing ? new Float32Array(block.length) : block)) this.send(audioMessage(chunk));
     };
     ctx.createMediaStreamSource(this.mic).connect(node);
     node.connect(ctx.destination); // silent output; keeps the capture node running
@@ -134,6 +149,15 @@ export class GeminiDuplex implements Duplex {
     if (!this.closed) this.h.lost();
   }
 
+  private voice(block: Float32Array) {
+    let sum = 0;
+    for (const x of block) sum += x * x;
+    const now = Date.now(), loud = Math.sqrt(sum / block.length) > VOICE_RMS;
+    if (loud) this.voiceAt = now;
+    const talking = now - this.voiceAt < VOICE_HANG_MS;
+    if (talking !== this.talking) (this.talking = talking), this.h.pending?.(talking);
+  }
+
   private speak(on: boolean) {
     if (this.speaking === on) return;
     this.speaking = on;
@@ -168,7 +192,7 @@ export class GeminiDuplex implements Duplex {
       case 'inText':
         this.h.heard?.(ev.text);
         this.heard = true;
-        this.h.pending?.();
+        this.h.pending?.(this.talking);
         break;
       case 'audio':
         this.turnStart();
@@ -201,8 +225,8 @@ export class GeminiDuplex implements Duplex {
     }
   }
 
-  cue(text: string) {
-    this.heard = false;
+  cue(text: string, heard = false) {
+    if (!heard) this.heard = false;
     this.player?.flush(); // cut the examiner off at once; the server interrupts its generation too
     clearTimeout(this.endTimer);
     this.speak(false);
@@ -220,7 +244,7 @@ export class GeminiDuplex implements Duplex {
   private reportUsage() {
     const u = this.usage;
     if (!this.sessionId || !Object.values(u).some(Boolean)) return;
-    void fetch('/api/live/gemini-usage', { method: 'POST', credentials: 'include', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: this.sessionId, usage: u }) }).catch(() => {});
+    void fetch('/api/live/gemini-usage', { method: 'POST', credentials: 'include', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: this.sessionId, model: this.model, usage: u }) }).catch(() => {});
   }
 
   close() {

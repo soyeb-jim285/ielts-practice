@@ -129,9 +129,9 @@ export class GptLiveDuplex implements Duplex {
     });
   }
 
-  cue(_text: string, _heard = false, key?: CueKey) {
+  cue(_text: string, heard = false, key?: CueKey) {
     clearTimeout(this.idle);
-    this.heard = false;
+    if (!heard) this.heard = false;
     this.fresh = true;
     this.speak(false);
     if (key) this.queueCue(key);
