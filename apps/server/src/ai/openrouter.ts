@@ -240,11 +240,11 @@ export async function chatText(o: {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   temperature?: number;
   maxTokens?: number;
-  /** Reasoning effort for reasoning models: a one-line examiner turn does not need the default (medium) thinking time. */
-  effort?: 'low' | 'medium' | 'high';
+  /** Reasoning effort for reasoning models: a one-line examiner turn does not need the default (medium) thinking time. 'none' turns reasoning off. */
+  effort?: 'none' | 'low' | 'medium' | 'high';
   cost?: CostTag;
 }): Promise<string> {
-  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: { effort: o.effort } }) }, undefined, undefined, { stage: 'examiner_llm', ...o.cost });
+  return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: o.effort === 'none' ? { enabled: false } : { effort: o.effort } }) }, undefined, undefined, { stage: 'examiner_llm', ...o.cost });
 }
 
 /** TypeSafe Jev (System One): typed decisions with probabilities, not text. ~$0.00002 a call. */

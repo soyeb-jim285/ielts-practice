@@ -23,11 +23,14 @@ export const realtimeSession = (model: RealtimeModel, t: SpeakingTest) => ({
   },
 });
 
-export async function mintRealtimeSecret(apiKey: string, model: RealtimeModel, t: SpeakingTest): Promise<{ value: string; expiresAt: number } | { status: number; detail: string }> {
+export const mintRealtimeSecret = (apiKey: string, model: RealtimeModel, t: SpeakingTest) => mintClientSecret(apiKey, realtimeSession(model, t));
+
+/** A client secret locked to `session` (a realtime or a transcription session). */
+export async function mintClientSecret(apiKey: string, session: object): Promise<{ value: string; expiresAt: number } | { status: number; detail: string }> {
   const res = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 600 }, session: realtimeSession(model, t) }),
+    body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 600 }, session }),
     signal: AbortSignal.timeout(20_000),
   }).catch(() => null);
   if (!res?.ok) return { status: res?.status ?? 0, detail: (await res?.text().catch(() => ''))?.slice(0, 500) ?? '' };

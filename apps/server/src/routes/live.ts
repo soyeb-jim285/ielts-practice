@@ -5,7 +5,8 @@ import { HTTPException } from 'hono/http-exception';
 import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { GEMINI_LIVE_MODELS, geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
-import { mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
+import { mintClientSecret, mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
+import { CASCADE_LLMS, CASCADE_STT, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, spokenLine, transcriptionSession } from '../ai/cascade';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
@@ -529,6 +530,92 @@ export function register(app: App) {
         inputTokens: usage.textIn + usage.audioIn + usage.cachedIn, outputTokens: usage.textOut + usage.audioOut, meta: { estimated: true, reported: true, usage },
       });
       return c.json({ costUsd: Math.round(costUsd * 1e6) / 1e6 }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/cascade/stt-token',
+      summary: 'Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe)',
+      request: body(SessionRef.openapi('LiveCascadeSttToken')),
+      responses: {
+        200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }) }).openapi('CascadeSttToken'), 'Client secret: Bearer for POST /v1/realtime/calls'),
+        400: json(CodedError, "invalid_key: OpenAI rejected the user's key"),
+        ...needsKey,
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+        502: json(ErrorSchema, 'OpenAI error'),
+      },
+    }),
+    async (c) => {
+      const payer = c.get('payer')!, user = currentUser(c);
+      requireLive(payer, 'realtime-mini');
+      await loadSession(c.req.valid('json').sessionId, user.id);
+      const apiKey = liveKey(payer, 'openai')!;
+      const t = await mintClientSecret(apiKey, transcriptionSession());
+      if (!('value' in t)) {
+        console.error('openai transcription client_secrets', t.status, redact(t.detail, apiKey));
+        if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
+        return c.json({ error: 'Could not start the transcription session. Please retry.' }, 502);
+      }
+      return c.json({ value: t.value, expiresAt: t.expiresAt }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/cascade/reply',
+      summary: "Fast cascade examiner (admin playground): the examiner's next line from the conversation so far (cheap LLM), voiced inline (TTS)",
+      request: body(
+        SessionRef.extend({
+          turns: z
+            .array(z.object({ role: z.enum(['examiner', 'candidate', 'app']), text: z.string().max(4000) }))
+            .min(1)
+            .max(200)
+            .openapi({ description: "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)" }),
+          llm: z.enum(CASCADE_LLMS).optional(),
+          tts: z.enum(CASCADE_TTS_MODELS).optional(),
+          sttSeconds: z.number().min(0).max(3600).optional().openapi({ description: 'Candidate audio transcribed since the last reply (priced into the ledger)' }),
+        }).openapi('LiveCascadeReply'),
+      ),
+      responses: {
+        200: json(
+          z
+            .object({
+              text: z.string().openapi({ description: 'What the examiner says; empty = stay silent' }),
+              audio: z.string().nullable().openapi({ description: 'Base64 audio of `text`; null when silent or the voice failed' }),
+              contentType: z.string().nullable(),
+              ms: z.object({ llm: z.number(), tts: z.number() }),
+              costUsd: z.number().openapi({ description: 'This reply: STT since the last reply + LLM + TTS (TTS estimated)' }),
+            })
+            .openapi('CascadeLine'),
+          'Next line',
+        ),
+        ...needsKey,
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+        502: json(ErrorSchema, 'AI service error'),
+      },
+    }),
+    async (c) => {
+      const payer = c.get('payer')!, user = currentUser(c), b = c.req.valid('json');
+      requireLive(payer, 'turn');
+      const s = await loadSession(b.sessionId, user.id);
+      const tally = { usd: 0 };
+      return keyCtx.run({ ...keyCtx.getStore(), tally }, async () => {
+        // gpt-4o-mini-transcribe: $0.003/min (developers.openai.com/api/docs/pricing, 2026-10-13); the browser counts the seconds.
+        if (b.sttSeconds) recordCost({ stage: 'live_stt', provider: 'openai', model: CASCADE_STT, costUsd: (b.sttSeconds / 60) * 0.003, audioSeconds: b.sttSeconds, paidBy: payer.keys.openai ? 'own_key' : 'house', meta: { estimated: true } });
+        const t0 = Date.now();
+        const raw = await ai(() => liveDeadline(chatText({ model: b.llm ?? CASCADE_LLMS[0], messages: cascadeMessages(s.test, b.turns), effort: 'none', maxTokens: 200, cost: { stage: 'examiner_llm' } }), 15_000));
+        const text = spokenLine(raw), llm = Date.now() - t0;
+        const tts = b.tts ?? CASCADE_TTS_MODELS[0];
+        const speech = text ? await liveDeadline(cachedSpeech(tts, CASCADE_TTS[tts], text), 12_000).catch((e) => (console.error('cascade TTS failed', (e as Error).message), null)) : null;
+        return c.json({ text, audio: speech ? Buffer.from(speech.audio).toString('base64') : null, contentType: speech?.contentType ?? null, ms: { llm, tts: Date.now() - t0 - llm }, costUsd: Math.round(tally.usd * 1e6) / 1e6 }, 200);
+      });
     },
   );
 

@@ -33,6 +33,7 @@ export function recordCost(row: CostRow): void {
     const ctx = keyCtx.getStore();
     const c = ctx?.cost;
     const { userId, sessionId, paidBy, ...rest } = row;
+    if (ctx?.tally && Number.isFinite(row.costUsd)) ctx.tally.usd += row.costUsd;
     const p = Promise.resolve(
       db.insert(aiCosts).values({
         ...rest,

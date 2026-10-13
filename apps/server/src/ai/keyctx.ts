@@ -10,6 +10,8 @@ export type KeyCtx = {
   openrouter?: string;
   /** Called once when the provider rejects that key (401/403), so it can be flagged invalid. */
   onAuthFail?: () => void;
+  /** Sums every recordCost in this context (a request that reports its own cost). */
+  tally?: { usd: number };
 };
 export const keyCtx = new AsyncLocalStorage<KeyCtx>();
 

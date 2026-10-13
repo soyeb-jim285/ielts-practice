@@ -1821,6 +1821,141 @@
           "transcribeSeconds"
         ]
       },
+      "CascadeSttToken": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "Unix seconds"
+          }
+        },
+        "required": [
+          "value",
+          "expiresAt"
+        ]
+      },
+      "LiveCascadeSttToken": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ]
+      },
+      "CascadeLine": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "What the examiner says; empty = stay silent"
+          },
+          "audio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base64 audio of `text`; null when silent or the voice failed"
+          },
+          "contentType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ms": {
+            "type": "object",
+            "properties": {
+              "llm": {
+                "type": "number"
+              },
+              "tts": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "llm",
+              "tts"
+            ]
+          },
+          "costUsd": {
+            "type": "number",
+            "description": "This reply: STT since the last reply + LLM + TTS (TTS estimated)"
+          }
+        },
+        "required": [
+          "text",
+          "audio",
+          "contentType",
+          "ms",
+          "costUsd"
+        ]
+      },
+      "LiveCascadeReply": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "examiner",
+                    "candidate",
+                    "app"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "role",
+                "text"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)"
+          },
+          "llm": {
+            "type": "string",
+            "enum": [
+              "deepseek/deepseek-v4.1-flash",
+              "openai/gpt-6-luna"
+            ]
+          },
+          "tts": {
+            "type": "string",
+            "enum": [
+              "elevenlabs/eleven-flash-v2.5",
+              "google/gemini-3.8-flash-lite-tts",
+              "google/gemini-3.8-flash-tts"
+            ]
+          },
+          "sttSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3600,
+            "description": "Candidate audio transcribed since the last reply (priced into the ledger)"
+          }
+        },
+        "required": [
+          "sessionId",
+          "turns"
+        ]
+      },
       "LiveFinished": {
         "type": "object",
         "properties": {
@@ -8210,6 +8345,166 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/cascade/stt-token": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveCascadeSttToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Client secret: Bearer for POST /v1/realtime/calls",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CascadeSttToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_key: OpenAI rejected the user's key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenAI error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/cascade/reply": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fast cascade examiner (admin playground): the examiner's next line from the conversation so far (cheap LLM), voiced inline (TTS)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveCascadeReply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Next line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CascadeLine"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

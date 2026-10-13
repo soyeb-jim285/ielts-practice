@@ -1434,6 +1434,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/cascade/stt-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveCascadeSttToken"];
+                };
+            };
+            responses: {
+                /** @description Client secret: Bearer for POST /v1/realtime/calls */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CascadeSttToken"];
+                    };
+                };
+                /** @description invalid_key: OpenAI rejected the user's key */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description OpenAI error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/cascade/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fast cascade examiner (admin playground): the examiner's next line from the conversation so far (cheap LLM), voiced inline (TTS) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveCascadeReply"];
+                };
+            };
+            responses: {
+                /** @description Next line */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CascadeLine"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description AI service error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/finish": {
         parameters: {
             query?: never;
@@ -5118,6 +5279,42 @@ export interface components {
             textOut: number;
             audioOut: number;
             transcribeSeconds: number;
+        };
+        CascadeSttToken: {
+            value: string;
+            /** @description Unix seconds */
+            expiresAt: number;
+        };
+        LiveCascadeSttToken: {
+            sessionId: string;
+        };
+        CascadeLine: {
+            /** @description What the examiner says; empty = stay silent */
+            text: string;
+            /** @description Base64 audio of `text`; null when silent or the voice failed */
+            audio: string | null;
+            contentType: string | null;
+            ms: {
+                llm: number;
+                tts: number;
+            };
+            /** @description This reply: STT since the last reply + LLM + TTS (TTS estimated) */
+            costUsd: number;
+        };
+        LiveCascadeReply: {
+            sessionId: string;
+            /** @description The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix) */
+            turns: {
+                /** @enum {string} */
+                role: "examiner" | "candidate" | "app";
+                text: string;
+            }[];
+            /** @enum {string} */
+            llm?: "deepseek/deepseek-v4.1-flash" | "openai/gpt-6-luna";
+            /** @enum {string} */
+            tts?: "elevenlabs/eleven-flash-v2.5" | "google/gemini-3.8-flash-lite-tts" | "google/gemini-3.8-flash-tts";
+            /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
+            sttSeconds?: number;
         };
         LiveFinished: {
             attemptIds: string[];

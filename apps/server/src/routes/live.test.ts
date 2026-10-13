@@ -238,6 +238,35 @@ it('realtime-token: 403 without an OpenAI key, else mints a client secret locked
   await vi.waitFor(async () => expect((await db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'openai')))).map((r) => [r.costUsd, r.model, r.paidBy])).toEqual([[12.003, 'gpt-realtime-mini', 'own_key']]));
 });
 
+it('cascade: stt-token mints a transcription-session secret; reply runs the cue convention through the LLM and voices the line inline', async () => {
+  const { headers, user } = await testUser();
+  const s = await start(headers);
+  expect((await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(403);
+  await setKey(user.id, 'openai', 'sk-test');
+  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_t', expires_at: 1900000000 }) });
+  const real = globalThis.fetch;
+  globalThis.fetch = openai;
+  try {
+    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).json()).toEqual({ value: 'ek_t', expiresAt: 1900000000 });
+  } finally {
+    globalThis.fetch = real;
+  }
+  expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
+
+  ai = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([9, 9])), '/chat/completions': () => chatReply('Examiner: "Good evening. Can you tell me your full name, please?"') });
+  setFetch(ai);
+  const turns = [{ role: 'app', text: 'Begin the test.' }, { role: 'examiner', text: 'Hello.' }, { role: 'candidate', text: 'Hi, I am Sam.' }];
+  const r = (await (await req('/api/live/cascade/reply', { headers, body: { sessionId: s.sessionId, turns, llm: 'deepseek/deepseek-v4.1-flash', sttSeconds: 60 } })).json()) as any;
+  expect(r).toMatchObject({ text: 'Good evening. Can you tell me your full name, please?', contentType: 'audio/mpeg', audio: expect.any(String) });
+  expect(r.costUsd).toBeGreaterThanOrEqual(0.003); // a minute of transcription at least
+  const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
+  expect(chat.model).toBe('deepseek/deepseek-v4.1-flash');
+  expect(chat.messages[0].content).toMatch(/text-to-speech/);
+  expect(chat.messages.slice(1)).toEqual([{ role: 'user', content: '[APP CUE] Begin the test.' }, { role: 'assistant', content: 'Hello.' }, { role: 'user', content: 'Hi, I am Sam.' }]);
+  expect(chat.reasoning).toEqual({ enabled: false });
+  expect(ai.calls.findLast((c) => c.url.includes('/audio/speech'))!.body).toMatchObject({ model: 'elevenlabs/eleven-flash-v2.5', voice: 'george' });
+});
+
 it('finish creates one live attempt per part and analyses each, once', async () => {
   const { headers } = await testUser();
   const s = await start(headers);

@@ -12,6 +12,7 @@ import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
 import { GeminiDuplex, type GeminiModel } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
+import { CascadeDuplex, type CascadeLlm, type CascadeTts } from '@/live/cascade';
 
 type Tab = 'stt' | 'live';
 export const Route = createFileRoute('/_app/admin/playground')({
@@ -269,9 +270,10 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 
 // ---------------------------------------------------------------- live examiners
 
-type Engine = GeminiModel | 'gpt-live' | RealtimeModel;
+type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade';
 const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
+  { value: 'cascade', label: 'Fast cascade', note: 'streaming STT + cheap LLM + TTS, ~$0.006/min' },
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
   { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
   { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
@@ -282,8 +284,20 @@ const ENGINES: { value: Engine; label: string; note: string }[] = [
   { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Live', note: 'older accounts only, cheaper text, same audio price' },
 ];
 
+const LLMS: { value: CascadeLlm; label: string }[] = [
+  { value: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash (~1-2 s)' },
+  { value: 'openai/gpt-6-luna', label: 'GPT-6 Luna (~1-2 s)' },
+];
+const VOICES: { value: CascadeTts; label: string }[] = [
+  { value: 'elevenlabs/eleven-flash-v2.5', label: 'ElevenLabs Flash v2.5 (~1 s, ~$0.02/1k chars)' },
+  { value: 'google/gemini-3.8-flash-lite-tts', label: 'Gemini 3.8 Flash-Lite TTS (~2.7 s, cheapest)' },
+  { value: 'google/gemini-3.8-flash-tts', label: 'Gemini 3.8 Flash TTS (~3 s, the turn-based voice)' },
+];
+
 function ExaminerLab() {
-  const [engine, setEngine] = useState<Engine>('gpt-realtime-2.1-mini');
+  const [engine, setEngine] = useState<Engine>('cascade');
+  const [llm, setLlm] = useState<CascadeLlm>('deepseek/deepseek-v4.1-flash');
+  const [tts, setTts] = useState<CascadeTts>('elevenlabs/eleven-flash-v2.5');
   const [run, setRun] = useState(0);
   return (
     <div className="space-y-6">
@@ -292,28 +306,39 @@ function ExaminerLab() {
           <Select label="Engine" value={engine} onChange={(e) => setEngine(e.target.value as Engine)} disabled={run > 0} className="min-w-64">
             {ENGINES.map((e) => <option key={e.value} value={e.value}>{e.label} ({e.note})</option>)}
           </Select>
+          {engine === 'cascade' && (
+            <>
+              <Select label="LLM" value={llm} onChange={(e) => setLlm(e.target.value as CascadeLlm)} disabled={run > 0}>
+                {LLMS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </Select>
+              <Select label="Voice" value={tts} onChange={(e) => setTts(e.target.value as CascadeTts)} disabled={run > 0}>
+                {VOICES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </Select>
+            </>
+          )}
           {run > 0 ? (
             <Button variant="destructive" icon={<Square />} onClick={() => setRun(0)}>Stop</Button>
           ) : (
             <Button icon={<Mic />} onClick={() => setRun(Date.now())}>Start a test</Button>
           )}
         </div>
-        <p className="type-caption mt-3">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini cannot be interrupted while it speaks. Latency is from the end of your speech (your mic level) to the examiner's first audio.</p>
+        <p className="type-caption mt-3">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Latency is from the end of your speech (your mic level) to the examiner's first audio.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} engine={engine} />}
+      {run > 0 && <ExaminerRun key={run} engine={engine} llm={llm} tts={tts} />}
     </div>
   );
 }
 
 type Line = { who: 'you' | 'examiner'; text: string; at: number; latencyMs?: number };
 
-function ExaminerRun({ engine }: { engine: Engine }) {
+function ExaminerRun({ engine, llm, tts }: { engine: Engine; llm: CascadeLlm; tts: CascadeTts }) {
   const duplex = useRef<Duplex>(undefined);
   const [lines, setLines] = useState<Line[]>([]);
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
-  const make = (): Duplex => (duplex.current = isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+  const make = (): Duplex =>
+    (duplex.current = engine === 'cascade' ? new CascadeDuplex(llm, tts) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {
@@ -365,7 +390,7 @@ function ExaminerRun({ engine }: { engine: Engine }) {
 
   const secs = (now - t0.current) / 1000;
   const d = duplex.current;
-  const cost = d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
+  const cost = d instanceof CascadeDuplex ? d.stats.costUsd : d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
   const lat = lines.flatMap((l) => (l.latencyMs != null ? [l.latencyMs] : []));
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);
@@ -399,6 +424,7 @@ function ExaminerRun({ engine }: { engine: Engine }) {
               ['Cost so far', `${money(cost)} est.`],
               ['Per minute', secs > 30 ? `${money((cost / secs) * 60)}` : '—'],
               ['Median reply', median != null ? `${(median / 1000).toFixed(1)} s` : '—'],
+              ...(d instanceof CascadeDuplex && d.stats.last ? [['Last LLM / voice', `${(d.stats.last.llm / 1000).toFixed(1)} / ${(d.stats.last.tts / 1000).toFixed(1)} s`]] : []),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="type-num font-medium">{v}</dd></div>
             ))}
