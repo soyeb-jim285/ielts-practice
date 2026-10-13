@@ -2,7 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
-import { audioFormat, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
+import { PronunciationLab } from '@/components/admin/PronunciationLab';
+import { audioFormat, blobToBase64, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
 import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useAdmin } from '@/lib/admin';
@@ -14,9 +15,9 @@ import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
 import { CascadeDuplex, type CascadeLlm, type CascadeTts } from '@/live/cascade';
 
-type Tab = 'stt' | 'live';
+type Tab = 'stt' | 'pron' | 'live';
 export const Route = createFileRoute('/_app/admin/playground')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'live' ? 'live' : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'live' || s.tab === 'pron' ? s.tab : undefined }),
   component: Playground,
 });
 
@@ -27,10 +28,10 @@ function Playground() {
     <PageContainer>
       <AdminHeader
         title="Playground"
-        description="Try transcription models on your own recordings, and talk to each live examiner engine. Runs on the house keys and shows up in Costs."
-        actions={<Segmented label="Mode" value={tab} onChange={(v) => void navigate({ search: { tab: v === 'live' ? 'live' : undefined } })} options={[{ value: 'stt', label: 'Transcription' }, { value: 'live', label: 'Live examiners' }]} />}
+        description="Try transcription models and our pronunciation scorer on your own recordings, and talk to each live examiner engine. Runs on the house keys and shows up in Costs."
+        actions={<Segmented label="Mode" value={tab} onChange={(v) => void navigate({ search: { tab: v === 'stt' ? undefined : v } })} options={[{ value: 'stt', label: 'Transcription' }, { value: 'pron', label: 'Pronunciation' }, { value: 'live', label: 'Live examiners' }]} />}
       />
-      {tab === 'stt' ? <TranscriptionLab /> : <ExaminerLab />}
+      {tab === 'stt' ? <TranscriptionLab /> : tab === 'pron' ? <PronunciationLab /> : <ExaminerLab />}
     </PageContainer>
   );
 }
@@ -56,13 +57,7 @@ const load = (): string[] => {
 };
 const perHour = (m?: SttModel) => (m?.usdPerSecond != null ? `$${(m.usdPerSecond * 3600).toFixed(3)}/h` : m?.usdPerMTokIn != null ? `$${m.usdPerMTokIn}/$${m.usdPerMTokOut} per 1M tok` : 'price ?');
 const money = (x: number | null | undefined) => (x == null ? '—' : x < 0.01 ? `$${x.toFixed(5)}` : `$${x.toFixed(3)}`);
-const toBase64 = (b: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(b);
-  });
+const toBase64 = blobToBase64;
 
 function TranscriptionLab() {
   const models = useAdmin<{ models: SttModel[] }>('/stt/models');

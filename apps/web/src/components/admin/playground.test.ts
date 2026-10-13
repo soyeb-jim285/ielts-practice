@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { addRealtimeUsage, emptyRealtimeUsage } from '@/live/realtime';
-import { audioFormat, encodeWav, geminiUsd, gptLiveUsd, realtimeUsd, transcriptStats } from './playground';
+import { audioFormat, encodeWav, geminiUsd, gptLiveUsd, pronTone, realtimeUsd, transcriptStats } from './playground';
 
 it('counts fillers, immediate repetitions and the speaking rate without fillers', () => {
   const words = ['Um,', 'I', 'I', 'think', 'uh', 'the', 'city', 'is', 'is', 'big.'].map((w, i) => ({ w, start: i * 0.5, end: i * 0.5 + 0.4 }));
@@ -31,4 +31,8 @@ it('encodes 16-bit mono WAV with a valid header and clipped samples', async () =
   const tag = (o: number) => String.fromCharCode(...[0, 1, 2, 3].map((i) => v.getUint8(o + i)));
   expect([tag(0), tag(8), tag(36), v.byteLength, v.getUint32(24, true), v.getUint32(40, true)]).toEqual(['RIFF', 'WAVE', 'data', 50, 16000, 6]);
   expect([v.getInt16(44, true), v.getInt16(46, true), v.getInt16(48, true)]).toEqual([0, 32767, -32767]);
+});
+
+it('bands pronunciation word scores for display', () => {
+  expect([pronTone(92), pronTone(80), pronTone(79.9), pronTone(60), pronTone(12), pronTone(null)]).toEqual(['good', 'good', 'warn', 'warn', 'bad', 'none']);
 });

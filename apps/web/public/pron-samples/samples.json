@@ -1,0 +1,107 @@
+{
+ "source": "speechocean762 test split (Apache-2.0, huggingface.co/datasets/mispeech/speechocean762)",
+ "eval": {
+  "n": 300,
+  "sentencePearson": 0.581,
+  "wordPearson": 0.243,
+  "wordN": 1947
+ },
+ "samples": [
+  {
+   "file": "so762-1.wav",
+   "text": "HEY WATCH OUT FOR MY CUCUMBER",
+   "human": {
+    "accuracy": 3,
+    "completeness": 1.7,
+    "fluency": 0,
+    "prosodic": 0,
+    "total": 0
+   },
+   "ours": 18.8
+  },
+  {
+   "file": "so762-2.wav",
+   "text": "HE COULD NEVER SEE HER BEFORE.",
+   "human": {
+    "accuracy": 7,
+    "completeness": 10.0,
+    "fluency": 5,
+    "prosodic": 6,
+    "total": 6
+   },
+   "ours": 56.5
+  },
+  {
+   "file": "so762-3.wav",
+   "text": "LYNDA LIKES ORANGE",
+   "human": {
+    "accuracy": 8,
+    "completeness": 10.0,
+    "fluency": 8,
+    "prosodic": 7,
+    "total": 7
+   },
+   "ours": 61.3
+  },
+  {
+   "file": "so762-4.wav",
+   "text": "IT WAS ALL THE SAME TO HER",
+   "human": {
+    "accuracy": 8,
+    "completeness": 10.0,
+    "fluency": 9,
+    "prosodic": 9,
+    "total": 8
+   },
+   "ours": 77.0
+  },
+  {
+   "file": "so762-5.wav",
+   "text": "LEARN TO BE COMFORTABLE WITH THE PRESSURE",
+   "human": {
+    "accuracy": 9,
+    "completeness": 10.0,
+    "fluency": 9,
+    "prosodic": 8,
+    "total": 8
+   },
+   "ours": 91.3
+  },
+  {
+   "file": "so762-6.wav",
+   "text": "WE WERE FORTUNATE TO GET BACK INTO THE BALL GAME",
+   "human": {
+    "accuracy": 9,
+    "completeness": 10.0,
+    "fluency": 9,
+    "prosodic": 8,
+    "total": 8
+   },
+   "ours": 75.7
+  },
+  {
+   "file": "so762-7.wav",
+   "text": "IT'S NOT FISH",
+   "human": {
+    "accuracy": 9,
+    "completeness": 10.0,
+    "fluency": 9,
+    "prosodic": 9,
+    "total": 9
+   },
+   "ours": 75.5
+  },
+  {
+   "file": "so762-8.wav",
+   "text": "I TURNED THE CHILD ROUND",
+   "human": {
+    "accuracy": 9,
+    "completeness": 10.0,
+    "fluency": 9,
+    "prosodic": 9,
+    "total": 9
+   },
+   "ours": 72.0
+  }
+ ]
+}

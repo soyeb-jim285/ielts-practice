@@ -30,6 +30,7 @@ const Env = z.object({
   MODAL_KEY: z.string().optional().transform((v) => v || undefined),
   MODAL_SECRET: z.string().optional().transform((v) => v || undefined),
   MODAL_ASR_URL: z.string().default('https://soyeb-jim--verbatim-asr-asr-web.modal.run'),
+  MODAL_PRON_URL: z.string().default('https://soyeb-jim--pronunciation-pron-web.us-east.modal.run'), // modal/pronunciation (wav2vec2 phoneme GOP), same proxy-auth token
   MODAL_USD_PER_HOUR: z.coerce.number().min(0).default(0.59), // T4 list price; playground cost = wall time x this (estimate)
   // Optional outside production: without them, dev falls back to local-disk storage (storage.ts).
   R2_ACCOUNT_ID: z.string().optional().transform((v) => v || undefined),

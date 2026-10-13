@@ -93,3 +93,14 @@ export const realtimeUsd = (model: RealtimeModel, u: RealtimeUsage) => {
 };
 /** GPT-Live bills the session by the second. */
 export const gptLiveUsd = (seconds: number) => (seconds / 60) * 0.05;
+
+export const blobToBase64 = (b: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(b);
+  });
+
+/** Colour band of a pronunciation word score (0-100, uncalibrated): the cut-offs only sort the playground display. */
+export const pronTone = (score: number | null): 'good' | 'warn' | 'bad' | 'none' => (score == null ? 'none' : score >= 80 ? 'good' : score >= 60 ? 'warn' : 'bad');

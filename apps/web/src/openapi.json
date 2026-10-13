@@ -6246,6 +6246,225 @@
           "format"
         ]
       },
+      "AdminPronRun": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "scripted",
+              "spontaneous"
+            ],
+            "description": "scripted: scored against the given text; spontaneous: transcribed first (Whisper small.en)"
+          },
+          "text": {
+            "type": "string"
+          },
+          "audioSeconds": {
+            "type": "number"
+          },
+          "accuracy": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "0-100, phone-weighted mean of word scores; uncalibrated against IELTS bands"
+          },
+          "mispronouncedWords": {
+            "type": "number"
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "word": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "accent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "us",
+                    "gb",
+                    null
+                  ]
+                },
+                "start": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "end": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "phones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "expected": {
+                        "type": "string"
+                      },
+                      "heard": {
+                        "type": "string"
+                      },
+                      "score": {
+                        "type": "number",
+                        "description": "0-1: posterior of the expected phone relative to the best phone heard"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "expected",
+                      "heard",
+                      "score",
+                      "ok"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "word",
+                "score",
+                "accent",
+                "start",
+                "end",
+                "phones"
+              ]
+            }
+          },
+          "fluency": {
+            "type": "object",
+            "properties": {
+              "wordsPerMinute": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "phonesPerSecond": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pauses": {
+                "type": "number"
+              },
+              "longPauses": {
+                "type": "number"
+              },
+              "speakingSeconds": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "wordsPerMinute",
+              "phonesPerSecond",
+              "pauses",
+              "longPauses",
+              "speakingSeconds"
+            ]
+          },
+          "confusions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "expected": {
+                  "type": "string"
+                },
+                "heard": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "expected",
+                "heard",
+                "count"
+              ]
+            }
+          },
+          "timing": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "model": {
+            "type": "string"
+          },
+          "latencyMs": {
+            "type": "number"
+          },
+          "costUsd": {
+            "type": "number",
+            "description": "Estimate: wall time x T4 price"
+          }
+        },
+        "required": [
+          "mode",
+          "text",
+          "audioSeconds",
+          "accuracy",
+          "mispronouncedWords",
+          "words",
+          "fluency",
+          "confusions",
+          "timing",
+          "model",
+          "latencyMs",
+          "costUsd"
+        ]
+      },
+      "AdminPronRequest": {
+        "type": "object",
+        "properties": {
+          "audio": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30000000,
+            "description": "Base64 audio, up to about 22 MB"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "webm",
+              "m4a",
+              "wav",
+              "mp3",
+              "ogg"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "What the speaker read; omit for free speech"
+          }
+        },
+        "required": [
+          "audio",
+          "format"
+        ]
+      },
       "AdminAiLogPage": {
         "type": "object",
         "properties": {
@@ -11136,6 +11355,59 @@
           },
           "502": {
             "description": "The model failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/pronunciation/assess": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Score the pronunciation of one recording (playground): per word and per phone, with fluency numbers",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPronRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Scores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPronRun"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The scorer failed",
             "content": {
               "application/json": {
                 "schema": {

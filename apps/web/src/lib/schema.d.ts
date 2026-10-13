@@ -3953,6 +3953,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/pronunciation/assess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Score the pronunciation of one recording (playground): per word and per phone, with fluency numbers */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminPronRequest"];
+                };
+            };
+            responses: {
+                /** @description Scores */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminPronRun"];
+                    };
+                };
+                /** @description The scorer failed */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/logs": {
         parameters: {
             query?: never;
@@ -6382,6 +6433,60 @@ export interface components {
             prompt?: string;
             /** @description ISO code; null lets the model detect it */
             language?: string | null;
+        };
+        AdminPronRun: {
+            /**
+             * @description scripted: scored against the given text; spontaneous: transcribed first (Whisper small.en)
+             * @enum {string}
+             */
+            mode: "scripted" | "spontaneous";
+            text: string;
+            audioSeconds: number;
+            /** @description 0-100, phone-weighted mean of word scores; uncalibrated against IELTS bands */
+            accuracy: number | null;
+            mispronouncedWords: number;
+            words: {
+                word: string;
+                score: number | null;
+                /** @enum {string|null} */
+                accent: "us" | "gb" | null;
+                start: number | null;
+                end: number | null;
+                phones: {
+                    expected: string;
+                    heard: string;
+                    /** @description 0-1: posterior of the expected phone relative to the best phone heard */
+                    score: number;
+                    ok: boolean;
+                }[];
+            }[];
+            fluency: {
+                wordsPerMinute: number | null;
+                phonesPerSecond: number | null;
+                pauses: number;
+                longPauses: number;
+                speakingSeconds: number;
+            };
+            confusions: {
+                expected: string;
+                heard: string;
+                count: number;
+            }[];
+            timing: {
+                [key: string]: number;
+            };
+            model: string;
+            latencyMs: number;
+            /** @description Estimate: wall time x T4 price */
+            costUsd: number;
+        };
+        AdminPronRequest: {
+            /** @description Base64 audio, up to about 22 MB */
+            audio: string;
+            /** @enum {string} */
+            format: "webm" | "m4a" | "wav" | "mp3" | "ogg";
+            /** @description What the speaker read; omit for free speech */
+            text?: string;
         };
         AdminAiLogPage: {
             items: components["schemas"]["AdminAiLogItem"][];
