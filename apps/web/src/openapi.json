@@ -1854,6 +1854,10 @@
               "gpt-4o-transcribe"
             ],
             "description": "Default scribe_v2_realtime"
+          },
+          "serverVad": {
+            "type": "boolean",
+            "description": "OpenAI only: the session's own silence detection ends answers (default true); false: the browser commits each answer"
           }
         },
         "required": [

@@ -29,14 +29,15 @@ export const CASCADE_STTS = {
 export type CascadeStt = keyof typeof CASCADE_STTS;
 export const CASCADE_STT_MODELS = Object.keys(CASCADE_STTS) as [CascadeStt, ...CascadeStt[]];
 
-/** The OpenAI transcription session a client secret locks: VAD as tolerant of thinking pauses as the realtime examiner's, so the engines compare fairly. */
-export const transcriptionSession = (model: CascadeStt) => ({
+/** The OpenAI transcription session a client secret locks. `serverVad`: its own silence detection (as tolerant of thinking pauses as the realtime
+ *  examiner's) ends each answer; false: the browser does (Smart Turn or its silence timer) and sends input_audio_buffer.commit. */
+export const transcriptionSession = (model: CascadeStt, serverVad = true) => ({
   type: 'transcription',
   audio: {
     input: {
       noise_reduction: { type: 'near_field' },
       transcription: { model, language: 'en' },
-      turn_detection: { type: 'server_vad', silence_duration_ms: 1000, prefix_padding_ms: 300 },
+      turn_detection: serverVad ? { type: 'server_vad', silence_duration_ms: 1000, prefix_padding_ms: 300 } : null,
     },
   },
 });

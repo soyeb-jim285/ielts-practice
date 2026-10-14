@@ -327,7 +327,7 @@ const engineLabel = (engine: Engine, cfg: CascadeConfig) =>
     : [
         'Fast cascade',
         cfg.stt.replace(/^batch:/, 'batch ').replace(/^.*\//, ''),
-        cfg.stt.startsWith('gpt-') ? 'server VAD' : cfg.turn === 'smart' ? `Smart Turn ${cfg.smartModel} ${cfg.smartPauseMs} ms / p${cfg.smartThreshold} / cap ${cfg.smartMaxMs} ms` : `${cfg.silenceMs} ms silence`,
+        cfg.stt.startsWith('gpt-') && cfg.turn === 'server' ? 'server VAD' : cfg.turn !== 'silence' ? `Smart Turn ${cfg.smartModel} ${cfg.smartPauseMs} ms / p${cfg.smartThreshold} / cap ${cfg.smartMaxMs} ms` : `${cfg.silenceMs} ms silence`,
         cfg.stt.startsWith('batch:') && cfg.chunkedStt ? 'chunked STT' : '',
         cfg.llm.replace(/^.*\//, ''),
         cfg.tts.replace(/^.*\//, ''),
@@ -335,9 +335,9 @@ const engineLabel = (engine: Engine, cfg: CascadeConfig) =>
       ].filter(Boolean).join(' · ');
 
 function CascadeSettings({ cfg, set, disabled }: { cfg: CascadeConfig; set: (p: Partial<CascadeConfig>) => void; disabled: boolean }) {
-  const openai = cfg.stt.startsWith('gpt-'), batch = cfg.stt.startsWith('batch:'), smart = cfg.turn === 'smart';
+  const openai = cfg.stt.startsWith('gpt-'), batch = cfg.stt.startsWith('batch:'), smart = cfg.turn === 'smart' || (cfg.turn === 'server' && !openai);
   const num = (k: 'silenceMs' | 'smartPauseMs' | 'smartMaxMs' | 'smartThreshold', label: string, hint: string, step = 50) => (
-    <Input label={label} hint={hint} type="number" step={step} value={cfg[k]} disabled={disabled || openai} onChange={(e) => set({ [k]: Number(e.target.value) })} />
+    <Input label={label} hint={hint} type="number" step={step} value={cfg[k]} disabled={disabled} onChange={(e) => set({ [k]: Number(e.target.value) })} />
   );
   return (
     <div className="mt-4 grid gap-6 md:grid-cols-3">
@@ -350,8 +350,8 @@ function CascadeSettings({ cfg, set, disabled }: { cfg: CascadeConfig; set: (p: 
       </fieldset>
       <fieldset className="space-y-3">
         <legend className="type-h4 mb-1">End of turn</legend>
-        <Select label="Detection" value={openai ? 'server' : cfg.turn} onChange={(e) => set({ turn: e.target.value as CascadeConfig['turn'] })} disabled={disabled || openai} hint={openai ? "OpenAI's server VAD decides (1 s silence)" : 'Smart Turn runs on this device (8 MB model, cached)'}>
-          {openai && <option value="server">Server VAD (OpenAI)</option>}
+        <Select label="Detection" value={!openai && cfg.turn === 'server' ? 'smart' : cfg.turn} onChange={(e) => set({ turn: e.target.value as CascadeConfig['turn'] })} disabled={disabled} hint={cfg.turn === 'server' && openai ? "OpenAI's own silence detection (1 s) ends answers" : 'Decided on this device; the model downloads once and is cached'}>
+          {openai && <option value="server">OpenAI server VAD (1 s silence)</option>}
           <option value="smart">Smart Turn (audio model)</option>
           <option value="silence">Fixed silence</option>
         </Select>
@@ -556,6 +556,7 @@ function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: En
               ['Per minute', secs > 30 ? `${money((cost / secs) * 60)}` : '—'],
               ['Median reply', median != null ? `${(median / 1000).toFixed(1)} s` : '—'],
               ...(d instanceof CascadeDuplex && d.stats.last ? [['Last LLM / voice', `${(d.stats.last.llm / 1000).toFixed(1)} / ${(d.stats.last.tts / 1000).toFixed(1)} s`]] : []),
+              ...(d instanceof CascadeDuplex && d.stats.turnModel !== 'off' ? [['Turn model', `${d.stats.turnModel}${d.stats.lastCheck ? ` · p ${d.stats.lastCheck.p.toFixed(2)} in ${Math.round(d.stats.lastCheck.ms)} ms` : ''}`]] : []),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="type-num font-medium">{v}</dd></div>
             ))}

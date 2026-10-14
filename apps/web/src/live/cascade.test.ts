@@ -181,3 +181,17 @@ it('streamed reply: captions per sentence, clips play in sentence order, and the
     vi.unstubAllGlobals();
   }
 });
+
+it('OpenAI with browser turn detection: Smart Turn ends the answer and the browser commits it to the session', async () => {
+  make({ stt: 'gpt-4o-mini-transcribe', turn: 'smart', smartPauseMs: 240 });
+  const sent: string[] = [];
+  Object.assign(x, { dc: { send: (m: string) => sent.push(m) } });
+  smart.mockResolvedValueOnce({ p: 0.9, ms: 20 });
+  blocks(10, true);
+  blocks(6, false);
+  await flush();
+  expect(sent.map((m) => JSON.parse(m).type)).toEqual(['input_audio_buffer.commit']);
+  expect(x.stats.lastCheck).toEqual({ p: 0.9, ms: 20 });
+  inner().onOpenAi({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Hello.', usage: { type: 'duration', seconds: 1 } });
+  expect(post.mock.calls[0]![1]).toMatchObject({ stt: 'gpt-4o-mini-transcribe', turns: [{ role: 'candidate', text: 'Hello.' }] });
+});

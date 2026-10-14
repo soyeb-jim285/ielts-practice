@@ -24,8 +24,8 @@ export type CascadeConfig = {
   stt: CascadeStt;
   llm: CascadeLlm;
   tts: CascadeTts;
-  /** End of turn (Scribe and batch ears): fixed silence, or Smart Turn after a short pause. */
-  turn: 'smart' | 'silence';
+  /** End of turn: fixed silence or Smart Turn after a short pause, decided in the browser; 'server': the OpenAI session's own silence detection. */
+  turn: 'smart' | 'silence' | 'server';
   silenceMs: number; // silence mode: quiet this long ends the turn
   smartPauseMs: number; // smart mode: run the model after this pause
   smartThreshold: number; // smart mode: P(complete) at or above this ends the turn
@@ -116,10 +116,11 @@ export class CascadeDuplex implements Duplex {
   private turnInfo?: { lastVoice: number; decided: number; model: number; checks: number[] };
   private transcriptAt?: number;
   /** Running totals for the playground: cost (STT + LLM + TTS, from the server), the last reply's server timings, the per-reply timeline. */
-  readonly stats = { costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined, timeline: [] as ReplyTiming[], turnModel: 'off' as 'off' | 'loading' | 'ready' | 'failed' };
+  readonly stats = { costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined, timeline: [] as ReplyTiming[], turnModel: 'off' as 'off' | 'loading' | 'ready' | 'failed', lastCheck: undefined as { p: number; ms: number } | undefined };
 
   constructor(cfg: Partial<CascadeConfig> = {}) {
     this.cfg = { ...DEFAULT_CASCADE, ...cfg };
+    if (this.cfg.turn === 'server' && !this.cfg.stt.startsWith('gpt-')) this.cfg.turn = 'smart'; // only OpenAI has a server VAD
   }
 
   private get ear(): 'scribe' | 'openai' | 'batch' {
@@ -139,10 +140,9 @@ export class CascadeDuplex implements Duplex {
       mic.getTracks().forEach((x) => x.stop());
       throw new Error('The examiner connection was cancelled.');
     }
-    if (this.ear === 'openai') {
-      await this.openOpenAi(mic);
-      return this.cue('Begin the test.');
-    }
+    const serverVad = this.ear === 'openai' && this.cfg.turn === 'server';
+    if (this.ear === 'openai') await this.openOpenAi(mic, serverVad);
+    if (serverVad) return this.cue('Begin the test.');
     if (this.cfg.turn === 'smart') {
       this.stats.turnModel = 'loading';
       // the model loads before the test starts; if it can't, the fixed silence takes over
@@ -214,6 +214,7 @@ export class CascadeDuplex implements Duplex {
     try {
       const { p, ms } = await smartTurnProbability(sum(this.turnAudio), this.cfg.smartModel);
       this.checks.push({ p, ms, pause });
+      this.stats.lastCheck = { p, ms };
       if (!this.inSpeech || pause !== this.pauseId) return; // they spoke again while it ran
       if (p >= this.cfg.smartThreshold) return this.endTurn(this.checks.filter((c) => c.pause === pause).reduce((a, c) => a + c.ms, 0));
       this.checked = true;
@@ -232,6 +233,7 @@ export class CascadeDuplex implements Duplex {
     const decided = performance.now();
     this.turnInfo = { lastVoice: this.lastVoiceAt, decided, model, checks: this.checks.map((c) => Math.round(c.p * 100) / 100) };
     if (this.ear === 'batch') this.sendPiece(true);
+    if (this.ear === 'openai') this.dc?.send(JSON.stringify({ type: 'input_audio_buffer.commit' })); // the session has no VAD: we end the answer
     this.speechEnd(this.ear === 'scribe');
   }
 
@@ -262,8 +264,8 @@ export class CascadeDuplex implements Duplex {
   }
 
   /** OpenAI Realtime transcription session over WebRTC: the mic track goes up, server VAD and transcripts come back on the data channel. */
-  private async openOpenAi(mic: MediaStream) {
-    const t = await api.post<{ value?: string }>('/live/cascade/stt-token', { sessionId: this.sessionId, stt: this.cfg.stt });
+  private async openOpenAi(mic: MediaStream, serverVad: boolean) {
+    const t = await api.post<{ value?: string }>('/live/cascade/stt-token', { sessionId: this.sessionId, stt: this.cfg.stt, serverVad });
     if (!t.value) throw new Error('The transcription service sent no credentials.');
     const pc = (this.pc = new RTCPeerConnection());
     pc.addTrack(mic.getAudioTracks()[0]!, mic);
@@ -497,7 +499,7 @@ export class CascadeDuplex implements Duplex {
   }
 
   private record(a: { lastVoice: number; decided: number; model: number; checks: number[]; heard: number }, r: { sentAt: number; firstAudioAt: number; playAt: number; llm: number; tts: number; serverFirstAudio: number; text: string }, at = Date.now()) {
-    const label = [this.cfg.stt.replace(/^batch:/, 'batch '), this.ear === 'openai' ? 'server VAD' : this.cfg.turn === 'smart' && this.smartOk ? 'Smart Turn' : `${this.cfg.silenceMs} ms silence`, this.cfg.stream ? (this.cfg.sentenceTts ? 'streamed, per sentence' : 'streamed, whole line') : 'one reply'].join(' · ');
+    const label = [this.cfg.stt.replace(/^batch:/, 'batch '), this.ear === 'openai' && this.cfg.turn === 'server' ? 'server VAD' : this.cfg.turn === 'smart' && this.smartOk ? 'Smart Turn' : `${this.cfg.silenceMs} ms silence`, this.cfg.stream ? (this.cfg.sentenceTts ? 'streamed, per sentence' : 'streamed, whole line') : 'one reply'].join(' · ');
     this.stats.timeline = [
       ...this.stats.timeline,
       {

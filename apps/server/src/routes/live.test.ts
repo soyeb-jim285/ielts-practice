@@ -294,6 +294,14 @@ it('cascade: an OpenAI transcriber gets a transcription-session client secret on
     globalThis.fetch = real;
   }
   expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
+  // browser turn detection (Smart Turn / silence timer): the session has no VAD, the browser commits each answer
+  globalThis.fetch = openai;
+  try {
+    await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe', serverVad: false } });
+  } finally {
+    globalThis.fetch = real;
+  }
+  expect(openai.calls[1]!.body.session.audio.input.turn_detection).toBeNull();
 });
 
 it('cascade: reply-stream streams the LLM, voices each sentence as it is written and ends with a done event; transcribe runs a batch STT', async () => {

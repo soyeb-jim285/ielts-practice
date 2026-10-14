@@ -5498,6 +5498,8 @@ export interface components {
              * @enum {string}
              */
             stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
+            /** @description OpenAI only: the session's own silence detection ends answers (default true); false: the browser commits each answer */
+            serverVad?: boolean;
         };
         CascadeLine: {
             /** @description What the examiner says; empty = stay silent */

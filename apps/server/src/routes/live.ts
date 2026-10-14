@@ -561,7 +561,7 @@ export function register(app: App) {
       method: 'post',
       path: '/api/live/cascade/stt-token',
       summary: 'Fast cascade examiner (admin playground): credentials for one streaming transcription session (Scribe v2 Realtime or an OpenAI Realtime transcription session)',
-      request: body(SessionRef.extend({ stt: z.enum(CASCADE_STT_MODELS).optional().openapi({ description: 'Default scribe_v2_realtime' }) }).openapi('LiveCascadeSttToken')),
+      request: body(SessionRef.extend({ stt: z.enum(CASCADE_STT_MODELS).optional().openapi({ description: 'Default scribe_v2_realtime' }), serverVad: z.boolean().optional().openapi({ description: "OpenAI only: the session's own silence detection ends answers (default true); false: the browser commits each answer" }) }).openapi('LiveCascadeSttToken')),
       responses: {
         200: json(
           z
@@ -587,7 +587,7 @@ export function register(app: App) {
         const payer = c.get('payer')!;
         requireLive(payer, 'realtime-mini');
         const apiKey = liveKey(payer, 'openai')!;
-        const t = await mintClientSecret(apiKey, transcriptionSession(stt));
+        const t = await mintClientSecret(apiKey, transcriptionSession(stt, b.serverVad ?? true));
         if (!('value' in t)) {
           console.error('openai transcription client_secrets', t.status, redact(t.detail, apiKey));
           if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
