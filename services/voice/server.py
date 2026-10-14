@@ -9,13 +9,16 @@ speaker. Cues from the page ("Begin the test.", part changes, nudges) arrive as 
 Usage (STT seconds, LLM tokens, TTS characters) is priced here and sent to the page and, at the end, to our API's cost ledger.
 """
 
+import asyncio
 import hashlib
+import random
 import hmac
 import os
 import sys
 import time
 from typing import Any
 
+import aioice.ice
 import httpx
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from loguru import logger
@@ -67,6 +70,33 @@ GEORGE = "JBFqnCBsd6RMkjVDRZzb"  # ElevenLabs "George", the cascade's British ex
 STT_USD_PER_S = {"soniox": 0.12 / 3600, "scribe": 0.39 / 3600}
 TTS_USD_PER_CHAR = {"soniox": 0.014 / 1000, "elevenlabs": 20 / 1e6}
 
+
+def pin_ice():
+    """WebRTC media on the VPS: the cloud firewall drops inbound UDP except one opened range, so host candidates bind only there
+    (VOICE_UDP_PORTS, e.g. 40000-40199) and only on the public addresses (VOICE_ICE_IPS), not on every docker bridge."""
+    ips, ports = os.environ.get("VOICE_ICE_IPS"), os.environ.get("VOICE_UDP_PORTS")
+    if ips:
+        keep = set(ips.split(","))
+        orig_hosts = aioice.ice.get_host_addresses
+        aioice.ice.get_host_addresses = lambda use_ipv4, use_ipv6: [a for a in orig_hosts(use_ipv4, use_ipv6) if a in keep]
+    if ports:
+        lo, hi = (int(x) for x in ports.split("-"))
+        orig_bind = asyncio.base_events.BaseEventLoop.create_datagram_endpoint
+
+        async def bind(self, factory, local_addr=None, **kw):
+            if local_addr and local_addr[1] == 0 and "get_component_candidates" in getattr(factory, "__qualname__", ""):
+                for port in random.sample(range(lo, hi + 1), hi - lo + 1):
+                    try:
+                        return await orig_bind(self, factory, local_addr=(local_addr[0], port), **kw)
+                    except OSError:
+                        continue
+                raise OSError(f"no free UDP port in {ports}")
+            return await orig_bind(self, factory, local_addr=local_addr, **kw)
+
+        asyncio.base_events.BaseEventLoop.create_datagram_endpoint = bind
+
+
+pin_ice()
 app = FastAPI()
 # No STUN: on the VPS (host network) the host candidates already carry the public IP, and gathering against a STUN server held each offer ~5 s.
 handler = SmallWebRTCRequestHandler()
@@ -268,9 +298,22 @@ async def run_bot(conn: SmallWebRTCConnection, data: dict[str, Any]):
             ex.replies = bool(d.get("on"))
             ex.hearing = ex.replies or bool(d.get("fresh"))
 
+    connected = asyncio.Event()
+
     @transport.event_handler("on_client_connected")
     async def on_connected(transport, client):
+        connected.set()
         await cue("Begin the test.")
+
+    async def give_up():
+        # media that never connects (firewall, NAT) must not leave the pipeline and its provider sockets running
+        try:
+            await asyncio.wait_for(connected.wait(), 30)
+        except TimeoutError:
+            logger.warning("WebRTC did not connect within 30 s; ending the session")
+            await runner.cancel()
+
+    asyncio.create_task(give_up())
 
     @transport.event_handler("on_client_disconnected")
     async def on_disconnected(transport, client):

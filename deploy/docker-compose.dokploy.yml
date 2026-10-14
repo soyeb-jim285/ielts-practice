@@ -58,6 +58,9 @@ services:
     environment:
       VOICE_HOST: 172.17.0.1
       VOICE_PORT: "7860"
+      # Hetzner's cloud firewall must allow inbound UDP 40000-40199 (WebRTC media); host candidates use only these ports and the public IP
+      VOICE_UDP_PORTS: 40000-40199
+      VOICE_ICE_IPS: 65.108.216.233
       LOG_LEVEL: INFO
     network_mode: host
     mem_limit: 1g
