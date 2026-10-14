@@ -34,9 +34,9 @@ from pipecat.frames.frames import (
     LLMContextFrame,
     MetricsFrame,
 )
-from pipecat.metrics.metrics import LLMUsageMetricsData, STTUsageMetricsData, TTSUsageMetricsData
+from pipecat.metrics.metrics import LLMUsageMetricsData, SmartTurnMetricsData, STTUsageMetricsData, TTSUsageMetricsData
 from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.worker import PipelineParams, PipelineWorker
+from pipecat.pipeline.worker import PipelineParams, PipelineWorker, ProcessorUnusablePolicy
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair, LLMUserAggregatorParams
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
@@ -195,9 +195,9 @@ class ExaminerGate(FrameProcessor):
 class Meter(FrameProcessor):
     """Adds up usage from the services' metrics and prices it."""
 
-    def __init__(self, cfg: dict, on_cost):
+    def __init__(self, cfg: dict, on_cost, on_turn):
         super().__init__()
-        self.cfg, self.on_cost = cfg, on_cost
+        self.cfg, self.on_cost, self.on_turn = cfg, on_cost, on_turn
         self.stt_s = self.tts_chars = self.llm_in = self.llm_out = 0
         self.usd = 0.0
 
@@ -216,6 +216,9 @@ class Meter(FrameProcessor):
                 elif isinstance(d, STTUsageMetricsData):
                     self.stt_s += d.value.audio_seconds
                     changed = True
+                elif isinstance(d, SmartTurnMetricsData):
+                    logger.info(f"smart turn p={d.probability:.2f} complete={d.is_complete} {d.inference_time_ms:.0f} ms")
+                    await self.on_turn(d)
             if changed:
                 pin, pout = await llm_price(self.cfg["llm"])
                 self.usd = self.llm_in * pin + self.llm_out * pout + self.tts_chars * TTS_USD_PER_CHAR[self.cfg["tts"]]
@@ -277,13 +280,24 @@ async def run_bot(conn: SmallWebRTCConnection, data: dict[str, Any]):
         # Soniox and Scribe bill the audio streamed to them; the transport streams the whole call
         return (time.monotonic() - started) * STT_USD_PER_S[cfg["stt"]]
 
-    meter = Meter(cfg, send_cost)
+    async def send_turn(d: SmartTurnMetricsData):
+        if worker and worker.rtvi:
+            await worker.rtvi.send_server_message({"type": "turn", "p": d.probability, "complete": d.is_complete, "ms": d.inference_time_ms})
+
+    meter = Meter(cfg, send_cost, send_turn)
     gate = ExaminerGate(ex)
     pipeline = Pipeline([transport.input(), stt, user_agg, gate, llm, tts, transport.output(), assistant_agg, meter])
-    worker = PipelineWorker(pipeline, params=PipelineParams(enable_metrics=True, enable_usage_metrics=True), idle_timeout_secs=600)
+    # a service that can't work (bad key, rejected model) ends the session, so the page shows it instead of waiting for a voice that never comes
+    worker = PipelineWorker(
+        pipeline,
+        params=PipelineParams(enable_metrics=True, enable_usage_metrics=True),
+        idle_timeout_secs=600,
+        processor_unusable_policy=ProcessorUnusablePolicy.END,
+    )
     runner = WorkerRunner(handle_sigint=False)
 
     async def cue(text: str):
+        logger.info(f"cue: {text[:60]}")
         await gate.broadcast_interruption()  # a cue cuts the examiner off, like the cascade's
         context.add_message({"role": "user", "content": cue_prefix + text})
         ex.reply_until = time.monotonic() + 12

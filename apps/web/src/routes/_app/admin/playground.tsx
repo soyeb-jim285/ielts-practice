@@ -429,7 +429,6 @@ function PipecatSettings({ cfg, set, disabled }: { cfg: PipecatConfig; set: (p: 
           <Select label="ElevenLabs model" value={cfg.ttsModel} disabled={disabled} onChange={(e) => set({ ttsModel: e.target.value as PipecatConfig['ttsModel'] })}>
             <option value="eleven_flash_v2_5">Flash v2.5 (fastest)</option>
             <option value="eleven_turbo_v2_5">Turbo v2.5</option>
-            <option value="eleven_v4_turbo">v4 Turbo</option>
           </Select>
         )}
         <Input label="Voice name or id" hint={cfg.tts === 'soniox' ? 'empty: Adrian' : 'empty: George (British)'} value={cfg.voice} disabled={disabled} onChange={(e) => set({ voice: e.target.value.trim() })} />
@@ -618,6 +617,7 @@ function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine
               ['Per minute', secs > 30 ? `${money((cost / secs) * 60)}` : '—'],
               ['Median reply', median != null ? `${(median / 1000).toFixed(1)} s` : '—'],
               ...(d instanceof CascadeDuplex && d.stats.last ? [['Last LLM / voice', `${(d.stats.last.llm / 1000).toFixed(1)} / ${(d.stats.last.tts / 1000).toFixed(1)} s`]] : []),
+              ...(d instanceof PipecatDuplex && d.stats.lastCheck ? [['Turn model', `Smart Turn (server) · p ${d.stats.lastCheck.p.toFixed(2)} in ${Math.round(d.stats.lastCheck.ms)} ms`]] : []),
               ...(d instanceof CascadeDuplex && d.stats.turnModel !== 'off' ? [['Turn model', `${d.stats.turnModel}${d.stats.lastCheck ? ` · p ${d.stats.lastCheck.p.toFixed(2)} in ${Math.round(d.stats.lastCheck.ms)} ms` : ''}`]] : []),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="type-num font-medium">{v}</dd></div>

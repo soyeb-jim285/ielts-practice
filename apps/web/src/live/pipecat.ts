@@ -10,7 +10,7 @@ export type PipecatConfig = {
   stt: 'soniox' | 'scribe';
   llm: 'deepseek/deepseek-v4.1-flash' | 'inception/mercury-2.5' | 'mistralai/mistral-small-3.2-24b-instruct' | 'openai/gpt-6-luna';
   tts: 'soniox' | 'elevenlabs';
-  ttsModel: 'eleven_flash_v2_5' | 'eleven_turbo_v2_5' | 'eleven_v4_turbo';
+  ttsModel: 'eleven_flash_v2_5' | 'eleven_turbo_v2_5'; // ElevenLabs' streaming endpoint rejects the v4 models
   /** Soniox voice name, or an ElevenLabs voice id; empty: the default (Soniox "Adrian", ElevenLabs "George"). */
   voice: string;
   /** Silero VAD: quiet this long is a pause, where Smart Turn decides. */
@@ -23,7 +23,7 @@ export const DEFAULT_PIPECAT: PipecatConfig = { stt: 'soniox', llm: 'deepseek/de
 const VOICE_RMS = 0.02; // the cascade's speech loudness, for "your last sound" on this device
 
 export class PipecatDuplex implements Duplex {
-  readonly stats = { steps: [] as StartupStep[], costUsd: 0, timeline: [] as ReplyTiming[] };
+  readonly stats = { steps: [] as StartupStep[], costUsd: 0, timeline: [] as ReplyTiming[], lastCheck: undefined as { p: number; ms: number } | undefined };
   private client?: PipecatClient;
   private h!: Handlers;
   private closed = false;
@@ -37,6 +37,9 @@ export class PipecatDuplex implements Duplex {
   private waiting = false; // a finished answer is waiting for the examiner's voice
   private heardText = '';
   private said = new Set<number | string>(); // sentences captioned in the current line
+  private newLine = true; // the next voice starts a new examiner line (after an answer or a cue)
+  private inTurn = false;
+  private checks: { p: number; ms: number }[] = []; // Smart Turn's verdicts in the current answer
 
   constructor(private cfg: PipecatConfig) {}
 
@@ -78,9 +81,9 @@ export class PipecatDuplex implements Duplex {
         onBotStartedSpeaking: () => {
           if (first.state === 'running') (first.state = 'done'), (first.ms = performance.now() - firstAt);
           if (this.waiting) this.record();
-          this.said.clear();
           h.speaking(true); // voice first, then the caption: listeners time the reply from the voice and start a new line on it
-          h.caption('');
+          // a gap between two sentences of the same reply also stops and restarts the bot's voice: only a reply starts a new caption
+          if (this.newLine) (this.newLine = false), this.said.clear(), h.caption('');
         },
         onBotStoppedSpeaking: () => h.speaking(false),
         onBotOutput: (d) => {
@@ -92,11 +95,14 @@ export class PipecatDuplex implements Duplex {
         },
         onUserStartedSpeaking: () => {
           this.waiting = false;
+          if (!this.inTurn) (this.inTurn = true), (this.checks = []);
           h.pending?.(true);
         },
         onUserStoppedSpeaking: () => {
           this.stoppedAt = performance.now();
-          this.voiceAtStop = this.lastVoice; // sound after this (a pause the server already called the end) is not part of the answer
+          this.newLine = true;
+          this.voiceAtStop = this.lastVoice;
+          this.inTurn = false; // sound after this (a pause the server already called the end) is not part of the answer
           this.ttfb = {};
           this.waiting = true;
           h.pending?.(false);
@@ -113,8 +119,9 @@ export class PipecatDuplex implements Duplex {
             if (k) this.ttfb[k] = t.value * 1000;
           }
         },
-        onServerMessage: (m: { type?: string; usd?: number }) => {
+        onServerMessage: (m: { type?: string; usd?: number; p?: number; ms?: number }) => {
           if (m?.type === 'cost' && typeof m.usd === 'number') this.stats.costUsd = m.usd;
+          if (m?.type === 'turn' && typeof m.p === 'number') this.checks.push({ p: m.p, ms: m.ms ?? 0 }), (this.stats.lastCheck = { p: m.p, ms: m.ms ?? 0 });
         },
         onDisconnected: () => {
           console.warn('pipecat: disconnected', this.closed ? '(closed)' : '');
@@ -151,11 +158,12 @@ export class PipecatDuplex implements Duplex {
     const now = performance.now(), last = Math.min(this.voiceAtStop || this.stoppedAt, this.stoppedAt);
     const total = now - last, stt = Math.min(this.ttfb.stt ?? 0, this.stoppedAt - last);
     const llm = this.ttfb.llm ?? 0, tts = this.ttfb.tts ?? 0;
-    const wait = Math.max(0, this.stoppedAt - last - stt);
+    const turnModel = this.checks.at(-1)?.ms ?? 0;
+    const wait = Math.max(0, this.stoppedAt - last - stt - turnModel);
     this.stats.timeline.push({
       at: Date.now(),
       wait,
-      turnModel: 0,
+      turnModel,
       stt,
       llm,
       tts,
@@ -163,12 +171,13 @@ export class PipecatDuplex implements Duplex {
       decode: 0,
       total,
       text: this.heardText,
-      checks: [],
+      checks: this.checks.map((c) => Math.round(c.p * 100) / 100),
       label: `Pipecat · ${this.cfg.stt} · ${this.cfg.llm.replace(/^.*\//, '')} · ${this.cfg.tts}`,
     });
   }
 
   cue(text: string) {
+    this.newLine = true;
     this.client?.sendClientMessage('cue', { text });
   }
 

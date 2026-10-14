@@ -5813,7 +5813,7 @@ export interface components {
             /** @enum {string} */
             tts?: "soniox" | "elevenlabs";
             /** @enum {string} */
-            ttsModel?: "eleven_flash_v2_5" | "eleven_turbo_v2_5" | "eleven_v4_turbo";
+            ttsModel?: "eleven_flash_v2_5" | "eleven_turbo_v2_5";
             voice?: string;
             vadStopSecs?: number;
             smartStopSecs?: number;

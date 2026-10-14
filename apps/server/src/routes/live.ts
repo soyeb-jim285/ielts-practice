@@ -832,7 +832,7 @@ export function register(app: App) {
       stt: z.enum(['soniox', 'scribe']).optional(),
       llm: z.enum(CASCADE_LLMS).optional(),
       tts: z.enum(['soniox', 'elevenlabs']).optional(),
-      ttsModel: z.enum(['eleven_flash_v2_5', 'eleven_turbo_v2_5', 'eleven_v4_turbo']).optional(),
+      ttsModel: z.enum(['eleven_flash_v2_5', 'eleven_turbo_v2_5']).optional(), // the streaming endpoint rejects the v4 models (HTTP 400)
       voice: z.string().max(64).optional(),
       vadStopSecs: z.number().min(0.1).max(1.5).optional(),
       smartStopSecs: z.number().min(0.3).max(5).optional(),
