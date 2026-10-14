@@ -127,16 +127,29 @@ type Session = { run(feeds: Record<string, unknown>): Promise<Record<string, { d
 const sessions: Partial<Record<SmartTurnModel, Promise<{ ort: typeof import('onnxruntime-web'); s: Session }>>> = {};
 
 /** Loads the runtime and the model once (cached by the browser after the first time). */
-export function loadSmartTurn(model: SmartTurnModel = 'fp32') {
+/** `onProgress`: download progress of the model file (bytes so far, total) for the first caller; later callers share the same load. */
+export function loadSmartTurn(model: SmartTurnModel = 'fp32', onProgress?: (stage: 'runtime' | 'download' | 'start', loaded?: number, total?: number) => void) {
   return (sessions[model] ??= (async () => {
+    onProgress?.('runtime');
     // bundled (the wasm-only build) and served from our own origin, so no third-party script runs with the page's session; loaded on first use
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
-    const bytes = await fetch(SMART_TURN_URL[model]).then((r) => {
-      if (!r.ok) throw new Error(`Smart Turn model download failed (${r.status})`);
-      return r.arrayBuffer();
-    });
-    const s = await ort.InferenceSession.create(new Uint8Array(bytes), { executionProviders: ['wasm'] });
+    const r = await fetch(SMART_TURN_URL[model]);
+    if (!r.ok || !r.body) throw new Error(`Smart Turn model download failed (${r.status})`);
+    const total = Number(r.headers.get('content-length')) || undefined, parts: Uint8Array[] = [];
+    let loaded = 0;
+    for (const reader = r.body.getReader(); ; ) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      loaded += value.length;
+      onProgress?.('download', loaded, total);
+    }
+    const bytes = new Uint8Array(loaded);
+    let o = 0;
+    for (const p of parts) bytes.set(p, o), (o += p.length);
+    onProgress?.('start');
+    const s = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
     return { ort, s: s as unknown as Session };
   })().catch((e) => {
     delete sessions[model]; // let a later call retry

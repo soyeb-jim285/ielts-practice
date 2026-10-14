@@ -3,7 +3,7 @@ import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { PronunciationLab } from '@/components/admin/PronunciationLab';
-import { CascadeTimeline } from '@/components/admin/CascadeTimeline';
+import { CascadeSteps, CascadeTimeline } from '@/components/admin/CascadeTimeline';
 import { audioFormat, blobToBase64, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
 import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Switch, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -541,9 +541,15 @@ function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: En
         <p className="type-caption mb-3">{label}</p>
         {ex.error && <p className="mb-3 text-sm text-bad-text">{ex.error}</p>}
         <Conversation lines={lines} end={end} />
-        {!lines.length && <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>}
+        {!lines.length && (d instanceof CascadeDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
       </Card>
       {d instanceof CascadeDuplex && <CascadeTimeline timeline={d.stats.timeline} />}
+      {d instanceof CascadeDuplex && lines.length > 0 && (
+        <Card>
+          <h2 className="type-h4 mb-2">Start-up</h2>
+          <CascadeSteps steps={d.stats.steps} />
+        </Card>
+      )}
       </div>
       <aside className="space-y-4">
         <Card>

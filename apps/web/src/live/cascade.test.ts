@@ -93,20 +93,22 @@ it('fixed silence: the turn ends after the configured quiet, not before', () => 
   expect(smart).not.toHaveBeenCalled();
 });
 
-it('Smart Turn: a "not finished" pause keeps listening, a "finished" one ends the turn at once, and the cap ends it anyway', async () => {
+it('Smart Turn: a "not finished" pause is checked again as it grows, a "finished" one ends the turn at once, and the cap ends it anyway', async () => {
   make({ turn: 'smart', smartPauseMs: 240, smartThreshold: 0.5, smartMaxMs: 2000 });
-  smart.mockResolvedValueOnce({ p: 0.2, ms: 30 }).mockResolvedValueOnce({ p: 0.9, ms: 25 });
+  smart.mockResolvedValueOnce({ p: 0.2, ms: 30 }).mockResolvedValueOnce({ p: 0.3, ms: 30 }).mockResolvedValueOnce({ p: 0.9, ms: 25 });
   blocks(10, true);
   blocks(6, false); // 240 ms pause → check: not finished
   await flush();
   expect(smart).toHaveBeenCalledTimes(1);
   expect(h.pending).toHaveBeenLastCalledWith(true);
-  blocks(10, false); // still the same pause: no second check
+  blocks(5, false); // 440 ms: too soon for the next look
   expect(smart).toHaveBeenCalledTimes(1);
   blocks(5, true); // they go on
-  blocks(6, false); // new pause → check: finished
+  blocks(6, false); // new pause → check: still not finished
   await flush();
-  expect(smart).toHaveBeenCalledTimes(2);
+  blocks(8, false); // 560 ms: look again → finished
+  await flush();
+  expect(smart).toHaveBeenCalledTimes(3);
   expect(h.pending).toHaveBeenLastCalledWith(false);
   // the cap: the model never answers "finished", the turn still ends after smartMaxMs of quiet
   smart.mockResolvedValue({ p: 0.1, ms: 20 });
@@ -194,4 +196,15 @@ it('OpenAI with browser turn detection: Smart Turn ends the answer and the brows
   expect(x.stats.lastCheck).toEqual({ p: 0.9, ms: 20 });
   inner().onOpenAi({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Hello.', usage: { type: 'duration', seconds: 1 } });
   expect(post.mock.calls[0]![1]).toMatchObject({ stt: 'gpt-4o-mini-transcribe', turns: [{ role: 'candidate', text: 'Hello.' }] });
+});
+
+it('start-up steps record done/failed with times, and the first line finishes when the examiner starts speaking', async () => {
+  const step = (x as unknown as { step(k: string, l: string, run: () => Promise<unknown>): Promise<unknown> }).step.bind(x);
+  await step('mic', 'Microphone', async () => 1);
+  await expect(step('stt', 'Transcriber', async () => { throw new Error('no token'); })).rejects.toThrow('no token');
+  (x as unknown as { firstLine(): void }).firstLine();
+  expect(x.stats.steps.map((s) => s.state)).toEqual(['done', 'failed', 'running']);
+  expect(x.stats.steps[1]).toMatchObject({ detail: 'no token', ms: expect.any(Number) });
+  await flush();
+  expect(x.stats.steps[2]).toMatchObject({ key: 'first', state: 'done', ms: expect.any(Number) });
 });

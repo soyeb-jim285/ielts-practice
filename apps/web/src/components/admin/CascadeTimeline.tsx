@@ -1,5 +1,5 @@
 // Fast cascade (admin playground): where each reply's time went, from the end of the candidate's speech to the examiner's first audio.
-import type { ReplyTiming } from '@/live/cascade';
+import type { ReplyTiming, StartupStep } from '@/live/cascade';
 import { Card } from '@/components/ui';
 
 const STAGES = [
@@ -44,11 +44,33 @@ export function CascadeTimeline({ timeline }: { timeline: ReplyTiming[] }) {
               </div>
               <span className="type-num w-12 shrink-0 text-right text-sm font-medium">{s(t.total)}</span>
             </div>
-            <p className="type-caption mt-0.5 truncate">{t.label}{t.checks.length ? ` · turn checks ${t.checks.join(' → ')}` : ''}{t.text ? ` · ${t.text}` : ''}</p>
+            {t.checks.length > 0 && <p className="type-caption mt-0.5">Turn checks {t.checks.join(' → ')}</p>}
+            <p className="type-caption mt-0.5 truncate">{t.label}{t.text ? ` · ${t.text}` : ''}</p>
           </li>
         ))}
       </ol>
       <p className="type-caption mt-3">Measured from your last sound to the examiner's first sound. Turn checks are Smart Turn's P(finished) at each pause. Hover a segment for its time.</p>
     </Card>
+  );
+}
+
+/** What the cascade did to start, step by step (so a slow start says which step is slow). */
+export function CascadeSteps({ steps }: { steps: StartupStep[] }) {
+  if (!steps.length) return null;
+  const icon = { running: '…', done: '✓', failed: '✗', skipped: '–' } as const;
+  return (
+    <ol className="space-y-1 text-sm" aria-label="Start-up steps">
+      {steps.map((x) => (
+        <li key={x.key} className="flex gap-2">
+          <span aria-hidden className={`w-4 shrink-0 text-center ${x.state === 'failed' ? 'text-bad-text' : x.state === 'done' ? 'text-good-text' : 'text-muted'}`}>{x.state === 'running' ? <span className="inline-block animate-spin">◌</span> : icon[x.state]}</span>
+          <span className="min-w-0 flex-1">
+            {x.label}
+            <span className="sr-only"> ({x.state})</span>
+            {x.detail && <span className="type-caption block">{x.detail}</span>}
+          </span>
+          {x.ms != null && <span className="type-num shrink-0 text-muted">{s(x.ms)}</span>}
+        </li>
+      ))}
+    </ol>
   );
 }

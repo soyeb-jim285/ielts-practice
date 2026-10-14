@@ -43,6 +43,9 @@ export const DEFAULT_CASCADE: CascadeConfig = {
   turn: 'smart', silenceMs: 1000, smartPauseMs: 250, smartThreshold: 0.5, smartMaxMs: 3000, smartModel: 'fp32', chunkedStt: true, stream: true, sentenceTts: true,
 };
 
+/** One startup step, for the playground's checklist. */
+export type StartupStep = { key: string; label: string; state: 'running' | 'done' | 'failed' | 'skipped'; ms?: number; detail?: string };
+
 /** One answered turn, ms from the candidate's last sound to the examiner's first sound, split into stages that add up to `total`:
  *  wait (silence before the turn counted as finished, minus the turn model), turnModel (Smart Turn checks of the deciding pause), stt (turn end →
  *  final transcript), llm (to the first sentence when streamed, else the whole line), tts (then until its audio was ready), net (round trip minus
@@ -58,6 +61,7 @@ type StreamEvent =
 
 const CONNECT_MS = 15_000;
 const SCRIBE_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
+const RECHECK_MS = 300; // Smart Turn re-checks a pause it called unfinished this often
 const VOICE_RMS = 0.02; // mic block loudness that counts as speech (echo cancellation and noise suppression are on), as for Gemini
 const CHUNK_MS = 40; // MicEncoder chunk length
 const PRE_MS = 320; // audio kept from before the first loud block, so the first word isn't clipped
@@ -109,18 +113,36 @@ export class CascadeDuplex implements Duplex {
   private lastVoiceAt = 0;
   private pauseId = 0; // bumps whenever speech resumes, so a late Smart Turn answer for an old pause is ignored
   private checking = false;
-  private checked = false; // Smart Turn already said "not finished" for this pause
+  private nextCheck = 0; // quiet ms at which Smart Turn checks this pause (again)
   private checks: { p: number; ms: number; pause: number }[] = [];
   private smartOk = false;
   // what the timeline needs about the last turn
   private turnInfo?: { lastVoice: number; decided: number; model: number; checks: number[] };
   private transcriptAt?: number;
   /** Running totals for the playground: cost (STT + LLM + TTS, from the server), the last reply's server timings, the per-reply timeline. */
-  readonly stats = { costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined, timeline: [] as ReplyTiming[], turnModel: 'off' as 'off' | 'loading' | 'ready' | 'failed', lastCheck: undefined as { p: number; ms: number } | undefined };
+  readonly stats = { steps: [] as StartupStep[], costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined, timeline: [] as ReplyTiming[], turnModel: 'off' as 'off' | 'loading' | 'ready' | 'failed', lastCheck: undefined as { p: number; ms: number } | undefined };
 
   constructor(cfg: Partial<CascadeConfig> = {}) {
     this.cfg = { ...DEFAULT_CASCADE, ...cfg };
     if (this.cfg.turn === 'server' && !this.cfg.stt.startsWith('gpt-')) this.cfg.turn = 'smart'; // only OpenAI has a server VAD
+  }
+
+  /** Runs one startup step and records its state and duration (the playground shows them as a checklist). */
+  private async step<T>(key: string, label: string, run: (s: StartupStep) => Promise<T>): Promise<T> {
+    const s: StartupStep = { key, label, state: 'running' };
+    this.stats.steps.push(s);
+    const t0 = performance.now();
+    try {
+      const v = await run(s);
+      s.state = 'done';
+      return v;
+    } catch (e) {
+      s.state = 'failed';
+      s.detail = (e as Error).message;
+      throw e;
+    } finally {
+      s.ms = performance.now() - t0;
+    }
   }
 
   private get ear(): 'scribe' | 'openai' | 'batch' {
@@ -135,36 +157,57 @@ export class CascadeDuplex implements Duplex {
     void ctx.resume().catch(() => {});
     this.tap = ctx.createMediaStreamDestination(); // the examiner's voice as a stream: the part recorder pauses while it is audible
     h.output?.(this.tap.stream);
-    const mic = (this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }));
+    const mic = (this.mic = await this.step('mic', 'Microphone permission', () => navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })));
     if (this.closed) {
       mic.getTracks().forEach((x) => x.stop());
       throw new Error('The examiner connection was cancelled.');
     }
     const serverVad = this.ear === 'openai' && this.cfg.turn === 'server';
-    if (this.ear === 'openai') await this.openOpenAi(mic, serverVad);
-    if (serverVad) return this.cue('Begin the test.');
+    if (serverVad) {
+      await this.step('stt', 'Transcriber: OpenAI session (server VAD)', () => this.openOpenAi(mic, true));
+      return this.firstLine();
+    }
+    // Everything else runs side by side: the examiner can open the test while the turn model downloads (the silence timer stands in until it is
+    // ready) and while the transcriber connects.
     if (this.cfg.turn === 'smart') {
       this.stats.turnModel = 'loading';
-      // the model loads before the test starts; if it can't, the fixed silence takes over
-      await loadSmartTurn(this.cfg.smartModel).then(
+      const mb = (b?: number) => (b == null ? '?' : (b / 1e6).toFixed(1));
+      void this.step('turn', `Turn model: Smart Turn ${this.cfg.smartModel} (cached after the first time)`, (s) =>
+        loadSmartTurn(this.cfg.smartModel, (stage, loaded, total) => (s.detail = stage === 'runtime' ? 'loading the runtime' : stage === 'download' ? `downloading ${mb(loaded)} / ${mb(total)} MB` : 'starting the model')),
+      ).then(
         () => ((this.smartOk = true), (this.stats.turnModel = 'ready')),
         (e) => (console.warn('Smart Turn unavailable, using the silence timer', e), (this.stats.turnModel = 'failed')),
       );
     }
-    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
-    const enc = new MicEncoder(ctx.sampleRate), rs = new Resampler(ctx.sampleRate, IN_RATE);
-    const node = new AudioWorkletNode(ctx, 'pcm-capture');
-    node.port.onmessage = (e) => {
-      const block = e.data as Float32Array; // a disabled track (examiner speaking, prep minute) is silence, so it never opens the gate
-      let s2 = 0;
-      for (const v of block) s2 += v * v;
-      this.onBlock(Math.sqrt(s2 / block.length) > VOICE_RMS, (block.length / ctx.sampleRate) * 1000, rs.push(block), this.ear === 'scribe' ? enc.push(block) : []);
-    };
-    ctx.createMediaStreamSource(mic).connect(node);
-    node.connect(ctx.destination); // silent output; keeps the capture node running
-    if (this.ear === 'scribe') await this.open(); // fail before the test starts, not at the first answer
+    await this.step('capture', 'Audio capture', async () => {
+      await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
+      const enc = new MicEncoder(ctx.sampleRate), rs = new Resampler(ctx.sampleRate, IN_RATE);
+      const node = new AudioWorkletNode(ctx, 'pcm-capture');
+      node.port.onmessage = (e) => {
+        const block = e.data as Float32Array; // a disabled track (examiner speaking, prep minute) is silence, so it never opens the gate
+        let s2 = 0;
+        for (const v of block) s2 += v * v;
+        this.onBlock(Math.sqrt(s2 / block.length) > VOICE_RMS, (block.length / ctx.sampleRate) * 1000, rs.push(block), this.ear === 'scribe' ? enc.push(block) : []);
+      };
+      ctx.createMediaStreamSource(mic).connect(node);
+      node.connect(ctx.destination); // silent output; keeps the capture node running
+    });
+    const ear =
+      this.ear === 'scribe' ? this.step('stt', 'Transcriber: Scribe v2 Realtime (token + socket)', () => this.open())
+      : this.ear === 'openai' ? this.step('stt', 'Transcriber: OpenAI session (browser commits)', () => this.openOpenAi(mic, false))
+      : this.step('stt', 'Transcriber: OpenRouter batch (nothing to connect)', async () => {});
+    this.firstLine();
+    await ear; // a transcriber that can't connect still fails the start
+  }
+
+  /** The examiner opens the test; the step finishes when the first line starts playing. */
+  private firstLine() {
+    const s: StartupStep = { key: 'first', label: 'Examiner first line (LLM + voice)', state: 'running' };
+    this.stats.steps.push(s);
+    this.firstStep = { s, t0: performance.now() };
     this.cue('Begin the test.');
   }
+  private firstStep?: { s: StartupStep; t0: number };
 
   /** One mic block: 16 kHz samples for the turn buffer (Smart Turn, batch ears) and PCM16 chunks for Scribe. */
   private onBlock(loud: boolean, ms: number, f16: Float32Array, chunks: Uint8Array[]) {
@@ -191,7 +234,7 @@ export class CascadeDuplex implements Duplex {
     this.turnSamples += f16.length;
     this.sendChunks(chunks);
     if (loud) {
-      if (this.quiet > 0) (this.pauseId++, (this.checked = false));
+      if (this.quiet > 0) (this.pauseId++, (this.nextCheck = 0));
       this.quiet = 0;
       this.lastVoiceAt = now;
       return;
@@ -203,22 +246,24 @@ export class CascadeDuplex implements Duplex {
       return;
     }
     if (this.quiet >= this.cfg.smartMaxMs) return this.endTurn(this.checks.filter((c) => c.pause === this.pauseId).reduce((a, c) => a + c.ms, 0));
-    if (this.quiet >= this.cfg.smartPauseMs && !this.checking && !this.checked) void this.checkTurn();
+    if (this.quiet >= Math.max(this.cfg.smartPauseMs, this.nextCheck) && !this.checking) void this.checkTurn();
   }
 
   private preChunks: Uint8Array[] = [];
 
   private async checkTurn() {
     this.checking = true;
-    const pause = this.pauseId;
+    const pause = this.pauseId, at = this.quiet;
     try {
       const { p, ms } = await smartTurnProbability(sum(this.turnAudio), this.cfg.smartModel);
       this.checks.push({ p, ms, pause });
       this.stats.lastCheck = { p, ms };
       if (!this.inSpeech || pause !== this.pauseId) return; // they spoke again while it ran
       if (p >= this.cfg.smartThreshold) return this.endTurn(this.checks.filter((c) => c.pause === pause).reduce((a, c) => a + c.ms, 0));
-      this.checked = true;
-      if (this.ear === 'batch' && this.cfg.chunkedStt) this.sendPiece(false);
+      // "Not finished" often turns into "finished" as the pause grows (measured on TTS speech: 0.02 at 250 ms, 0.63 at 1 s), so look again
+      // every RECHECK_MS instead of waiting for the cap
+      this.nextCheck = at + RECHECK_MS;
+      if (this.ear === 'batch' && this.cfg.chunkedStt && this.checks.filter((c) => c.pause === pause).length === 1) this.sendPiece(false);
     } catch (e) {
       console.warn('Smart Turn check failed, using the silence timer', e);
       this.smartOk = false;
@@ -490,6 +535,7 @@ export class CascadeDuplex implements Duplex {
 
   /** A new examiner line: report the answer, reset the caption. The voice starts with the first clip. */
   private startLine(text: string) {
+    if (this.firstStep) (this.firstStep.s.state = 'done'), (this.firstStep.s.ms = performance.now() - this.firstStep.t0), (this.firstStep = undefined);
     if (!this.cfg.stream) this.turns.push({ role: 'examiner', text });
     if (this.heard) (this.heard = false), this.h.answered();
     this.stopAll();
