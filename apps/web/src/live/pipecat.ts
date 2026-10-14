@@ -64,11 +64,19 @@ export class PipecatDuplex implements Duplex {
     this.h = h;
     const [{ PipecatClient }, { SmallWebRTCTransport }] = await this.step('load', 'Load the WebRTC client', () => Promise.all([import('@pipecat-ai/client-js'), import('@pipecat-ai/small-webrtc-transport')]));
     const first: StartupStep = { key: 'first', label: 'Examiner first line (server: LLM + voice)', state: 'running' };
+    const connecting: StartupStep = { key: 'connect', label: 'Connect: mic, WebRTC offer via our API, voice service starts the pipeline', state: 'running' };
     const client = (this.client = new PipecatClient({
       transport: new SmallWebRTCTransport({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }),
       enableMic: true,
       enableCam: false,
       callbacks: {
+        // what the transport went through, on the checklist: a start that fails inside the browser says where
+        onTransportStateChanged: (st) => connecting.state === 'running' && (connecting.detail = `${connecting.detail ? `${connecting.detail} → ` : ''}${st}`),
+        onError: (m) => {
+          const d = (m as { data?: { message?: string; error?: string } }).data;
+          (connecting.state === 'running' ? connecting : first).detail = `error: ${d?.message ?? d?.error ?? JSON.stringify(m).slice(0, 160)}`;
+        },
+        onDeviceError: (e) => (connecting.detail = `${connecting.detail ?? ''} · mic: ${(e as { type?: string }).type ?? String(e)}`),
         onTrackStarted: (track, p) => {
           if (track.kind !== 'audio') return;
           if (p?.local) return this.watchMic(track);
@@ -88,7 +96,7 @@ export class PipecatDuplex implements Duplex {
         onBotStoppedSpeaking: () => h.speaking(false),
         onBotOutput: (d) => {
           // a sentence is reported again as it is spoken (spoken_status / progress): caption it once
-          const text = d.text.trim(), key = d.segment_id ?? text;
+          const text = d.text.trim(), key = text; // the same sentence can come with two segment ids (LLM text and spoken text)
           if (d.aggregated_by !== 'sentence' || !text || this.said.has(key)) return;
           this.said.add(key);
           h.caption(`${this.said.size > 1 ? ' ' : ''}${text}`, true);
@@ -125,14 +133,23 @@ export class PipecatDuplex implements Duplex {
         },
         onDisconnected: () => {
           console.warn('pipecat: disconnected', this.closed ? '(closed)' : '');
+          if (connecting.state === 'running') (connecting.state = 'failed'), (connecting.ms = performance.now() - firstAt);
           if (!this.closed) h.lost();
         },
       },
     }));
     const firstAt = performance.now();
-    await this.step('connect', 'Connect: mic, WebRTC offer via our API, voice service starts the pipeline', () =>
-      client.connect({ webrtcRequestParams: { endpoint: '/api/live/pipecat/offer', requestData: { sessionId, cfg: this.cfg } } }),
-    );
+    this.stats.steps.push(connecting);
+    try {
+      await client.connect({ webrtcRequestParams: { endpoint: '/api/live/pipecat/offer', requestData: { sessionId, cfg: this.cfg } } });
+      connecting.state = 'done';
+    } catch (e) {
+      connecting.state = 'failed';
+      connecting.detail = `${connecting.detail ? `${connecting.detail} · ` : ''}${(e as Error).message}`;
+      throw e;
+    } finally {
+      connecting.ms = performance.now() - firstAt;
+    }
     if (this.closed) throw new Error('The examiner connection was cancelled.');
     this.stats.steps.push(first);
   }
