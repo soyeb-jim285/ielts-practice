@@ -832,7 +832,7 @@ export function register(app: App) {
       stt: z.enum(['soniox', 'scribe']).optional(),
       llm: z.enum(CASCADE_LLMS).optional(),
       tts: z.enum(['openai', 'soniox', 'elevenlabs']).optional(),
-      ttsModel: z.enum(['eleven_flash_v2_5', 'eleven_turbo_v2_5']).optional(), // the streaming endpoint rejects the v4 models (HTTP 400)
+      ttsModel: z.string().max(40).optional().openapi({ description: 'eleven_flash_v2_5 (default) or eleven_turbo_v2_5; anything else (an old saved v4 choice: the streaming endpoint rejects v4) means Flash' }),
       voice: z.string().max(64).optional(),
       vadStopSecs: z.number().min(0.1).max(1.5).optional(),
       smartStopSecs: z.number().min(0.3).max(5).optional(),
@@ -866,7 +866,8 @@ export function register(app: App) {
     }),
     async (c) => {
       const b = c.req.valid('json'), user = currentUser(c);
-      const s = await loadSession(b.requestData.sessionId, user.id), cfg = b.requestData.cfg ?? {};
+      const s = await loadSession(b.requestData.sessionId, user.id), cfg = { ...b.requestData.cfg };
+      if (cfg.ttsModel !== 'eleven_turbo_v2_5') cfg.ttsModel = 'eleven_flash_v2_5';
       if ((cfg.tts ?? 'openai') === 'openai' && !env.OPENAI_API_KEY) return c.json({ error: 'OpenAI is not configured on this server (OPENAI_API_KEY). Pick another voice.' }, 503);
       if ((cfg.stt ?? 'soniox') === 'soniox' || cfg.tts === 'soniox') {
         if (!env.SONIOX_API_KEY) return c.json({ error: 'Soniox is not configured on this server (SONIOX_API_KEY). Pick Scribe and ElevenLabs, or add the key.' }, 503);

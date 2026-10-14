@@ -2376,10 +2376,8 @@
           },
           "ttsModel": {
             "type": "string",
-            "enum": [
-              "eleven_flash_v2_5",
-              "eleven_turbo_v2_5"
-            ]
+            "maxLength": 40,
+            "description": "eleven_flash_v2_5 (default) or eleven_turbo_v2_5; anything else (an old saved v4 choice: the streaming endpoint rejects v4) means Flash"
           },
           "voice": {
             "type": "string",

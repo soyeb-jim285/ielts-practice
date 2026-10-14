@@ -444,7 +444,10 @@ function ExaminerLab() {
   const [run, setRun] = useState(0);
   const [past, setPast] = useState<RunSnapshot[]>(() => loadJson<RunSnapshot[]>(RUNS_KEY, []));
   const set = (p: Partial<CascadeConfig>) => setCfg((c) => (saveJson(CFG_KEY, { ...c, ...p }), { ...c, ...p }));
-  const [pc, setPc] = useState<PipecatConfig>(() => ({ ...DEFAULT_PIPECAT, ...loadJson<Partial<PipecatConfig>>(PIPECAT_KEY, {}) }));
+  const [pc, setPc] = useState<PipecatConfig>(() => {
+    const c = { ...DEFAULT_PIPECAT, ...loadJson<Partial<PipecatConfig>>(PIPECAT_KEY, {}) };
+    return c.ttsModel === 'eleven_flash_v2_5' || c.ttsModel === 'eleven_turbo_v2_5' ? c : { ...c, ttsModel: DEFAULT_PIPECAT.ttsModel }; // v4 was saved before it was dropped
+  });
   const setP = (p: Partial<PipecatConfig>) => setPc((c) => (saveJson(PIPECAT_KEY, { ...c, ...p }), { ...c, ...p }));
   const keep = (snap: RunSnapshot) =>
     setPast((ps) => {

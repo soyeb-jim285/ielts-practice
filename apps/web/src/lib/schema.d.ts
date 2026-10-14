@@ -5812,8 +5812,8 @@ export interface components {
             llm?: "deepseek/deepseek-v4.1-flash" | "inception/mercury-2.5" | "mistralai/mistral-small-3.2-24b-instruct" | "openai/gpt-6-luna";
             /** @enum {string} */
             tts?: "openai" | "soniox" | "elevenlabs";
-            /** @enum {string} */
-            ttsModel?: "eleven_flash_v2_5" | "eleven_turbo_v2_5";
+            /** @description eleven_flash_v2_5 (default) or eleven_turbo_v2_5; anything else (an old saved v4 choice: the streaming endpoint rejects v4) means Flash */
+            ttsModel?: string;
             voice?: string;
             vadStopSecs?: number;
             smartStopSecs?: number;
