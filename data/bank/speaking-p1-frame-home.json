@@ -1,0 +1,134 @@
+[
+  {
+    "slug": "p1-frame-home-1",
+    "topic": "Your home",
+    "questions": [
+      "What kind of home do you live in at the moment?",
+      "How many rooms does it have?",
+      "Does your home get much natural light?",
+      "Is it easy to keep clean and tidy? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-2",
+    "topic": "Your home",
+    "questions": [
+      "Do you live on your own or with other people?",
+      "Who does most of the housework where you live?",
+      "Is your home usually quiet or quite busy?",
+      "In the future, would you rather live alone or with other people? Why?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-3",
+    "topic": "Your home",
+    "questions": [
+      "Have you lived in your present home for long?",
+      "Why did you or your family choose to live there?",
+      "Is there anything you don't like about living there?",
+      "How long do you think you'll stay there?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-4",
+    "topic": "Your home",
+    "questions": [
+      "What can you see from the windows of your home?",
+      "Is your home on a quiet street or a busy one?",
+      "Do you like looking out of the window when you're at home? Why/why not?",
+      "If you could choose any view from your home, what would it be?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-5",
+    "topic": "Your home",
+    "questions": [
+      "Which room do you spend most of your time in?",
+      "What does that room look like?",
+      "Have you changed anything in it recently?",
+      "Who chose the furniture in your home?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-6",
+    "topic": "Your home",
+    "questions": [
+      "Can you describe your home to me?",
+      "Which part of it do you like best?",
+      "Is there anything you'd like to change about your home?",
+      "Is your home a good place to relax? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-7",
+    "topic": "Your home",
+    "questions": [
+      "Do you still live in the home you grew up in?",
+      "What do you remember about your childhood home?",
+      "Has much changed at home since you were a child?",
+      "Would you like to live in a home like that again one day? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-home-8",
+    "topic": "Your home",
+    "questions": [
+      "How much time do you spend at home on a typical day?",
+      "What do you usually do when you're at home in the evening?",
+      "Do you often have friends round to your home? Why/why not?",
+      "Are you planning to move in the next few years?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-accommodation-1",
+    "topic": "Accommodation",
+    "questions": [
+      "Tell me about the kind of accommodation you live in.",
+      "Is it a peaceful place to live? Why/why not?",
+      "Is it far from the places you need to go every day?",
+      "What sort of accommodation would you most like to live in?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-accommodation-2",
+    "topic": "Accommodation",
+    "questions": [
+      "Do most people in your country live in houses or flats?",
+      "Is the place you live in now typical of that?",
+      "Do young people in your country usually live with their parents? Why/why not?",
+      "Do you think you'll live in the same type of accommodation in ten years' time? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-accommodation-3",
+    "topic": "Accommodation",
+    "questions": [
+      "Can you tell me a little about the building you live in?",
+      "Is there enough space in your home for everyone? Why/why not?",
+      "What facilities are there in or near your building?",
+      "Which would you rather have, a bigger home or a better location?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-accommodation-4",
+    "topic": "Accommodation",
+    "questions": [
+      "Where are you living at the moment?",
+      "Have you ever lived anywhere else?",
+      "How easy is it to find somewhere to live in your town or city?",
+      "What makes a home comfortable, in your opinion?"
+    ],
+    "frame": "intro"
+  }
+]

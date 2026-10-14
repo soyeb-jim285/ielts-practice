@@ -1,0 +1,178 @@
+[
+  {
+    "slug": "p1-frame-hometown-1",
+    "topic": "Your hometown",
+    "questions": [
+      "Where did you grow up?",
+      "What kind of place is it?",
+      "What's the most interesting part of it for a visitor?",
+      "Would you say it's a good place to live? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-2",
+    "topic": "Your hometown",
+    "questions": [
+      "Which place do you consider your hometown?",
+      "What is it best known for?",
+      "What kind of jobs do most people there do?",
+      "Do many young people move away from there? Why?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-3",
+    "topic": "Your hometown",
+    "questions": [
+      "Whereabouts is your hometown?",
+      "How has it changed since you were a child?",
+      "What do you think is the best thing about it?",
+      "What would make it a better place to live?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-4",
+    "topic": "Your hometown",
+    "questions": [
+      "Can you tell me a bit about your hometown?",
+      "Are there any times of year when it gets especially busy?",
+      "Is it easy to get around there without a car?",
+      "Is there any food that your hometown is famous for?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-5",
+    "topic": "Your hometown",
+    "questions": [
+      "Where do you come from originally?",
+      "What did you enjoy doing there as a child?",
+      "How would you describe the weather there for most of the year?",
+      "Would you like to settle there one day? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-6",
+    "topic": "Your hometown",
+    "questions": [
+      "Is the place where you grew up a town, a city or a village?",
+      "What do people there usually do at weekends?",
+      "Are there enough things for young people to do there?",
+      "Has it got bigger or smaller in recent years?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-7",
+    "topic": "Your hometown",
+    "questions": [
+      "Do you still live in the place where you were born?",
+      "Is it the kind of place where everyone knows each other?",
+      "Is it a friendly place for newcomers? Why/why not?",
+      "How do you think it will change over the next ten years?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-hometown-8",
+    "topic": "Your hometown",
+    "questions": [
+      "Did you grow up in one place or move around a lot?",
+      "Where do you feel most at home these days?",
+      "What's special about that place?",
+      "Is it a good place for older people to live? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-1",
+    "topic": "The area you live in",
+    "questions": [
+      "Do you live in a busy part of town or a quiet one?",
+      "Are there many families with children in your area?",
+      "Is it a pleasant area to walk around? Why/why not?",
+      "Is there anything the area is missing, in your opinion?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-2",
+    "topic": "The area you live in",
+    "questions": [
+      "Which shops or services do you use most in your neighbourhood?",
+      "Is it easy to get to the town or city centre from where you live?",
+      "What changes have you noticed in the area recently?",
+      "Would you recommend it to a friend looking for somewhere to live? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-3",
+    "topic": "The area you live in",
+    "questions": [
+      "Do you like the area you live in? Why/why not?",
+      "Does it get noisy at night?",
+      "Where do people in your area meet up with friends?",
+      "Are there any problems with parking or traffic near your home?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-4",
+    "topic": "The area you live in",
+    "questions": [
+      "Is your neighbourhood mainly houses, flats or a mix of the two?",
+      "Has it got enough parks and green spaces?",
+      "What do you like to do there at the weekend?",
+      "Can you get everything you need without leaving the area?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-5",
+    "topic": "The area you live in",
+    "questions": [
+      "Which part of your town or city do you live in?",
+      "What's it like there on a Sunday morning?",
+      "Are the people in your neighbourhood friendly?",
+      "If you could move to a different area, where would you go?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-6",
+    "topic": "The area you live in",
+    "questions": [
+      "Can you describe the street you live on?",
+      "How do most people in your area get to work?",
+      "Are there good places to do sport or exercise nearby?",
+      "Is it a lively place in the evenings?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-7",
+    "topic": "The area you live in",
+    "questions": [
+      "Are there many shops and cafés near your home?",
+      "Do you know any of your neighbours well?",
+      "What's your favourite place in the area? Why?",
+      "Would you like to stay in this area for a long time? Why/why not?"
+    ],
+    "frame": "intro"
+  },
+  {
+    "slug": "p1-frame-area-8",
+    "topic": "The area you live in",
+    "questions": [
+      "How did you come to live in your area?",
+      "What's the first thing a visitor would notice about it?",
+      "Do people in your area ever do things together, like festivals or community events?",
+      "Is it a better area for families or for young people? Why?"
+    ],
+    "frame": "intro"
+  }
+]

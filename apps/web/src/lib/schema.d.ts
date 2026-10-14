@@ -1443,7 +1443,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe) */
+        /** Fast cascade examiner (admin playground): credentials for one streaming transcription session (Scribe v2 Realtime or an OpenAI Realtime transcription session) */
         post: {
             parameters: {
                 query?: never;
@@ -1457,7 +1457,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Client secret: Bearer for POST /v1/realtime/calls */
+                /** @description Credentials */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1502,8 +1502,17 @@ export interface paths {
                         "application/json": components["schemas"]["CodedError"];
                     };
                 };
-                /** @description OpenAI error */
+                /** @description Transcription provider error */
                 502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description ELEVENLABS_API_KEY is not set */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -5231,6 +5240,8 @@ export interface components {
              * @default false
              */
             skipTts: boolean;
+            /** @description The candidate's local hour (0-23): the examiner greets with Good morning / afternoon / evening; without it, Hello */
+            localHour?: number;
         };
         LiveUpload: {
             key: string;
@@ -5332,12 +5343,18 @@ export interface components {
             transcribeSeconds: number;
         };
         CascadeSttToken: {
-            value: string;
-            /** @description Unix seconds */
-            expiresAt: number;
+            /** @description Scribe: the `token` query parameter of wss://api.elevenlabs.io/v1/speech-to-text/realtime */
+            token?: string;
+            /** @description OpenAI: client secret, Bearer for POST /v1/realtime/calls */
+            value?: string;
         };
         LiveCascadeSttToken: {
             sessionId: string;
+            /**
+             * @description Default scribe_v2_realtime
+             * @enum {string}
+             */
+            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
         };
         CascadeLine: {
             /** @description What the examiner says; empty = stay silent */
@@ -5361,9 +5378,14 @@ export interface components {
                 text: string;
             }[];
             /** @enum {string} */
-            llm?: "deepseek/deepseek-v4.1-flash" | "openai/gpt-6-luna";
+            llm?: "deepseek/deepseek-v4.1-flash" | "inception/mercury-2.5" | "mistralai/mistral-small-3.2-24b-instruct" | "openai/gpt-6-luna";
             /** @enum {string} */
-            tts?: "elevenlabs/eleven-flash-v2.5" | "google/gemini-3.8-flash-lite-tts" | "google/gemini-3.8-flash-tts";
+            tts?: "elevenlabs/eleven-v4-turbo" | "elevenlabs/eleven-flash-v2.5" | "google/gemini-3.8-flash-lite-tts" | "google/gemini-3.8-flash-tts";
+            /**
+             * @description Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime
+             * @enum {string}
+             */
+            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
             /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
             sttSeconds?: number;
         };

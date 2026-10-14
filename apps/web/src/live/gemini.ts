@@ -13,7 +13,7 @@ const FALLBACK_HINT = 'Try again, or switch to the turn-based examiner in Settin
 const VOICE_RMS = 0.02; // mic block loudness that counts as the candidate talking (echo cancellation and noise suppression are on)
 const VOICE_HANG_MS = 800; // quiet this long ends the candidate's talking
 // Posts the mic's samples to the page in ~20 ms blocks (resampling and encoding happen there, in pcm.ts).
-const WORKLET = `class C extends AudioWorkletProcessor {
+export const WORKLET = `class C extends AudioWorkletProcessor {
   constructor() { super(); this.b = new Float32Array(1024); this.n = 0; }
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];

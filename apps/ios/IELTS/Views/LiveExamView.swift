@@ -171,6 +171,7 @@ final class LiveExam {
             var turnBody: [String: Any] = [:]
             if let source = QuestionSource.speaking(api) { turnBody["source"] = source }
             if let mockId { turnBody["mockId"] = mockId }
+            turnBody["localHour"] = Calendar.current.component(.hour, from: Date()) // the examiner greets by time of day
             var reply: LiveReply = try await api.send("POST", "/api/live/start", turnBody)
             sessionId = reply.sessionId ?? ""
             test = reply.test
@@ -246,6 +247,7 @@ final class LiveExam {
             var startBody: [String: Any] = ["skipTts": true]
             if let source = QuestionSource.speaking(api) { startBody["source"] = source }
             if let mockId { startBody["mockId"] = mockId }
+            startBody["localHour"] = Calendar.current.component(.hour, from: Date()) // the examiner greets by time of day
             let s: LiveReply = try await api.send("POST", "/api/live/start", startBody)
             sessionId = s.sessionId ?? ""
             test = s.test

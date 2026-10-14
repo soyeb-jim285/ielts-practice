@@ -13,7 +13,7 @@ import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
 import { GeminiDuplex, type GeminiModel } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
-import { CascadeDuplex, type CascadeLlm, type CascadeTts } from '@/live/cascade';
+import { CascadeDuplex, type CascadeLlm, type CascadeStt, type CascadeTts } from '@/live/cascade';
 
 type Tab = 'stt' | 'pron' | 'live';
 export const Route = createFileRoute('/_app/admin/playground')({
@@ -268,7 +268,7 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade';
 const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
-  { value: 'cascade', label: 'Fast cascade', note: 'streaming STT + cheap LLM + TTS, ~$0.006/min' },
+  { value: 'cascade', label: 'Fast cascade', note: 'Scribe v2 Realtime + cheap LLM + TTS, ~$0.009/min' },
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
   { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
   { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
@@ -279,20 +279,29 @@ const ENGINES: { value: Engine; label: string; note: string }[] = [
   { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Live', note: 'older accounts only, cheaper text, same audio price' },
 ];
 
+const STTS: { value: CascadeStt; label: string }[] = [
+  { value: 'scribe_v2_realtime', label: 'ElevenLabs Scribe v2 Realtime (~$0.0065/min of speech)' },
+  { value: 'gpt-4o-mini-transcribe', label: 'OpenAI gpt-4o-mini-transcribe ($0.003/min)' },
+  { value: 'gpt-4o-transcribe', label: 'OpenAI gpt-4o-transcribe ($0.006/min)' },
+];
 const LLMS: { value: CascadeLlm; label: string }[] = [
-  { value: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash (~1-2 s)' },
-  { value: 'openai/gpt-6-luna', label: 'GPT-6 Luna (~1-2 s)' },
+  { value: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash (~0.8-1.6 s)' },
+  { value: 'inception/mercury-2.5', label: 'Mercury 2.5 (~1-2 s, cheapest)' },
+  { value: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2 (~1.3-2.4 s)' },
+  { value: 'openai/gpt-6-luna', label: 'GPT-6 Luna (~1.5-2.6 s)' },
 ];
 const VOICES: { value: CascadeTts; label: string }[] = [
-  { value: 'elevenlabs/eleven-flash-v2.5', label: 'ElevenLabs Flash v2.5 (~1 s, ~$0.02/1k chars)' },
+  { value: 'elevenlabs/eleven-v4-turbo', label: 'ElevenLabs v4 Turbo (~1.2 s, ~$0.02/1k chars)' },
+  { value: 'elevenlabs/eleven-flash-v2.5', label: 'ElevenLabs Flash v2.5 (~0.7 s, ~$0.02/1k chars)' },
   { value: 'google/gemini-3.8-flash-lite-tts', label: 'Gemini 3.8 Flash-Lite TTS (~2.7 s, cheapest)' },
   { value: 'google/gemini-3.8-flash-tts', label: 'Gemini 3.8 Flash TTS (~3 s, the turn-based voice)' },
 ];
 
 function ExaminerLab() {
   const [engine, setEngine] = useState<Engine>('cascade');
+  const [stt, setStt] = useState<CascadeStt>('scribe_v2_realtime');
   const [llm, setLlm] = useState<CascadeLlm>('deepseek/deepseek-v4.1-flash');
-  const [tts, setTts] = useState<CascadeTts>('elevenlabs/eleven-flash-v2.5');
+  const [tts, setTts] = useState<CascadeTts>('elevenlabs/eleven-v4-turbo');
   const [run, setRun] = useState(0);
   return (
     <div className="space-y-6">
@@ -303,6 +312,9 @@ function ExaminerLab() {
           </Select>
           {engine === 'cascade' && (
             <>
+              <Select label="Transcription" value={stt} onChange={(e) => setStt(e.target.value as CascadeStt)} disabled={run > 0}>
+                {STTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </Select>
               <Select label="LLM" value={llm} onChange={(e) => setLlm(e.target.value as CascadeLlm)} disabled={run > 0}>
                 {LLMS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
               </Select>
@@ -319,21 +331,21 @@ function ExaminerLab() {
         </div>
         <p className="type-caption mt-3">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Latency is from the end of your speech (your mic level) to the examiner's first audio.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} engine={engine} llm={llm} tts={tts} />}
+      {run > 0 && <ExaminerRun key={run} engine={engine} stt={stt} llm={llm} tts={tts} />}
     </div>
   );
 }
 
 type Line = { who: 'you' | 'examiner'; text: string; at: number; latencyMs?: number };
 
-function ExaminerRun({ engine, llm, tts }: { engine: Engine; llm: CascadeLlm; tts: CascadeTts }) {
+function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeStt; llm: CascadeLlm; tts: CascadeTts }) {
   const duplex = useRef<Duplex>(undefined);
   const [lines, setLines] = useState<Line[]>([]);
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
   const make = (): Duplex =>
-    (duplex.current = engine === 'cascade' ? new CascadeDuplex(llm, tts) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+    (duplex.current = engine === 'cascade' ? new CascadeDuplex(llm, tts, stt) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {

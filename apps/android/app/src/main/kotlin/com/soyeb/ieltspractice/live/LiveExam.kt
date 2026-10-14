@@ -40,6 +40,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import java.io.File
+import java.util.Calendar
 import java.util.UUID
 
 /** Which examiner runs (iOS `Examiner`). */
@@ -212,7 +213,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runTurnBased() {
         try {
-            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) } })
+            var reply: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) }; put("localHour", Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) })
             sessionId = reply.sessionId.orEmpty()
             test = reply.test
             while (true) {
@@ -301,7 +302,7 @@ class LiveExam(private val app: AppContainer, private val cacheDir: File, privat
 
     private suspend fun runDuplex(kind: Examiner) {
         try {
-            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true); app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) } })
+            val s: LiveReply = api.send("POST", "/api/live/start", buildJsonObject { put("skipTts", true); app.speakingSourceParam()?.let { put("source", it) }; mockId?.let { put("mockId", it) }; put("localHour", Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) })
             sessionId = s.sessionId.orEmpty()
             test = s.test
             try {

@@ -7,7 +7,7 @@ past-tense ("when you were younger") questions ~7% of P1 and early in a set, a t
 29/70 sets; P3 0.12 openings/q), so this gate fails on those patterns.
 
 Usage: python3 scripts/speaking-bank-check.py [--cambridge | --only p1|p2-a|p2-b|p3]
-  --cambridge prints the same metrics for data/cambridge; --only gates one file's share of the bank (for parallel writers).
+  --cambridge prints the same metrics for data/cambridge; --only gates one file's share of the bank (for parallel writers; p1 = every speaking-p1*.json).
 Exit 1 on any failure."""
 import collections, glob, json, random, re, sys
 
@@ -110,13 +110,16 @@ if '--cambridge' in sys.argv:
 
 only = sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else None
 use = lambda name: only in (None, name)
-b1 = json.load(open(f'{BANK}/speaking-p1.json')) if use('p1') else []
+b1 = [s for f in sorted(glob.glob(f'{BANK}/speaking-p1*.json')) for s in json.load(open(f))] if use('p1') else []  # speaking-p1.json + the opening-frame files
 cards = (json.load(open(f'{BANK}/speaking-p2-a.json')) if use('p2-a') else []) + (json.load(open(f'{BANK}/speaking-p2-b.json')) if use('p2-b') else [])
 b3 = json.load(open(f'{BANK}/speaking-p3.json')) if use('p3') else []
 topic_sets = [s['questions'] for s in b1 if not s.get('frame')]
 p3_sets = [c['p3'] for c in cards] + [s['questions'] for s in b3]
 if topic_sets:
     p1(topic_sets, True)
+frames = [s for s in b1 if s.get('frame')]
+if frames:
+    check(all(3 <= len(s['questions']) <= 5 for s in frames), f'every opening-frame / work-study set has 3-5 questions ({len(frames)} sets)')
 if cards:
     p2(cards, True)
 if p3_sets:

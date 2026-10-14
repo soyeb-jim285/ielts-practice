@@ -38,7 +38,9 @@ it('cues: each carries its part detail and stays under the 500-token append limi
     expect(text.length / 3.5, c).toBeLessThan(500);
     expect(cueEvent(c, test)).toMatchObject({ type: 'session.instructions.append', delegation_id: null, content: text });
   }
-  expect(gptLiveCue('begin', test)).toContain('could you tell me your full name'.replace('could', 'Could'));
+  expect(gptLiveCue('begin', test)).toContain('Can you tell me your full name, please?');
+  const scripted = { ...test, script: { intro: ['Good evening. I\'m Sam. What\'s your full name, please?', 'Thank you. And where are you from?'], p1Lead: 'Thanks. Now, in this first part, I\'m going to ask you some questions about yourself.', moveOn: "Let's move on to talk about" } };
+  expect(gptLiveCue('begin', scripted)).toMatch(/Say "Good evening\. I'm Sam\. What's your full name, please\?" and listen to the answer\. Then say "Thank you\. And where are you from\?" and listen.*say "Thanks\. Now, in this first part.*later "Let's move on to talk about <topic>\."/s);
   expect(gptLiveCue('begin', test)).toContain('c question 4?');
   expect(gptLiveCue('part2', test)).toContain('- why you liked it');
   expect(gptLiveCue('part2', test)).toContain('silent');
@@ -70,14 +72,16 @@ it('scrub removes the instructions from session events', () => {
 
 it('transcript: deltas append verbatim, turns alternate, phases follow the script', () => {
   let n = 0;
-  const t = new Transcript(() => ++n);
+  const t = new Transcript(() => ++n, 2);
   const out = (delta: string) => t.feed({ type: 'session.output_transcript.delta', delta });
   const inp = (delta: string, s = 0, e = 0) => t.feed({ type: 'session.input_transcript.delta', delta, start_ms: s, end_ms: e });
   expect(t.feed({ type: 'session.usage.updated' })).toBe(false);
   out('Hello. My name is'); out(' Alex.');
   inp(' My name', 1000, 1300); inp(' is Sam.', 1300, 2500);
-  out('Thank you.'); // examiner after the candidate's answer: intro → p1
-  out(' Where do you live?');
+  out('Thank you. And where are you from?'); // a second introduction question: still the introduction
+  inp('Lahore.');
+  out('Thank you. Now, in this first'); // the Part 1 lead: intro → p1
+  out(" part, I'd like to ask you some questions about yourself. Where do you live?");
   t.setPhase('p2-prep');
   out('Now Part 2.');
   t.setPhase('p2-talk');
@@ -89,7 +93,9 @@ it('transcript: deltas append verbatim, turns alternate, phases follow the scrip
   expect(t.turns.map((x) => [x.role, x.phase, x.text])).toEqual([
     ['examiner', 'intro', 'Hello. My name is Alex.'],
     ['candidate', 'intro', ' My name is Sam.'],
-    ['examiner', 'p1', 'Thank you. Where do you live?'],
+    ['examiner', 'intro', 'Thank you. And where are you from?'],
+    ['candidate', 'intro', 'Lahore.'],
+    ['examiner', 'p1', "Thank you. Now, in this first part, I'd like to ask you some questions about yourself. Where do you live?"],
     ['examiner', 'p2-prep', 'Now Part 2.'],
     ['candidate', 'p2-talk', 'I want to talk about'],
     ['examiner', 'p2-follow', 'Thank you. Do you read?'],
@@ -97,4 +103,18 @@ it('transcript: deltas append verbatim, turns alternate, phases follow the scrip
     ['examiner', 'p3', 'Part 3 now.'],
   ]);
   expect(t.turns[1]!.durationMs).toBe(1500);
+});
+
+it("transcript: an examiner that skips the Part 1 lead still reaches Part 1 after the session's introduction answers", () => {
+  const run = (answers: string[]) => {
+    const t = new Transcript(() => 0, answers.length);
+    for (const a of answers) {
+      t.feed({ type: 'session.output_transcript.delta', delta: 'A question?' });
+      t.feed({ type: 'session.input_transcript.delta', delta: a });
+    }
+    t.feed({ type: 'session.output_transcript.delta', delta: "Thank you. Let's talk about your hometown. Where did you grow up?" });
+    return t.turns.map((x) => x.phase);
+  };
+  expect(run(['Sam Lee.', 'Sam.', 'Lahore.'])).toEqual(['intro', 'intro', 'intro', 'intro', 'intro', 'intro', 'p1']);
+  expect(run(['Sam Lee.'])).toEqual(['intro', 'intro', 'p1']); // a one-line introduction: Part 1 from the next examiner turn
 });

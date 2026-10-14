@@ -2,16 +2,16 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { and, eq, max } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, type LiveState, type Turn } from '../ai/examiner';
+import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, sessionScript, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { GEMINI_LIVE_MODELS, geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { mintClientSecret, mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
-import { CASCADE_LLMS, CASCADE_STT, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, spokenLine, transcriptionSession } from '../ai/cascade';
+import { CASCADE_LLMS, CASCADE_STT_MODELS, CASCADE_STTS, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, scribeToken, spokenLine, transcriptionSession } from '../ai/cascade';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
 import { liveDeadline } from '../ai/live-deadline';
-import { currentUser, requireUser } from '../auth';
+import { currentUser, requireOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { aiCosts, attempts, liveSessions } from '../db/schema';
 import { env } from '../env';
@@ -196,6 +196,7 @@ export function register(app: App) {
             source: z.enum(['generated', 'cambridge', 'any']).default('any'),
             mockId: z.string().optional().openapi({ description: 'Full mock test: use the mock\'s Cambridge test (ref) and require its speaking mode to be live' }),
             skipTts: z.boolean().default(false).openapi({ description: 'Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)' }),
+            localHour: z.number().int().min(0).max(23).optional().openapi({ description: "The candidate's local hour (0-23): the examiner greets with Good morning / afternoon / evening; without it, Hello" }),
           })
           .openapi('LiveStart'),
       ),
@@ -215,7 +216,7 @@ export function register(app: App) {
     }),
     async (c) => {
       const user = currentUser(c);
-      const { source: asked, skipTts, mockId } = c.req.valid('json');
+      const { source: asked, skipTts, mockId, localHour } = c.req.valid('json');
       const mock = mockId ? await liveMock(user.id, mockId) : null;
       const source = mock?.source ?? asked;
       const payer = c.get('payer')!;
@@ -223,7 +224,7 @@ export function register(app: App) {
       await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
       const picked = await pickSpeakingTest(user, source, mock?.ref);
       if (!picked) return c.json({ error: 'No speaking test available' }, 404);
-      const test = { ...picked, branches: await pickP1Branches(user) };
+      const test = { ...picked, branches: await pickP1Branches(user), script: sessionScript(localHour, picked.part1[0]?.topic) };
       const sessionId = crypto.randomUUID();
       const s = newState(sessionId, test, Date.now());
       const { key, ...audio } = skipTts ? { url: null } : await voice(s, 0, s.history[0]!.text, await getSettings(user.id));
@@ -536,31 +537,51 @@ export function register(app: App) {
   app.openapi(
     createRoute({
       ...paid,
+      middleware: [...paid.middleware, requireOwner], // the owner's ElevenLabs / OpenAI keys pay: owner only, 404 for everyone else
       method: 'post',
       path: '/api/live/cascade/stt-token',
-      summary: 'Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe)',
-      request: body(SessionRef.openapi('LiveCascadeSttToken')),
+      summary: 'Fast cascade examiner (admin playground): credentials for one streaming transcription session (Scribe v2 Realtime or an OpenAI Realtime transcription session)',
+      request: body(SessionRef.extend({ stt: z.enum(CASCADE_STT_MODELS).optional().openapi({ description: 'Default scribe_v2_realtime' }) }).openapi('LiveCascadeSttToken')),
       responses: {
-        200: json(z.object({ value: z.string(), expiresAt: z.number().openapi({ description: 'Unix seconds' }) }).openapi('CascadeSttToken'), 'Client secret: Bearer for POST /v1/realtime/calls'),
+        200: json(
+          z
+            .object({
+              token: z.string().optional().openapi({ description: 'Scribe: the `token` query parameter of wss://api.elevenlabs.io/v1/speech-to-text/realtime' }),
+              value: z.string().optional().openapi({ description: 'OpenAI: client secret, Bearer for POST /v1/realtime/calls' }),
+            })
+            .openapi('CascadeSttToken'),
+          'Credentials',
+        ),
         400: json(CodedError, "invalid_key: OpenAI rejected the user's key"),
         ...needsKey,
         404: json(ErrorSchema, 'Not found'),
         ...tooMany,
-        502: json(ErrorSchema, 'OpenAI error'),
+        502: json(ErrorSchema, 'Transcription provider error'),
+        503: json(ErrorSchema, 'ELEVENLABS_API_KEY is not set'),
       },
     }),
     async (c) => {
-      const payer = c.get('payer')!, user = currentUser(c);
-      requireLive(payer, 'realtime-mini');
-      await loadSession(c.req.valid('json').sessionId, user.id);
-      const apiKey = liveKey(payer, 'openai')!;
-      const t = await mintClientSecret(apiKey, transcriptionSession());
-      if (!('value' in t)) {
-        console.error('openai transcription client_secrets', t.status, redact(t.detail, apiKey));
-        if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
+      const b = c.req.valid('json'), user = currentUser(c), stt = b.stt ?? CASCADE_STT_MODELS[0];
+      await loadSession(b.sessionId, user.id);
+      if (CASCADE_STTS[stt].provider === 'openai') {
+        const payer = c.get('payer')!;
+        requireLive(payer, 'realtime-mini');
+        const apiKey = liveKey(payer, 'openai')!;
+        const t = await mintClientSecret(apiKey, transcriptionSession(stt));
+        if (!('value' in t)) {
+          console.error('openai transcription client_secrets', t.status, redact(t.detail, apiKey));
+          if (t.status === 401 || t.status === 403) return rejectedKey(user.id, 'openai', 'OpenAI', payer.keys.openai);
+          return c.json({ error: 'Could not start the transcription session. Please retry.' }, 502);
+        }
+        return c.json({ value: t.value }, 200);
+      }
+      if (!env.ELEVENLABS_API_KEY) return c.json({ error: 'ElevenLabs is not configured on this server.' }, 503);
+      const t = await scribeToken(env.ELEVENLABS_API_KEY);
+      if (!('token' in t)) {
+        console.error('elevenlabs single-use-token', t.status, redact(t.detail, env.ELEVENLABS_API_KEY));
         return c.json({ error: 'Could not start the transcription session. Please retry.' }, 502);
       }
-      return c.json({ value: t.value, expiresAt: t.expiresAt }, 200);
+      return c.json({ token: t.token }, 200);
     },
   );
 
@@ -579,6 +600,7 @@ export function register(app: App) {
             .openapi({ description: "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)" }),
           llm: z.enum(CASCADE_LLMS).optional(),
           tts: z.enum(CASCADE_TTS_MODELS).optional(),
+          stt: z.enum(CASCADE_STT_MODELS).optional().openapi({ description: 'Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime' }),
           sttSeconds: z.number().min(0).max(3600).optional().openapi({ description: 'Candidate audio transcribed since the last reply (priced into the ledger)' }),
         }).openapi('LiveCascadeReply'),
       ),
@@ -607,8 +629,9 @@ export function register(app: App) {
       const s = await loadSession(b.sessionId, user.id);
       const tally = { usd: 0 };
       return keyCtx.run({ ...keyCtx.getStore(), tally }, async () => {
-        // gpt-4o-mini-transcribe: $0.003/min (developers.openai.com/api/docs/pricing, 2026-10-13); the browser counts the seconds.
-        if (b.sttSeconds) recordCost({ stage: 'live_stt', provider: 'openai', model: CASCADE_STT, costUsd: (b.sttSeconds / 60) * 0.003, audioSeconds: b.sttSeconds, paidBy: payer.keys.openai ? 'own_key' : 'house', meta: { estimated: true } });
+        // The browser counts the transcribed seconds (Scribe: audio it sent; OpenAI: the session's reported duration).
+        const stt = b.stt ?? CASCADE_STT_MODELS[0], sttInfo = CASCADE_STTS[stt];
+        if (b.sttSeconds) recordCost({ stage: 'live_stt', provider: sttInfo.provider, model: stt, costUsd: (b.sttSeconds / 60) * sttInfo.usdPerMin, audioSeconds: b.sttSeconds, paidBy: sttInfo.provider === 'openai' && payer.keys.openai ? 'own_key' : 'house', meta: { estimated: true } });
         const t0 = Date.now();
         const raw = await ai(() => liveDeadline(chatText({ model: b.llm ?? CASCADE_LLMS[0], messages: cascadeMessages(s.test, b.turns), effort: 'none', maxTokens: 200, cost: { stage: 'examiner_llm' } }), 15_000));
         const text = spokenLine(raw), llm = Date.now() - t0;

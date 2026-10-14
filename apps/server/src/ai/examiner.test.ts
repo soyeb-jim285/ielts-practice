@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { SpeakingTest } from '../routes/prompts';
-import { candidateFacts, detectBranch, direction, EXAMINER_SYSTEM, gptLiveCue, newState, nextPhase, p1Plan, realtimeInstructions, type LiveState } from './examiner';
+import { branchOf, candidateFacts, detectBranch, direction, EXAMINER_NAMES, EXAMINER_SYSTEM, gptLiveCue, newState, nextPhase, P1_START, p1Plan, realtimeInstructions, scriptedLine, sessionScript, type LiveState } from './examiner';
 
 const prompt = (id: string, part: number, extra = {}) => ({
   id, slug: id, skill: 'speaking' as const, part, variant: null, type: 't', topic: `topic ${id}`, title: `Describe ${id}`, body: `body ${id}`,
@@ -20,6 +20,38 @@ it('intro → p1 after the candidate answers', () => {
   const s = at('intro');
   s.history.push(cand('intro'));
   expect(nextPhase(s, T0 + 5000)).toBe('p1');
+});
+
+it('the introduction follows the real frame and varies per session', () => {
+  const seq = (...xs: number[]) => () => xs.shift() ?? 0;
+  expect(sessionScript(9, '', () => 0.9).intro).toEqual([`Good morning. I'm Charlie, and I'm going to be your examiner. What's your full name, please?`]);
+  expect(sessionScript(14, 'Work or study', () => 0).intro).toEqual(["Good afternoon. My name is Alex, and I'll be your examiner today. Can you tell me your full name, please?", 'Thank you. And what shall I call you?', "Thank you. And can you tell me where you're from?"]);
+  expect(sessionScript(20, '', seq(0, 0, 0, 0.9, 0)).intro[1]).toBe("Thank you. And can you tell me where you're from?"); // no preferred-name question this time
+  expect(sessionScript(undefined, '', () => 0.9).intro[0]).toMatch(/^Hello\./);
+  expect(sessionScript(2, '', () => 0.9).intro[0]).toMatch(/^Hello\./); // never "Good morning" in the small hours
+  for (const topic of ['Your hometown', 'Hometown']) expect(sessionScript(14, topic, () => 0).intro.join(' ')).not.toMatch(/where/i); // the hometown frame asks it next
+  const many = Array.from({ length: 300 }, () => sessionScript(10));
+  expect(new Set(many.map((x) => x.intro[0])).size).toBeGreaterThan(30);
+  expect(new Set(many.map((x) => x.intro.length))).toEqual(new Set([1, 2, 3]));
+  expect(new Set(many.map((x) => x.p1Lead)).size).toBeGreaterThan(2);
+  for (const x of many) {
+    expect(x.intro.every((l) => l.endsWith('?') && !/introduce yourself|tell me about yourself|identification|\bID\b/i.test(l))).toBe(true);
+    expect(EXAMINER_NAMES.some((n) => x.intro[0]!.includes(n))).toBe(true);
+    expect(x.p1Lead).toMatch(P1_START);
+  }
+});
+
+it('a multi-question introduction: each line is scripted in turn, Part 1 starts after the last answer', () => {
+  const s = newState('s', { ...test, script: { intro: ['Hello. Full name?', 'Thank you. And what shall I call you?'], p1Lead: 'Thank you. In this first part, I have some questions about yourself.', moveOn: "Let's move on to talk about" } }, T0);
+  expect(s.history[0]!.text).toBe('Hello. Full name?');
+  s.history.push(cand('intro'));
+  expect(nextPhase(s, T0)).toBe('intro');
+  expect(scriptedLine(s)).toBe('Thank you. And what shall I call you?');
+  s.history.push({ role: 'examiner', text: scriptedLine(s)!, at: T0, phase: 'intro' }, cand('intro'));
+  expect(nextPhase(s, T0)).toBe('p1');
+  expect(direction({ ...s, phase: 'p1' }).fallback).toBe("Thank you. In this first part, I have some questions about yourself. Let's talk about topic a. a question 1?");
+  expect(direction({ ...s, phase: 'p1', p1Asked: 4 }).fallback).toBe("Let's move on to talk about topic b. b question 1?");
+  expect(realtimeInstructions(s.test)).toContain('Say "Hello. Full name?" and wait for the answer. Then say "Thank you. And what shall I call you?" and wait for the answer.');
 });
 
 it('p1 → p2-prep after 12 questions or 4.5 min', () => {
@@ -90,6 +122,20 @@ it('detects the work/study branch from keywords, neutral when ambiguous', () => 
   expect(detectBranch("I don't work, I'm studying")).toBe('study');
   expect(detectBranch('I work part time and study at college')).toBe('both');
   expect(detectBranch('Uh, not really')).toBeNull();
+  expect(detectBranch("I don't work or study at the moment")).toBe('neither');
+  expect(detectBranch("I'm neither working nor studying, I'm between jobs")).toBe('neither');
+  expect(detectBranch("I'm unemployed")).toBe('neither');
+  for (const q of ['Do you work or are you a student?', 'Do you work, or are you a student?', 'Do you work or study?', 'Are you working or studying at the moment?', 'Do you work or are you still in education?', "Let's talk about what you do. Do you work or do you study?"])
+    expect(branchOf([ex(q), talk("I'm a student")]), q).toBe('study');
+  expect(branchOf([ex('Where do you work?'), talk("I'm a student")])).toBeNull();
+});
+
+it('a candidate who neither works nor studies skips the rest of the work/study set', () => {
+  const s = wsState("I don't work or study at the moment");
+  expect(p1Plan(s).map((x) => x.q)).toEqual(['Do you work or are you a student?', 'a question 1?', 'a question 2?', 'a question 3?', 'a question 4?']);
+  expect(direction(s).fallback).toBe("Now let's talk about topic a. a question 1?");
+  expect(candidateFacts(s.history)).toContain('neither works nor studies');
+  expect(realtimeInstructions(wsTest)).toContain('If they neither work nor study, drop the rest of this topic');
 });
 
 it('continues Part 1 with the matching branch set', () => {

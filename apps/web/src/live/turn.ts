@@ -1,5 +1,5 @@
 // Live examiner, turn-based: server TTS lines, local VAD turns, one recording per part sent to /live/finish.
-import type { Phase } from '@server/ai/examiner';
+import type { LiveTest, Phase } from '@server/ai/examiner';
 import type { Prompt, SpeakingTest } from '@server/routes/prompts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
@@ -11,11 +11,11 @@ import { recordMix, type MixRecording } from './mix';
 
 export type { Phase };
 export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
-export type LiveStarted = ExaminerLine & { sessionId: string; test: SpeakingTest };
+export type LiveStarted = ExaminerLine & { sessionId: string; test: LiveTest };
 /** Which bank /live/start draws the test from; undefined = the server default (any visible prompt). */
 export type LiveSource = 'cambridge' | 'generated' | undefined;
-/** The /live/start body: inside a mock test the server picks the questions from the mock, so only `mockId` is sent. */
-export const liveStartBody = (source: LiveSource, mockId?: string) => (mockId ? { mockId } : { source });
+/** The /live/start body: inside a mock test the server picks the questions from the mock, so only `mockId` is sent. The local hour picks the examiner's greeting. */
+export const liveStartBody = (source: LiveSource, mockId?: string) => ({ ...(mockId ? { mockId } : { source }), localHour: new Date().getHours() });
 type Part = 1 | 2 | 3;
 
 export const PREP_S = 60;

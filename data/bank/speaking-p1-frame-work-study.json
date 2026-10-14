@@ -1,0 +1,148 @@
+[
+  { "slug": "p1-frame-ws-1", "topic": "Work or study", "frame": "intro", "questions": [
+    "Do you work or are you a student at the moment?",
+    "What takes up most of your time during the week?",
+    "What job did you want to do when you were a child?",
+    "Is there a skill you'd really like to learn in the next few years? Why?"
+  ] },
+  { "slug": "p1-frame-ws-2", "topic": "Work or study", "frame": "intro", "questions": [
+    "Are you working or studying at the moment?",
+    "Which part of the day is usually the busiest for you?",
+    "Do you prefer to have a fixed routine or to do something different every day? Why?",
+    "Do you think you'll be doing something different this time next year? Why/why not?"
+  ] },
+  { "slug": "p1-frame-ws-3", "topic": "Work or study", "frame": "intro", "questions": [
+    "Do you work or study?",
+    "In your country, is it common for people your age to work while they're studying?",
+    "Who do you spend most of your weekdays with?",
+    "What would be your ideal job? Why?"
+  ] },
+  { "slug": "p1-frame-ws-4", "topic": "Work or study", "frame": "intro", "questions": [
+    "Are you currently working or studying?",
+    "What kinds of jobs are popular with young people in your country?",
+    "What's something useful you've learnt in the last year?",
+    "Would you rather work in a team or on your own? Why?"
+  ] },
+  { "slug": "p1-frame-ws-5", "topic": "Work or study", "frame": "intro", "questions": [
+    "Are you working or studying, or doing something else?",
+    "How do you keep yourself organised during the week?",
+    "Can you switch off easily in the evenings? Why/why not?",
+    "Which do you enjoy more, learning something new or getting better at something you already do?"
+  ] },
+  { "slug": "p1-frame-ws-6", "topic": "Work or study", "frame": "intro", "questions": [
+    "Do you work or are you still in education?",
+    "Have you ever had a part-time job?",
+    "What do you like most about the way you spend your days at the moment?",
+    "Is there anything you'd like to change about your daily life? Why?"
+  ] },
+  { "slug": "p1-frame-ws-7", "topic": "Work or study", "frame": "intro", "questions": [
+    "Do you work or are you studying at the moment?",
+    "Do most of your friends work or study?",
+    "Which do you think is harder, working or studying? Why?",
+    "What are you hoping to be doing in five years' time?"
+  ] },
+  { "slug": "p1-frame-ws-8", "topic": "Work or study", "frame": "intro", "questions": [
+    "What do you do? Do you work or are you a student?",
+    "Would you say you're busier now than you were a few years ago? Why?",
+    "Is there a job you think you'd be really good at? Why?",
+    "Would you like to do the same kind of work all your life? Why/why not?"
+  ] },
+
+  { "slug": "p1-branch-work-1", "topic": "Work", "frame": "branch", "questions": [
+    "What's your job?",
+    "Why did you decide to do that kind of work?",
+    "What do you find most satisfying about it?",
+    "Is it a popular job in your country?"
+  ] },
+  { "slug": "p1-branch-work-2", "topic": "Work", "frame": "branch", "questions": [
+    "Where do you work?",
+    "How do you get on with the people you work with?",
+    "What's the hardest part of your job?",
+    "Would you recommend your job to a friend? Why/why not?"
+  ] },
+  { "slug": "p1-branch-work-3", "topic": "Work", "frame": "branch", "questions": [
+    "What do you do for a living?",
+    "When you first started, what did you find hardest to learn?",
+    "Which part of your working day do you enjoy most?",
+    "Do you think you'll still be doing the same job in ten years? Why/why not?"
+  ] },
+  { "slug": "p1-branch-work-4", "topic": "Work", "frame": "branch", "questions": [
+    "What sort of company or organisation do you work for?",
+    "Do you work mostly on your own or with other people?",
+    "What's your workplace like?",
+    "Are there any skills you'd like to develop in your job?"
+  ] },
+  { "slug": "p1-branch-work-5", "topic": "Work", "frame": "branch", "questions": [
+    "Can you tell me a little about your job?",
+    "Was it easy to find this job? Why/why not?",
+    "How many hours a week do you usually work?",
+    "If you could change one thing about your job, what would it be?"
+  ] },
+  { "slug": "p1-branch-work-6", "topic": "Work", "frame": "branch", "questions": [
+    "What line of work are you in?",
+    "What made you choose it?",
+    "Do you have to wear a uniform or any special clothes for work?",
+    "What's the most useful thing you've learnt at work?"
+  ] },
+  { "slug": "p1-branch-work-7", "topic": "Work", "frame": "branch", "questions": [
+    "What job do you do?",
+    "Is it the kind of job you expected to have when you left school?",
+    "How has your job changed since you started?",
+    "Do you enjoy your job? Why/why not?"
+  ] },
+  { "slug": "p1-branch-work-8", "topic": "Work", "frame": "branch", "questions": [
+    "Is your job full-time or part-time?",
+    "Do you work regular hours, or does your schedule change from week to week?",
+    "Do you ever take work home with you? Why/why not?",
+    "Would you like to do a different job in the future? Why/why not?"
+  ] },
+
+  { "slug": "p1-branch-study-1", "topic": "Study", "frame": "branch", "questions": [
+    "What are you studying at the moment?",
+    "Is it a popular subject in your country?",
+    "What do you find most difficult about it?",
+    "What do you plan to do when you finish?"
+  ] },
+  { "slug": "p1-branch-study-2", "topic": "Study", "frame": "branch", "questions": [
+    "Where do you study?",
+    "What's the best thing about studying there?",
+    "How many hours a day do you usually spend on your studies?",
+    "Would you like to study abroad at some point? Why/why not?"
+  ] },
+  { "slug": "p1-branch-study-3", "topic": "Study", "frame": "branch", "questions": [
+    "Are you at school, college or university?",
+    "Which subject do you enjoy most at the moment? Why?",
+    "Did anyone help you decide what to study?",
+    "Is there anything you'd change about the place where you study?"
+  ] },
+  { "slug": "p1-branch-study-4", "topic": "Study", "frame": "branch", "questions": [
+    "What's your main subject?",
+    "How long have you been studying it?",
+    "What first got you interested in it?",
+    "How do you think it will help you in the future?"
+  ] },
+  { "slug": "p1-branch-study-5", "topic": "Study", "frame": "branch", "questions": [
+    "What kind of course are you doing?",
+    "Are there many students on your course?",
+    "Do you have to do much group work on your course?",
+    "Is it easy for you to stay focused when you're studying? Why/why not?"
+  ] },
+  { "slug": "p1-branch-study-6", "topic": "Study", "frame": "branch", "questions": [
+    "What do you study?",
+    "Was it your first choice of subject?",
+    "Which part of your course do you find the most interesting?",
+    "Do you think you'll use what you're learning in your future job? Why/why not?"
+  ] },
+  { "slug": "p1-branch-study-7", "topic": "Study", "frame": "branch", "questions": [
+    "Are you studying full-time or part-time?",
+    "How many classes do you have on a typical day?",
+    "Do you get on well with your classmates?",
+    "What would you like to do after you finish your studies?"
+  ] },
+  { "slug": "p1-branch-study-8", "topic": "Study", "frame": "branch", "questions": [
+    "Can you tell me what you're studying?",
+    "How much homework or reading do you usually get?",
+    "Do you study better at home or in a library? Why?",
+    "Is your subject useful for finding a good job in your country? Why/why not?"
+  ] }
+]

@@ -13,7 +13,7 @@ for (const f of readdirSync(dir).filter((x) => x.startsWith('speaking-') && x.en
     const r = kind.schema.safeParse(raw);
     if (!r.success) continue;
     for (const row of kind.rows(r.data)) {
-      const l = speakingLines({ part: row.part, type: row.type, topic: row.topic, title: row.title, body: row.body, followUps: row.followUps });
+      const l = speakingLines({ slug: row.slug, part: row.part, type: row.type, topic: row.topic, title: row.title, body: row.body, followUps: row.followUps });
       [l.intro, l.lead, ...l.questions].forEach((t) => t && texts.add(t));
     }
   }

@@ -12,6 +12,9 @@ import { storage } from '../storage';
 import { clearSpeechCache } from './live';
 import { endRun, setUpstream } from '../ai/gpt-live';
 import { fakeSocket } from '../test/fakeSocket';
+import { OWNER_EMAILS } from '../auth';
+import { spokenLine } from '../ai/cascade';
+import { env } from '../env';
 import * as deadlines from '../ai/live-deadline';
 
 let ai: ReturnType<typeof fakeFetch>;
@@ -31,7 +34,15 @@ beforeEach(async () => {
   await seedPrompt({ part: 3, type: 'p3-discussion', topic: 'reading habits', groupId: 'g1', followUps: ['Do people read less today?'] });
 });
 
-const start = async (headers: Headers) => (await (await req('/api/live/start', { headers, body: {} })).json()) as any;
+/** The session's introduction is random (sessionScript): `rnd` pins it. 0.9 = one introduction question; 0.1 = three (what to call you, where from). */
+const start = async (headers: Headers, body: Record<string, unknown> = {}, rnd = 0.9) => {
+  const r = vi.spyOn(Math, 'random').mockReturnValue(rnd);
+  try {
+    return (await (await req('/api/live/start', { headers, body })).json()) as any;
+  } finally {
+    r.mockRestore();
+  }
+};
 const upload = async (headers: Headers, sessionId: string) => {
   const { key } = (await (await req('/api/live/upload-url', { headers, body: { sessionId } })).json()) as any;
   await storage.put(key, new Uint8Array([1, 2]), 'audio/webm');
@@ -238,33 +249,56 @@ it('realtime-token: 403 without an OpenAI key, else mints a client secret locked
   await vi.waitFor(async () => expect((await db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'openai')))).map((r) => [r.costUsd, r.model, r.paidBy])).toEqual([[12.003, 'gpt-realtime-mini', 'own_key']]));
 });
 
-it('cascade: stt-token mints a transcription-session secret; reply runs the cue convention through the LLM and voices the line inline', async () => {
-  const { headers, user } = await testUser();
+it('cascade: stt-token mints a single-use Scribe token for the owner only; reply runs the cue convention through the LLM and voices the line inline', async () => {
+  const { headers } = await testUser(OWNER_EMAILS[0]);
   const s = await start(headers);
-  expect((await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(403);
-  await setKey(user.id, 'openai', 'sk-test');
-  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_t', expires_at: 1900000000 }) });
-  const real = globalThis.fetch;
-  globalThis.fetch = openai;
+  const other = await testUser();
+  expect((await req('/api/live/cascade/stt-token', { headers: other.headers, body: { sessionId: s.sessionId } })).status).toBe(404);
+  const xi = fakeFetch({ '/v1/single-use-token/realtime_scribe': () => json({ token: 'sutkn_1' }) });
+  const real = globalThis.fetch, key = env.ELEVENLABS_API_KEY;
+  globalThis.fetch = xi;
+  env.ELEVENLABS_API_KEY = 'xi-owner';
   try {
-    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).json()).toEqual({ value: 'ek_t', expiresAt: 1900000000 });
+    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).json()).toEqual({ token: 'sutkn_1' });
   } finally {
     globalThis.fetch = real;
+    env.ELEVENLABS_API_KEY = key;
   }
-  expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
+  expect(xi.calls[0]!.headers['xi-api-key']).toBe('xi-owner');
 
   ai = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([9, 9])), '/chat/completions': () => chatReply('Examiner: "Good evening. Can you tell me your full name, please?"') });
   setFetch(ai);
   const turns = [{ role: 'app', text: 'Begin the test.' }, { role: 'examiner', text: 'Hello.' }, { role: 'candidate', text: 'Hi, I am Sam.' }];
   const r = (await (await req('/api/live/cascade/reply', { headers, body: { sessionId: s.sessionId, turns, llm: 'deepseek/deepseek-v4.1-flash', sttSeconds: 60 } })).json()) as any;
   expect(r).toMatchObject({ text: 'Good evening. Can you tell me your full name, please?', contentType: 'audio/mpeg', audio: expect.any(String) });
-  expect(r.costUsd).toBeGreaterThanOrEqual(0.003); // a minute of transcription at least
+  expect(r.costUsd).toBeGreaterThanOrEqual(0.0065); // a minute of Scribe Realtime at least
   const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
   expect(chat.model).toBe('deepseek/deepseek-v4.1-flash');
   expect(chat.messages[0].content).toMatch(/text-to-speech/);
   expect(chat.messages.slice(1)).toEqual([{ role: 'user', content: '[APP CUE] Begin the test.' }, { role: 'assistant', content: 'Hello.' }, { role: 'user', content: 'Hi, I am Sam.' }]);
   expect(chat.reasoning).toEqual({ enabled: false });
-  expect(ai.calls.findLast((c) => c.url.includes('/audio/speech'))!.body).toMatchObject({ model: 'elevenlabs/eleven-flash-v2.5', voice: 'george' });
+  expect(ai.calls.findLast((c) => c.url.includes('/audio/speech'))!.body).toMatchObject({ model: 'elevenlabs/eleven-v4-turbo', voice: 'george' });
+});
+
+it('cascade: an OpenAI transcriber gets a transcription-session client secret on the user\'s OpenAI key and is priced per minute', async () => {
+  const { headers, user } = await testUser(OWNER_EMAILS[0]);
+  const s = await start(headers);
+  expect((await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe' } })).status).toBe(403); // no OpenAI key yet
+  await setKey(user.id, 'openai', 'sk-test');
+  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_t', expires_at: 1900000000 }) });
+  const real = globalThis.fetch;
+  globalThis.fetch = openai;
+  try {
+    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe' } })).json()).toEqual({ value: 'ek_t' });
+  } finally {
+    globalThis.fetch = real;
+  }
+  expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
+});
+
+it('cascade: a reply that talks about the app cue (leaked reasoning) is not spoken', () => {
+  expect(spokenLine('[APP CUE] indicates the plan says history. Need to adhere.')).toBe('');
+  expect(spokenLine('Examiner: "Let\'s talk about history."')).toBe("Let's talk about history.");
 });
 
 it('finish creates one live attempt per part and analyses each, once', async () => {
@@ -398,8 +432,29 @@ it('fixed examiner lines are voiced once per model and voice, not once per sessi
   const tts = () => ai.calls.filter((c) => c.url.includes('/audio/speech')).length;
   const first = tts();
   expect(first).toBeGreaterThan(0);
-  await start(headers); // the intro line is fixed wording
+  await start(headers); // the same introduction wording (start pins the random pick)
   expect(tts()).toBe(first);
+});
+
+it('the introduction is picked per session: time-of-day greeting, one to three questions, then the Part 1 lead; the same lines in every engine', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers, { localHour: 9 }, 0.1);
+  expect(s.examinerText).toMatch(/^Good morning\. .*full name, please\?$/);
+  expect(s.test.script.intro).toHaveLength(3);
+  const turn = async () => (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey: await upload(headers, s.sessionId) } })).json()) as any;
+  expect(await turn()).toMatchObject({ phase: 'intro', examinerText: 'Thank you. And what shall I call you?' });
+  expect(await turn()).toMatchObject({ phase: 'intro', examinerText: "Thank you. And can you tell me where you're from?" });
+  const p1 = await turn();
+  expect(p1).toMatchObject({ phase: 'p1', examinerText: expect.stringMatching(/^Thank you\. Now, in this first part, I'd like to ask you some questions about yourself\. Let's talk about \w+\. /) });
+  const st = await state(s.sessionId);
+  expect(st.history.filter((h) => h.phase === 'intro').map((h) => h.role)).toEqual(['examiner', 'candidate', 'examiner', 'candidate', 'examiner', 'candidate']);
+  expect(st.phaseStartedAt).toBeGreaterThanOrEqual(st.history.at(-1)!.at); // Part 1 time starts after the introduction
+  // the duplex engines get the same wording from the stored test
+  const { realtimeInstructions } = await import('../ai/examiner');
+  for (const line of [...st.test.script!.intro, st.test.script!.p1Lead]) expect(realtimeInstructions(st.test)).toContain(line);
+  expect((await start(headers, { localHour: 22 })).examinerText).toMatch(/^Good evening\./);
+  expect((await start(headers)).examinerText).toMatch(/^Hello\./);
+  expect((await req('/api/live/start', { headers, body: { localHour: 24 } })).status).toBe(400);
 });
 
 it('Part 2 long turn: prep timer, talk, then the 2:00 cut-in leads into the rounding-off question', async () => {

@@ -1458,6 +1458,12 @@
             "type": "boolean",
             "default": false,
             "description": "Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)"
+          },
+          "localHour": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23,
+            "description": "The candidate's local hour (0-23): the examiner greets with Good morning / afternoon / evening; without it, Hello"
           }
         }
       },
@@ -1824,24 +1830,30 @@
       "CascadeSttToken": {
         "type": "object",
         "properties": {
-          "value": {
-            "type": "string"
+          "token": {
+            "type": "string",
+            "description": "Scribe: the `token` query parameter of wss://api.elevenlabs.io/v1/speech-to-text/realtime"
           },
-          "expiresAt": {
-            "type": "number",
-            "description": "Unix seconds"
+          "value": {
+            "type": "string",
+            "description": "OpenAI: client secret, Bearer for POST /v1/realtime/calls"
           }
-        },
-        "required": [
-          "value",
-          "expiresAt"
-        ]
+        }
       },
       "LiveCascadeSttToken": {
         "type": "object",
         "properties": {
           "sessionId": {
             "type": "string"
+          },
+          "stt": {
+            "type": "string",
+            "enum": [
+              "scribe_v2_realtime",
+              "gpt-4o-mini-transcribe",
+              "gpt-4o-transcribe"
+            ],
+            "description": "Default scribe_v2_realtime"
           }
         },
         "required": [
@@ -1933,16 +1945,28 @@
             "type": "string",
             "enum": [
               "deepseek/deepseek-v4.1-flash",
+              "inception/mercury-2.5",
+              "mistralai/mistral-small-3.2-24b-instruct",
               "openai/gpt-6-luna"
             ]
           },
           "tts": {
             "type": "string",
             "enum": [
+              "elevenlabs/eleven-v4-turbo",
               "elevenlabs/eleven-flash-v2.5",
               "google/gemini-3.8-flash-lite-tts",
               "google/gemini-3.8-flash-tts"
             ]
+          },
+          "stt": {
+            "type": "string",
+            "enum": [
+              "scribe_v2_realtime",
+              "gpt-4o-mini-transcribe",
+              "gpt-4o-transcribe"
+            ],
+            "description": "Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime"
           },
           "sttSeconds": {
             "type": "number",
@@ -8581,7 +8605,7 @@
             "bearer": []
           }
         ],
-        "summary": "Fast cascade examiner (admin playground): a client secret for an OpenAI Realtime transcription session (server VAD + gpt-4o-mini-transcribe)",
+        "summary": "Fast cascade examiner (admin playground): credentials for one streaming transcription session (Scribe v2 Realtime or an OpenAI Realtime transcription session)",
         "requestBody": {
           "required": true,
           "content": {
@@ -8594,7 +8618,7 @@
         },
         "responses": {
           "200": {
-            "description": "Client secret: Bearer for POST /v1/realtime/calls",
+            "description": "Credentials",
             "content": {
               "application/json": {
                 "schema": {
@@ -8644,7 +8668,17 @@
             }
           },
           "502": {
-            "description": "OpenAI error",
+            "description": "Transcription provider error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ELEVENLABS_API_KEY is not set",
             "content": {
               "application/json": {
                 "schema": {

@@ -5,7 +5,9 @@ export type Phase = 'intro' | 'p1' | 'p2-prep' | 'p2-talk' | 'p2-follow' | 'p3' 
 export type Turn = { role: 'examiner' | 'candidate'; text: string; at: number; audioKey?: string; durationMs?: number; phase: Phase };
 /** Part 1 work and study question sets (bank sets p1-work, p1-study) that replace the neutral "work or study" questions once the candidate's answer is known. */
 export type Branches = { work: string[]; study: string[] };
-export type LiveTest = SpeakingTest & { branches?: Branches };
+/** This session's opening wording, picked once at /live/start and stored on the test so resumes and every engine say the same lines. */
+export type Script = { intro: string[]; p1Lead: string; moveOn: string };
+export type LiveTest = SpeakingTest & { branches?: Branches; script?: Script };
 export type LiveState = {
   sessionId: string;
   phase: Phase;
@@ -25,8 +27,39 @@ export const P3_MAX_MS = 270_000;
 export const P3_MAX_QUESTIONS = 6;
 const P1_MAX_QUESTIONS = 12;
 
+// The real opening (ielts.org sample transcript, BC sample test, examiner-style scripts): greeting by time of day and the examiner's name, "Can you tell me
+// your full name, please?", often "What shall I call you?" and/or "Where are you from?", the ID check (meaningless in an app: skipped), then "Now, in this
+// first part, I'd like to ask you some questions about yourself." and the first frame. The examiner never says "introduce yourself".
+/** Gender-neutral: the examiner voice is the user's TTS choice (turn-based) or the engine's own. */
+export const EXAMINER_NAMES = ['Alex', 'Sam', 'Chris', 'Jamie', 'Robin', 'Charlie'];
+const SELF = [(n: string) => `My name is ${n}, and I'll be your examiner today.`, (n: string) => `My name's ${n}.`, (n: string) => `I'm ${n}, and I'm going to be your examiner.`];
+const FULL_NAME = ['Can you tell me your full name, please?', 'Could you tell me your full name, please?', "What's your full name, please?"];
+const CALL = ['what shall I call you?', 'what can I call you?', 'what would you like me to call you?'];
+const FROM = ["can you tell me where you're from?", 'where are you from?', 'where do you come from?'];
+const P1_LEADS = [
+  "Thank you. Now, in this first part, I'd like to ask you some questions about yourself.",
+  "Thank you. Now, in this first part of the test, I'm going to ask you some questions about yourself.",
+  "Thank you. In this first part, I'd like to ask you some more questions about yourself.",
+  "Thanks. Now, in this first part, I'm going to ask you some questions about yourself.",
+];
+const MOVES = ["Now let's talk about", "Let's move on to talk about", "Now I'd like to ask you about", "OK. Let's move on to"];
+/** Greeting for the candidate's local hour (no hour, or the small hours: "Hello"; never "Good morning" at night). */
+export const greeting = (h?: number) => (h === undefined || h < 5 ? 'Hello' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+/** A session's opening: greeting + name + full name, then each of "what shall I call you?" and "where are you from?" half the time (1-3 intro turns).
+ *  `firstTopic` is the opening Part 1 frame: a hometown frame asks where they are from itself, so the introduction doesn't. */
+export function sessionScript(localHour?: number, firstTopic = '', rnd = Math.random): Script {
+  const one = <T>(xs: readonly T[]) => xs[Math.floor(rnd() * xs.length)]!;
+  const intro = [`${greeting(localHour)}. ${one(SELF)(one(EXAMINER_NAMES))} ${one(FULL_NAME)}`];
+  for (const qs of /hometown/i.test(firstTopic) ? [CALL] : [CALL, FROM]) if (rnd() < 0.5) intro.push(`Thank you. And ${one(qs)}`);
+  return { intro, p1Lead: one(P1_LEADS), moveOn: one(MOVES) };
+}
+/** Sessions started before scripts were stored, and bare tests (admin playground, tests). */
+const DEFAULT_SCRIPT: Script = { intro: [`Hello. ${SELF[0]!('Alex')} ${FULL_NAME[0]}`], p1Lead: P1_LEADS[0]!, moveOn: MOVES[0]! };
+export const scriptOf = (t: SpeakingTest): Script => (t as LiveTest).script ?? DEFAULT_SCRIPT;
+/** The examiner has finished the introduction and started Part 1 (every P1_LEADS line, and the legacy one, says it). Duplex transcripts move intro → p1 on it. */
+export const P1_START = /\bfirst part\b|\bquestions about yourself\b/i;
+
 export const LINES = {
-  intro: "Hello. My name is Alex, and I'll be your examiner today. Could you tell me your full name, please, and where you are from?",
   prep: (topic: string) =>
     `Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here's your topic: ${topic.replace(/\.$/, '')}.`,
   prepMore: 'You still have a little time to prepare.',
@@ -38,18 +71,20 @@ export const p1Questions = (t: SpeakingTest) =>
   t.part1.flatMap((p) => (p.followUps?.length ? p.followUps : [p.body]).map((q) => ({ topic: p.topic, q }))).slice(0, P1_MAX_QUESTIONS);
 // ---- Candidate memory: branch (work / study) and a short facts note, from the candidate's own words. Deterministic: no AI call.
 const NEUTRAL_TOPIC = 'Work or study';
-const WORK_Q = /do you work or|work or are you a student|working or studying/i;
-const NEGATED = /\b(?:don'?t|do not|doesn'?t|not|no longer|never|isn'?t|am not)\s+(?:currently\s+|really\s+)?(?:work|working|a student|study|studying|employed)\b/gi;
+const WORK_Q = /\bwork,? or (?:do you |are you )?(?:still )?(?:a student|study|studying|in education)\b|\bworking or studying\b/i;
+const NEGATED = /\b(?:don'?t|do not|doesn'?t|not|no longer|never|isn'?t|am not|neither)\s+(?:currently\s+|really\s+)?(?:work|working|a student|study|studying|employed)(?:,?\s+(?:or|nor)\s+(?:a student|study|studying|work|working))?\b|\b(?:unemployed|retired|between jobs|out of work|neither)\b/gi;
 const WORK_RE = /\b(?:work|works|working|worked|job|jobs|employed|employee|employment|office|company|career|profession|business|freelanc\w*|self-employed|full[- ]time|part[- ]time)\b/i;
 const STUDY_RE = /\b(?:student|students|study|studies|studying|university|college|school|course|degree|major|class|classes|undergraduate|postgraduate|bachelor'?s?|master'?s?|phd|semester)\b/i;
-/** work / study from the candidate's answer to "Do you work or are you a student?"; 'both' when it says both, null when neither (the neutral set stays). */
-export function detectBranch(answer: string): 'work' | 'study' | 'both' | null {
+type Branch = 'work' | 'study' | 'both' | 'neither';
+/** work / study from the candidate's answer to "Do you work or are you a student?"; 'both' when it says both (the neutral set stays), 'neither' when it
+ *  only denies both ("I don't work or study at the moment": the rest of the set is dropped, as a real examiner moves on), null when unclear. */
+export function detectBranch(answer: string): Branch | null {
   const a = answer.replace(NEGATED, ' ');
   const w = WORK_RE.test(a), st = STUDY_RE.test(a);
-  return w && st ? 'both' : w ? 'work' : st ? 'study' : null;
+  return w && st ? 'both' : w ? 'work' : st ? 'study' : a !== answer ? 'neither' : null;
 }
 /** The branch the candidate's answer to the work/study question points to (history may be the live transcript). */
-export function branchOf(history: Turn[]): 'work' | 'study' | 'both' | null {
+export function branchOf(history: Turn[]): Branch | null {
   const i = history.findIndex((h) => h.role === 'examiner' && WORK_Q.test(h.text));
   const ans = i < 0 ? undefined : history.slice(i + 1).find((h) => h.role === 'candidate');
   return ans ? detectBranch(ans.text) : null;
@@ -63,32 +98,33 @@ export function candidateFacts(history: Turn[]): string {
   const subject = FACT(/\bI(?:'m| am)? (?:study|studying|majoring in|major in) ([^.,;!?]{2,40})/i, history);
   const place = FACT(/\b(?:I(?:'m| am)? (?:live|living|from)|I come from) (?:in )?([A-Z][^.,;!?]{1,30})/, history);
   const bits = [
-    b === 'work' ? `works${job ? ` (${job})` : role ? ` (${role})` : ''}` : b === 'study' ? `is a student${subject ? ` (${subject})` : ''}` : b === 'both' ? 'works and studies' : '',
+    b === 'work' ? `works${job ? ` (${job})` : role ? ` (${role})` : ''}` : b === 'study' ? `is a student${subject ? ` (${subject})` : ''}` : b === 'both' ? 'works and studies' : b === 'neither' ? 'neither works nor studies' : '',
     place ? `lives in or is from ${place}` : '',
   ].filter(Boolean);
   return bits.length ? `Candidate facts so far (from their own answers): ${bits.join('; ')}.` : '';
 }
-/** Part 1 questions for this session: the neutral "work or study" set is replaced after the first question by the work or study set the candidate's answer points to. */
+/** Part 1 questions for this session: the neutral "work or study" set is replaced after the first question by the work or study set the candidate's answer
+ *  points to, or dropped when they do neither. */
 export function p1Plan(s: LiveState): { topic: string; q: string }[] {
   const base = p1Questions(s.test);
   const b = branchOf(s.history);
   const set = b === 'work' || b === 'study' ? s.test.branches?.[b] : undefined;
   const i = base.findIndex((x) => x.topic === NEUTRAL_TOPIC);
-  if (!set?.length || i < 0) return base;
+  if ((!set?.length && b !== 'neither') || i < 0) return base;
   const n = base.filter((x) => x.topic === NEUTRAL_TOPIC).length;
-  return [...base.slice(0, i + 1), ...set.slice(0, n - 1).map((q) => ({ topic: NEUTRAL_TOPIC, q })), ...base.slice(i + n)];
+  return [...base.slice(0, i + 1), ...(set ?? []).slice(0, n - 1).map((q) => ({ topic: NEUTRAL_TOPIC, q })), ...base.slice(i + n)];
 }
 /** The branch sets as instructions for a live model that sees the answer itself. */
 const branchGuide = (t: SpeakingTest) => {
   const b = (t as LiveTest).branches;
   const hasNeutral = t.part1.some((p) => p.topic === NEUTRAL_TOPIC);
   return b && hasNeutral
-    ? `\nWork or study branch: after the candidate answers "Do you work or are you a student?", drop the rest of the "${NEUTRAL_TOPIC}" questions and ask these instead (about three), one at a time. If they only work: ${b.work.join(' | ')}. If they only study: ${b.study.join(' | ')}. If they do both or neither, keep the neutral questions.`
+    ? `\nWork or study branch: after the candidate answers "Do you work or are you a student?", drop the rest of the "${NEUTRAL_TOPIC}" questions and ask these instead (about three), one at a time. If they only work: ${b.work.join(' | ')}. If they only study: ${b.study.join(' | ')}. If they do both, keep the neutral questions. If they neither work nor study, drop the rest of this topic and go on to the next one.`
     : '';
 };
 const P1_ADAPT = `Part 1 questions are close guides, not a script: you may make small edits so they fit the candidate (drop "or studies" or "or school", change pronouns or tense). Skip a question the candidate has already answered, repeat one if asked. Do not add new topics. Keep your own talk short.`;
 const P3_ADAPT = `Part 3 questions are suggestions: rephrase them, follow up on the candidate's own ideas, probe with "Why?" or "Can you give me an example?", and make them easier or harder to suit the candidate's level. Stay within the two sub-topics, aim for five or six exchanges, keep your own talk short, and never lecture or give an opinion.`;
-const MEMORY = `Remember what the candidate says about themselves (work or study, where they live) and keep later questions consistent with it. Only mention it when natural ("You said you work as a nurse, ..."): real examiners rarely do.`;
+const MEMORY = `Remember what the candidate says about themselves (work or study, where they live) and keep later questions consistent with it. Only mention it when natural ("You said you work as a nurse, ..."): real examiners rarely do. Use the candidate's name rarely, and only the name they asked you to call them, never their full name.`;
 
 /** The questions a live part's recording was marked against: the examiner's lines in that part (one client mark each).
  *  Duplex sessions without a server transcript, so Part 1 falls back to the scripted list; null = use the prompt's questions. */
@@ -101,9 +137,12 @@ const aboutTopic = (t: SpeakingTest) => t.part2.title.replace(/^describe\s+/i, '
 /** Linked Part 3 sets carry two sub-topic headings (bullets); the examiner announces the second after the third question. */
 const P3_SWITCH = 3;
 export const p3Questions = (t: SpeakingTest) => (t.part3.followUps?.length ? t.part3.followUps : [t.part3.body]);
-const answered = (s: LiveState, phase: Phase) => s.history.some((h) => h.role === 'candidate' && h.phase === phase);
+const turns = (s: LiveState, role: Turn['role'], phase: Phase) => s.history.filter((h) => h.role === role && h.phase === phase).length;
+const answered = (s: LiveState, phase: Phase) => turns(s, 'candidate', phase) > 0;
+/** "Let's talk about hometown." reads better than "... about Hometown." */
+const lc = (topic: string) => topic.charAt(0).toLowerCase() + topic.slice(1);
 
-export function newState(sessionId: string, test: SpeakingTest, now: number): LiveState {
+export function newState(sessionId: string, test: LiveTest, now: number): LiveState {
   return {
     sessionId,
     phase: 'intro',
@@ -112,7 +151,7 @@ export function newState(sessionId: string, test: SpeakingTest, now: number): Li
     p1Asked: 0,
     p2PromptId: test.part2.id,
     p3Asked: 0,
-    history: [{ role: 'examiner', text: LINES.intro, at: now, phase: 'intro' }],
+    history: [{ role: 'examiner', text: scriptOf(test).intro[0]!, at: now, phase: 'intro' }],
     test,
   };
 }
@@ -122,7 +161,7 @@ export function nextPhase(s: LiveState, now: number): Phase {
   const elapsed = now - s.phaseStartedAt;
   switch (s.phase) {
     case 'intro':
-      return answered(s, 'intro') ? 'p1' : 'intro';
+      return turns(s, 'candidate', 'intro') >= scriptOf(s.test).intro.length ? 'p1' : 'intro';
     case 'p1':
       return elapsed >= P1_MAX_MS || s.p1Asked >= p1Plan(s).length ? 'p2-prep' : 'p1';
     case 'p2-prep':
@@ -143,7 +182,10 @@ export const cueCard = (t: SpeakingTest) =>
 
 /** Fixed examiner wording for the scripted moments (s.phase is the new phase), or null when the LLM should speak. */
 export function scriptedLine(s: LiveState): string | null {
-  if (s.phase === 'intro') return LINES.intro;
+  if (s.phase === 'intro') {
+    const intro = scriptOf(s.test).intro;
+    return intro[Math.min(turns(s, 'examiner', 'intro'), intro.length - 1)]!;
+  }
   if (s.phase === 'p2-prep') return s.history.some((h) => h.role === 'examiner' && h.phase === 'p2-prep') ? LINES.prepMore : LINES.prep(s.test.part2.title);
   if (s.phase === 'p2-talk') return LINES.talk;
   if (s.phase === 'closing' || s.phase === 'done') return LINES.closing;
@@ -162,12 +204,8 @@ export function direction(s: LiveState): { stage: string; say: string; fallback:
     const qs = p1Plan(s);
     const { topic, q } = qs[Math.min(s.p1Asked, qs.length - 1)]!;
     const newTopic = s.p1Asked === 0 || qs[s.p1Asked - 1]?.topic !== topic;
-    const lead =
-      s.p1Asked === 0
-        ? `Thank you. Now, in this first part, I'd like to ask you some questions about yourself. Let's talk about ${topic}.`
-        : newTopic
-          ? `Now let's talk about ${topic}.`
-          : '';
+    const sc = scriptOf(t);
+    const lead = s.p1Asked === 0 ? `${sc.p1Lead} Let's talk about ${lc(topic)}.` : newTopic ? `${sc.moveOn} ${lc(topic)}.` : '';
     return {
       stage: 'Part 1 (introduction and interview on familiar topics; short answers are expected)',
       say: `${lead ? `Say "${lead}" and then ask` : 'Ask'} this question: "${q}". ${P1_ADAPT}${facts(s)}`,
@@ -225,7 +263,13 @@ Your next line: ${d.say}`;
 export const CUE_PREFIX = '[APP CUE] ';
 
 /** Instructions for a Gemini Live session that runs the whole test. The client times the parts and nudges the model with cues. */
+/** The introduction lines as a plan: each said word for word, one answer each. */
+const introPlan = (sc: Script, listen: string) => sc.intro.map((x, i) => `${i ? ' Then say' : 'Say'} "${x}" ${listen}`).join('');
+/** How Part 1 opens and moves between topics, with this session's wording. */
+const p1Opening = (sc: Script) => `say "${sc.p1Lead}" Then for each topic say "Let's talk about <topic>." (later "${sc.moveOn} <topic>.")`;
+
 export function realtimeInstructions(t: SpeakingTest): string {
+  const sc = scriptOf(t);
   const p1 = t.part1.map((p) => `Topic "${p.topic}":\n${(p.followUps?.length ? p.followUps : [p.body]).map((q) => `- ${q}`).join('\n')}`).join('\n');
   const q = t.part2.followUps?.[0];
   const rounding = q ? `ask this rounding-off question, adapted if needed to what they said: "${q}"` : 'ask one short, simple rounding-off question linked to the topic (for example "Do you often …?")';
@@ -236,8 +280,8 @@ Messages that begin with "${CUE_PREFIX.trim()}" come from the test application, 
 The app keeps the time: Parts 1 and 3 each last about 4-5 minutes, and you never move on to the next part until you are told to.
 
 Follow this plan. The introduction, the Part 2 card and the closing are word for word; the Part 1 and Part 3 questions are guides you adapt to the candidate. ${MEMORY}
-1. Introduction: "${LINES.intro}" Wait for the candidate's answer.
-2. Part 1 (interview on familiar topics): say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." Then for each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and work through its questions roughly in order, one at a time. ${P1_ADAPT} Expect short answers. After a one-word answer you may ask "Why?" or "Why not?", otherwise just move to the next question:
+1. Introduction (not assessed: no comments on the answers, no other questions). ${introPlan(sc, 'and wait for the answer.')}
+2. Part 1 (interview on familiar topics): ${p1Opening(sc)} and work through its questions roughly in order, one at a time. ${P1_ADAPT} Expect short answers. After a one-word answer you may ask "Why?" or "Why not?", otherwise just move to the next question:
 ${p1}${branchGuide(t)}
 3. Part 2 (long turn): when told to move to Part 2, say "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
@@ -274,8 +318,9 @@ export function gptLiveCue(cue: GptLiveCue, t: SpeakingTest, facts = ''): string
   switch (cue) {
     case 'begin': {
       const p1 = t.part1.map((p) => `"${p.topic}": ${(p.followUps?.length ? p.followUps : [p.body]).join(' | ')}`).join('\n');
-      return `Begin the test now. Say exactly: "${LINES.intro}" Then listen to the name.
-Then Part 1. Say "Thank you. Now, in this first part, I'd like to ask you some questions about yourself." For each topic say "Let's talk about <topic>." (later "Now let's talk about <topic>.") and work through its questions roughly in this order, one at a time. ${P1_ADAPT} Expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Do not move to Part 2 until told.
+      const sc = scriptOf(t);
+      return `Begin the test now with the introduction, word for word, one line at a time. ${introPlan(sc, 'and listen to the answer.')}
+Then Part 1: ${p1Opening(sc)} and work through its questions roughly in this order, one at a time. ${P1_ADAPT} Expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Do not move to Part 2 until told.
 ${p1}${branchGuide(t)}${mem}`;
     }
     case 'part2':

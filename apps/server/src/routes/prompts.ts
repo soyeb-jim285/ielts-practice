@@ -91,6 +91,10 @@ export const pick = (user: SessionUser | null, where: SQL | undefined, limit: nu
     .orderBy(...(user ? [doneExpr(user.id)] : []), sql`random()`)
     .limit(limit);
 
+/** Familiar topics that repeat a place frame (hometown, home, accommodation, the area you live in): never asked straight after one. */
+const PLACE_TOPICS = ['Where you live', 'Neighbours'];
+const repeatsFrame = (frame: { topic: string } | undefined, t: { topic: string }) => !!frame && frame.topic !== 'Work or study' && PLACE_TOPICS.includes(t.topic);
+
 /** A full speaking test: a random P1 intro frame plus 2 familiar topics (P1_TEST_QUESTIONS each), a P2 cue card and its linked P3 set. Null when the bank has no card. */
 export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any', ref?: string | null): Promise<SpeakingTest | null> {
   const src = and(source === 'any' ? undefined : eq(prompts.source, source), ref ? eq(prompts.sourceRef, ref) : undefined);
@@ -99,10 +103,10 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
   const frameTypes = ['p1-intro', 'p1-branch'];
   const [[frame], topics, [card]] = await Promise.all([
     pick(user, and(speaking(1), eq(prompts.type, 'p1-intro')), 1),
-    pick(user, and(speaking(1), notInArray(prompts.type, frameTypes)), 3),
+    pick(user, and(speaking(1), notInArray(prompts.type, frameTypes)), 3 + PLACE_TOPICS.length),
     pick(user, and(speaking(2), isNotNull(prompts.groupId), sql`exists(select 1 from ${prompts} p3 where p3.group_id = "prompts".group_id and p3.part = 3 and p3.skill = 'speaking')`), 1),
   ]);
-  const part1 = [...(frame ? [frame] : []), ...topics.slice(0, frame ? 2 : 3)];
+  const part1 = [...(frame ? [frame] : []), ...topics.filter((t) => !repeatsFrame(frame, t)).slice(0, frame ? 2 : 3)];
   if (!card || !part1.length) return null;
   const [linked] = await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 3), eq(prompts.groupId, card.groupId!)), 1);
   if (!linked) return null;
@@ -127,11 +131,11 @@ export async function speakingTestByIds(user: SessionUser, ids: string[]): Promi
   return ps && { part1: ps.slice(0, -2).map((p) => ({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null })), part2: ps.at(-2)!, part3: ps.at(-1)! };
 }
 
-/** The Part 1 work and study sets (bank p1-work, p1-study) the live examiner switches to once the candidate says which applies. Undefined if the bank lacks them. */
+/** A random Part 1 work set and study set (bank frame 'branch', topics Work and Study; undone first) the live examiner switches to once the candidate says which
+ *  applies. Undefined if the bank lacks them. */
 export async function pickP1Branches(user: SessionUser): Promise<{ work: string[]; study: string[] } | undefined> {
-  const rows = await db.select().from(prompts).where(and(visiblePromptWhere(user), eq(prompts.skill, 'speaking'), eq(prompts.part, 1), eq(prompts.type, 'p1-branch')));
-  const qs = (topic: string) => rows.find((r) => r.topic === topic)?.followUps ?? [];
-  const [work, study] = [qs('Work'), qs('Study')];
+  const qs = async (topic: string) => (await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 1), eq(prompts.type, 'p1-branch'), eq(prompts.topic, topic)), 1))[0]?.followUps ?? [];
+  const [work, study] = await Promise.all([qs('Work'), qs('Study')]);
   return work.length && study.length ? { work, study } : undefined;
 }
 

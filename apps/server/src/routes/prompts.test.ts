@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { count } from 'drizzle-orm';
+import { and, count, eq, ne } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/client';
 import { attempts, prompts } from '../db/schema';
@@ -9,6 +9,8 @@ import { forgetRenderedAudio, speakingAudioHash, speakingAudioKey } from '../ai/
 import { DEFAULT_BANK_DIR, seedBank } from '../seed';
 import { storage } from '../storage';
 import { req, seedPrompt, testUser } from '../test/helpers';
+import type { SessionUser } from '../types';
+import { pickP1Branches } from './prompts';
 
 const body = async (r: Response) => (await r.json()) as any;
 
@@ -133,6 +135,33 @@ describe('speaking test + seed', () => {
     expect([t.part2.bullets.length, t.part2.title.endsWith('.')]).toEqual([3, true]);
     expect([t.part3.followUps.length, t.part3.bullets.length, t.part3.title.endsWith('.')]).toEqual([6, 2, false]);
     expect((await req('/api/speaking/test?source=cambridge', { headers })).status).toBe(404);
+  });
+
+  it('opens with a random frame from every frame file, never followed by a topic on the same theme, and picks random work/study sets', async () => {
+    await seedBank(db);
+    const frames = await db.select({ topic: prompts.topic }).from(prompts).where(eq(prompts.type, 'p1-intro'));
+    expect(new Set(frames.map((f) => f.topic)).size).toBeGreaterThanOrEqual(4); // Hometown, The area you live in, Your home, Accommodation, Work or study
+    const { headers, user } = await testUser();
+    const seen = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const t = await body(await req('/api/speaking/test', { headers }));
+      seen.add(t.part1[0].topic);
+      if (t.part1[0].topic !== 'Work or study') expect(t.part1.slice(1).map((p: any) => p.topic)).not.toEqual(expect.arrayContaining([expect.stringMatching(/^(Where you live|Neighbours)$/)]));
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    // the place clash, forced: only clashing topics besides two others
+    await db.delete(prompts).where(eq(prompts.type, 'p1-topic'));
+    for (const topic of ['Where you live', 'Neighbours', 'Music', 'Food']) await seedPrompt({ topic, followUps: ['a?', 'b?', 'c?'] });
+    await db.delete(prompts).where(and(eq(prompts.type, 'p1-intro'), ne(prompts.topic, 'Hometown')));
+    for (let i = 0; i < 4; i++) expect((await body(await req('/api/speaking/test', { headers }))).part1.map((p: any) => p.topic).sort()).toEqual(['Food', 'Hometown', 'Music']);
+    // work/study branch sets: a random one of each, not always the first
+    for (const n of [2, 3, 4]) for (const topic of ['Work', 'Study']) await seedPrompt({ slug: `b-${topic}-${n}`, type: 'p1-branch', topic, followUps: [`${topic} ${n}?`, 'x?', 'y?'] });
+    const picks = new Set<string>();
+    for (let i = 0; i < 15; i++) {
+      const b = (await pickP1Branches(user as SessionUser))!;
+      picks.add(`${b.work[0]} / ${b.study[0]}`);
+    }
+    expect(picks.size).toBeGreaterThan(2);
   });
 
   it('re-seeding updates the questions of an existing slug in place (attempt FKs stay valid)', async () => {

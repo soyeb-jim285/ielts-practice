@@ -34,7 +34,7 @@ export type AudioLine = { text: string; url: string | null };
 export type PromptAudio = { intro: AudioLine | null; lead: AudioLine; questions: AudioLine[] };
 
 /** Presigned examiner audio for a generated speaking prompt (url null where a line is not rendered). Cambridge prompts have none. */
-export async function promptAudio(p: { part: number; type: string; topic: string; title: string; body: string; followUps?: string[] | null; source: string }): Promise<PromptAudio | null> {
+export async function promptAudio(p: { slug?: string; part: number; type: string; topic: string; title: string; body: string; followUps?: string[] | null; source: string }): Promise<PromptAudio | null> {
   if (p.source !== 'generated') return null;
   const hashes = await rendered();
   const line = async (text: string): Promise<AudioLine> => ({ text, url: hashes.has(speakingAudioHash(text)) ? await storage.presignGet(speakingAudioKey(text)) : null });

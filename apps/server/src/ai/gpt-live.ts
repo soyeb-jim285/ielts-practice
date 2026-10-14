@@ -9,7 +9,7 @@ import { liveSessions } from '../db/schema';
 import { env } from '../env';
 import { gptLiveUsd, recordCost } from './cost';
 import type { SpeakingTest } from '../routes/prompts';
-import { candidateFacts, CUE_PHASE, GPT_LIVE_CUES, gptLiveCue, gptLiveInstructions, type GptLiveCue, type LiveState, type Phase, type Turn } from './examiner';
+import { candidateFacts, CUE_PHASE, GPT_LIVE_CUES, gptLiveCue, gptLiveInstructions, P1_START, scriptOf, type GptLiveCue, type LiveState, type Phase, type Turn } from './examiner';
 
 export const LIVE_HTTP = 'https://api.openai.com/v1/live/sessions';
 export const LIVE_WS = 'wss://api.openai.com/v1/live/sessions';
@@ -92,12 +92,13 @@ export function scrub(raw: string): string {
 
 // ---- transcript
 
-/** Turns from caption deltas (appended verbatim). A cue starts its phase; the examiner's first words after the candidate's answer move intro → p1 and p2-follow → p3. */
+/** Turns from caption deltas (appended verbatim). A cue starts its phase; the examiner's Part 1 lead (P1_START) moves intro → p1 (the introduction asks one to
+ *  three questions; that many answers move it anyway), and its first words after the rounding-off answer move p2-follow → p3. */
 export class Transcript {
   turns: Turn[] = [];
   phase: Phase = 'intro';
   private t0 = new Map<Turn, number>();
-  constructor(private now: () => number = Date.now) {}
+  constructor(private now: () => number = Date.now, private introLen = 1) {}
 
   private last?: Turn;
 
@@ -114,13 +115,14 @@ export class Transcript {
     if (!t || t.role !== role) {
       const prev = this.turns.at(-1);
       if (role === 'examiner' && prev?.role === 'candidate' && prev.phase === this.phase) {
-        if (this.phase === 'intro') this.phase = 'p1';
+        if (this.phase === 'intro' && this.turns.filter((x) => x.role === 'candidate' && x.phase === 'intro').length >= this.introLen) this.phase = 'p1';
         else if (this.phase === 'p2-follow') this.phase = 'p3';
       }
       t = this.last = { role, text: '', at: this.now(), phase: this.phase };
       this.turns.push(t);
     }
     t.text += ev.delta;
+    if (role === 'examiner' && t.phase === 'intro' && P1_START.test(t.text)) t.phase = this.phase = 'p1';
     if (role === 'candidate' && typeof ev.start_ms === 'number' && typeof ev.end_ms === 'number') {
       const s = this.t0.get(t) ?? ev.start_ms;
       this.t0.set(t, s);
@@ -186,7 +188,7 @@ export function startRun(o: { userId: string; paidBy?: 'house' | 'own_key'; sess
     userId: o.userId,
     paidBy: o.paidBy ?? 'house',
     test: o.test,
-    transcript: new Transcript(),
+    transcript: new Transcript(Date.now, scriptOf(o.test).intro.length),
     ready: false,
     send(ev) {
       if (run.ws?.readyState !== OPEN) return false;

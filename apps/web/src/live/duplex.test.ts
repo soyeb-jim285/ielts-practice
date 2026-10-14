@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { api } from '@/lib/api';
 import { ANSWER_MS, OWE_MS, stalled, useDuplexExaminer, type Handlers } from './duplex';
 
 const rec = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), examiner: vi.fn(), question: vi.fn(), output: vi.fn(), session: vi.fn(), finish: vi.fn(), level: 0 }));
@@ -10,6 +11,9 @@ beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); rec.start.mockResolve
 afterEach(() => vi.useRealTimers());
 
 const NUDGES = ['continue', 'repeat'];
+/** The next /live/start returns a session whose introduction has `n` lines. */
+const script = (n: number) => vi.mocked(api.post).mockResolvedValueOnce({ sessionId: 's', test: { part2: { title: 'Topic' }, script: { intro: Array<string>(n).fill('Q?') } } });
+const toPart1 = (h: Handlers) => (h.speaking(true), h.caption("Thank you. Now, in this first part, I'd like to ask you some questions about yourself. Let's talk about music. Do you like music?"), h.speaking(false));
 /** `silent`: the examiner never answers anything. Otherwise it answers the stall watchdog's nudges with a question. */
 async function setup(silent = false) {
   let h!: Handlers;
@@ -47,7 +51,7 @@ it('an examiner that never answers a finished answer is nudged to continue (keep
 
 it('the examiner ending a turn on an announcement is nudged; a question with no answer is repeated once, never while the candidate talks', async () => {
   const { result, h, transport, unmount } = await setup(true);
-  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // Part 1
+  act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   act(() => { h.speaking(true); h.caption("Thank you. Now let's move on to the next part."); h.speaking(false); });
   act(() => vi.advanceTimersByTime(OWE_MS + 1000));
   expect(transport.cue.mock.calls.at(-1)![2]).toBe('continue');
@@ -59,6 +63,29 @@ it('the examiner ending a turn on an announcement is nudged; a question with no 
   expect(transport.cue.mock.calls.at(-1)![2]).toBe('repeat');
   expect(result.current.status).toBe('thinking');
   unmount();
+});
+
+it("the introduction lasts until the examiner says its Part 1 lead (one to three questions), or the session's number of answers if it never does", async () => {
+  script(3);
+  const a = await setup();
+  act(() => { a.h.speaking(true); a.h.caption('Good evening. My name is Sam. Can you tell me your full name, please?'); a.h.speaking(false); a.h.answered(); });
+  act(() => { a.h.speaking(true); a.h.caption('Thank you. And what shall I call you?'); a.h.speaking(false); a.h.answered(); });
+  expect(a.result.current.phase).toBe('intro');
+  expect(rec.start).not.toHaveBeenCalled();
+  act(() => { a.h.speaking(true); a.h.caption('Thank you. Now, in this first part,'); });
+  expect(a.result.current.phase).toBe('p1');
+  expect(rec.start).toHaveBeenCalledWith(1);
+  a.unmount();
+  for (const n of [3, 1]) {
+    script(n);
+    const b = await setup();
+    for (let i = 0; i < n; i++) {
+      expect(b.result.current.phase).toBe('intro');
+      act(() => { b.h.speaking(true); b.h.caption('A question?'); b.h.speaking(false); b.h.answered(); });
+    }
+    expect(b.result.current.phase).toBe('p1'); // a one-line introduction doesn't keep two Part 1 answers in the introduction
+    b.unmount();
+  }
 });
 
 it('stalled() decides who owes the next turn', () => {
@@ -76,7 +103,7 @@ it('stalled() decides who owes the next turn', () => {
 
 it('Part 2 gets a full prep minute and two-minute talk after the cue lines finish', async () => {
   const { result, h, unmount } = await setup();
-  act(() => { h.speaking(true); h.speaking(false); h.answered(); });
+  act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(270_000));
   expect(result.current.phase).toBe('p2-prep');
   act(() => { h.speaking(true); vi.advanceTimersByTime(10_000); h.speaking(false); });
@@ -93,7 +120,7 @@ it('Part 2 gets a full prep minute and two-minute talk after the cue lines finis
 
 it('a missing cue response recovers to waiting and then candidate instead of remaining thinking', async () => {
   const { result, h, unmount } = await setup();
-  act(() => { h.speaking(true); h.speaking(false); h.answered(); });
+  act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(270_000));
   act(() => vi.advanceTimersByTime(45_000));
   expect(result.current.status).toBe('waiting');
@@ -106,7 +133,7 @@ it('a missing cue response recovers to waiting and then candidate instead of rem
 
 it('the examiner closing the test on its own during Part 3 ends it, without waiting for the Part 3 timer', async () => {
   const { result, h, unmount } = await setup();
-  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // intro answered: Part 1
+  act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(270_000)); // Part 1 time: Part 2 prep
   act(() => { h.speaking(true); h.speaking(false); });
   await act(async () => vi.advanceTimersByTime(60_000)); // prep over: the talk
@@ -124,7 +151,7 @@ it('the examiner closing the test on its own during Part 3 ends it, without wait
 
 it('the examiner moving to Part 2 on its own shows the cue card and starts the prep minute when it stops talking, without a cue', async () => {
   const { result, h, transport, unmount } = await setup();
-  act(() => { h.speaking(true); h.speaking(false); h.answered(); }); // intro answered: Part 1
+  act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(60_000)); // well before the 4.5-minute Part 1 timer
   await act(async () => { h.speaking(true); h.caption("Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it"); });
   expect(result.current.phase).toBe('p2-prep');
@@ -145,11 +172,14 @@ it('record: false (playground) runs the script without recording parts, and debu
   const seen: string[] = [];
   const cue = vi.fn((_t: string, _heard?: boolean, key?: string) => void (NUDGES.includes(key!) && (h.speaking(true), h.speaking(false))));
   const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue, listen: vi.fn(), close: vi.fn() };
+  script(2);
   const { result, unmount } = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false, debug: { heard: (t) => seen.push(`heard ${t}`), speaking: (on) => seen.push(`speaking ${on}`) } }));
   await act(() => result.current.start());
   act(() => { h.speaking(true); h.speaking(false); h.heard?.('My name is Jim'); h.answered(); });
-  expect(result.current.phase).toBe('p1');
+  expect(result.current.phase).toBe('intro');
   expect(seen).toEqual(['speaking true', 'speaking false', 'heard My name is Jim']);
+  act(() => toPart1(h));
+  expect(result.current.phase).toBe('p1');
   await act(async () => vi.advanceTimersByTime(270_000));
   expect(result.current.phase).toBe('p2-prep');
   expect(rec.start).not.toHaveBeenCalled();

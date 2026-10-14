@@ -14,6 +14,8 @@ const CUE_TIMEOUT_MS = 45_000; // a cue whose examiner line never starts or ends
 const CLOSING = /\bend of the (speaking )?test\b/i;
 /** The examiner's own Part 2 instructions (examiner.ts LINES.prep): said in Part 1 without our cue, the page still moves to the cue card. */
 const PART2 = /\bgoing to give you a topic\b|\bone minute to think\b/i;
+/** The examiner's Part 1 lead (examiner.ts P1_START): the introduction (one to three questions, picked per session) is over. */
+const P1_START = /\bfirst part\b|\bquestions about yourself\b/i;
 /** Ends the test this long after the closing line is heard if the examiner's "stopped speaking" never arrives. */
 const CLOSING_GRACE_MS = 8000;
 
@@ -32,7 +34,7 @@ const MAX_NUDGES = 3;
 const TALK_MAX_MS = 90_000;
 const PART: Partial<Record<Phase, string>> = { intro: 'the introduction', p1: 'Part 1', 'p2-follow': 'the end of Part 2', p3: 'Part 3' };
 const NEXT: Partial<Record<Phase, string>> = {
-  intro: 'if they have told you their name, start Part 1 with its first question; otherwise ask for their full name again',
+  intro: 'if they have answered your last introduction question, ask the next one or, after the last, start Part 1 with its first question; otherwise ask it again',
   p1: 'ask your next Part 1 question',
   'p2-follow': 'if they have answered the rounding-off question, start Part 3 with its first question; otherwise ask the rounding-off question again',
   p3: 'ask your next Part 3 question',
@@ -122,6 +124,9 @@ export function useDuplexExaminer(
     candidateAt: 0,
     talking: false,
     nudges: 0,
+    introAnswers: 0,
+    /** The session's introduction lines: an examiner that skips the Part 1 lead still gets to Part 1 (and its timer) after this many answers. */
+    introLen: 1,
     spokeSinceNudge: true,
     watchdog: undefined as ReturnType<typeof setInterval> | undefined,
   });
@@ -249,7 +254,7 @@ export function useDuplexExaminer(
     clearTimeout(c.timer);
     try {
       switch (next) {
-        case 'p1': // the model moves from the introduction into Part 1 by itself
+        case 'p1': // the model moves from the introduction into Part 1 by itself (heard as its Part 1 lead)
           void parts.start(1).catch(() => handlers.lost());
           c.timer = setTimeout(() => void go('p2-prep'), PART_MS);
           break;
@@ -317,6 +322,7 @@ export function useDuplexExaminer(
       c.line = append ? c.line + text : text;
       setCaption(c.line);
       parts.question(c.line);
+      if (c.phase === 'intro' && P1_START.test(c.line)) void go('p1');
       if (c.phase === 'p1' && PART2.test(c.line)) part2Heard();
       if (c.phase === 'p3' && CLOSING.test(c.line)) closingHeard();
     },
@@ -329,8 +335,9 @@ export function useDuplexExaminer(
     answered() {
       const c = r.current;
       if (c.ended) return;
-      if (c.phase === 'intro') void go('p1');
-      else if (c.phase === 'p2-follow') void go('p3');
+      if (c.phase === 'intro') {
+        if (++c.introAnswers >= c.introLen) void go('p1'); // normally its Part 1 lead (caption) moves it earlier
+      } else if (c.phase === 'p2-follow') void go('p3');
       if (c.phase !== 'p2-talk') setStatus('thinking');
     },
     pending(talking) {
@@ -374,6 +381,7 @@ export function useDuplexExaminer(
         c.sessionId = st.sessionId;
         parts.session(st.sessionId);
         c.cueCard = st.test.part2;
+        c.introLen = st.test.script?.intro.length ?? 1;
       }
       c.x = make();
       await withDeadline(c.x.connect(tapped(), c.sessionId));
