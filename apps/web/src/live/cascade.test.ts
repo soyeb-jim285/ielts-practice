@@ -33,6 +33,10 @@ it('a finished, transcribed answer asks for one reply with the whole conversatio
   expect(h.answered).toHaveBeenCalledTimes(1);
   expect(h.caption).toHaveBeenLastCalledWith('Why is that?', true);
   expect(x.stats.costUsd).toBeCloseTo(0.002);
+  // one timeline entry for the answered turn (the opening cue is not an answer): VAD wait + transcript + LLM/TTS from the server + the rest
+  expect(x.stats.timeline).toHaveLength(1);
+  expect(x.stats.timeline[0]).toMatchObject({ vad: 1000, llm: 1, tts: 0, text: 'Why is that?' });
+  expect(x.stats.timeline[0]!.total).toBeGreaterThanOrEqual(1000);
 });
 
 it('no reply while speech is untranscribed or the candidate goes on talking; a reply overtaken by new speech is dropped', async () => {

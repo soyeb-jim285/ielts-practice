@@ -13,6 +13,9 @@ export type CascadeLlm = 'deepseek/deepseek-v4.1-flash' | 'inception/mercury-2.5
 export type CascadeStt = 'scribe_v2_realtime' | 'gpt-4o-mini-transcribe' | 'gpt-4o-transcribe';
 export type CascadeTts = 'elevenlabs/eleven-v4-turbo' | 'elevenlabs/eleven-flash-v2.5' | 'google/gemini-3.8-flash-lite-tts' | 'google/gemini-3.8-flash-tts';
 type Turn = { role: 'examiner' | 'candidate' | 'app'; text: string };
+/** One answered turn, ms: end-of-speech wait (VAD silence before the answer counts as finished), transcript after that, then the reply round trip
+ *  split into the server's LLM and TTS time and the rest (network, auth, server overhead), then audio decode until the voice starts. */
+export type ReplyTiming = { at: number; vad: number; stt: number; llm: number; tts: number; net: number; decode: number; total: number; text: string };
 type Line = { text: string; audio: string | null; contentType: string | null; ms: { llm: number; tts: number }; costUsd: number };
 
 const CONNECT_MS = 15_000;
@@ -21,7 +24,8 @@ const VOICE_RMS = 0.02; // mic block loudness that counts as speech (echo cancel
 const CHUNK_MS = 40; // MicEncoder chunk length
 const PRE_CHUNKS = 8; // 320 ms kept from before the first loud block, so the first word isn't clipped
 const END_MS = 1000; // quiet this long ends the answer and commits it (the realtime engines' server VAD waits the same)
-const COMMIT_WAIT_MS = 8000; // a commit whose transcript never comes stops blocking the reply after this
+const COMMIT_WAIT_MS = 8000;
+const VAD_MS = 1000; // both transcribers wait this much silence before the answer counts as finished (Scribe: our END_MS; OpenAI: silence_duration_ms) // a commit whose transcript never comes stops blocking the reply after this
 
 /** Local VAD over mic blocks: speech (with its pre-roll) passes, silence doesn't, so Scribe only hears, and bills, the candidate talking. */
 export class SpeechGate {
@@ -71,7 +75,9 @@ export class CascadeDuplex implements Duplex {
   private seq = 0; // newest reply request; older answers are dropped
   private sttSeconds = 0; // transcribed audio not yet reported (Scribe: what we sent; OpenAI: what the session reports)
   /** Running totals for the playground: cost (STT + LLM + TTS, from the server) and the last reply's stage timings. */
-  readonly stats = { costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined };
+  readonly stats = { costUsd: 0, replies: 0, last: undefined as { llm: number; tts: number } | undefined, timeline: [] as ReplyTiming[] };
+  private speechEndAt?: number; // performance.now() when the VAD ended the latest answer
+  private transcriptAt?: number;
 
   constructor(private llm?: CascadeLlm, private tts?: CascadeTts, private stt: CascadeStt = 'scribe_v2_realtime') {}
 
@@ -187,6 +193,7 @@ export class CascadeDuplex implements Duplex {
   /** The candidate paused: one more transcript is owed (Scribe: we commit it; OpenAI: the server VAD already did). */
   private speechEnd(commit = true) {
     this.inSpeech = false;
+    this.speechEndAt = performance.now();
     if (commit) this.send({ message_type: 'input_audio_chunk', audio_base_64: '', commit: true, sample_rate: IN_RATE });
     const n = ++this.commits;
     setTimeout(() => {
@@ -203,6 +210,7 @@ export class CascadeDuplex implements Duplex {
   }
 
   private transcript(text?: string) {
+    this.transcriptAt = performance.now();
     this.transcribed = Math.min(this.transcribed + 1, this.commits);
     if (text?.trim()) {
       this.said = `${this.said} ${text.trim()}`.trim();
@@ -227,6 +235,8 @@ export class CascadeDuplex implements Duplex {
 
   private async reply() {
     const n = ++this.seq;
+    const answered = this.turns.at(-1)?.role === 'candidate' ? { end: this.speechEndAt, heard: this.transcriptAt } : undefined;
+    const sentAt = performance.now();
     const secs = this.sttSeconds;
     this.sttSeconds = 0;
     let line: Line;
@@ -237,12 +247,20 @@ export class CascadeDuplex implements Duplex {
       console.warn('cascade reply failed', e); // the stall watchdog nudges again, and gives up after its limit
       return;
     }
+    const recvAt = performance.now();
     this.stats.costUsd += line.costUsd;
     if (this.closed || n !== this.seq || !line.text) return;
     const buf = line.audio ? await this.ctx!.decodeAudioData(fromBase64(line.audio).buffer as ArrayBuffer).catch(() => null) : null;
     if (this.closed || n !== this.seq) return;
     this.stats.replies++;
     this.stats.last = line.ms;
+    if (answered?.end != null && answered.heard != null) {
+      const now = performance.now(), round = recvAt - sentAt;
+      this.stats.timeline = [...this.stats.timeline, {
+        at: Date.now(), vad: VAD_MS, stt: Math.max(0, sentAt - answered.end), llm: line.ms.llm, tts: line.ms.tts,
+        net: Math.max(0, round - line.ms.llm - line.ms.tts), decode: now - recvAt, total: VAD_MS + (now - answered.end), text: line.text,
+      }].slice(-50);
+    }
     this.turns.push({ role: 'examiner', text: line.text });
     if (this.heard) (this.heard = false), this.h.answered();
     // Voice first, then the caption: listeners time the reply from the voice and start a new line on it.

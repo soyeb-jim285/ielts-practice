@@ -3,6 +3,7 @@ import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { PronunciationLab } from '@/components/admin/PronunciationLab';
+import { CascadeTimeline } from '@/components/admin/CascadeTimeline';
 import { audioFormat, blobToBase64, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
 import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -405,6 +406,7 @@ function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeSt
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="min-w-0 space-y-6">
       <Card>
         <h2 className="type-h4 mb-3">Conversation</h2>
         {ex.error && <p className="mb-3 text-sm text-bad-text">{ex.error}</p>}
@@ -421,6 +423,8 @@ function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeSt
         </ol>
         {!lines.length && <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>}
       </Card>
+      {d instanceof CascadeDuplex && <CascadeTimeline timeline={d.stats.timeline} />}
+      </div>
       <aside className="space-y-4">
         <Card>
           <dl className="space-y-2 text-sm">
