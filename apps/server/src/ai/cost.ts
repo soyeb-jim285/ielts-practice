@@ -6,7 +6,7 @@ import { keyCtx } from './keyctx';
 
 export type CostRow = {
   stage: string;
-  provider: 'openrouter' | 'elevenlabs' | 'openai' | 'gemini';
+  provider: 'openrouter' | 'elevenlabs' | 'openai' | 'gemini' | 'soniox';
   model: string;
   costUsd: number;
   ok?: boolean;

@@ -1,6 +1,7 @@
 // Fast cascade examiner (admin playground): every stage is a setting, so the playground can compare them (CascadeConfig).
 //  Ears (mic → transcript):
-//   - Scribe v2 Realtime: AudioWorklet → local VAD → WebSocket, only the candidate's speech is sent; we commit when the turn ends.
+//   - Scribe v2 Realtime / Soniox stt-rt-v5: AudioWorklet → local VAD → WebSocket, only the candidate's speech is sent; we commit (Scribe) or
+//     finalize (Soniox) when the turn ends.
 //   - OpenAI gpt-4o(-mini)-transcribe: WebRTC Realtime transcription session; its server VAD ends the turn (turn settings don't apply).
 //   - OpenRouter batch transcribers: the browser keeps the turn's audio and sends it as WAV, whole or in pieces cut at "not finished" pauses.
 //  End of turn (Scribe and batch): a fixed silence, or Smart Turn on the device (smartTurn.ts) after a short pause, with a silence cap as a safety net.
@@ -15,7 +16,7 @@ import { fromBase64, IN_RATE, MicEncoder, Resampler, toBase64 } from './pcm';
 import { loadSmartTurn, smartTurnProbability, type SmartTurnModel } from './smartTurn';
 
 export type CascadeLlm = 'deepseek/deepseek-v4.1-flash' | 'inception/mercury-2.5' | 'mistralai/mistral-small-3.2-24b-instruct' | 'openai/gpt-6-luna';
-export type CascadeStreamStt = 'scribe_v2_realtime' | 'gpt-4o-mini-transcribe' | 'gpt-4o-transcribe';
+export type CascadeStreamStt = 'scribe_v2_realtime' | 'stt-rt-v5' | 'gpt-4o-mini-transcribe' | 'gpt-4o-transcribe';
 export type CascadeBatchStt = 'elevenlabs/scribe-v2' | 'nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b' | 'nvidia/parakeet-tdt-0.6b-v3' | 'openai/whisper-large-v3-turbo' | 'deepgram/nova-3' | 'openai/gpt-4o-mini-transcribe';
 export type CascadeStt = CascadeStreamStt | `batch:${CascadeBatchStt}`;
 export type CascadeTts = 'elevenlabs/eleven-v4-turbo' | 'elevenlabs/eleven-flash-v2.5' | 'google/gemini-3.8-flash-lite-tts' | 'google/gemini-3.8-flash-tts';
@@ -61,6 +62,7 @@ type StreamEvent =
 
 const CONNECT_MS = 15_000;
 const SCRIBE_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
+const SONIOX_URL = 'wss://stt-rt.soniox.com/transcribe-websocket';
 const RECHECK_MS = 300; // Smart Turn re-checks a pause it called unfinished this often
 const VOICE_RMS = 0.02; // mic block loudness that counts as speech (echo cancellation and noise suppression are on), as for Gemini
 const CHUNK_MS = 40; // MicEncoder chunk length
@@ -85,7 +87,7 @@ export class CascadeDuplex implements Duplex {
   private dc?: RTCDataChannel;
   private ready = false; // session_started on the current socket
   private opening?: Promise<void>;
-  private outbox: string[] = []; // messages waiting for a socket (Scribe may close an idle one; the next speech reopens it)
+  private outbox: (string | Uint8Array<ArrayBuffer>)[] = []; // messages waiting for a socket (Scribe may close an idle one; the next speech reopens it)
   private mic?: MediaStream;
   private ctx?: AudioContext;
   private tap?: MediaStreamAudioDestinationNode;
@@ -145,8 +147,12 @@ export class CascadeDuplex implements Duplex {
     }
   }
 
-  private get ear(): 'scribe' | 'openai' | 'batch' {
-    return this.cfg.stt === 'scribe_v2_realtime' ? 'scribe' : this.cfg.stt.startsWith('batch:') ? 'batch' : 'openai';
+  private get ear(): 'scribe' | 'soniox' | 'openai' | 'batch' {
+    return this.cfg.stt === 'scribe_v2_realtime' ? 'scribe' : this.cfg.stt === 'stt-rt-v5' ? 'soniox' : this.cfg.stt.startsWith('batch:') ? 'batch' : 'openai';
+  }
+  /** Ears we stream the candidate's speech to over our own WebSocket. */
+  private get socketEar() {
+    return this.ear === 'scribe' || this.ear === 'soniox';
   }
 
   async connect(h: Handlers, sessionId: string) {
@@ -187,13 +193,14 @@ export class CascadeDuplex implements Duplex {
         const block = e.data as Float32Array; // a disabled track (examiner speaking, prep minute) is silence, so it never opens the gate
         let s2 = 0;
         for (const v of block) s2 += v * v;
-        this.onBlock(Math.sqrt(s2 / block.length) > VOICE_RMS, (block.length / ctx.sampleRate) * 1000, rs.push(block), this.ear === 'scribe' ? enc.push(block) : []);
+        this.onBlock(Math.sqrt(s2 / block.length) > VOICE_RMS, (block.length / ctx.sampleRate) * 1000, rs.push(block), this.socketEar ? enc.push(block) : []);
       };
       ctx.createMediaStreamSource(mic).connect(node);
       node.connect(ctx.destination); // silent output; keeps the capture node running
     });
     const ear =
       this.ear === 'scribe' ? this.step('stt', 'Transcriber: Scribe v2 Realtime (token + socket)', () => this.open())
+      : this.ear === 'soniox' ? this.step('stt', 'Transcriber: Soniox stt-rt-v5 (temporary key + socket)', () => this.open())
       : this.ear === 'openai' ? this.step('stt', 'Transcriber: OpenAI session (browser commits)', () => this.openOpenAi(mic, false))
       : this.step('stt', 'Transcriber: OpenRouter batch (nothing to connect)', async () => {});
     this.firstLine();
@@ -279,7 +286,7 @@ export class CascadeDuplex implements Duplex {
     this.turnInfo = { lastVoice: this.lastVoiceAt, decided, model, checks: this.checks.map((c) => Math.round(c.p * 100) / 100) };
     if (this.ear === 'batch') this.sendPiece(true);
     if (this.ear === 'openai') this.dc?.send(JSON.stringify({ type: 'input_audio_buffer.commit' })); // the session has no VAD: we end the answer
-    this.speechEnd(this.ear === 'scribe');
+    this.speechEnd(this.socketEar);
   }
 
   /** Batch ears: transcribe the turn audio since the last cut (`last`: the turn's tail; else only a piece long enough to be worth it). */
@@ -303,8 +310,8 @@ export class CascadeDuplex implements Duplex {
   }
 
   private sendChunks(chunks: Uint8Array[]) {
-    if (this.ear !== 'scribe' || !chunks.length) return;
-    for (const c of chunks) this.send({ message_type: 'input_audio_chunk', audio_base_64: toBase64(c), commit: false, sample_rate: IN_RATE });
+    if (!this.socketEar || !chunks.length) return;
+    for (const c of chunks) this.send(this.ear === 'soniox' ? c : { message_type: 'input_audio_chunk', audio_base_64: toBase64(c), commit: false, sample_rate: IN_RATE });
     this.sttSeconds += (chunks.length * CHUNK_MS) / 1000;
   }
 
@@ -340,8 +347,9 @@ export class CascadeDuplex implements Duplex {
     } else if (ev.type === 'error') console.warn('cascade stt', ev.error?.message);
   }
 
-  /** One Scribe socket at a time, opened with a fresh single-use token; queued messages go out once the session starts. */
+  /** One Scribe/Soniox socket at a time, opened with a fresh single-use token; queued messages go out once the session starts. */
   private open(): Promise<void> {
+    if (this.ear === 'soniox') return (this.opening ??= this.openSoniox().finally(() => (this.opening = undefined)));
     return (this.opening ??= (async () => {
       const { token } = await api.post<{ token: string }>('/live/cascade/stt-token', { sessionId: this.sessionId });
       if (this.closed) throw new Error('The examiner connection was cancelled.');
@@ -366,10 +374,51 @@ export class CascadeDuplex implements Duplex {
     })().finally(() => (this.opening = undefined)));
   }
 
-  private send(m: object) {
+  /** Soniox: the temporary key goes in the first message; we finalize each turn ourselves (its own endpoint detection is off), and a keepalive holds
+   *  the socket open while the examiner speaks (we send only the candidate's speech). */
+  private async openSoniox() {
+    const { key } = await api.post<{ key: string }>('/live/cascade/stt-token', { sessionId: this.sessionId, stt: 'stt-rt-v5' });
+    if (this.closed) throw new Error('The examiner connection was cancelled.');
+    const ws = (this.ws = new WebSocket(SONIOX_URL));
+    ws.binaryType = 'arraybuffer';
+    this.sonioxFinal = '';
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => (reject(new Error('The transcription service did not answer.')), ws.close()), CONNECT_MS);
+      let keep: ReturnType<typeof setInterval> | undefined;
+      ws.onopen = () => {
+        clearTimeout(timer);
+        ws.send(JSON.stringify({ api_key: key, model: 'stt-rt-v5', audio_format: 'pcm_s16le', sample_rate: IN_RATE, num_channels: 1, language_hints: ['en'], enable_endpoint_detection: false }));
+        this.ready = true;
+        for (const x of this.outbox.splice(0)) ws.send(x);
+        keep = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('{"type":"keepalive"}'), 5000);
+        resolve();
+      };
+      ws.onmessage = (e) => this.onSoniox(JSON.parse(String(e.data)));
+      ws.onclose = (e) => {
+        clearTimeout(timer);
+        clearInterval(keep);
+        if (this.ws === ws) (this.ws = undefined), (this.ready = false);
+        reject(new Error(`Could not connect to Soniox transcription${e.reason ? ` (${e.reason})` : ''}.`));
+      };
+    });
+  }
+
+  private sonioxFinal = '';
+  /** Final tokens add up to the turn's text; `<fin>` (our finalize answered) closes it. */
+  private onSoniox(m: { tokens?: { text: string; is_final: boolean }[]; error_code?: number; error_message?: string }) {
+    if (m.error_code || m.error_message) console.warn('cascade stt soniox', m.error_code, m.error_message);
+    for (const t of m.tokens ?? []) {
+      if (!t.is_final) continue;
+      if (t.text === '<fin>') this.transcript(this.sonioxFinal), (this.sonioxFinal = '');
+      else if (t.text !== '<end>') this.sonioxFinal += t.text;
+    }
+  }
+
+  private send(m: object | Uint8Array<ArrayBuffer> | string) {
     if (this.closed) return;
-    if (this.ready) return this.ws!.send(JSON.stringify(m));
-    this.outbox.push(JSON.stringify(m));
+    const x = m instanceof Uint8Array || typeof m === 'string' ? m : JSON.stringify(m);
+    if (this.ready) return this.ws!.send(x);
+    this.outbox.push(x);
     if (!this.opening)
       void this.open().catch((e) => {
         console.warn('cascade stt', e);
@@ -388,7 +437,7 @@ export class CascadeDuplex implements Duplex {
   private speechEnd(commit = true) {
     this.inSpeech = false;
     this.quiet = 0;
-    if (commit) this.send({ message_type: 'input_audio_chunk', audio_base_64: '', commit: true, sample_rate: IN_RATE });
+    if (commit) this.send(this.ear === 'soniox' ? '{"type":"finalize"}' : { message_type: 'input_audio_chunk', audio_base_64: '', commit: true, sample_rate: IN_RATE });
     const n = ++this.commits;
     setTimeout(() => {
       if (this.transcribed >= n) return;

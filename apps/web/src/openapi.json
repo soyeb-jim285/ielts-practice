@@ -1837,6 +1837,10 @@
           "value": {
             "type": "string",
             "description": "OpenAI: client secret, Bearer for POST /v1/realtime/calls"
+          },
+          "key": {
+            "type": "string",
+            "description": "Soniox: temporary API key, the `api_key` of the first message on wss://stt-rt.soniox.com/transcribe-websocket"
           }
         }
       },
@@ -1850,6 +1854,7 @@
             "type": "string",
             "enum": [
               "scribe_v2_realtime",
+              "stt-rt-v5",
               "gpt-4o-mini-transcribe",
               "gpt-4o-transcribe"
             ],
@@ -1967,6 +1972,7 @@
             "type": "string",
             "enum": [
               "scribe_v2_realtime",
+              "stt-rt-v5",
               "gpt-4o-mini-transcribe",
               "gpt-4o-transcribe",
               "elevenlabs/scribe-v2",
@@ -2097,6 +2103,7 @@
             "type": "string",
             "enum": [
               "scribe_v2_realtime",
+              "stt-rt-v5",
               "gpt-4o-mini-transcribe",
               "gpt-4o-transcribe",
               "elevenlabs/scribe-v2",
@@ -2275,6 +2282,224 @@
         "required": [
           "sessionId",
           "part"
+        ]
+      },
+      "PipecatAnswer": {
+        "type": "object",
+        "properties": {
+          "sdp": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "pc_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sdp",
+          "type",
+          "pc_id"
+        ],
+        "additionalProperties": {}
+      },
+      "PipecatOffer": {
+        "type": "object",
+        "properties": {
+          "sdp": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "type": {
+            "type": "string"
+          },
+          "pc_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "restart_pc": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "requestData": {
+            "type": "object",
+            "properties": {
+              "sessionId": {
+                "type": "string"
+              },
+              "cfg": {
+                "$ref": "#/components/schemas/PipecatConfig"
+              }
+            },
+            "required": [
+              "sessionId"
+            ]
+          }
+        },
+        "required": [
+          "sdp",
+          "type",
+          "requestData"
+        ]
+      },
+      "PipecatConfig": {
+        "type": "object",
+        "properties": {
+          "stt": {
+            "type": "string",
+            "enum": [
+              "soniox",
+              "scribe"
+            ]
+          },
+          "llm": {
+            "type": "string",
+            "enum": [
+              "deepseek/deepseek-v4.1-flash",
+              "inception/mercury-2.5",
+              "mistralai/mistral-small-3.2-24b-instruct",
+              "openai/gpt-6-luna"
+            ]
+          },
+          "tts": {
+            "type": "string",
+            "enum": [
+              "soniox",
+              "elevenlabs"
+            ]
+          },
+          "ttsModel": {
+            "type": "string",
+            "enum": [
+              "eleven_flash_v2_5",
+              "eleven_turbo_v2_5",
+              "eleven_v4_turbo"
+            ]
+          },
+          "voice": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "vadStopSecs": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1.5
+          },
+          "smartStopSecs": {
+            "type": "number",
+            "minimum": 0.3,
+            "maximum": 5
+          }
+        }
+      },
+      "PipecatIce": {
+        "type": "object",
+        "properties": {
+          "pc_id": {
+            "type": "string"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "candidate": {
+                  "type": "string"
+                },
+                "sdp_mid": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sdp_mline_index": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "candidate"
+              ]
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "pc_id",
+          "candidates"
+        ]
+      },
+      "PipecatUsage": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "cfg": {
+            "type": "object",
+            "properties": {
+              "stt": {
+                "type": "string"
+              },
+              "llm": {
+                "type": "string"
+              },
+              "tts": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "stt",
+              "llm",
+              "tts"
+            ],
+            "additionalProperties": {}
+          },
+          "seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "sttUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "llmTokensIn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "llmTokensOut": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ttsChars": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usd": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "sessionId",
+          "userId",
+          "cfg",
+          "seconds",
+          "sttUsd",
+          "llmTokensIn",
+          "llmTokensOut",
+          "ttsChars",
+          "usd"
         ]
       },
       "Progress": {
@@ -8822,7 +9047,7 @@
             }
           },
           "503": {
-            "description": "ELEVENLABS_API_KEY is not set",
+            "description": "ELEVENLABS_API_KEY or SONIOX_API_KEY is not set",
             "content": {
               "application/json": {
                 "schema": {
@@ -9232,6 +9457,195 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/pipecat/offer": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Pipecat examiner (admin playground): WebRTC offer → answer, relayed to the voice service with the examiner prompt",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipecatOffer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDP answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipecatAnswer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Voice service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Pipecat examiner (admin playground): trickled ICE candidates, relayed to the voice service",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipecatIce"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Relayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Voice service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/pipecat/usage": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "summary": "Voice service only (x-voice-secret): one Pipecat session's usage for the cost ledger",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipecatUsage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Recorded"
+          },
+          "403": {
+            "description": "Bad secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

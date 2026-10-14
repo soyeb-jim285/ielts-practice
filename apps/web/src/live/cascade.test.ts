@@ -9,7 +9,7 @@ vi.mock('./smartTurn', () => ({ smartTurnProbability: smart, loadSmartTurn: asyn
 
 let h: Handlers;
 let x: CascadeDuplex;
-type Inner = { speechStart(): void; speechEnd(commit?: boolean): void; onEvent(m: object): void; onOpenAi(e: object): void; onBlock(loud: boolean, ms: number, f16: Float32Array, chunks: Uint8Array[]): void };
+type Inner = { onSoniox(m: object): void; speechStart(): void; speechEnd(commit?: boolean): void; onEvent(m: object): void; onOpenAi(e: object): void; onBlock(loud: boolean, ms: number, f16: Float32Array, chunks: Uint8Array[]): void };
 const inner = () => x as unknown as Inner;
 const start = () => inner().speechStart();
 const stop = () => inner().speechEnd();
@@ -207,4 +207,17 @@ it('start-up steps record done/failed with times, and the first line finishes wh
   expect(x.stats.steps[1]).toMatchObject({ detail: 'no token', ms: expect.any(Number) });
   await flush();
   expect(x.stats.steps[2]).toMatchObject({ key: 'first', state: 'done', ms: expect.any(Number) });
+});
+
+it('Soniox: the turn end sends finalize, final tokens up to <fin> are the answer, and the reply follows', async () => {
+  make({ stt: 'stt-rt-v5', turn: 'silence' });
+  x.cue('Begin the test.');
+  await flush();
+  start();
+  stop();
+  expect((x as unknown as { send: ReturnType<typeof vi.fn> }).send).toHaveBeenLastCalledWith('{"type":"finalize"}');
+  inner().onSoniox({ tokens: [{ text: 'I am', is_final: true }, { text: ' Sam', is_final: false }] });
+  inner().onSoniox({ tokens: [{ text: ' Sam.', is_final: true }, { text: '<fin>', is_final: true }] });
+  await flush();
+  expect(post.mock.calls[1]![1]).toMatchObject({ stt: 'stt-rt-v5', turns: [{ role: 'app' }, { role: 'examiner' }, { role: 'candidate', text: 'I am Sam.' }] });
 });

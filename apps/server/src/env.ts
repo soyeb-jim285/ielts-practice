@@ -16,6 +16,11 @@ const Env = z.object({
   OPENROUTER_API_KEY: secret('test-openrouter'),
   // Optional: ElevenLabs Scribe v2 speech-to-text (spec §5.2). Unset: Whisper via OpenRouter is the default stt.
   ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
+  // Optional: Soniox real-time speech-to-text (stt-rt-v5) for the fast cascade examiner. Unset: that transcriber is refused.
+  SONIOX_API_KEY: z.string().optional().transform((v) => v || undefined),
+  // Optional: the Pipecat examiner service (services/voice) for the admin playground; unset VOICE_URL: the engine is refused.
+  VOICE_URL: z.string().optional().transform((v) => v || undefined), // e.g. http://host.docker.internal:7860
+  VOICE_SECRET: z.string().optional().transform((v) => v || undefined), // shared with the voice service (x-voice-secret); default derived from OPENROUTER_API_KEY
   // Optional: live examiner over OpenAI GPT-Live (sessions created server-side with this key) and Gemini Live (ephemeral tokens). Unset: that option is hidden.
   OPENAI_API_KEY: z.string().optional().transform((v) => v || undefined),
   OPENAI_LIVE_MODEL: z.string().default('gpt-live-1'), // $0.05/min, billed per second

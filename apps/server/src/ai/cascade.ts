@@ -19,10 +19,11 @@ export const CASCADE_TTS = {
 } as const;
 export type CascadeTts = keyof typeof CASCADE_TTS;
 export const CASCADE_TTS_MODELS = Object.keys(CASCADE_TTS) as [CascadeTts, ...CascadeTts[]];
-/** Streaming transcribers. Scribe: the browser sends only the candidate's speech (local VAD) and commits each answer; OpenAI: a Realtime transcription
+/** Streaming transcribers. Scribe and Soniox: the browser sends only the candidate's speech (local VAD) and commits each answer; OpenAI: a Realtime transcription
  *  session over WebRTC with server VAD. USD per minute of transcribed audio (elevenlabs.io/pricing/api, developers.openai.com pricing, 2026-10-13). */
 export const CASCADE_STTS = {
   scribe_v2_realtime: { provider: 'elevenlabs', usdPerMin: 0.39 / 60 },
+  'stt-rt-v5': { provider: 'soniox', usdPerMin: 0.12 / 60 }, // soniox.com/pricing, 2026-10-14
   'gpt-4o-mini-transcribe': { provider: 'openai', usdPerMin: 0.003 },
   'gpt-4o-transcribe': { provider: 'openai', usdPerMin: 0.006 },
 } as const;
@@ -47,6 +48,18 @@ export async function scribeToken(apiKey: string): Promise<{ token: string } | {
   const res = await fetch('https://api.elevenlabs.io/v1/single-use-token/realtime_scribe', { method: 'POST', headers: { 'xi-api-key': apiKey }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) return { status: res.status, detail: (await res.text()).slice(0, 300) };
   return { token: ((await res.json()) as { token: string }).token };
+}
+
+/** A temporary key for one Soniox real-time socket from the browser (60 s to connect; the socket then lives as long as it is used). */
+export async function sonioxToken(apiKey: string): Promise<{ key: string } | { status: number; detail: string }> {
+  const res = await fetch('https://api.soniox.com/v1/auth/temporary-api-key', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usage_type: 'transcribe_websocket', expires_in_seconds: 60 }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) return { status: res.status, detail: (await res.text()).slice(0, 300) };
+  return { key: ((await res.json()) as { api_key: string }).api_key };
 }
 
 /** Batch transcribers on OpenRouter for the device-side turn detector (the browser sends each answer, or each finished piece of it, as a WAV).

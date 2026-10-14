@@ -1511,7 +1511,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description ELEVENLABS_API_KEY is not set */
+                /** @description ELEVENLABS_API_KEY or SONIOX_API_KEY is not set */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -1925,6 +1925,191 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/pipecat/offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pipecat examiner (admin playground): WebRTC offer → answer, relayed to the voice service with the examiner prompt */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PipecatOffer"];
+                };
+            };
+            responses: {
+                /** @description SDP answer */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PipecatAnswer"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Voice service error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Pipecat examiner (admin playground): trickled ICE candidates, relayed to the voice service */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PipecatIce"];
+                };
+            };
+            responses: {
+                /** @description Relayed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            status: string;
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Voice service error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/live/pipecat/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Voice service only (x-voice-secret): one Pipecat session's usage for the cost ledger */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PipecatUsage"];
+                };
+            };
+            responses: {
+                /** @description Recorded */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad secret */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -5490,6 +5675,8 @@ export interface components {
             token?: string;
             /** @description OpenAI: client secret, Bearer for POST /v1/realtime/calls */
             value?: string;
+            /** @description Soniox: temporary API key, the `api_key` of the first message on wss://stt-rt.soniox.com/transcribe-websocket */
+            key?: string;
         };
         LiveCascadeSttToken: {
             sessionId: string;
@@ -5497,7 +5684,7 @@ export interface components {
              * @description Default scribe_v2_realtime
              * @enum {string}
              */
-            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
+            stt?: "scribe_v2_realtime" | "stt-rt-v5" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
             /** @description OpenAI only: the session's own silence detection ends answers (default true); false: the browser commits each answer */
             serverVad?: boolean;
         };
@@ -5530,7 +5717,7 @@ export interface components {
              * @description Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime
              * @enum {string}
              */
-            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
+            stt?: "scribe_v2_realtime" | "stt-rt-v5" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
             /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
             sttSeconds?: number;
         };
@@ -5562,7 +5749,7 @@ export interface components {
              * @description Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime
              * @enum {string}
              */
-            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
+            stt?: "scribe_v2_realtime" | "stt-rt-v5" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
             /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
             sttSeconds?: number;
             /** @description Voice each sentence as soon as it is written (default true); false: one TTS call for the whole line */
@@ -5600,6 +5787,61 @@ export interface components {
         LivePartSubmit: {
             sessionId: string;
             part: components["schemas"]["LivePart"];
+        };
+        PipecatAnswer: {
+            sdp: string;
+            type: string;
+            pc_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        PipecatOffer: {
+            sdp: string;
+            type: string;
+            pc_id?: string | null;
+            restart_pc?: boolean | null;
+            requestData: {
+                sessionId: string;
+                cfg?: components["schemas"]["PipecatConfig"];
+            };
+        };
+        PipecatConfig: {
+            /** @enum {string} */
+            stt?: "soniox" | "scribe";
+            /** @enum {string} */
+            llm?: "deepseek/deepseek-v4.1-flash" | "inception/mercury-2.5" | "mistralai/mistral-small-3.2-24b-instruct" | "openai/gpt-6-luna";
+            /** @enum {string} */
+            tts?: "soniox" | "elevenlabs";
+            /** @enum {string} */
+            ttsModel?: "eleven_flash_v2_5" | "eleven_turbo_v2_5" | "eleven_v4_turbo";
+            voice?: string;
+            vadStopSecs?: number;
+            smartStopSecs?: number;
+        };
+        PipecatIce: {
+            pc_id: string;
+            candidates: {
+                candidate: string;
+                sdp_mid?: string | null;
+                sdp_mline_index?: number | null;
+            }[];
+        };
+        PipecatUsage: {
+            sessionId: string;
+            userId: string;
+            cfg: {
+                stt: string;
+                llm: string;
+                tts: string;
+            } & {
+                [key: string]: unknown;
+            };
+            seconds: number;
+            sttUsd: number;
+            llmTokensIn: number;
+            llmTokensOut: number;
+            ttsChars: number;
+            usd: number;
         };
         Progress: {
             /** @description Last 30 analysed attempts, oldest first */

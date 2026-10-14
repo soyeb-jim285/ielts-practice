@@ -1,12 +1,13 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { and, eq, max } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, sessionScript, type LiveState, type Turn } from '../ai/examiner';
+import { candidateFacts, CUE_PREFIX, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, newState, nextPhase, PREP_MS, scriptedLine, sessionScript, type LiveState, type Turn } from '../ai/examiner';
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { GEMINI_LIVE_MODELS, geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { mintClientSecret, mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
-import { CASCADE_BATCH_STTS, CASCADE_LLMS, CASCADE_STT_MODELS, sentenceSplitter, CASCADE_STTS, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, scribeToken, spokenLine, transcriptionSession } from '../ai/cascade';
+import { CASCADE_BATCH_STTS, CASCADE_LLMS, CASCADE_STT_MODELS, sentenceSplitter, CASCADE_STTS, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, scribeToken, sonioxToken, spokenLine, transcriptionSession } from '../ai/cascade';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, chatTextStream, speak, transcribe, transcribeOnce } from '../ai/openrouter';
@@ -568,6 +569,7 @@ export function register(app: App) {
             .object({
               token: z.string().optional().openapi({ description: 'Scribe: the `token` query parameter of wss://api.elevenlabs.io/v1/speech-to-text/realtime' }),
               value: z.string().optional().openapi({ description: 'OpenAI: client secret, Bearer for POST /v1/realtime/calls' }),
+              key: z.string().optional().openapi({ description: 'Soniox: temporary API key, the `api_key` of the first message on wss://stt-rt.soniox.com/transcribe-websocket' }),
             })
             .openapi('CascadeSttToken'),
           'Credentials',
@@ -577,7 +579,7 @@ export function register(app: App) {
         404: json(ErrorSchema, 'Not found'),
         ...tooMany,
         502: json(ErrorSchema, 'Transcription provider error'),
-        503: json(ErrorSchema, 'ELEVENLABS_API_KEY is not set'),
+        503: json(ErrorSchema, 'ELEVENLABS_API_KEY or SONIOX_API_KEY is not set'),
       },
     }),
     async (c) => {
@@ -594,6 +596,15 @@ export function register(app: App) {
           return c.json({ error: 'Could not start the transcription session. Please retry.' }, 502);
         }
         return c.json({ value: t.value }, 200);
+      }
+      if (CASCADE_STTS[stt].provider === 'soniox') {
+        if (!env.SONIOX_API_KEY) return c.json({ error: 'Soniox is not configured on this server.' }, 503);
+        const t = await sonioxToken(env.SONIOX_API_KEY);
+        if (!('key' in t)) {
+          console.error('soniox temporary-api-key', t.status, redact(t.detail, env.SONIOX_API_KEY));
+          return c.json({ error: 'Could not start the transcription session. Please retry.' }, 502);
+        }
+        return c.json({ key: t.key }, 200);
       }
       if (!env.ELEVENLABS_API_KEY) return c.json({ error: 'ElevenLabs is not configured on this server.' }, 503);
       const t = await scribeToken(env.ELEVENLABS_API_KEY);
@@ -811,6 +822,111 @@ export function register(app: App) {
       if (typeof ids === 'string') return c.json({ error: ids }, 400);
       if (!ids) return c.json({ error: 'This session was already finished' }, 409);
       return c.json({ attemptId: ids[0]! }, 200);
+    },
+  );
+
+  // Pipecat examiner (admin playground): the browser's WebRTC signalling goes through here, so the voice service (services/voice) needs no user auth
+  // and stays off the public internet. The offer carries the examiner prompt built here; the service reports usage back at the end.
+  const PipecatCfg = z
+    .object({
+      stt: z.enum(['soniox', 'scribe']).optional(),
+      llm: z.enum(CASCADE_LLMS).optional(),
+      tts: z.enum(['soniox', 'elevenlabs']).optional(),
+      ttsModel: z.enum(['eleven_flash_v2_5', 'eleven_turbo_v2_5', 'eleven_v4_turbo']).optional(),
+      voice: z.string().max(64).optional(),
+      vadStopSecs: z.number().min(0.1).max(1.5).optional(),
+      smartStopSecs: z.number().min(0.3).max(5).optional(),
+    })
+    .openapi('PipecatConfig');
+  // the voice service derives the same default from the OpenRouter key both already have
+  const voiceSecret = env.VOICE_SECRET ?? createHash('sha256').update(`ielts-voice:${env.OPENROUTER_API_KEY}`).digest('hex');
+  const voiceFetch = async (method: 'POST' | 'PATCH', body: unknown) => {
+    if (!env.VOICE_URL) throw new HTTPException(503, { message: 'The Pipecat examiner is not configured on this server.' });
+    const res = await fetch(`${env.VOICE_URL}/api/offer`, { method, headers: { 'content-type': 'application/json', 'x-voice-secret': voiceSecret }, body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) }).catch(() => null);
+    if (!res?.ok) {
+      console.error('voice service', method, res?.status, res && (await res.text()).slice(0, 300));
+      throw new HTTPException(502, { message: 'The examiner service did not answer. Please retry.' });
+    }
+    return res.json();
+  };
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      middleware: [...paid.middleware, requireOwner], // house Soniox / OpenRouter / ElevenLabs keys pay: owner only
+      method: 'post',
+      path: '/api/live/pipecat/offer',
+      summary: 'Pipecat examiner (admin playground): WebRTC offer → answer, relayed to the voice service with the examiner prompt',
+      request: body(
+        z
+          .object({ sdp: z.string().max(20_000), type: z.string(), pc_id: z.string().nullish(), restart_pc: z.boolean().nullish(), requestData: z.object({ sessionId: z.string(), cfg: PipecatCfg.optional() }) })
+          .openapi('PipecatOffer'),
+      ),
+      responses: { 200: json(z.object({ sdp: z.string(), type: z.string(), pc_id: z.string() }).passthrough().openapi('PipecatAnswer'), 'SDP answer'), 404: json(ErrorSchema, 'Not found'), ...tooMany, 502: json(ErrorSchema, 'Voice service error'), 503: json(ErrorSchema, 'Not configured') },
+    }),
+    async (c) => {
+      const b = c.req.valid('json'), user = currentUser(c);
+      const s = await loadSession(b.requestData.sessionId, user.id), cfg = b.requestData.cfg ?? {};
+      if ((cfg.stt ?? 'soniox') === 'soniox' || (cfg.tts ?? 'soniox') === 'soniox') {
+        if (!env.SONIOX_API_KEY) return c.json({ error: 'Soniox is not configured on this server (SONIOX_API_KEY). Pick Scribe and ElevenLabs, or add the key.' }, 503);
+      }
+      const request_data = {
+        sessionId: b.requestData.sessionId,
+        userId: user.id,
+        cfg,
+        prompt: cascadeMessages(s.test, [])[0]!.content,
+        cuePrefix: CUE_PREFIX,
+        reportUrl: `${env.BETTER_AUTH_URL}/api/live/pipecat/usage`,
+      };
+      return c.json((await voiceFetch('POST', { sdp: b.sdp, type: b.type, pc_id: b.pc_id, restart_pc: b.restart_pc, request_data })) as { sdp: string; type: string; pc_id: string }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      middleware: [...paid.middleware, requireOwner],
+      method: 'patch',
+      path: '/api/live/pipecat/offer',
+      summary: 'Pipecat examiner (admin playground): trickled ICE candidates, relayed to the voice service',
+      request: body(z.object({ pc_id: z.string(), candidates: z.array(z.object({ candidate: z.string(), sdp_mid: z.string().nullish(), sdp_mline_index: z.number().nullish() })).max(50) }).openapi('PipecatIce')),
+      responses: { 200: json(z.object({ status: z.string() }), 'Relayed'), 404: json(ErrorSchema, 'Not found'), ...tooMany, 502: json(ErrorSchema, 'Voice service error'), 503: json(ErrorSchema, 'Not configured') },
+    }),
+    async (c) => c.json((await voiceFetch('PATCH', c.req.valid('json'))) as { status: string }, 200),
+  );
+
+  app.openapi(
+    createRoute({
+      tags: ['Live'],
+      method: 'post',
+      path: '/api/live/pipecat/usage',
+      summary: "Voice service only (x-voice-secret): one Pipecat session's usage for the cost ledger",
+      request: body(
+        z
+          .object({
+            sessionId: z.string(),
+            userId: z.string(),
+            cfg: z.object({ stt: z.string(), llm: z.string(), tts: z.string() }).passthrough(),
+            seconds: z.number().min(0),
+            sttUsd: z.number().min(0),
+            llmTokensIn: z.number().int().min(0),
+            llmTokensOut: z.number().int().min(0),
+            ttsChars: z.number().int().min(0),
+            usd: z.number().min(0),
+          })
+          .openapi('PipecatUsage'),
+      ),
+      responses: { 204: { description: 'Recorded' }, 403: json(ErrorSchema, 'Bad secret') },
+    }),
+    async (c) => {
+      const secret = c.req.header('x-voice-secret') ?? '';
+      if (secret.length !== voiceSecret.length || !timingSafeEqual(Buffer.from(secret), Buffer.from(voiceSecret))) return c.json({ error: 'Forbidden' }, 403);
+      const u = c.req.valid('json'), who = { userId: u.userId, sessionId: u.sessionId, paidBy: 'house' as const, meta: { estimated: true, engine: 'pipecat', cfg: u.cfg } };
+      const llmUsd = u.usd - u.sttUsd - (u.ttsChars * (u.cfg.tts === 'soniox' ? 0.014 / 1000 : 20 / 1e6));
+      recordCost({ ...who, stage: 'live_stt', provider: u.cfg.stt === 'scribe' ? 'elevenlabs' : 'soniox', model: u.cfg.stt, costUsd: u.sttUsd, audioSeconds: u.seconds });
+      recordCost({ ...who, stage: 'examiner_llm', provider: 'openrouter', model: u.cfg.llm, costUsd: Math.max(0, llmUsd), inputTokens: u.llmTokensIn, outputTokens: u.llmTokensOut });
+      recordCost({ ...who, stage: 'examiner_tts', provider: u.cfg.tts === 'soniox' ? 'soniox' : 'elevenlabs', model: u.cfg.tts, costUsd: u.usd - u.sttUsd - Math.max(0, llmUsd), characters: u.ttsChars });
+      return c.body(null, 204);
     },
   );
 }

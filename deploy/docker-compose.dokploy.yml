@@ -36,6 +36,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
+      VOICE_URL: http://host.docker.internal:7860 # the voice service below, on the host network
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +46,21 @@ services:
       internal:
       dokploy-network:
         aliases: [ielts-app] # unique name the tunnel targets; "app" alone could clash with other stacks
+
+  # Pipecat examiner (services/voice, admin playground). Host network: WebRTC media uses random UDP ports on the VPS's public IP, which a
+  # bridge network can't publish. Signalling listens only on the docker bridge address (172.17.0.1 = host-gateway), where the app relays the
+  # browser's offers; it checks a secret derived from OPENROUTER_API_KEY. Uses SONIOX_API_KEY / ELEVENLABS_API_KEY / OPENROUTER_API_KEY from .env.
+  voice:
+    image: ghcr.io/soyeb-jim285/ielts-voice:latest
+    pull_policy: always
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      VOICE_HOST: 172.17.0.1
+      VOICE_PORT: "7860"
+      LOG_LEVEL: INFO
+    network_mode: host
+    mem_limit: 1g
 
   # Nightly pg_dump → R2 under backups/ (uses the R2_* variables).
   backup:

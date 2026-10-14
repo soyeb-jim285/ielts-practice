@@ -14,6 +14,7 @@ import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
 import { GeminiDuplex, type GeminiModel } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
+import { DEFAULT_PIPECAT, PipecatDuplex, type PipecatConfig } from '@/live/pipecat';
 import { CascadeDuplex, DEFAULT_CASCADE, type CascadeConfig, type CascadeLlm, type CascadeStt, type CascadeTts, type ReplyTiming } from '@/live/cascade';
 
 type Tab = 'stt' | 'pron' | 'live';
@@ -266,10 +267,11 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 
 // ---------------------------------------------------------------- live examiners
 
-type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade';
+type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade' | 'pipecat';
 const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
   { value: 'cascade', label: 'Fast cascade', note: 'configurable ears, turn detection, LLM and voice, ~$0.005-0.01/min' },
+  { value: 'pipecat', label: 'Pipecat (server pipeline)', note: 'WebRTC to our server: Silero + Smart Turn + Soniox/Scribe + LLM + streamed voice, ~$0.003/min' },
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
   { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
   { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
@@ -282,6 +284,7 @@ const ENGINES: { value: Engine; label: string; note: string }[] = [
 
 const STTS: { value: CascadeStt; label: string }[] = [
   { value: 'scribe_v2_realtime', label: 'Streamed: ElevenLabs Scribe v2 Realtime (~$0.0065/min)' },
+  { value: 'stt-rt-v5', label: 'Streamed: Soniox stt-rt-v5 ($0.002/min, ~0.26 s to final)' },
   { value: 'gpt-4o-mini-transcribe', label: 'Streamed: OpenAI gpt-4o-mini-transcribe ($0.003/min, server VAD)' },
   { value: 'gpt-4o-transcribe', label: 'Streamed: OpenAI gpt-4o-transcribe ($0.006/min, server VAD)' },
   { value: 'batch:nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b', label: 'OpenRouter batch: NVIDIA Nemotron ASR ($0.012/h)' },
@@ -305,6 +308,7 @@ const VOICES: { value: CascadeTts; label: string }[] = [
 ];
 
 const CFG_KEY = 'admin-cascade-config';
+const PIPECAT_KEY = 'admin-pipecat-config';
 const RUNS_KEY = 'admin-examiner-runs';
 const loadJson = <T,>(key: string, fallback: T): T => {
   try {
@@ -321,8 +325,10 @@ const saveJson = (key: string, v: unknown) => {
 };
 /** A finished playground session, kept after Stop (and in this browser's storage) so runs can be compared. */
 type RunSnapshot = { id: number; engine: Engine; label: string; lines: Line[]; timeline: ReplyTiming[]; costUsd: number; secs: number; median: number | null };
-const engineLabel = (engine: Engine, cfg: CascadeConfig) =>
-  engine !== 'cascade'
+const engineLabel = (engine: Engine, cfg: CascadeConfig, pc: PipecatConfig) =>
+  engine === 'pipecat'
+    ? ['Pipecat', pc.stt, `VAD ${pc.vadStopSecs} s / Smart Turn cap ${pc.smartStopSecs} s`, pc.llm.replace(/^.*\//, ''), pc.tts === 'elevenlabs' ? pc.ttsModel : 'soniox tts', pc.voice].filter(Boolean).join(' · ')
+    : engine !== 'cascade'
     ? ENGINES.find((e) => e.value === engine)?.label ?? engine
     : [
         'Fast cascade',
@@ -386,12 +392,60 @@ function CascadeSettings({ cfg, set, disabled }: { cfg: CascadeConfig; set: (p: 
   );
 }
 
+const PC_LLMS: { value: PipecatConfig['llm']; label: string }[] = [
+  { value: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash' },
+  { value: 'inception/mercury-2.5', label: 'Mercury 2.5 (fastest)' },
+  { value: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2' },
+  { value: 'openai/gpt-6-luna', label: 'Luna' },
+];
+
+function PipecatSettings({ cfg, set, disabled }: { cfg: PipecatConfig; set: (p: Partial<PipecatConfig>) => void; disabled: boolean }) {
+  return (
+    <div className="mt-4 grid gap-6 md:grid-cols-3">
+      <fieldset className="space-y-3">
+        <legend className="type-caption font-medium">Hearing (on the server)</legend>
+        <Select label="Transcription" value={cfg.stt} disabled={disabled} onChange={(e) => set({ stt: e.target.value as PipecatConfig['stt'] })}>
+          <option value="soniox">Soniox stt-rt-v5 ($0.12/h)</option>
+          <option value="scribe">ElevenLabs Scribe v2 Realtime ($0.39/h)</option>
+        </Select>
+        <div className="grid grid-cols-2 gap-2">
+          <Input label="Pause (s)" hint="Silero VAD quiet before Smart Turn decides" type="number" step={0.05} value={cfg.vadStopSecs} disabled={disabled} onChange={(e) => set({ vadStopSecs: Number(e.target.value) })} />
+          <Input label="Cap (s)" hint="'not finished' still ends after this" type="number" step={0.1} value={cfg.smartStopSecs} disabled={disabled} onChange={(e) => set({ smartStopSecs: Number(e.target.value) })} />
+        </div>
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="type-caption font-medium">Reply</legend>
+        <Select label="LLM (OpenRouter, streamed)" value={cfg.llm} disabled={disabled} onChange={(e) => set({ llm: e.target.value as PipecatConfig['llm'] })}>
+          {PC_LLMS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+        </Select>
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="type-caption font-medium">Voice (streamed over a WebSocket)</legend>
+        <Select label="Voice" value={cfg.tts} disabled={disabled} onChange={(e) => set({ tts: e.target.value as PipecatConfig['tts'], voice: '' })}>
+          <option value="soniox">Soniox tts-rt-v2 (~$0.014/1k chars)</option>
+          <option value="elevenlabs">ElevenLabs (house plan credits)</option>
+        </Select>
+        {cfg.tts === 'elevenlabs' && (
+          <Select label="ElevenLabs model" value={cfg.ttsModel} disabled={disabled} onChange={(e) => set({ ttsModel: e.target.value as PipecatConfig['ttsModel'] })}>
+            <option value="eleven_flash_v2_5">Flash v2.5 (fastest)</option>
+            <option value="eleven_turbo_v2_5">Turbo v2.5</option>
+            <option value="eleven_v4_turbo">v4 Turbo</option>
+          </Select>
+        )}
+        <Input label="Voice name or id" hint={cfg.tts === 'soniox' ? 'empty: Adrian' : 'empty: George (British)'} value={cfg.voice} disabled={disabled} onChange={(e) => set({ voice: e.target.value.trim() })} />
+      </fieldset>
+    </div>
+  );
+}
+
 function ExaminerLab() {
   const [engine, setEngine] = useState<Engine>('cascade');
   const [cfg, setCfg] = useState<CascadeConfig>(() => ({ ...DEFAULT_CASCADE, ...loadJson<Partial<CascadeConfig>>(CFG_KEY, {}) }));
   const [run, setRun] = useState(0);
   const [past, setPast] = useState<RunSnapshot[]>(() => loadJson<RunSnapshot[]>(RUNS_KEY, []));
   const set = (p: Partial<CascadeConfig>) => setCfg((c) => (saveJson(CFG_KEY, { ...c, ...p }), { ...c, ...p }));
+  const [pc, setPc] = useState<PipecatConfig>(() => ({ ...DEFAULT_PIPECAT, ...loadJson<Partial<PipecatConfig>>(PIPECAT_KEY, {}) }));
+  const setP = (p: Partial<PipecatConfig>) => setPc((c) => (saveJson(PIPECAT_KEY, { ...c, ...p }), { ...c, ...p }));
   const keep = (snap: RunSnapshot) =>
     setPast((ps) => {
       if (!snap.lines.length) return ps;
@@ -412,11 +466,13 @@ function ExaminerLab() {
             <Button icon={<Mic />} onClick={() => setRun(Date.now())}>Start a test</Button>
           )}
           {engine === 'cascade' && <Button variant="ghost" size="sm" onClick={() => set(DEFAULT_CASCADE)} disabled={run > 0}>Reset settings</Button>}
+          {engine === 'pipecat' && <Button variant="ghost" size="sm" onClick={() => setP(DEFAULT_PIPECAT)} disabled={run > 0}>Reset settings</Button>}
         </div>
         {engine === 'cascade' && <CascadeSettings cfg={cfg} set={set} disabled={run > 0} />}
+        {engine === 'pipecat' && <PipecatSettings cfg={pc} set={setP} disabled={run > 0} />}
         <p className="type-caption mt-4">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Stopped sessions stay below for comparison.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} label={engineLabel(engine, cfg)} onEnd={keep} />}
+      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} pc={pc} label={engineLabel(engine, cfg, pc)} onEnd={keep} />}
       {past.length > 0 && (
         <section aria-label="Past sessions" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -466,14 +522,14 @@ function PastRun({ run }: { run: RunSnapshot }) {
 
 type Line = { who: 'you' | 'examiner'; text: string; at: number; latencyMs?: number };
 
-function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: Engine; cfg: CascadeConfig; label: string; onEnd: (s: RunSnapshot) => void }) {
+function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine: Engine; cfg: CascadeConfig; pc: PipecatConfig; label: string; onEnd: (s: RunSnapshot) => void }) {
   const duplex = useRef<Duplex>(undefined);
   const [lines, setLines] = useState<Line[]>([]);
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
   const make = (): Duplex =>
-    (duplex.current = engine === 'cascade' ? new CascadeDuplex(cfg) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+    (duplex.current = engine === 'pipecat' ? new PipecatDuplex(pc) : engine === 'cascade' ? new CascadeDuplex(cfg) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {
@@ -525,13 +581,13 @@ function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: En
 
   const secs = (now - t0.current) / 1000;
   const d = duplex.current;
-  const cost = d instanceof CascadeDuplex ? d.stats.costUsd : d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
+  const cost = d instanceof CascadeDuplex || d instanceof PipecatDuplex ? d.stats.costUsd : d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
   const lat = lines.flatMap((l) => (l.latencyMs != null ? [l.latencyMs] : []));
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [lines.length]);
+  useEffect(() => void end.current?.scrollIntoView({ block: 'nearest' }), [lines.length]); // void: newer Chromium returns a Promise, which React would take for a clean-up
   const snap = useRef<RunSnapshot>({ id, engine, label, lines: [], timeline: [], costUsd: 0, secs: 0, median: null });
-  snap.current = { id, engine, label, lines, timeline: d instanceof CascadeDuplex ? [...d.stats.timeline] : [], costUsd: cost, secs, median };
+  snap.current = { id, engine, label, lines, timeline: d instanceof CascadeDuplex || d instanceof PipecatDuplex ? [...d.stats.timeline] : [], costUsd: cost, secs, median };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
@@ -541,10 +597,10 @@ function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: En
         <p className="type-caption mb-3">{label}</p>
         {ex.error && <p className="mb-3 text-sm text-bad-text">{ex.error}</p>}
         <Conversation lines={lines} end={end} />
-        {!lines.length && (d instanceof CascadeDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
+        {!lines.length && (d instanceof CascadeDuplex || d instanceof PipecatDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
       </Card>
-      {d instanceof CascadeDuplex && <CascadeTimeline timeline={d.stats.timeline} />}
-      {d instanceof CascadeDuplex && lines.length > 0 && (
+      {(d instanceof CascadeDuplex || d instanceof PipecatDuplex) && <CascadeTimeline timeline={d.stats.timeline} />}
+      {(d instanceof CascadeDuplex || d instanceof PipecatDuplex) && lines.length > 0 && (
         <Card>
           <h2 className="type-h4 mb-2">Start-up</h2>
           <CascadeSteps steps={d.stats.steps} />
