@@ -2369,6 +2369,7 @@
           "tts": {
             "type": "string",
             "enum": [
+              "openai",
               "soniox",
               "elevenlabs"
             ]

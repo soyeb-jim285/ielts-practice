@@ -42,6 +42,7 @@ from pipecat.processors.aggregators.llm_response_universal import LLMContextAggr
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+from pipecat.services.openai.tts import OpenAITTSService
 from pipecat.services.openrouter.llm import OpenRouterLLMService
 from pipecat.services.soniox.stt import SonioxSTTService
 from pipecat.services.soniox.tts import SonioxTTSService
@@ -68,7 +69,9 @@ GEORGE = "JBFqnCBsd6RMkjVDRZzb"  # ElevenLabs "George", the cascade's British ex
 # USD list prices (2026-10-14): Soniox stt-rt-v5 $0.12/h, Soniox tts-rt-v2 $0.70/h of speech (~$0.014 per 1k characters). ElevenLabs over the
 # house plan is paid in subscription credits, priced here at OpenRouter's rate for the same voices ($20 per M characters).
 STT_USD_PER_S = {"soniox": 0.12 / 3600, "scribe": 0.39 / 3600}
-TTS_USD_PER_CHAR = {"soniox": 0.014 / 1000, "elevenlabs": 20 / 1e6}
+# OpenAI gpt-4o-mini-tts: ~$0.015 per minute of speech (~900 characters).
+TTS_USD_PER_CHAR = {"soniox": 0.014 / 1000, "elevenlabs": 20 / 1e6, "openai": 0.015 / 900}
+EXAMINER_VOICE = "Speak in a neutral British English accent, as a calm, friendly IELTS speaking examiner: clear, unhurried, warm but professional."
 
 
 def pin_ice():
@@ -247,13 +250,18 @@ def build_services(cfg: dict, prompt: str):
             api_key=os.environ["ELEVENLABS_API_KEY"],
             settings=ElevenLabsTTSService.Settings(model=cfg.get("ttsModel") or "eleven_flash_v2_5", voice=cfg.get("voice") or GEORGE),
         )
+    elif cfg["tts"] == "openai":
+        tts = OpenAITTSService(
+            api_key=os.environ["OPENAI_API_KEY"],
+            settings=OpenAITTSService.Settings(model="gpt-4o-mini-tts", voice=cfg.get("voice") or "fable", instructions=EXAMINER_VOICE),
+        )
     else:
         tts = SonioxTTSService(api_key=os.environ["SONIOX_API_KEY"], settings=SonioxTTSService.Settings(voice=cfg.get("voice") or "Adrian"))
     return stt, llm, tts
 
 
 async def run_bot(conn: SmallWebRTCConnection, data: dict[str, Any]):
-    cfg = {"stt": "soniox", "llm": "deepseek/deepseek-v4.1-flash", "tts": "soniox", "vadStopSecs": 0.2, "smartStopSecs": 1.5, **(data.get("cfg") or {})}
+    cfg = {"stt": "soniox", "llm": "deepseek/deepseek-v4.1-flash", "tts": "openai", "vadStopSecs": 0.2, "smartStopSecs": 1.5, **(data.get("cfg") or {})}
     prompt, cue_prefix = data["prompt"], data.get("cuePrefix", "")
     ex = Examiner()
     started = time.monotonic()

@@ -831,7 +831,7 @@ export function register(app: App) {
     .object({
       stt: z.enum(['soniox', 'scribe']).optional(),
       llm: z.enum(CASCADE_LLMS).optional(),
-      tts: z.enum(['soniox', 'elevenlabs']).optional(),
+      tts: z.enum(['openai', 'soniox', 'elevenlabs']).optional(),
       ttsModel: z.enum(['eleven_flash_v2_5', 'eleven_turbo_v2_5']).optional(), // the streaming endpoint rejects the v4 models (HTTP 400)
       voice: z.string().max(64).optional(),
       vadStopSecs: z.number().min(0.1).max(1.5).optional(),
@@ -867,7 +867,8 @@ export function register(app: App) {
     async (c) => {
       const b = c.req.valid('json'), user = currentUser(c);
       const s = await loadSession(b.requestData.sessionId, user.id), cfg = b.requestData.cfg ?? {};
-      if ((cfg.stt ?? 'soniox') === 'soniox' || (cfg.tts ?? 'soniox') === 'soniox') {
+      if ((cfg.tts ?? 'openai') === 'openai' && !env.OPENAI_API_KEY) return c.json({ error: 'OpenAI is not configured on this server (OPENAI_API_KEY). Pick another voice.' }, 503);
+      if ((cfg.stt ?? 'soniox') === 'soniox' || cfg.tts === 'soniox') {
         if (!env.SONIOX_API_KEY) return c.json({ error: 'Soniox is not configured on this server (SONIOX_API_KEY). Pick Scribe and ElevenLabs, or add the key.' }, 503);
       }
       const request_data = {
@@ -922,10 +923,10 @@ export function register(app: App) {
       const secret = c.req.header('x-voice-secret') ?? '';
       if (secret.length !== voiceSecret.length || !timingSafeEqual(Buffer.from(secret), Buffer.from(voiceSecret))) return c.json({ error: 'Forbidden' }, 403);
       const u = c.req.valid('json'), who = { userId: u.userId, sessionId: u.sessionId, paidBy: 'house' as const, meta: { estimated: true, engine: 'pipecat', cfg: u.cfg } };
-      const llmUsd = u.usd - u.sttUsd - (u.ttsChars * (u.cfg.tts === 'soniox' ? 0.014 / 1000 : 20 / 1e6));
+      const llmUsd = u.usd - u.sttUsd - u.ttsChars * ({ soniox: 0.014 / 1000, openai: 0.015 / 900 }[u.cfg.tts] ?? 20 / 1e6);
       recordCost({ ...who, stage: 'live_stt', provider: u.cfg.stt === 'scribe' ? 'elevenlabs' : 'soniox', model: u.cfg.stt, costUsd: u.sttUsd, audioSeconds: u.seconds });
       recordCost({ ...who, stage: 'examiner_llm', provider: 'openrouter', model: u.cfg.llm, costUsd: Math.max(0, llmUsd), inputTokens: u.llmTokensIn, outputTokens: u.llmTokensOut });
-      recordCost({ ...who, stage: 'examiner_tts', provider: u.cfg.tts === 'soniox' ? 'soniox' : 'elevenlabs', model: u.cfg.tts, costUsd: u.usd - u.sttUsd - Math.max(0, llmUsd), characters: u.ttsChars });
+      recordCost({ ...who, stage: 'examiner_tts', provider: u.cfg.tts === 'soniox' ? 'soniox' : u.cfg.tts === 'openai' ? 'openai' : 'elevenlabs', model: u.cfg.tts, costUsd: u.usd - u.sttUsd - Math.max(0, llmUsd), characters: u.ttsChars });
       return c.body(null, 204);
     },
   );

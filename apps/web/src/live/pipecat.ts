@@ -9,16 +9,16 @@ import type { ReplyTiming, StartupStep } from './cascade';
 export type PipecatConfig = {
   stt: 'soniox' | 'scribe';
   llm: 'deepseek/deepseek-v4.1-flash' | 'inception/mercury-2.5' | 'mistralai/mistral-small-3.2-24b-instruct' | 'openai/gpt-6-luna';
-  tts: 'soniox' | 'elevenlabs';
+  tts: 'openai' | 'soniox' | 'elevenlabs';
   ttsModel: 'eleven_flash_v2_5' | 'eleven_turbo_v2_5'; // ElevenLabs' streaming endpoint rejects the v4 models
-  /** Soniox voice name, or an ElevenLabs voice id; empty: the default (Soniox "Adrian", ElevenLabs "George"). */
+  /** OpenAI or Soniox voice name, or an ElevenLabs voice id; empty: the default (OpenAI "fable", Soniox "Adrian", ElevenLabs "George"). */
   voice: string;
   /** Silero VAD: quiet this long is a pause, where Smart Turn decides. */
   vadStopSecs: number;
   /** Smart Turn said "not finished": quiet this long ends the turn anyway. */
   smartStopSecs: number;
 };
-export const DEFAULT_PIPECAT: PipecatConfig = { stt: 'soniox', llm: 'deepseek/deepseek-v4.1-flash', tts: 'soniox', ttsModel: 'eleven_flash_v2_5', voice: '', vadStopSecs: 0.2, smartStopSecs: 1.5 };
+export const DEFAULT_PIPECAT: PipecatConfig = { stt: 'soniox', llm: 'deepseek/deepseek-v4.1-flash', tts: 'openai', ttsModel: 'eleven_flash_v2_5', voice: '', vadStopSecs: 0.2, smartStopSecs: 1.5 };
 
 const VOICE_RMS = 0.02; // the cascade's speech loudness, for "your last sound" on this device
 

@@ -327,7 +327,7 @@ const saveJson = (key: string, v: unknown) => {
 type RunSnapshot = { id: number; engine: Engine; label: string; lines: Line[]; timeline: ReplyTiming[]; costUsd: number; secs: number; median: number | null };
 const engineLabel = (engine: Engine, cfg: CascadeConfig, pc: PipecatConfig) =>
   engine === 'pipecat'
-    ? ['Pipecat', pc.stt, `VAD ${pc.vadStopSecs} s / Smart Turn cap ${pc.smartStopSecs} s`, pc.llm.replace(/^.*\//, ''), pc.tts === 'elevenlabs' ? pc.ttsModel : 'soniox tts', pc.voice].filter(Boolean).join(' · ')
+    ? ['Pipecat', pc.stt, `VAD ${pc.vadStopSecs} s / Smart Turn cap ${pc.smartStopSecs} s`, pc.llm.replace(/^.*\//, ''), pc.tts === 'elevenlabs' ? pc.ttsModel : `${pc.tts} tts`, pc.voice].filter(Boolean).join(' · ')
     : engine !== 'cascade'
     ? ENGINES.find((e) => e.value === engine)?.label ?? engine
     : [
@@ -422,6 +422,7 @@ function PipecatSettings({ cfg, set, disabled }: { cfg: PipecatConfig; set: (p: 
       <fieldset className="space-y-3">
         <legend className="type-caption font-medium">Voice (streamed over a WebSocket)</legend>
         <Select label="Voice" value={cfg.tts} disabled={disabled} onChange={(e) => set({ tts: e.target.value as PipecatConfig['tts'], voice: '' })}>
+          <option value="openai">OpenAI gpt-4o-mini-tts (~$0.015/min, British accent by instruction)</option>
           <option value="soniox">Soniox tts-rt-v2 (~$0.014/1k chars)</option>
           <option value="elevenlabs">ElevenLabs (house plan credits)</option>
         </Select>
@@ -431,7 +432,7 @@ function PipecatSettings({ cfg, set, disabled }: { cfg: PipecatConfig; set: (p: 
             <option value="eleven_turbo_v2_5">Turbo v2.5</option>
           </Select>
         )}
-        <Input label="Voice name or id" hint={cfg.tts === 'soniox' ? 'empty: Adrian' : 'empty: George (British)'} value={cfg.voice} disabled={disabled} onChange={(e) => set({ voice: e.target.value.trim() })} />
+        <Input label="Voice name or id" hint={cfg.tts === 'openai' ? 'empty: fable; also ash, ballad, cedar, coral, echo, marin, nova, onyx, sage, verse' : cfg.tts === 'soniox' ? 'empty: Adrian' : 'empty: George (British)'} value={cfg.voice} disabled={disabled} onChange={(e) => set({ voice: e.target.value.trim() })} />
       </fieldset>
     </div>
   );

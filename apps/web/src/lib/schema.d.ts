@@ -5811,7 +5811,7 @@ export interface components {
             /** @enum {string} */
             llm?: "deepseek/deepseek-v4.1-flash" | "inception/mercury-2.5" | "mistralai/mistral-small-3.2-24b-instruct" | "openai/gpt-6-luna";
             /** @enum {string} */
-            tts?: "soniox" | "elevenlabs";
+            tts?: "openai" | "soniox" | "elevenlabs";
             /** @enum {string} */
             ttsModel?: "eleven_flash_v2_5" | "eleven_turbo_v2_5";
             voice?: string;
