@@ -247,6 +247,59 @@ export async function chatText(o: {
   return chat({ model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, ...(o.effort && { reasoning: o.effort === 'none' ? { enabled: false } : { effort: o.effort } }) }, undefined, undefined, { stage: 'examiner_llm', ...o.cost });
 }
 
+/** chatText, streamed: `onDelta` gets each text piece as it arrives (server-sent events), the full text is returned at the end.
+ *  No retry once bytes have arrived (a half-spoken reply can't be restarted); before that, a failed request throws AiError like call(). */
+export async function chatTextStream(o: Parameters<typeof chatText>[0] & { onDelta: (text: string) => void; timeoutMs?: number }): Promise<string> {
+  const ctx = keyCtx.getStore();
+  const apiKey = ctx?.openrouter ?? env.OPENROUTER_API_KEY;
+  const stage = o.cost?.stage ?? 'examiner_llm';
+  const body = { model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, stream: true, usage: { include: true }, ...(o.effort && { reasoning: o.effort === 'none' ? { enabled: false } : { effort: o.effort } }) };
+  const t0 = Date.now();
+  let res: Response;
+  try {
+    res = await fetcher(`${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': env.BETTER_AUTH_URL, 'X-Title': 'IELTS Practice' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(o.timeoutMs ?? 30_000),
+    });
+  } catch (e) {
+    recordFailure(e, { stage, model: o.model });
+    throw new AiError((e as Error).name === 'TimeoutError' ? 'timeout' : 'network', 'Could not reach the AI service. Please retry.');
+  }
+  if (!res.ok || !res.body) {
+    const detail = redact((await res.text().catch(() => '')).slice(0, 2000), apiKey);
+    logAi({ stage, path: '/chat/completions', model: o.model, latencyMs: Date.now() - t0, request: body, ok: false, status: res.status, error: detail || `HTTP ${res.status}` });
+    if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
+    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status);
+  }
+  let text = '', buf = '', usage: unknown, provider: string | undefined, id: string | undefined;
+  const dec = new TextDecoder();
+  for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+    buf += dec.decode(chunk, { stream: true });
+    let nl: number;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:') || line === 'data: [DONE]') continue;
+      try {
+        const d = JSON.parse(line.slice(5)) as { id?: string; provider?: string; usage?: unknown; choices?: { delta?: { content?: string } }[] };
+        id ??= d.id;
+        provider ??= d.provider;
+        if (d.usage) usage = d.usage;
+        const piece = d.choices?.[0]?.delta?.content;
+        if (piece) (text += piece), o.onDelta(piece);
+      } catch {
+        // a keep-alive comment or a partial line: skip
+      }
+    }
+  }
+  const u = usageCost(usage);
+  logAi({ stage, path: '/chat/completions', model: o.model, latencyMs: Date.now() - t0, request: body, ok: true, status: res.status, served: provider, costUsd: u.exact ? u.costUsd : null, response: { text, usage } });
+  recordCost({ stage, provider: 'openrouter', model: o.model, costUsd: u.costUsd ?? 0, meta: { generationId: id, served: provider, streamed: true, ...(!u.exact && { estimated: true }) } });
+  return text;
+}
+
 /** TypeSafe Jev (System One): typed decisions with probabilities, not text. ~$0.00002 a call. */
 export const DECISION_MODEL = 'typesafe/jev-1.13';
 

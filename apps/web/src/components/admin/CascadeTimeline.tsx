@@ -3,10 +3,11 @@ import type { ReplyTiming } from '@/live/cascade';
 import { Card } from '@/components/ui';
 
 const STAGES = [
-  { key: 'vad', label: 'End-of-speech wait', hint: 'silence the VAD waits for before the answer counts as finished', color: 'var(--chart-3)' },
-  { key: 'stt', label: 'Transcription', hint: 'after the VAD ended the answer, until the final transcript', color: 'var(--sky)' },
-  { key: 'llm', label: 'LLM', hint: "server: the examiner's next line", color: 'var(--accent)' },
-  { key: 'tts', label: 'Voice (TTS)', hint: 'server: synthesising that line', color: 'var(--warn)' },
+  { key: 'wait', label: 'End-of-turn wait', hint: 'silence after your last sound before the turn counted as finished (Smart Turn time excluded)', color: 'var(--chart-3)' },
+  { key: 'turnModel', label: 'Turn model', hint: 'Smart Turn checks on the deciding pause, on this device', color: 'color-mix(in oklab, var(--chart-3) 50%, var(--surface))' },
+  { key: 'stt', label: 'Transcription', hint: 'turn end until the final transcript', color: 'var(--sky)' },
+  { key: 'llm', label: 'LLM', hint: "server: to the first sentence when streamed, else the whole line", color: 'var(--accent)' },
+  { key: 'tts', label: 'Voice (TTS)', hint: 'server: then until the first audio was ready', color: 'var(--warn)' },
   { key: 'net', label: 'Network + server', hint: 'round trip minus LLM and TTS', color: 'var(--bad)' },
   { key: 'decode', label: 'Decode', hint: 'browser audio decode until playback', color: 'var(--ink)' },
 ] as const;
@@ -43,11 +44,11 @@ export function CascadeTimeline({ timeline }: { timeline: ReplyTiming[] }) {
               </div>
               <span className="type-num w-12 shrink-0 text-right text-sm font-medium">{s(t.total)}</span>
             </div>
-            <p className="type-caption mt-0.5 truncate">{t.text}</p>
+            <p className="type-caption mt-0.5 truncate">{t.label}{t.checks.length ? ` · turn checks ${t.checks.join(' → ')}` : ''}{t.text ? ` · ${t.text}` : ''}</p>
           </li>
         ))}
       </ol>
-      <p className="type-caption mt-3">End-of-speech wait is the fixed VAD silence (1.0 s). Hover a segment for its time.</p>
+      <p className="type-caption mt-3">Measured from your last sound to the examiner's first sound. Turn checks are Smart Turn's P(finished) at each pause. Hover a segment for its time.</p>
     </Card>
   );
 }

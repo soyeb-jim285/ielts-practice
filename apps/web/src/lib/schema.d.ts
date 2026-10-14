@@ -1604,6 +1604,149 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/cascade/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fast cascade examiner (admin playground): one finished answer, or one finished piece of it, transcribed by a batch OpenRouter transcriber */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveCascadeTranscribe"];
+                };
+            };
+            responses: {
+                /** @description Transcript */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CascadeTranscript"];
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description AI service error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/cascade/reply-stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fast cascade examiner (admin playground): the next line streamed as NDJSON events; with sentenceTts each sentence is voiced as soon as the LLM finishes it */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveCascadeReplyStream"];
+                };
+            };
+            responses: {
+                /** @description application/x-ndjson, one event per line: {type:"text",i,text,ms} per sentence; {type:"audio",i,audio,contentType,ms} per voiced clip (any order, play by i); {type:"done",text,ms:{llmFirst,llm,ttsFirst},costUsd}; {type:"error",error}. ms are since the request arrived. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/x-ndjson": string;
+                    };
+                };
+                /** @description live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Too many requests (too_many_requests), or the test quota is used up (quota_exceeded) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CodedError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/finish": {
         parameters: {
             query?: never;
@@ -5382,12 +5525,46 @@ export interface components {
             /** @enum {string} */
             tts?: "elevenlabs/eleven-v4-turbo" | "elevenlabs/eleven-flash-v2.5" | "google/gemini-3.8-flash-lite-tts" | "google/gemini-3.8-flash-tts";
             /**
-             * @description Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime
+             * @description Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime
              * @enum {string}
              */
-            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
+            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
             /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
             sttSeconds?: number;
+        };
+        CascadeTranscript: {
+            text: string;
+            ms: number;
+            costUsd: number | null;
+        };
+        LiveCascadeTranscribe: {
+            sessionId: string;
+            /** @description Base64 16 kHz mono WAV */
+            audio: string;
+            /** @enum {string} */
+            model: "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
+        };
+        LiveCascadeReplyStream: {
+            sessionId: string;
+            /** @description The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix) */
+            turns: {
+                /** @enum {string} */
+                role: "examiner" | "candidate" | "app";
+                text: string;
+            }[];
+            /** @enum {string} */
+            llm?: "deepseek/deepseek-v4.1-flash" | "inception/mercury-2.5" | "mistralai/mistral-small-3.2-24b-instruct" | "openai/gpt-6-luna";
+            /** @enum {string} */
+            tts?: "elevenlabs/eleven-v4-turbo" | "elevenlabs/eleven-flash-v2.5" | "google/gemini-3.8-flash-lite-tts" | "google/gemini-3.8-flash-tts";
+            /**
+             * @description Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime
+             * @enum {string}
+             */
+            stt?: "scribe_v2_realtime" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe" | "elevenlabs/scribe-v2" | "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b" | "nvidia/parakeet-tdt-0.6b-v3" | "openai/whisper-large-v3-turbo" | "deepgram/nova-3" | "openai/gpt-4o-mini-transcribe";
+            /** @description Candidate audio transcribed since the last reply (priced into the ledger) */
+            sttSeconds?: number;
+            /** @description Voice each sentence as soon as it is written (default true); false: one TTS call for the whole line */
+            sentenceTts?: boolean;
         };
         LiveFinished: {
             attemptIds: string[];

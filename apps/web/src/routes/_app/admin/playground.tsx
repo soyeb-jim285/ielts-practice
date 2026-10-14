@@ -5,7 +5,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { PronunciationLab } from '@/components/admin/PronunciationLab';
 import { CascadeTimeline } from '@/components/admin/CascadeTimeline';
 import { audioFormat, blobToBase64, geminiUsd, gptLiveUsd, isFiller, realtimeUsd, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
-import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
+import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Switch, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
@@ -14,7 +14,7 @@ import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
 import { GeminiDuplex, type GeminiModel } from '@/live/gemini';
 import { GptLiveDuplex } from '@/live/gptLive';
 import { RealtimeDuplex, type RealtimeModel } from '@/live/realtime';
-import { CascadeDuplex, type CascadeLlm, type CascadeStt, type CascadeTts } from '@/live/cascade';
+import { CascadeDuplex, DEFAULT_CASCADE, type CascadeConfig, type CascadeLlm, type CascadeStt, type CascadeTts, type ReplyTiming } from '@/live/cascade';
 
 type Tab = 'stt' | 'pron' | 'live';
 export const Route = createFileRoute('/_app/admin/playground')({
@@ -269,7 +269,7 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade';
 const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
-  { value: 'cascade', label: 'Fast cascade', note: 'Scribe v2 Realtime + cheap LLM + TTS, ~$0.009/min' },
+  { value: 'cascade', label: 'Fast cascade', note: 'configurable ears, turn detection, LLM and voice, ~$0.005-0.01/min' },
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
   { value: 'gpt-realtime-2.1', label: 'OpenAI Realtime 2.1', note: 'gpt-realtime-2.1, ~$0.06/min' },
   { value: 'gpt-realtime-mini', label: 'OpenAI Realtime mini', note: 'gpt-realtime-mini, ~$0.02/min' },
@@ -281,9 +281,15 @@ const ENGINES: { value: Engine; label: string; note: string }[] = [
 ];
 
 const STTS: { value: CascadeStt; label: string }[] = [
-  { value: 'scribe_v2_realtime', label: 'ElevenLabs Scribe v2 Realtime (~$0.0065/min of speech)' },
-  { value: 'gpt-4o-mini-transcribe', label: 'OpenAI gpt-4o-mini-transcribe ($0.003/min)' },
-  { value: 'gpt-4o-transcribe', label: 'OpenAI gpt-4o-transcribe ($0.006/min)' },
+  { value: 'scribe_v2_realtime', label: 'Streamed: ElevenLabs Scribe v2 Realtime (~$0.0065/min)' },
+  { value: 'gpt-4o-mini-transcribe', label: 'Streamed: OpenAI gpt-4o-mini-transcribe ($0.003/min, server VAD)' },
+  { value: 'gpt-4o-transcribe', label: 'Streamed: OpenAI gpt-4o-transcribe ($0.006/min, server VAD)' },
+  { value: 'batch:nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b', label: 'OpenRouter batch: NVIDIA Nemotron ASR ($0.012/h)' },
+  { value: 'batch:nvidia/parakeet-tdt-0.6b-v3', label: 'OpenRouter batch: NVIDIA Parakeet TDT ($0.09/h)' },
+  { value: 'batch:elevenlabs/scribe-v2', label: 'OpenRouter batch: ElevenLabs Scribe v2 ($0.11/h)' },
+  { value: 'batch:openai/whisper-large-v3-turbo', label: 'OpenRouter batch: Whisper large-v3 turbo ($0.012/h)' },
+  { value: 'batch:deepgram/nova-3', label: 'OpenRouter batch: Deepgram Nova-3 ($0.26/h)' },
+  { value: 'batch:openai/gpt-4o-mini-transcribe', label: 'OpenRouter batch: gpt-4o-mini-transcribe' },
 ];
 const LLMS: { value: CascadeLlm; label: string }[] = [
   { value: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash (~0.8-1.6 s)' },
@@ -298,12 +304,101 @@ const VOICES: { value: CascadeTts; label: string }[] = [
   { value: 'google/gemini-3.8-flash-tts', label: 'Gemini 3.8 Flash TTS (~3 s, the turn-based voice)' },
 ];
 
+const CFG_KEY = 'admin-cascade-config';
+const RUNS_KEY = 'admin-examiner-runs';
+const loadJson = <T,>(key: string, fallback: T): T => {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? 'null');
+    return v ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+const saveJson = (key: string, v: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(v));
+  } catch {}
+};
+/** A finished playground session, kept after Stop (and in this browser's storage) so runs can be compared. */
+type RunSnapshot = { id: number; engine: Engine; label: string; lines: Line[]; timeline: ReplyTiming[]; costUsd: number; secs: number; median: number | null };
+const engineLabel = (engine: Engine, cfg: CascadeConfig) =>
+  engine !== 'cascade'
+    ? ENGINES.find((e) => e.value === engine)?.label ?? engine
+    : [
+        'Fast cascade',
+        cfg.stt.replace(/^batch:/, 'batch ').replace(/^.*\//, ''),
+        cfg.stt.startsWith('gpt-') ? 'server VAD' : cfg.turn === 'smart' ? `Smart Turn ${cfg.smartModel} ${cfg.smartPauseMs} ms / p${cfg.smartThreshold} / cap ${cfg.smartMaxMs} ms` : `${cfg.silenceMs} ms silence`,
+        cfg.stt.startsWith('batch:') && cfg.chunkedStt ? 'chunked STT' : '',
+        cfg.llm.replace(/^.*\//, ''),
+        cfg.tts.replace(/^.*\//, ''),
+        cfg.stream ? (cfg.sentenceTts ? 'streamed per sentence' : 'streamed whole line') : 'one reply',
+      ].filter(Boolean).join(' · ');
+
+function CascadeSettings({ cfg, set, disabled }: { cfg: CascadeConfig; set: (p: Partial<CascadeConfig>) => void; disabled: boolean }) {
+  const openai = cfg.stt.startsWith('gpt-'), batch = cfg.stt.startsWith('batch:'), smart = cfg.turn === 'smart';
+  const num = (k: 'silenceMs' | 'smartPauseMs' | 'smartMaxMs' | 'smartThreshold', label: string, hint: string, step = 50) => (
+    <Input label={label} hint={hint} type="number" step={step} value={cfg[k]} disabled={disabled || openai} onChange={(e) => set({ [k]: Number(e.target.value) })} />
+  );
+  return (
+    <div className="mt-4 grid gap-6 md:grid-cols-3">
+      <fieldset className="space-y-3">
+        <legend className="type-h4 mb-1">Hearing</legend>
+        <Select label="Transcription" value={cfg.stt} onChange={(e) => set({ stt: e.target.value as CascadeStt })} disabled={disabled}>
+          {STTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+        </Select>
+        {batch && <Switch label="Transcribe in pieces" description="Send each finished piece at a 'not finished' pause, so only the tail is left at the end" checked={cfg.chunkedStt} onChange={(v) => set({ chunkedStt: v })} disabled={disabled} />}
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="type-h4 mb-1">End of turn</legend>
+        <Select label="Detection" value={openai ? 'server' : cfg.turn} onChange={(e) => set({ turn: e.target.value as CascadeConfig['turn'] })} disabled={disabled || openai} hint={openai ? "OpenAI's server VAD decides (1 s silence)" : 'Smart Turn runs on this device (8 MB model, cached)'}>
+          {openai && <option value="server">Server VAD (OpenAI)</option>}
+          <option value="smart">Smart Turn (audio model)</option>
+          <option value="silence">Fixed silence</option>
+        </Select>
+        {smart && (
+          <Select label="Turn model" value={cfg.smartModel} onChange={(e) => set({ smartModel: e.target.value as CascadeConfig['smartModel'] })} disabled={disabled}>
+            <option value="fp32">Smart Turn v3.2 fp32 (32 MB, exact)</option>
+            <option value="int8">Smart Turn v3.2 int8 (8 MB, faster, drifts)</option>
+          </Select>
+        )}
+        {smart ? (
+          <div className="grid grid-cols-3 gap-2">
+            {num('smartPauseMs', 'Check after (ms)', 'pause before a check')}
+            {num('smartThreshold', 'Threshold', 'P(finished)', 0.05)}
+            {num('smartMaxMs', 'Cap (ms)', 'end anyway')}
+          </div>
+        ) : (
+          num('silenceMs', 'Silence (ms)', 'quiet this long ends the turn')
+        )}
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="type-h4 mb-1">Reply</legend>
+        <Select label="LLM" value={cfg.llm} onChange={(e) => set({ llm: e.target.value as CascadeLlm })} disabled={disabled}>
+          {LLMS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+        </Select>
+        <Select label="Voice" value={cfg.tts} onChange={(e) => set({ tts: e.target.value as CascadeTts })} disabled={disabled}>
+          {VOICES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+        </Select>
+        <Switch label="Stream the reply" description="LLM text streams; off: one request returns the whole line and its audio" checked={cfg.stream} onChange={(v) => set({ stream: v })} disabled={disabled} />
+        {cfg.stream && <Switch label="Voice each sentence" description="Each sentence is voiced as soon as it is written; off: one voice call for the whole line" checked={cfg.sentenceTts} onChange={(v) => set({ sentenceTts: v })} disabled={disabled} />}
+      </fieldset>
+    </div>
+  );
+}
+
 function ExaminerLab() {
   const [engine, setEngine] = useState<Engine>('cascade');
-  const [stt, setStt] = useState<CascadeStt>('scribe_v2_realtime');
-  const [llm, setLlm] = useState<CascadeLlm>('deepseek/deepseek-v4.1-flash');
-  const [tts, setTts] = useState<CascadeTts>('elevenlabs/eleven-v4-turbo');
+  const [cfg, setCfg] = useState<CascadeConfig>(() => ({ ...DEFAULT_CASCADE, ...loadJson<Partial<CascadeConfig>>(CFG_KEY, {}) }));
   const [run, setRun] = useState(0);
+  const [past, setPast] = useState<RunSnapshot[]>(() => loadJson<RunSnapshot[]>(RUNS_KEY, []));
+  const set = (p: Partial<CascadeConfig>) => setCfg((c) => (saveJson(CFG_KEY, { ...c, ...p }), { ...c, ...p }));
+  const keep = (snap: RunSnapshot) =>
+    setPast((ps) => {
+      if (!snap.lines.length) return ps;
+      const next = [snap, ...ps.filter((p) => p.id !== snap.id)].slice(0, 20);
+      saveJson(RUNS_KEY, next);
+      return next;
+    });
   return (
     <div className="space-y-6">
       <Card>
@@ -311,42 +406,74 @@ function ExaminerLab() {
           <Select label="Engine" value={engine} onChange={(e) => setEngine(e.target.value as Engine)} disabled={run > 0} className="min-w-64">
             {ENGINES.map((e) => <option key={e.value} value={e.value}>{e.label} ({e.note})</option>)}
           </Select>
-          {engine === 'cascade' && (
-            <>
-              <Select label="Transcription" value={stt} onChange={(e) => setStt(e.target.value as CascadeStt)} disabled={run > 0}>
-                {STTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-              </Select>
-              <Select label="LLM" value={llm} onChange={(e) => setLlm(e.target.value as CascadeLlm)} disabled={run > 0}>
-                {LLMS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-              </Select>
-              <Select label="Voice" value={tts} onChange={(e) => setTts(e.target.value as CascadeTts)} disabled={run > 0}>
-                {VOICES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-              </Select>
-            </>
-          )}
           {run > 0 ? (
             <Button variant="destructive" icon={<Square />} onClick={() => setRun(0)}>Stop</Button>
           ) : (
             <Button icon={<Mic />} onClick={() => setRun(Date.now())}>Start a test</Button>
           )}
+          {engine === 'cascade' && <Button variant="ghost" size="sm" onClick={() => set(DEFAULT_CASCADE)} disabled={run > 0}>Reset settings</Button>}
         </div>
-        <p className="type-caption mt-3">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Latency is from the end of your speech (your mic level) to the examiner's first audio.</p>
+        {engine === 'cascade' && <CascadeSettings cfg={cfg} set={set} disabled={run > 0} />}
+        <p className="type-caption mt-4">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Stopped sessions stay below for comparison.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} engine={engine} stt={stt} llm={llm} tts={tts} />}
+      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} label={engineLabel(engine, cfg)} onEnd={keep} />}
+      {past.length > 0 && (
+        <section aria-label="Past sessions" className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="type-h4">Past sessions</h2>
+            <Button variant="ghost" size="sm" onClick={() => (setPast([]), saveJson(RUNS_KEY, []))}>Clear</Button>
+          </div>
+          {past.filter((p) => p.id !== run).map((p) => <PastRun key={p.id} run={p} />)}
+        </section>
+      )}
     </div>
+  );
+}
+
+function Conversation({ lines, end }: { lines: Line[]; end?: React.Ref<HTMLDivElement> }) {
+  return (
+    <ol className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+      {lines.map((l, i) => (
+        <li key={i} className={cn('rounded-lg p-3', l.who === 'examiner' ? 'bg-surface-2' : 'border border-line')}>
+          <p className="type-caption mb-1">
+            {l.who === 'examiner' ? 'Examiner' : 'You (engine transcript)'} · {(l.at / 1000).toFixed(0)} s{l.latencyMs != null && ` · replied after ${(l.latencyMs / 1000).toFixed(1)} s`}
+          </p>
+          <p>{l.text}</p>
+        </li>
+      ))}
+      <div ref={end} />
+    </ol>
+  );
+}
+
+function PastRun({ run }: { run: RunSnapshot }) {
+  const avg = run.timeline.length ? run.timeline.reduce((a, t) => a + t.total, 0) / run.timeline.length : null;
+  return (
+    <details className="rounded-xl border border-line bg-surface">
+      <summary className="cursor-pointer p-4">
+        <span className="font-medium">{run.label}</span>
+        <span className="type-caption block">
+          {new Date(run.id).toLocaleString()} · {Math.round(run.secs / 60)} min · {money(run.costUsd)} est.{run.median != null && ` · median reply ${(run.median / 1000).toFixed(1)} s`}{avg != null && ` · avg to voice ${(avg / 1000).toFixed(1)} s`}
+        </span>
+      </summary>
+      <div className="grid gap-6 p-4 pt-0 lg:grid-cols-2">
+        <Card><h3 className="type-h4 mb-3">Conversation</h3><Conversation lines={run.lines} /></Card>
+        {run.timeline.length > 0 && <CascadeTimeline timeline={run.timeline} />}
+      </div>
+    </details>
   );
 }
 
 type Line = { who: 'you' | 'examiner'; text: string; at: number; latencyMs?: number };
 
-function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeStt; llm: CascadeLlm; tts: CascadeTts }) {
+function ExaminerRun({ id, engine, cfg, label, onEnd }: { id: number; engine: Engine; cfg: CascadeConfig; label: string; onEnd: (s: RunSnapshot) => void }) {
   const duplex = useRef<Duplex>(undefined);
   const [lines, setLines] = useState<Line[]>([]);
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
   const make = (): Duplex =>
-    (duplex.current = engine === 'cascade' ? new CascadeDuplex(llm, tts, stt) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+    (duplex.current = engine === 'cascade' ? new CascadeDuplex(cfg) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {
@@ -392,7 +519,7 @@ function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeSt
     }).catch(() => {});
     void ex.start();
     const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => (clearInterval(tick), stop());
+    return () => (clearInterval(tick), stop(), onEnd(snap.current));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per run
   }, []);
 
@@ -403,24 +530,17 @@ function ExaminerRun({ engine, stt, llm, tts }: { engine: Engine; stt: CascadeSt
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [lines.length]);
+  const snap = useRef<RunSnapshot>({ id, engine, label, lines: [], timeline: [], costUsd: 0, secs: 0, median: null });
+  snap.current = { id, engine, label, lines, timeline: d instanceof CascadeDuplex ? [...d.stats.timeline] : [], costUsd: cost, secs, median };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
       <div className="min-w-0 space-y-6">
       <Card>
-        <h2 className="type-h4 mb-3">Conversation</h2>
+        <h2 className="type-h4 mb-1">Conversation</h2>
+        <p className="type-caption mb-3">{label}</p>
         {ex.error && <p className="mb-3 text-sm text-bad-text">{ex.error}</p>}
-        <ol className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-          {lines.map((l, i) => (
-            <li key={i} className={cn('rounded-lg p-3', l.who === 'examiner' ? 'bg-surface-2' : 'border border-line')}>
-              <p className="type-caption mb-1">
-                {l.who === 'examiner' ? 'Examiner' : 'You (engine transcript)'} · {(l.at / 1000).toFixed(0)} s{l.latencyMs != null && ` · replied after ${(l.latencyMs / 1000).toFixed(1)} s`}
-              </p>
-              <p>{l.text}</p>
-            </li>
-          ))}
-          <div ref={end} />
-        </ol>
+        <Conversation lines={lines} end={end} />
         {!lines.length && <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>}
       </Card>
       {d instanceof CascadeDuplex && <CascadeTimeline timeline={d.stats.timeline} />}

@@ -1964,15 +1964,155 @@
             "enum": [
               "scribe_v2_realtime",
               "gpt-4o-mini-transcribe",
-              "gpt-4o-transcribe"
+              "gpt-4o-transcribe",
+              "elevenlabs/scribe-v2",
+              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
+              "nvidia/parakeet-tdt-0.6b-v3",
+              "openai/whisper-large-v3-turbo",
+              "deepgram/nova-3",
+              "openai/gpt-4o-mini-transcribe"
             ],
-            "description": "Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime"
+            "description": "Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime"
           },
           "sttSeconds": {
             "type": "number",
             "minimum": 0,
             "maximum": 3600,
             "description": "Candidate audio transcribed since the last reply (priced into the ledger)"
+          }
+        },
+        "required": [
+          "sessionId",
+          "turns"
+        ]
+      },
+      "CascadeTranscript": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "ms": {
+            "type": "number"
+          },
+          "costUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "ms",
+          "costUsd"
+        ]
+      },
+      "LiveCascadeTranscribe": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "audio": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000000,
+            "description": "Base64 16 kHz mono WAV"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "elevenlabs/scribe-v2",
+              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
+              "nvidia/parakeet-tdt-0.6b-v3",
+              "openai/whisper-large-v3-turbo",
+              "deepgram/nova-3",
+              "openai/gpt-4o-mini-transcribe"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "audio",
+          "model"
+        ]
+      },
+      "LiveCascadeReplyStream": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "examiner",
+                    "candidate",
+                    "app"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "role",
+                "text"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)"
+          },
+          "llm": {
+            "type": "string",
+            "enum": [
+              "deepseek/deepseek-v4.1-flash",
+              "inception/mercury-2.5",
+              "mistralai/mistral-small-3.2-24b-instruct",
+              "openai/gpt-6-luna"
+            ]
+          },
+          "tts": {
+            "type": "string",
+            "enum": [
+              "elevenlabs/eleven-v4-turbo",
+              "elevenlabs/eleven-flash-v2.5",
+              "google/gemini-3.8-flash-lite-tts",
+              "google/gemini-3.8-flash-tts"
+            ]
+          },
+          "stt": {
+            "type": "string",
+            "enum": [
+              "scribe_v2_realtime",
+              "gpt-4o-mini-transcribe",
+              "gpt-4o-transcribe",
+              "elevenlabs/scribe-v2",
+              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
+              "nvidia/parakeet-tdt-0.6b-v3",
+              "openai/whisper-large-v3-turbo",
+              "deepgram/nova-3",
+              "openai/gpt-4o-mini-transcribe"
+            ],
+            "description": "Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime"
+          },
+          "sttSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3600,
+            "description": "Candidate audio transcribed since the last reply (priced into the ledger)"
+          },
+          "sentenceTts": {
+            "type": "boolean",
+            "description": "Voice each sentence as soon as it is written (default true); false: one TTS call for the whole line"
           }
         },
         "required": [
@@ -8758,6 +8898,146 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/cascade/transcribe": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fast cascade examiner (admin playground): one finished answer, or one finished piece of it, transcribed by a batch OpenRouter transcriber",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveCascadeTranscribe"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcript",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CascadeTranscript"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/cascade/reply-stream": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fast cascade examiner (admin playground): the next line streamed as NDJSON events; with sentenceTts each sentence is voiced as soon as the LLM finishes it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveCascadeReplyStream"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "application/x-ndjson, one event per line: {type:\"text\",i,text,ms} per sentence; {type:\"audio\",i,audio,contentType,ms} per voiced clip (any order, play by i); {type:\"done\",text,ms:{llmFirst,llm,ttsFirst},costUsd}; {type:\"error\",error}. ms are since the request arrived.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }

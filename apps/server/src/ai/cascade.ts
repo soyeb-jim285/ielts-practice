@@ -48,6 +48,41 @@ export async function scribeToken(apiKey: string): Promise<{ token: string } | {
   return { token: ((await res.json()) as { token: string }).token };
 }
 
+/** Batch transcribers on OpenRouter for the device-side turn detector (the browser sends each answer, or each finished piece of it, as a WAV).
+ *  USD per second per OpenRouter's catalogue, 2026-10-14. */
+export const CASCADE_BATCH_STTS = ['elevenlabs/scribe-v2', 'nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b', 'nvidia/parakeet-tdt-0.6b-v3', 'openai/whisper-large-v3-turbo', 'deepgram/nova-3', 'openai/gpt-4o-mini-transcribe'] as const;
+
+/** Cuts a streamed reply into speakable sentences: push() returns the sentences completed so far (each at least `min` characters, so "Right." joins the
+ *  next one), flush() returns the rest. */
+export function sentenceSplitter(min = 12) {
+  let buf = '';
+  const take = () => {
+    const out: string[] = [];
+    for (let m: RegExpExecArray | null; (m = /^(.*?[.!?]["')\]]*)(\s+)(?=\S)/s.exec(buf)); ) {
+      let end = m[1]!.length;
+      while (end < min) {
+        const next = /^.*?[.!?]["')\]]*(?=\s+\S)/s.exec(buf.slice(end).replace(/^\s+/, ''));
+        if (!next) return out;
+        end = buf.indexOf(next[0], end) + next[0].length;
+      }
+      out.push(buf.slice(0, end).trim());
+      buf = buf.slice(end).replace(/^\s+/, '');
+    }
+    return out;
+  };
+  return {
+    push(delta: string) {
+      buf += delta;
+      return take();
+    },
+    flush() {
+      const rest = buf.trim();
+      buf = '';
+      return rest;
+    },
+  };
+}
+
 export type CascadeTurn = { role: 'examiner' | 'candidate' | 'app'; text: string };
 
 /** Chat messages for the next examiner line: the duplex plan, plus the rules a text-to-speech voice needs. */

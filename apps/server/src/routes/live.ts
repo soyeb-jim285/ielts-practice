@@ -6,10 +6,10 @@ import { candidateFacts, EXAMINER_SYSTEM, direction, GPT_LIVE_CUES, gptLiveCue, 
 import { activeRun, attachSideband, createWebrtcSession, endRun, saveTranscript } from '../ai/gpt-live';
 import { GEMINI_LIVE_MODELS, geminiTokenRequest, mintGeminiToken } from '../ai/gemini-live';
 import { mintClientSecret, mintRealtimeSecret, REALTIME_MODELS, realtimeUsd, type RealtimeUsage } from '../ai/openai-realtime';
-import { CASCADE_LLMS, CASCADE_STT_MODELS, CASCADE_STTS, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, scribeToken, spokenLine, transcriptionSession } from '../ai/cascade';
+import { CASCADE_BATCH_STTS, CASCADE_LLMS, CASCADE_STT_MODELS, sentenceSplitter, CASCADE_STTS, CASCADE_TTS, CASCADE_TTS_MODELS, cascadeMessages, scribeToken, spokenLine, transcriptionSession } from '../ai/cascade';
 import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
-import { AiError, chatText, speak, transcribe } from '../ai/openrouter';
+import { AiError, chatText, chatTextStream, speak, transcribe, transcribeOnce } from '../ai/openrouter';
 import { liveDeadline } from '../ai/live-deadline';
 import { currentUser, requireOwner, requireUser } from '../auth';
 import { db } from '../db/client';
@@ -41,6 +41,17 @@ const paid = { ...authed, middleware: [requireUser, withPayer, aiLimit] };
 const tooMany = { 429: json(CodedError, 'Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)') };
 const needsKey = { 403: json(CodedError, 'live_requires_own_key: the live examiner runs only on the user\'s own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key') };
 const SessionRef = z.object({ sessionId: z.string() });
+const CascadeReplyBody = SessionRef.extend({
+    turns: z
+      .array(z.object({ role: z.enum(['examiner', 'candidate', 'app']), text: z.string().max(4000) }))
+      .min(1)
+      .max(200)
+      .openapi({ description: "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)" }),
+    llm: z.enum(CASCADE_LLMS).optional(),
+    tts: z.enum(CASCADE_TTS_MODELS).optional(),
+    stt: z.enum([...CASCADE_STT_MODELS, ...CASCADE_BATCH_STTS]).optional().openapi({ description: 'Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime' }),
+    sttSeconds: z.number().min(0).max(3600).optional().openapi({ description: 'Candidate audio transcribed since the last reply (priced into the ledger)' }),
+});
 
 const ExaminerLine = z
   .object({
@@ -181,6 +192,15 @@ function rejectedKey(userId: string, provider: 'openai' | 'gemini', label: strin
   if (!own) throw new ApiError(502, { error: `Could not start a ${label} session. Please retry.`, code: 'key_check_failed' });
   void markKeyInvalid(userId, provider);
   throw new ApiError(400, { error: `${label} rejected your API key. Check it in Settings.`, code: 'invalid_key' });
+}
+
+/** Streaming transcription (Scribe Realtime / OpenAI) bills where the server can't see it: the browser counts the seconds and they are priced here.
+ *  Batch transcribers ran through /live/cascade/transcribe, which recorded their cost already. */
+function recordStreamingStt(b: { stt?: string; sttSeconds?: number }, payer: NonNullable<AppEnv['Variables']['payer']>) {
+  const stt = (b.stt ?? CASCADE_STT_MODELS[0]) as keyof typeof CASCADE_STTS;
+  const info = CASCADE_STTS[stt];
+  if (!info || !b.sttSeconds) return;
+  recordCost({ stage: 'live_stt', provider: info.provider, model: stt, costUsd: (b.sttSeconds / 60) * info.usdPerMin, audioSeconds: b.sttSeconds, paidBy: info.provider === 'openai' && payer.keys.openai ? 'own_key' : 'house', meta: { estimated: true } });
 }
 
 export function register(app: App) {
@@ -592,17 +612,7 @@ export function register(app: App) {
       path: '/api/live/cascade/reply',
       summary: "Fast cascade examiner (admin playground): the examiner's next line from the conversation so far (cheap LLM), voiced inline (TTS)",
       request: body(
-        SessionRef.extend({
-          turns: z
-            .array(z.object({ role: z.enum(['examiner', 'candidate', 'app']), text: z.string().max(4000) }))
-            .min(1)
-            .max(200)
-            .openapi({ description: "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)" }),
-          llm: z.enum(CASCADE_LLMS).optional(),
-          tts: z.enum(CASCADE_TTS_MODELS).optional(),
-          stt: z.enum(CASCADE_STT_MODELS).optional().openapi({ description: 'Which transcriber the sttSeconds were spent on (pricing); default scribe_v2_realtime' }),
-          sttSeconds: z.number().min(0).max(3600).optional().openapi({ description: 'Candidate audio transcribed since the last reply (priced into the ledger)' }),
-        }).openapi('LiveCascadeReply'),
+        CascadeReplyBody.openapi('LiveCascadeReply'),
       ),
       responses: {
         200: json(
@@ -629,9 +639,7 @@ export function register(app: App) {
       const s = await loadSession(b.sessionId, user.id);
       const tally = { usd: 0 };
       return keyCtx.run({ ...keyCtx.getStore(), tally }, async () => {
-        // The browser counts the transcribed seconds (Scribe: audio it sent; OpenAI: the session's reported duration).
-        const stt = b.stt ?? CASCADE_STT_MODELS[0], sttInfo = CASCADE_STTS[stt];
-        if (b.sttSeconds) recordCost({ stage: 'live_stt', provider: sttInfo.provider, model: stt, costUsd: (b.sttSeconds / 60) * sttInfo.usdPerMin, audioSeconds: b.sttSeconds, paidBy: sttInfo.provider === 'openai' && payer.keys.openai ? 'own_key' : 'house', meta: { estimated: true } });
+        recordStreamingStt(b, payer);
         const t0 = Date.now();
         const raw = await ai(() => liveDeadline(chatText({ model: b.llm ?? CASCADE_LLMS[0], messages: cascadeMessages(s.test, b.turns), effort: 'none', maxTokens: 200, cost: { stage: 'examiner_llm' } }), 15_000));
         const text = spokenLine(raw), llm = Date.now() - t0;
@@ -639,6 +647,105 @@ export function register(app: App) {
         const speech = text ? await liveDeadline(cachedSpeech(tts, CASCADE_TTS[tts], text), 12_000).catch((e) => (console.error('cascade TTS failed', (e as Error).message), null)) : null;
         return c.json({ text, audio: speech ? Buffer.from(speech.audio).toString('base64') : null, contentType: speech?.contentType ?? null, ms: { llm, tts: Date.now() - t0 - llm }, costUsd: Math.round(tally.usd * 1e6) / 1e6 }, 200);
       });
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/cascade/transcribe',
+      summary: 'Fast cascade examiner (admin playground): one finished answer, or one finished piece of it, transcribed by a batch OpenRouter transcriber',
+      request: body(
+        SessionRef.extend({
+          audio: z.string().min(1).max(8_000_000).openapi({ description: 'Base64 16 kHz mono WAV' }),
+          model: z.enum(CASCADE_BATCH_STTS),
+        }).openapi('LiveCascadeTranscribe'),
+      ),
+      responses: {
+        200: json(z.object({ text: z.string(), ms: z.number(), costUsd: z.number().nullable() }).openapi('CascadeTranscript'), 'Transcript'),
+        ...needsKey,
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+        502: json(ErrorSchema, 'AI service error'),
+      },
+    }),
+    async (c) => {
+      const payer = c.get('payer')!, b = c.req.valid('json');
+      requireLive(payer, 'turn');
+      await loadSession(b.sessionId, currentUser(c).id);
+      const t0 = Date.now();
+      const r = await ai(() => liveDeadline(transcribeOnce({ model: b.model, audio: new Uint8Array(Buffer.from(b.audio, 'base64')), format: 'wav', language: 'en' }), 15_000));
+      return c.json({ text: r.text.trim(), ms: Date.now() - t0, costUsd: r.costUsd }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...paid,
+      method: 'post',
+      path: '/api/live/cascade/reply-stream',
+      summary: "Fast cascade examiner (admin playground): the next line streamed as NDJSON events; with sentenceTts each sentence is voiced as soon as the LLM finishes it",
+      request: body(CascadeReplyBody.extend({ sentenceTts: z.boolean().optional().openapi({ description: 'Voice each sentence as soon as it is written (default true); false: one TTS call for the whole line' }) }).openapi('LiveCascadeReplyStream')),
+      responses: {
+        200: {
+          description:
+            'application/x-ndjson, one event per line: {type:"text",i,text,ms} per sentence; {type:"audio",i,audio,contentType,ms} per voiced clip (any order, play by i); {type:"done",text,ms:{llmFirst,llm,ttsFirst},costUsd}; {type:"error",error}. ms are since the request arrived.',
+          content: { 'application/x-ndjson': { schema: z.string() } },
+        },
+        ...needsKey,
+        404: json(ErrorSchema, 'Not found'),
+        ...tooMany,
+      },
+    }),
+    async (c) => {
+      const payer = c.get('payer')!, user = currentUser(c), b = c.req.valid('json');
+      requireLive(payer, 'turn');
+      const s = await loadSession(b.sessionId, user.id);
+      const tally = { usd: 0 }, store = { ...keyCtx.getStore(), tally };
+      const tts = b.tts ?? CASCADE_TTS_MODELS[0], perSentence = b.sentenceTts ?? true;
+      const t0 = Date.now(), enc = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start: (ctl) =>
+          keyCtx.run(store, async () => {
+            const send = (e: object) => ctl.enqueue(enc.encode(JSON.stringify(e) + '\n'));
+            const voiced: Promise<void>[] = [];
+            let i = 0, llmFirst: number | undefined, ttsFirst: number | undefined, spoken = '';
+            const voice = (text: string, n: number) =>
+              voiced.push(
+                liveDeadline(cachedSpeech(tts, CASCADE_TTS[tts], text), 12_000)
+                  .then((sp) => {
+                    ttsFirst ??= Date.now() - t0;
+                    send({ type: 'audio', i: n, audio: Buffer.from(sp.audio).toString('base64'), contentType: sp.contentType, ms: Date.now() - t0 });
+                  })
+                  .catch((e) => console.error('cascade TTS failed', (e as Error).message)),
+              );
+            const say = (raw: string) => {
+              const text = spokenLine(raw);
+              if (!text) return;
+              llmFirst ??= Date.now() - t0;
+              spoken = spoken ? `${spoken} ${text}` : text;
+              send({ type: 'text', i, text, ms: Date.now() - t0 });
+              if (perSentence) voice(text, i);
+              i++;
+            };
+            try {
+              recordStreamingStt(b, payer);
+              const split = sentenceSplitter();
+              await chatTextStream({ model: b.llm ?? CASCADE_LLMS[0], messages: cascadeMessages(s.test, b.turns), effort: 'none', maxTokens: 200, cost: { stage: 'examiner_llm' }, timeoutMs: 15_000, onDelta: (d) => split.push(d).forEach(say) });
+              say(split.flush());
+              const llm = Date.now() - t0;
+              if (!perSentence && spoken) voice(spoken, 0);
+              await Promise.all(voiced);
+              send({ type: 'done', text: spoken, ms: { llmFirst: llmFirst ?? llm, llm, ttsFirst: ttsFirst ?? null }, costUsd: Math.round(tally.usd * 1e6) / 1e6 });
+            } catch (e) {
+              send({ type: 'error', error: e instanceof AiError ? e.message : 'The examiner could not reply.' });
+            } finally {
+              ctl.close();
+            }
+          }),
+      });
+      return new Response(stream, { headers: { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' } }) as never;
     },
   );
 

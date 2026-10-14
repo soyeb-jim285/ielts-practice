@@ -296,6 +296,27 @@ it('cascade: an OpenAI transcriber gets a transcription-session client secret on
   expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
 });
 
+it('cascade: reply-stream streams the LLM, voices each sentence as it is written and ends with a done event; transcribe runs a batch STT', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const sse = ['Thank you. ', 'Now, why is that', '?'].map((t) => `data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`).join('') + `data: ${JSON.stringify({ choices: [], usage: { cost: 0.0001 } })}\n\ndata: [DONE]\n\n`;
+  ai = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([7, 7])), '/chat/completions': () => new Response(sse, { headers: { 'content-type': 'text/event-stream' } }), '/audio/transcriptions': () => json({ text: ' I like tea. ', duration: 2 }) });
+  setFetch(ai);
+  const turns = [{ role: 'app', text: 'Begin the test.' }, { role: 'examiner', text: 'Hello.' }, { role: 'candidate', text: 'Hi.' }];
+  const r = await req('/api/live/cascade/reply-stream', { headers, body: { sessionId: s.sessionId, turns, llm: 'inception/mercury-2.5', tts: 'elevenlabs/eleven-flash-v2.5' } });
+  expect(r.headers.get('content-type')).toContain('ndjson');
+  const ev = (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
+  expect(ev.filter((e) => e.type === 'text').map((e) => [e.i, e.text])).toEqual([[0, 'Thank you. Now, why is that?']]); // "Thank you." alone is under the minimum: joined
+  expect(ev.filter((e) => e.type === 'audio').map((e) => e.i)).toEqual([0]);
+  expect(ev.at(-1)).toMatchObject({ type: 'done', text: 'Thank you. Now, why is that?' });
+  const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
+  expect(chat).toMatchObject({ model: 'inception/mercury-2.5', stream: true, reasoning: { enabled: false } });
+
+  const t = await req('/api/live/cascade/transcribe', { headers, body: { sessionId: s.sessionId, audio: Buffer.from('RIFF').toString('base64'), model: 'nvidia/parakeet-tdt-0.6b-v3' } });
+  expect(await t.json()).toMatchObject({ text: 'I like tea.' });
+  expect(ai.calls.findLast((c) => c.url.includes('/audio/transcriptions'))!.body).toMatchObject({ model: 'nvidia/parakeet-tdt-0.6b-v3' });
+});
+
 it('cascade: a reply that talks about the app cue (leaked reasoning) is not spoken', () => {
   expect(spokenLine('[APP CUE] indicates the plan says history. Need to adhere.')).toBe('');
   expect(spokenLine('Examiner: "Let\'s talk about history."')).toBe("Let's talk about history.");
