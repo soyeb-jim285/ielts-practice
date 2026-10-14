@@ -9,7 +9,6 @@ export const SMART_TURN_URL: Record<SmartTurnModel, string> = {
   fp32: 'https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/main/smart-turn-v3.2-gpu.onnx',
   int8: 'https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/main/smart-turn-v3.2-cpu.onnx',
 };
-const ORT_VERSION = '1.30.0'; // = the package.json pin (kept there for the types only)
 const SR = 16000, N_FFT = 400, HOP = 160, N_MELS = 80, SECONDS = 8;
 const SAMPLES = SR * SECONDS, FRAMES = SAMPLES / HOP; // 800
 
@@ -130,10 +129,8 @@ const sessions: Partial<Record<SmartTurnModel, Promise<{ ort: typeof import('onn
 /** Loads the runtime and the model once (cached by the browser after the first time). */
 export function loadSmartTurn(model: SmartTurnModel = 'fp32') {
   return (sessions[model] ??= (async () => {
-    // the runtime and its wasm load from the CDN on first use: bundling them would add ~28 MB to every deploy for an admin-only feature
-    const base = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
-    const ort = (await import(/* @vite-ignore */ `${base}ort.wasm.min.mjs`)) as typeof import('onnxruntime-web');
-    ort.env.wasm.wasmPaths = base;
+    // bundled (the wasm-only build) and served from our own origin, so no third-party script runs with the page's session; loaded on first use
+    const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     const bytes = await fetch(SMART_TURN_URL[model]).then((r) => {
       if (!r.ok) throw new Error(`Smart Turn model download failed (${r.status})`);
