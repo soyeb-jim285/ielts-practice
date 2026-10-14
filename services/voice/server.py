@@ -254,6 +254,8 @@ def build_services(cfg: dict, prompt: str):
         tts = OpenAITTSService(
             api_key=os.environ["OPENAI_API_KEY"],
             settings=OpenAITTSService.Settings(model="gpt-4o-mini-tts", voice=cfg.get("voice") or "fable", instructions=EXAMINER_VOICE),
+            # OpenAI's first audio can take 2-4 s on a cold request; Pipecat's default 3 s wait dropped the examiner's first line as "no audio"
+            stop_frame_timeout_s=10,
         )
     else:
         tts = SonioxTTSService(api_key=os.environ["SONIOX_API_KEY"], settings=SonioxTTSService.Settings(voice=cfg.get("voice") or "Adrian"))
