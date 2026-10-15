@@ -1,0 +1,59 @@
+# Opt-in, standalone stack. Run from the repository root; see docs/livekit.md.
+# Never include this file in the default deployment without configuring secrets.
+name: ielts-livekit
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 512m
+    environment:
+      # Compose expands these values, not LiveKit's YAML parser. Do not print
+      # `docker compose config` in CI: its output contains the API secret.
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses:
+          - 127.0.0.1
+          - 172.17.0.1
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: true
+        keys:
+          "${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY}": "${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET}"
+        turn:
+          enabled: true
+          domain: ${LIVEKIT_TURN_DOMAIN:?Set DNS-only LIVEKIT_TURN_DOMAIN}
+          udp_port: 3478
+          relay_range_start: 30000
+          relay_range_end: 39999
+        logging:
+          level: info
+
+  livekit-worker:
+    image: ghcr.io/soyeb-jim285/ielts-livekit-worker:${LIVEKIT_WORKER_TAG:-latest}
+    # Built by CI, never automatically on the production VPS.
+    build:
+      context: ../services/livekit
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 1536m
+    stop_grace_period: 90s
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET}
+      LIVEKIT_AGENT_NAME: ${LIVEKIT_AGENT_NAME:-ielts-examiner}
+      # Deliberately do not pass the app's database, auth, storage, or OpenAI keys.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY}
+      SONIOX_API_KEY: ${SONIOX_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY:-}
+      INWORLD_API_KEY: ${INWORLD_API_KEY:-}
+      GRADIUM_API_KEY: ${GRADIUM_API_KEY:-}
+      ELEVENLABS_USD_PER_M_CHARS: ${ELEVENLABS_USD_PER_M_CHARS:-}
+      CARTESIA_USD_PER_M_CHARS: ${CARTESIA_USD_PER_M_CHARS:-}
+      INWORLD_USD_PER_M_CHARS: ${INWORLD_USD_PER_M_CHARS:-}
+      GRADIUM_USD_PER_M_CHARS: ${GRADIUM_USD_PER_M_CHARS:-}
+    depends_on:
+      - livekit

@@ -18,6 +18,18 @@ const Env = z.object({
   ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
   // Optional: Soniox real-time speech-to-text (stt-rt-v5) for the fast cascade examiner. Unset: that transcriber is refused.
   SONIOX_API_KEY: z.string().optional().transform((v) => v || undefined),
+  CARTESIA_API_KEY: z.string().optional().transform((v) => v || undefined),
+  INWORLD_API_KEY: z.string().optional().transform((v) => v || undefined),
+  GRADIUM_API_KEY: z.string().optional().transform((v) => v || undefined),
+  ELEVENLABS_USD_PER_M_CHARS: z.string().optional(),
+  CARTESIA_USD_PER_M_CHARS: z.string().optional(),
+  INWORLD_USD_PER_M_CHARS: z.string().optional(),
+  GRADIUM_USD_PER_M_CHARS: z.string().optional(),
+  LIVEKIT_URL: z.preprocess((v) => v || undefined, z.url().refine((v) => /^wss?:\/\//.test(v), 'Use a ws:// or wss:// LiveKit URL').optional()),
+  LIVEKIT_API_KEY: z.string().optional().transform((v) => v || undefined),
+  LIVEKIT_API_SECRET: z.string().optional().transform((v) => v || undefined),
+  LIVEKIT_AGENT_NAME: z.string().min(1).max(128).default('ielts-examiner'),
+  LIVEKIT_REPORT_SECRET: z.preprocess((v) => v || undefined, z.string().min(32).optional()),
   // Optional: the Pipecat examiner service (services/voice) for the admin playground; unset VOICE_URL: the engine is refused.
   VOICE_URL: z.string().optional().transform((v) => v || undefined), // e.g. http://host.docker.internal:7860
   VOICE_SECRET: z.string().optional().transform((v) => v || undefined), // shared with the voice service (x-voice-secret); default derived from OPENROUTER_API_KEY

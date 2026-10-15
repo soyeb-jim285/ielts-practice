@@ -14,6 +14,21 @@ const NUDGES = ['continue', 'repeat'];
 /** The next /live/start returns a session whose introduction has `n` lines. */
 const script = (n: number) => vi.mocked(api.post).mockResolvedValueOnce({ sessionId: 's', test: { part2: { title: 'Topic' }, script: { intro: Array<string>(n).fill('Q?') } } });
 const toPart1 = (h: Handlers) => (h.speaking(true), h.caption("Thank you. Now, in this first part, I'd like to ask you some questions about yourself. Let's talk about music. Do you like music?"), h.speaking(false));
+it('awaits a part configuration before sending the boundary cue', async () => {
+  let h!: Handlers, release!: () => void;
+  const configurePart = vi.fn((part: number) => part === 2 ? new Promise<void>((resolve) => { release = resolve; }) : Promise.resolve());
+  const transport = { connect: async (handlers: Handlers) => { h = handlers; }, cue: vi.fn((_text: string, _heard?: boolean, _key?: string) => {}), listen: vi.fn(), close: vi.fn(), configurePart };
+  const hook = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false }));
+  await act(() => hook.result.current.start());
+  await act(async () => toPart1(h));
+  act(() => h.speaking(true)); // Keep the stall watchdog out of this boundary-ordering test.
+  await act(async () => vi.advanceTimersByTimeAsync(270_000));
+  expect(configurePart).toHaveBeenCalledWith(2);
+  expect(transport.cue.mock.calls.some((call) => call[2] === 'part2')).toBe(false);
+  await act(async () => release());
+  expect(transport.cue).toHaveBeenCalledWith(expect.any(String), false, 'part2');
+  hook.unmount();
+});
 /** `silent`: the examiner never answers anything. Otherwise it answers the stall watchdog's nudges with a question. */
 async function setup(silent = false) {
   let h!: Handlers;

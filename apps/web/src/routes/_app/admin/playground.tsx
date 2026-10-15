@@ -1,4 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { DEFAULT_LIVEKIT, type LiveKitConfig } from '@ielts/core';
+import { LiveKitSettings } from '@/components/admin/LiveKitSettings';
+import { LIVEKIT_KEY, LiveKitDuplex, loadLiveKitConfig } from '@/live/livekit';
 import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -267,9 +270,10 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
 
 // ---------------------------------------------------------------- live examiners
 
-type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade' | 'pipecat';
+type Engine = GeminiModel | 'gpt-live' | RealtimeModel | 'cascade' | 'pipecat' | 'livekit';
 const isGemini = (e: Engine): e is GeminiModel => e.startsWith('gemini');
 const ENGINES: { value: Engine; label: string; note: string }[] = [
+  { value: 'livekit', label: 'LiveKit (server agent)', note: 'configurable STT, turn detection, LLM and voice; worker-reported cost' },
   { value: 'cascade', label: 'Fast cascade', note: 'configurable ears, turn detection, LLM and voice, ~$0.005-0.01/min' },
   { value: 'pipecat', label: 'Pipecat (server pipeline)', note: 'WebRTC to our server: Silero + Smart Turn + Soniox/Scribe + LLM + streamed voice, ~$0.003/min' },
   { value: 'gpt-realtime-2.1-mini', label: 'OpenAI Realtime 2.1 mini', note: 'gpt-realtime-2.1-mini, ~$0.02/min' },
@@ -439,6 +443,8 @@ function PipecatSettings({ cfg, set, disabled }: { cfg: PipecatConfig; set: (p: 
 }
 
 function ExaminerLab() {
+  const [lk, setLk] = useState<LiveKitConfig>(loadLiveKitConfig);
+  const setL = (c: LiveKitConfig) => { saveJson(LIVEKIT_KEY, c); setLk(c); };
   const [engine, setEngine] = useState<Engine>('cascade');
   const [cfg, setCfg] = useState<CascadeConfig>(() => ({ ...DEFAULT_CASCADE, ...loadJson<Partial<CascadeConfig>>(CFG_KEY, {}) }));
   const [run, setRun] = useState(0);
@@ -470,12 +476,14 @@ function ExaminerLab() {
           )}
           {engine === 'cascade' && <Button variant="ghost" size="sm" onClick={() => set(DEFAULT_CASCADE)} disabled={run > 0}>Reset settings</Button>}
           {engine === 'pipecat' && <Button variant="ghost" size="sm" onClick={() => setP(DEFAULT_PIPECAT)} disabled={run > 0}>Reset settings</Button>}
+          {engine === 'livekit' && <Button variant="ghost" size="sm" onClick={() => setL({ ...DEFAULT_LIVEKIT })} disabled={run > 0}>Reset settings</Button>}
         </div>
         {engine === 'cascade' && <CascadeSettings cfg={cfg} set={set} disabled={run > 0} />}
         {engine === 'pipecat' && <PipecatSettings cfg={pc} set={setP} disabled={run > 0} />}
+        {engine === 'livekit' && <LiveKitSettings cfg={lk} set={setL} disabled={run > 0} />}
         <p className="type-caption mt-4">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Stopped sessions stay below for comparison.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} pc={pc} label={engineLabel(engine, cfg, pc)} onEnd={keep} />}
+      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} pc={pc} lk={lk} label={engine === 'livekit' ? `LiveKit · ${lk.sttModel} · ${lk.llm} · ${lk.tts}/${lk.ttsModel} · stored part overrides` : engineLabel(engine, cfg, pc)} onEnd={keep} />}
       {past.length > 0 && (
         <section aria-label="Past sessions" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -512,7 +520,7 @@ function PastRun({ run }: { run: RunSnapshot }) {
       <summary className="cursor-pointer p-4">
         <span className="font-medium">{run.label}</span>
         <span className="type-caption block">
-          {new Date(run.id).toLocaleString()} · {Math.round(run.secs / 60)} min · {money(run.costUsd)} est.{run.median != null && ` · median reply ${(run.median / 1000).toFixed(1)} s`}{avg != null && ` · avg to voice ${(avg / 1000).toFixed(1)} s`}
+          {new Date(run.id).toLocaleString()} · {Math.round(run.secs / 60)} min · {money(run.costUsd)} est.{run.median != null && ` · median reply ${(run.median / 1000).toFixed(1)} s`}{avg != null && ` · avg ${run.engine === 'livekit' ? 'server event latency' : 'to voice'} ${(avg / 1000).toFixed(1)} s`}
         </span>
       </summary>
       <div className="grid gap-6 p-4 pt-0 lg:grid-cols-2">
@@ -525,14 +533,14 @@ function PastRun({ run }: { run: RunSnapshot }) {
 
 type Line = { who: 'you' | 'examiner'; text: string; at: number; latencyMs?: number };
 
-function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine: Engine; cfg: CascadeConfig; pc: PipecatConfig; label: string; onEnd: (s: RunSnapshot) => void }) {
+function ExaminerRun({ id, engine, cfg, pc, lk, label, onEnd }: { id: number; engine: Engine; cfg: CascadeConfig; pc: PipecatConfig; lk: LiveKitConfig; label: string; onEnd: (s: RunSnapshot) => void }) {
   const duplex = useRef<Duplex>(undefined);
   const [lines, setLines] = useState<Line[]>([]);
   const [now, setNow] = useState(Date.now());
   const t0 = useRef(Date.now());
   const voice = useRef({ last: 0, examinerOn: false, examinerEnd: 0 });
   const make = (): Duplex =>
-    (duplex.current = engine === 'pipecat' ? new PipecatDuplex(pc) : engine === 'cascade' ? new CascadeDuplex(cfg) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
+    (duplex.current = engine === 'livekit' ? new LiveKitDuplex(lk) : engine === 'pipecat' ? new PipecatDuplex(pc) : engine === 'cascade' ? new CascadeDuplex(cfg) : isGemini(engine) ? new GeminiDuplex(engine) : engine === 'gpt-live' ? new GptLiveDuplex() : new RealtimeDuplex(engine));
 
   const push = (who: Line['who'], text: string, append: boolean, latencyMs?: number) =>
     setLines((ls) => {
@@ -541,19 +549,22 @@ function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine
       return [...ls, { who, text, at: Date.now() - t0.current, latencyMs }];
     });
   const pendingLatency = useRef<number>(undefined);
+  const captionReset = useRef(false);
   const debug: Partial<Handlers> = {
     heard: (text) => push('you', text.trim(), true),
     speaking: (on) => {
       const v = voice.current;
       v.examinerOn = on;
-      if (on) pendingLatency.current = v.last > v.examinerEnd ? Date.now() - v.last : undefined;
+      if (on) pendingLatency.current = engine !== 'livekit' && v.last > v.examinerEnd ? Date.now() - v.last : undefined;
       else v.examinerEnd = Date.now();
     },
     caption: (text, append) => {
-      if (!append) return; // a reset: the next text starts a new examiner line
+      if (!append) { captionReset.current = true; return; }
+      const newLine = captionReset.current;
+      captionReset.current = false;
       setLines((ls) => {
         const last = ls.at(-1);
-        if (last?.who === 'examiner' && !pendingLatency.current) return [...ls.slice(0, -1), { ...last, text: last.text + text }];
+        if (last?.who === 'examiner' && !pendingLatency.current && !newLine) return [...ls.slice(0, -1), { ...last, text: last.text + text }];
         const l: Line = { who: 'examiner', text, at: Date.now() - t0.current, latencyMs: pendingLatency.current };
         pendingLatency.current = undefined;
         return [...ls, l];
@@ -564,8 +575,10 @@ function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine
 
   // The playground's own ear on the mic: when the candidate last spoke (ignored while the examiner is audible, so its echo does not count).
   useEffect(() => {
+    let cancelled = false;
     let stop = () => {};
-    void navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then((s) => {
+    if (engine !== 'livekit') void navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then((s) => {
+      if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
       const ctx = new AudioContext(), an = ctx.createAnalyser(), buf = new Float32Array(1024);
       an.fftSize = 1024;
       ctx.createMediaStreamSource(s).connect(an);
@@ -578,19 +591,19 @@ function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine
     }).catch(() => {});
     void ex.start();
     const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => (clearInterval(tick), stop(), onEnd(snap.current));
+    return () => { cancelled = true; clearInterval(tick); stop(); onEnd(snap.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per run
   }, []);
 
   const secs = (now - t0.current) / 1000;
   const d = duplex.current;
-  const cost = d instanceof CascadeDuplex || d instanceof PipecatDuplex ? d.stats.costUsd : d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : gptLiveUsd(secs);
+  const cost = d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex ? d.stats.costUsd : d instanceof GeminiDuplex ? geminiUsd(engine as GeminiModel, d.usage) : d instanceof RealtimeDuplex ? realtimeUsd(engine as RealtimeModel, d.usage) : engine === 'gpt-live' ? gptLiveUsd(secs) : 0;
   const lat = lines.flatMap((l) => (l.latencyMs != null ? [l.latencyMs] : []));
   const median = lat.length ? [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)]! : null;
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => void end.current?.scrollIntoView({ block: 'nearest' }), [lines.length]); // void: newer Chromium returns a Promise, which React would take for a clean-up
   const snap = useRef<RunSnapshot>({ id, engine, label, lines: [], timeline: [], costUsd: 0, secs: 0, median: null });
-  snap.current = { id, engine, label, lines, timeline: d instanceof CascadeDuplex || d instanceof PipecatDuplex ? [...d.stats.timeline] : [], costUsd: cost, secs, median };
+  snap.current = { id, engine, label, lines, timeline: d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex ? [...d.stats.timeline] : [], costUsd: cost, secs, median };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
@@ -600,10 +613,11 @@ function ExaminerRun({ id, engine, cfg, pc, label, onEnd }: { id: number; engine
         <p className="type-caption mb-3">{label}</p>
         {ex.error && <p className="mb-3 text-sm text-bad-text">{ex.error}</p>}
         <Conversation lines={lines} end={end} />
-        {!lines.length && (d instanceof CascadeDuplex || d instanceof PipecatDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
+        {!lines.length && (d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
       </Card>
-      {(d instanceof CascadeDuplex || d instanceof PipecatDuplex) && <CascadeTimeline timeline={d.stats.timeline} />}
-      {(d instanceof CascadeDuplex || d instanceof PipecatDuplex) && lines.length > 0 && (
+       {(d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex) && <CascadeTimeline timeline={d.stats.timeline} />}
+       {d instanceof LiveKitDuplex && d.stats.metrics != null && <Card><details><summary className="cursor-pointer text-sm">LiveKit Worker Metrics</summary><pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(d.stats.metrics, null, 2)}</pre></details></Card>}
+       {(d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex) && lines.length > 0 && (
         <Card>
           <h2 className="type-h4 mb-2">Start-up</h2>
           <CascadeSteps steps={d.stats.steps} />

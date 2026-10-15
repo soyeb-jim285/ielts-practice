@@ -1,5 +1,7 @@
 # Live examiner
 
+For the separate owner-only, self-hosted LiveKit playground engine, see [livekit.md](livekit.md). It uses configurable STT/LLM/TTS, local audio turn detection and per-part overrides; it does not record or score playground audio. Pipecat remains available alongside it.
+
 > Community mode: the live examiner is never paid from the shared community balance. Every provider runs on the user's **own** key (Settings, "Your API keys"): turn-based needs their OpenRouter key, GPT-Live their OpenAI key, Gemini Live their Gemini key. `OPENAI_API_KEY` / `GEMINI_API_KEY` below are used only for the owner (`CAMBRIDGE_ALLOWED_EMAILS`). See [community.md](community.md).
 
 The live speaking test has three examiners. All three run the same test (intro, Part 1, Part 2 with a one-minute prep and a two-minute long turn, Part 3) and all three end the same way: one recording per part goes to `POST /api/live/finish`, which creates one `live` attempt per part and scores each like any other speaking attempt.

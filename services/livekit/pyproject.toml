@@ -1,0 +1,22 @@
+[project]
+name = "ielts-livekit-worker"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "livekit-agents==1.8.8",
+  "livekit-plugins-soniox==1.8.8",
+  "livekit-plugins-elevenlabs==1.8.8",
+  "livekit-plugins-cartesia==1.8.8",
+  "livekit-plugins-inworld==1.8.8",
+  "livekit-plugins-gradium==1.8.8",
+  "livekit-plugins-openai==1.8.8",
+  "livekit-plugins-silero==1.8.8",
+  "httpx==0.28.1",
+]
+
+[dependency-groups]
+dev = ["pytest==8.4.2", "pytest-asyncio==1.2.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]

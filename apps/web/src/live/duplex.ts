@@ -81,6 +81,8 @@ export type Duplex = {
   cue(text: string, heard?: boolean, key?: CueKey): void;
   /** false: the examiner must not hear the candidate (preparation); `fresh` marks where the long turn starts (Gemini stops streaming, GPT-Live hears it and stays silent by instruction). */
   listen(on: boolean, fresh?: boolean): void;
+  /** Apply the stored part profile before subsequent cues. Async transports serialize controls. */
+  configurePart?(part: 1 | 2 | 3): void | Promise<void>;
   close(): void;
 };
 
@@ -235,6 +237,7 @@ export function useDuplexExaminer(
     const c = r.current;
     if (c.ended) return;
     c.phase = 'p2-prep';
+    void Promise.resolve(c.x?.configurePart?.(2)).catch(() => handlers.lost());
     setPhase('p2-prep');
     clearTimeout(c.timer);
     c.x?.listen(false);
@@ -253,6 +256,9 @@ export function useDuplexExaminer(
     setPhase(next);
     clearTimeout(c.timer);
     try {
+      const part = next === 'p1' ? 1 : next === 'p2-prep' ? 2 : next === 'p3' ? 3 : undefined;
+      if (part && c.x?.configurePart) await c.x.configurePart(part);
+      if (c.ended) return;
       switch (next) {
         case 'p1': // the model moves from the introduction into Part 1 by itself (heard as its Part 1 lead)
           void parts.start(1).catch(() => handlers.lost());

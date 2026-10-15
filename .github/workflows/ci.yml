@@ -31,8 +31,31 @@ jobs:
           pnpm gen:api
           git status --porcelain -- apps/web/src/openapi.json apps/web/src/lib/schema.d.ts | tee /dev/stderr | (! grep .)
 
+  livekit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.24"
+          enable-cache: true
+          cache-dependency-glob: services/livekit/uv.lock
+      - run: uv sync --frozen --python 3.13
+        working-directory: services/livekit
+      - run: uv run --frozen pytest
+        working-directory: services/livekit
+      - uses: docker/setup-buildx-action@v3
+      - name: Check worker image (no push)
+        if: github.ref != 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: services/livekit
+          push: false
+          cache-from: type=gha,scope=livekit
+          cache-to: type=gha,mode=max,scope=livekit
+
   docker:
-    needs: check
+    needs: [check, livekit]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -64,6 +87,16 @@ jobs:
             ghcr.io/soyeb-jim285/ielts-voice:${{ github.sha }}
           cache-from: type=gha,scope=voice
           cache-to: type=gha,mode=max,scope=voice
+      - name: Publish LiveKit worker
+        uses: docker/build-push-action@v6
+        with:
+          context: services/livekit
+          push: true
+          tags: |
+            ghcr.io/soyeb-jim285/ielts-livekit-worker:latest
+            ghcr.io/soyeb-jim285/ielts-livekit-worker:${{ github.sha }}
+          cache-from: type=gha,scope=livekit
+          cache-to: type=gha,mode=max,scope=livekit
       # Redeploy on Dokploy only once the new image exists (Dokploy's own on-push deploy would race the build).
       # Set the repo secret DOKPLOY_DEPLOY_WEBHOOK to the compose service's webhook URL (Dokploy → Deployments).
       - name: Deploy (Dokploy webhook)

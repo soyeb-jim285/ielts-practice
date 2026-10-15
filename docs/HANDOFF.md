@@ -1,5 +1,13 @@
 # Handoff — 2026-10-07
 
+## LiveKit Playground Addition (2026-10-15, Uncommitted)
+
+Separate owner-only LiveKit engine added alongside Pipecat. Start with `docs/livekit.md` for deployment and `services/livekit/README.md` for the worker protocol, pinned SDK/local detector, and accounting limitations. Shared defaults live in `packages/core/src/livekit.ts`: Soniox STT/TTS, DeepSeek through OpenRouter, local v1-mini audio turn detection plus Silero, and independently stored Part 1/2/3 overrides. Playground audio recording remains disabled.
+
+The optional stack is `deploy/docker-compose.livekit.yml`, not the default Dokploy deployment. Configure domain/TLS/firewall and protected credentials first; CI builds the worker image. No VPS deployment or paid provider smoke test was performed. Before any paid run, state its estimated cost. Verify real bidirectional audio, prep silence, the entire Part 2 long turn, boundary overrides and usage callbacks on desktop/mobile before relying on it. Same-VPS baseline has no TURN/TLS 443; the recommended dedicated-media-host path is documented.
+
+Unpaid checks: core 179 passed, web 310 passed, server suite 408 passed / 1 skipped before final seam fixes, then LiveKit routes 19 passed and existing live routes 27 passed. Worker 42 passed, including installed plugin constructors/local detector and control/floor handoffs. TypeScript, production build and Compose validation passed; no paid calls. Regenerate API contracts with `pnpm gen:api` after schema changes. Do not include unrelated question-bank/script work in a future LiveKit commit.
+
 State of the scoring and mistake-analysis work, written so another agent (Codex) can continue. Read `AGENTS.md` first for the project rules.
 
 ## 1. Uncommitted work in the tree: Listening/Reading mistake reasons (DONE, tested, not committed)

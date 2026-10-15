@@ -756,6 +756,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/livekit/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Owner playground: create a private LiveKit room and dispatch its examiner */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        sessionId: string;
+                        cfg?: components["schemas"]["LiveKitConfig"];
+                    };
+                };
+            };
+            responses: {
+                /** @description Room scoped candidate token */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveKitStart"];
+                    };
+                };
+                /** @description Invalid config */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Session finished */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Rate limited */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description LiveKit unavailable */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/live/livekit/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Worker-only signed per-room usage report, durably idempotent by reportId */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveKitUsage"];
+                };
+            };
+            responses: {
+                /** @description Recorded, or already recorded */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid report */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Session not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live/start": {
         parameters: {
             query?: never;
@@ -767,7 +947,7 @@ export interface paths {
         put?: never;
         /**
          * Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio
-         * @description Needs the user's own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).
+         * @description Needs the user's own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. The owner may bootstrap server cascades with OpenRouter only. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).
          */
         post: {
             parameters: {
@@ -5529,6 +5709,118 @@ export interface components {
             durationMs: number | null;
             overall: number | null;
             createdAt: string;
+        };
+        LiveKitStart: {
+            url: string;
+            token: string;
+            roomName: string;
+            participantIdentity: string;
+        };
+        LiveKitConfig: {
+            /** @enum {string} */
+            stt?: "soniox" | "elevenlabs";
+            /** @enum {string} */
+            sttModel?: "stt-rt-v5" | "scribe_v2_realtime";
+            /** @enum {string} */
+            llm?: "openai/gpt-6-luna" | "deepseek/deepseek-v4.1-flash";
+            /** @enum {string} */
+            tts?: "soniox" | "cartesia" | "elevenlabs" | "inworld" | "gradium";
+            ttsModel?: string;
+            voice?: string;
+            /** @enum {string} */
+            turnDetection?: "audio" | "vad";
+            minEndpointDelay?: number;
+            maxEndpointDelay?: number;
+            vadSilence?: number;
+            interruptions?: boolean;
+            preemptiveGeneration?: boolean;
+            temperature?: number;
+            maxTokens?: number;
+            parts?: {
+                1?: {
+                    /** @enum {string} */
+                    stt?: "soniox" | "elevenlabs";
+                    /** @enum {string} */
+                    sttModel?: "stt-rt-v5" | "scribe_v2_realtime";
+                    /** @enum {string} */
+                    llm?: "openai/gpt-6-luna" | "deepseek/deepseek-v4.1-flash";
+                    /** @enum {string} */
+                    tts?: "soniox" | "cartesia" | "elevenlabs" | "inworld" | "gradium";
+                    ttsModel?: string;
+                    voice?: string;
+                    /** @enum {string} */
+                    turnDetection?: "audio" | "vad";
+                    minEndpointDelay?: number;
+                    maxEndpointDelay?: number;
+                    vadSilence?: number;
+                    interruptions?: boolean;
+                    preemptiveGeneration?: boolean;
+                    temperature?: number;
+                    maxTokens?: number;
+                };
+                2?: {
+                    /** @enum {string} */
+                    stt?: "soniox" | "elevenlabs";
+                    /** @enum {string} */
+                    sttModel?: "stt-rt-v5" | "scribe_v2_realtime";
+                    /** @enum {string} */
+                    llm?: "openai/gpt-6-luna" | "deepseek/deepseek-v4.1-flash";
+                    /** @enum {string} */
+                    tts?: "soniox" | "cartesia" | "elevenlabs" | "inworld" | "gradium";
+                    ttsModel?: string;
+                    voice?: string;
+                    /** @enum {string} */
+                    turnDetection?: "audio" | "vad";
+                    minEndpointDelay?: number;
+                    maxEndpointDelay?: number;
+                    vadSilence?: number;
+                    interruptions?: boolean;
+                    preemptiveGeneration?: boolean;
+                    temperature?: number;
+                    maxTokens?: number;
+                };
+                3?: {
+                    /** @enum {string} */
+                    stt?: "soniox" | "elevenlabs";
+                    /** @enum {string} */
+                    sttModel?: "stt-rt-v5" | "scribe_v2_realtime";
+                    /** @enum {string} */
+                    llm?: "openai/gpt-6-luna" | "deepseek/deepseek-v4.1-flash";
+                    /** @enum {string} */
+                    tts?: "soniox" | "cartesia" | "elevenlabs" | "inworld" | "gradium";
+                    ttsModel?: string;
+                    voice?: string;
+                    /** @enum {string} */
+                    turnDetection?: "audio" | "vad";
+                    minEndpointDelay?: number;
+                    maxEndpointDelay?: number;
+                    vadSilence?: number;
+                    interruptions?: boolean;
+                    preemptiveGeneration?: boolean;
+                    temperature?: number;
+                    maxTokens?: number;
+                };
+            };
+        };
+        LiveKitUsage: {
+            sessionId: string;
+            userId: string;
+            reportId: string;
+            entries: {
+                /** @enum {string} */
+                stage: "live_stt" | "examiner_llm" | "examiner_tts";
+                /** @enum {string} */
+                provider: "openrouter" | "soniox" | "elevenlabs" | "cartesia" | "inworld" | "gradium";
+                model: string;
+                costUsd: number;
+                inputTokens?: number;
+                outputTokens?: number;
+                audioSeconds?: number;
+                characters?: number;
+                meta?: {
+                    [key: string]: string | number | boolean | null;
+                };
+            }[];
         };
         LiveStarted: components["schemas"]["ExaminerLine"] & {
             sessionId: string;

@@ -12,7 +12,7 @@ import { geminiLiveUsd, recordCost, type GeminiLiveUsage } from '../ai/cost';
 import { keyCtx, redact } from '../ai/keyctx';
 import { AiError, chatText, chatTextStream, speak, transcribe, transcribeOnce } from '../ai/openrouter';
 import { liveDeadline } from '../ai/live-deadline';
-import { currentUser, requireOwner, requireUser } from '../auth';
+import { currentUser, isOwner, requireOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { aiCosts, attempts, liveSessions } from '../db/schema';
 import { env } from '../env';
@@ -27,6 +27,7 @@ import { storage, uploadError } from '../storage';
 import type { App, AppEnv } from '../types';
 import { CodedError } from './community';
 import { liveMock } from './mock';
+import { attachLiveKit } from './livekit';
 import { pickP1Branches, pickSpeakingTest, PromptSchema } from './prompts';
 
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
@@ -205,6 +206,7 @@ function recordStreamingStt(b: { stt?: string; sttSeconds?: number }, payer: Non
 }
 
 export function register(app: App) {
+  attachLiveKit(app, loadSession);
   app.openapi(
     createRoute({
       ...paid,
@@ -221,7 +223,7 @@ export function register(app: App) {
           })
           .openapi('LiveStart'),
       ),
-      description: 'Needs the user\'s own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).',
+      description: 'Needs the user\'s own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. The owner may bootstrap server cascades with OpenRouter only. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).',
       responses: {
         ...needsKey,
         402: json(CodedError, 'community_balance_exhausted'),
@@ -241,7 +243,8 @@ export function register(app: App) {
       const mock = mockId ? await liveMock(user.id, mockId) : null;
       const source = mock?.source ?? asked;
       const payer = c.get('payer')!;
-      requireLive(payer, skipTts ? 'duplex' : 'turn');
+      // Server cascades speak for themselves too; the owner needs no OpenAI/Gemini key to bootstrap them.
+      requireLive(payer, skipTts && !isOwner(user) ? 'duplex' : 'turn');
       await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
       const picked = await pickSpeakingTest(user, source, mock?.ref);
       if (!picked) return c.json({ error: 'No speaking test available' }, 404);

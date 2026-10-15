@@ -1,0 +1,6 @@
+# Use with ../docker-compose.livekit.yml and --no-deps to start only the worker
+# against a dedicated/generated media deployment. See docs/livekit.md.
+services:
+  livekit-worker:
+    environment:
+      LIVEKIT_URL: ${LIVEKIT_URL:?Set public wss LIVEKIT_URL for the remote media host}
