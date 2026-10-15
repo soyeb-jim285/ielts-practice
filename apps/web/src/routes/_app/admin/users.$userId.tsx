@@ -50,12 +50,13 @@ function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
     <div className="space-y-4">
       <Switch label="No test limits" description="Unlimited speaking and writing tests, including the live examiner, paid by the house." checked={info.unlimited} disabled={m.isPending} onChange={(v) => save(v)} />
       {!info.unlimited && (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => (e.preventDefault(), save())}>
-          <Input label="Speaking tests a day" hint="Live tests included" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} className="w-36" />
-          <Input label="Writing tests a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={writing} onChange={(e) => setWriting(e.target.value)} className="w-36" />
-          <Button type="submit" variant="outline" loading={m.isPending} disabled={bad}>
+        <form className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[9rem_9rem_auto]" onSubmit={(e) => (e.preventDefault(), save())}>
+          <Input label="Speaking a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} />
+          <Input label="Writing a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={writing} onChange={(e) => setWriting(e.target.value)} />
+          <Button type="submit" variant="outline" loading={m.isPending} disabled={bad} className="col-span-2 sm:col-span-1">
             Save limits
           </Button>
+          <p className="type-caption col-span-full">Tests per day; leave empty for the default. Speaking includes live tests.</p>
         </form>
       )}
     </div>
