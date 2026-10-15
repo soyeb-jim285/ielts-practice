@@ -212,7 +212,7 @@ async function pickContent(user: SessionUser, variant: 'academic' | 'general', s
   if (source === 'cambridge') {
     // Not allowed and not complete look the same from outside.
     if (!ref || !isCambridgeAllowed(user) || !(await completeRefs(variant)).includes(ref)) throw noSet();
-  } else if (!(await pickSpeakingTest(user, 'generated'))) throw noSet();
+  } else if (!(await pickSpeakingTest(user, 'generated', null, false))) throw noSet();
   const cam = source === 'cambridge';
   const at = (skill: 'listening' | 'reading') => and(eq(lrTests.source, source), cam ? eq(lrTests.ref, ref!) : undefined, skill === 'reading' ? eq(lrTests.variant, variant) : undefined)!;
   const task = (part: number) => and(eq(prompts.skill, 'writing'), eq(prompts.part, part), eq(prompts.source, source), part === 1 ? eq(prompts.variant, variant) : undefined, cam ? eq(prompts.sourceRef, ref!) : undefined);

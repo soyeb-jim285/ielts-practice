@@ -5,7 +5,7 @@ import { etag } from 'hono/etag';
 import { visiblePromptWhere } from '../access';
 import { currentUser, requireUser } from '../auth';
 import { db } from '../db/client';
-import { attempts, prompts } from '../db/schema';
+import { attempts, prompts, promptSeen } from '../db/schema';
 import { promptAudio } from '../ai/speaking-audio';
 import { storage } from '../storage';
 import type { App, SessionUser } from '../types';
@@ -84,12 +84,33 @@ const filters = (user: SessionUser | null, f: Partial<z.infer<typeof ListQuery>>
     f.q ? or(ilike(prompts.title, like(f.q)), ilike(prompts.body, like(f.q))) : undefined,
   );
 
-/** Random visible prompts, undone first. Without a user there is no done flag to sort by (and Postgres rejects ORDER BY false). */
+/** When this user last had this prompt's topic (same skill and part, by topic name): an attempt at any prompt on it, or a test that served one (prompt_seen).
+ *  Topic level, so a second set on "Birthdays" with other wording does not come straight back. Null: never. */
+const lastHad = (userId: string) => sql`(select max(t) from (
+    select a.created_at as t from ${attempts} a join ${prompts} q on q.id = a.prompt_id
+      where a.user_id = ${userId} and q.skill = "prompts".skill and q.part = "prompts".part and lower(q.topic) = lower("prompts".topic)
+    union all
+    select s.seen_at from ${promptSeen} s join ${prompts} q on q.id = s.prompt_id
+      where s.user_id = ${userId} and q.skill = "prompts".skill and q.part = "prompts".part and lower(q.topic) = lower("prompts".topic)
+  ) x)`;
+
+/** When this exact prompt was last handed to the user. */
+const lastServed = (userId: string) => sql`(select s.seen_at from ${promptSeen} s where s.user_id = ${userId} and s.prompt_id = "prompts".id)`;
+
+/** Random visible prompts: never answered first, then the least recently had topic, then the least recently served prompt (never first each time).
+ *  Without a user there is no history to sort by. */
 export const pick = (user: SessionUser | null, where: SQL | undefined, limit: number) =>
   selectWithDone(user?.id ?? null)
     .where(and(visiblePromptWhere(user), where))
-    .orderBy(...(user ? [doneExpr(user.id)] : []), sql`random()`)
+    .orderBy(...(user ? [doneExpr(user.id), sql`${lastHad(user.id)} asc nulls first`, sql`${lastServed(user.id)} asc nulls first`] : []), sql`random()`)
     .limit(limit);
+
+/** Remembers what a user was handed, so the picker moves on from it even if they never answered. */
+export async function markSeen(user: SessionUser | null, ids: string[]) {
+  if (!user || !ids.length) return;
+  const at = new Date();
+  await db.insert(promptSeen).values(ids.map((promptId) => ({ userId: user.id, promptId, seenAt: at }))).onConflictDoUpdate({ target: [promptSeen.userId, promptSeen.promptId], set: { seenAt: at } });
+}
 
 /** Familiar topics that repeat a place frame (hometown, home, accommodation, the area you live in): never asked straight after one. */
 const PLACE_TOPICS = ['Where you live', 'Neighbours'];
@@ -101,7 +122,8 @@ const repeatsFrame = (frame: { topic: string } | undefined, t: { topic: string }
 const askable = (col: SQL | AnyColumn, max = 8) =>
   sql`(${col} is null or (jsonb_array_length(${col}) <= ${max} and not exists (select 1 from jsonb_array_elements_text(${col}) q where q not like '%?%' and q !~* '^tell me')))`;
 
-export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any', ref?: string | null): Promise<SpeakingTest | null> {
+/** `record` false: only checks that a test exists (it is not handed to anyone). */
+export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any', ref?: string | null, record = true): Promise<SpeakingTest | null> {
   const src = and(source === 'any' ? undefined : eq(prompts.source, source), ref ? eq(prompts.sourceRef, ref) : undefined);
   const speaking = (p: number) => and(eq(prompts.skill, 'speaking'), eq(prompts.part, p), src);
   // Real Part 1: one introductory frame (hometown, home, work/study), then two familiar topics. Falls back to topics only when the bank has no frame.
@@ -111,10 +133,14 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
     pick(user, and(speaking(1), notInArray(prompts.type, frameTypes), askable(prompts.followUps)), 3 + PLACE_TOPICS.length),
     pick(user, and(speaking(2), isNotNull(prompts.groupId), sql`exists(select 1 from ${prompts} p3 where p3.group_id = "prompts".group_id and p3.part = 3 and p3.skill = 'speaking' and ${askable(sql`p3.follow_ups`, 12)})`), 1),
   ]);
-  const part1 = [...(frame ? [frame] : []), ...topics.filter((t) => !repeatsFrame(frame, t)).slice(0, frame ? 2 : 3)];
+  // Never the same topic twice in one test (the bank has several sets on some topics).
+  const seenTopics = new Set(frame ? [frame.topic.toLowerCase()] : []);
+  const fresh = topics.filter((t) => !repeatsFrame(frame, t) && !seenTopics.has(t.topic.toLowerCase()) && seenTopics.add(t.topic.toLowerCase()));
+  const part1 = [...(frame ? [frame] : []), ...fresh.slice(0, frame ? 2 : 3)];
   if (!card || !part1.length) return null;
   const [linked] = await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 3), eq(prompts.groupId, card.groupId!), askable(prompts.followUps, 12)), 1);
   if (!linked) return null;
+  if (record) await markSeen(user, [...part1.map((p) => p.id), card.id, linked.id]);
   return {
     part1: await Promise.all(part1.map((p) => toPrompt({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null }).then(withAudio))),
     part2: await toPrompt(card).then(withAudio),
@@ -208,6 +234,7 @@ export function register(app: App) {
     async (c) => {
       const user = c.get('user');
       const [row] = await pick(user, filters(user, c.req.valid('query')), 1);
+      if (row) await markSeen(user, [row.id]);
       return row ? c.json(await withAudio(await toPrompt(row)), 200) : c.json({ error: 'No matching prompt' }, 404);
     },
   );

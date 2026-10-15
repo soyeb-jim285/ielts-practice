@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, pgEnum, text, timestamp, boolean, integer, jsonb, numeric, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, text, timestamp, boolean, integer, jsonb, numeric, index, uniqueIndex, real, primaryKey } from 'drizzle-orm/pg-core';
 
 const id = () => text('id').primaryKey().$defaultFn(() => crypto.randomUUID());
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -311,6 +311,13 @@ export const cambridgeAccess = pgTable('cambridge_access', {
   grantedBy: text('granted_by').notNull(), // owner email
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Questions handed to a user (a full test's sets, a random question), whether or not they answered: the picker serves the least recently seen topic first (routes/prompts.ts).
+export const promptSeen = pgTable('prompt_seen', {
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  promptId: text('prompt_id').notNull().references(() => prompts.id, { onDelete: 'cascade' }),
+  seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.promptId] })]);
 
 // Per-user test limits set by the owner in admin (quota.ts). null = the default for the person's tier; unlimited = no quota at all (incl. the LiveKit examiner).
 export const userLimits = pgTable('user_limits', {

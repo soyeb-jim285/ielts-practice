@@ -110,6 +110,27 @@ describe('prompt list', () => {
   });
 });
 
+describe('speaking test variety', () => {
+  it('never repeats a topic within a test, and the next test moves on to topics not had yet', async () => {
+    await seedPrompt({ type: 'p1-intro', topic: 'Hometown', followUps: ['a?', 'b?'] });
+    for (const [n, topic] of [[1, 'Birthdays'], [2, 'Birthdays'], [3, 'Music'], [4, 'Food'], [5, 'Sport']] as const) await seedPrompt({ slug: `v-${n}`, topic, followUps: [`${topic} ${n}?`, 'b?'] });
+    for (const g of ['g1', 'g2']) {
+      await seedPrompt({ part: 2, type: 'cue-card', groupId: g, title: `Describe ${g}` });
+      await seedPrompt({ part: 3, type: 'p3-discussion', groupId: g, followUps: ['Why?'] });
+    }
+    const { headers } = await testUser();
+    const topics = async () => {
+      const t = await body(await req('/api/speaking/test', { headers }));
+      return { p1: t.part1.slice(1).map((p: any) => p.topic) as string[], card: t.part2.groupId as string };
+    };
+    const first = await topics();
+    expect(new Set(first.p1).size).toBe(first.p1.length);
+    const second = await topics();
+    expect(second.p1.filter((t) => first.p1.includes(t))).toEqual([]); // 4 topics: two per test, no overlap
+    expect(second.card).not.toBe(first.card);
+  });
+});
+
 describe('speaking test + seed', () => {
   it('seeds the committed bank idempotently and builds a linked test', async () => {
     const warns: string[] = [];
