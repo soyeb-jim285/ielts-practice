@@ -97,13 +97,16 @@ export class LiveKitDuplex implements Duplex {
         const audio = track.attach(); this.audio.add(audio);
         audio.autoplay = true;
         h.output?.(new MediaStream([track.mediaStreamTrack]));
-        void audio.play().catch(() => { if (!this.closed) { this.close(); h.lost(); } });
+        // iOS Safari can refuse play() outside a tap: retry on the next tap instead of dropping the session.
+        void audio.play().catch(() => this.playOnTap());
       });
       room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach().forEach((a) => { a.pause(); a.srcObject = null; a.remove(); this.audio.delete(a); }); this.tracks.delete(track); });
       room.on(RoomEvent.Disconnected, () => { if (!this.closed) { this.rejectReady?.(new Error('LiveKit disconnected.')); this.close(); h.lost(); } });
       await this.step('connect', 'Connect to LiveKit room', () => room.connect(result.url, result.token));
-      await this.step('audio', 'Enable browser audio playback', () => room.startAudio());
+      // Mic first: with capture active, iOS Safari allows the examiner's audio to play. The tap's gesture has expired by
+      // now, so startAudio() may be refused there; that is not fatal (playOnTap unlocks it on the next tap).
       await this.step('mic', 'Publish microphone', () => room.localParticipant.setMicrophoneEnabled(true));
+      await this.step('audio', 'Enable browser audio playback', () => room.startAudio().catch(() => this.playOnTap()));
       await this.step('ready', 'Start examiner and await worker ready', async () => {
         timer = setTimeout(() => this.rejectReady?.(new Error('LiveKit examiner readiness timed out.')), 30_000);
         await ready;
@@ -129,6 +132,18 @@ export class LiveKitDuplex implements Duplex {
   }
   cue(text: string, _heard?: boolean, key?: CueKey) { void this.send({ type: 'cue', text, key }); }
   listen(on: boolean, fresh = false) { void this.send({ type: 'listen', on, fresh }); }
+  private tapArmed = false;
+  /** Playback the browser refused (no user gesture): unlock it on the next tap anywhere on the page. */
+  private playOnTap() {
+    if (this.closed || this.tapArmed) return;
+    this.tapArmed = true;
+    document.addEventListener('pointerdown', () => {
+      this.tapArmed = false;
+      if (this.closed) return;
+      void this.room?.startAudio().catch(() => {});
+      for (const a of this.audio) void a.play().catch(() => this.playOnTap());
+    }, { once: true });
+  }
   close() {
     if (this.closed) return;
     this.closed = true;

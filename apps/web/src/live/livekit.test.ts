@@ -3,14 +3,14 @@ import { DEFAULT_LIVEKIT } from '@ielts/core';
 import { api } from '@/lib/api';
 import { LiveKitDuplex, loadLiveKitConfig } from './livekit';
 
-const mock = vi.hoisted(() => ({ listeners: {} as Record<string, (...args: any[]) => void>, publish: vi.fn(), mic: vi.fn(), disconnect: vi.fn(), connect: vi.fn(), stop: vi.fn() }));
+const mock = vi.hoisted(() => ({ listeners: {} as Record<string, (...args: any[]) => void>, publish: vi.fn(), mic: vi.fn(), disconnect: vi.fn(), connect: vi.fn(), stop: vi.fn(), startAudio: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api: { post: vi.fn() } }));
 vi.mock('livekit-client', () => ({
   ParticipantKind: { AGENT: 4 }, RoomEvent: { DataReceived: 'data', Disconnected: 'disconnect', TrackSubscribed: 'track', TrackUnsubscribed: 'untrack' },
   Room: class {
     localParticipant = { publishData: mock.publish, setMicrophoneEnabled: mock.mic, trackPublications: new Map([['mic', { track: { stop: mock.stop } }]]) };
     on(event: string, fn: (...args: any[]) => void) { mock.listeners[event] = fn; return this; }
-    connect = mock.connect; disconnect = mock.disconnect; startAudio = vi.fn().mockResolvedValue(undefined);
+    connect = mock.connect; disconnect = mock.disconnect; startAudio = mock.startAudio;
   },
 }));
 const agent = { kind: 4, identity: 'agent' };
@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear();
   vi.mocked(api.post).mockResolvedValue({ url: 'wss://room', token: 'secret', roomName: 'r', participantIdentity: 'candidate' });
   mock.connect.mockImplementation(async () => event({ type: 'ready' })); mock.mic.mockResolvedValue(undefined); mock.disconnect.mockResolvedValue(undefined);
-  mock.publish.mockResolvedValue(undefined);
+  mock.publish.mockResolvedValue(undefined); mock.startAudio.mockResolvedValue(undefined);
 });
 it('starts after mic publication, catches synchronous readiness and sends reliable controls in order', async () => {
   const d = new LiveKitDuplex(DEFAULT_LIVEKIT); await d.connect(handlers(), 's');
@@ -68,4 +68,12 @@ it('surfaces startup agent errors and restores safe storage defaults', async () 
   await expect(new LiveKitDuplex(DEFAULT_LIVEKIT).connect(handlers(), 's')).rejects.toThrow('provider unavailable');
   localStorage.setItem('admin-livekit-config', '{broken'); expect(loadLiveKitConfig()).toEqual(DEFAULT_LIVEKIT);
   localStorage.setItem('admin-livekit-config', JSON.stringify({ stt: 'elevenlabs' })); expect(loadLiveKitConfig().sttModel).toBe('scribe_v2_realtime');
+});
+it('survives iOS refusing audio playback outside a tap (mic first, unlock on next tap)', async () => {
+  mock.startAudio.mockRejectedValueOnce(new DOMException('not allowed', 'NotAllowedError'));
+  const h = handlers(), d = new LiveKitDuplex(DEFAULT_LIVEKIT);
+  await d.connect(h, 's');
+  expect(h.lost).not.toHaveBeenCalled();
+  expect(d.stats.steps.map((s) => s.key)).toEqual(['load', 'token', 'connect', 'mic', 'audio', 'ready']);
+  d.close();
 });
