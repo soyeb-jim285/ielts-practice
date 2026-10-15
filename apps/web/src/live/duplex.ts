@@ -221,6 +221,12 @@ export function useDuplexExaminer(
     c.waitTimer = setTimeout(runAfter, CLOSING_GRACE_MS);
   }
 
+  /** As in the real test, the card comes once the examiner has given the Part 2 instructions, and the minute starts with it. */
+  function showCard() {
+    setCueCard(r.current.cueCard);
+    prep.start();
+  }
+
   /** The examiner moved to Part 2 by itself (it ran out of Part 1 questions): show the cue card and start the preparation once it stops talking, without cueing it again. */
   function part2Heard() {
     const c = r.current;
@@ -231,10 +237,9 @@ export function useDuplexExaminer(
     clearTimeout(c.timer);
     c.x?.listen(false);
     void parts.stop();
-    setCueCard(c.cueCard);
     clearTimeout(c.waitTimer);
     c.wait = 'speaking';
-    c.after = prep.start;
+    c.after = showCard;
     c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
   }
 
@@ -257,8 +262,7 @@ export function useDuplexExaminer(
           c.x?.listen(false);
           await parts.stop();
           if (c.ended) return;
-          setCueCard(c.cueCard);
-          cue('part2', CUE_TEXT.part2, prep.start);
+          cue('part2', CUE_TEXT.part2, showCard);
           break;
         case 'p2-talk':
           prep.stop();

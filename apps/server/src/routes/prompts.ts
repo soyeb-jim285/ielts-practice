@@ -1,6 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { P1_TEST_QUESTIONS } from '@ielts/core';
-import { and, asc, count, eq, getTableColumns, ilike, inArray, isNotNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, ilike, inArray, isNotNull, notInArray, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import { etag } from 'hono/etag';
 import { visiblePromptWhere } from '../access';
 import { currentUser, requireUser } from '../auth';
@@ -96,6 +96,11 @@ const PLACE_TOPICS = ['Where you live', 'Neighbours'];
 const repeatsFrame = (frame: { topic: string } | undefined, t: { topic: string }) => !!frame && frame.topic !== 'Work or study' && PLACE_TOPICS.includes(t.topic);
 
 /** A full speaking test: a random P1 intro frame plus 2 familiar topics (P1_TEST_QUESTIONS each), a P2 cue card and its linked P3 set. Null when the bank has no card. */
+/** Question lists an examiner can ask: at most `max` lines (Part 1: 8, Part 3: 12), each a question or "Tell me about…". Keeps out extraction junk (a Listening dialogue, an old-format
+ *  role-play card) that the examiner would otherwise read aloud as questions. `col` is the follow-ups column (of `prompts` or an alias). */
+const askable = (col: SQL | AnyColumn, max = 8) =>
+  sql`(${col} is null or (jsonb_array_length(${col}) <= ${max} and not exists (select 1 from jsonb_array_elements_text(${col}) q where q not like '%?%' and q !~* '^tell me')))`;
+
 export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof TestSource> = 'any', ref?: string | null): Promise<SpeakingTest | null> {
   const src = and(source === 'any' ? undefined : eq(prompts.source, source), ref ? eq(prompts.sourceRef, ref) : undefined);
   const speaking = (p: number) => and(eq(prompts.skill, 'speaking'), eq(prompts.part, p), src);
@@ -103,12 +108,12 @@ export async function pickSpeakingTest(user: SessionUser, source: z.infer<typeof
   const frameTypes = ['p1-intro', 'p1-branch'];
   const [[frame], topics, [card]] = await Promise.all([
     pick(user, and(speaking(1), eq(prompts.type, 'p1-intro')), 1),
-    pick(user, and(speaking(1), notInArray(prompts.type, frameTypes)), 3 + PLACE_TOPICS.length),
-    pick(user, and(speaking(2), isNotNull(prompts.groupId), sql`exists(select 1 from ${prompts} p3 where p3.group_id = "prompts".group_id and p3.part = 3 and p3.skill = 'speaking')`), 1),
+    pick(user, and(speaking(1), notInArray(prompts.type, frameTypes), askable(prompts.followUps)), 3 + PLACE_TOPICS.length),
+    pick(user, and(speaking(2), isNotNull(prompts.groupId), sql`exists(select 1 from ${prompts} p3 where p3.group_id = "prompts".group_id and p3.part = 3 and p3.skill = 'speaking' and ${askable(sql`p3.follow_ups`, 12)})`), 1),
   ]);
   const part1 = [...(frame ? [frame] : []), ...topics.filter((t) => !repeatsFrame(frame, t)).slice(0, frame ? 2 : 3)];
   if (!card || !part1.length) return null;
-  const [linked] = await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 3), eq(prompts.groupId, card.groupId!)), 1);
+  const [linked] = await pick(user, and(eq(prompts.skill, 'speaking'), eq(prompts.part, 3), eq(prompts.groupId, card.groupId!), askable(prompts.followUps, 12)), 1);
   if (!linked) return null;
   return {
     part1: await Promise.all(part1.map((p) => toPrompt({ ...p, followUps: p.followUps?.slice(0, P1_TEST_QUESTIONS) ?? null }).then(withAudio))),

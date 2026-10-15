@@ -188,3 +188,15 @@ it('caps reconnects even when starts race, and sends the worker the only cue tex
   await req('/api/live/livekit/start', { headers: s.headers, body: { sessionId: s.sessionId } });
   expect(JSON.parse(sdk.createDispatch.mock.calls.at(-1)![2].metadata).cues).toBeNull(); // owner playground: free cues
 });
+
+it('never picks a question list an examiner cannot ask (a Listening dialogue imported as Part 1)', async () => {
+  for (const topic of ['home', 'food', 'work']) await seedPrompt({ topic, followUps: ['Why?'] });
+  await seedPrompt({ topic: 'Settling into a new flat', followUps: ['Hi Shannon – how are you settling in?', "You look like you're going shopping."] });
+  await seedPrompt({ part: 2, type: 'cue-card', groupId: 'lk', title: 'Describe a book' });
+  await seedPrompt({ part: 3, type: 'p3-discussion', groupId: 'lk', followUps: ['Why read?'] });
+  const u = await testUser();
+  for (let i = 0; i < 5; i++) {
+    const s = (await (await req('/api/live/start', { headers: u.headers, body: { skipTts: true } })).json()) as { test: { part1: { topic: string }[] } };
+    expect(s.test.part1.map((p) => p.topic)).not.toContain('Settling into a new flat');
+  }
+});

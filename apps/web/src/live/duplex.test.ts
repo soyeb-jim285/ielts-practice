@@ -164,17 +164,18 @@ it('the examiner closing the test on its own during Part 3 ends it, without wait
   unmount();
 });
 
-it('the examiner moving to Part 2 on its own shows the cue card and starts the prep minute when it stops talking, without a cue', async () => {
+it('the examiner moving to Part 2 on its own shows the cue card with the prep minute once it stops talking, without a cue', async () => {
   const { result, h, transport, unmount } = await setup();
   act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(60_000)); // well before the 4.5-minute Part 1 timer
   await act(async () => { h.speaking(true); h.caption("Thank you. Now, I'm going to give you a topic, and I'd like you to talk about it"); });
   expect(result.current.phase).toBe('p2-prep');
-  expect(result.current.cueCard).toEqual({ title: 'Topic' });
+  expect(result.current.cueCard).toBeUndefined(); // still giving the instructions
   expect(transport.listen).toHaveBeenCalledWith(false);
   expect(transport.cue.mock.calls.filter((c) => !NUDGES.includes(c[2]!))).toEqual([]);
   expect(result.current.prepLeft).toBe(60);
   act(() => { vi.advanceTimersByTime(10_000); h.speaking(false); }); // prep starts once the instructions end
+  expect(result.current.cueCard).toEqual({ title: 'Topic' });
   await act(async () => vi.advanceTimersByTime(60_000));
   expect(result.current.phase).toBe('p2-talk');
   await act(async () => vi.advanceTimersByTime(270_000)); // the old Part 1 timer must not fire a second Part 2

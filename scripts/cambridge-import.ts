@@ -16,6 +16,11 @@ type Test = {
   speaking: { p1?: QBlock[]; p2?: { title: string; bullets: string[]; explain: string } | null; p3?: QBlock[] } | null;
 };
 
+/** A Part 1 block is a short list of interview questions. The extractor also returned old-format role-play cards ("Ask the examiner about: …")
+ *  and once a Listening dialogue (C19); the examiner would read those out as questions. */
+export const isInterview = (b: QBlock) =>
+  b.questions.length > 0 && b.questions.length <= 8 && !b.questions.some((q) => /ask the examiner|your examiner is/i.test(q)) && b.questions.every((q) => q.includes('?') || /^tell me\b/i.test(q));
+
 const args = process.argv.slice(2);
 const dry = args.includes('--dry');
 const dir = args.find((a) => !a.startsWith('--')) ?? fileURLToPath(new URL('../data/cambridge/', import.meta.url));
@@ -57,7 +62,7 @@ function rows(t: Test): { rows: Row[]; image?: { file: string; key: string } } {
   }
   if (t2?.body) out.push({ ...base, slug: `${id}-w2`, skill: 'writing', part: 2, type: t2Type(t2.body), topic, title: firstSentence(t2.body), body: t2.body });
   const sp = t.speaking;
-  (sp?.p1 ?? []).filter((b) => b.questions.length).forEach((b, i) => {
+  (sp?.p1 ?? []).filter(isInterview).forEach((b, i) => {
     out.push({ ...base, slug: i ? `${id}-p1-${i + 1}` : `${id}-p1`, skill: 'speaking', part: 1, type: 'p1-topic', topic: b.topic, title: b.topic, body: b.questions[0]!, followUps: b.questions });
   });
   const p3 = (sp?.p3 ?? []).flatMap((b) => b.questions);
