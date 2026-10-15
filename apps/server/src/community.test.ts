@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, setKey, testUser } from './test/helpers';
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests, emailLog } from './db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests, emailLog, userLimits } from './db/schema';
 import { sendsIdle } from './auth-email';
 import { auth } from './auth';
 import { env } from './env';
@@ -657,7 +657,9 @@ describe('routing to the user key', () => {
   it('community analysis always runs on the default models; a custom model applies only on the user\'s own key', async () => {
     const community = await testUser(undefined, { key: false });
     const own = await testUser();
-    for (const u of [community, own]) await updateSettings(u.user.id, { models: { analysis: 'custom/model-x' } });
+    const unlimited = await testUser(undefined, { key: false }); // admin "no limits": the house still pays, so no custom model
+    await db.insert(userLimits).values({ userId: unlimited.user.id, unlimited: true, updatedBy: 'owner' });
+    for (const u of [community, own, unlimited]) await updateSettings(u.user.id, { models: { analysis: 'custom/model-x' } });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     setAnalyzer(analyze);
     const modelsUsed = async (who: typeof own) => {
@@ -669,6 +671,7 @@ describe('routing to the user key', () => {
     };
     expect([...(await modelsUsed(community))]).toEqual(['openai/gpt-6-luna']);
     expect([...(await modelsUsed(own))]).toEqual(['custom/model-x']);
+    expect([...(await modelsUsed(unlimited))]).toEqual(['openai/gpt-6-luna']);
   });
 
   it('a user key the provider rejects is flagged invalid, the attempt fails with a clear message, and the user is a community user again', async () => {
