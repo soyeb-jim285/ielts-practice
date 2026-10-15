@@ -101,6 +101,8 @@
   --font-sans: 'Hanken Grotesk Variable', 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-serif: 'Newsreader Variable', 'Newsreader', ui-serif, Georgia, serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  /* Phonetic symbols (θ ʃ ŋ ɪ): the brand faces lack IPA, so system faces that have it. */
+  --font-ipa: 'Noto Sans', 'Segoe UI', 'Lucida Sans Unicode', 'DejaVu Sans', 'Helvetica Neue', sans-serif;
 
   /* Named sizes for the two non-default UI text steps (so no text-[0.9375rem] in screens). Line-height comes from the element. */
   --text-body: 0.9375rem;

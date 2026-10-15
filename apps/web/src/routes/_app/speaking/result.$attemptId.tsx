@@ -17,13 +17,14 @@ import { Transcript } from '@/components/speaking/Transcript';
 import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
+import { PronunciationPanel } from '@/components/speaking/PronunciationPanel';
 import { attemptQuery } from '@/lib/attempt';
 import { timelineMarkers, type Timeline } from '@/lib/timeline';
 import { criterionLabel, notAssessed, offTopicAnswers, pronunciationUnsupported, sentenceCase, SPEAKING_CRITERIA, splitFirstSentence, type Attempt } from '@/lib/result';
 import type { AnalysisResult } from '@server/ai/types';
 import { roundBand } from '@ielts/core';
 
-const TABS = ['overview', 'transcript', 'fluency', 'language', 'improve'] as const;
+const TABS = ['overview', 'transcript', 'fluency', 'language', 'pronunciation', 'improve'] as const;
 type Tab = (typeof TABS)[number];
 type Search = { session?: string; tab?: Tab };
 
@@ -195,6 +196,7 @@ function ResultPage() {
             { value: 'transcript', label: 'Transcript', count: r.errors.length },
             { value: 'fluency', label: 'Fluency' },
             { value: 'language', label: 'Language' },
+            ...(r.pronunciation?.audio ? [{ value: 'pronunciation' as const, label: 'Pronunciation', count: r.pronunciation.audio.words.length }] : []),
             { value: 'improve', label: 'Improve' },
           ]} />
           {a.audioUrl && tab !== 'overview' && tab !== 'improve' && (
@@ -360,6 +362,8 @@ function Panel({ tab, a, timeline, target, audio, off, lean, onLean, deck }: { l
       ) : null;
     case 'language':
       return <LanguagePanel result={r} audio={audio} lean={lean} onLean={onLean} />;
+    case 'pronunciation':
+      return r.pronunciation?.audio ? <PronunciationPanel pron={r.pronunciation.audio} audio={audio} /> : null;
     case 'improve':
       return <ImprovePanel result={r} deck={deck} />;
   }

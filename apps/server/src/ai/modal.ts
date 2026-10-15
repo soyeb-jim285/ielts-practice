@@ -1,9 +1,11 @@
 // Our own verbatim Whisper (whisper-small.en fine-tune, 4-layer decoder, 166M; project crisperwhisper_recreate) on a Modal T4 that
 // scales to zero, for the admin transcription playground. Keeps [uh]/[um], repeats, cut-offs (th-) and [laughter]/[breath].
 // Auth is a Modal proxy-auth token (MODAL_KEY / MODAL_SECRET). The endpoint decodes any format with ffmpeg, so webm/m4a go as-is.
+import { recordCost } from './cost';
 import { env } from '../env';
 import { logAi } from './ailog';
 import { AiError, type SttModel } from './openrouter';
+import type { PronunciationAudio } from './types';
 
 const MODELS: Record<string, string> = { 'modal/verbatim-student4': 'Verbatim Whisper student4 (ours, Modal T4)' };
 
@@ -78,12 +80,13 @@ export type PronResult = {
   model: string;
 };
 
-/** Pronunciation playground: one clip, with the text the speaker read (scripted) or none (the endpoint transcribes it first). */
-export async function assessPronunciation(o: { audio: Uint8Array; format: string; text?: string }) {
+/** One clip, with the text the speaker read (scripted) or none (the endpoint transcribes it first). `stage` 'pronunciation': a speaking analysis (cost ledger, house-paid). */
+export async function assessPronunciation(o: { audio: Uint8Array; format: string; text?: string; stage?: 'playground' | 'pronunciation' }) {
   const t0 = Date.now();
+  const stage = o.stage ?? 'playground';
   const request = { url: env.MODAL_PRON_URL, format: o.format, bytes: o.audio.length, text: o.text };
   const fail = (msg: string, status?: number, code: AiError['code'] = 'http'): never => {
-    logAi({ stage: 'playground', path: 'modal/pronunciation', model: 'modal/wav2vec2-gop', ok: false, status, latencyMs: Date.now() - t0, request, error: msg });
+    logAi({ stage, path: 'modal/pronunciation', model: 'modal/wav2vec2-gop', ok: false, status, latencyMs: Date.now() - t0, request, error: msg });
     throw new AiError(code, msg, status);
   };
   if (!env.MODAL_KEY || !env.MODAL_SECRET) return fail('MODAL_KEY / MODAL_SECRET not set (Modal dashboard > Settings > Proxy Auth Tokens)');
@@ -96,11 +99,31 @@ export async function assessPronunciation(o: { audio: Uint8Array; format: string
     const d = (await r.json()) as PronResult;
     const latencyMs = Date.now() - t0;
     const costUsd = (latencyMs / 3_600_000) * env.MODAL_USD_PER_HOUR; // ponytail: wall time x T4 price, as for transcription
-    logAi({ stage: 'playground', path: 'modal/pronunciation', model: 'modal/wav2vec2-gop', ok: true, latencyMs, costUsd, request, response: { accuracy: d.accuracy, words: d.words.length, timing: d.timing } });
+    logAi({ stage, path: 'modal/pronunciation', model: 'modal/wav2vec2-gop', ok: true, latencyMs, costUsd, request, response: { accuracy: d.accuracy, words: d.words.length, timing: d.timing } });
+    if (stage === 'pronunciation') recordCost({ stage, provider: 'modal', model: 'modal/wav2vec2-gop', costUsd, audioSeconds: d.audioSeconds, paidBy: 'house', meta: { estimated: true } });
     return { ...d, latencyMs, costUsd };
   } catch (e) {
     if (e instanceof AiError) throw e;
     const timeout = (e as Error).name === 'TimeoutError';
     return fail(timeout ? 'Modal timed out' : (e as Error).message, undefined, timeout ? 'timeout' : 'network');
   }
+}
+
+const SMALL = new Set(['the', 'and', 'but', 'for', 'are', 'was', 'you', 'she', 'his', 'her', 'its', 'our', 'can', 'not', 'has', 'had', 'did', 'yes']);
+/** What a speaking result keeps from the model: the worst content words (one row per word, at most 12) and swaps heard at least twice.
+ *  ponytail: fixed thresholds (word score < 70, a phone not ok); tune them against real results. */
+export function pronunciationSummary(d: PronResult): PronunciationAudio {
+  const worst = new Map<string, PronunciationAudio['words'][number]>();
+  for (const w of d.words) {
+    const key = w.word.toLowerCase();
+    if (w.score == null || w.start == null || w.end == null || w.score >= 70 || key.length < 3 || SMALL.has(key) || !w.phones.some((p) => !p.ok)) continue;
+    if ((worst.get(key)?.score ?? Infinity) <= w.score) continue;
+    worst.set(key, { word: w.word, score: w.score, accent: w.accent, start: w.start, end: w.end, phones: w.phones.map(({ expected, heard, ok }) => ({ expected, heard, ok })) });
+  }
+  return {
+    accuracy: d.accuracy,
+    words: [...worst.values()].sort((a, b) => a.score - b.score).slice(0, 12),
+    confusions: d.confusions.filter((c) => c.count >= 2).slice(0, 6),
+    wordsPerMinute: d.fluency.wordsPerMinute,
+  };
 }

@@ -8,6 +8,8 @@ import { bandDescriptor, BELOW_4, EXAMINER_RULES, fmt, SPEAKING_DESCRIPTORS } fr
 import { llmDisfluencies } from './disfluency';
 import { asRetry } from './cost';
 import { AiError, chatJson, decide, type JevQuestion, transcribe } from './openrouter';
+import { assessPronunciation, pronunciationSummary } from './modal';
+import { env } from '../env';
 import { keepVerbatimEvidence, poolCriteria, SpeakingLlmSchema, type LlmCriterion } from './schemas';
 import type { AnalysisResult, AnalysisStage } from './types';
 
@@ -314,6 +316,10 @@ export async function analyzeSpeaking(i: {
     words, questions, noSpeech: true, sttModel: stt.model,
   });
   if (isNoSpeech(words)) return noSpeech();
+  // The phoneme model listens to the recording itself (its own windows and transcript); a failure only loses the Pronunciation tab.
+  const pron = env.MODAL_KEY && env.MODAL_SECRET
+    ? assessPronunciation({ audio: i.audio, format: i.format, stage: 'pronunciation' }).then(pronunciationSummary, (e: Error) => void console.warn('pronunciation model failed:', e.message))
+    : Promise.resolve(undefined);
 
   const durationS = (i.durationMs > 0 ? i.durationMs / 1000 : stt.duration) - transitions.reduce((s, [a, b]) => s + (b - a), 0); // gaps between answers are not speaking time
   const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs, transitions });
@@ -452,12 +458,13 @@ export async function analyzeSpeaking(i: {
       const next = bandDescriptor(SPEAKING_DESCRIPTORS[k], x.band + 1);
       if (!x.summary && next) x.summary = `To reach band ${x.band + 1}: ${next}`;
     }
+  const audioPron = await pron;
   const result: AnalysisResult = {
     v: 1, skill: 'speaking', part: i.part, overall: band, overallRaw: raw, range, criteria: c, topFixes: llm.topFixes, errors,
     vocabUpgrades: llm.vocabUpgrades, rewrite: { text: llm.rewrite, note: REWRITE_NOTE },
     // fluency: fused disfluencies and the provisional timing composite, stored as features for later calibration (not yet used for FC, §7.2 item 7).
     words, metrics: Object.assign(metrics, { fluency: { ...features, events: fused, profile: disfluencyProfile(fused, metrics, words), composite: Math.round(composite * 100) / 100, band: fluencyBand(composite), verbatimStt: stt.verbatim } }),
-    questions, pronunciation: { unclear: metrics.unclear }, relevance, ...(penalty > 0 && { offTopicPenalty: Math.round(penalty * 100) / 100 }),
+    questions, pronunciation: { unclear: metrics.unclear, ...(audioPron && { audio: audioPron }) }, relevance, ...(penalty > 0 && { offTopicPenalty: Math.round(penalty * 100) / 100 }),
   };
   // No speaking gold labels yet, so no calibration record can exist: always uncalibrated, with the ±1 range above (AnalysisResult gains `calibrated` with P1 item 11).
   const timings = { sttMs, totalMs: Date.now() - t0 };

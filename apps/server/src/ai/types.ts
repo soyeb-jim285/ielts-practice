@@ -39,6 +39,16 @@ export type PronunciationLlm = {
   band: number;
 };
 
+/** The phoneme model's findings on the recording (modal/pronunciation, wav2vec2): only the words worth practising and repeated sound swaps. IPA from espeak.
+ *  Absent when the model was unavailable and on older analyses. Not used for the Pronunciation band (uncalibrated). */
+export type PronunciationAudio = {
+  /** 0-100: share of sounds said as expected (phone-weighted). */
+  accuracy: number | null;
+  words: { word: string; score: number; accent: 'us' | 'gb' | null; start: number; end: number; phones: { expected: string; heard: string; ok: boolean }[] }[];
+  confusions: { expected: string; heard: string; count: number }[];
+  wordsPerMinute: number | null;
+};
+
 export type WritingStructure = {
   paragraphs: { role: 'intro' | 'overview' | 'body' | 'conclusion' | 'greeting' | 'closing' | 'other'; topicSentence: string; ok: boolean; note: string }[];
   overview: { present: boolean; mainTrends: boolean; noData: boolean; note: string } | null;
@@ -74,7 +84,7 @@ export type AnalysisResult = {
   words?: Word[];
   metrics?: SpeechMetrics;
   questions?: { text: string; startWord: number }[]; // question boundaries in transcript
-  pronunciation?: { unclear: SpeechMetrics['unclear']; llm?: PronunciationLlm };
+  pronunciation?: { unclear: SpeechMetrics['unclear']; llm?: PronunciationLlm; audio?: PronunciationAudio };
   relevance?: { questionIdx: number; onTopic: boolean; note: string }[];
   /** Speaking: bands taken off because some answers did not address the question (relevance check). */
   offTopicPenalty?: number;
