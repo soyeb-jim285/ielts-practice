@@ -179,7 +179,10 @@ it('caps reconnects even when starts race, and sends the worker the only cue tex
   const res = await req('/api/live/start', { headers: u.headers, body: { skipTts: true } });
   const { sessionId } = (await res.json()) as { sessionId: string };
   const codes = await Promise.all(Array.from({ length: 6 }, async () => (await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId } })).status));
-  expect(codes.filter((c) => c === 200)).toHaveLength(3);
+  expect(codes.filter((c) => c === 429)).toHaveLength(3); // only 3 rooms ever opened
+  const open = new Set(sdk.createRoom.mock.calls.map(([r]) => r.name));
+  for (const [name] of sdk.deleteRoom.mock.calls) open.delete(name);
+  expect(open.size).toBe(1); // each start replaced the one before
   const meta = JSON.parse(sdk.createDispatch.mock.calls[0]![2].metadata);
   expect(meta.cues).toContain('The test is over. Say the closing line now and nothing more.');
   await req('/api/live/livekit/start', { headers: s.headers, body: { sessionId: s.sessionId } });

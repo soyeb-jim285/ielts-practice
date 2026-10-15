@@ -103,11 +103,16 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
     // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring).
     if (!owner) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
     // Reconnects of a dropped session are free, a few times; past that it would be an endless free test. One conditional update, so parallel starts cannot pass the cap.
-    const opened = sql`coalesce((${liveSessions.state}->>'livekitRooms')::int, 0)`;
-    const bumped = await db.update(liveSessions).set({ state: sql`jsonb_set(${liveSessions.state}, '{livekitRooms}', to_jsonb(${opened} + 1))` })
-      .where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, user.id), owner ? undefined : sql`${opened} < ${LIVEKIT_ROOMS}`)).returning({ id: liveSessions.id });
-    if (!bumped.length) return c.json({ error: 'This session has reconnected too many times. Start a new test.' }, 429);
+    // The new room also becomes the session's only room: the one it replaces is closed once this one exists, so parallel starts cannot run several examiners.
     const roomName = `ielts-${crypto.randomUUID()}`, participantIdentity = `candidate-${crypto.randomUUID()}`;
+    const opened = sql.raw(`coalesce((s.state->>'livekitRooms')::int, 0)`);
+    const bumped = await db.execute<{ prev: string | null }>(sql`
+      update live_sessions s set state = jsonb_set(jsonb_set(s.state, '{livekitRooms}', to_jsonb(${opened} + 1)), '{livekitRoom}', to_jsonb(${roomName}::text))
+      from (select state->>'livekitRoom' as prev from live_sessions where id = ${b.sessionId} for update) old
+      where s.id = ${b.sessionId} and s.user_id = ${user.id} ${owner ? sql`` : sql`and ${opened} < ${LIVEKIT_ROOMS}`}
+      returning old.prev`);
+    if (!bumped.length) return c.json({ error: 'This session has reconnected too many times. Start a new test.' }, 429);
+    const prev = bumped[0]!.prev;
     const payload = Buffer.from(JSON.stringify({ sessionId: b.sessionId, userId: user.id, roomName, expiresAt: Date.now() + 86_400_000 })).toString('base64url');
     const reportToken = `${payload}.${signature(payload)}`;
     const host = env.LIVEKIT_URL.replace(/^ws/, 'http');
@@ -121,6 +126,10 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
       const jwt = await token.toJwt();
       await rooms.createRoom({ name: roomName, emptyTimeout: 60, departureTimeout: 20, maxParticipants: 2 });
       created = true;
+      if (prev) await rooms.deleteRoom(prev).catch(() => {}); // may already be gone
+      // A parallel start may have replaced this room before it existed: then this one closes instead.
+      const [now] = await db.select({ room: sql<string | null>`${liveSessions.state}->>'livekitRoom'` }).from(liveSessions).where(eq(liveSessions.id, b.sessionId));
+      if (now?.room !== roomName) { await rooms.deleteRoom(roomName).catch(() => {}); return c.json({ error: 'Another start replaced this one.' }, 409); }
       // Dispatch metadata is worker-only. Room metadata is visible to candidate clients.
       await dispatch.createDispatch(roomName, env.LIVEKIT_AGENT_NAME, { metadata: JSON.stringify({
         sessionId: b.sessionId, userId: user.id, participantIdentity,

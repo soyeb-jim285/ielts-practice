@@ -20,6 +20,8 @@ export type LiveState = {
   test: LiveTest;
   /** LiveKit rooms opened for this session (reconnects): capped, so one paid test cannot be replayed forever. Written by SQL in routes/livekit.ts. */
   livekitRooms?: number;
+  /** The session's current LiveKit room (a new start closes the previous one). */
+  livekitRoom?: string;
 };
 
 export const P1_MAX_MS = 270_000;
