@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
-import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, spokenQuestions, transitionsOf } from './speaking';
+import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, mergeBackchannels, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, spokenQuestions, transitionsOf } from './speaking';
 import { fluencyComposite } from '@ielts/core';
 import { settings, speakingLlm, sttWords } from './fixtures';
 
@@ -40,9 +40,9 @@ it('scores, rounds and locates errors in time', async () => {
 });
 
 /** Jev answer on bands 4-9: `score` is the 0-based step (2 = band 6); probabilities per step. A relevance call (one `answers` noul) gets `answered`. */
-const jev = (score: number, high = 0, answered = 0.9) => (_: string, init: RequestInit) =>
+const jev = (score: number, high = 0, answered = 0.9, develop = 'full', sense = 0.95) => (_: string, init: RequestInit) =>
   JSON.parse(String(init.body)).questions.answers
-    ? json({ model: 'typesafe/jev-1.13-20260917', answers: { answers: { type: 'noul', noul: answered } }, usage: { input_tokens: 200, output_tokens: 5, cost: 0.00001 } })
+    ? json({ model: 'typesafe/jev-1.13-20260917', answers: { answers: { type: 'noul', noul: answered }, sense: { type: 'noul', noul: sense }, develop: { type: 'choice', choice: develop } }, usage: { input_tokens: 200, output_tokens: 5, cost: 0.00001 } })
     : json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { type: 'score', score, confidence: 0.8, probabilities: { 0: 0, 1: 0.1, 2: 0.8 - high, 3: 0.1, 4: high, 5: 0 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.00002 } });
 
 it('Jev scores in one call instead of 12 LLM samples: the curve on its mean, P(8+) and measured fluency sets the overall', async () => {
@@ -78,14 +78,41 @@ it('relevance: a clear "no" from the per-answer check flags the answer off topic
   expect(rel[0]!.body.state).toMatchObject({ examiner_question: 'What did you do yesterday?' });
 
   const offRun = await run2(0.1); // the only answer is clearly off topic: all of the speech
-  expect(offRun.r.relevance).toEqual([{ questionIdx: 0, onTopic: false, note: expect.any(String) }]);
+  expect(offRun.r.relevance).toEqual([{ questionIdx: 0, onTopic: false, note: expect.any(String), development: 'full' }]);
   expect(offRun.r.offTopicPenalty).toBe(MAX_OFF_TOPIC_PENALTY);
   expect(on.r.overallRaw! - offRun.r.overallRaw!).toBeGreaterThanOrEqual(1);
   expect(offRun.r.criteria.fc!.summary).toMatch(/did not address the question/);
 
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat(), '/systemone': jev(2, 0.05, 0.9, 'full', 0.1) }));
+  const nonsense = await run(); // on the question's words but makes no sense: counts as off topic
+  expect(nonsense.relevance![0]!.onTopic).toBe(false);
+  expect(nonsense.offTopicPenalty).toBe(MAX_OFF_TOPIC_PENALTY);
+
   const unsure = await run2(0.45); // borderline: never penalised
   expect(unsure.r.relevance![0]!.onTopic).toBe(true);
   expect(unsure.r.offTopicPenalty).toBeUndefined();
+});
+
+it('development is rated per answer as feedback and does not move the band (it did not lower the gold-set error)', async () => {
+  const run2 = (develop: string) => {
+    setFetch(fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat(), '/systemone': jev(2, 0.05, 0.9, develop) }));
+    return run();
+  };
+  const full = await run2('full'), none = await run2('none');
+  expect(full.relevance![0]).toMatchObject({ onTopic: true, development: 'full' });
+  expect(none.relevance![0]).toMatchObject({ development: 'none' });
+  expect(none.overallRaw).toBe(full.overallRaw);
+});
+
+it('a short examiner backchannel continues the answer before it', () => {
+  const g = (q: string, a: string) => ({ examiner_question: q, candidate_answer: a, words: a.split(' ').length });
+  expect(mergeBackchannels([g('Is it the same as in the past?', 'In the past it was different'), g('Hmm.', 'still the same'), g('Tell me about your hometown.', 'It is small')]))
+    .toEqual([g('Is it the same as in the past?', 'In the past it was different still the same'), g('Tell me about your hometown.', 'It is small')]);
+});
+
+it('the pronunciation term: higher accuracy raises the curve, a missing score is neutral', () => {
+  expect(speakingCurve(6, 0.05, 0, 88)).toBeGreaterThan(speakingCurve(6, 0.05, 0, 72));
+  expect(speakingCurve(6, 0.05, 0, null)).toBeCloseTo(speakingCurve(6, 0.05, 0, 80.51066666666667));
 });
 
 it('the curve stretches the top: a higher Jev mean and more band 8+ probability reach band 8+, and it never leaves 0-9', () => {

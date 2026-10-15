@@ -12,6 +12,13 @@ import type { AudioControls } from './AudioBar';
 
 const ISSUE = { sound: 'Sound', stress: 'Word stress', intonation: 'Intonation', unclear: 'Unclear' };
 
+/** How developed each answer was (Jev); the tip says what a fuller answer adds. */
+const DEVELOPED = {
+  none: { label: 'Not developed', tone: 'text-warn-text', tip: 'Add a reason, then a detail or an example from your own life.' },
+  some: { label: 'Partly developed', tone: 'text-ink', tip: 'Good start. Extend it with an example, a comparison or a consequence.' },
+  full: { label: 'Well developed', tone: 'text-good-text', tip: '' },
+} as const;
+
 /** Words worth listing as unclear: real words (letters only, 3+), not "-", "v" or "a...". Lowest confidence first. Pure for testing. */
 export const isRealWord = (w: string) => /^[a-z']{3,}$/i.test(w);
 
@@ -87,7 +94,7 @@ export function LanguagePanel({ result, audio, lean, onLean }: { result: Analysi
       )}
 
       {relevance.length > 0 && (
-        <Section id="relevance" title="Did you answer the question?" className="scroll-mt-20">
+        <Section id="relevance" title="Did you answer the question?" className="scroll-mt-20" caption={relevance.some((r) => r.development) ? 'IELTS rewards answers you extend with a reason and an example. Each answer is marked for how far you developed it.' : undefined}>
           <ul className="max-w-[68ch] divide-y divide-line">
             {relevance.map((r) => {
               // Cue-card text is title + body (which restates the title): show the title, then the rest muted.
@@ -98,9 +105,11 @@ export function LanguagePanel({ result, audio, lean, onLean }: { result: Analysi
                   <div className="min-w-0 space-y-1">
                     <p className="type-subheading">
                       Question {r.questionIdx + 1}: <span className={r.onTopic ? 'text-good-text' : 'text-warn-text'}>{r.onTopic ? 'On topic' : 'Off topic'}</span>
+                      {r.onTopic && r.development && <span className={DEVELOPED[r.development].tone}> · {DEVELOPED[r.development].label}</span>}
                     </p>
                     <p className="type-caption">{q.rest ? `${q.head} ${q.rest}` : q.head}</p>
                     <p className="type-body">{r.note}</p>
+                    {r.onTopic && r.development && r.development !== 'full' && <p className="type-body text-muted">{DEVELOPED[r.development].tip}</p>}
                   </div>
                 </li>
               );

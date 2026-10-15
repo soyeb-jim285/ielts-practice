@@ -49,6 +49,8 @@ export type PronunciationAudio = {
   wordsPerMinute: number | null;
 };
 
+export type Development = 'none' | 'some' | 'full';
+
 export type WritingStructure = {
   paragraphs: { role: 'intro' | 'overview' | 'body' | 'conclusion' | 'greeting' | 'closing' | 'other'; topicSentence: string; ok: boolean; note: string }[];
   overview: { present: boolean; mainTrends: boolean; noData: boolean; note: string } | null;
@@ -85,7 +87,8 @@ export type AnalysisResult = {
   metrics?: SpeechMetrics;
   questions?: { text: string; startWord: number }[]; // question boundaries in transcript
   pronunciation?: { unclear: SpeechMetrics['unclear']; llm?: PronunciationLlm; audio?: PronunciationAudio };
-  relevance?: { questionIdx: number; onTopic: boolean; note: string }[];
+  /** `development` (Jev, absent on older analyses and unjudged short answers): none = bare or vague, some = one reason or detail, full = extended with reasons/examples. */
+  relevance?: { questionIdx: number; onTopic: boolean; note: string; development?: Development }[];
   /** Speaking: bands taken off because some answers did not address the question (relevance check). */
   offTopicPenalty?: number;
   noSpeech?: boolean;
