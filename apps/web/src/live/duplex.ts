@@ -1,6 +1,9 @@
 // Live examiner over a duplex voice model (OpenAI GPT-Live or Gemini Live). The model runs the script; client timers drive the part changes
 // with cues, and local per-part recordings go to /live/finish like the turn-based examiner. A Duplex is the provider-specific transport.
+import { CUE_TEXT, DUPLEX_PART, nudgeText } from '@ielts/core';
 import type { Prompt } from '@server/routes/prompts';
+
+export { nudgeText };
 import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
 import { api, ApiError } from '@/lib/api';
@@ -32,28 +35,14 @@ export const ANSWER_MS = 20_000;
 const MAX_NUDGES = 3;
 /** A candidate turn longer than this without a "stopped" event is a stuck voice detector (noise), not speech. */
 const TALK_MAX_MS = 90_000;
-const PART: Partial<Record<Phase, string>> = { intro: 'the introduction', p1: 'Part 1', 'p2-follow': 'the end of Part 2', p3: 'Part 3' };
-const NEXT: Partial<Record<Phase, string>> = {
-  intro: 'if they have answered your last introduction question, ask the next one or, after the last, start Part 1 with its first question; otherwise ask it again',
-  p1: 'ask your next Part 1 question',
-  'p2-follow': 'if they have answered the rounding-off question, start Part 3 with its first question; otherwise ask the rounding-off question again',
-  p3: 'ask your next Part 3 question',
-};
-
 export type StallState = { phase: Phase; examinerOn: boolean; talking: boolean; line: string; examinerEnd: number; candidateAt: number; now: number };
 /** Who is stuck, if anyone: 'continue' (the examiner owes a turn) or 'repeat' (a question went unanswered). Only in the conversational parts. */
 export function stalled(s: StallState): 'continue' | 'repeat' | null {
-  if (!PART[s.phase] || s.examinerOn) return null;
+  if (!DUPLEX_PART[s.phase] || s.examinerOn) return null;
   if (s.talking && s.now - s.candidateAt < TALK_MAX_MS) return null;
   const owes = s.candidateAt > s.examinerEnd || !/\?["'”’)]*\s*$/.test(s.line.trim());
   return s.now - Math.max(s.examinerEnd, s.candidateAt) < (owes ? OWE_MS : ANSWER_MS) ? null : owes ? 'continue' : 'repeat';
 }
-
-/** The app message for a nudge: where the test is and the one thing to do now. */
-export const nudgeText = (phase: Phase, a: 'continue' | 'repeat') =>
-  a === 'repeat'
-    ? `You are in ${PART[phase] ?? 'the test'}. The candidate has not answered. Repeat your last question once, in the same words, then wait.`
-    : `You are in ${PART[phase] ?? 'the test'}. The candidate is waiting for you. Continue now: ${NEXT[phase] ?? 'ask your next question'}. One question, and do not move to another part.`;
 
 /** What a transport reports back. */
 export type Handlers = {
@@ -269,14 +258,14 @@ export function useDuplexExaminer(
           await parts.stop();
           if (c.ended) return;
           setCueCard(c.cueCard);
-          cue('part2', 'Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.', prep.start);
+          cue('part2', CUE_TEXT.part2, prep.start);
           break;
         case 'p2-talk':
           prep.stop();
           await parts.start(2);
           if (c.ended) return;
           c.x?.listen(false, true);
-          cue('talk', 'The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.', talk.start);
+          cue('talk', CUE_TEXT.talk, talk.start);
           break;
         case 'p2-follow':
           talk.stop();
@@ -284,9 +273,7 @@ export function useDuplexExaminer(
           if (c.ended) return;
           cue(
             timeUp ? 'follow-timeup' : 'follow',
-            timeUp
-              ? `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`
-              : 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
+            timeUp ? CUE_TEXT['follow-timeup'] : CUE_TEXT.follow,
           );
           c.x?.listen(true);
           break;
@@ -297,7 +284,7 @@ export function useDuplexExaminer(
         case 'closing':
           await parts.stop();
           if (c.ended) return;
-          cue('closing', 'The test is over. Say the closing line now and nothing more.', () => void finish());
+          cue('closing', CUE_TEXT.closing, () => void finish());
           break;
       }
     } catch {

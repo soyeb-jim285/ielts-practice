@@ -56,6 +56,8 @@ class Dispatch(BaseModel):
     reportUrl: str = Field(repr=False)
     reportToken: str = Field(min_length=1, max_length=4096, repr=False)
     cfg: dict = Field(default_factory=dict)
+    # The only cue texts this room may send (None: the owner's playground, any text). The LLM runs on the server's key.
+    cues: list[str] | None = Field(default=None, max_length=100, repr=False)
 
     @model_validator(mode="after")
     def validate_contract(self):

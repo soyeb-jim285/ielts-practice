@@ -42,3 +42,28 @@ export function livekitPartConfig(cfg: LiveKitConfig, part: '1' | '2' | '3'): Li
   const { parts, ...base } = cfg;
   return { ...base, ...parts?.[part] };
 }
+
+
+// The cue texts a duplex examiner may receive from the client. They live here because the server hands the exact list to the LiveKit worker,
+// which refuses any other text: the worker's LLM runs on the server's key, so it must not take free text from the browser.
+export const DUPLEX_PART: Record<string, string> = { intro: 'the introduction', p1: 'Part 1', 'p2-follow': 'the end of Part 2', p3: 'Part 3' };
+const NEXT: Record<string, string> = {
+  intro: 'if they have answered your last introduction question, ask the next one or, after the last, start Part 1 with its first question; otherwise ask it again',
+  p1: 'ask your next Part 1 question',
+  'p2-follow': 'if they have answered the rounding-off question, start Part 3 with its first question; otherwise ask the rounding-off question again',
+  p3: 'ask your next Part 3 question',
+};
+/** The app message for a nudge: where the test is and the one thing to do now. */
+export const nudgeText = (phase: string, a: 'continue' | 'repeat') =>
+  a === 'repeat'
+    ? `You are in ${DUPLEX_PART[phase] ?? 'the test'}. The candidate has not answered. Repeat your last question once, in the same words, then wait.`
+    : `You are in ${DUPLEX_PART[phase] ?? 'the test'}. The candidate is waiting for you. Continue now: ${NEXT[phase] ?? 'ask your next question'}. One question, and do not move to another part.`;
+export const CUE_TEXT = {
+  part2: 'Part 1 is over. Move to Part 2 now: give the Part 2 instructions and the topic, then stay silent while the candidate prepares.',
+  talk: 'The preparation minute is over. Ask the candidate to start speaking now, then stay silent until you are told the talk is over.',
+  'follow-timeup': `The two minutes are up. Say "Thank you. That's the end of your time." and ask the rounding-off question.`,
+  follow: 'The candidate has finished their talk. Say "Thank you." and ask the rounding-off question.',
+  closing: 'The test is over. Say the closing line now and nothing more.',
+} as const;
+/** Every cue text the client can send (nudges only fire in DUPLEX_PART phases). */
+export const duplexCueTexts = () => [...Object.values(CUE_TEXT), ...Object.keys(DUPLEX_PART).flatMap((p) => [nudgeText(p, 'continue'), nudgeText(p, 'repeat')])];

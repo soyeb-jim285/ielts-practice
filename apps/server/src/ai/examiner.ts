@@ -18,7 +18,7 @@ export type LiveState = {
   p3Asked: number;
   history: Turn[];
   test: LiveTest;
-  /** LiveKit rooms opened for this session (reconnects): capped, so one paid test cannot be replayed forever. */
+  /** LiveKit rooms opened for this session (reconnects): capped, so one paid test cannot be replayed forever. Written by SQL in routes/livekit.ts. */
   livekitRooms?: number;
 };
 

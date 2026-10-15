@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createRoute, z } from '@hono/zod-openapi';
-import { DEFAULT_LIVEKIT, LIVEKIT_TTS_MODELS, livekitPartConfig, type LiveKitConfig } from '@ielts/core';
+import { DEFAULT_LIVEKIT, duplexCueTexts, LIVEKIT_TTS_MODELS, livekitPartConfig, type LiveKitConfig } from '@ielts/core';
 import { and, eq, sql } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { AccessToken, AgentDispatchClient, RoomServiceClient } from 'livekit-server-sdk';
@@ -90,8 +90,6 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
     if (b.cfg && !owner) return c.json({ error: 'Only the owner may configure the examiner.' }, 403);
     const s = await loadSession(b.sessionId, user.id);
     if (s.phase === 'done') return c.json({ error: 'This live session is finished.' }, 409);
-    // Reconnects of a dropped session are free, a few times; past that it would be an endless free test.
-    if (!owner && (s.livekitRooms ?? 0) >= LIVEKIT_ROOMS) return c.json({ error: 'This session has reconnected too many times. Start a new test.' }, 429);
     if (!env.LIVEKIT_URL || !env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET || !env.LIVEKIT_REPORT_SECRET || env.LIVEKIT_REPORT_SECRET.length < 32) return c.json({ error: 'LiveKit is not configured on this server.' }, 503);
     // Parse even the omitted config so defaults and all effective overrides receive the same validation.
     const cfg: LiveKitConfig = { ...DEFAULT_LIVEKIT, ...Config.parse(b.cfg ?? {}) };
@@ -104,8 +102,11 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
     const payer = c.get('payer')!;
     // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring).
     if (!owner) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
-    s.livekitRooms = (s.livekitRooms ?? 0) + 1;
-    await db.update(liveSessions).set({ state: s }).where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, user.id)));
+    // Reconnects of a dropped session are free, a few times; past that it would be an endless free test. One conditional update, so parallel starts cannot pass the cap.
+    const opened = sql`coalesce((${liveSessions.state}->>'livekitRooms')::int, 0)`;
+    const bumped = await db.update(liveSessions).set({ state: sql`jsonb_set(${liveSessions.state}, '{livekitRooms}', to_jsonb(${opened} + 1))` })
+      .where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, user.id), owner ? undefined : sql`${opened} < ${LIVEKIT_ROOMS}`)).returning({ id: liveSessions.id });
+    if (!bumped.length) return c.json({ error: 'This session has reconnected too many times. Start a new test.' }, 429);
     const roomName = `ielts-${crypto.randomUUID()}`, participantIdentity = `candidate-${crypto.randomUUID()}`;
     const payload = Buffer.from(JSON.stringify({ sessionId: b.sessionId, userId: user.id, roomName, expiresAt: Date.now() + 86_400_000 })).toString('base64url');
     const reportToken = `${payload}.${signature(payload)}`;
@@ -125,6 +126,7 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
         sessionId: b.sessionId, userId: user.id, participantIdentity,
         prompt: cascadeMessages(s.test, [])[0]!.content, cuePrefix: CUE_PREFIX,
         reportUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/api/live/livekit/usage`, reportToken, cfg,
+        cues: owner ? null : duplexCueTexts(), // the worker refuses other cue text: its LLM runs on the server's key
       }) });
       return c.json({ url: env.LIVEKIT_URL, token: jwt, roomName, participantIdentity }, 200);
     } catch {

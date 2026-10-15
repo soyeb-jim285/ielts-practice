@@ -270,6 +270,8 @@ class Runtime:
                 # Handoff cancels the old activity's generation, not the candidate's owed reply.
                 await self.session.generate_reply()
         elif d["type"] == "cue":
+            if self.d.cues is not None and d["text"] not in self.d.cues:
+                return
             await self.session.interrupt(force=True)
             await self.commit_audio()
             await self.session.generate_reply(user_input=self.d.cuePrefix + d["text"])

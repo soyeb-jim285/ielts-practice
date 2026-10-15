@@ -160,7 +160,7 @@ it('opens to everyone on the server keys: one test a day, free reconnects up to 
   };
   const sessionId = await start();
   expect(typeof sessionId).toBe('string');
-  const lk = (body: object) => req('/api/live/livekit/start', { headers: u.headers, body: { sessionId, ...body } }).then((r) => r.status);
+  const lk = async (body: object) => (await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId, ...body } })).status;
   expect(await lk({ cfg: { temperature: 1 } })).toBe(403);
   expect(await lk({})).toBe(200);
   expect(await lk({})).toBe(200); // reconnect: same paid test
@@ -172,4 +172,16 @@ it('opens to everyone on the server keys: one test a day, free reconnects up to 
   const community = await testUser(undefined, { key: false });
   const res = await req('/api/live/start', { headers: community.headers, body: { skipTts: true } });
   expect(res.status).toBe(200); // the LiveKit examiner needs no key of their own
+});
+
+it('caps reconnects even when starts race, and sends the worker the only cue texts it may accept', async () => {
+  const s = await session(), u = await testUser();
+  const res = await req('/api/live/start', { headers: u.headers, body: { skipTts: true } });
+  const { sessionId } = (await res.json()) as { sessionId: string };
+  const codes = await Promise.all(Array.from({ length: 6 }, async () => (await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId } })).status));
+  expect(codes.filter((c) => c === 200)).toHaveLength(3);
+  const meta = JSON.parse(sdk.createDispatch.mock.calls[0]![2].metadata);
+  expect(meta.cues).toContain('The test is over. Say the closing line now and nothing more.');
+  await req('/api/live/livekit/start', { headers: s.headers, body: { sessionId: s.sessionId } });
+  expect(JSON.parse(sdk.createDispatch.mock.calls.at(-1)![2].metadata).cues).toBeNull(); // owner playground: free cues
 });

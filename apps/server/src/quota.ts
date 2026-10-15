@@ -216,6 +216,7 @@ export const withPayer = createMiddleware<AppEnv>(async (c, next) => {
  *  ('duplex' = either of the last two, for starting a session before the client picks). The owner may use the server's keys. */
 export function requireLive(p: Payer, provider: LiveProvider | 'duplex') {
   const have = liveProviders(p);
+  // 'duplex' passes with LiveKit alone: that only creates the session; every engine route checks its own provider (LiveKit: reserve + room cap).
   if (provider === 'duplex' ? have.some((x) => x !== 'turn') : have.includes(provider)) return;
   const need = provider === 'livekit' ? 'the server examiner, which is not configured' : provider === 'turn' ? 'your own OpenRouter key' : provider === 'gpt-live' || provider === 'realtime-mini' ? 'your own OpenAI key' : provider === 'gemini-live' ? 'your own Gemini key' : 'your own OpenAI or Gemini key';
   throw new ApiError(403, {

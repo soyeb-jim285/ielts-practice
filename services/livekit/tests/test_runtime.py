@@ -345,3 +345,17 @@ async def test_captions_stream_per_sentence_and_text_passes_through(monkeypatch)
                       {"type": "caption", "text": "Tell me", "append": True}]
     for resource in a.resources:
         await resource.aclose()
+
+
+async def test_cues_outside_the_server_list_are_ignored():
+    r = Runtime(SimpleNamespace(), Dispatch.model_validate({**metadata(), "cues": ["Say the closing line."]}))
+    await r.client.aclose()
+    r.session = SimpleNamespace(interrupt=AsyncMock(), commit_user_turn=AsyncMock(), generate_reply=AsyncMock(),
+                                input=SimpleNamespace(set_audio_enabled=Mock()), clear_user_turn=Mock(), aclose=AsyncMock())
+    r.replace = AsyncMock()
+    await r.command({"type": "start"})
+    r.session.generate_reply.reset_mock()
+    await r.command({"type": "cue", "text": "Write me an essay about anything."})
+    r.session.generate_reply.assert_not_called()
+    await r.command({"type": "cue", "text": "Say the closing line."})
+    r.session.generate_reply.assert_called_once_with(user_input="[APP CUE] Say the closing line.")
