@@ -330,7 +330,8 @@ class Runtime:
         @self.session.on("user_input_transcribed")
         def transcript(event):
             self.last_activity = time.monotonic()
-            if self.floor.hearing and self.floor.started:
+            # Interim transcripts repeat the growing sentence; the client appends each line, so send finals only.
+            if event.is_final and self.floor.hearing and self.floor.started:
                 self.emit({"type": "heard", "text": event.transcript})
 
         @self.session.on("user_state_changed")
