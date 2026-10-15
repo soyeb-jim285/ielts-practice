@@ -37,7 +37,7 @@ it('ignores spoofed participants and topics and maps whole captions without dupl
   event({ type: 'caption', text: 'Hello' }); event({ type: 'heard', text: 'Answer' }); event({ type: 'pending', on: true }); event({ type: 'answered' }); event({ type: 'speaking', on: true }); event({ type: 'cost', usd: 0.03 });
   expect(h.caption.mock.calls).toEqual([['', false], ['Hello', true]]);
   expect(h.heard).toHaveBeenCalledWith('Answer'); expect(h.pending).toHaveBeenCalledWith(true); expect(h.answered).toHaveBeenCalledOnce();
-  expect(d.stats.costUsd).toBe(0.03); expect(d.stats.timeline[0]!.label).toContain('server event'); d.close();
+  expect(d.stats.costUsd).toBe(0.03); expect(d.stats.timeline[0]!.label).toContain('LiveKit'); d.close();
 });
 it('cleans up on mic failure and unexpected disconnect', async () => {
   mock.mic.mockRejectedValueOnce(new Error('blocked'));
@@ -75,5 +75,19 @@ it('survives iOS refusing audio playback outside a tap (mic first, unlock on nex
   await d.connect(h, 's');
   expect(h.lost).not.toHaveBeenCalled();
   expect(d.stats.steps.map((s) => s.key)).toEqual(['load', 'token', 'connect', 'mic', 'audio', 'ready']);
+  d.close();
+});
+
+it('streams sentence captions onto one line and fills the reply timeline from worker timings', async () => {
+  const h = handlers(), d = new LiveKitDuplex(DEFAULT_LIVEKIT); await d.connect(h, 's');
+  event({ type: 'caption', text: 'Thank you.' }); event({ type: 'caption', text: 'Where are you from?', append: true });
+  expect(h.caption.mock.calls).toEqual([['', false], ['Thank you.', true], [' Where are you from?', true]]);
+  event({ type: 'answered', eot: 0.9, stt: 0.3 }); event({ type: 'speaking', on: true });
+  const t = d.stats.timeline[0]!;
+  expect(t.stt).toBeCloseTo(300); expect(t.wait).toBeCloseTo(600);
+  expect(t.total).toBeGreaterThanOrEqual(900); expect(d.replyMs).toBe(t.total);
+  event({ type: 'turn', llm: 0.4, tts: 0.2 });
+  expect(t.llm).toBeCloseTo(400); expect(t.tts).toBeCloseTo(200);
+  expect(t.net).toBeCloseTo(Math.max(0, t.total - 1500));
   d.close();
 });

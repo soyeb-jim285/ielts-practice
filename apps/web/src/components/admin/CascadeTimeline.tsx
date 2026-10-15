@@ -16,13 +16,6 @@ const s = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 export function CascadeTimeline({ timeline }: { timeline: ReplyTiming[] }) {
   if (!timeline.length) return null;
-  if (timeline.every((t) => t.label.startsWith('LiveKit'))) return (
-    <Card>
-      <h2 className="type-h4">Server Event Latency</h2>
-      <p className="type-caption mt-1">LiveKit worker answered-to-speaking events as received by this browser. Not measured from your last sound or browser first audio. Speaking state is reported by the worker, not audio playout.</p>
-      <ol className="mt-3 space-y-2" aria-label="Replies, newest first">{[...timeline].reverse().map((t, i) => <li key={`${t.at}-${i}`}><span className="type-num font-medium">{s(t.total)}</span><p className="type-caption">{t.text}</p></li>)}</ol>
-    </Card>
-  );
   const avg = Object.fromEntries(STAGES.map((x) => [x.key, timeline.reduce((n, t) => n + t[x.key], 0) / timeline.length])) as Record<Key, number>;
   const total = STAGES.reduce((n, x) => n + avg[x.key], 0);
   const worst = STAGES.reduce((a, b) => (avg[b.key] > avg[a.key] ? b : a));

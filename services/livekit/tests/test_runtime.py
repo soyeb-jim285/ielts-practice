@@ -314,3 +314,34 @@ async def test_alternate_tts_requires_operator_price(monkeypatch, provider):
     monkeypatch.setenv(key, "nan")
     with pytest.raises(ValueError):
         await pricing(client, c)
+
+
+def test_meter_bills_cached_prompt_tokens_at_cache_read_rate():
+    d = Dispatch.model_validate(metadata())
+    m = Meter()
+    metric = metrics.LLMMetrics(label="llm", request_id="q", timestamp=1, duration=1, ttft=0.3, cancelled=False,
+                                completion_tokens=10, prompt_tokens=1000, prompt_cached_tokens=800,
+                                total_tokens=1010, tokens_per_second=10)
+    entry = m.record(metric, d.config(1), {"input": 1e-6, "cached": 0.25e-6, "output": 2e-6, "source": "test"})
+    assert entry["costUsd"] == pytest.approx(200e-6 + 800 * 0.25e-6 + 20e-6)
+
+
+async def test_captions_stream_per_sentence_and_text_passes_through(monkeypatch):
+    for key in ["SONIOX_API_KEY", "OPENROUTER_API_KEY"]:
+        monkeypatch.setenv(key, "test-not-a-real-key")
+    from contract import Floor
+    d = Dispatch.model_validate(metadata())
+    events = []
+    a = Examiner(d, d.config(1), Floor(), Meter(), {}, events.append)
+
+    async def deltas():
+        for t in ["Thank you. ", "Where are", " you from?", " Tell me"]:
+            yield t
+
+    out = [x async for x in a.transcription_node(deltas(), None)]
+    assert "".join(out) == "Thank you. Where are you from? Tell me"
+    assert events == [{"type": "caption", "text": "Thank you.", "append": False},
+                      {"type": "caption", "text": "Where are you from?", "append": True},
+                      {"type": "caption", "text": "Tell me", "append": True}]
+    for resource in a.resources:
+        await resource.aclose()

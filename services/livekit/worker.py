@@ -65,7 +65,10 @@ class Meter:
         elif isinstance(m, metrics.LLMMetrics):
             provider, model, stage = "openrouter", cfg.llm, "examiner_llm"
             quantity = dict(inputTokens=m.prompt_tokens, outputTokens=m.completion_tokens)
-            cost = m.prompt_tokens * prices["input"] + m.completion_tokens * prices["output"]
+            # OpenRouter bills cached prompt tokens at the cheaper cache-read rate (DeepSeek: ~1/4 of input).
+            cached = min(m.prompt_cached_tokens or 0, m.prompt_tokens)
+            cost = ((m.prompt_tokens - cached) * prices["input"] + cached * prices.get("cached", prices["input"])
+                    + m.completion_tokens * prices["output"])
         else:
             return None
         entry = dict(stage=stage, provider=provider, model=model, costUsd=cost, **quantity,
@@ -85,6 +88,7 @@ async def pricing(client, c):
         raise ValueError("configured LLM absent from OpenRouter catalogue")
     p = model["pricing"]
     result = {"input": float(p["prompt"]), "output": float(p["completion"]),
+              "cached": float(p.get("input_cache_read") or p["prompt"]),
               "stt": {"soniox": 0.12 / 3600, "elevenlabs": 0.39 / 3600}[c.stt],
               "source": "OpenRouter live catalogue; provider published estimate or operator rate"}
     if c.tts == "soniox":
@@ -92,9 +96,17 @@ async def pricing(client, c):
     else:
         # Operator must supply the actual plan's USD/M characters, not an invented free rate.
         result["tts"] = float(os.environ[f"{c.tts.upper()}_USD_PER_M_CHARS"]) / 1e6
-    if any(not math.isfinite(result[k]) or result[k] < 0 for k in ("input", "output", "stt", "tts")):
+    if any(not math.isfinite(result[k]) or result[k] < 0 for k in ("input", "output", "cached", "stt", "tts")):
         raise ValueError("invalid pricing")
     return result
+
+
+def _sentence_end(text):
+    """Index just past the first sentence end ('.', '?' or '!' followed by a space), or None."""
+    for i, ch in enumerate(text[:-1]):
+        if ch in ".?!" and text[i + 1] == " ":
+            return i + 1
+    return None
 
 
 class Examiner(Agent):
@@ -130,18 +142,29 @@ class Examiner(Agent):
                              "preemptive_generation": {"enabled": c.preemptiveGeneration and floor.replies and floor.started},
                          })
         self.entered = asyncio.Event()
+        self._emit = emit
         self.resources = [stt, tts, llm]
         for resource in self.resources:
             @resource.on("metrics_collected")
             def collected(m, cfg=c, rates=prices):
                 entry = meter.record(m, cfg, rates)
                 if entry:
-                    emit({"type": "metrics", "stage": entry["stage"], "provider": entry["provider"],
-                          "model": entry["model"], "estimated": True})
                     emit({"type": "cost", "usd": meter.total})
 
     async def on_enter(self):
         self.entered.set()
+
+    async def transcription_node(self, text, model_settings):
+        """Caption each sentence as the LLM writes it (the chat item only arrives after the line was spoken)."""
+        buf, first = "", True
+        async for delta in Agent.default.transcription_node(self, text, model_settings):
+            buf += str(delta)
+            while (cut := _sentence_end(buf)) is not None:
+                self._emit({"type": "caption", "text": buf[:cut].strip(), "append": not first})
+                buf, first = buf[cut:], False
+            yield delta
+        if buf.strip():
+            self._emit({"type": "caption", "text": buf.strip(), "append": not first})
 
 
 class Runtime:
@@ -327,10 +350,13 @@ class Runtime:
                     and not event.item.text_content.startswith(self.d.cuePrefix)
                     and self.floor.started and self.floor.replies and not self.committing_audio):
                 self.answer_pending = True
-                self.emit({"type": "answered"})
-            if event.item.role == "assistant" and event.item.text_content:
-                # Browser replaces captions: send the complete assistant message, never token deltas.
-                self.emit({"type": "caption", "text": event.item.text_content})
+                m = getattr(event.item, "metrics", None) or {}
+                # Per-turn timing for the playground timeline (seconds from the end of the candidate's speech).
+                self.emit({"type": "answered", "eot": m.get("end_of_turn_delay"), "stt": m.get("transcription_delay")})
+            if event.item.role == "assistant":
+                m = getattr(event.item, "metrics", None) or {}
+                # Captions are streamed by transcription_node; this only reports the reply's stage timings.
+                self.emit({"type": "turn", "llm": m.get("llm_node_ttft"), "tts": m.get("tts_node_ttfb")})
 
         @self.session.on("error")
         def error(event):

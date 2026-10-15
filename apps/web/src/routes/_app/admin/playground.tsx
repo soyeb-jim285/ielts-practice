@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { DEFAULT_LIVEKIT, type LiveKitConfig } from '@ielts/core';
 import { LiveKitSettings } from '@/components/admin/LiveKitSettings';
-import { LIVEKIT_KEY, LiveKitDuplex, loadLiveKitConfig } from '@/live/livekit';
+import { LIVEKIT_KEY, LiveKitDuplex, liveKitLabel, loadLiveKitConfig } from '@/live/livekit';
 import { Mic, Play, Plus, Square, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -483,7 +483,7 @@ function ExaminerLab() {
         {engine === 'livekit' && <LiveKitSettings cfg={lk} set={setL} disabled={run > 0} />}
         <p className="type-caption mt-4">The full examiner script and timers, as in a real live test, but nothing is recorded or scored. Use headphones: Gemini and the cascade cannot be interrupted while they speak. Stopped sessions stay below for comparison.</p>
       </Card>
-      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} pc={pc} lk={lk} label={engine === 'livekit' ? `LiveKit · ${lk.sttModel} · ${lk.llm} · ${lk.tts}/${lk.ttsModel} · stored part overrides` : engineLabel(engine, cfg, pc)} onEnd={keep} />}
+      {run > 0 && <ExaminerRun key={run} id={run} engine={engine} cfg={cfg} pc={pc} lk={lk} label={engine === 'livekit' ? liveKitLabel(lk) : engineLabel(engine, cfg, pc)} onEnd={keep} />}
       {past.length > 0 && (
         <section aria-label="Past sessions" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -520,7 +520,7 @@ function PastRun({ run }: { run: RunSnapshot }) {
       <summary className="cursor-pointer p-4">
         <span className="font-medium">{run.label}</span>
         <span className="type-caption block">
-          {new Date(run.id).toLocaleString()} · {Math.round(run.secs / 60)} min · {money(run.costUsd)} est.{run.median != null && ` · median reply ${(run.median / 1000).toFixed(1)} s`}{avg != null && ` · avg ${run.engine === 'livekit' ? 'server event latency' : 'to voice'} ${(avg / 1000).toFixed(1)} s`}
+          {new Date(run.id).toLocaleString()} · {Math.round(run.secs / 60)} min · {money(run.costUsd)} est.{run.median != null && ` · median reply ${(run.median / 1000).toFixed(1)} s`}{avg != null && ` · avg to voice ${(avg / 1000).toFixed(1)} s`}
         </span>
       </summary>
       <div className="grid gap-6 p-4 pt-0 lg:grid-cols-2">
@@ -555,7 +555,12 @@ function ExaminerRun({ id, engine, cfg, pc, lk, label, onEnd }: { id: number; en
     speaking: (on) => {
       const v = voice.current;
       v.examinerOn = on;
-      if (on) pendingLatency.current = engine !== 'livekit' && v.last > v.examinerEnd ? Date.now() - v.last : undefined;
+      if (on) {
+        // LiveKit measures last sound → voice on its own published mic track (a second capture can mute it on iOS)
+        const lkd = duplex.current instanceof LiveKitDuplex ? duplex.current : undefined;
+        pendingLatency.current = lkd ? lkd.replyMs : v.last > v.examinerEnd ? Date.now() - v.last : undefined;
+        if (lkd) lkd.replyMs = undefined;
+      }
       else v.examinerEnd = Date.now();
     },
     caption: (text, append) => {
@@ -616,7 +621,6 @@ function ExaminerRun({ id, engine, cfg, pc, lk, label, onEnd }: { id: number; en
         {!lines.length && (d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex ? <CascadeSteps steps={d.stats.steps} /> : <p className="text-sm text-muted">Connecting… the examiner opens the test.</p>)}
       </Card>
        {(d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex) && <CascadeTimeline timeline={d.stats.timeline} />}
-       {d instanceof LiveKitDuplex && d.stats.metrics != null && <Card><details><summary className="cursor-pointer text-sm">LiveKit Worker Metrics</summary><pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(d.stats.metrics, null, 2)}</pre></details></Card>}
        {(d instanceof CascadeDuplex || d instanceof PipecatDuplex || d instanceof LiveKitDuplex) && lines.length > 0 && (
         <Card>
           <h2 className="type-h4 mb-2">Start-up</h2>
@@ -635,6 +639,7 @@ function ExaminerRun({ id, engine, cfg, pc, lk, label, onEnd }: { id: number; en
               ['Per minute', secs > 30 ? `${money((cost / secs) * 60)}` : '—'],
               ['Median reply', median != null ? `${(median / 1000).toFixed(1)} s` : '—'],
               ...(d instanceof CascadeDuplex && d.stats.last ? [['Last LLM / voice', `${(d.stats.last.llm / 1000).toFixed(1)} / ${(d.stats.last.tts / 1000).toFixed(1)} s`]] : []),
+              ...(d instanceof LiveKitDuplex ? [['Turn model', `${lk.turnDetection === 'audio' ? 'LiveKit v1-mini (server)' : 'VAD only (server)'}${d.stats.lastEot ? ` · ended ${Math.round(d.stats.lastEot)} ms after speech` : ''}`]] : []),
               ...(d instanceof PipecatDuplex && d.stats.lastCheck ? [['Turn model', `Smart Turn (server) · p ${d.stats.lastCheck.p.toFixed(2)} in ${Math.round(d.stats.lastCheck.ms)} ms`]] : []),
               ...(d instanceof CascadeDuplex && d.stats.turnModel !== 'off' ? [['Turn model', `${d.stats.turnModel}${d.stats.lastCheck ? ` · p ${d.stats.lastCheck.p.toFixed(2)} in ${Math.round(d.stats.lastCheck.ms)} ms` : ''}`]] : []),
             ].map(([k, v]) => (

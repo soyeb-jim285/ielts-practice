@@ -29,9 +29,17 @@ export function loadLiveKitConfig(): LiveKitConfig {
   } catch { return { ...DEFAULT_LIVEKIT }; }
 }
 
-/** Speaking is the worker's state, not a measurement of browser audio playout. */
+const VOICE_RMS = 0.02; // the cascade's speech loudness, for "your last sound" on this device
+const ms = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v * 1000 : 0);
+
+/** The label used for this engine in the playground (run header, past sessions, timeline). */
+export const liveKitLabel = (c: LiveKitConfig) =>
+  ['LiveKit', c.sttModel, c.turnDetection === 'audio' ? `v1-mini ${c.minEndpointDelay}–${c.maxEndpointDelay} s` : `VAD ${c.vadSilence} s`, c.llm.replace(/^.*\//, ''), c.ttsModel, c.voice, c.parts && Object.keys(c.parts).length ? 'part overrides' : '']
+    .filter(Boolean).join(' · ');
+
+/** Speaking is the worker's state (its audio starts going out), as Pipecat's bot-started-speaking. */
 export class LiveKitDuplex implements Duplex {
-  readonly stats = { steps: [] as StartupStep[], costUsd: 0, timeline: [] as ReplyTiming[], metrics: undefined as unknown };
+  readonly stats = { steps: [] as StartupStep[], costUsd: 0, timeline: [] as ReplyTiming[], lastEot: undefined as number | undefined };
   private room?: Room;
   private h?: Handlers;
   private closed = false;
@@ -40,8 +48,14 @@ export class LiveKitDuplex implements Duplex {
   private audio = new Set<HTMLMediaElement>();
   private commands: Promise<void> = Promise.resolve();
   private rejectReady?: (error: Error) => void;
-  private answeredAt?: number;
   private heard = '';
+  private ctx?: AudioContext;
+  private poll?: ReturnType<typeof setInterval>;
+  private lastVoice = 0; // performance.now() of the candidate's last loud mic block
+  private answer?: { at: number; voiceAt: number; eot: number; stt: number }; // the finished answer awaiting the examiner's voice
+  private reply?: ReplyTiming; // the latest reply, until the worker reports its LLM/TTS timings
+  /** Last sound → examiner voice of the latest reply, read once by the playground for the conversation line. */
+  replyMs?: number;
   private part: 1 | 2 | 3 = 1;
   constructor(private cfg: LiveKitConfig) {}
 
@@ -70,20 +84,30 @@ export class LiveKitDuplex implements Duplex {
         try { e = JSON.parse(new TextDecoder().decode(data)); if (!e || typeof e !== 'object') return; } catch { return; }
         switch (e.type) {
           case 'ready': resolveReady(); break;
-          case 'caption': if (typeof e.text === 'string') { h.caption('', false); h.caption(e.text, true); } break;
+          case 'caption':
+            if (typeof e.text !== 'string' || !e.text) break;
+            if (!e.append) h.caption('', false); // a new examiner line
+            h.caption(e.append ? ` ${e.text}` : e.text, true);
+            break;
           case 'heard': if (typeof e.text === 'string') { this.heard = e.text; h.heard?.(e.text); } break;
           case 'pending': if (typeof e.on === 'boolean') h.pending?.(e.on); break;
-          case 'answered': this.answeredAt = performance.now(); h.answered(); break;
+          case 'answered':
+            this.answer = { at: performance.now(), voiceAt: this.lastVoice, eot: ms(e.eot), stt: ms(e.stt) };
+            this.stats.lastEot = this.answer.eot || undefined;
+            h.answered(); break;
           case 'speaking':
             if (typeof e.on !== 'boolean') break;
-            if (e.on && this.answeredAt !== undefined) {
-              const total = Math.max(0, performance.now() - this.answeredAt);
-              this.stats.timeline.push({ at: Date.now(), wait: 0, turnModel: 0, stt: 0, llm: 0, tts: 0, net: total, decode: 0, total, text: this.heard, checks: [], label: 'LiveKit server event latency (answered to speaking; not browser first audio)' });
-              this.answeredAt = undefined;
-            }
+            if (e.on && this.answer) this.record();
             h.speaking(e.on); break;
+          case 'turn': {
+            const t = this.reply;
+            if (!t) break;
+            t.llm = ms(e.llm); t.tts = ms(e.tts);
+            t.net = Math.max(0, t.total - t.wait - t.stt - t.llm - t.tts);
+            this.reply = undefined;
+            break;
+          }
           case 'cost': if (typeof e.usd === 'number' && Number.isFinite(e.usd) && e.usd >= 0) this.stats.costUsd = e.usd; break;
-          case 'metrics': this.stats.metrics = e; break;
           case 'error': {
             const error = new Error(typeof e.message === 'string' ? e.message : 'LiveKit worker failed.');
             this.failure = error;
@@ -105,7 +129,10 @@ export class LiveKitDuplex implements Duplex {
       await this.step('connect', 'Connect to LiveKit room', () => room.connect(result.url, result.token));
       // Mic first: with capture active, iOS Safari allows the examiner's audio to play. The tap's gesture has expired by
       // now, so startAudio() may be refused there; that is not fatal (playOnTap unlocks it on the next tap).
-      await this.step('mic', 'Publish microphone', () => room.localParticipant.setMicrophoneEnabled(true));
+      await this.step('mic', 'Publish microphone', async () => {
+        const pub = await room.localParticipant.setMicrophoneEnabled(true);
+        if (pub?.track?.mediaStreamTrack) this.watchMic(pub.track.mediaStreamTrack);
+      });
       await this.step('audio', 'Enable browser audio playback', () => room.startAudio().catch(() => this.playOnTap()));
       await this.step('ready', 'Start examiner and await worker ready', async () => {
         timer = setTimeout(() => this.rejectReady?.(new Error('LiveKit examiner readiness timed out.')), 30_000);
@@ -132,6 +159,33 @@ export class LiveKitDuplex implements Duplex {
   }
   cue(text: string, _heard?: boolean, key?: CueKey) { void this.send({ type: 'cue', text, key }); }
   listen(on: boolean, fresh = false) { void this.send({ type: 'listen', on, fresh }); }
+  /** "Your last sound" for the reply timeline, from the published mic track (no second capture). */
+  private watchMic(track: MediaStreamTrack) {
+    try {
+      const ctx = (this.ctx = new AudioContext()), an = ctx.createAnalyser(), buf = new Float32Array(512);
+      an.fftSize = 512;
+      ctx.createMediaStreamSource(new MediaStream([track])).connect(an);
+      this.poll = setInterval(() => {
+        an.getFloatTimeDomainData(buf);
+        let s = 0;
+        for (const v of buf) s += v * v;
+        if (Math.sqrt(s / buf.length) > VOICE_RMS) this.lastVoice = performance.now();
+      }, 20);
+    } catch {} // timing only: never fail the session over it
+  }
+
+  /** One answered turn: last sound → turn ended (worker: end of turn, transcript) → LLM → voice. LLM/TTS arrive with the worker's 'turn' event. */
+  private record() {
+    const a = this.answer!;
+    this.answer = undefined;
+    const now = performance.now(), last = a.voiceAt && a.voiceAt <= a.at ? a.voiceAt : a.at - a.eot;
+    const total = Math.max(0, now - last), stt = a.stt, wait = Math.max(0, a.eot - a.stt);
+    const t: ReplyTiming = { at: Date.now(), wait, turnModel: 0, stt, llm: 0, tts: 0, net: Math.max(0, total - wait - stt), decode: 0, total, text: this.heard, checks: [], label: liveKitLabel(this.cfg) };
+    this.stats.timeline.push(t);
+    this.reply = t;
+    this.replyMs = total;
+  }
+
   private tapArmed = false;
   /** Playback the browser refused (no user gesture): unlock it on the next tap anywhere on the page. */
   private playOnTap() {
@@ -147,6 +201,8 @@ export class LiveKitDuplex implements Duplex {
   close() {
     if (this.closed) return;
     this.closed = true;
+    clearInterval(this.poll);
+    void this.ctx?.close().catch(() => {});
     this.rejectReady?.(new Error('LiveKit connection closed.'));
     for (const p of this.room?.localParticipant.trackPublications.values() ?? []) p.track?.stop();
     for (const track of this.tracks) track.detach();
