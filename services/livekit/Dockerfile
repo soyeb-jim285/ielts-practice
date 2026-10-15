@@ -1,5 +1,6 @@
 # Build this image in CI, not on the development laptop.
-FROM ghcr.io/astral-sh/uv:0.12.24-python3.13-bookworm-slim
+FROM python:3.13-slim
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy OTEL_SDK_DISABLED=true \
     PYTHONUNBUFFERED=1
 WORKDIR /app
