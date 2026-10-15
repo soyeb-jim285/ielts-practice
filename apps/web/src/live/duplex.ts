@@ -103,6 +103,7 @@ export function useDuplexExaminer(
     // After a cue, wait for the examiner to finish that line: 'cued' → 'speaking' → run `after`.
     wait: null as null | 'cued' | 'speaking',
     after: () => {},
+    onStart: undefined as (() => void) | undefined,
     timer: undefined as ReturnType<typeof setTimeout> | undefined,
     waitTimer: undefined as ReturnType<typeof setTimeout> | undefined,
     responseTimer: undefined as ReturnType<typeof setTimeout> | undefined,
@@ -134,7 +135,8 @@ export function useDuplexExaminer(
     setStatus(c.phase === 'p2-prep' ? 'waiting' : 'candidate');
     c.after();
   };
-  const cue = (key: CueKey, text: string, after?: () => void, heard = false) => {
+  /** `onStart`: runs when the examiner starts saying the cued line (the page changes with the voice, not before it). */
+  const cue = (key: CueKey, text: string, after?: () => void, heard = false, onStart?: () => void) => {
     const c = r.current;
     clearTimeout(c.waitTimer);
     clearTimeout(c.responseTimer);
@@ -145,6 +147,7 @@ export function useDuplexExaminer(
     if (!c.x || c.ended) return;
     c.wait = after ? 'cued' : null;
     c.after = after ?? (() => {});
+    c.onStart = onStart;
     setStatus('thinking');
     if (after) c.waitTimer = setTimeout(runAfter, CUE_TIMEOUT_MS);
     else watchResponse();
@@ -223,6 +226,7 @@ export function useDuplexExaminer(
 
   /** As in the real test, the card comes once the examiner has given the Part 2 instructions, and the minute starts with it. */
   function showCard() {
+    setPhase('p2-prep'); // already shown when the instructions started; a cue that never got a voice still lands here
     setCueCard(r.current.cueCard);
     prep.start();
   }
@@ -247,7 +251,7 @@ export function useDuplexExaminer(
     const c = r.current;
     if (c.ended || c.phase === next) return;
     c.phase = next;
-    setPhase(next);
+    if (next !== 'p2-prep') setPhase(next); // Part 2 shows once the examiner starts its instructions (go's p2-prep cue)
     clearTimeout(c.timer);
     try {
       const part = next === 'p1' ? 1 : next === 'p2-prep' ? 2 : next === 'p3' ? 3 : undefined;
@@ -262,7 +266,7 @@ export function useDuplexExaminer(
           c.x?.listen(false);
           await parts.stop();
           if (c.ended) return;
-          cue('part2', CUE_TEXT.part2, showCard);
+          cue('part2', CUE_TEXT.part2, showCard, false, () => setPhase('p2-prep'));
           break;
         case 'p2-talk':
           prep.stop();
@@ -307,7 +311,11 @@ export function useDuplexExaminer(
         c.spokeSinceNudge = true;
         c.talking = false;
         clearTimeout(c.responseTimer);
-        if (c.wait === 'cued') c.wait = 'speaking';
+        if (c.wait === 'cued') {
+          c.wait = 'speaking';
+          c.onStart?.();
+          c.onStart = undefined;
+        }
         setStatus('examiner');
       } else {
         setStatus(c.phase === 'p2-prep' ? 'waiting' : 'candidate');

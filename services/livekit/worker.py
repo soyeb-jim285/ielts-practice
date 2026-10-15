@@ -266,8 +266,9 @@ class Runtime:
             pending = self.answer_pending
             self.part = d["part"]
             await self.replace()
-            if pending and self.floor.replies:
-                # Handoff cancels the old activity's generation, not the candidate's owed reply.
+            # Handoff cancels the old activity's generation, not the candidate's owed reply. Not into Part 2: Part 1 is over, and the
+            # Part 2 cue follows at once (an owed reply there was the next Part 1 question, spoken before the Part 2 instructions).
+            if pending and self.floor.replies and self.part != 2:
                 await self.session.generate_reply()
         elif d["type"] == "cue":
             if self.d.cues is not None and d["text"] not in self.d.cues:

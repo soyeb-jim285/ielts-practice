@@ -139,6 +139,15 @@ async def test_part_handoff_resumes_an_owed_reply_without_adding_another_user_tu
     r.session.generate_reply.assert_awaited_once_with()
 
 
+async def test_moving_into_part_2_drops_the_owed_part_1_reply():
+    # The Part 2 cue follows at once; the owed reply was the next Part 1 question, spoken before the Part 2 instructions.
+    r = await runtime()
+    r.floor.started = True
+    r.answer_pending = True
+    await r.command({"type": "configure", "part": 2})
+    r.session.generate_reply.assert_not_called()
+
+
 async def test_explicit_cue_waits_for_playout_before_next_control():
     r = await runtime()
     r.floor.started = True

@@ -347,6 +347,11 @@ export async function analyzeSpeaking(i: {
   const { models } = i.settings;
   const t0 = Date.now();
   i.onStage?.('transcribing');
+  // The phoneme model listens to the recording itself (its own windows and transcript), so it starts with transcription: its cold start overlaps it.
+  // A failure only loses the Pronunciation tab and the curve's pronunciation term (neutral).
+  const pron = env.MODAL_KEY && env.MODAL_SECRET
+    ? assessPronunciation({ audio: i.audio, format: i.format, stage: 'pronunciation' }).then(pronunciationSummary, (e: Error) => void console.warn('pronunciation model failed:', e.message))
+    : Promise.resolve(undefined);
   const stt = await transcribe({ model: models.stt, audio: i.audio, format: i.format, verbatim: true });
   const sttMs = Date.now() - t0;
   i.onStage?.('analyzing');
@@ -360,10 +365,6 @@ export async function analyzeSpeaking(i: {
     words, questions, noSpeech: true, sttModel: stt.model,
   });
   if (isNoSpeech(words)) return noSpeech();
-  // The phoneme model listens to the recording itself (its own windows and transcript); a failure only loses the Pronunciation tab.
-  const pron = env.MODAL_KEY && env.MODAL_SECRET
-    ? assessPronunciation({ audio: i.audio, format: i.format, stage: 'pronunciation' }).then(pronunciationSummary, (e: Error) => void console.warn('pronunciation model failed:', e.message))
-    : Promise.resolve(undefined);
 
   const durationS = (i.durationMs > 0 ? i.durationMs / 1000 : stt.duration) - transitions.reduce((s, [a, b]) => s + (b - a), 0); // gaps between answers are not speaking time
   const metrics = computeSpeechMetrics(words, { durationS, energy: i.energy ?? undefined, frameMs, transitions });

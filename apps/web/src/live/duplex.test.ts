@@ -120,8 +120,12 @@ it('Part 2 gets a full prep minute and two-minute talk after the cue lines finis
   const { result, h, unmount } = await setup();
   act(() => toPart1(h)); // the examiner's Part 1 lead: Part 1
   await act(async () => vi.advanceTimersByTime(270_000));
+  expect(result.current.phase).toBe('p1'); // the page moves with the examiner's voice, not the timer
+  act(() => h.speaking(true)); // the Part 2 instructions start
   expect(result.current.phase).toBe('p2-prep');
-  act(() => { h.speaking(true); vi.advanceTimersByTime(10_000); h.speaking(false); });
+  expect(result.current.cueCard).toBeUndefined();
+  act(() => { vi.advanceTimersByTime(10_000); h.speaking(false); });
+  expect(result.current.cueCard).toBeDefined();
   expect(result.current.prepLeft).toBe(60);
   await act(async () => vi.advanceTimersByTime(60_000));
   expect(result.current.phase).toBe('p2-talk');
@@ -197,6 +201,7 @@ it('record: false (playground) runs the script without recording parts, and debu
   act(() => toPart1(h));
   expect(result.current.phase).toBe('p1');
   await act(async () => vi.advanceTimersByTime(270_000));
+  act(() => h.speaking(true));
   expect(result.current.phase).toBe('p2-prep');
   expect(rec.start).not.toHaveBeenCalled();
   expect(rec.stop).not.toHaveBeenCalled();
