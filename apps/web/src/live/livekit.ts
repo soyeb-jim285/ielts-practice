@@ -2,7 +2,8 @@ import { DEFAULT_LIVEKIT, LIVEKIT_TTS_MODELS, type LiveKitConfig, type LiveKitPa
 import type { RemoteTrack, Room } from 'livekit-client';
 import { api } from '@/lib/api';
 import type { ReplyTiming, StartupStep } from './cascade';
-import type { CueKey, Duplex, Handlers } from './duplex';
+import { useDuplexExaminer, type CueKey, type Duplex, type Handlers } from './duplex';
+import type { LiveExaminer, LiveSource } from './turn';
 
 export const LIVEKIT_KEY = 'admin-livekit-config';
 export function loadLiveKitConfig(): LiveKitConfig {
@@ -57,7 +58,8 @@ export class LiveKitDuplex implements Duplex {
   /** Last sound → examiner voice of the latest reply, read once by the playground for the conversation line. */
   replyMs?: number;
   private part: 1 | 2 | 3 = 1;
-  constructor(private cfg: LiveKitConfig) {}
+  /** `cfg`: the owner's playground settings; without it the server's default examiner runs (the only one other users may start). */
+  constructor(private cfg?: LiveKitConfig) {}
 
   private async step<T>(key: string, label: string, run: () => Promise<T>) {
     const s: StartupStep = { key, label, state: 'running' }, at = performance.now();
@@ -72,7 +74,7 @@ export class LiveKitDuplex implements Duplex {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const { Room, RoomEvent, ParticipantKind } = await this.step('load', 'Load LiveKit client', () => import('livekit-client'));
-      const result = await this.step('token', 'Start LiveKit worker via our API', () => api.post<{ url: string; token: string; roomName: string; participantIdentity: string }>('/api/live/livekit/start', { sessionId, cfg: this.cfg }));
+      const result = await this.step('token', 'Start LiveKit worker via our API', () => api.post<{ url: string; token: string; roomName: string; participantIdentity: string }>('/api/live/livekit/start', { sessionId, ...(this.cfg && { cfg: this.cfg }) }));
       const room = this.room = new Room();
       let resolveReady!: () => void;
       const ready = new Promise<void>((resolve, reject) => { resolveReady = resolve; this.rejectReady = reject; });
@@ -180,7 +182,7 @@ export class LiveKitDuplex implements Duplex {
     this.answer = undefined;
     const now = performance.now(), last = a.voiceAt && a.voiceAt <= a.at ? a.voiceAt : a.at - a.eot;
     const total = Math.max(0, now - last), stt = a.stt, wait = Math.max(0, a.eot - a.stt);
-    const t: ReplyTiming = { at: Date.now(), wait, turnModel: 0, stt, llm: 0, tts: 0, net: Math.max(0, total - wait - stt), decode: 0, total, text: this.heard, checks: [], label: liveKitLabel(this.cfg) };
+    const t: ReplyTiming = { at: Date.now(), wait, turnModel: 0, stt, llm: 0, tts: 0, net: Math.max(0, total - wait - stt), decode: 0, total, text: this.heard, checks: [], label: liveKitLabel(this.cfg ?? DEFAULT_LIVEKIT) };
     this.stats.timeline.push(t);
     this.reply = t;
     this.replyMs = total;
@@ -210,4 +212,9 @@ export class LiveKitDuplex implements Duplex {
     this.audio.clear(); this.tracks.clear();
     void this.room?.disconnect().catch(() => {});
   }
+}
+
+/** The live examiner: LiveKit on the server's keys (the default for everyone). */
+export function useLiveKitExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource, mockId?: string): LiveExaminer {
+  return useDuplexExaminer(() => new LiveKitDuplex(), onFinished, onUnavailable, source, mockId);
 }

@@ -13,7 +13,7 @@ const SKILLS: SkillBandItem[] = [
   { skill: 'listening', band: null, to: { to: '/listening' }, offer: 'Unlimited free practice tests, 40 questions or one part, marked at once with a band' },
   { skill: 'reading', band: null, to: { to: '/reading' }, offer: 'Unlimited free practice tests, 40 questions or one passage, marked at once with a band' },
   { skill: 'writing', band: null, to: { to: '/writing' }, offer: 'Task 1 and Task 2, feedback by criterion' },
-  { skill: 'speaking', band: null, to: { to: '/speaking' }, offer: 'Full test 11-14 min, or one part; live examiner with your own key' },
+  { skill: 'speaking', band: null, to: { to: '/speaking' }, offer: 'Live examiner 11-14 min, or practise one part' },
 ];
 
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
@@ -108,7 +108,7 @@ export function GuestHome() {
         </Section>
 
         <Section title="Free to try" id="free">
-          <p className="type-lede max-w-[60ch]">One speaking test and one writing test a week, paid from a balance the community shares. Create an account for one of each a day, or add your own key for unlimited tests and the live examiner. Listening and Reading are unlimited.</p>
+          <p className="type-lede max-w-[60ch]">One speaking test and one writing test a week, paid from a balance the community shares. Create an account for one of each a day, or add your own key for unlimited practice tests. Listening and Reading are unlimited.</p>
           <QuotaStrip className="border-0 py-0" />
           <p className="type-body flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>History, mistakes and the review deck need an account.</span>

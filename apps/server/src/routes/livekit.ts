@@ -6,11 +6,12 @@ import { HTTPException } from 'hono/http-exception';
 import { AccessToken, AgentDispatchClient, RoomServiceClient } from 'livekit-server-sdk';
 import { cascadeMessages } from '../ai/cascade';
 import { CUE_PREFIX, type LiveState } from '../ai/examiner';
-import { currentUser, isOwner, requireOwner, requireUser } from '../auth';
+import { currentUser, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { aiCosts, liveSessions } from '../db/schema';
 import { env } from '../env';
-import { withPayer } from '../quota';
+import { clientIpHash } from '../ip';
+import { reserve, withPayer } from '../quota';
 import { aiLimit } from '../ratelimit';
 import type { App } from '../types';
 
@@ -68,23 +69,29 @@ const Claims = z.object({ sessionId: z.string(), userId: z.string(), roomName: z
 const error = z.object({ error: z.string() });
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 const body = <T extends z.ZodType>(schema: T) => ({ body: { required: true, content: { 'application/json': { schema } } } });
+/** Rooms one session may open (first connect + reconnects). */
+const LIVEKIT_ROOMS = 3;
 const signature = (payload: string) => createHmac('sha256', env.LIVEKIT_REPORT_SECRET!).update(`livekit-report:${payload}`).digest('base64url');
 
 export function attachLiveKit(app: App, loadSession: (sessionId: string, userId: string) => Promise<LiveState>) {
   app.openapi(createRoute({
     method: 'post', path: '/api/live/livekit/start', tags: ['Live'], security: [{ bearer: [] }],
-    middleware: [requireOwner, requireUser, withPayer, aiLimit],
-    summary: 'Owner playground: create a private LiveKit room and dispatch its examiner',
+    middleware: [requireUser, withPayer, aiLimit],
+    summary: 'Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as the speaking test (1 a day, guests 1 a week; owner exempt). Only the owner may send cfg.',
     request: body(z.object({ sessionId: z.string().min(1).max(128), cfg: Config.optional() }).strict()),
     responses: {
       200: json(z.object({ url: z.string(), token: z.string(), roomName: z.string(), participantIdentity: z.string() }).openapi('LiveKitStart'), 'Room scoped candidate token'),
       400: json(error, 'Invalid config'), 404: json(error, 'Not found'), 409: json(error, 'Session finished'),
-      429: json(error, 'Rate limited'), 502: json(error, 'LiveKit unavailable'), 503: json(error, 'Not configured'),
+      402: json(error, 'community_balance_exhausted'), 403: json(error, 'cfg is owner-only'),
+      429: json(error, 'Rate limited, quota_exceeded, or too many reconnects'), 502: json(error, 'LiveKit unavailable'), 503: json(error, 'Not configured'),
     },
   }), async (c) => {
-    const b = c.req.valid('json'), user = currentUser(c);
+    const b = c.req.valid('json'), user = currentUser(c), owner = isOwner(user);
+    if (b.cfg && !owner) return c.json({ error: 'Only the owner may configure the examiner.' }, 403);
     const s = await loadSession(b.sessionId, user.id);
     if (s.phase === 'done') return c.json({ error: 'This live session is finished.' }, 409);
+    // Reconnects of a dropped session are free, a few times; past that it would be an endless free test.
+    if (!owner && (s.livekitRooms ?? 0) >= LIVEKIT_ROOMS) return c.json({ error: 'This session has reconnected too many times. Start a new test.' }, 429);
     if (!env.LIVEKIT_URL || !env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET || !env.LIVEKIT_REPORT_SECRET || env.LIVEKIT_REPORT_SECRET.length < 32) return c.json({ error: 'LiveKit is not configured on this server.' }, 503);
     // Parse even the omitted config so defaults and all effective overrides receive the same validation.
     const cfg: LiveKitConfig = { ...DEFAULT_LIVEKIT, ...Config.parse(b.cfg ?? {}) };
@@ -94,6 +101,11 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
       if (!env.OPENROUTER_API_KEY || !credentials[p.stt] || !credentials[p.tts]) return c.json({ error: 'A selected LiveKit provider is not configured on this server.' }, 503);
       if (p.tts !== 'soniox' && (!rates[p.tts]?.trim() || !Number.isFinite(Number(rates[p.tts])) || Number(rates[p.tts]) < 0)) return c.json({ error: 'Set the selected LiveKit TTS provider plan rate before starting.' }, 503);
     }
+    const payer = c.get('payer')!;
+    // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring).
+    if (!owner) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
+    s.livekitRooms = (s.livekitRooms ?? 0) + 1;
+    await db.update(liveSessions).set({ state: s }).where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, user.id)));
     const roomName = `ielts-${crypto.randomUUID()}`, participantIdentity = `candidate-${crypto.randomUUID()}`;
     const payload = Buffer.from(JSON.stringify({ sessionId: b.sessionId, userId: user.id, roomName, expiresAt: Date.now() + 86_400_000 })).toString('base64url');
     const reportToken = `${payload}.${signature(payload)}`;
@@ -137,8 +149,6 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
     try { claims = Claims.parse(JSON.parse(Buffer.from(payload, 'base64url').toString())); }
     catch { return c.json({ error: 'Forbidden' }, 403); }
     if (claims.sessionId !== b.sessionId || claims.userId !== b.userId || claims.expiresAt < Date.now()) return c.json({ error: 'Forbidden' }, 403);
-    const owner = await db.query.user.findFirst({ where: (u, { eq }) => eq(u.id, b.userId) });
-    if (!owner || !isOwner({ ...owner, isAnonymous: owner.isAnonymous ?? false })) return c.json({ error: 'Forbidden' }, 403);
     await db.transaction(async (tx) => {
       // Lock the durable session row, serializing reports across processes and restarts.
       const [session] = await tx.select({ id: liveSessions.id }).from(liveSessions).where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, b.userId))).for('update');

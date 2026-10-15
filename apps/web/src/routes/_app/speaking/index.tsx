@@ -43,7 +43,7 @@ function SpeakingHome() {
     <PageContainer>
       <PageHeader
         title="Speaking"
-        description="Record your answers and get a band for each criterion, with every mistake and pause located in your transcript."
+        description="Take the test with a live examiner, or practise with a recorded one. Either way you get a band for each criterion, with every mistake and pause located in your transcript."
         actions={<QuestionSourcePicker q={q} cambridgeNote="Cambridge questions have no recorded examiner voice, so the practice test shows them on screen. The live examiner still asks them aloud." />}
       />
       <div className="flex flex-col gap-12">
@@ -51,16 +51,6 @@ function SpeakingHome() {
         <GuestRecent skill="speaking" />
         <MockCta />
         <section aria-label="Choose a mode" className="grid gap-4 lg:grid-cols-2">
-          <ModeCard
-            link={{ to: '/speaking/session', search: { mode: 'full', source } }}
-            icon={<ListOrdered />}
-            kind="Practice test, at your own pace"
-            title="Full practice test"
-            body="All three parts in order, like test day. You read each question, record your answer, and every part is scored plus an overall band."
-            meta="11-14 min, recorded"
-            cta="Start full test"
-            note={<QuotaNote skill="speaking" />}
-          />
           <ModeCard
             link={{ to: '/speaking/live', search: { source } }}
             tone="live"
@@ -70,7 +60,17 @@ function SpeakingHome() {
             body="An AI examiner asks the questions aloud, listens, and follows up on what you say, like the real interview. The whole test is scored at the end."
             meta="11-14 min, needs a microphone"
             cta="Talk to the examiner"
-            note={live ? undefined : <p className="type-caption flex items-center gap-1.5"><Lock className="size-3.5" aria-hidden />Needs your own OpenAI or Gemini key</p>}
+            note={live ? <QuotaNote skill="speaking" />  : <p className="type-caption flex items-center gap-1.5"><Lock className="size-3.5" aria-hidden />Not available right now</p>}
+          />
+          <ModeCard
+            link={{ to: '/speaking/session', search: { mode: 'full', source } }}
+            icon={<ListOrdered />}
+            kind="Practice, recorded examiner, at your own pace"
+            title="Practice test"
+            body="All three parts in order, like test day. A recorded examiner asks each question, you record your answer, and every part is scored plus an overall band."
+            meta="11-14 min, recorded"
+            cta="Start full test"
+            note={<QuotaNote skill="speaking" />}
           />
         </section>
 

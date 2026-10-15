@@ -14,7 +14,7 @@ const STEPS = [
 ] as const;
 
 /** Before the test (in the exam frame, Exit back to Speaking): how it runs, which examiner, and a mic check with a live level meter. */
-export function PreScreen({ style, fallback, onStart }: { style: Provider; fallback: false | 'failed' | 'locked'; onStart: () => void }) {
+export function PreScreen({ style, fallback, onStart }: { style: Provider | 'livekit'; fallback: false | 'failed' | 'locked'; onStart: () => void }) {
   const mic = useRecorder();
   const live = mic.state === 'recording';
   // Ask for the microphone on entry so the check is already running (and Start works in one tap). The ref keeps StrictMode from asking twice.
@@ -66,11 +66,17 @@ export function PreScreen({ style, fallback, onStart }: { style: Provider; fallb
             </ol>
           </Card>
           <p className="type-caption mt-3">
-            {/* Same labels as Settings, Live examiner. */}
-            Examiner style: <span className="font-medium text-ink">{PROVIDER_LABEL[style]}</span>.{' '}
-            <Link to="/settings" className={buttonStyles({ variant: 'link', className: 'hit' })}>
-              Change
-            </Link>
+            {/* Same labels as Settings, Live examiner. The LiveKit examiner is the default for everyone: nothing to change. */}
+            {style === 'livekit' ? (
+              'A natural conversation: talk back and forth as in the real test.'
+            ) : (
+              <>
+                Examiner style: <span className="font-medium text-ink">{PROVIDER_LABEL[style]}</span>.{' '}
+                <Link to="/settings" className={buttonStyles({ variant: 'link', className: 'hit' })}>
+                  Change
+                </Link>
+              </>
+            )}
           </p>
           {fallback === 'failed' && (
             <Alert tone="warn" className="mt-4" title="Natural conversation isn't available right now">

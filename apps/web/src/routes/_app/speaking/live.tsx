@@ -13,6 +13,7 @@ import { queryClient, useMe } from '@/lib/query';
 import { useGeminiExaminer } from '@/live/gemini';
 import { useRealtimeExaminer } from '@/live/realtime';
 import { useGptLiveExaminer } from '@/live/gptLive';
+import { useLiveKitExaminer } from '@/live/livekit';
 import { useTurnExaminer, type LiveExaminer, type LiveSource } from '@/live/turn';
 
 export const Route = createFileRoute('/_app/speaking/live')({
@@ -21,7 +22,7 @@ export const Route = createFileRoute('/_app/speaking/live')({
   component: LivePage,
 });
 
-type Style = 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
+type Style = 'livekit' | 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
 type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; mockId?: string; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
 
 /** The live examiner runs on the person's own key and is never paid from the community balance: no key, no live. */
@@ -104,20 +105,26 @@ function Live({ providers }: { providers: Style[] }) {
     },
     [navigate, mock],
   );
-  const wanted = me?.settings.liveProvider ?? 'turn';
+  const wanted: Style = providers.includes('livekit') && !failed ? 'livekit' : (me?.settings.liveProvider ?? 'turn'); // LiveKit on the server's keys comes first
   const canTurn = providers.includes('turn');
-  const natural = providers.find((p) => p !== 'turn');
+  const natural = providers.find((p) => p !== 'turn' && !(failed && p === 'livekit'));
   // The saved choice if it is allowed; else turn-based; else whichever conversation provider their key unlocks.
   const chosen: Style = providers.includes(wanted) && !(failed && wanted !== 'turn') ? wanted : canTurn ? 'turn' : (natural ?? 'turn');
   // No notice when the default examiner (Realtime mini) is out of reach: most people never chose it, so falling back to turn-based is not news.
   const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : wanted === 'realtime-mini' ? false : 'locked') : false;
-  const run: Run = { style: chosen, fallback, source, mockId: mock, onFinished, onUnavailable: canTurn ? () => setFailed(true) : undefined };
+  // LiveKit falls back to whatever the person's own keys unlock; without any, its error and retry show instead.
+  const backup = chosen === 'livekit' ? providers.some((p) => p !== 'livekit') : canTurn;
+  const run: Run = { style: chosen, fallback, source, mockId: mock, onFinished, onUnavailable: backup ? () => setFailed(true) : undefined };
   // Separate components so each provider's hook is always called unconditionally.
-  return chosen === 'realtime-mini' ? <RealtimeLive {...run} /> : chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
+  return chosen === 'livekit' ? <LiveKitLive {...run} /> : chosen === 'realtime-mini' ? <RealtimeLive {...run} /> : chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
 }
 
 function TurnLive(p: Run) {
   return <Stage ex={useTurnExaminer(p.onFinished, p.source, p.mockId)} {...p} />;
+}
+
+function LiveKitLive(p: Run) {
+  return <Stage ex={useLiveKitExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
 }
 
 function RealtimeLive(p: Run) {

@@ -18,6 +18,8 @@ export type LiveState = {
   p3Asked: number;
   history: Turn[];
   test: LiveTest;
+  /** LiveKit rooms opened for this session (reconnects): capped, so one paid test cannot be replayed forever. */
+  livekitRooms?: number;
 };
 
 export const P1_MAX_MS = 270_000;

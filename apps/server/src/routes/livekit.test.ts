@@ -148,3 +148,28 @@ it('accepts a valid per-part provider switch and records its TTS model', async (
   expect((await req('/api/live/livekit/usage', { headers, body })).status).toBe(204);
   expect((await db.select().from(aiCosts).where(eq(aiCosts.sessionId, s.sessionId)))[0]).toMatchObject({ provider: 'cartesia', model: 'sonic-3.6' });
 });
+
+it('opens to everyone on the server keys: one test a day, free reconnects up to a cap, owner-only config', async () => {
+  for (const topic of ['home', 'food', 'work']) await seedPrompt({ topic, followUps: ['Why?'] });
+  await seedPrompt({ part: 2, type: 'cue-card', groupId: 'lk', title: 'Describe a book' });
+  await seedPrompt({ part: 3, type: 'p3-discussion', groupId: 'lk', followUps: ['Why read?'] });
+  const u = await testUser();
+  const start = async () => {
+    const res = await req('/api/live/start', { headers: u.headers, body: { skipTts: true } });
+    return res.status === 200 ? ((await res.json()) as { sessionId: string }).sessionId : res.status;
+  };
+  const sessionId = await start();
+  expect(typeof sessionId).toBe('string');
+  const lk = (body: object) => req('/api/live/livekit/start', { headers: u.headers, body: { sessionId, ...body } }).then((r) => r.status);
+  expect(await lk({ cfg: { temperature: 1 } })).toBe(403);
+  expect(await lk({})).toBe(200);
+  expect(await lk({})).toBe(200); // reconnect: same paid test
+  expect(await lk({})).toBe(200);
+  expect(await lk({})).toBe(429); // reconnect cap
+  // An own OpenRouter key pays only the scoring: the LiveKit examiner (server keys) stays one a day.
+  const next = await start();
+  expect((await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId: next } })).status).toBe(429);
+  const community = await testUser(undefined, { key: false });
+  const res = await req('/api/live/start', { headers: community.headers, body: { skipTts: true } });
+  expect(res.status).toBe(200); // the LiveKit examiner needs no key of their own
+});

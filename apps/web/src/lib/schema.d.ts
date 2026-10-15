@@ -765,7 +765,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Owner playground: create a private LiveKit room and dispatch its examiner */
+        /** Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as the speaking test (1 a day, guests 1 a week; owner exempt). Only the owner may send cfg. */
         post: {
             parameters: {
                 query?: never;
@@ -802,6 +802,28 @@ export interface paths {
                         };
                     };
                 };
+                /** @description community_balance_exhausted */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description cfg is owner-only */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
                 /** @description Not found */
                 404: {
                     headers: {
@@ -824,7 +846,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Rate limited */
+                /** @description Rate limited, quota_exceeded, or too many reconnects */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -5421,8 +5443,8 @@ export interface components {
             tier: "guest" | "community" | "own-key";
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
-            /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
-            liveProviders: ("turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
+            /** @description Live examiner providers this user may use: livekit (server keys, everyone, one test a day / a week for guests), or their own keys (the owner may use the server keys) */
+            liveProviders: ("livekit" | "turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
             communityBalance: components["schemas"]["CommunityBalance"];
         };
         SkillQuota: {
@@ -6236,8 +6258,8 @@ export interface components {
             tier: "guest" | "community" | "own-key";
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
-            /** @description Live examiner providers this user may use (their own keys; the owner may use the server keys) */
-            liveProviders: ("turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
+            /** @description Live examiner providers this user may use: livekit (server keys, everyone, one test a day / a week for guests), or their own keys (the owner may use the server keys) */
+            liveProviders: ("livekit" | "turn" | "realtime-mini" | "gpt-live" | "gemini-live")[];
             communityBalance: components["schemas"]["CommunityBalance"];
         };
         ApiKeyList: {
