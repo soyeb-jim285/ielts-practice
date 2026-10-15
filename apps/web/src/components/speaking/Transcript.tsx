@@ -52,11 +52,11 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
   for (const m of timeline.markers) counts[m.type === 'vocabulary' ? 'vocab' : m.type]++;
   const hasFillers = tokens.some((t) => t.filler || t.disfluency?.some((d) => d.kind === 'filled'));
   const hasMarks = tokens.some((t) => t.disfluency);
-  const hasUnclear = tokens.some((t) => t.unclearTier);
+  const hasUnclear = tokens.some((t) => t.unclearTier || t.pron);
 
   const matches = (t: Token) =>
     filter === 'all' ||
-    (filter === 'pronunciation' && !!t.unclearTier) ||
+    (filter === 'pronunciation' && !!(t.unclearTier || t.pron)) ||
     (filter === 'fluency' && (!!t.filler || !!t.disfluency)) ||
     (filter !== 'pauses' && t.errorIds.some((id) => errorGroup(errors.get(id)!) === filter));
 
@@ -102,12 +102,12 @@ export function Transcript({ result, audio, lean, onClear }: { result: AnalysisR
       data-w={t.i}
       data-lean={isLean(t.w) || undefined}
       onClick={() => audio.seek(t.start)}
-      title={t.unclearTier ? `Possibly unclear to speech recognition (approximately ${Math.round((t.conf ?? 0) * 100)}% confidence, not pronunciation accuracy)` : undefined}
+      title={t.pron ? `Pronunciation: ${t.pron}. See the Pronunciation tab.` : t.unclearTier ? `Possibly unclear to speech recognition (approximately ${Math.round((t.conf ?? 0) * 100)}% confidence, not pronunciation accuracy)` : undefined}
       className={clsx(
         'cursor-pointer rounded-sm transition-colors duration-100 hover:bg-hover',
         filler(t),
         isLean(t.w) && LEAN_CLASS,
-        t.unclearTier && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-2 underline-offset-4', TYPE_STYLE.pronunciation.underline],
+        (t.unclearTier || t.pron) && !t.filler && !t.errorIds.some((id) => shown(errors.get(id)!)) && ['underline decoration-2 underline-offset-4', TYPE_STYLE.pronunciation.underline],
         !matches(t) && 'opacity-35',
       )}
     >

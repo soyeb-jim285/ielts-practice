@@ -52,7 +52,23 @@ export function categoryLabel(c: string) {
 
 // ---- transcript tokens ----
 
-export type Token = { i: number; w: string; start: number; end: number; conf?: number; errorIds: string[]; filler?: boolean; pauseAfter?: Pause; unclearTier?: 1 | 2 | 3; disfluency?: DisfluencyMark[] };
+export type Token = { i: number; w: string; start: number; end: number; conf?: number; errorIds: string[]; filler?: boolean; pauseAfter?: Pause; unclearTier?: 1 | 2 | 3; disfluency?: DisfluencyMark[]; /** the phoneme model's finding on this word, e.g. "/θ/ heard as /t/" */ pron?: string };
+
+const bare = (w: string) => w.toLowerCase().replace(/[^a-z']/g, '');
+/** The phoneme model's words to practise placed on the transcript: the same word nearest in time (the model ran its own recogniser on the same recording). */
+export function pronunciationMarks(r: AnalysisResult): Map<number, string> {
+  const out = new Map<number, string>();
+  const words = r.words ?? [];
+  for (const p of r.pronunciation?.audio?.words ?? []) {
+    let best = -1;
+    words.forEach((w, i) => {
+      if (bare(w.w) === bare(p.word) && Math.abs(w.start - p.start) < 1.5 && (best < 0 || Math.abs(w.start - p.start) < Math.abs(words[best]!.start - p.start))) best = i;
+    });
+    const swaps = p.phones.filter((x) => !x.ok).map((x) => `/${x.expected}/ heard as /${x.heard}/`);
+    if (best >= 0) out.set(best, swaps.join(', ') || 'Pronounced differently');
+  }
+  return out;
+}
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
@@ -77,7 +93,9 @@ export function buildTokens(r: AnalysisResult): Token[] {
     tokens[i]!.filler = true;
     if (f.word.includes(' ') && tokens[i + 1]) tokens[i + 1]!.filler = true;
   }
-  for (const u of m.unclear) if (tokens[u.wordIdx]) tokens[u.wordIdx]!.unclearTier = u.tier;
+  // With the phoneme model's findings the transcript marks those (what the Pronunciation tab lists); older results keep the recognition-confidence hints.
+  if (r.pronunciation?.audio) for (const [i, label] of pronunciationMarks(r)) tokens[i]!.pron = label;
+  else for (const u of m.unclear) if (tokens[u.wordIdx]) tokens[u.wordIdx]!.unclearTier = u.tier;
   for (const e of disfluencyEvents(m)) {
     if (e.kind === 'filled' && e.sources.includes('stt')) continue; // already marked on its word
     const i = tokens.findIndex((t) => t.end > e.start - 0.02);

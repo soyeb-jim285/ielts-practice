@@ -1,7 +1,7 @@
 // One timeline for a speaking result: where (seconds) and what (type) went wrong, shared by the pace chart, the audio bar and the transcript.
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisError, AnalysisResult } from '@server/ai/types';
-import { DISFLUENCY, disfluencyEvents, errorType, isLongPause } from './result';
+import { DISFLUENCY, disfluencyEvents, errorType, isLongPause, pronunciationMarks } from './result';
 
 export type MarkerType = NonNullable<ReturnType<typeof errorType>>;
 export const MARKER_TYPES: MarkerType[] = ['grammar', 'vocabulary', 'pronunciation', 'fluency'];
@@ -23,10 +23,13 @@ export function timelineMarkers(r: AnalysisResult): Timeline {
   }
   if (m) {
     disfluencyEvents(m).forEach((d, i) => markers.push({ id: `d${i}`, t: d.start, end: d.end, type: 'fluency', label: DISFLUENCY[d.kind].short }));
-    for (const u of m.unclear) {
-      const w = words[u.wordIdx];
-      if (w) markers.push({ id: `u${u.wordIdx}`, t: w.start, end: w.end, type: 'pronunciation', label: `Unclear: “${u.w}”` });
-    }
+    if (r.pronunciation?.audio)
+      for (const [i, label] of pronunciationMarks(r)) markers.push({ id: `u${i}`, t: words[i]!.start, end: words[i]!.end, type: 'pronunciation', label: `“${words[i]!.w}”: ${label}` });
+    else
+      for (const u of m.unclear) {
+        const w = words[u.wordIdx];
+        if (w) markers.push({ id: `u${u.wordIdx}`, t: w.start, end: w.end, type: 'pronunciation', label: `Unclear: “${u.w}”` });
+      }
   }
   markers.sort((a, b) => a.t - b.t);
 

@@ -1,5 +1,6 @@
 import type { PronunciationAudio } from '@server/ai/types';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Play, Volume2 } from 'lucide-react';
 import { Section, StatList } from '@/components/result';
 import { Button } from '@/components/ui';
@@ -17,6 +18,35 @@ export async function lookupWord(word: string): Promise<Dict> {
   const ph = entries.flatMap((e) => e.phonetics ?? []);
   const audio = (accent: string) => ph.find((p) => p.audio?.endsWith(`-${accent}.mp3`))?.audio;
   return { uk: audio('uk'), us: audio('us') ?? (audio('uk') ? undefined : ph.find((p) => p.audio)?.audio), ipa: entries[0]?.phonetic ?? ph.find((p) => p.text)?.text };
+}
+
+const clips = new Map<string, HTMLAudioElement>();
+/** A dictionary recording, loaded ahead (preload) so the first tap plays at once. */
+const clip = (url: string) => {
+  let a = clips.get(url);
+  if (!a) {
+    a = new Audio(url);
+    a.preload = 'auto';
+    clips.set(url, a);
+  }
+  return a;
+};
+const dictQuery = (word: string) => ({
+  queryKey: ['dictionary', word.toLowerCase()],
+  queryFn: async () => {
+    const d = await lookupWord(word);
+    for (const url of [d.uk, d.us]) if (url) clip(url);
+    return d;
+  },
+  staleTime: Infinity,
+  retry: false,
+});
+/** Looks up every listed word (and starts loading its recordings) when the result opens, so the Pronunciation tab has them ready. */
+export function usePreloadPronunciation(pron?: PronunciationAudio) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    for (const w of pron?.words ?? []) void qc.prefetchQuery(dictQuery(w.word));
+  }, [pron, qc]);
 }
 
 /** The browser's own voice, for words with no recording. Free and on the device; quality depends on the device. */
@@ -112,7 +142,7 @@ function Phones({ w, k }: { w: Word; k: 'expected' | 'heard' }) {
 }
 
 function WordRow({ w, audio }: { w: Word; audio: AudioControls }) {
-  const dict = useQuery({ queryKey: ['dictionary', w.word.toLowerCase()], queryFn: () => lookupWord(w.word), staleTime: Infinity, retry: false });
+  const dict = useQuery(dictQuery(w.word));
   const first: 'gb' | 'us' = w.accent === 'us' ? 'us' : 'gb'; // the accent the model found closer plays first
   const recordings = (first === 'gb' ? (['gb', 'us'] as const) : (['us', 'gb'] as const)).flatMap((a) => {
     const url = dict.data?.[a === 'gb' ? 'uk' : 'us'];
@@ -136,7 +166,7 @@ function WordRow({ w, audio }: { w: Word; audio: AudioControls }) {
           <Play aria-hidden /> Your version
         </Button>
         {recordings.map((r) => (
-          <Button key={r.a} variant="secondary" size="sm" onClick={() => void new Audio(r.url).play().catch(() => speak(w.word, r.a))}>
+          <Button key={r.a} variant="secondary" size="sm" onClick={() => { const a = clip(r.url); a.currentTime = 0; void a.play().catch(() => speak(w.word, r.a)); }}>
             <Volume2 aria-hidden /> Correct · {r.a === 'gb' ? 'UK' : 'US'}
           </Button>
         ))}

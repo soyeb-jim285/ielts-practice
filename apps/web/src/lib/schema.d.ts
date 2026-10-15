@@ -3945,6 +3945,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminLimitsBody"];
+                };
+            };
+            responses: {
+                /** @description New limits */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminLimitsInfo"];
+                    };
+                };
+                /** @description Unknown user, or a guest */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/replays": {
         parameters: {
             query?: never;
@@ -6738,6 +6791,7 @@ export interface components {
             }[];
             replays: components["schemas"]["AdminReplayItem"][];
             cambridge: components["schemas"]["AdminCambridgeInfo"];
+            limits: components["schemas"]["AdminLimitsInfo"];
         };
         AdminReplayItem: {
             id: string;
@@ -6755,6 +6809,18 @@ export interface components {
             bytes: number;
             chunks: number;
             userAgent: string | null;
+        };
+        AdminLimitsInfo: {
+            /** @description Speaking tests per day (live included); null = default */
+            speaking: number | null;
+            /** @description Writing tests per day; null = default */
+            writing: number | null;
+            /** @description No test limits at all, including the LiveKit examiner */
+            unlimited: boolean;
+            /** @description The default per skill and day for signed-in users */
+            default: number;
+            /** @description false for guests (limits belong to accounts) */
+            canEdit: boolean;
         };
         AdminTests: {
             prompts: components["schemas"]["AdminTestHealth"][];
@@ -6891,6 +6957,11 @@ export interface components {
                 /** @description ISO-8601 UTC */
                 lastAt: string;
             }[];
+        };
+        AdminLimitsBody: {
+            speaking: number | null;
+            writing: number | null;
+            unlimited: boolean;
         };
         AdminFeedbackPage: {
             items: components["schemas"]["AdminFeedbackItem"][];

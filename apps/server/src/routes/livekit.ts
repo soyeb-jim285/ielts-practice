@@ -101,7 +101,7 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
     }
     const payer = c.get('payer')!;
     // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring).
-    if (!owner) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
+    if (!owner && !payer.limits?.unlimited) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
     // Reconnects of a dropped session are free, a few times; past that it would be an endless free test. One conditional update, so parallel starts cannot pass the cap.
     // The new room also becomes the session's only room: the one it replaces is closed once this one exists, so parallel starts cannot run several examiners.
     const roomName = `ielts-${crypto.randomUUID()}`, participantIdentity = `candidate-${crypto.randomUUID()}`;

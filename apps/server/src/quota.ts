@@ -4,9 +4,9 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { keyCtx } from './ai/keyctx';
 import { balanceExhausted, communityBalance, type Balance } from './community';
-import { isCambridgeAllowed } from './auth';
+import { cambridgeSource, isCambridgeAllowed } from './auth';
 import { db } from './db/client';
-import { analyses, attempts, quotaUsage } from './db/schema';
+import { analyses, attempts, quotaUsage, userLimits } from './db/schema';
 import { env } from './env';
 import { ApiError, type ErrorCode } from './errors';
 import { getUserKeys, markKeyInvalid, type Keys } from './keys';
@@ -21,15 +21,17 @@ export const SKILLS: Skill[] = ['speaking', 'writing'];
 export const LIMIT = 1;
 const DAY = 86_400_000;
 
-/** Who is paying and what they may do. `owner` (CAMBRIDGE_ALLOWED_EMAILS, verified) is exempt from quotas and may use the server's own provider keys. */
-export type Payer = { userId: string; tier: Tier; owner: boolean; keys: Keys };
+/** Who is paying and what they may do. `owner` (OWNER_EMAILS or CAMBRIDGE_ALLOWED_EMAILS, verified) is exempt from quotas and may use the server's own provider keys.
+ *  An admin Cambridge grant is content access only. `limits`: the owner's per-user overrides (admin, user_limits); `unlimited` is exempt like an owner but gets no server keys. */
+export type Limits = { speaking: number | null; writing: number | null; unlimited: boolean };
+export type Payer = { userId: string; tier: Tier; owner: boolean; keys: Keys; limits?: Limits };
 
 type Who = { id: string; email: string; emailVerified: boolean; isAnonymous?: boolean | null };
 export async function payerOf(u: Who): Promise<Payer> {
   if (u.isAnonymous) return { userId: u.id, tier: 'guest', owner: false, keys: {} };
-  const owner = isCambridgeAllowed(u);
-  const keys = await getUserKeys(u.id);
-  return { userId: u.id, owner, keys, tier: owner || keys.openrouter ? 'own-key' : 'community' };
+  const owner = isCambridgeAllowed(u) && cambridgeSource(u.email) !== 'granted';
+  const [keys, [limits]] = await Promise.all([getUserKeys(u.id), db.select({ speaking: userLimits.speaking, writing: userLimits.writing, unlimited: userLimits.unlimited }).from(userLimits).where(eq(userLimits.userId, u.id))]);
+  return { userId: u.id, owner, keys, limits, tier: owner || keys.openrouter || limits?.unlimited ? 'own-key' : 'community' };
 }
 
 /** The key a live provider session is created with: the user's own, or (owner only) the server's. */
@@ -67,13 +69,14 @@ const hourlyCount = async (x: Executor) => (await x.select({ n: count() }).from(
 async function evaluate(x: Executor, p: Payer, skill: Skill, ipHash: string | null, shared: { balance: Balance; hourly: number }): Promise<SkillQuota> {
   if (p.tier === 'own-key') return { used: 0, limit: null, remaining: null, resetAt: null, window: null, blocked: null };
   const w = windowOf(p.tier);
+  const limit = p.limits?.[skill] ?? LIMIT;
   const live = (where: ReturnType<typeof and>) => x.select({ n: count() }).from(quotaUsage).where(and(eq(quotaUsage.skill, skill), gte(quotaUsage.createdAt, w.start), isNull(quotaUsage.refundedAt), where));
-  let remaining = LIMIT - (await live(eq(quotaUsage.userId, p.userId)))[0]!.n;
+  let remaining = limit - (await live(eq(quotaUsage.userId, p.userId)))[0]!.n;
   // Guests are also counted per client IP across all anonymous users, so clearing storage to get a fresh guest does not mint free tests.
   if (p.tier === 'guest' && ipHash) remaining = Math.min(remaining, env.GUEST_IP_WEEKLY_CAP - (await live(and(eq(quotaUsage.ipHash, ipHash), eq(quotaUsage.tier, 'guest'))))[0]!.n);
   remaining = Math.max(0, remaining);
   const blocked = remaining <= 0 ? 'quota_exceeded' : balanceExhausted(shared.balance) ? 'community_balance_exhausted' : shared.hourly >= env.COMMUNITY_MAX_PER_HOUR ? 'community_busy' : null;
-  return { used: LIMIT - Math.min(LIMIT, remaining), limit: LIMIT, remaining: Math.min(LIMIT, remaining), resetAt: w.resetAt.toISOString(), window: w.kind, blocked };
+  return { used: limit - Math.min(limit, remaining), limit, remaining: Math.min(limit, remaining), resetAt: w.resetAt.toISOString(), window: w.kind, blocked };
 }
 
 /** GET /api/quota and /api/me: the whole picture for one person. */

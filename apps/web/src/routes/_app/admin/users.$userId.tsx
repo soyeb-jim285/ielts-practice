@@ -1,5 +1,6 @@
-import type { CambridgeInfo, UserDetail } from '@server/admin/schemas';
+import type { CambridgeInfo, LimitsInfo, UserDetail } from '@server/admin/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
@@ -7,7 +8,7 @@ import { ActivityTable } from '@/components/admin/ActivityTable';
 import { band, dhakaDay, dhakaTime, userLabel } from '@/components/admin/format';
 import { Load, Section } from '@/components/admin/Load';
 import { LineChart } from '@/components/admin/MiniChart';
-import { Badge, buttonStyles, PageContainer, Switch, toast } from '@/components/ui';
+import { Badge, Button, buttonStyles, Input, PageContainer, Switch, toast } from '@/components/ui';
 import { useAdmin } from '@/lib/admin';
 import { api, ApiError } from '@/lib/api';
 
@@ -30,6 +31,35 @@ function CambridgeToggle({ userId, info }: { userId: string; info: CambridgeInfo
       </p>
     );
   return <Switch label="Cambridge access" description="Lets this person use the Cambridge books. Takes effect within a minute." checked={info.allowed} disabled={m.isPending} onChange={(v) => m.mutate(v)} />;
+}
+
+/** Per-day test limits for this person (empty = the default), or none at all. Takes effect on their next test. */
+function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
+  const qc = useQueryClient();
+  const [speaking, setSpeaking] = useState(info.speaking?.toString() ?? '');
+  const [writing, setWriting] = useState(info.writing?.toString() ?? '');
+  const m = useMutation({
+    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
+    onSuccess: () => (toast('Limits saved.'), qc.invalidateQueries({ queryKey: ['admin'] })),
+    onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not save the limits.', { tone: 'bad' }),
+  });
+  const num = (v: string) => (v.trim() === '' ? null : Math.max(0, Math.min(1000, Math.round(Number(v)))));
+  const bad = [speaking, writing].some((v) => v.trim() !== '' && !Number.isFinite(Number(v)));
+  const save = (unlimited = info.unlimited) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited });
+  return (
+    <div className="space-y-4">
+      <Switch label="No test limits" description="Unlimited speaking and writing tests, including the live examiner, paid by the house." checked={info.unlimited} disabled={m.isPending} onChange={(v) => save(v)} />
+      {!info.unlimited && (
+        <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => (e.preventDefault(), save())}>
+          <Input label="Speaking tests a day" hint="Live tests included" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} className="w-36" />
+          <Input label="Writing tests a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={writing} onChange={(e) => setWriting(e.target.value)} className="w-36" />
+          <Button type="submit" variant="outline" loading={m.isPending} disabled={bad}>
+            Save limits
+          </Button>
+        </form>
+      )}
+    </div>
+  );
 }
 
 function UserPage() {
@@ -56,8 +86,9 @@ function UserPage() {
               }
             />
             {!d.user.isGuest && (
-              <div className="mb-10 max-w-xl">
+              <div className="mb-10 max-w-xl space-y-6">
                 <CambridgeToggle userId={d.user.id} info={d.cambridge} />
+                {d.limits.canEdit && <LimitsEditor userId={d.user.id} info={d.limits} />}
               </div>
             )}
             {SKILLS.some((s) => d.bandTrend[s]?.length) && (

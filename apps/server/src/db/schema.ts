@@ -312,6 +312,16 @@ export const cambridgeAccess = pgTable('cambridge_access', {
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Per-user test limits set by the owner in admin (quota.ts). null = the default for the person's tier; unlimited = no quota at all (incl. the LiveKit examiner).
+export const userLimits = pgTable('user_limits', {
+  userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+  speaking: integer('speaking'), // speaking tests per window (day; week for guests), live tests included
+  writing: integer('writing'),
+  unlimited: boolean('unlimited').notNull().default(false),
+  updatedBy: text('updated_by').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // One row per browser tab recording (rrweb). Events live in R2: replay/<yyyy-mm-dd of started_at, UTC>/<id>/<seq>.json.gz. Deleted after 14 days (src/replay.ts).
 export const replaySessions = pgTable('replay_sessions', {
   id: text('id').primaryKey(), // client-generated UUID, one per tab (sessionStorage)

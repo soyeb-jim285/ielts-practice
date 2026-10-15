@@ -14,6 +14,20 @@ export const CambridgeInfo = z
   .openapi('AdminCambridgeInfo');
 export type CambridgeInfo = z.infer<typeof CambridgeInfo>;
 
+export const LimitsInfo = z
+  .object({
+    speaking: z.number().int().nullable().openapi({ description: 'Speaking tests per day (live included); null = default' }),
+    writing: z.number().int().nullable().openapi({ description: 'Writing tests per day; null = default' }),
+    unlimited: z.boolean().openapi({ description: 'No test limits at all, including the LiveKit examiner' }),
+    default: z.number().int().openapi({ description: 'The default per skill and day for signed-in users' }),
+    canEdit: z.boolean().openapi({ description: 'false for guests (limits belong to accounts)' }),
+  })
+  .openapi('AdminLimitsInfo');
+export type LimitsInfo = z.infer<typeof LimitsInfo>;
+export const LimitsBody = z
+  .object({ speaking: z.number().int().min(0).max(1000).nullable(), writing: z.number().int().min(0).max(1000).nullable(), unlimited: z.boolean() })
+  .openapi('AdminLimitsBody');
+
 export const ReplayRef = z.object({ id: z.string(), startedAt: iso });
 
 export const ActivityItem = z
@@ -121,6 +135,7 @@ export const UserDetail = z
     recordings: z.array(z.object({ attemptId: z.string(), part: int, createdAt: iso, durationMs: int.nullable(), audioUrl: z.string().nullable() })),
     replays: z.array(ReplayItem),
     cambridge: CambridgeInfo,
+    limits: LimitsInfo,
   })
   .openapi('AdminUserDetail');
 export type UserDetail = z.infer<typeof UserDetail>;

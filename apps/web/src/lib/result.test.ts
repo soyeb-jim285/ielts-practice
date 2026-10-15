@@ -1,7 +1,7 @@
 import type { SpeechMetrics } from '@ielts/core';
 import type { AnalysisResult } from '@server/ai/types';
 import { describe, expect, it } from 'vitest';
-import { bandColor, buildTokens, criterionLabel, disfluencyTypes, errorGroup, isLongPause, isSentenceNote, notAssessed, offTopicAnswers, paceTone, pauseSec, questionHead, sessionOverall, speechStats, splitFirstSentence } from './result';
+import { bandColor, buildTokens, criterionLabel, disfluencyTypes, errorGroup, isLongPause, isSentenceNote, notAssessed, offTopicAnswers, paceTone, pauseSec, pronunciationMarks, questionHead, sessionOverall, speechStats, splitFirstSentence } from './result';
 
 const metrics = (over: Partial<SpeechMetrics> = {}): SpeechMetrics => ({
   durationS: 60, wordCount: 140, speechRate: 140, articulationRate: 160, phonationRatio: 0.8, pauseRatio: 0.15, mlr: 9,
@@ -208,5 +208,20 @@ describe('pronunciationUnsupported and sentenceCase', () => {
     const { sentenceCase } = await import('./result');
     expect(sentenceCase('UNIVERSITY CLUBS')).toBe('University clubs');
     expect(sentenceCase('Films')).toBe('Films');
+  });
+});
+
+describe('pronunciation marks', () => {
+  const r = result({
+    words: [{ w: 'I', start: 0, end: 0.2 }, { w: 'think,', start: 0.3, end: 0.6 }, { w: 'yes', start: 1, end: 1.2 }, { w: 'think', start: 9, end: 9.3 }],
+    metrics: metrics({ unclear: [{ wordIdx: 2, w: 'yes', conf: 0.2, tier: 3 }] }),
+    pronunciation: { unclear: [], audio: { accuracy: 80, wordsPerMinute: 120, confusions: [], words: [{ word: 'think', score: 40, accent: 'gb', start: 8.9, end: 9.3, phones: [{ expected: 'θ', heard: 't', ok: false }] }] } },
+  });
+  it('puts the phoneme model words on the nearest same word and drops the recognition hints', () => {
+    expect([...pronunciationMarks(r)]).toEqual([[3, '/θ/ heard as /t/']]);
+    const t = buildTokens(r);
+    expect(t[3]!.pron).toBe('/θ/ heard as /t/');
+    expect(t[1]!.pron).toBeUndefined();
+    expect(t[2]!.unclearTier).toBeUndefined();
   });
 });

@@ -17,7 +17,7 @@ import { Transcript } from '@/components/speaking/Transcript';
 import { Alert, Badge, buttonStyles, Card, EmptyState, PageContainer, PageHeader, Segmented, Skeleton, StickyTabs, Tabs, type ButtonVariant } from '@/components/ui';
 import { formatBand, formatDate, formatDuration } from '@/lib/format';
 import { useMe } from '@/lib/query';
-import { PronunciationPanel } from '@/components/speaking/PronunciationPanel';
+import { PronunciationPanel, usePreloadPronunciation } from '@/components/speaking/PronunciationPanel';
 import { attemptQuery } from '@/lib/attempt';
 import { timelineMarkers, type Timeline } from '@/lib/timeline';
 import { criterionLabel, notAssessed, offTopicAnswers, pronunciationUnsupported, sentenceCase, SPEAKING_CRITERIA, splitFirstSentence, type Attempt } from '@/lib/result';
@@ -60,6 +60,7 @@ function ResultPage() {
   useEffect(() => {
     if (warm) void loadFluency();
   }, [warm]);
+  usePreloadPronunciation(a?.analysis?.pronunciation?.audio);
   if (!a) return null; // loader guarantees data; keeps types narrow
   const target = me?.settings.targetBand ?? 7;
   const r = a.analysis;

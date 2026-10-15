@@ -5282,6 +5282,9 @@
           },
           "cambridge": {
             "$ref": "#/components/schemas/AdminCambridgeInfo"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/AdminLimitsInfo"
           }
         },
         "required": [
@@ -5290,7 +5293,8 @@
           "bandTrend",
           "recordings",
           "replays",
-          "cambridge"
+          "cambridge",
+          "limits"
         ]
       },
       "AdminReplayItem": {
@@ -5364,6 +5368,44 @@
           "bytes",
           "chunks",
           "userAgent"
+        ]
+      },
+      "AdminLimitsInfo": {
+        "type": "object",
+        "properties": {
+          "speaking": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Speaking tests per day (live included); null = default"
+          },
+          "writing": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Writing tests per day; null = default"
+          },
+          "unlimited": {
+            "type": "boolean",
+            "description": "No test limits at all, including the LiveKit examiner"
+          },
+          "default": {
+            "type": "integer",
+            "description": "The default per skill and day for signed-in users"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "false for guests (limits belong to accounts)"
+          }
+        },
+        "required": [
+          "speaking",
+          "writing",
+          "unlimited",
+          "default",
+          "canEdit"
         ]
       },
       "AdminTests": {
@@ -5976,6 +6018,35 @@
           "attempts",
           "emailFailures",
           "recentErrors"
+        ]
+      },
+      "AdminLimitsBody": {
+        "type": "object",
+        "properties": {
+          "speaking": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "writing": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "unlimited": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "speaking",
+          "writing",
+          "unlimited"
         ]
       },
       "AdminFeedbackPage": {
@@ -12157,6 +12228,69 @@
           },
           "409": {
             "description": "Managed in server config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/limits": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLimitsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New limits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLimitsInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown user, or a guest",
             "content": {
               "application/json": {
                 "schema": {

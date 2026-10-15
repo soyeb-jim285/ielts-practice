@@ -2,12 +2,13 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { and, count, desc, eq, gt, isNotNull, lt, max, or, sql } from 'drizzle-orm';
 import { cambridgeSource, isCambridgeAllowed, setCambridgeGrant } from '../auth';
 import { db } from '../db/client';
-import { attempts, cambridgeAccess, emailLog, user } from '../db/schema';
+import { attempts, cambridgeAccess, emailLog, user, userLimits } from '../db/schema';
 import { runAnalysis } from '../jobs';
 import type { App } from '../types';
 import { adminRoute as readonlyRoute } from './common';
 import { getCosts } from './costs';
-import { CambridgeInfo, Costs, Health } from './schemas';
+import { CambridgeInfo, Costs, Health, LimitsBody, LimitsInfo } from './schemas';
+import { limitsInfo } from './stats';
 
 const adminRoute = { ...readonlyRoute, middleware: [...readonlyRoute.middleware] }; // ponytail: common.ts declares the tuple `as const`, which createRoute rejects
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
@@ -132,6 +133,29 @@ export function register(app: App) {
       else await db.delete(cambridgeAccess).where(eq(cambridgeAccess.email, email));
       setCambridgeGrant(email, granted); // this process now; others pick it up within a minute (index.ts)
       return c.json(cambridgeInfo(u), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      ...adminRoute,
+      method: 'post',
+      path: '/api/admin/users/{id}/limits',
+      summary: "Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test.",
+      request: { params: Id, body: { required: true, content: { 'application/json': { schema: LimitsBody } } } },
+      responses: { 200: json(LimitsInfo, 'New limits'), 404: json(ErrorSchema, 'Unknown user, or a guest') },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      const [u] = await db.select({ isAnonymous: user.isAnonymous }).from(user).where(eq(user.id, id));
+      if (!u || u.isAnonymous) return c.json({ error: 'User not found' }, 404);
+      if (b.speaking == null && b.writing == null && !b.unlimited) await db.delete(userLimits).where(eq(userLimits.userId, id)); // back to the defaults
+      else {
+        const row = { ...b, updatedBy: c.get('user')!.email.toLowerCase(), updatedAt: new Date() };
+        await db.insert(userLimits).values({ userId: id, ...row }).onConflictDoUpdate({ target: userLimits.userId, set: row });
+      }
+      return c.json(await limitsInfo(id, false), 200);
     },
   );
 }

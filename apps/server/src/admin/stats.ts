@@ -5,13 +5,14 @@ import { HTTPException } from 'hono/http-exception';
 import { renderedHashes, speakingAudioHash } from '../ai/speaking-audio';
 import { cambridgeSource, requireOwner } from '../auth';
 import { db } from '../db/client';
-import { feedback, lrAttempts, lrTests, prompts, replaySessions, user as userT } from '../db/schema';
+import { feedback, lrAttempts, lrTests, prompts, replaySessions, user as userT, userLimits } from '../db/schema';
+import { LIMIT } from '../quota';
 import { storage } from '../storage';
 import type { App } from '../types';
 import { ACTIVITY, daysAgo, dhakaDay, pageQuery } from './common';
 import {
   ActivityItem, ActivityPage, Content, Funnel, Growth, Missed, Overview, SkillS, Tests, UserDetail, UsersPage,
-  type CambridgeInfo, type ReplayItem, type Skill, type TestHealth, type UserRow,
+  type CambridgeInfo, type LimitsInfo, type ReplayItem, type Skill, type TestHealth, type UserRow,
 } from './schemas';
 
 // "Last n days" everywhere = the n Dhaka calendar days ending today, so the window starts at daysAgo(n - 1).
@@ -23,6 +24,12 @@ const ids = (list: string[]) => sql.join(list.map((i) => sql`${i}`), sql`, `);
 const like = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
 const r2 = (x: number | string | null) => (x === null ? null : Math.round(Number(x) * 100) / 100);
 const SKILLS = ['speaking', 'writing', 'listening', 'reading'] as const;
+
+/** A user's test-limit overrides (user_limits) with the default they replace. */
+export async function limitsInfo(userId: string, guest: boolean): Promise<LimitsInfo> {
+  const [l] = await db.select().from(userLimits).where(eq(userLimits.userId, userId));
+  return { speaking: l?.speaking ?? null, writing: l?.writing ?? null, unlimited: l?.unlimited ?? false, default: LIMIT, canEdit: !guest };
+}
 
 const cambridgeInfo = (email: string, verified: boolean, guest: boolean): CambridgeInfo => {
   const source = guest ? null : cambridgeSource(email);
@@ -225,7 +232,7 @@ export function register(app: App) {
     const bandTrend = Object.fromEntries(SKILLS.map((s) => [s, trend.filter((t) => t.skill === s).map((t) => ({ at: t.at, band: Number(t.band) }))])) as UserDetail['bandTrend'];
     const recordings = await Promise.all(recs.map(async (r) => ({ attemptId: r.id, part: r.part, createdAt: r.createdAt.toISOString(), durationMs: r.durationMs, audioUrl: r.audioKey ? await storage.presignGet(r.audioKey, 3600) : null })));
     const replayItems: ReplayItem[] = replays.map((r) => ({ id: r.id, userId: r.userId, email: u.email, startedAt: r.startedAt.toISOString(), lastAt: r.lastAt.toISOString(), durationS: (r.lastAt.getTime() - r.startedAt.getTime()) / 1000, pages: r.pages, bytes: r.bytes, chunks: r.chunks, userAgent: r.userAgent }));
-    return c.json({ user: u, attempts, bandTrend, recordings, replays: replayItems, cambridge: u.cambridge }, 200);
+    return c.json({ user: u, attempts, bandTrend, recordings, replays: replayItems, cambridge: u.cambridge, limits: await limitsInfo(id, u.isGuest) }, 200);
   });
 
   app.openapi(get('/api/admin/tests', 'Per-prompt and per-L/R-test completion and scores', Tests, { query: z.object({ days: z.coerce.number().int().min(1).max(365).default(90) }) }), async (c) => {

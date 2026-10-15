@@ -288,3 +288,29 @@ describe('owner bypass on result endpoints', () => {
     expect(await db.query.lrAttempts.findFirst({ where: eq(lrAttempts.id, lr.id) })).toBeTruthy();
   });
 });
+
+describe('test limits', () => {
+  const set = (headers: Headers, id: string, b: object) => req(`/api/admin/users/${id}/limits`, { headers, body: b });
+  const quota = async (headers: Headers) => (await (await req('/api/quota', { headers })).json()) as any;
+
+  it('sets per-day counts and unlimited; clearing them restores the default; a Cambridge grant alone is not unlimited', async () => {
+    const o = await testUser(OWNER);
+    const u = await testUser('limits@test.dev', { key: false });
+    expect((await quota(u.headers)).speaking).toMatchObject({ limit: 1 });
+
+    expect((await req(`/api/admin/users/${u.user.id}/cambridge`, { headers: o.headers, body: { granted: true } })).status).toBe(200);
+    expect(await quota(u.headers)).toMatchObject({ tier: 'community', speaking: { limit: 1 } }); // content access only
+
+    const r = await set(o.headers, u.user.id, { speaking: 5, writing: null, unlimited: false });
+    expect(await r.json()).toEqual({ speaking: 5, writing: null, unlimited: false, default: 1, canEdit: true });
+    expect(await quota(u.headers)).toMatchObject({ speaking: { limit: 5, remaining: 5 }, writing: { limit: 1 } });
+
+    await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: true });
+    expect(await quota(u.headers)).toMatchObject({ tier: 'own-key', speaking: { limit: null, blocked: null } });
+
+    await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: false });
+    expect(await quota(u.headers)).toMatchObject({ tier: 'community', speaking: { limit: 1 } });
+    expect((await set(o.headers, (await guestUser()).user.id, { speaking: 3, writing: null, unlimited: false })).status).toBe(404);
+    expect((await set(u.headers, u.user.id, { speaking: 99, writing: null, unlimited: true })).status).toBe(404); // owner only
+  });
+});

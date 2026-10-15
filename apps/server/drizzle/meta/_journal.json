@@ -120,6 +120,13 @@
       "when": 1791542564351,
       "tag": "0016_ai_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792099816990,
+      "tag": "0017_user_limits",
+      "breakpoints": true
     }
   ]
 }
