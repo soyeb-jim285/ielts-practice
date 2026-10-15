@@ -146,7 +146,11 @@ function LiveDemo() {
       <LiveStage ex={ex} />
       <aside
         aria-label="Demo controls"
-        className={cn('fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-50 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface shadow-lg', open || !started ? 'p-3' : 'p-1')}
+        className={cn(
+          'fixed right-[max(1rem,env(safe-area-inset-right,0px))] z-50 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface shadow-lg',
+          // hidden: a pill at the top, clear of the live screen's pinned "I'm done" bar
+          open || !started ? 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] p-3' : 'top-[calc(4rem+env(safe-area-inset-top,0px))] p-1',
+        )}
       >
         {started && !open ? (
           <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>

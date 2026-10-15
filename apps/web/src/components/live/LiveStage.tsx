@@ -169,7 +169,8 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
         )}
 
         {ex.endTurn && (
-          <div>
+          // Pinned to the bottom of the screen, so it stays in reach however long the card and notes are.
+          <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-bg/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur sm:-mx-6 sm:px-6">
             <Button size="lg" variant={ex.phase === 'p2-talk' ? 'primary' : 'outline'} icon={<Check />} onClick={ex.endTurn} className="w-full sm:w-auto">
               I'm done
             </Button>
