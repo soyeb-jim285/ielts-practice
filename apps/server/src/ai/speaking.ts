@@ -200,7 +200,7 @@ export function transitionsOf(segments?: Segment[] | null): [number, number][] {
 export const TRANSITION_NOTE =
   'The recording holds the candidate\'s answers only: the app played each examiner question aloud and paused the microphone meanwhile. Silence or a jump at a "Q<n>:" boundary is app timing between questions, already left out of every pause, rate and disfluency measurement: never read it as hesitation, a long pause or a filled pause. Hesitation inside an answer still counts.';
 
-/** Jev speaking scorer (docs/HANDOFF.md §H-I and apps/server/.eval/jev/curve.mts): one call rating coherence, lexical resource and grammar on bands 4-9 from the
+/** Jev speaking scorer (apps/server/.eval/jev/curve.mts): one call rating coherence, lexical resource and grammar on bands 4-9 from the
  *  question/answer transcript; the overall comes from a top-stretched curve on its mean, its probability of band 8+ and the measured fluency. Leave-one-speaker-out
  *  on 66 labelled samples (50 speakers, 21 at band 7+): MAE 0.59 vs 0.86 for the 12-call LLM scorer, band 7+ MAE 0.84 vs 1.74, reaches 9; weak speakers (band <= 5)
  *  read about 0.4 high. ponytail: the request is the experiment's verbatim and the constants below were fitted on it: change either and refit (curve.mts).

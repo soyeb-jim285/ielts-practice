@@ -1,7 +1,5 @@
 # Agent notes (Codex / Claude)
 
-Start with `docs/HANDOFF.md`: it lists the uncommitted work in the tree and the next tasks, with the exact commands for each.
-
 ## Project rules (from the owner)
 - **Cost:** never use Anthropic/Claude models for app or eval calls. Use cheap OpenRouter models: `openai/gpt-6-luna` (default), `deepseek/deepseek-v4.1-flash`. Don't use Qwen (too slow). State the estimated cost before any paid run. The OpenAI key is only for Realtime and the Pipecat examiner's OpenAI TTS voices.
 - **Content** (questions, passages, scripts, chart descriptions) is written by coding agents themselves, not by OpenRouter calls. OpenRouter is for app runtime only.

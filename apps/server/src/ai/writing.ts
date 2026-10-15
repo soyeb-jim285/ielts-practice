@@ -138,7 +138,7 @@ export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?:
   return { samples: mergeSamples(parts, o.early && parts.length >= 2 ? parts.length : k), used: parts.length, served, flags: textFlags(i.text, promptText(i.prompt)), words: metrics.words, copied, figure, family: fam, promptHash: hash, key: calibrationKey(model, hash, WRITING_EFFORT, k) };
 }
 
-/** Jev scoring (docs/HANDOFF.md §2): one call rating the four criteria as `score` questions on bands 3-9. On the gold TEST split, with its knot map, it
+/** Jev scoring: one call rating the four criteria as `score` questions on bands 3-9. On the gold TEST split, with its knot map, it
  *  is within noise of the LLM scorer (MAE 0.52 vs 0.45) at about a tenth of the cost and ~1 s. It cannot see figure images, so those stay on the LLM scorer.
  *  ponytail: this is the experiment's `raw` request (apps/server/.eval/jev/variants.mts) verbatim, because DEFAULT_MAPS[DECISION_MODEL] was fitted on it:
  *  change the wording or the band range and the map must be refitted (apps/server/.eval/jev/fit-writing-map.mts). */

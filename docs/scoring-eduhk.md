@@ -1,6 +1,6 @@
 # EdUHK Speaking Evaluation
 
-Research-only extension of the completed 12-recording experiment in `docs/HANDOFF.md`. The original scores and paid responses remain cached under `.eval/jev/audio/`; do not repeat their transcription or scoring.
+Research-only extension of the completed 12-recording experiment. The original scores and paid responses remain cached under `.eval/jev/audio/`; do not repeat their transcription or scoring.
 
 ## Source Audit
 
