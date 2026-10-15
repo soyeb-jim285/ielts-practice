@@ -34,6 +34,8 @@ export type LiveExaminer = {
   talkRunning: boolean;
   /** Candidate mic level 0..1 while recording. */
   level: number;
+  /** The examiner's audio as it plays (conversation engines), for the voice visualizer; absent: the bars animate without it. */
+  voice?: MediaStream;
   error?: string;
   /** Examiner voice failed: the test continues on captions only. */
   voiceError?: string;

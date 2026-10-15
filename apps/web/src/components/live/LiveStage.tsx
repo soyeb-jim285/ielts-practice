@@ -7,6 +7,7 @@ import { Alert, Button, Card, Dialog, PageContainer, ProgressRing, Spinner, Text
 import { formatClock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { PREP_S, TALK_S, type LiveExaminer, type Phase } from '@/live/turn';
+import { Visualizer, type VoiceState } from './Visualizer';
 
 export const PHASE_LABEL: Record<Phase, string> = {
   intro: 'Introduction',
@@ -43,36 +44,13 @@ export function useElapsed(running: boolean) {
   return s;
 }
 
-const BARS = 13;
+/** Whose turn it is, above the bars. */
+const WHO: Partial<Record<LiveExaminer['status'], string>> = { starting: 'Examiner', examiner: 'Examiner', thinking: 'Examiner', candidate: 'You' };
 
-/** Re-renders every 160 ms while `active`, to move the examiner's bars. Static under reduced motion. */
-function useBreath(active: boolean) {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!active || globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const id = setInterval(() => setTick((t) => t + 1), 160);
-    return () => clearInterval(id);
-  }, [active]);
-  return tick;
-}
-
-/**
- * Examiner presence as a row of voice bars: they move while the examiner speaks, follow your voice while you answer,
- * and rest at a low line otherwise. Only transform changes, so it is cheap.
- */
-function Voice({ speaking, listening, level, compact }: { speaking: boolean; listening: boolean; level: number; compact: boolean }) {
-  const tick = useBreath(speaking);
-  return (
-    <div className={cn('flex items-center justify-center gap-1.5 transition-[height] duration-200 ease-(--ease-out-expo)', compact ? 'h-14' : 'h-24')} aria-hidden>
-      {Array.from({ length: BARS }, (_, i) => {
-        const mid = 1 - Math.abs(i - (BARS - 1) / 2) / ((BARS - 1) / 2); // 0 at the edges, 1 in the middle
-        const rest = 0.1 + 0.08 * mid;
-        const scale = listening ? Math.min(1, rest + level * (0.7 + 1.1 * mid)) : speaking ? 0.18 + 0.82 * mid * Math.abs(Math.sin(tick * 0.9 + i * 1.7)) : rest;
-        return <span key={i} className={cn('h-full w-1.5 rounded-sm transition-transform duration-150 ease-out', listening ? 'bg-ink/70' : 'bg-brand')} style={{ transform: `scaleY(${scale})` }} />;
-      })}
-    </div>
-  );
-}
+/** The visualizer's state for each examiner status. */
+const VOICE: Record<LiveExaminer['status'], VoiceState> = {
+  idle: 'idle', starting: 'connecting', examiner: 'speaking', candidate: 'listening', thinking: 'thinking', waiting: 'idle', finishing: 'idle', error: 'idle',
+};
 
 /** The running live test: examiner, phase, timers, captions, cue card and notes, end-test control. */
 export function LiveStage({ ex }: { ex: LiveExaminer }) {
@@ -112,9 +90,16 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
       <PageContainer width="narrow" className="flex flex-col gap-6 md:gap-8">
         <h1 className="type-title">{PHASE_LABEL[ex.phase]}</h1>
 
-        <Card className="flex flex-col items-center gap-4 py-7 text-center">
-          <Voice speaking={ex.status === 'examiner'} listening={ex.status === 'candidate'} level={ex.level} compact={part2} />
-          <p className="min-h-6 text-body font-medium" aria-live="polite">
+        {/* Part 2: the card is the focus, so the examiner shrinks to one row beside its status. */}
+        <Card className={cn('flex items-center overflow-hidden', part2 ? 'flex-row gap-4 px-5 py-3 text-left' : 'flex-col gap-4 py-7 text-center')}>
+          {!part2 && WHO[ex.status] && (
+            <p className="type-caption flex items-center gap-2 font-medium tracking-wide uppercase">
+              <span className={cn('size-2 rounded-full', ex.status === 'candidate' ? 'bg-ink/70' : 'bg-brand', (ex.status === 'examiner' || ex.status === 'candidate') && 'motion-safe:animate-pulse')} aria-hidden />
+              {WHO[ex.status]}
+            </p>
+          )}
+          <Visualizer state={VOICE[ex.status]} stream={ex.voice} level={ex.level} compact={part2} className={part2 ? 'shrink-0' : undefined} />
+          <p className={cn('min-h-6 font-medium', part2 ? 'text-sm' : 'text-body')} aria-live="polite">
             {STATUS_TEXT[ex.status] || '\u00a0'}
           </p>
           {ex.needsTap && (

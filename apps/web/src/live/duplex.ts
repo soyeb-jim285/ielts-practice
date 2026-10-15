@@ -89,6 +89,7 @@ export function useDuplexExaminer(
   const [phase, setPhase] = useState<Phase>('intro');
   const [caption, setCaption] = useState('');
   const [cueCard, setCueCard] = useState<Prompt>();
+  const [voice, setVoice] = useState<MediaStream>();
   const [error, setError] = useState<string>();
   const [retry, setRetry] = useState<() => void>();
   const [retryLabel, setRetryLabel] = useState<string>();
@@ -336,6 +337,7 @@ export function useDuplexExaminer(
       c.unwatch?.();
       c.unwatch = watchExaminer(stream, parts.examiner);
       parts.output(stream);
+      setVoice(stream);
     },
     answered() {
       const c = r.current;
@@ -417,6 +419,7 @@ export function useDuplexExaminer(
     talkLeft: talk.left,
     talkRunning: talk.running,
     level: parts.level,
+    voice,
     error,
     needsTap: false,
     resume: () => {},
