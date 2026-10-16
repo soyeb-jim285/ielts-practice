@@ -71,9 +71,9 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect): Promise<void> {
         segments: a.segments,
         questions,
         part,
-        models: MODELS,
+        models: { ...MODELS, analysis: MODELS.speaking },
       });
-      models = { stt: result.sttModel ?? MODELS.stt, analysis: MODELS.analysis };
+      models = { stt: result.sttModel ?? MODELS.stt, analysis: MODELS.speaking };
     } else {
       result = await analyzeWriting({
         text: a.text ?? '',

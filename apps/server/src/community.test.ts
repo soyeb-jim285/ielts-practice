@@ -657,8 +657,8 @@ describe('routing to the user key', () => {
       await settled(id, 'done');
       return new Set(f.calls.filter((c) => c.url.includes('/chat/completions')).map((c) => c.body.model));
     };
-    expect([...(await modelsUsed(community))]).toEqual(['openai/gpt-6-luna']);
-    expect([...(await modelsUsed(own))]).toEqual(['openai/gpt-6-luna']);
+    expect([...(await modelsUsed(community))]).toEqual(['anthropic/claude-haiku-5.5']);
+    expect([...(await modelsUsed(own))]).toEqual(['anthropic/claude-haiku-5.5']);
   });
 
   it('a user key the provider rejects is flagged invalid, the attempt fails with a clear message, and the user is a community user again', async () => {

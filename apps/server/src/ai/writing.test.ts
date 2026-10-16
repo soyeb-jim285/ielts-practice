@@ -3,7 +3,7 @@ import { fakeFetch, json } from '../test/helpers';
 import { db, sql } from '../db/client';
 import { scoringCalibrations, scoringScripts } from '../db/schema';
 import { setFetch } from './openrouter';
-import { analyzeWriting, applyRules, densityCap, grammarDensity, scoreWriting, scorerK, settleWriting, WRITING_EFFORT, WRITING_K, type FeedbackFacts, type RuleInput } from './writing';
+import { analyzeWriting, applyRules, textEdits, densityCap, grammarDensity, scoreWriting, scorerK, settleWriting, WRITING_EFFORT, WRITING_K, type FeedbackFacts, type RuleInput } from './writing';
 import { criterionScore, models, writingChat, writingLlm } from './fixtures';
 import type { LlmCriterion } from './schemas';
 import { keepVerbatimEvidence } from './schemas';
@@ -46,8 +46,11 @@ it('one feedback call without bands plus K joint scoring calls: essay wrapped as
   setFetch(f);
   const r = await analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt, models: plain() });
   const [e0, e1] = r.errors;
-  expect(essay.slice(e0!.start, e0!.end)).toBe('people has');
-  expect(e1).toMatchObject({ id: 'e1', start: -1, end: -1 });
+  expect(e0).toMatchObject({ category: 'grammar.agreement', original: 'has', correction: 'have' }); // from the proofreading diff, not the feedback call
+  expect(essay.slice(e0!.start, e0!.end)).toBe('has');
+  expect(e1).toMatchObject({ id: 'e1', category: 'lexis.repetition', start: -1, end: -1 }); // the feedback call keeps repetition, task and cohesion
+  expect(chatCalls(f, 'correction')).toHaveLength(1);
+  expect(chatCalls(f, 'correction_labels')).toHaveLength(1);
   expect(r.topFixes).toHaveLength(3);
 
   const [fb] = chatCalls(f, 'writing_analysis');
@@ -72,6 +75,21 @@ it('one feedback call without bands plus K joint scoring calls: essay wrapped as
   expect(r.criteria.ta!.evidence).toEqual(['people has']);
 });
 
+it('textEdits: word changes, insertions and punctuation become visible spans of the original', () => {
+  const a = 'He go to school yesterday and buy apple.';
+  expect(textEdits(a, 'He went to school yesterday, and bought an apple.').map((e) => [a.slice(e.start, e.end), e.correction])).toEqual([
+    ['go', 'went'], ['yesterday', 'yesterday,'], ['buy', 'bought an'],
+  ]);
+  expect(textEdits('Me  too.', 'Me too.')).toEqual([]); // whitespace only
+  expect(textEdits('I go to school.It rains.', 'I go to the school. It rains.').map((e) => [e.original, e.correction])).toEqual([['to', 'to the'], ['school.It', 'school. It']]); // a missing space is an edit
+  for (const [x, y] of <[string, string][]>[['He go to school yesterday and buy apple.', 'He went to school yesterday, and bought an apple.'], ['the cat sat.', 'The cat sat on the mat.'], ['a b c', 'b c'], ['big burguers.Woolypools is', 'big burgers. Woolypools is']]) {
+    let t = x;
+    for (const e of textEdits(x, y).sort((p, q) => q.start - p.start)) t = t.slice(0, e.start) + e.correction + t.slice(e.end);
+    expect(t).toBe(y); // lossless
+  }
+  expect(textEdits('the cat', 'The cat').map((e) => e.correction)).toEqual(['The']);
+});
+
 /** Jev answer: `score` is the 0-based step on bands 3-9, so 3 = band 6. */
 const jevReply = (scores: Record<string, number>) => () =>
   json({ model: 'typesafe/jev-1.13-20260917', answers: Object.fromEntries(Object.entries(scores).map(([k, score]) => [k, { type: 'score', score, confidence: 0.9, probabilities: {} }])), usage: { input_tokens: 900, output_tokens: 20, cost: 0.00002 } });
@@ -91,7 +109,7 @@ it('Jev scores the essay in one call instead of K LLM samples: its knot map sets
   const gd = (r.errors.filter((e) => e.category.startsWith('grammar.')).length * 100) / countWords(essay);
   expect(r.overall).toBe(roundBand(applyKnotMap(DEFAULT_MAPS['typesafe/jev-1.13']!, 6, gd)));
   expect(r).toMatchObject({ calibrated: false, q: 1 });
-  expect(r.criteria.gra!.evidence).toEqual(['people has']); // the located grammar error; the unlocated lexis quote is dropped
+  expect(r.criteria.gra!.evidence).toEqual(['has']); // the located grammar error; the unlocated lexis quote is dropped
   for (const c of Object.values(r.criteria)) {
     expect(c!.descriptor).not.toBe('');
     expect(c!.summary).toMatch(/^To reach band \d: /);
@@ -173,7 +191,7 @@ it('per-criterion mode: one call per criterion per sample', async () => {
 });
 
 it('an active calibration record for (model, promptHash, effort, K) is applied, with its q; inactive or other models stay uncalibrated', async () => {
-  const s = models();
+  const s = models({ analysis: 'openai/gpt-6-luna' });
   const key = calibrationKey(s.analysis, promptHash([]), WRITING_EFFORT, WRITING_K);
   const rec = { skill: 'writing' as const, modelId: s.analysis, promptHash: promptHash([]), effort: WRITING_EFFORT, k: WRITING_K, form: 'linear', slope: 1.5, intercept: -2.5, mLo: 4, mHi: 8, q90: 0.5 };
   await db.insert(scoringCalibrations).values({ ...rec, key, active: false });

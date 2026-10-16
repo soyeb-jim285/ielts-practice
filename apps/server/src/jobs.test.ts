@@ -66,7 +66,7 @@ it('writing: uses stored text; a failing AI marks the attempt failed with a read
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done' });
   const r = (await db.query.analyses.findFirst({ where: eq(analyses.attemptId, a!.id) }))!.result as AnalysisResult;
-  expect(text.slice(r.errors[0]!.start, r.errors[0]!.end)).toBe('people has');
+  expect(text.slice(r.errors[0]!.start, r.errors[0]!.end)).toBe('has');
   expect(await db.select().from(mistakes).where(eq(mistakes.attemptId, a!.id))).toHaveLength(2);
 });
 

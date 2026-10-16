@@ -133,11 +133,20 @@ export type CostTag = { stage?: string; retry?: boolean; meta?: Record<string, u
 const recordFailure = (e: unknown, o: { stage: string; model: string; retry?: boolean; meta?: Record<string, unknown> }) =>
   recordCost({ stage: o.stage, provider: 'openrouter', model: o.model, costUsd: 0, ok: false, retry: o.retry, meta: { ...o.meta, ...(e instanceof AiError && { code: e.code, status: e.status, timeout: e.code === 'timeout' || undefined }) } });
 
+/** Anthropic models run on the house Anthropic key (OpenRouter BYOK) only, never on OpenRouter's own Anthropic capacity; when that key fails or its credit
+ *  runs out OpenRouter moves to luna (`models`). The BYOK setting "never use OpenRouter's Anthropic capacity" must be on in the OpenRouter dashboard. */
+export const FALLBACK_MODEL = 'openai/gpt-6-luna';
+const ANTHROPIC_ROUTE = (model: string, provider: unknown) => ({
+  cache_control: { type: 'ephemeral' }, // Anthropic caches only when asked; luna caches on its own
+  models: [model, FALLBACK_MODEL],
+  provider: { ...(provider as object), only: ['anthropic', 'openai'], allow_fallbacks: false },
+});
+
 async function chat(body: Record<string, unknown>, timeoutMs?: number, onServed?: (s: Served) => void, tag: CostTag = {}): Promise<string> {
   const stage = tag.stage ?? 'other', model = String(body.model);
   let data: Served & { id?: string; usage?: unknown; choices?: { message?: { content?: string | null } }[] };
   try {
-    data = (await (await call('/chat/completions', { ...body, usage: { include: true } }, timeoutMs, 'POST', stage)).json()) as typeof data;
+    data = (await (await call('/chat/completions', { ...body, usage: { include: true }, ...(model.startsWith('anthropic/') && ANTHROPIC_ROUTE(model, body.provider)) }, timeoutMs, 'POST', stage)).json()) as typeof data;
   } catch (e) {
     recordFailure(e, { stage, model, retry: tag.retry, meta: tag.meta });
     throw e;

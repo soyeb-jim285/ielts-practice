@@ -128,8 +128,8 @@ async function feedbackAll(scored: Map<string, Cached>) {
       if (existsSync(f)) { c.facts = JSON.parse(readFileSync(f, 'utf8')); continue; }
       for (let attempt = 0; ; attempt++) {
         try {
-          const inp = await input(r), { fb, errors } = await feedbackWriting(inp, c.figure);
-          c.facts = feedbackFacts(fb, errors, computeTextMetrics(inp.text).sentences);
+          const inp = await input(r), { fb, scoring } = await feedbackWriting(inp, c.figure);
+          c.facts = feedbackFacts(fb, scoring, computeTextMetrics(inp.text).sentences);
           writeFileSync(f, JSON.stringify(c.facts));
           console.error(`  feedback ${r.id}: ${c.facts.errors.length} errors`);
           break;

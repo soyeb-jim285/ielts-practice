@@ -26,7 +26,7 @@ export const writingLlm = (quote: string) => ({
   topFixes: [fix(1), fix(2), fix(3)],
   errors: [
     { category: 'grammar.agreement', severity: 'minor', quote, original: quote, correction: 'people have', explanation: 'Plural subject.' },
-    { category: 'lexis.word-choice', severity: 'minor', quote: 'not in the essay', original: 'x', correction: 'y', explanation: 'z' },
+    { category: 'lexis.repetition', severity: 'minor', quote: 'not in the essay', original: 'x', correction: 'y', explanation: 'z' },
   ],
   structure: { paragraphs: [{ role: 'intro', topicSentence: 'Many people', ok: true, note: '' }], overview: null, position: { clear: true, consistent: true, note: '' }, planFollowed: null },
   offTopicParagraphs: [] as number[],
@@ -42,7 +42,11 @@ export function writingChat(band: (key: string, n: number) => number = () => 6, 
   let n = 0;
   return (_: string, init: RequestInit) => {
     const body = JSON.parse(String(init.body));
-    if (body.response_format?.json_schema?.name !== 'writing_scores') return reply(feedback);
+    const name = body.response_format?.json_schema?.name;
+    // Proofreading: fixes "people has"; labels: one grammar.agreement item per edit.
+    if (name === 'correction') return reply({ corrected: String(body.messages[1].content).replace(/<\/?candidate_response>\n?/g, '').replace(/\n$/, '').replace('people has', 'people have') });
+    if (name === 'correction_labels') return reply({ items: JSON.parse(body.messages[1].content).corrections.map(({ n }: { n: number }) => ({ n, keep: true, category: 'grammar.agreement', severity: 'minor', explanation: 'Plural subject.' })) });
+    if (name !== 'writing_scores') return reply(feedback);
     const user = body.messages[1].content, text: string = typeof user === 'string' ? user : user[0].text;
     const i = n++;
     return reply(Object.fromEntries([...text.matchAll(/<criterion id="(\w+)"/g)].map(([, k]) => [k, criterionScore(band(k!, i))])));

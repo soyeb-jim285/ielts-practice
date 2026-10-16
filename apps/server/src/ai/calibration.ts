@@ -20,10 +20,13 @@ export const UNCALIBRATED_LABEL = 'Estimated with an unvalidated model: scores m
  *  but the model stays "unvalidated" (calibrated: false, q = 1) because the CV gate is not met. Fitted by
  *  `pnpm eval:scoring --split calib --fit --with-anchors --with-ceilings` on the current promptHash and feedback prompt: refit and paste when either changes. */
 export const DEFAULT_MAPS: Record<string, KnotMap> = {
-  'openai/gpt-6-luna': { w: -0.16, gd0: 4.31, knots: [[3.5, 4.34], [4.5, 5.34], [7.5, 7.65], [8.5, 8.65]] },
-  // Jev writing scorer (writing.ts jevScoreWriting, request JEV_WRITING_HASH): fitted 2026-10-07 on the 70 calibration scripts (apps/server/.eval/jev/fit-writing-map.mts);
-  // leave-one-prompt-out CV MAE 0.53 / QWK 0.78; frozen TEST MAE 0.52 / QWK 0.80 (luna 0.45 / 0.85).
-  'typesafe/jev-1.13': { w: -0.22, gd0: 4.39, knots: [[3.5, 4.39], [4.5, 5.39], [7.5, 7.42], [8.5, 8.1]] }, // fitted 2026-10-01 on promptHash c2c869d31a9fcf39 (98 calibration scripts: 64 gold + 22 anchors + 6 model answers at 8.5 + 6 authored floors; leave-one-prompt-out CV: MAE 0.52, bias >=7 -0.37, <=5 +0.04)
+  // Haiku 5.5 (image-figure scorer and Jev fallback): fitted 2026-10-16 on promptHash c2c869d31a9fcf39 with Haiku's feedback facts (FEEDBACK_HASH f0d6b1550391), n=98;
+  // leave-one-prompt-out CV MAE 0.55; frozen TEST MAE 0.39 / QWK 0.89 (luna 0.45 / 0.85).
+  'anthropic/claude-haiku-5.5': { w: -0.23, gd0: 3.11, knots: [[3.5, 4.22], [4.5, 5.34], [7.5, 8.3], [8.5, 9.29]] },
+  'openai/gpt-6-luna': { w: -0.16, gd0: 4.31, knots: [[3.5, 4.34], [4.5, 5.34], [7.5, 7.65], [8.5, 8.65]] }, // fitted 2026-10-01 on promptHash c2c869d31a9fcf39 (98 calibration scripts: 64 gold + 22 anchors + 6 model answers at 8.5 + 6 authored floors; leave-one-prompt-out CV: MAE 0.52, bias >=7 -0.37, <=5 +0.04)
+  // Jev writing scorer (writing.ts jevScoreWriting, request JEV_WRITING_HASH): refitted 2026-10-16 on the 70 calibration scripts with grammar density from Haiku 5.5's
+  // feedback call (apps/server/.eval/jev/refit-gd.mts); leave-one-prompt-out CV MAE 0.51 / QWK 0.77; TEST MAE 0.51 / QWK 0.80 (the luna-density fit of 2026-10-07: 0.52 / 0.80).
+  'typesafe/jev-1.13': { w: -0.33, gd0: 3.23, knots: [[3.5, 4.14], [4.5, 5.28], [7.5, 7.55], [8.5, 8.31]] },
 };
 
 export const calibrationKey = (modelId: string, promptHash: string, effort: string, k: number) =>

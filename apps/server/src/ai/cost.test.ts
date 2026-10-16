@@ -44,6 +44,7 @@ it('usageCost sums the BYOK upstream cost and reports whether the cost was exact
   const u = { prompt_tokens: 5, completion_tokens: 2, cost: 0.01, cost_details: { upstream_inference_cost: 0.04 } };
   expect(keyCtx.run({ openrouter: 'sk-own-key' }, () => usageCost(u))).toMatchObject({ costUsd: 0.05, inputTokens: 5, outputTokens: 2, exact: true });
   expect(usageCost(u).costUsd).toBe(0.01); // house key: upstream cost is already inside `cost`
+  expect(usageCost({ cost: 0, is_byok: true, cost_details: { upstream_inference_cost: 0.0011 } }).costUsd).toBe(0.0011); // house BYOK (Anthropic key): cost is only the fee
   expect(usageCost(undefined)).toMatchObject({ costUsd: 0, exact: false });
 });
 
@@ -116,14 +117,14 @@ it('Scribe: house-paid ElevenLabs row from audio seconds, a failed call as ok=fa
   expect(fallback!.meta).toMatchObject({ fallbackFrom: 'elevenlabs/scribe_v2', estimated: true });
 });
 
-it('writing: the feedback call and the Jev scoring call each leave a row with the mocked usage.cost', async () => {
+it('writing: the feedback, proofreading and labelling calls and the Jev scoring call each leave a row with the mocked usage.cost', async () => {
   const jev = () => json({ answers: Object.fromEntries(['ta', 'cc', 'lr', 'gra'].map((k) => [k, { score: 3, probabilities: {} }])), usage: { input_tokens: 900, output_tokens: 20, cost: 0.02 } });
   setFetch(fakeFetch({ '/chat/completions': withUsage(writingChat(), 0.02), '/systemone': jev }));
   const essay = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(16)}`;
   await keyCtx.run({ cost: { ...ctx, skill: 'writing' } }, () => analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt: { title: 'T', body: 'Discuss.' }, models: models({ analysis: 'other/model' }) }));
   await flushCosts();
   const done = await all();
-  expect(done.filter((r) => r.stage === 'feedback')).toHaveLength(1);
+  expect(done.filter((r) => r.stage === 'feedback').map((r) => (r.meta as { step?: string } | null)?.step ?? 'feedback').sort()).toEqual(['correct', 'feedback', 'label']);
   expect(done.filter((r) => r.stage === 'score')).toMatchObject([{ model: 'typesafe/jev-1.13', ok: true }]);
   expect(done.every((r) => r.costUsd === 0.02 && r.skill === 'writing')).toBe(true);
 });

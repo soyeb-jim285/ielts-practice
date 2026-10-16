@@ -68,12 +68,13 @@ const WHISPER_USD_PER_HOUR = 0.11;
 export const whisperUsd = (seconds: number) => (seconds / 3600) * WHISPER_USD_PER_HOUR;
 export const scribeUsd = (seconds: number) => (seconds / 3600) * env.ELEVENLABS_SCRIBE_USD_PER_HOUR;
 
-/** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK key only, the upstream provider cost OpenRouter reports separately (on the house key it is already inside `cost`). */
+/** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK call (`is_byok`, e.g. the house Anthropic key), the upstream provider cost OpenRouter
+ *  reports separately (`cost` is then only OpenRouter's fee, often 0; otherwise the upstream cost is already inside `cost`). */
 export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; outputTokens?: number; exact: boolean } {
-  const x = (u ?? {}) as { cost?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown; cost_details?: { upstream_inference_cost?: unknown } };
+  const x = (u ?? {}) as { cost?: unknown; is_byok?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown; cost_details?: { upstream_inference_cost?: unknown } };
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
   const cost = n(x.cost);
-  return { costUsd: (cost ?? 0) + (keyCtx.getStore()?.openrouter ? (n(x.cost_details?.upstream_inference_cost) ?? 0) : 0), inputTokens: n(x.prompt_tokens), outputTokens: n(x.completion_tokens), exact: cost !== undefined };
+  return { costUsd: (cost ?? 0) + ((x.is_byok ?? keyCtx.getStore()?.openrouter) ? (n(x.cost_details?.upstream_inference_cost) ?? 0) : 0), inputTokens: n(x.prompt_tokens), outputTokens: n(x.completion_tokens), exact: cost !== undefined };
 }
 
 /** Replaces estimated OpenRouter costs with what OpenRouter actually charged. The live examiner's LLM rows are priced from the catalogue, but OpenRouter

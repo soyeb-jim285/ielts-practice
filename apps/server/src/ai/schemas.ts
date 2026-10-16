@@ -25,6 +25,17 @@ const only = (keep: (c: Category) => boolean) => MISTAKE_CATEGORIES.filter(keep)
 /** Speaking has no spelling, overview or position; writing has no pronunciation or hesitation. */
 const SPEAKING_CATEGORIES = only((c) => c !== 'lexis.spelling' && c !== 'task.overview' && c !== 'task.position');
 const WRITING_CATEGORIES = only((c) => c !== 'pronunciation.word' && c !== 'fluency.hesitation');
+/** Writing errors the proofreading step finds (writing.ts languageErrors); the feedback call keeps task, cohesion and repetition. */
+export const isLanguageError = (c: string) => /^(grammar|lexis)\./.test(c) && c !== 'lexis.repetition';
+export const EditLabelsSchema = z.object({
+  items: z.array(z.object({
+    n: z.number().int(),
+    keep: z.boolean().describe('false only when the original was already correct and the change is a style preference'),
+    category: z.enum(only(isLanguageError)),
+    severity: z.enum(['minor', 'major']),
+    explanation: z.string().describe('One sentence the candidate can learn from'),
+  })),
+});
 
 const errorSchema = (categories: [Category, ...Category[]]) =>
   z.object({

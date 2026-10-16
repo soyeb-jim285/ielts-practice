@@ -6,7 +6,8 @@ import { env } from './env';
 
 /** The analysis models: the same for everyone (no per-user choice). */
 export const MODELS = {
-  analysis: 'openai/gpt-6-luna',
+  analysis: 'anthropic/claude-haiku-5.5', // writing: proofreading, feedback, image-figure scoring. Falls back to luna (openrouter.ts chat)
+  speaking: 'openai/gpt-6-luna', // speaking feedback and disfluency tags stay on luna until Haiku is checked on real recordings
   stt: env.ELEVENLABS_API_KEY ? 'elevenlabs/scribe_v2' : 'openai/whisper-large-v3', // Scribe v2 when its key is set (spec §5.2), falling back to Whisper on error
 };
 export type Models = typeof MODELS;
