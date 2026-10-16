@@ -27,7 +27,6 @@ class ShellLogicTest {
         assertTrue(AppJson.decodeFromString(HistoryPage.serializer(), fixtures.getValue("/api/attempts")).items.isNotEmpty())
         val due = AppJson.decodeFromString(DueResponse.serializer(), fixtures.getValue("/api/cards/due"))
         assertEquals(3, due.dueTotal) // `items` wrapper, no `total`
-        assertEquals(listOf("Charon", "Puck", "Kore"), AppJson.decodeList<TtsModel>(fixtures.getValue("/api/models?capability=tts")).first().voices)
     }
 
     @Test fun dayBuckets() {
@@ -192,12 +191,5 @@ class ShellLogicTest {
         assertEquals("Code already sent 20 s ago to j•••@gmail.com; it is still valid. Check spam; you can resend in 10 s." to false, emailStatusLine(sent.copy(alreadySent = true, resendAvailableIn = 10), now, z))
         assertEquals("We couldn't send the email (the email service is busy). Try again." to true, emailStatusLine(sent.copy(status = "failed", error = "rate_limited"), now, z))
         assertEquals("Sending the code…" to false, emailStatusLine(null, now, z))
-    }
-
-    @Test fun modelLabels() {
-        assertEquals("gpt-6-luna", shortModel("openai/gpt-6-luna"))
-        assertEquals("\$0.10 in · \$0.50 out per 1M tokens", modelPrice("1e-7", "5e-7"))
-        assertNull(modelPrice("0", "0"))
-        assertNull(modelPrice(null, "1"))
     }
 }

@@ -8,17 +8,9 @@ import Foundation
 
 struct User: Codable { let id: String; let email: String; let name: String; let emailVerified: Bool; let isAnonymous: Bool }
 
-// openapi: Settings.models
-
-struct ModelChoices: Codable, Equatable {
-    var analysis: String, examiner: String, stt: String, tts: String, ttsVoice: String
-}
-
 // openapi: Settings
 
 struct AppSettings: Codable, Equatable {
-    var models: ModelChoices
-    var liveProvider: String // "turn" | "gpt-live" | "gemini-live"
     var targetBand: Double
     var writingAutoSubmit: Bool
     var blockPaste: Bool
@@ -30,8 +22,6 @@ struct Me: Codable {
     let user: User
     var settings: AppSettings
     let cambridgeAccess: Bool
-    let gptLiveAvailable: Bool
-    let geminiLiveAvailable: Bool
 }
 
 // openapi: SkillQuota
@@ -60,14 +50,14 @@ struct Quota: Codable, Equatable {
     let tier: String // guest | community | own-key
     let speaking: SkillQuota
     let writing: SkillQuota
-    let liveProviders: [String] // turn | gpt-live | gemini-live
+    let live: Bool // the live examiner (LiveKit, server keys) is available
     let communityBalance: CommunityBalance
 }
 
 // openapi: ApiKeyInfo
 
 struct ApiKeyInfo: Codable, Equatable {
-    let provider: String // openrouter | openai | gemini
+    let provider: String // openrouter
     let last4: String
     let addedAt: String
     let valid: Bool
@@ -445,31 +435,12 @@ struct Mistake: Decodable, Identifiable {
 
 struct MistakeLog: Decodable { let groups: [ProgressData.CategoryCount]; let items: [Mistake]; let total: Int }
 
-// openapi: Model
-
-struct ModelInfo: Decodable, Identifiable {
-    // openapi: Model.pricing
-    struct Pricing: Decodable { let prompt: String?; let completion: String? }
-    let id: String
-    let name: String?
-    let pricing: Pricing?
-}
-
 // openapi: LiveStarted
 
-struct LiveReply: Decodable {
-    let sessionId: String?
-    let examinerText: String
-    let audioUrl: String?
-    let voiceError: String? // why audioUrl is null (TTS failed): the test continues with captions
-    let phase: String
-    let prepSeconds: Int?
-    let cueCard: Prompt?
-    let test: SpeakingTest?
-}
+struct LiveStarted: Decodable { let sessionId: String; let test: SpeakingTest }
+// openapi: LiveKitStart
+struct LiveKitStart: Decodable { let url: String; let token: String }
 // openapi: LiveUpload
 struct UploadTarget: Decodable { let key: String; let uploadUrl: String }
-// openapi: GeminiToken
-struct GeminiToken: Decodable { let value: String; let model: String? }
 // openapi: LiveFinished
 struct FinishResult: Decodable { let attemptIds: [String] }

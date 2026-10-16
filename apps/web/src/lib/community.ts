@@ -7,7 +7,7 @@ export type SkillQuota = Schemas['SkillQuota'];
 export type Balance = Schemas['CommunityBalance'];
 export type Tier = Quota['tier'];
 export type Skill = 'speaking' | 'writing';
-export type Provider = 'openrouter' | 'openai' | 'gemini';
+export type Provider = 'openrouter';
 
 /** What the person may start now, per skill. Without a session the server answers for a guest, so it is safe before the first sign-in. */
 export const quotaQuery = queryOptions({ queryKey: ['quota'], queryFn: () => call(client.GET('/api/quota')), staleTime: 20_000 });
@@ -56,10 +56,10 @@ export const usdLimit = (n: number) => (Number.isInteger(n) ? `$${n}` : usd(n));
 
 // ---- Blockers: why a test cannot start (or finish), and the way out ----
 
-export type BlockCode = 'quota_exceeded' | 'community_balance_exhausted' | 'community_busy' | 'too_many_requests' | 'live_requires_own_key';
+export type BlockCode = 'quota_exceeded' | 'community_balance_exhausted' | 'community_busy' | 'too_many_requests';
 export type Blocker = { code: BlockCode; skill?: Skill; resetAt?: string | null; tier?: Tier; provider?: Provider };
 
-const BLOCK_CODES: readonly string[] = ['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests', 'live_requires_own_key'];
+const BLOCK_CODES: readonly string[] = ['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests'];
 
 /** The blocker behind a failed request, or null when the error is something else (network, 500, validation). */
 export function blockerOf(e: unknown): Blocker | null {
@@ -93,8 +93,6 @@ export function blockerCopy(b: Blocker, now?: number): Copy {
       return { title: 'A lot of people are practising right now', body: 'Try again in a few minutes.' };
     case 'too_many_requests':
       return { title: "You're going a bit fast", body: 'Try again in a moment.' };
-    case 'live_requires_own_key':
-      return { title: 'The live examiner runs on your own key', body: guest ? 'Create an account, then add your own OpenAI or Gemini key in Settings.' : 'Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live.' };
   }
 }
 
@@ -121,6 +119,4 @@ export function acknowledgeFairUse(userId: string | null) {
 
 export const PROVIDERS: Record<Provider, { name: string; unlocks: string; help: string; url: string; placeholder: string }> = {
   openrouter: { name: 'OpenRouter', unlocks: 'Unlimited tests', help: 'Your tests are paid from your OpenRouter credit instead of the community balance.', url: 'https://openrouter.ai/keys', placeholder: 'sk-or-v1-…' },
-  openai: { name: 'OpenAI', unlocks: 'GPT-Live examiner', help: 'Runs the GPT-Live conversation with your OpenAI account.', url: 'https://platform.openai.com/api-keys', placeholder: 'sk-…' },
-  gemini: { name: 'Gemini', unlocks: 'Gemini Live examiner', help: 'Runs the Gemini Live conversation with your Google AI Studio key.', url: 'https://aistudio.google.com/apikey', placeholder: 'AIza…' },
 };

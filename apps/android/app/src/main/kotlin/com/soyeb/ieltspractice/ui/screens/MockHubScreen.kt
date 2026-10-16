@@ -283,7 +283,7 @@ private fun SpeakingChoice(m: Mock, error: String?, busy: Boolean, nav: AppNav, 
     val e = MaterialTheme.ext
     val api = LocalApp.current.api
     val quota = rememberQuota()
-    val live = (quota?.liveProviders ?: api.liveProviders).isNotEmpty()
+    val live = quota?.live ?: api.liveAvailable
     AppCard {
         Text("Last section", style = MaterialTheme.typography.labelLarge, color = e.brand)
         Text("Writing finished. Choose how to do Speaking.", style = MaterialTheme.typography.titleLarge, color = e.ink)
@@ -316,8 +316,7 @@ private fun SpeakingChoice(m: Mock, error: String?, busy: Boolean, nav: AppNav, 
                 }
             }, Modifier.fillMaxWidth(), enabled = !busy)
         } else {
-            Text("Needs your own OpenAI or Gemini key.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-            SecondaryButton("Add your own key", { nav.openTab(Tab.Settings) }, Modifier.fillMaxWidth())
+            Text("The live examiner isn't available right now.", style = MaterialTheme.typography.bodySmall, color = e.muted)
         }
     }
     AppCard {

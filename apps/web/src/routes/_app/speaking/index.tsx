@@ -36,7 +36,7 @@ function SpeakingHome() {
   // No attempts yet: the first action is a single part, so that list leads (order-first) and the full modes follow.
   const list = useRecentAttempts();
   const fresh = !useAccount() || (list.isSuccess && list.data.items.length === 0);
-  const live = useQuota().data?.liveProviders.length !== 0; // unknown while loading counts as open, so the card does not flash a lock
+  const live = useQuota().data?.live !== false; // unknown while loading counts as open, so the card does not flash a lock
   const q = useQuestionSource('speaking');
   const { source } = q;
   return (

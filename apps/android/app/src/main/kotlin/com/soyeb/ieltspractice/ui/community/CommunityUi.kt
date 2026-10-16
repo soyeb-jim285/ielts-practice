@@ -125,12 +125,9 @@ fun QuotaCaption(skill: String, modifier: Modifier = Modifier) {
 @Composable
 fun LiveCaption(modifier: Modifier = Modifier) {
     val q = rememberQuota() ?: return
-    val text = when {
-        q.liveProviders.isNotEmpty() -> "Runs on your own key"
-        q.tier == "guest" -> "Needs your own API key. Create an account first."
-        else -> "Needs your own API key. Add one in Settings."
-    }
-    Text(text, modifier, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.ext.muted)
+    // A live test counts as the speaking test.
+    if (q.live) QuotaCaption("speaking", modifier)
+    else Text("The live examiner isn't available right now.", modifier, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.ext.muted)
 }
 
 /**
@@ -183,7 +180,7 @@ fun GateHost(nav: AppNav) {
     LaunchedEffect(demo?.screen) { if (demo != null) DemoCommunity.gate(demo.screen)?.let { nav.gate = it } }
     when (val g = nav.gate) {
         null -> {}
-        is Gate.Blocked -> GateSheet(nav, label = GateText.copy(g.code, g.skill, g.tier, g.resetAt, g.needs, g.keep).title) { BlockedContent(nav, g) }
+        is Gate.Blocked -> GateSheet(nav, label = GateText.copy(g.code, g.skill, g.tier, g.resetAt, g.keep).title) { BlockedContent(nav, g) }
         is Gate.FairUse -> GateSheet(nav, label = FairUse.TITLE) { FairUseContent(nav, g) }
         is Gate.Message -> GateSheet(nav, label = g.title) { MessageContent(nav, g) }
     }
@@ -237,7 +234,7 @@ private fun SheetBody(text: String) = Text(text, style = MaterialTheme.typograph
 
 @Composable
 private fun BlockedContent(nav: AppNav, g: Gate.Blocked) {
-    val copy = GateText.copy(g.code, g.skill, g.tier, g.resetAt, g.needs, g.keep)
+    val copy = GateText.copy(g.code, g.skill, g.tier, g.resetAt, g.keep)
     SheetTitle(copy.title)
     SheetBody(copy.body)
     if (g.code == Codes.BALANCE) BalanceMeter(g.balance, Modifier.padding(vertical = 4.dp))

@@ -1,21 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // helpers first: it loads the app (and zod-openapi's zod extension) before the settings schema is built
 import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, setKey, testUser } from './test/helpers';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests, emailLog, userLimits } from './db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests, emailLog } from './db/schema';
 import { sendsIdle } from './auth-email';
 import { auth } from './auth';
 import { env } from './env';
 import { keyCtx } from './ai/keyctx';
-import { chatText, setFetch, speak, transcribe } from './ai/openrouter';
+import { chatText, setFetch, transcribe } from './ai/openrouter';
 import { analyze, purgeGuests, recoverStale, setAnalyzer } from './jobs';
 import { speakingLlm, sttWords, writingChat } from './ai/fixtures';
 import { clearBalanceCache } from './community';
 import { decryptKey, encryptKey } from './keys';
 import { refundAttempt, reserve, windowOf, payerOf } from './quota';
 import { hashIp } from './ip';
-import { updateSettings } from './settings';
 import { storage } from './storage';
 
 const ESSAY = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
@@ -96,7 +95,7 @@ describe('reserve, refund, retry', () => {
       tier: 'community',
       speaking: { used: 0, limit: 1, remaining: 1, window: 'day', blocked: null },
       writing: { used: 0, limit: 1, remaining: 1, window: 'day', blocked: null },
-      liveProviders: [],
+      live: false,
     });
     expect((await writing(headers, w)).submit!.status).toBe(200);
     const q = await quota(headers);
@@ -269,12 +268,12 @@ describe('guests', () => {
   it('GET /api/me for a guest: anonymous, no email, no live', async () => {
     const g = await guestUser(ip());
     const me = (await (await req('/api/me', { headers: g.headers })).json()) as any;
-    expect(me).toMatchObject({ user: { isAnonymous: true, email: '' }, tier: 'guest', liveProviders: [], gptLiveAvailable: false, geminiLiveAvailable: false, cambridgeAccess: false });
+    expect(me).toMatchObject({ user: { isAnonymous: true, email: '' }, tier: 'guest', live: false, cambridgeAccess: false });
     expect(me.speaking).toMatchObject({ limit: 1, window: 'week' });
   });
 
   it('GET /api/quota works without any session (a guest by IP)', async () => {
-    expect(await quota()).toMatchObject({ tier: 'guest', speaking: { limit: 1, remaining: 1, window: 'week' }, writing: { limit: 1, remaining: 1 }, liveProviders: [] });
+    expect(await quota()).toMatchObject({ tier: 'guest', speaking: { limit: 1, remaining: 1, window: 'week' }, writing: { limit: 1, remaining: 1 }, live: false });
   });
 
   it('per-IP cap: 3 guests per skill per IP per week, then the 4th anonymous user is refused; another IP is unaffected', async () => {
@@ -501,7 +500,6 @@ describe('own keys', () => {
     expect(Buffer.from(a.ciphertext, 'base64').toString('latin1')).not.toContain('abcdef');
     expect(decryptKey(a, 'u1', 'openrouter')).toBe('sk-or-v1-abcdef123456');
     expect(() => decryptKey(a, 'u2', 'openrouter')).toThrow(); // a row copied to another user
-    expect(() => decryptKey(a, 'u1', 'openai')).toThrow();
     const tampered = { ...a, ciphertext: flip(a.ciphertext) };
     expect(() => decryptKey(tampered, 'u1', 'openrouter')).toThrow();
   });
@@ -509,9 +507,9 @@ describe('own keys', () => {
   it('PUT validates with the provider (their key in the right header), stores it encrypted, and never returns or logs it', async () => {
     const spies = (['log', 'warn', 'error', 'info', 'debug'] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
     const { headers, user } = await testUser(undefined, { key: false });
-    const f = fakeFetch({ '/api/v1/key': () => json({ data: {} }), '/v1/models': () => json({ data: [] }), '/v1beta/models': () => json({ models: [] }) });
+    const f = fakeFetch({ '/api/v1/key': () => json({ data: {} }) });
     store(f);
-    const secrets = { openrouter: 'sk-or-v1-SECRETSECRET1111', openai: 'sk-proj-SECRETSECRET2222', gemini: 'AIzaSECRETSECRET3333' };
+    const secrets = { openrouter: 'sk-or-v1-SECRETSECRET1111' };
     const out: string[] = [];
     for (const [provider, key] of Object.entries(secrets)) {
       const r = await put(headers, provider, key);
@@ -520,28 +518,25 @@ describe('own keys', () => {
       out.push(text);
       expect(JSON.parse(text)).toEqual({ provider, last4: key.slice(-4), addedAt: expect.any(String), valid: true });
     }
-    expect(f.calls.map((c) => c.url)).toEqual(['https://openrouter.ai/api/v1/key', 'https://api.openai.com/v1/models', 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1']);
+    expect(f.calls.map((c) => c.url)).toEqual(['https://openrouter.ai/api/v1/key']);
     expect(f.calls[0]!.headers.authorization).toBe(`Bearer ${secrets.openrouter}`);
-    expect(f.calls[1]!.headers.authorization).toBe(`Bearer ${secrets.openai}`);
-    expect(f.calls[2]!.headers['x-goog-api-key']).toBe(secrets.gemini);
-    expect(f.calls[2]!.url).not.toContain(secrets.gemini); // never in a URL
 
     const list = await (await req('/api/keys', { headers })).text();
     out.push(list);
-    expect(JSON.parse(list).keys.map((k: any) => k.provider)).toEqual(['openrouter', 'openai', 'gemini']);
+    expect(JSON.parse(list).keys.map((k: any) => k.provider)).toEqual(['openrouter']);
     for (const s of Object.values(secrets)) {
       for (const o of out) expect(o).not.toContain(s);
       expect(JSON.stringify(await db.select().from(userApiKeys))).not.toContain(s); // at rest: ciphertext only
       for (const spy of spies) expect(JSON.stringify(spy.mock.calls)).not.toContain(s);
     }
-    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(3);
     // replacing a key overwrites the row
-    expect((await put(headers, 'openai', 'sk-proj-OTHERKEY9999')).status).toBe(200);
-    expect(await db.select().from(userApiKeys).where(and(eq(userApiKeys.userId, user.id), eq(userApiKeys.provider, 'openai')))).toHaveLength(1);
+    expect((await put(headers, 'openrouter', 'sk-or-v1-OTHERKEY9999')).status).toBe(200);
+    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(1);
+    expect((await put(headers, 'openai', 'sk-proj-OTHERKEY9999')).status).toBe(400); // only OpenRouter keys now
     spies.forEach((s) => s.mockRestore());
   });
 
-  it('PUT: a key the provider rejects (401/403, Gemini 400) is refused with invalid_key and nothing is saved; an unreachable provider is 502', async () => {
+  it('PUT: a key the provider rejects (401/403) is refused with invalid_key and nothing is saved; an unreachable provider is 502', async () => {
     const { headers, user } = await testUser(undefined, { key: false });
     for (const status of [401, 403]) {
       store(fakeFetch({ '/api/v1/key': () => json({ error: 'no' }, status) }));
@@ -549,13 +544,11 @@ describe('own keys', () => {
       expect(r.status).toBe(400);
       expect(await body(r)).toMatchObject({ code: 'invalid_key', error: expect.stringContaining('OpenRouter') });
     }
-    store(fakeFetch({ '/v1beta/models': () => json({ error: { message: 'API key not valid' } }, 400) }));
-    expect((await put(headers, 'gemini', 'AIza-bad-bad-bad')).status).toBe(400);
-    store(fakeFetch({ '/v1/models': () => json({}, 503) }));
-    const down = await put(headers, 'openai', 'sk-proj-whatever1234');
+    store(fakeFetch({ '/api/v1/key': () => json({}, 503) }));
+    const down = await put(headers, 'openrouter', 'sk-or-whatever1234');
     expect([down.status, (await body(down)).code]).toEqual([502, 'key_check_failed']);
     store(fakeFetch({}));
-    expect((await put(headers, 'openai', 'sk-proj-whatever1234')).status).toBe(502); // network-level failure (599 from the stub)
+    expect((await put(headers, 'openrouter', 'sk-or-whatever1234')).status).toBe(502); // network-level failure (599 from the stub)
     expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(0);
   });
 
@@ -621,19 +614,17 @@ describe('routing to the user key', () => {
     }
   });
 
-  it('turn-based live primitives (STT, LLM, TTS) use the key in the request context', async () => {
+  it('analysis primitives (STT, LLM) use the key in the request context', async () => {
     const f = fakeFetch({
       '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [] }),
       '/chat/completions': () => chatReply('ok'),
-      '/audio/speech': () => new Response(new Uint8Array([1]), { headers: { 'Content-Type': 'audio/mpeg' } }),
     });
     setFetch(f);
     await keyCtx.run({ openrouter: 'sk-or-CTXKEY-0002' }, async () => {
       await transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm' });
       await chatText({ model: 'a/b', messages: [{ role: 'user', content: 'x' }] });
-      await speak({ model: 'openai/tts', voice: 'alloy', text: 'Hello.' });
     });
-    expect(f.calls).toHaveLength(3);
+    expect(f.calls).toHaveLength(2);
     expect(new Set(f.calls.map((c) => c.headers.authorization))).toEqual(new Set(['Bearer sk-or-CTXKEY-0002']));
   });
 
@@ -654,12 +645,9 @@ describe('routing to the user key', () => {
     }
   });
 
-  it('community analysis always runs on the default models; a custom model applies only on the user\'s own key', async () => {
+  it('analysis runs on the default models for everyone, own key or not', async () => {
     const community = await testUser(undefined, { key: false });
     const own = await testUser();
-    const unlimited = await testUser(undefined, { key: false }); // admin "no limits": the house still pays, so no custom model
-    await db.insert(userLimits).values({ userId: unlimited.user.id, unlimited: true, updatedBy: 'owner' });
-    for (const u of [community, own, unlimited]) await updateSettings(u.user.id, { models: { analysis: 'custom/model-x' } });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     setAnalyzer(analyze);
     const modelsUsed = async (who: typeof own) => {
@@ -670,8 +658,7 @@ describe('routing to the user key', () => {
       return new Set(f.calls.filter((c) => c.url.includes('/chat/completions')).map((c) => c.body.model));
     };
     expect([...(await modelsUsed(community))]).toEqual(['openai/gpt-6-luna']);
-    expect([...(await modelsUsed(own))]).toEqual(['custom/model-x']);
-    expect([...(await modelsUsed(unlimited))]).toEqual(['openai/gpt-6-luna']);
+    expect([...(await modelsUsed(own))]).toEqual(['openai/gpt-6-luna']);
   });
 
   it('a user key the provider rejects is flagged invalid, the attempt fails with a clear message, and the user is a community user again', async () => {
@@ -704,47 +691,17 @@ describe('routing to the user key', () => {
 });
 
 describe('live access', () => {
-  const live = async (headers: Headers) => ((await (await req('/api/me', { headers })).json()) as any);
-
-  it('liveProviders follow the keys: turn-based needs OpenRouter, GPT-Live OpenAI, Gemini Live Gemini', async () => {
-    const community = await testUser(undefined, { key: false });
-    expect(await live(community.headers)).toMatchObject({ liveProviders: [], gptLiveAvailable: false, geminiLiveAvailable: false, realtimeAvailable: false });
-    await setKey(community.user.id, 'openai');
-    expect(await live(community.headers)).toMatchObject({ tier: 'community', liveProviders: ['realtime-mini', 'gpt-live'], gptLiveAvailable: true, realtimeAvailable: true, geminiLiveAvailable: false });
-    await setKey(community.user.id, 'gemini');
-    expect((await live(community.headers)).liveProviders).toEqual(['realtime-mini', 'gpt-live', 'gemini-live']);
-    await setKey(community.user.id, 'openrouter');
-    expect(await live(community.headers)).toMatchObject({ tier: 'own-key', liveProviders: ['turn', 'realtime-mini', 'gpt-live', 'gemini-live'] });
-
-    const orOnly = await testUser();
-    expect(await live(orOnly.headers)).toMatchObject({ tier: 'own-key', liveProviders: ['turn'], gptLiveAvailable: false, geminiLiveAvailable: false });
-  });
-
-  it('server-wide OPENAI_API_KEY / GEMINI_API_KEY no longer unlock live for ordinary users; the owner may use them', async () => {
-    env.OPENAI_API_KEY = 'sk-server';
-    env.GEMINI_API_KEY = 'g-server';
-    try {
-      const ordinary = await testUser();
-      expect(await live(ordinary.headers)).toMatchObject({ gptLiveAvailable: false, geminiLiveAvailable: false });
-      const owner = await testUser('soyebjim@gmail.com', { key: false });
-      expect(await live(owner.headers)).toMatchObject({ tier: 'own-key', gptLiveAvailable: true, geminiLiveAvailable: true, liveProviders: ['turn', 'realtime-mini', 'gpt-live', 'gemini-live'] });
-    } finally {
-      env.OPENAI_API_KEY = env.GEMINI_API_KEY = undefined;
+  it('live is open to everyone once the LiveKit examiner is configured, and refused (503) until then', async () => {
+    const me = async (headers: Headers) => ((await (await req('/api/me', { headers })).json()) as any);
+    for (const u of [await guestUser(), await testUser(undefined, { key: false }), await testUser()]) {
+      expect((await me(u.headers)).live).toBe(false);
+      expect((await req('/api/live/start', { headers: u.headers, body: {} })).status).toBe(503);
     }
-  });
-
-  it('403 live_requires_own_key on every live entry point for guests and community users', async () => {
-    for (const u of [await guestUser(), await testUser(undefined, { key: false })]) {
-      for (const [path, payload] of [
-        ['/api/live/start', {}],
-        ['/api/live/start', { skipTts: true }],
-        ['/api/live/turn', { sessionId: 'x' }],
-        ['/api/live/gpt-live/session', { sessionId: 'x', sdp: 'v=0' }],
-        ['/api/live/gemini-token', { sessionId: 'x' }],
-      ] as const) {
-        const r = await req(path, { headers: u.headers, body: payload });
-        expect([path, r.status, (await body(r)).code]).toEqual([path, 403, 'live_requires_own_key']);
-      }
+    Object.assign(env, { LIVEKIT_URL: 'wss://x', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 's', LIVEKIT_REPORT_SECRET: 'r'.repeat(32), SONIOX_API_KEY: 'sx' });
+    try {
+      expect((await me((await testUser(undefined, { key: false })).headers)).live).toBe(true);
+    } finally {
+      Object.assign(env, { LIVEKIT_URL: undefined, LIVEKIT_API_KEY: undefined, LIVEKIT_API_SECRET: undefined, LIVEKIT_REPORT_SECRET: undefined, SONIOX_API_KEY: undefined });
     }
   });
 });

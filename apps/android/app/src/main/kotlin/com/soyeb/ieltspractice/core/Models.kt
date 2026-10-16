@@ -15,40 +15,25 @@ import kotlinx.serialization.json.doubleOrNull
     val isAnonymous: Boolean = false,
 )
 
-@Serializable data class ModelChoices(
-    val analysis: String, val examiner: String, val stt: String, val tts: String, val ttsVoice: String,
-)
-
 @Serializable data class AppSettings(
-    val models: ModelChoices,
-    val liveProvider: String, // "turn" | "gpt-live" | "gemini-live" (an old "openai-realtime" reads as "gpt-live", see [provider])
     val targetBand: Double,
     val writingAutoSubmit: Boolean,
     val blockPaste: Boolean,
-) {
-    /** The live examiner choice, with the pre-GPT-Live value migrated. */
-    val provider: String get() = if (liveProvider == "openai-realtime") "gpt-live" else liveProvider
-}
+)
 
 @Serializable data class Me(
     val user: User,
     val settings: AppSettings,
     val cambridgeAccess: Boolean = false,
-    val gptLiveAvailable: Boolean? = null,
-    /** Deprecated alias the server still sends for app versions from before GPT-Live. */
-    val realtimeAvailable: Boolean = false,
-    val geminiLiveAvailable: Boolean = false,
     // Community mode: the same fields as GET /api/quota.
     val tier: String? = null,
     val speaking: SkillQuota? = null,
     val writing: SkillQuota? = null,
-    val liveProviders: List<String>? = null,
+    val live: Boolean = false,
     val communityBalance: Balance? = null,
 ) {
-    val gptLive: Boolean get() = gptLiveAvailable ?: realtimeAvailable
-
     /** The quota block of `/api/me`, or null from a server that predates community mode. */
-    fun quota(): Quota? = tier?.let { Quota(it, speaking ?: SkillQuota(), writing ?: SkillQuota(), liveProviders.orEmpty(), communityBalance) }
+    fun quota(): Quota? = tier?.let { Quota(it, speaking ?: SkillQuota(), writing ?: SkillQuota(), live, communityBalance) }
 }
 
 /** An empty `{}` body (writes that return nothing useful). */
@@ -316,7 +301,7 @@ object DisfluencyKinds {
     )
 }
 
-// MARK: - Progress, cards, models, live
+// MARK: - Progress, cards, live
 
 @Serializable data class TrendPoint(val date: String, val overall: Double, val criteria: Map<String, Double>)
 @Serializable data class Weakest(val key: String, val avg: Double)
@@ -352,19 +337,8 @@ object DisfluencyKinds {
 
 @Serializable data class MistakeLog(val groups: List<CategoryCount>, val items: List<Mistake>, val total: Int)
 
-@Serializable data class Pricing(val prompt: String? = null, val completion: String? = null)
-@Serializable data class ModelInfo(val id: String, val name: String? = null, val pricing: Pricing? = null, val voices: List<String>? = null)
-
-@Serializable data class LiveReply(
-    val sessionId: String? = null,
-    val examinerText: String,
-    val audioUrl: String? = null,
-    val voiceError: String? = null, // why audioUrl is null (TTS failed): the test continues with captions
-    val phase: String,
-    val prepSeconds: Int? = null,
-    val cueCard: Prompt? = null,
-    val test: SpeakingTest? = null,
-)
+/** POST /api/live/start. */
+@Serializable data class LiveStart(val sessionId: String, val test: SpeakingTest)
 @Serializable data class UploadTarget(val key: String, val uploadUrl: String)
 @Serializable data class FinishResult(val attemptIds: List<String>)
 

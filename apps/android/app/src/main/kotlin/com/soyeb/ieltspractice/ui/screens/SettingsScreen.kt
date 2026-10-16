@@ -1,31 +1,22 @@
 package com.soyeb.ieltspractice.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,8 +34,6 @@ import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.AppSettings
 import com.soyeb.ieltspractice.core.Band
-import com.soyeb.ieltspractice.core.KeyCopy
-import com.soyeb.ieltspractice.core.ModelChoices
 import com.soyeb.ieltspractice.ui.community.ApiKeysCard
 import com.soyeb.ieltspractice.ui.community.QuotaSummary
 import com.soyeb.ieltspractice.ui.LoadContent
@@ -56,16 +45,8 @@ import com.soyeb.ieltspractice.ui.nav.LrHub
 import com.soyeb.ieltspractice.ui.nav.Mistakes
 import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.screens.shell.AppField
-import com.soyeb.ieltspractice.ui.screens.shell.DefaultModels
-import com.soyeb.ieltspractice.ui.screens.shell.FilterMenu
-import com.soyeb.ieltspractice.ui.screens.shell.LinkButton
-import com.soyeb.ieltspractice.ui.screens.shell.ModelPickerBody
-import com.soyeb.ieltspractice.ui.screens.shell.ModelPickerDialog
 import com.soyeb.ieltspractice.ui.screens.shell.NavRow
 import com.soyeb.ieltspractice.ui.screens.shell.RowDivider
-import com.soyeb.ieltspractice.ui.screens.shell.TtsModel
-import com.soyeb.ieltspractice.ui.screens.shell.demoTab
-import com.soyeb.ieltspractice.ui.screens.shell.shortModel
 import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
@@ -83,19 +64,13 @@ fun SettingsScreen(nav: AppNav) {
     val api = LocalApp.current.api
     val ready by api.ready.collectAsState()
     val account by api.hasAccount.collectAsState()
-    val quota by api.quota.collectAsState()
     val me by api.me.collectAsState()
-    val demo = LocalDemo.current
-    if (demoTab(demo) == "Picker") { // screenshot of the model picker (a dialog in the app)
-        ScreenScaffold("Scoring and feedback", onBack = {}, scroll = false) { ModelPickerBody("text", DefaultModels.ANALYSIS) {} }
-        return
-    }
     ScreenScaffold("Settings", large = true) {
         when {
             !ready -> {}
             !account -> GuestSettings(nav)
             me == null -> LoadContent(rememberLoad { api.loadMe() }) {}
-            else -> SettingsBody(me!!.settings, quota?.liveProviders ?: api.liveProviders, quota?.tier ?: "community", me!!.user.email, nav)
+            else -> SettingsBody(me!!.settings, me!!.user.email, nav)
         }
     }
 }
@@ -116,37 +91,21 @@ private fun GuestSettings(nav: AppNav) {
 }
 
 @Composable
-private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String, email: String, nav: AppNav) {
+private fun SettingsBody(initial: AppSettings, email: String, nav: AppNav) {
     val e = MaterialTheme.ext
     val container = LocalApp.current
     val api = container.api
     val scope = rememberCoroutineScope()
     var s by remember { mutableStateOf(initial) }
     var draft by remember { mutableStateOf(initial.targetBand) }
-    var voices by remember { mutableStateOf(emptyMap<String, List<String>>()) }
     var error by remember { mutableStateOf<String?>(null) }
-    val demoModels = demoTab(LocalDemo.current) == "Models"
-    var customise by remember { mutableStateOf(demoModels) }
-    var picking by remember { mutableStateOf<Pair<String, String>?>(null) } // capability to model-row title
     var showDelete by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        runCatching { api.getList<TtsModel>("/api/models", mapOf("capability" to "tts")) }.getOrNull()?.let { list ->
-            voices = list.mapNotNull { m -> m.voices?.let { m.id to it } }.toMap()
-        }
-    }
 
     fun update(new: AppSettings) {
         s = new
         scope.launch {
             try { api.saveSettings(new); error = null } catch (x: CancellationException) { throw x } catch (x: Exception) { error = (x as? ApiError)?.message ?: "Couldn't save your settings." }
         }
-    }
-    fun setModels(f: ModelChoices.() -> ModelChoices) = update(s.copy(models = s.models.f()))
-    fun setTts(id: String) {
-        // A new voice model may not offer the current voice: switch to its first one (web pickVoice).
-        val list = voices[id]
-        setModels { copy(tts = id, ttsVoice = if (list != null && ttsVoice !in list) list.first() else ttsVoice) }
     }
 
     error?.let { ErrorLine(it) }
@@ -194,46 +153,6 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
     }
 
     AppCard {
-        SectionTitle("Live examiner")
-        Text("How the live speaking test talks to you.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-        val natural = "Talk back and forth as in the real test. You can interrupt each other."
-        Text("The live examiner is never paid from the community balance, so it runs on your own key.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-        Column {
-            ProviderRow("turn", "Examiner waits for you to finish", if ("turn" in live) "The examiner asks a question, then listens until you pause." else "Needs your own OpenRouter key", s.provider, "turn" in live) { update(s.copy(liveProvider = "turn")) }
-            RowDivider()
-            ProviderRow("gpt-live", "Natural conversation (GPT-Live)", if ("gpt-live" in live) natural else "Needs your own OpenAI key", s.provider, "gpt-live" in live) { update(s.copy(liveProvider = "gpt-live")) }
-            RowDivider()
-            ProviderRow("gemini-live", "Natural conversation (Gemini)", if ("gemini-live" in live) natural else "Needs your own Gemini key", s.provider, "gemini-live" in live) { update(s.copy(liveProvider = "gemini-live")) }
-        }
-        if (live.size < 3) Text("Add a key under Your API keys to turn on the rest.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-    }
-
-    AppCard {
-        SectionTitle("AI models")
-        Text("The models that score your work and play the examiner. The defaults suit most people.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-        if (tier != "own-key") Text(KeyCopy.MODELS_NOTE, style = MaterialTheme.typography.bodySmall, color = e.ink)
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(customise, role = Role.Button) { customise = it },
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Customise models", style = MaterialTheme.typography.bodyLarge, color = e.ink)
-                Text("Scoring: ${shortModel(s.models.analysis)}", style = MaterialTheme.typography.bodySmall, color = e.muted)
-            }
-            Icon(if (customise) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, if (customise) "Collapse" else "Expand", tint = e.muted)
-        }
-        if (customise) {
-            Text("Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.", style = MaterialTheme.typography.bodySmall, color = e.muted)
-            ModelRow("Scoring and feedback", null, s.models.analysis, DefaultModels.ANALYSIS, { picking = "text" to "Scoring and feedback" }) { setModels { copy(analysis = it) } }
-            ModelRow("Examiner", "Asks the questions when the examiner waits for you to finish.", s.models.examiner, DefaultModels.EXAMINER, { picking = "text" to "Examiner" }) { setModels { copy(examiner = it) } }
-            ModelRow("Speech to text", "Needs word timestamps for fluency metrics.", s.models.stt, DefaultModels.STT, { picking = "stt" to "Speech to text" }) { setModels { copy(stt = it) } }
-            ModelRow("Examiner voice model", null, s.models.tts, DefaultModels.TTS, { picking = "tts" to "Examiner voice model" }) { setTts(it) }
-            val list = voices[s.models.tts].orEmpty()
-            FilterMenu("Voice", (if (s.models.ttsVoice in list) list else listOf(s.models.ttsVoice) + list).map { it to it }, s.models.ttsVoice, { v -> setModels { copy(ttsVoice = v) } })
-        }
-    }
-
-    AppCard {
         SectionTitle("Account")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Signed in as", style = MaterialTheme.typography.bodyMedium, color = e.muted)
@@ -252,21 +171,6 @@ private fun SettingsBody(initial: AppSettings, live: List<String>, tier: String,
         ) { Text("Delete account") }
     }
 
-    picking?.let { (capability, title) ->
-        val current = when (title) {
-            "Scoring and feedback" -> s.models.analysis; "Examiner" -> s.models.examiner; "Speech to text" -> s.models.stt
-            else -> s.models.tts
-        }
-        ModelPickerDialog(title, capability, current, { id ->
-            when (title) {
-                "Scoring and feedback" -> setModels { copy(analysis = id) }
-                "Examiner" -> setModels { copy(examiner = id) }
-                "Speech to text" -> setModels { copy(stt = id) }
-                else -> setTts(id)
-            }
-            picking = null
-        }) { picking = null }
-    }
     if (showDelete) DeleteAccountDialog { showDelete = false }
 }
 
@@ -288,42 +192,6 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
                 uncheckedThumbColor = e.muted, uncheckedTrackColor = e.surface2, uncheckedBorderColor = MaterialTheme.colorScheme.outline,
             ),
         )
-    }
-}
-
-/** One conversation-mode choice as a full-width radio row. */
-@Composable
-private fun ProviderRow(value: String, title: String, description: String, current: String, enabled: Boolean = true, onSelect: () -> Unit) {
-    val e = MaterialTheme.ext
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).selectable(current == value, enabled = enabled, role = Role.RadioButton, onClick = onSelect).padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) e.ink else e.muted)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = e.muted)
-        }
-        RadioButton(
-            current == value, null, enabled = enabled,
-            colors = RadioButtonDefaults.colors(selectedColor = e.brand, unselectedColor = MaterialTheme.colorScheme.outline, disabledSelectedColor = e.muted, disabledUnselectedColor = e.line),
-        )
-    }
-}
-
-/** A model choice: opens the searchable list, with the web's hint and "Reset to default" under it. */
-@Composable
-private fun ModelRow(title: String, hint: String?, value: String, defaultId: String, onPick: () -> Unit, onSet: (String) -> Unit) {
-    val e = MaterialTheme.ext
-    Column {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onPick),
-            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = e.ink, modifier = Modifier.weight(1f))
-            Text(shortModel(value), style = MaterialTheme.typography.bodyMedium, color = e.brand)
-        }
-        if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = e.muted)
-        if (value != defaultId) LinkButton("Reset to default (${shortModel(defaultId)})", { onSet(defaultId) })
     }
 }
 

@@ -216,6 +216,7 @@ export const scoringCalibrations = pgTable('scoring_calibrations', {
 }, (t) => [index('scoring_calibrations_lookup_idx').on(t.modelId, t.promptHash, t.effort, t.k)]);
 
 // ---------- Community mode (docs/community.md) ----------
+// openai and gemini are no longer used (0019 deleted their rows); kept so the enum type needs no rebuild.
 export const providerEnum = pgEnum('key_provider', ['openrouter', 'openai', 'gemini']);
 
 // A user's own API keys. The key itself is AES-256-GCM encrypted (src/keys.ts); only last4 is ever shown.
@@ -383,7 +384,7 @@ export const aiCosts = pgTable('ai_costs', {
   audioSeconds: numeric('audio_seconds', { mode: 'number' }),
   characters: integer('characters'),
   credits: numeric('credits', { mode: 'number' }),
-  costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }).notNull().default(0),
+  costUsd: numeric('cost_usd', { precision: 20, scale: 12, mode: 'number' }).notNull().default(0), // 12 decimals: per-call costs are often well under a micro-dollar and add up at scale
   ok: boolean('ok').notNull().default(true),
   retry: boolean('retry').notNull().default(false),
   meta: jsonb('meta').$type<Record<string, unknown>>(), // generationId, served, estimated, criterion, sample, extra, kept, timeout, status, usage
@@ -409,7 +410,7 @@ export const aiLogs = pgTable('ai_logs', {
   ok: boolean('ok').notNull(),
   status: integer('status'), // HTTP status; null for a network error or timeout
   latencyMs: integer('latency_ms').notNull(),
-  costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }),
+  costUsd: numeric('cost_usd', { precision: 20, scale: 12, mode: 'number' }),
   request: jsonb('request'),
   response: jsonb('response'),
   error: text('error'),

@@ -14,11 +14,4 @@ final class WordDiffTests: XCTestCase {
         XCTAssertEqual(wordDiff("old words", "").map { $0.op }, [.removed])
         XCTAssertEqual(wordDiff("same\ntext", "same text").map { $0.op }, [.same])
     }
-
-    func testExaminerLineDecodesVoiceError() throws {
-        let json = #"{"sessionId":"s","examinerText":"Hi","audioUrl":null,"voiceError":"Voice down","phase":"intro"}"#
-        let r = try JSONDecoder().decode(LiveReply.self, from: Data(json.utf8))
-        XCTAssertNil(r.audioUrl)
-        XCTAssertEqual(r.voiceError, "Voice down")
-    }
 }

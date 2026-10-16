@@ -1,38 +1,28 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // helpers first: it loads the app (and @hono/zod-openapi's zod extension) before the settings schema is built
-import { chatReply, fakeFetch, json, req, seedPrompt, setKey, testUser } from '../test/helpers';
-import { and, eq } from 'drizzle-orm';
+import { fakeFetch, json, req, seedPrompt, testUser } from '../test/helpers';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { aiCosts, attempts, liveSessions, quotaUsage } from '../db/schema';
+import { attempts, quotaUsage } from '../db/schema';
 import { setAnalyzer } from '../jobs';
 import { setFetch } from '../ai/openrouter';
 import { clearBalanceCache } from '../community';
-import type { LiveState } from '../ai/examiner';
+import { examinerPrompt } from '../ai/examiner';
 import { storage } from '../storage';
-import { clearSpeechCache } from './live';
-import { endRun, setUpstream } from '../ai/gpt-live';
-import { fakeSocket } from '../test/fakeSocket';
-import { OWNER_EMAILS } from '../auth';
-import { spokenLine } from '../ai/cascade';
 import { env } from '../env';
-import * as deadlines from '../ai/live-deadline';
 
-let ai: ReturnType<typeof fakeFetch>;
+const originalEnv = { ...env };
+afterEach(() => void Object.assign(env, originalEnv));
 let analyzed: string[];
 beforeEach(async () => {
-  clearSpeechCache();
+  Object.assign(env, { LIVEKIT_URL: 'wss://example.livekit.cloud', LIVEKIT_API_KEY: 'lk-key', LIVEKIT_API_SECRET: 'lk-secret', LIVEKIT_REPORT_SECRET: 'r'.repeat(32), SONIOX_API_KEY: 'soniox' });
   analyzed = [];
   setAnalyzer(async (id) => void analyzed.push(id));
-  ai = fakeFetch({
-    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
-    '/audio/transcriptions': () => json({ text: 'My name is Sam Lee.', duration: 3, words: [] }),
-    '/chat/completions': () => chatReply('Thank you. Now, in this first part, I would like to ask you some questions about yourself. Where is your hometown?'),
-  });
-  setFetch(ai);
   for (const t of ['home', 'work', 'food']) await seedPrompt({ topic: t, followUps: [`${t} 1?`, `${t} 2?`, `${t} 3?`, `${t} 4?`] });
   await seedPrompt({ part: 2, type: 'cue-card', title: 'Describe a book you enjoyed', groupId: 'g1', followUps: ['Do you read often?'] });
   await seedPrompt({ part: 3, type: 'p3-discussion', topic: 'reading habits', groupId: 'g1', followUps: ['Do people read less today?'] });
 });
+
 
 /** The session's introduction is random (sessionScript): `rnd` pins it. 0.9 = one introduction question; 0.1 = three (what to call you, where from). */
 const start = async (headers: Headers, body: Record<string, unknown> = {}, rnd = 0.9) => {
@@ -48,286 +38,22 @@ const upload = async (headers: Headers, sessionId: string) => {
   await storage.put(key, new Uint8Array([1, 2]), 'audio/webm');
   return key as string;
 };
-const state = async (id: string) => (await db.query.liveSessions.findFirst({ where: eq(liveSessions.id, id) }))!.state as LiveState;
-
-it('start → turn advances intro → p1 and grows the history by 2', async () => {
-  const { headers } = await testUser();
-  const s = await start(headers);
-  expect(s).toMatchObject({ phase: 'intro', examinerText: expect.stringContaining('full name') });
-  expect(s.audioUrl).toContain(`live/${s.sessionId}/e0.wav`); // default Gemini TTS is PCM-only → WAV
-  expect(s.test.part1).toHaveLength(3);
-  expect((await state(s.sessionId)).history).toHaveLength(1);
-
-  const audioKey = await upload(headers, s.sessionId);
-  const res = await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey } });
-  expect(res.status).toBe(200);
-  const t = (await res.json()) as any;
-  expect(t).toMatchObject({ phase: 'p1', transcript: 'My name is Sam Lee.', examinerText: expect.stringContaining("Let's talk about") });
-  const st = await state(s.sessionId);
-  expect(st.history).toHaveLength(3);
-  expect(st.history.map((h) => [h.role, h.phase])).toEqual([['examiner', 'intro'], ['candidate', 'intro'], ['examiner', 'p1']]);
-  expect(st.p1Asked).toBe(1);
-  // Part 1 questions are fixed wording: no examiner LLM call, so the voice is made while the answer is transcribed.
-  expect(ai.calls.some((c) => c.url.includes('/chat/completions'))).toBe(false);
-  expect(ai.calls.filter((c) => c.url.includes('/audio/transcriptions'))).toHaveLength(1);
-  // the turn-based examiner (STT, TTS, LLM) is paid with the user's own OpenRouter key, never the community key
-  expect(ai.calls.length).toBeGreaterThan(2);
-  expect(new Set(ai.calls.map((c) => c.headers.authorization))).toEqual(new Set(['Bearer sk-test-openrouter-0000']));
-});
-
-it('a generated examiner line (Part 3) uses a low-effort, short LLM call after the transcript', async () => {
-  const { headers } = await testUser();
-  const s = await start(headers);
-  const st = await state(s.sessionId);
-  await db.update(liveSessions).set({ state: { ...st, phase: 'p2-follow' } }).where(eq(liveSessions.id, s.sessionId));
-  const audioKey = await upload(headers, s.sessionId);
-  const t = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey } })).json()) as any;
-  expect(t).toMatchObject({ phase: 'p3', transcript: 'My name is Sam Lee.' });
-  const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
-  expect(chat).toMatchObject({ reasoning: { effort: 'low' }, max_tokens: 200 });
-  expect(chat.messages[0].content).toMatch(/Never give feedback/);
-  expect(chat.messages.at(-1)).toEqual({ role: 'user', content: 'My name is Sam Lee.' });
-});
 
 it('rejects audio keys outside the session and other users', async () => {
   const a = await testUser();
   const b = await testUser();
   const s = await start(a.headers);
-  expect((await req('/api/live/turn', { headers: a.headers, body: { sessionId: s.sessionId, audioKey: 'audio/other/x.webm' } })).status).toBe(400);
-  expect((await req('/api/live/turn', { headers: b.headers, body: { sessionId: s.sessionId, skipped: true } })).status).toBe(404);
+  expect((await req('/api/live/part', { headers: a.headers, body: { sessionId: s.sessionId, part: { part: 1, audioKey: 'audio/other/x.webm', durationMs: 1000 } } })).status).toBe(400);
+  expect((await req('/api/live/upload-url', { headers: b.headers, body: { sessionId: s.sessionId } })).status).toBe(404);
 });
 
-it('p1 end gives the cue card with 60 s prep, then the scripted long-turn start', async () => {
+it('start is refused (503) when the LiveKit examiner is not configured, and returns the opening line without audio', async () => {
   const { headers } = await testUser();
   const s = await start(headers);
-  const st = await state(s.sessionId);
-  await db.update(liveSessions).set({ state: { ...st, phase: 'p1', p1Asked: 12 } }).where(eq(liveSessions.id, s.sessionId));
-  const prep = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).json()) as any;
-  expect(prep).toMatchObject({ phase: 'p2-prep', prepSeconds: 60, cueCard: { title: 'Describe a book you enjoyed' } });
-  expect(prep.examinerText).toContain("Now, I'm going to give you a topic");
-
-  const early = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).json()) as any;
-  expect(early.phase).toBe('p2-prep');
-  const st2 = await state(s.sessionId);
-  await db.update(liveSessions).set({ state: { ...st2, phaseStartedAt: Date.now() - 61_000 } }).where(eq(liveSessions.id, s.sessionId));
-  const talk = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).json()) as any;
-  expect(talk).toMatchObject({ phase: 'p2-talk', examinerText: expect.stringContaining('Can you start speaking now, please?') });
-});
-
-it('gpt-live/session: 403 without an own OpenAI key, else creates the WebRTC session on that key with the server-owned config and attaches a sideband', async () => {
-  const { headers, user } = await testUser();
-  const s = await start(headers);
-  const body = { sessionId: s.sessionId, sdp: 'v=0 offer' };
-  const denied = await req('/api/live/gpt-live/session', { headers, body });
-  expect(denied.status).toBe(403);
-  expect(await denied.json()).toMatchObject({ code: 'live_requires_own_key', tier: 'own-key' });
-
-  await setKey(user.id, 'openai', 'sk-test');
-  const openai = fakeFetch({ '/v1/live/sessions': () => json({ session: { id: 'live_123' }, transport: { type: 'webrtc', sdp: 'v=0 answer' } }, 201) });
-  const real = globalThis.fetch;
-  globalThis.fetch = openai;
-  const attached: string[] = [];
-  setUpstream((url) => (attached.push(url), fakeSocket()));
-  try {
-    const r = await req('/api/live/gpt-live/session', { headers, body });
-    expect(await r.json()).toEqual({ sdp: 'v=0 answer', sessionId: 'live_123' });
-    expect((await req('/api/live/gpt-live/session', { headers, body: { ...body, sessionId: 'nope' } })).status).toBe(404);
-  } finally {
-    globalThis.fetch = real;
-    await endRun(s.sessionId, user.id);
-  }
-  expect(openai.calls[0]!.headers.authorization).toBe('Bearer sk-test'); // their key, not the server's
-  const sent = openai.calls[0]!.body;
-  expect(sent.transport).toEqual({ type: 'webrtc', sdp: 'v=0 offer' });
-  expect(sent.session).toMatchObject({ model: 'gpt-live-1', audio: { output: { voice: 'vesper' } } });
-  expect(sent.session.delegation).toBeUndefined();
-  expect(sent.session.instructions).toContain('Never delegate');
-  expect(sent.session.instructions).not.toContain('Describe a book you enjoyed'); // topics arrive with the cues
-  expect(attached).toEqual(['wss://api.openai.com/v1/live/sessions/live_123/attach']);
-});
-
-it('gpt-live/cue: the server sends the instruction through the sideband, else hands the text back', async () => {
-  const { headers, user } = await testUser();
-  const s = await start(headers);
-  const cue = (cue: string) => req('/api/live/gpt-live/cue', { headers, body: { sessionId: s.sessionId, cue } });
-  const before = (await (await cue('part2')).json()) as any;
-  expect(before.sent).toBe(false);
-  expect(before.content).toContain('Describe a book you enjoyed');
-
-  await setKey(user.id, 'openai', 'sk-test');
-  const sock = fakeSocket();
-  setUpstream(() => sock);
-  const real = globalThis.fetch;
-  globalThis.fetch = fakeFetch({ '/v1/live/sessions': () => json({ session: { id: 'live_1' }, transport: { sdp: 'a' } }, 201) });
-  try {
-    await req('/api/live/gpt-live/session', { headers, body: { sessionId: s.sessionId, sdp: 'o' } });
-    sock.emit('open');
-    expect(((await (await cue('part2')).json()) as any).sent).toBe(true);
-    expect(sock.sent.map((m) => JSON.parse(m))).toEqual([expect.objectContaining({ type: 'session.instructions.append', delegation_id: null, content: before.content })]);
-    expect((await cue('nope')).status).toBe(400);
-    // transcripts from the sideband are saved when the run ends (also by /finish)
-    sock.emit('message', JSON.stringify({ type: 'session.output_transcript.delta', delta: 'Thank you.' }));
-  } finally {
-    globalThis.fetch = real;
-  }
-  await endRun(s.sessionId, user.id);
-  const st = await state(s.sessionId);
-  expect(st.history.map((h) => [h.role, h.phase, h.text])).toEqual([['examiner', 'p2-prep', 'Thank you.']]);
-});
-
-it('gemini-token: 403 without an own Gemini key, else mints a locked ephemeral token with it', async () => {
-  const { headers, user } = await testUser();
-  const s = await start(headers);
-  expect((await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } })).status).toBe(403);
-
-  await setKey(user.id, 'gemini', 'g-test');
-  const google = fakeFetch({ '/v1beta/auth_tokens': () => json({ name: 'auth_tokens/abc', expireTime: '2030-01-01T00:20:00Z' }) });
-  const real = globalThis.fetch;
-  globalThis.fetch = google;
-  try {
-    const r = await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } });
-    expect(await r.json()).toMatchObject({ value: 'auth_tokens/abc', model: 'gemini-3.8-live', expiresAt: expect.any(Number) });
-  } finally {
-    globalThis.fetch = real;
-  }
-  expect(google.calls[0]!.headers['x-goog-api-key']).toBe('g-test');
-  const sent = google.calls[0]!.body;
-  expect(sent).toMatchObject({ uses: 1, bidiGenerateContentSetup: { model: 'models/gemini-3.8-live', generationConfig: { responseModalities: ['AUDIO'] } } });
-  expect(sent.bidiGenerateContentSetup.systemInstruction.parts[0].text).toContain('Describe a book you enjoyed');
-  expect(sent.fieldMask).toContain('systemInstruction.parts');
-  expect(sent.fieldMask).not.toContain('sessionResumption');
-});
-
-it('gemini-usage: prices the browser-summed tokens into one row per session, replacing the $0 mint placeholder; a smaller report never lowers it', async () => {
-  const { headers, user } = await testUser();
-  const s = await start(headers);
-  await setKey(user.id, 'gemini', 'g-test');
-  const real = globalThis.fetch;
-  globalThis.fetch = fakeFetch({ '/v1beta/auth_tokens': () => json({ name: 'auth_tokens/abc', expireTime: '2030-01-01T00:20:00Z' }) });
-  try {
-    await req('/api/live/gemini-token', { headers, body: { sessionId: s.sessionId } });
-  } finally {
-    globalThis.fetch = real;
-  }
-  const rows = () => db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'gemini')));
-  await vi.waitFor(async () => expect(await rows()).toHaveLength(1)); // the placeholder
-  const usage = (inputAudio: number) => ({ inputText: 100_000, inputAudio, inputMedia: 0, outputText: 0, outputAudio: 100_000, thoughts: 100_000 });
-  const report = async (inputAudio: number) => (await (await req('/api/live/gemini-usage', { headers, body: { sessionId: s.sessionId, usage: usage(inputAudio) } })).json()) as any;
-
-  // 0.1M text in × $0.75 + 1M audio in × $3 + 0.1M thoughts × $4.50 + 0.1M audio out × $12 = $4.725
-  expect(await report(1_000_000)).toEqual({ costUsd: 4.725 });
-  await vi.waitFor(async () => expect((await rows()).map((r) => [r.costUsd, r.paidBy, r.stage])).toEqual([[4.725, 'own_key', 'live_realtime']]));
-  expect(await report(0)).toEqual({ costUsd: 4.725 });
-  expect((await rows()).map((r) => r.costUsd)).toEqual([4.725]);
-  expect(await report(2_000_000)).toEqual({ costUsd: 7.725 });
-  await vi.waitFor(async () => expect((await rows()).map((r) => r.costUsd)).toEqual([7.725]));
-});
-
-it('realtime-token: 403 without an OpenAI key, else mints a client secret locked to the examiner session; realtime-usage prices the reported tokens', async () => {
-  const { headers, user } = await testUser();
-  const s = await start(headers);
-  expect((await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini' } })).status).toBe(403);
-
-  await setKey(user.id, 'openai', 'sk-test');
-  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_abc', expires_at: 1900000000 }) });
-  const real = globalThis.fetch;
-  globalThis.fetch = openai;
-  try {
-    const r = await req('/api/live/realtime-token', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini' } });
-    expect(await r.json()).toEqual({ value: 'ek_abc', expiresAt: 1900000000, model: 'gpt-realtime-mini' });
-  } finally {
-    globalThis.fetch = real;
-  }
-  expect(openai.calls[0]!.headers.authorization).toBe('Bearer sk-test');
-  const sent = openai.calls[0]!.body;
-  expect(sent.session).toMatchObject({ type: 'realtime', model: 'gpt-realtime-mini', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
-  expect(sent.session.instructions).toContain('Describe a book you enjoyed');
-
-  // 1M audio in x $10 + 0.1M audio out x $20 + 1 min transcribed x $0.003 = $12.003
-  const usage = { textIn: 0, audioIn: 1_000_000, cachedIn: 0, textOut: 0, audioOut: 100_000, transcribeSeconds: 60 };
-  expect(await (await req('/api/live/realtime-usage', { headers, body: { sessionId: s.sessionId, model: 'gpt-realtime-mini', usage } })).json()).toEqual({ costUsd: 12.003 });
-  await vi.waitFor(async () => expect((await db.select().from(aiCosts).where(and(eq(aiCosts.sessionId, s.sessionId), eq(aiCosts.provider, 'openai')))).map((r) => [r.costUsd, r.model, r.paidBy])).toEqual([[12.003, 'gpt-realtime-mini', 'own_key']]));
-});
-
-it('cascade: stt-token mints a single-use Scribe token for the owner only; reply runs the cue convention through the LLM and voices the line inline', async () => {
-  const { headers } = await testUser(OWNER_EMAILS[0]);
-  const s = await start(headers);
-  const other = await testUser();
-  expect((await req('/api/live/cascade/stt-token', { headers: other.headers, body: { sessionId: s.sessionId } })).status).toBe(404);
-  const xi = fakeFetch({ '/v1/single-use-token/realtime_scribe': () => json({ token: 'sutkn_1' }) });
-  const real = globalThis.fetch, key = env.ELEVENLABS_API_KEY;
-  globalThis.fetch = xi;
-  env.ELEVENLABS_API_KEY = 'xi-owner';
-  try {
-    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId } })).json()).toEqual({ token: 'sutkn_1' });
-  } finally {
-    globalThis.fetch = real;
-    env.ELEVENLABS_API_KEY = key;
-  }
-  expect(xi.calls[0]!.headers['xi-api-key']).toBe('xi-owner');
-
-  ai = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([9, 9])), '/chat/completions': () => chatReply('Examiner: "Good evening. Can you tell me your full name, please?"') });
-  setFetch(ai);
-  const turns = [{ role: 'app', text: 'Begin the test.' }, { role: 'examiner', text: 'Hello.' }, { role: 'candidate', text: 'Hi, I am Sam.' }];
-  const r = (await (await req('/api/live/cascade/reply', { headers, body: { sessionId: s.sessionId, turns, llm: 'deepseek/deepseek-v4.1-flash', sttSeconds: 60 } })).json()) as any;
-  expect(r).toMatchObject({ text: 'Good evening. Can you tell me your full name, please?', contentType: 'audio/mpeg', audio: expect.any(String) });
-  expect(r.costUsd).toBeGreaterThanOrEqual(0.0065); // a minute of Scribe Realtime at least
-  const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
-  expect(chat.model).toBe('deepseek/deepseek-v4.1-flash');
-  expect(chat.messages[0].content).toMatch(/text-to-speech/);
-  expect(chat.messages.slice(1)).toEqual([{ role: 'user', content: '[APP CUE] Begin the test.' }, { role: 'assistant', content: 'Hello.' }, { role: 'user', content: 'Hi, I am Sam.' }]);
-  expect(chat.reasoning).toEqual({ enabled: false });
-  expect(ai.calls.findLast((c) => c.url.includes('/audio/speech'))!.body).toMatchObject({ model: 'elevenlabs/eleven-v4-turbo', voice: 'george' });
-});
-
-it('cascade: an OpenAI transcriber gets a transcription-session client secret on the user\'s OpenAI key and is priced per minute', async () => {
-  const { headers, user } = await testUser(OWNER_EMAILS[0]);
-  const s = await start(headers);
-  expect((await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe' } })).status).toBe(403); // no OpenAI key yet
-  await setKey(user.id, 'openai', 'sk-test');
-  const openai = fakeFetch({ '/v1/realtime/client_secrets': () => json({ value: 'ek_t', expires_at: 1900000000 }) });
-  const real = globalThis.fetch;
-  globalThis.fetch = openai;
-  try {
-    expect(await (await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe' } })).json()).toEqual({ value: 'ek_t' });
-  } finally {
-    globalThis.fetch = real;
-  }
-  expect(openai.calls[0]!.body.session).toMatchObject({ type: 'transcription', audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: { type: 'server_vad' } } } });
-  // browser turn detection (Smart Turn / silence timer): the session has no VAD, the browser commits each answer
-  globalThis.fetch = openai;
-  try {
-    await req('/api/live/cascade/stt-token', { headers, body: { sessionId: s.sessionId, stt: 'gpt-4o-mini-transcribe', serverVad: false } });
-  } finally {
-    globalThis.fetch = real;
-  }
-  expect(openai.calls[1]!.body.session.audio.input.turn_detection).toBeNull();
-});
-
-it('cascade: reply-stream streams the LLM, voices each sentence as it is written and ends with a done event; transcribe runs a batch STT', async () => {
-  const { headers } = await testUser();
-  const s = await start(headers);
-  const sse = ['Thank you. ', 'Now, why is that', '?'].map((t) => `data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`).join('') + `data: ${JSON.stringify({ choices: [], usage: { cost: 0.0001 } })}\n\ndata: [DONE]\n\n`;
-  ai = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([7, 7])), '/chat/completions': () => new Response(sse, { headers: { 'content-type': 'text/event-stream' } }), '/audio/transcriptions': () => json({ text: ' I like tea. ', duration: 2 }) });
-  setFetch(ai);
-  const turns = [{ role: 'app', text: 'Begin the test.' }, { role: 'examiner', text: 'Hello.' }, { role: 'candidate', text: 'Hi.' }];
-  const r = await req('/api/live/cascade/reply-stream', { headers, body: { sessionId: s.sessionId, turns, llm: 'inception/mercury-2.5', tts: 'elevenlabs/eleven-flash-v2.5' } });
-  expect(r.headers.get('content-type')).toContain('ndjson');
-  const ev = (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
-  expect(ev.filter((e) => e.type === 'text').map((e) => [e.i, e.text])).toEqual([[0, 'Thank you. Now, why is that?']]); // "Thank you." alone is under the minimum: joined
-  expect(ev.filter((e) => e.type === 'audio').map((e) => e.i)).toEqual([0]);
-  expect(ev.at(-1)).toMatchObject({ type: 'done', text: 'Thank you. Now, why is that?' });
-  const chat = ai.calls.findLast((c) => c.url.includes('/chat/completions'))!.body;
-  expect(chat).toMatchObject({ model: 'inception/mercury-2.5', stream: true, reasoning: { enabled: false } });
-
-  const t = await req('/api/live/cascade/transcribe', { headers, body: { sessionId: s.sessionId, audio: Buffer.from('RIFF').toString('base64'), model: 'nvidia/parakeet-tdt-0.6b-v3' } });
-  expect(await t.json()).toMatchObject({ text: 'I like tea.' });
-  expect(ai.calls.findLast((c) => c.url.includes('/audio/transcriptions'))!.body).toMatchObject({ model: 'nvidia/parakeet-tdt-0.6b-v3' });
-});
-
-it('cascade: a reply that talks about the app cue (leaked reasoning) is not spoken', () => {
-  expect(spokenLine('[APP CUE] indicates the plan says history. Need to adhere.')).toBe('');
-  expect(spokenLine('Examiner: "Let\'s talk about history."')).toBe("Let's talk about history.");
+  expect(s).toMatchObject({ sessionId: expect.any(String), phase: 'intro', examinerText: expect.stringMatching(/full name/) });
+  expect(s).not.toHaveProperty('audioUrl');
+  env.LIVEKIT_URL = undefined;
+  expect((await req('/api/live/start', { headers, body: {} })).status).toBe(503);
 });
 
 it('finish creates one live attempt per part and analyses each, once', async () => {
@@ -359,7 +85,6 @@ it('finish creates one live attempt per part and analyses each, once', async () 
   const got = (await (await req(`/api/attempts/${rows.find((r) => r.part === 1)!.id}`, { headers })).json()) as any;
   expect(got.conversationUrl).toContain(conversationKey);
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(409);
-  expect((await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } })).status).toBe(409);
 });
 
 it('parts sent during the test are analysed at once; a repeat returns the same attempt; finish adds only the rest', async () => {
@@ -384,166 +109,35 @@ it('parts sent during the test are analysed at once; a repeat returns the same a
   expect((await req('/api/live/part', { headers, body: { sessionId: s.sessionId, part: p1 } })).status).toBe(409);
 });
 
-it('a TTS model/voice rejected upstream (4xx) says to change it in Settings, captions only', async () => {
-  setFetch(fakeFetch({ '/audio/speech': () => json({ error: { message: 'Model does not exist' } }, 400) }));
-  const { headers } = await testUser();
-  const r = await req('/api/live/start', { headers, body: {} });
-  expect(r.status).toBe(200);
-  expect((await r.json()) as any).toMatchObject({ audioUrl: null, voiceError: expect.stringContaining('captions') });
-});
-
-it('TTS failure (402) degrades to captions: start and turn still work with audioUrl null', async () => {
-  ai = fakeFetch({ '/audio/speech': () => json({ error: 'Insufficient credits' }, 402), '/audio/transcriptions': () => json({ text: 'Sam.', duration: 1, words: [] }), '/chat/completions': () => chatReply('Where is your hometown?') });
-  setFetch(ai);
-  const { headers } = await testUser();
-  const s = await start(headers);
-  expect(s).toMatchObject({ phase: 'intro', audioUrl: null, voiceError: expect.stringContaining('captions') });
-  const t = (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey: await upload(headers, s.sessionId) } })).json()) as any;
-  expect(t).toMatchObject({ phase: 'p1', audioUrl: null });
-});
-
-it('a TTS request that never settles starts the test on captions within 12 seconds', async () => {
-  const { headers } = await testUser();
-  let invoked!: () => void;
-  const entered = new Promise<void>((resolve) => { invoked = resolve; });
-  setFetch(fakeFetch({ '/audio/speech': () => { invoked(); return new Promise(() => {}); } }));
-  const bounded = deadlines.liveDeadline;
-  const deadline = vi.spyOn(deadlines, 'liveDeadline').mockImplementation((operation) => bounded(operation, 100));
-  try {
-    const pending = req('/api/live/start', { headers, body: {} });
-    await entered;
-    const response = await pending;
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ phase: 'intro', audioUrl: null, voiceError: expect.stringContaining('captions') });
-    expect(deadline).toHaveBeenCalledWith(expect.any(Promise), 12_000);
-  } finally {
-    deadline.mockRestore();
-  }
-});
-
-it('a stalled examiner LLM uses the scripted next question within 15 seconds', async () => {
-  const { headers } = await testUser();
-  const s = await start(headers);
-  const st = await state(s.sessionId);
-  await db.update(liveSessions).set({ state: { ...st, phase: 'p2-follow' } }).where(eq(liveSessions.id, s.sessionId));
-  let invoked!: () => void;
-  const entered = new Promise<void>((resolve) => { invoked = resolve; });
-  setFetch(fakeFetch({
-    '/chat/completions': () => { invoked(); return new Promise(() => {}); },
-    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
-  }));
-  const bounded = deadlines.liveDeadline;
-  const deadline = vi.spyOn(deadlines, 'liveDeadline').mockImplementation((operation) => bounded(operation, 100));
-  try {
-    const pending = req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } });
-    await entered;
-    const response = await pending;
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ phase: 'p3', examinerText: expect.stringContaining('Do people read less today?') });
-    expect(deadline).toHaveBeenCalledWith(expect.any(Promise), 15_000);
-  } finally {
-    deadline.mockRestore();
-  }
-});
-
-it('skipTts starts a (realtime) session without calling TTS', async () => {
-  const { headers, user } = await testUser();
-  await setKey(user.id, 'gemini');
-  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
-  expect(s).toMatchObject({ phase: 'intro', audioUrl: null });
-  expect(s.voiceError).toBeUndefined();
-  expect(ai.calls.some((c) => c.url.includes('/audio/speech'))).toBe(false);
-});
-
-it('fixed examiner lines are voiced once per model and voice, not once per session', async () => {
-  const { headers } = await testUser();
-  await start(headers);
-  const tts = () => ai.calls.filter((c) => c.url.includes('/audio/speech')).length;
-  const first = tts();
-  expect(first).toBeGreaterThan(0);
-  await start(headers); // the same introduction wording (start pins the random pick)
-  expect(tts()).toBe(first);
-});
-
-it('the introduction is picked per session: time-of-day greeting, one to three questions, then the Part 1 lead; the same lines in every engine', async () => {
+it('the introduction is picked per session: time-of-day greeting, one to three questions, then the Part 1 lead; the examiner prompt carries the same lines', async () => {
   const { headers } = await testUser();
   const s = await start(headers, { localHour: 9 }, 0.1);
   expect(s.examinerText).toMatch(/^Good morning\. .*full name, please\?$/);
   expect(s.test.script.intro).toHaveLength(3);
-  const turn = async () => (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, audioKey: await upload(headers, s.sessionId) } })).json()) as any;
-  expect(await turn()).toMatchObject({ phase: 'intro', examinerText: 'Thank you. And what shall I call you?' });
-  expect(await turn()).toMatchObject({ phase: 'intro', examinerText: "Thank you. And can you tell me where you're from?" });
-  const p1 = await turn();
-  expect(p1).toMatchObject({ phase: 'p1', examinerText: expect.stringMatching(/^Thank you\. Now, in this first part, I'd like to ask you some questions about yourself\. Let's talk about \w+\. /) });
-  const st = await state(s.sessionId);
-  expect(st.history.filter((h) => h.phase === 'intro').map((h) => h.role)).toEqual(['examiner', 'candidate', 'examiner', 'candidate', 'examiner', 'candidate']);
-  expect(st.phaseStartedAt).toBeGreaterThanOrEqual(st.history.at(-1)!.at); // Part 1 time starts after the introduction
-  // the duplex engines get the same wording from the stored test
-  const { realtimeInstructions } = await import('../ai/examiner');
-  for (const line of [...st.test.script!.intro, st.test.script!.p1Lead]) expect(realtimeInstructions(st.test)).toContain(line);
+  for (const line of [...s.test.script.intro, s.test.script.p1Lead]) expect(examinerPrompt(s.test)).toContain(line);
   expect((await start(headers, { localHour: 22 })).examinerText).toMatch(/^Good evening\./);
   expect((await start(headers)).examinerText).toMatch(/^Hello\./);
   expect((await req('/api/live/start', { headers, body: { localHour: 24 } })).status).toBe(400);
 });
 
-it('Part 2 long turn: prep timer, talk, then the 2:00 cut-in leads into the rounding-off question', async () => {
-  const { headers } = await testUser();
-  const s = await start(headers);
-  const turn = async (body: Record<string, unknown> = { skipped: true }) => (await (await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, ...body } })).json()) as any;
-  const set = async (patch: Partial<LiveState>) => db.update(liveSessions).set({ state: { ...(await state(s.sessionId)), ...patch } }).where(eq(liveSessions.id, s.sessionId));
-  await set({ phase: 'p1', p1Asked: 12 });
-  const prep = await turn();
-  expect(prep).toMatchObject({ phase: 'p2-prep', prepSeconds: 60 });
-  await set({ phaseStartedAt: Date.now() - 45_000 }); // asking too early: the remaining preparation time comes back
-  const mid = await turn();
-  expect(mid).toMatchObject({ phase: 'p2-prep', examinerText: 'You still have a little time to prepare.' });
-  expect(mid.prepSeconds).toBeLessThanOrEqual(15);
-  expect(mid.prepSeconds).toBeGreaterThan(10);
-  await set({ phaseStartedAt: Date.now() - 61_000 });
-  expect(await turn()).toMatchObject({ phase: 'p2-talk', examinerText: expect.stringContaining('Can you start speaking now') });
-  // the candidate talks for the full two minutes: the examiner cuts in with the end-of-time line, then asks the rounding-off question
-  const long = fakeFetch({
-    '/audio/speech': () => new Response(new Uint8Array([9, 9]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }),
-    '/audio/transcriptions': () => json({ text: 'I talked about a book for two minutes.', duration: 120, words: [] }),
-    '/chat/completions': () => chatReply("Thank you. That's the end of your time. Do you read often?"),
-  });
-  setFetch(long);
-  await set({ phaseStartedAt: Date.now() - 121_000 });
-  const cut = await turn({ audioKey: await upload(headers, s.sessionId) });
-  expect(cut).toMatchObject({ phase: 'p2-follow', transcript: 'I talked about a book for two minutes.', examinerText: "Thank you. That's the end of your time. Do you read often?" });
-  // the examiner LLM was told to use the end-of-time lead because the talk ran to the limit
-  expect(JSON.stringify(long.calls.findLast((c) => c.url.includes('/chat/completions'))!.body.messages[0])).toContain("That's the end of your time.");
-  expect((await state(s.sessionId)).history.filter((h) => h.phase === 'p2-talk').map((h) => [h.role, h.durationMs])).toEqual([['examiner', undefined], ['candidate', 120_000]]);
-  const after = await turn({ skipped: true });
-  expect(after.phase).toBe('p3');
-});
-
-it('a signed-in user without an OpenRouter key but with an OpenAI key: duplex start is allowed, turn-based is not; the quota is checked at start and reserved at finish', async () => {
+it('a signed-in user without an OpenRouter key: the quota is checked at start and reserved at finish', async () => {
   const { headers, user } = await testUser(undefined, { key: false });
-  await setKey(user.id, 'openai', 'sk-test');
-  const turnBased = await req('/api/live/start', { headers, body: {} });
-  expect([turnBased.status, ((await turnBased.json()) as any).code]).toEqual([403, 'live_requires_own_key']);
-
-  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  const s = await start(headers);
   expect(s.sessionId).toBeTruthy();
-  const turn = await req('/api/live/turn', { headers, body: { sessionId: s.sessionId, skipped: true } });
-  expect(turn.status).toBe(403);
-
   const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
   const done = await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } });
   expect(done.status).toBe(200);
   expect(await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id))).toMatchObject([{ skill: 'speaking', unitKey: s.sessionId, tier: 'community' }]);
 
   // the one speaking test of the day is gone: the next live session is refused before it starts
-  const again = await req('/api/live/start', { headers, body: { skipTts: true } });
+  const again = await req('/api/live/start', { headers, body: {} });
   expect(again.status).toBe(429);
   expect(await again.json()).toMatchObject({ code: 'quota_exceeded', skill: 'speaking', tier: 'community' });
 });
 
 it('live finish with an exhausted community balance is refused (402) and creates no attempts', async () => {
-  const { headers, user } = await testUser(undefined, { key: false });
-  await setKey(user.id, 'gemini', 'g-test');
-  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  const { headers } = await testUser(undefined, { key: false });
+  const s = await start(headers);
   const f = fakeFetch({ '/api/v1/key': () => json({ data: { limit: 20, usage: 20, limit_remaining: 0 } }) });
   setFetch(f);
   clearBalanceCache(); // the balance ran out while the session was running
@@ -555,8 +149,7 @@ it('live finish with an exhausted community balance is refused (402) and creates
 
 it('a retried finish after a refund is a 409 and does not charge the test again', async () => {
   const { headers, user } = await testUser(undefined, { key: false });
-  await setKey(user.id, 'gemini', 'g-test');
-  const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+  const s = await start(headers);
   const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
   await db.update(quotaUsage).set({ refundedAt: new Date() }).where(eq(quotaUsage.userId, user.id)); // its analysis failed and was given back
@@ -565,10 +158,9 @@ it('a retried finish after a refund is a 409 and does not charge the test again'
 });
 
 it('an own-key user can run any number of live sessions', async () => {
-  const { headers, user } = await testUser();
-  await setKey(user.id, 'gemini', 'g-test');
+  const { headers } = await testUser();
   for (let i = 0; i < 3; i++) {
-    const s = (await (await req('/api/live/start', { headers, body: { skipTts: true } })).json()) as any;
+    const s = await start(headers);
     const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
     expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
   }

@@ -1,7 +1,7 @@
 // Shared LLM/STT fixtures for AI pipeline tests.
-import { DEFAULT_SETTINGS, type Settings } from '../settings';
+import { MODELS, type Models } from '../settings';
 
-export const settings = (patch: Partial<Settings> = {}): Settings => ({ ...DEFAULT_SETTINGS, ...patch });
+export const models = (patch: Partial<Models> = {}): Models => ({ ...MODELS, ...patch });
 
 export const sttWords = {
   text: 'I goes to the park yesterday',

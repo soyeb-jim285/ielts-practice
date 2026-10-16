@@ -48,47 +48,6 @@
           "settings": {
             "type": "object",
             "properties": {
-              "models": {
-                "type": "object",
-                "properties": {
-                  "analysis": {
-                    "type": "string",
-                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-                  },
-                  "examiner": {
-                    "type": "string",
-                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-                  },
-                  "stt": {
-                    "type": "string",
-                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-                  },
-                  "tts": {
-                    "type": "string",
-                    "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-                  },
-                  "ttsVoice": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "analysis",
-                  "examiner",
-                  "stt",
-                  "tts",
-                  "ttsVoice"
-                ]
-              },
-              "liveProvider": {
-                "type": "string",
-                "enum": [
-                  "turn",
-                  "realtime-mini",
-                  "gpt-live",
-                  "gemini-live"
-                ]
-              },
               "targetBand": {
                 "type": "number",
                 "minimum": 4,
@@ -102,8 +61,6 @@
               }
             },
             "required": [
-              "models",
-              "liveProvider",
               "targetBand",
               "writingAutoSubmit",
               "blockPaste"
@@ -115,19 +72,6 @@
           "isOwner": {
             "type": "boolean",
             "description": "The site owner: shows the Admin area"
-          },
-          "gptLiveAvailable": {
-            "type": "boolean",
-            "description": "This user has an OpenAI key (or is the owner)"
-          },
-          "realtimeAvailable": {
-            "type": "boolean",
-            "deprecated": true,
-            "description": "Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)"
-          },
-          "geminiLiveAvailable": {
-            "type": "boolean",
-            "description": "This user has a Gemini key (or is the owner)"
           },
           "tier": {
             "type": "string",
@@ -143,19 +87,9 @@
           "writing": {
             "$ref": "#/components/schemas/SkillQuota"
           },
-          "liveProviders": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "livekit",
-                "turn",
-                "realtime-mini",
-                "gpt-live",
-                "gemini-live"
-              ]
-            },
-            "description": "Live examiner providers this user may use: livekit (server keys, everyone, one test a day / a week for guests), or their own keys (the owner may use the server keys)"
+          "live": {
+            "type": "boolean",
+            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests)"
           },
           "communityBalance": {
             "$ref": "#/components/schemas/CommunityBalance"
@@ -166,13 +100,10 @@
           "settings",
           "cambridgeAccess",
           "isOwner",
-          "gptLiveAvailable",
-          "realtimeAvailable",
-          "geminiLiveAvailable",
           "tier",
           "speaking",
           "writing",
-          "liveProviders",
+          "live",
           "communityBalance"
         ]
       },
@@ -276,47 +207,6 @@
       "Settings": {
         "type": "object",
         "properties": {
-          "models": {
-            "type": "object",
-            "properties": {
-              "analysis": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "examiner": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "stt": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "tts": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "ttsVoice": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "required": [
-              "analysis",
-              "examiner",
-              "stt",
-              "tts",
-              "ttsVoice"
-            ]
-          },
-          "liveProvider": {
-            "type": "string",
-            "enum": [
-              "turn",
-              "realtime-mini",
-              "gpt-live",
-              "gemini-live"
-            ]
-          },
           "targetBand": {
             "type": "number",
             "minimum": 4,
@@ -330,8 +220,6 @@
           }
         },
         "required": [
-          "models",
-          "liveProvider",
           "targetBand",
           "writingAutoSubmit",
           "blockPaste"
@@ -340,40 +228,6 @@
       "SettingsPatch": {
         "type": "object",
         "properties": {
-          "models": {
-            "type": "object",
-            "properties": {
-              "analysis": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "examiner": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "stt": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "tts": {
-                "type": "string",
-                "pattern": "^[\\w.-]+\\/[\\w.:-]+$"
-              },
-              "ttsVoice": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          },
-          "liveProvider": {
-            "type": "string",
-            "enum": [
-              "turn",
-              "realtime-mini",
-              "gpt-live",
-              "gemini-live"
-            ]
-          },
           "targetBand": {
             "type": "number",
             "minimum": 4,
@@ -386,74 +240,6 @@
             "type": "boolean"
           }
         }
-      },
-      "ModelList": {
-        "type": "object",
-        "properties": {
-          "models": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Model"
-            }
-          }
-        },
-        "required": [
-          "models"
-        ]
-      },
-      "Model": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "input": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "output": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "pricing": {
-            "type": "object",
-            "properties": {
-              "prompt": {
-                "type": "string"
-              },
-              "completion": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "prompt",
-              "completion"
-            ],
-            "description": "USD per token, as strings"
-          },
-          "voices": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "TTS voices the model supports (empty for non-speech models)"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "input",
-          "output",
-          "pricing",
-          "voices"
-        ]
       },
       "PromptPage": {
         "type": "object",
@@ -777,7 +563,6 @@
               "community_balance_exhausted",
               "community_busy",
               "too_many_requests",
-              "live_requires_own_key",
               "account_required",
               "cambridge_required",
               "keys_unavailable",
@@ -807,7 +592,7 @@
               "community",
               "own-key"
             ],
-            "description": "quota_exceeded, live_requires_own_key"
+            "description": "quota_exceeded"
           }
         },
         "required": [
@@ -1832,62 +1617,13 @@
         "additionalProperties": false
       },
       "LiveStarted": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ExaminerLine"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "sessionId": {
-                "type": "string"
-              },
-              "test": {
-                "type": "object",
-                "properties": {
-                  "part1": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/Prompt"
-                    }
-                  },
-                  "part2": {
-                    "$ref": "#/components/schemas/Prompt"
-                  },
-                  "part3": {
-                    "$ref": "#/components/schemas/Prompt"
-                  }
-                },
-                "required": [
-                  "part1",
-                  "part2",
-                  "part3"
-                ]
-              }
-            },
-            "required": [
-              "sessionId",
-              "test"
-            ]
-          }
-        ]
-      },
-      "ExaminerLine": {
         "type": "object",
         "properties": {
-          "examinerText": {
+          "sessionId": {
             "type": "string"
           },
-          "audioUrl": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Examiner TTS; null when the voice failed or was skipped: show examinerText as a caption and start listening"
-          },
-          "voiceError": {
-            "type": "string",
-            "description": "Why audioUrl is null (voice failed)"
+          "examinerText": {
+            "type": "string"
           },
           "phase": {
             "type": "string",
@@ -1900,25 +1636,36 @@
               "p3",
               "closing",
               "done"
-            ],
-            "description": "Phase of this line; 'done' after the closing line"
+            ]
           },
-          "transcript": {
-            "type": "string",
-            "description": "The candidate's transcribed answer"
-          },
-          "prepSeconds": {
-            "type": "number",
-            "description": "p2-prep: seconds of preparation left; POST /turn (skipped) when it ends"
-          },
-          "cueCard": {
-            "$ref": "#/components/schemas/Prompt"
+          "test": {
+            "type": "object",
+            "properties": {
+              "part1": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Prompt"
+                }
+              },
+              "part2": {
+                "$ref": "#/components/schemas/Prompt"
+              },
+              "part3": {
+                "$ref": "#/components/schemas/Prompt"
+              }
+            },
+            "required": [
+              "part1",
+              "part2",
+              "part3"
+            ]
           }
         },
         "required": [
+          "sessionId",
           "examinerText",
-          "audioUrl",
-          "phase"
+          "phase",
+          "test"
         ]
       },
       "LiveStart": {
@@ -1936,11 +1683,6 @@
           "mockId": {
             "type": "string",
             "description": "Full mock test: use the mock's Cambridge test (ref) and require its speaking mode to be live"
-          },
-          "skipTts": {
-            "type": "boolean",
-            "default": false,
-            "description": "Duplex (GPT-Live, Gemini Live) sessions speak for themselves: create the session without examiner TTS (audioUrl null)"
           },
           "localHour": {
             "type": "integer",
@@ -1978,640 +1720,6 @@
         },
         "required": [
           "sessionId"
-        ]
-      },
-      "LiveTurn": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "audioKey": {
-            "type": "string"
-          },
-          "skipped": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "sessionId"
-        ]
-      },
-      "GptLiveSession": {
-        "type": "object",
-        "properties": {
-          "sdp": {
-            "type": "string"
-          },
-          "sessionId": {
-            "type": "string",
-            "description": "OpenAI's live session id"
-          }
-        },
-        "required": [
-          "sdp",
-          "sessionId"
-        ]
-      },
-      "LiveGptSession": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "sdp": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 50000,
-            "description": "The browser's SDP offer (data channel \"oai-events\" created before the offer)"
-          }
-        },
-        "required": [
-          "sessionId",
-          "sdp"
-        ]
-      },
-      "GptLiveCueResult": {
-        "type": "object",
-        "properties": {
-          "sent": {
-            "type": "boolean"
-          },
-          "content": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sent",
-          "content"
-        ]
-      },
-      "LiveGptCue": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "cue": {
-            "type": "string",
-            "enum": [
-              "begin",
-              "part2",
-              "talk",
-              "follow",
-              "follow-timeup",
-              "closing",
-              "continue",
-              "repeat"
-            ]
-          }
-        },
-        "required": [
-          "sessionId",
-          "cue"
-        ]
-      },
-      "GeminiToken": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "number",
-            "description": "Unix seconds"
-          },
-          "model": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "value",
-          "expiresAt",
-          "model"
-        ]
-      },
-      "LiveGeminiToken": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string",
-            "enum": [
-              "gemini-3.8-live",
-              "gemini-3.1-flash-live-preview",
-              "gemini-2.5-flash-native-audio-preview-12-2025"
-            ],
-            "description": "Admin playground only; the live examiner uses the server default (GEMINI_LIVE_MODEL)"
-          }
-        },
-        "required": [
-          "sessionId"
-        ]
-      },
-      "GeminiLiveCost": {
-        "type": "object",
-        "properties": {
-          "costUsd": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "costUsd"
-        ]
-      },
-      "LiveGeminiUsage": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string",
-            "enum": [
-              "gemini-3.8-live",
-              "gemini-3.1-flash-live-preview",
-              "gemini-2.5-flash-native-audio-preview-12-2025"
-            ],
-            "description": "The model the session ran on (default GEMINI_LIVE_MODEL)"
-          },
-          "usage": {
-            "$ref": "#/components/schemas/GeminiLiveUsage"
-          }
-        },
-        "required": [
-          "sessionId",
-          "usage"
-        ]
-      },
-      "GeminiLiveUsage": {
-        "type": "object",
-        "properties": {
-          "inputText": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "inputAudio": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "inputMedia": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "outputText": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "outputAudio": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "thoughts": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 20000000
-          }
-        },
-        "required": [
-          "inputText",
-          "inputAudio",
-          "inputMedia",
-          "outputText",
-          "outputAudio",
-          "thoughts"
-        ],
-        "description": "Running totals: each report replaces the previous one"
-      },
-      "RealtimeToken": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "number",
-            "description": "Unix seconds"
-          },
-          "model": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "value",
-          "expiresAt",
-          "model"
-        ]
-      },
-      "LiveRealtimeToken": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string",
-            "enum": [
-              "gpt-realtime-mini",
-              "gpt-realtime",
-              "gpt-realtime-2.1-mini",
-              "gpt-realtime-2.1"
-            ],
-            "description": "Admin playground only; the live examiner uses the server default (OPENAI_REALTIME_MODEL)"
-          }
-        },
-        "required": [
-          "sessionId"
-        ]
-      },
-      "RealtimeCost": {
-        "type": "object",
-        "properties": {
-          "costUsd": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "costUsd"
-        ]
-      },
-      "LiveRealtimeUsage": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string",
-            "enum": [
-              "gpt-realtime-mini",
-              "gpt-realtime",
-              "gpt-realtime-2.1-mini",
-              "gpt-realtime-2.1"
-            ]
-          },
-          "usage": {
-            "$ref": "#/components/schemas/RealtimeUsage"
-          }
-        },
-        "required": [
-          "sessionId",
-          "model",
-          "usage"
-        ]
-      },
-      "RealtimeUsage": {
-        "type": "object",
-        "properties": {
-          "textIn": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "audioIn": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "cachedIn": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "textOut": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "audioOut": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          },
-          "transcribeSeconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 20000000
-          }
-        },
-        "required": [
-          "textIn",
-          "audioIn",
-          "cachedIn",
-          "textOut",
-          "audioOut",
-          "transcribeSeconds"
-        ]
-      },
-      "CascadeSttToken": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "description": "Scribe: the `token` query parameter of wss://api.elevenlabs.io/v1/speech-to-text/realtime"
-          },
-          "value": {
-            "type": "string",
-            "description": "OpenAI: client secret, Bearer for POST /v1/realtime/calls"
-          },
-          "key": {
-            "type": "string",
-            "description": "Soniox: temporary API key, the `api_key` of the first message on wss://stt-rt.soniox.com/transcribe-websocket"
-          }
-        }
-      },
-      "LiveCascadeSttToken": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "stt": {
-            "type": "string",
-            "enum": [
-              "scribe_v2_realtime",
-              "stt-rt-v5",
-              "gpt-4o-mini-transcribe",
-              "gpt-4o-transcribe"
-            ],
-            "description": "Default scribe_v2_realtime"
-          },
-          "serverVad": {
-            "type": "boolean",
-            "description": "OpenAI only: the session's own silence detection ends answers (default true); false: the browser commits each answer"
-          }
-        },
-        "required": [
-          "sessionId"
-        ]
-      },
-      "CascadeLine": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string",
-            "description": "What the examiner says; empty = stay silent"
-          },
-          "audio": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Base64 audio of `text`; null when silent or the voice failed"
-          },
-          "contentType": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "ms": {
-            "type": "object",
-            "properties": {
-              "llm": {
-                "type": "number"
-              },
-              "tts": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "llm",
-              "tts"
-            ]
-          },
-          "costUsd": {
-            "type": "number",
-            "description": "This reply: STT since the last reply + LLM + TTS (TTS estimated)"
-          }
-        },
-        "required": [
-          "text",
-          "audio",
-          "contentType",
-          "ms",
-          "costUsd"
-        ]
-      },
-      "LiveCascadeReply": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "turns": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "examiner",
-                    "candidate",
-                    "app"
-                  ]
-                },
-                "text": {
-                  "type": "string",
-                  "maxLength": 4000
-                }
-              },
-              "required": [
-                "role",
-                "text"
-              ]
-            },
-            "minItems": 1,
-            "maxItems": 200,
-            "description": "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)"
-          },
-          "llm": {
-            "type": "string",
-            "enum": [
-              "deepseek/deepseek-v4.1-flash",
-              "inception/mercury-2.5",
-              "mistralai/mistral-small-3.2-24b-instruct",
-              "openai/gpt-6-luna"
-            ]
-          },
-          "tts": {
-            "type": "string",
-            "enum": [
-              "elevenlabs/eleven-v4-turbo",
-              "elevenlabs/eleven-flash-v2.5",
-              "google/gemini-3.8-flash-lite-tts",
-              "google/gemini-3.8-flash-tts"
-            ]
-          },
-          "stt": {
-            "type": "string",
-            "enum": [
-              "scribe_v2_realtime",
-              "stt-rt-v5",
-              "gpt-4o-mini-transcribe",
-              "gpt-4o-transcribe",
-              "elevenlabs/scribe-v2",
-              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
-              "nvidia/parakeet-tdt-0.6b-v3",
-              "openai/whisper-large-v3-turbo",
-              "deepgram/nova-3",
-              "openai/gpt-4o-mini-transcribe"
-            ],
-            "description": "Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime"
-          },
-          "sttSeconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 3600,
-            "description": "Candidate audio transcribed since the last reply (priced into the ledger)"
-          }
-        },
-        "required": [
-          "sessionId",
-          "turns"
-        ]
-      },
-      "CascadeTranscript": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string"
-          },
-          "ms": {
-            "type": "number"
-          },
-          "costUsd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "text",
-          "ms",
-          "costUsd"
-        ]
-      },
-      "LiveCascadeTranscribe": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "audio": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 8000000,
-            "description": "Base64 16 kHz mono WAV"
-          },
-          "model": {
-            "type": "string",
-            "enum": [
-              "elevenlabs/scribe-v2",
-              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
-              "nvidia/parakeet-tdt-0.6b-v3",
-              "openai/whisper-large-v3-turbo",
-              "deepgram/nova-3",
-              "openai/gpt-4o-mini-transcribe"
-            ]
-          }
-        },
-        "required": [
-          "sessionId",
-          "audio",
-          "model"
-        ]
-      },
-      "LiveCascadeReplyStream": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "turns": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "examiner",
-                    "candidate",
-                    "app"
-                  ]
-                },
-                "text": {
-                  "type": "string",
-                  "maxLength": 4000
-                }
-              },
-              "required": [
-                "role",
-                "text"
-              ]
-            },
-            "minItems": 1,
-            "maxItems": 200,
-            "description": "The whole conversation: examiner lines, the candidate's transcribed speech, and app cues (sent without the [APP CUE] prefix)"
-          },
-          "llm": {
-            "type": "string",
-            "enum": [
-              "deepseek/deepseek-v4.1-flash",
-              "inception/mercury-2.5",
-              "mistralai/mistral-small-3.2-24b-instruct",
-              "openai/gpt-6-luna"
-            ]
-          },
-          "tts": {
-            "type": "string",
-            "enum": [
-              "elevenlabs/eleven-v4-turbo",
-              "elevenlabs/eleven-flash-v2.5",
-              "google/gemini-3.8-flash-lite-tts",
-              "google/gemini-3.8-flash-tts"
-            ]
-          },
-          "stt": {
-            "type": "string",
-            "enum": [
-              "scribe_v2_realtime",
-              "stt-rt-v5",
-              "gpt-4o-mini-transcribe",
-              "gpt-4o-transcribe",
-              "elevenlabs/scribe-v2",
-              "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b",
-              "nvidia/parakeet-tdt-0.6b-v3",
-              "openai/whisper-large-v3-turbo",
-              "deepgram/nova-3",
-              "openai/gpt-4o-mini-transcribe"
-            ],
-            "description": "Which transcriber the sttSeconds were spent on (pricing; batch transcribers record their own cost); default scribe_v2_realtime"
-          },
-          "sttSeconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 3600,
-            "description": "Candidate audio transcribed since the last reply (priced into the ledger)"
-          },
-          "sentenceTts": {
-            "type": "boolean",
-            "description": "Voice each sentence as soon as it is written (default true); false: one TTS call for the whole line"
-          }
-        },
-        "required": [
-          "sessionId",
-          "turns"
         ]
       },
       "LiveFinished": {
@@ -2765,222 +1873,6 @@
         "required": [
           "sessionId",
           "part"
-        ]
-      },
-      "PipecatAnswer": {
-        "type": "object",
-        "properties": {
-          "sdp": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "pc_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sdp",
-          "type",
-          "pc_id"
-        ],
-        "additionalProperties": {}
-      },
-      "PipecatOffer": {
-        "type": "object",
-        "properties": {
-          "sdp": {
-            "type": "string",
-            "maxLength": 20000
-          },
-          "type": {
-            "type": "string"
-          },
-          "pc_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "restart_pc": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "requestData": {
-            "type": "object",
-            "properties": {
-              "sessionId": {
-                "type": "string"
-              },
-              "cfg": {
-                "$ref": "#/components/schemas/PipecatConfig"
-              }
-            },
-            "required": [
-              "sessionId"
-            ]
-          }
-        },
-        "required": [
-          "sdp",
-          "type",
-          "requestData"
-        ]
-      },
-      "PipecatConfig": {
-        "type": "object",
-        "properties": {
-          "stt": {
-            "type": "string",
-            "enum": [
-              "soniox",
-              "scribe"
-            ]
-          },
-          "llm": {
-            "type": "string",
-            "enum": [
-              "deepseek/deepseek-v4.1-flash",
-              "inception/mercury-2.5",
-              "mistralai/mistral-small-3.2-24b-instruct",
-              "openai/gpt-6-luna"
-            ]
-          },
-          "tts": {
-            "type": "string",
-            "enum": [
-              "openai",
-              "soniox",
-              "elevenlabs"
-            ]
-          },
-          "ttsModel": {
-            "type": "string",
-            "maxLength": 40,
-            "description": "eleven_flash_v2_5 (default) or eleven_turbo_v2_5; anything else (an old saved v4 choice: the streaming endpoint rejects v4) means Flash"
-          },
-          "voice": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "vadStopSecs": {
-            "type": "number",
-            "minimum": 0.1,
-            "maximum": 1.5
-          },
-          "smartStopSecs": {
-            "type": "number",
-            "minimum": 0.3,
-            "maximum": 5
-          }
-        }
-      },
-      "PipecatIce": {
-        "type": "object",
-        "properties": {
-          "pc_id": {
-            "type": "string"
-          },
-          "candidates": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "candidate": {
-                  "type": "string"
-                },
-                "sdp_mid": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "sdp_mline_index": {
-                  "type": [
-                    "number",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "candidate"
-              ]
-            },
-            "maxItems": 50
-          }
-        },
-        "required": [
-          "pc_id",
-          "candidates"
-        ]
-      },
-      "PipecatUsage": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "cfg": {
-            "type": "object",
-            "properties": {
-              "stt": {
-                "type": "string"
-              },
-              "llm": {
-                "type": "string"
-              },
-              "tts": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "stt",
-              "llm",
-              "tts"
-            ],
-            "additionalProperties": {}
-          },
-          "seconds": {
-            "type": "number",
-            "minimum": 0
-          },
-          "sttUsd": {
-            "type": "number",
-            "minimum": 0
-          },
-          "llmTokensIn": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "llmTokensOut": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "ttsChars": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "usd": {
-            "type": "number",
-            "minimum": 0
-          }
-        },
-        "required": [
-          "sessionId",
-          "userId",
-          "cfg",
-          "seconds",
-          "sttUsd",
-          "llmTokensIn",
-          "llmTokensOut",
-          "ttsChars",
-          "usd"
         ]
       },
       "Progress": {
@@ -3371,19 +2263,9 @@
           "writing": {
             "$ref": "#/components/schemas/SkillQuota"
           },
-          "liveProviders": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "livekit",
-                "turn",
-                "realtime-mini",
-                "gpt-live",
-                "gemini-live"
-              ]
-            },
-            "description": "Live examiner providers this user may use: livekit (server keys, everyone, one test a day / a week for guests), or their own keys (the owner may use the server keys)"
+          "live": {
+            "type": "boolean",
+            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests)"
           },
           "communityBalance": {
             "$ref": "#/components/schemas/CommunityBalance"
@@ -3393,7 +2275,7 @@
           "tier",
           "speaking",
           "writing",
-          "liveProviders",
+          "live",
           "communityBalance"
         ]
       },
@@ -3417,9 +2299,7 @@
           "provider": {
             "type": "string",
             "enum": [
-              "openrouter",
-              "openai",
-              "gemini"
+              "openrouter"
             ]
           },
           "last4": {
@@ -8043,7 +6923,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "Update settings (partial; models merge per key)",
+        "summary": "Update settings (partial)",
         "security": [
           {
             "bearer": []
@@ -8066,65 +6946,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Settings"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/models": {
-      "get": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "OpenRouter models (cached 1 h), optionally filtered by capability",
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "text",
-                "audio-in",
-                "stt",
-                "tts"
-              ]
-            },
-            "required": false,
-            "name": "capability",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Models",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModelList"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "OpenRouter unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
@@ -9131,8 +7952,8 @@
             "bearer": []
           }
         ],
-        "summary": "Start a live examiner session: picks a full speaking test and returns the opening line with TTS audio",
-        "description": "Needs the user's own key: OpenRouter for the turn-based examiner (skipTts false), OpenAI or Gemini for duplex sessions (skipTts true), else 403 live_requires_own_key. The owner may bootstrap server cascades with OpenRouter only. A user without an OpenRouter key also needs a test left (429 quota_exceeded, 402 community_balance_exhausted).",
+        "summary": "Start a live examiner session: picks a full speaking test and returns its opening line; the LiveKit examiner (POST /api/live/livekit/start) speaks it",
+        "description": "A user without an OpenRouter key needs a test left (429 quota_exceeded, 402 community_balance_exhausted). 503 when the live examiner is not configured.",
         "requestBody": {
           "required": true,
           "content": {
@@ -9156,16 +7977,6 @@
           },
           "402": {
             "description": "community_balance_exhausted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
             "content": {
               "application/json": {
                 "schema": {
@@ -9265,831 +8076,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/turn": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Turn-based examiner: transcribes the candidate's answer (if any) and returns the examiner's next line",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveTurn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Next examiner line",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExaminerLine"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad audio key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Test already over",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "AI service error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/gpt-live/session": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "GPT-Live over WebRTC: exchanges the browser's SDP offer for the answer. The server creates the session (model, voice and examiner instructions are ours) and attaches a sideband that records the transcript",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveGptSession"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDP answer",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GptLiveSession"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_key: OpenAI rejected the user's key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "OpenAI error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/gpt-live/cue": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Script control for a GPT-Live session: the server appends the instruction for this moment (session.instructions.append) through its sideband. If it could not, `content` is the instruction for the client to append on its data channel",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveGptCue"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Cue handled",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GptLiveCueResult"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/gemini-token": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Ephemeral Gemini Live token locked to the examiner setup (model, voice, instructions, VAD) for this session",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveGeminiToken"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Ephemeral token: pass as access_token to BidiGenerateContentConstrained",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GeminiToken"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_key: Gemini rejected the user's key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Gemini error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/gemini-usage": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Gemini Live token usage of this session, summed by the browser (it talks to Google directly): priced and stored as the session's live cost",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveGeminiUsage"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Recorded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GeminiLiveCost"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/realtime-token": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "OpenAI Realtime (gpt-realtime family) examiner: a short-lived client secret locked to the examiner session (model, voice, instructions, VAD, input transcription)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveRealtimeToken"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Client secret: Bearer for POST /v1/realtime/calls",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RealtimeToken"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_key: OpenAI rejected the user's key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "OpenAI error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/realtime-usage": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "OpenAI Realtime token usage of this session, summed by the browser from response.done: priced and stored as the session's live cost (never lowered by a later report)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveRealtimeUsage"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Recorded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RealtimeCost"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/cascade/stt-token": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Fast cascade examiner (admin playground): credentials for one streaming transcription session (Scribe v2 Realtime or an OpenAI Realtime transcription session)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveCascadeSttToken"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Credentials",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CascadeSttToken"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_key: OpenAI rejected the user's key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Transcription provider error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "ELEVENLABS_API_KEY or SONIOX_API_KEY is not set",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/cascade/reply": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Fast cascade examiner (admin playground): the examiner's next line from the conversation so far (cheap LLM), voiced inline (TTS)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveCascadeReply"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Next line",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CascadeLine"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "AI service error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/cascade/transcribe": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Fast cascade examiner (admin playground): one finished answer, or one finished piece of it, transcribed by a batch OpenRouter transcriber",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveCascadeTranscribe"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Transcript",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CascadeTranscript"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "AI service error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/cascade/reply-stream": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Fast cascade examiner (admin playground): the next line streamed as NDJSON events; with sentenceTts each sentence is voiced as soon as the LLM finishes it",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LiveCascadeReplyStream"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "application/x-ndjson, one event per line: {type:\"text\",i,text,ms} per sentence; {type:\"audio\",i,audio,contentType,ms} per voiced clip (any order, play by i); {type:\"done\",text,ms:{llmFirst,llm,ttsFirst},costUsd}; {type:\"error\",error}. ms are since the request arrived.",
-            "content": {
-              "application/x-ndjson": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key: the live examiner runs only on the user's own OpenRouter (turn-based), OpenAI (GPT-Live) or Gemini (Gemini Live) key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -10280,195 +8266,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/pipecat/offer": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Pipecat examiner (admin playground): WebRTC offer → answer, relayed to the voice service with the examiner prompt",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PipecatOffer"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDP answer",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PipecatAnswer"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Voice service error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "Live"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Pipecat examiner (admin playground): trickled ICE candidates, relayed to the voice service",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PipecatIce"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Relayed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "status"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests (too_many_requests), or the test quota is used up (quota_exceeded)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Voice service error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/live/pipecat/usage": {
-      "post": {
-        "tags": [
-          "Live"
-        ],
-        "summary": "Voice service only (x-voice-secret): one Pipecat session's usage for the cost ledger",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PipecatUsage"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Recorded"
-          },
-          "403": {
-            "description": "Bad secret",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -10883,9 +8680,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "openrouter",
-                "openai",
-                "gemini"
+                "openrouter"
               ]
             },
             "required": true,
@@ -10981,9 +8776,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "openrouter",
-                "openai",
-                "gemini"
+                "openrouter"
               ]
             },
             "required": true,
@@ -13774,7 +11567,7 @@
           }
         ],
         "summary": "Choose how to do Speaking: recorded test or live examiner",
-        "description": "Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the person's own key (403 live_requires_own_key); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.",
+        "description": "Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the live examiner configured (503); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.",
         "parameters": [
           {
             "schema": {
@@ -13820,16 +11613,6 @@
           },
           "402": {
             "description": "community_balance_exhausted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "live_requires_own_key",
             "content": {
               "application/json": {
                 "schema": {

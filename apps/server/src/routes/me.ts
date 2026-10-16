@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { clientIpHash } from '../ip';
-import { liveKey, payerOf, quotaSnapshot } from '../quota';
+import { payerOf, quotaSnapshot } from '../quota';
 import { QuotaFields } from './community';
 import { getSettings, SettingsSchema } from '../settings';
 import type { App } from '../types';
@@ -18,9 +18,6 @@ const MeSchema = z
     settings: SettingsSchema,
     cambridgeAccess: z.boolean(),
     isOwner: z.boolean().openapi({ description: 'The site owner: shows the Admin area' }),
-    gptLiveAvailable: z.boolean().openapi({ description: 'This user has an OpenAI key (or is the owner)' }),
-    realtimeAvailable: z.boolean().openapi({ deprecated: true, description: 'Deprecated alias of gptLiveAvailable (app versions from before GPT-Live)' }),
-    geminiLiveAvailable: z.boolean().openapi({ description: 'This user has a Gemini key (or is the owner)' }),
     ...QuotaFields,
   })
   .openapi('Me');
@@ -39,16 +36,12 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       const payer = await payerOf(user);
-      const gpt = !!liveKey(payer, 'openai');
       return c.json(
         {
           user: { ...user, email: user.isAnonymous ? '' : user.email },
           settings: await getSettings(user.id),
           cambridgeAccess: isCambridgeAllowed(user),
           isOwner: isOwner(user),
-          gptLiveAvailable: gpt,
-          realtimeAvailable: gpt,
-          geminiLiveAvailable: !!liveKey(payer, 'gemini'),
           ...(await quotaSnapshot(payer, clientIpHash(c))),
         },
         200,

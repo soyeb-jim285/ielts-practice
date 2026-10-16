@@ -195,11 +195,12 @@ struct SpeakingHomeView: View {
         .overlay(shape.strokeBorder(live ? Color.brand.opacity(0.25) : Color.line))
     }
 
-    /// The live examiner never runs on the community balance: it needs an own OpenRouter, OpenAI or Gemini key.
+    /// The live examiner counts as a speaking test; it is off only when the server doesn't offer it.
     @ViewBuilder private var liveNote: some View {
-        if let q = api.quota {
-            Text(q.liveProviders.isEmpty ? "Needs your own API key" : "Runs on your own key")
-                .font(.caption).foregroundStyle(.muted).frame(maxWidth: .infinity, alignment: .center)
+        if api.quota?.live == false {
+            Text("Not available right now").font(.caption).foregroundStyle(.muted).frame(maxWidth: .infinity, alignment: .center)
+        } else {
+            QuotaLabel(skill: "speaking").frame(maxWidth: .infinity, alignment: .center)
         }
     }
 

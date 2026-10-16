@@ -42,7 +42,8 @@ object Clocks {
     val tier: String = "guest", // guest | community | own-key
     val speaking: SkillQuota = SkillQuota(),
     val writing: SkillQuota = SkillQuota(),
-    val liveProviders: List<String> = emptyList(), // turn | gpt-live | gemini-live
+    /** The live examiner (LiveKit, on the server's keys) is set up on the server. */
+    val live: Boolean = false,
     val communityBalance: Balance? = null,
 ) {
     fun of(skill: String) = if (skill == "writing") writing else speaking
@@ -54,14 +55,12 @@ object Clocks {
 
 @Serializable data class KeysResponse(val keys: List<KeyInfo> = emptyList())
 
-val KEY_PROVIDERS = listOf("openrouter", "openai", "gemini")
+val KEY_PROVIDERS = listOf("openrouter")
 
 /** What a key unlocks, and its display name (docs/community.md, Settings, Your API keys). */
 object Providers {
-    fun name(p: String) = when (p) { "openrouter" -> "OpenRouter"; "openai" -> "OpenAI"; "gemini" -> "Gemini"; else -> p }
-    fun unlocks(p: String) = when (p) { "openrouter" -> "Unlimited tests"; "openai" -> "GPT-Live examiner"; "gemini" -> "Gemini Live examiner"; else -> "" }
-    /** The key a live provider needs ("turn" = the turn-based examiner). */
-    fun keyFor(live: String) = when (live) { "gpt-live" -> "openai"; "gemini-live" -> "gemini"; else -> "openrouter" }
+    fun name(p: String) = if (p == "openrouter") "OpenRouter" else p
+    fun unlocks(p: String) = if (p == "openrouter") "Unlimited tests" else ""
 }
 
 /** Error codes the server answers with (body `{ error, code }`). */
@@ -70,6 +69,7 @@ object Codes {
     const val BALANCE = "community_balance_exhausted"
     const val BUSY = "community_busy"
     const val FAST = "too_many_requests"
+    /** The live examiner can't run (not set up on the server). */
     const val LIVE = "live_requires_own_key"
     const val ACCOUNT = "account_required"
     const val INVALID_KEY = "invalid_key"
@@ -174,7 +174,7 @@ object FairUse {
         return listOf(
             "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use.",
             left, // the balance itself is the meter under the text
-            if (guest) "Create an account for 1 test a day." else "Want unlimited tests and the live examiner? Add your own API key in Settings.",
+            if (guest) "Create an account for 1 test a day." else "Want unlimited tests? Add your own OpenRouter key in Settings.",
         )
     }
 
@@ -190,12 +190,12 @@ data class GateCopy(val title: String, val body: String, val primary: Pair<Strin
 
 object GateText {
     /**
-     * The same titles and bodies as the web and iOS (docs/community.md, panel copy). [code] is the server's code, [tier] guest/community/own-key,
-     * [needs] the provider a live test needs ("OpenRouter", "OpenAI", "Gemini"). [keep] is a note for a test that was already under way ("Your essay is still here.").
+     * The same titles and bodies as the web and iOS (docs/community.md, panel copy). [code] is the server's code, [tier] guest/community/own-key.
+     * [keep] is a note for a test that was already under way ("Your essay is still here.").
      * [skill] is kept for the callers; the copy no longer names it.
      */
     @Suppress("UNUSED_PARAMETER")
-    fun copy(code: String, skill: String, tier: String, resetAt: String?, needs: String? = null, keep: String? = null,
+    fun copy(code: String, skill: String, tier: String, resetAt: String?, keep: String? = null,
              now: Instant = Clocks.now(), zone: ZoneId = Clocks.zone()): GateCopy {
         val guest = tier == "guest"
         fun withKeep(s: String) = if (keep == null) s else "$s $keep"
@@ -219,14 +219,9 @@ object GateText {
                 null, "Close" to GateAction.Close,
             )
             Codes.LIVE -> GateCopy(
-                "The live examiner runs on your own key",
-                when {
-                    guest -> "Create an account, then add your own OpenAI or Gemini key in Settings."
-                    needs != null -> "Add your own $needs key in Settings."
-                    else -> "Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live."
-                },
-                if (guest) "Create an account" to GateAction.Account else "Add your own key" to GateAction.Keys,
-                "Not now" to GateAction.Close,
+                "The live examiner isn't available right now",
+                withKeep("Try again later, or take the recorded test instead."),
+                null, "Close" to GateAction.Close,
             )
             else -> GateCopy(
                 "You're going a bit fast",
@@ -241,9 +236,6 @@ object GateText {
         val c = copy(e.code.orEmpty(), e.skill ?: "speaking", e.tier ?: "community", e.resetAt)
         return "${c.title}. ${c.body} $keep"
     }
-
-    /** Which key a live test is blocked on, as the sentence names it ("an OpenAI key" / "a Gemini key"). */
-    fun article(provider: String) = if (provider.first() in "AEIOUaeiou") "an" else "a"
 }
 
 // MARK: Own keys
@@ -264,16 +256,14 @@ object KeyCopy {
 
     const val STORED = "Your key is stored encrypted on our server and only used for your tests. Remove it any time."
     const val STOPPED = "This key stopped working. Enter a new one."
-    const val MODELS_NOTE = "Custom models apply only with your own OpenRouter key. Community tests always use the default models."
 }
 
 // MARK: Panels in flight (what AppNav shows over the current screen)
 
 sealed interface Gate {
-    /** A test can't start (or finish) now. [needs] names the provider key a live test needs; [keep] says what was kept ("Your essay is still here."). */
+    /** A test can't start (or finish) now. [keep] says what was kept ("Your essay is still here."). */
     data class Blocked(
-        val code: String, val skill: String, val tier: String, val resetAt: String?, val balance: Balance?,
-        val needs: String? = null, val keep: String? = null,
+        val code: String, val skill: String, val tier: String, val resetAt: String?, val balance: Balance?, val keep: String? = null,
     ) : Gate
 
     /** The "You're using the community balance" dialog. [onStart] continues into the test. */

@@ -30,7 +30,7 @@ function Option({ icon, title, body, meta, children, note, disabled }: { icon: R
 /** The last step: how to do Speaking. Recorded and live are the existing speaking runners; "later" leaves the mock open. */
 export function SpeakingChoice({ mockId, onLive, liveBusy, error }: { mockId: string; onLive: () => void; liveBusy: boolean; error?: string }) {
   const quota = useQuota().data;
-  const live = (quota?.liveProviders.length ?? 0) > 0;
+  const live = quota?.live ?? false;
   return (
     <Card tone="hero" className="space-y-5 sm:p-7">
       <div>
@@ -55,12 +55,7 @@ export function SpeakingChoice({ mockId, onLive, liveBusy, error }: { mockId: st
             live ? undefined : (
               <p className="type-caption flex items-center gap-1.5">
                 <Lock className="size-3.5 shrink-0" aria-hidden />
-                <span>
-                  Needs your own OpenAI or Gemini key.{' '}
-                  <Link to="/settings" hash="api-keys" className="font-medium text-accent-text underline underline-offset-4">
-                    Add your own key
-                  </Link>
-                </span>
+                <span>The live examiner isn't available right now.</span>
               </p>
             )
           }

@@ -6,7 +6,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    /** Machine-readable reason from the server (docs/community.md): quota_exceeded, community_balance_exhausted, live_requires_own_key, ... Clients map it to UX; `message` is only the fallback. */
+    /** Machine-readable reason from the server (docs/community.md): quota_exceeded, community_balance_exhausted, ... Clients map it to UX; `message` is only the fallback. */
     public code?: string,
     /** The rest of the error body (skill, resetAt, tier for quota_exceeded). */
     public body?: Record<string, unknown>,

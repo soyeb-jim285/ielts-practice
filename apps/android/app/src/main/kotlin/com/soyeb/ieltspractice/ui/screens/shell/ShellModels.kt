@@ -83,6 +83,3 @@ data class DashData(val progress: DashProgress, val due: DueResponse?, val trend
     val list: List<DueCard> get() = cards ?: items ?: emptyList()
     val dueTotal: Int get() = total ?: list.size
 }
-
-/** A TTS model with the voices it supports (GET /api/models?capability=tts). */
-@Serializable data class TtsModel(val id: String, val voices: List<String>? = null)

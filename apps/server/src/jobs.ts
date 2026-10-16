@@ -11,7 +11,7 @@ import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } fro
 import { analyzeWriting } from './ai/writing';
 import { markKeyInvalid } from './keys';
 import { payerOf, refundAttempt } from './quota';
-import { DEFAULT_SETTINGS, getSettings } from './settings';
+import { MODELS } from './settings';
 import { storage } from './storage';
 
 const FORMATS = ['webm', 'm4a', 'wav', 'mp3', 'ogg'] as const;
@@ -37,19 +37,15 @@ export async function analyze(attemptId: string): Promise<void> {
   const u = await db.query.user.findFirst({ where: eq(user.id, a.userId), columns: { id: true, email: true, emailVerified: true, isAnonymous: true } });
   const payer = u ? await payerOf(u) : undefined;
   const ownKey = payer?.keys.openrouter;
-  return keyCtx.run({ openrouter: ownKey, cost: { userId: a.userId, attemptId: a.id, sessionId: a.sessionId ?? undefined, promptId: a.promptId, skill: a.skill === 'writing' ? 'writing' : 'speaking', part: a.part }, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a, !!ownKey || !!payer?.owner));
+  return keyCtx.run({ openrouter: ownKey, cost: { userId: a.userId, attemptId: a.id, sessionId: a.sessionId ?? undefined, promptId: a.promptId, skill: a.skill === 'writing' ? 'writing' : 'speaking', part: a.part }, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a));
 }
 
-/** `ownModels`: the user's model choice is honoured only when they pay (their own key) or are the owner; an admin "no limits" user without a key runs the defaults. */
-async function analyzeAttempt(a: typeof attempts.$inferSelect, ownModels: boolean): Promise<void> {
+async function analyzeAttempt(a: typeof attempts.$inferSelect): Promise<void> {
   const attemptId = a.id;
   const setStage = progress(attemptId);
   try {
     const p = await db.query.prompts.findFirst({ where: eq(prompts.id, a.promptId) });
     if (!p) throw new AiError('http', 'The prompt for this attempt no longer exists.');
-    const own = await getSettings(a.userId);
-    // Community-paid analysis always runs on the default models: a custom model choice (maybe a pricey one) is only honoured on the user's own key.
-    const settings = ownModels ? own : { ...own, models: DEFAULT_SETTINGS.models };
     let result: AnalysisResult;
     let models: Record<string, string>;
     if (a.skill === 'speaking') {
@@ -75,9 +71,9 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, ownModels: boolea
         segments: a.segments,
         questions,
         part,
-        settings,
+        models: MODELS,
       });
-      models = { stt: result.sttModel ?? settings.models.stt, analysis: settings.models.analysis };
+      models = { stt: result.sttModel ?? MODELS.stt, analysis: MODELS.analysis };
     } else {
       result = await analyzeWriting({
         text: a.text ?? '',
@@ -85,11 +81,11 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, ownModels: boolea
         variant: p.variant ?? 'academic',
         prompt: { title: p.title, body: p.body, bullets: p.bullets, chart: p.chart, image: !p.chart && p.imageKey ? await dataUrl(p.imageKey) : null },
         plan: a.plan,
-        settings,
+        models: MODELS,
         onStage: (stage) => void setStage({ stage }),
         onPartial: (partial) => setStage({ partial }),
       });
-      models = result.tooShort ? {} : { analysis: settings.models.analysis };
+      models = result.tooShort ? {} : { analysis: MODELS.analysis };
     }
 
     if (a.parentAttemptId) {

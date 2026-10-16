@@ -84,7 +84,7 @@ function Dashboard() {
         <YourPicture p={p} target={target} />
         {p.attempts === 0 ? <Onboarding /> : <NextUp p={p} target={target} due={due.total} lr={lr} />}
         <MockPanel continuedAbove={p.attempts > 0} />
-        <PractiseList liveReady={me.liveProviders.length > 0} />
+        <PractiseList liveReady={me.live} />
         {hasProgress && <ProgressTabs p={p} lr={lr} target={target} />}
         <FixNext mistakes={p.topMistakes} />
       </div>

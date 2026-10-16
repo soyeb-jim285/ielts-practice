@@ -1,12 +1,12 @@
-// Live examiner over a duplex voice model (OpenAI GPT-Live or Gemini Live). The model runs the script; client timers drive the part changes
-// with cues, and local per-part recordings go to /live/finish like the turn-based examiner. A Duplex is the provider-specific transport.
+// Live examiner over a duplex voice transport (LiveKit). The examiner runs the script; client timers drive the part changes with cues, and
+// local per-part recordings go to /live/part and /live/finish. A Duplex is the transport.
 import { CUE_TEXT, DUPLEX_PART, nudgeText } from '@ielts/core';
 import type { Prompt } from '@server/routes/prompts';
 
 export { nudgeText };
 import { useEffect, useRef, useState } from 'react';
 import { useCountdown } from '@/hooks/useCountdown';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { withDeadline } from './deadline';
 import { watchExaminer } from './examinerVoice';
 import { PREP_S, TALK_S, usePartRecorder, type LiveExaminer, type LiveSource, type LiveStarted, type Phase, liveStartBody } from './turn';
@@ -78,8 +78,6 @@ export type Duplex = {
 export function useDuplexExaminer(
   make: () => Duplex,
   onFinished: (sessionId: string, attemptIds: string[]) => void,
-  /** Called instead of showing an error when the examiner can't connect, so the page can fall back to the turn-based one. */
-  onUnavailable?: (reason: string) => void,
   source?: LiveSource,
   mockId?: string,
   /** `record: false` (admin playground): no part recordings, so nothing is uploaded, scored or added to the history. `debug` sees every transport event. */
@@ -402,8 +400,6 @@ export function useDuplexExaminer(
       close();
       const denied = (e as DOMException)?.name === 'NotAllowedError';
       const msg = denied ? "Microphone blocked — allow it in the browser's site settings and retry" : e instanceof Error ? e.message : 'Could not start the test.';
-      // A refusal with a reason (no key, no quota) is not an outage: falling back to the turn-based examiner would hit the same wall.
-      if (!denied && !(e instanceof ApiError && e.code) && onUnavailable) return onUnavailable(msg);
       setError(msg);
       setRetry(() => () => (setError(undefined), void start()));
       setStatus('error');
@@ -421,8 +417,6 @@ export function useDuplexExaminer(
     level: parts.level,
     voice,
     error,
-    needsTap: false,
-    resume: () => {},
     retry,
     retryLabel,
     endTurn: phase === 'p2-talk' && talk.running ? () => void go('p2-follow') : null,

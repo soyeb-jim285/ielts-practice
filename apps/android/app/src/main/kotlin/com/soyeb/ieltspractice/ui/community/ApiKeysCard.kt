@@ -43,7 +43,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * Settings, "Your API keys" (account only): OpenRouter, OpenAI and Gemini. The key is typed into a masked field, validated by the server with
+ * Settings, "Your API keys" (account only): OpenRouter. The key is typed into a masked field, validated by the server with
  * the provider, and stored encrypted there. It is never kept in this app: the field is cleared after a save, and the list holds only the last 4.
  */
 @Composable
@@ -59,7 +59,7 @@ fun ApiKeysCard() {
     AppCard {
         SectionTitle("Your API keys")
         Text(
-            "Optional. Add your own keys for unlimited tests and the live examiner. Without one, you share the community balance.",
+            "Optional. Add your own OpenRouter key for unlimited tests. Without one, you share the community balance.",
             style = MaterialTheme.typography.bodySmall, color = e.muted,
         )
         val list = keys
@@ -91,9 +91,9 @@ private fun KeyRow(provider: String, saved: KeyInfo?, onSaved: (KeyInfo) -> Unit
     val name = Providers.name(provider)
     val stopped = saved != null && !saved.valid
     var editing by remember(saved) { mutableStateOf(saved == null || stopped) }
-    var value by remember { mutableStateOf(if (demoTab == "Error" && provider == "openai" || demoTab == "Checking" && provider == "openrouter") "sk-demo-not-a-real-key" else "") }
-    var busy by remember { mutableStateOf(demoTab == "Checking" && provider == "openrouter") }
-    var error by remember { mutableStateOf(if (demoTab == "Error" && provider == "openai") KeyCopy.error("openai", 400, Codes.INVALID_KEY, "") else null) }
+    var value by remember { mutableStateOf(if (demoTab == "Error" || demoTab == "Checking") "sk-demo-not-a-real-key" else "") }
+    var busy by remember { mutableStateOf(demoTab == "Checking") }
+    var error by remember { mutableStateOf(if (demoTab == "Error") KeyCopy.error(provider, 400, Codes.INVALID_KEY, "") else null) }
     val scope = rememberCoroutineScope()
     val canSave = !busy && value.trim().let { it.length in 8..512 && ' ' !in it }
 

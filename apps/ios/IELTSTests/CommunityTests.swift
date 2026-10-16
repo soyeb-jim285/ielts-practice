@@ -41,12 +41,12 @@ final class CommunityTests: XCTestCase {
 
     func testFairUseBodyForCommunityAndGuest() {
         let balance = CommunityBalance(limit: 20, used: 7.6, remaining: 12.4, updatedAt: "2026-10-03T10:00:00Z")
-        let community = Quota(tier: "community", speaking: sq(), writing: sq(), liveProviders: [], communityBalance: balance)
+        let community = Quota(tier: "community", speaking: sq(), writing: sq(), live: true, communityBalance: balance)
         let body = CommunityText.fairUseBody(skill: "speaking", quota: community)
         XCTAssertTrue(body.contains("You have 1 speaking test left today."))
         XCTAssertFalse(body.contains("$12.40"), "the balance is the meter, not a second sentence")
-        XCTAssertTrue(body.hasSuffix("Add your own API key in Settings."))
-        let guest = Quota(tier: "guest", speaking: sq(window: "week"), writing: sq(window: "week"), liveProviders: [], communityBalance: balance)
+        XCTAssertTrue(body.hasSuffix("Add your own OpenRouter key in Settings."))
+        let guest = Quota(tier: "guest", speaking: sq(window: "week"), writing: sq(window: "week"), live: true, communityBalance: balance)
         let g = CommunityText.fairUseBody(skill: "writing", quota: guest)
         XCTAssertTrue(g.contains("1 writing test left this week."))
         XCTAssertTrue(g.hasSuffix("Create an account for 1 test a day."))
@@ -61,7 +61,6 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(community?.primary, .addKey)
         XCTAssertEqual(CommunityIssue(APIError(status: 402, message: "x", code: "community_balance_exhausted"))?.kind, .balance)
         XCTAssertEqual(CommunityIssue(APIError(status: 503, message: "x", code: "community_busy"))?.primary, .retry)
-        XCTAssertEqual(CommunityIssue(APIError(status: 403, message: "x", code: "live_requires_own_key", tier: "community"))?.kind, .liveKey)
         XCTAssertEqual(CommunityIssue(APIError(status: 429, message: "x", code: "too_many_requests"))?.kind, .tooFast)
         XCTAssertNil(CommunityIssue(APIError(status: 400, message: "x", code: "invalid_key")))
     }

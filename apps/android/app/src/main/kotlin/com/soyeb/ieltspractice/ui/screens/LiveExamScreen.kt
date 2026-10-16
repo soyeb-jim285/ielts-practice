@@ -26,10 +26,8 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,21 +51,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
-import com.soyeb.ieltspractice.core.Providers
 import com.soyeb.ieltspractice.core.clock
-import com.soyeb.ieltspractice.live.Examiner
 import com.soyeb.ieltspractice.live.LiveExam
 import com.soyeb.ieltspractice.live.LiveStage
 import com.soyeb.ieltspractice.live.phaseLabel
 import com.soyeb.ieltspractice.ui.ScreenScaffold
 import com.soyeb.ieltspractice.ui.nav.AppNav
 import com.soyeb.ieltspractice.ui.nav.AttemptResult
-import com.soyeb.ieltspractice.ui.nav.SettingsTab
 import com.soyeb.ieltspractice.ui.screens.speaking.ConfirmDialog
 import com.soyeb.ieltspractice.ui.screens.speaking.CueCard
 import com.soyeb.ieltspractice.ui.screens.speaking.ListCard
 import com.soyeb.ieltspractice.ui.screens.speaking.MicDeniedDialog
-import com.soyeb.ieltspractice.ui.screens.speaking.Notice
 import com.soyeb.ieltspractice.ui.screens.speaking.RowDivider
 import com.soyeb.ieltspractice.ui.screens.speaking.animationsEnabled
 import com.soyeb.ieltspractice.ui.screens.speaking.rememberMicAccess
@@ -84,8 +78,7 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 // Mirrors: iOS Views/LiveExamView.swift, web routes/_app/speaking/live.tsx, components/live/{PreScreen,LiveStage}.tsx, live/*
-// The live examiner: pre-screen (mic check, how it runs, examiner style), then the stage. All three examiners (turn-based, GPT-Live,
-// Gemini Live) share it; the state machine is live/LiveExam.kt.
+// The live examiner: pre-screen (mic check, how it runs), then the stage. The state machine and the LiveKit examiner are in live/.
 
 private class Step(val part: Int, val time: String, val text: String)
 
@@ -100,38 +93,22 @@ fun LiveExamScreen(nav: AppNav, mockId: String? = null) {
     val app = LocalApp.current
     val demo = LocalDemo.current
     val ctx = LocalContext.current
-    val me by app.api.me.collectAsState()
-    val quota by app.api.quota.collectAsState()
     val exam: LiveExam = viewModel(factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = LiveExam(app, ctx.cacheDir, demo, mockId) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = LiveExam(app, ctx.applicationContext, demo, mockId) as T
     })
     val access = rememberMicAccess()
     var confirmEnd by remember { mutableStateOf(false) }
     var captions by remember { mutableStateOf(false) }
-
-    val provider = me?.settings?.provider ?: "turn"
-    // The examiners this person may use come from their own keys (OpenRouter: turn-based, OpenAI: GPT-Live, Gemini: Gemini Live).
-    val allowed = quota?.liveProviders ?: app.api.liveProviders
-    // The examiner that runs: the chosen one when allowed, else turn-based, else whichever natural-conversation one they have a key for.
-    val examiner = when {
-        provider == "gpt-live" && "gpt-live" in allowed -> Examiner.GptLive
-        provider == "gemini-live" && "gemini-live" in allowed -> Examiner.Gemini
-        "turn" in allowed || allowed.isEmpty() -> Examiner.Turn
-        "gpt-live" in allowed -> Examiner.GptLive
-        else -> Examiner.Gemini
-    }
-    // Natural conversation is selected but the server can't offer it: the turn-based examiner runs instead.
-    val fallback = provider != "turn" && examiner == Examiner.Turn
 
     fun checkMic() { access.ask { ok -> if (ok) exam.beginMicCheck() else exam.micDenied = true } }
     // Ask for the microphone on entry so the level meter is already running.
     LaunchedEffect(Unit) { if (demo == null) checkMic() }
 
     val stage = exam.stage
-    // The server refused (live needs a key, no tests left): the same panel as before the test, over the failure message.
+    // The server refused (no tests left): the same panel as before the test, over the failure message.
     LaunchedEffect(stage) {
-        (stage as? LiveStage.Failed)?.error?.let { nav.reportBlocked(it, "speaking", needs = Providers.name(Providers.keyFor(provider))) }
+        (stage as? LiveStage.Failed)?.error?.let { nav.reportBlocked(it, "speaking") }
     }
     if (stage is LiveStage.Finished) {
         // A mock test goes back to its hub (the session is already linked to it); any other test opens its result.
@@ -157,7 +134,7 @@ fun LiveExamScreen(nav: AppNav, mockId: String? = null) {
         when (stage) {
             LiveStage.Ready -> {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    PreScreen(exam, examiner, fallback, onChange = { nav.go(SettingsTab) }, onCheck = ::checkMic)
+                    PreScreen(exam, onCheck = ::checkMic)
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Always enabled: before the mic is ready a press retries the permission check instead of starting.
@@ -166,7 +143,7 @@ fun LiveExamScreen(nav: AppNav, mockId: String? = null) {
                     }
                     PrimaryButton(
                         if (exam.micReady) "Start test" else "Check microphone and start",
-                        { if (exam.micReady) exam.start(examiner) else checkMic() },
+                        { if (exam.micReady) exam.start() else checkMic() },
                         Modifier.fillMaxWidth(), enabled = !exam.micChecking,
                     )
                 }
@@ -179,7 +156,9 @@ fun LiveExamScreen(nav: AppNav, mockId: String? = null) {
                 }
             }
             is LiveStage.Failed -> Unavailable("The test stopped", stage.message) {
+                // No other examiner to fall back to: score what was recorded, or reconnect (not after a refusal, the limit panel covers that).
                 if (exam.hasRecordings) PrimaryButton("Score what was recorded", exam::scoreRecorded)
+                else if (stage.error == null) PrimaryButton("Reconnect examiner", exam::start)
             }
             is LiveStage.Finished -> {}
         }
@@ -204,7 +183,7 @@ private fun produceNow(on: Boolean) = androidx.compose.runtime.produceState(Syst
 // MARK: Pre-screen
 
 @Composable
-private fun PreScreen(exam: LiveExam, examiner: Examiner, fallback: Boolean, onChange: () -> Unit, onCheck: () -> Unit) {
+private fun PreScreen(exam: LiveExam, onCheck: () -> Unit) {
     val e = MaterialTheme.ext
     Text("A full speaking test with a voice examiner. About 11-14 minutes, like the real thing.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
 
@@ -256,19 +235,6 @@ private fun PreScreen(exam: LiveExam, examiner: Examiner, fallback: Boolean, onC
                 }
             }
         }
-        // Same labels as Settings, Live examiner.
-        val style = when (examiner) {
-            Examiner.Turn -> "Examiner waits for you to finish"
-            Examiner.GptLive -> "Natural conversation (GPT-Live)"
-            Examiner.Gemini -> "Natural conversation (Gemini)"
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Examiner style: $style.", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, color = e.muted)
-            TextButton(onChange, modifier = Modifier.heightIn(min = 48.dp)) { Text("Change", color = e.brand) }
-        }
-        if (fallback) {
-            Notice("Natural conversation isn't available right now", "Your examiner will wait for you to finish each answer instead. It runs the same test.")
-        }
     }
 }
 
@@ -292,12 +258,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Stage(exam: LiveExam,
             }
         }
 
-        if (exam.fellBack) Notice("Natural conversation couldn't connect", "Your examiner will wait for you to finish each answer instead. It runs the same test.")
-        if (exam.voiceError != null) {
-            // ponytail: the server's detail (model id, Settings hint) is for logs, not the candidate.
-            Notice("The examiner's voice isn't available right now", "Questions will appear as text below. The test carries on as normal.")
-        }
-        if ((captions || exam.voiceError != null) && exam.caption.isNotEmpty()) {
+        if (captions && exam.caption.isNotEmpty()) {
             Text(
                 exam.caption, Modifier.fillMaxWidth().background(e.surface2, RoundedCornerShape(16.dp)).padding(16.dp),
                 style = MaterialTheme.typography.bodyLarge.copy(fontFamily = Newsreader), color = e.ink,

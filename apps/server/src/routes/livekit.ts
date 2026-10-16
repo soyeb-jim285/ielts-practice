@@ -4,8 +4,7 @@ import { DEFAULT_LIVEKIT, duplexCueTexts, LIVEKIT_TTS_MODELS, livekitPartConfig,
 import { and, eq, sql } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { AccessToken, AgentDispatchClient, RoomServiceClient } from 'livekit-server-sdk';
-import { cascadeMessages } from '../ai/cascade';
-import { CUE_PREFIX, type LiveState } from '../ai/examiner';
+import { CUE_PREFIX, examinerPrompt, type LiveState } from '../ai/examiner';
 import { currentUser, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { aiCosts, liveSessions } from '../db/schema';
@@ -133,7 +132,7 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
       // Dispatch metadata is worker-only. Room metadata is visible to candidate clients.
       await dispatch.createDispatch(roomName, env.LIVEKIT_AGENT_NAME, { metadata: JSON.stringify({
         sessionId: b.sessionId, userId: user.id, participantIdentity,
-        prompt: cascadeMessages(s.test, [])[0]!.content, cuePrefix: CUE_PREFIX,
+        prompt: examinerPrompt(s.test), cuePrefix: CUE_PREFIX,
         reportUrl: `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/api/live/livekit/usage`, reportToken, cfg,
         cues: owner ? null : duplexCueTexts(), // the worker refuses other cue text: its LLM runs on the server's key
       }) });

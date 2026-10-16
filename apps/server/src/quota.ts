@@ -15,7 +15,6 @@ import type { AppEnv } from './types';
 
 export type Skill = 'speaking' | 'writing';
 export type Tier = 'guest' | 'community' | 'own-key';
-export type LiveProvider = 'livekit' | 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
 export const SKILLS: Skill[] = ['speaking', 'writing'];
 /** Tests per window for the shared-balance tiers: guests 1 a week, signed-in users 1 a day, per skill. */
 export const LIMIT = 1;
@@ -34,16 +33,8 @@ export async function payerOf(u: Who): Promise<Payer> {
   return { userId: u.id, owner, keys, limits, tier: owner || keys.openrouter || limits?.unlimited ? 'own-key' : 'community' };
 }
 
-/** The key a live provider session is created with: the user's own, or (owner only) the server's. */
-export const liveKey = (p: Payer, provider: 'openai' | 'gemini') => p.keys[provider] ?? (p.owner ? (provider === 'openai' ? env.OPENAI_API_KEY : env.GEMINI_API_KEY) : undefined);
 /** The LiveKit examiner runs on the server's keys (Soniox + OpenRouter) for everyone, limited like a test (see attachLiveKit). */
 export const livekitReady = () => !!(env.LIVEKIT_URL && env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVEKIT_REPORT_SECRET && env.SONIOX_API_KEY && env.OPENROUTER_API_KEY);
-export const liveProviders = (p: Payer): LiveProvider[] => [
-  ...(livekitReady() ? (['livekit'] as const) : []),
-  ...(p.keys.openrouter || p.owner ? (['turn'] as const) : []),
-  ...(liveKey(p, 'openai') ? (['realtime-mini', 'gpt-live'] as const) : []), // OpenAI Realtime mini first: the default conversation examiner
-  ...(liveKey(p, 'gemini') ? (['gemini-live'] as const) : []),
-];
 
 /** Daily window resets 00:00 UTC; weekly resets Monday 00:00 UTC. */
 export function windowOf(tier: 'guest' | 'community', now = new Date()) {
@@ -83,7 +74,7 @@ async function evaluate(x: Executor, p: Payer, skill: Skill, ipHash: string | nu
 export async function quotaSnapshot(p: Payer, ipHash: string | null) {
   const shared = { balance: await communityBalance(), hourly: p.tier === 'own-key' ? 0 : await hourlyCount(db) };
   const [speaking, writing] = await Promise.all(SKILLS.map((s) => evaluate(db, p, s, ipHash, shared)));
-  return { tier: p.tier, speaking: speaking!, writing: writing!, liveProviders: liveProviders(p), communityBalance: shared.balance };
+  return { tier: p.tier, speaking: speaking!, writing: writing!, live: livekitReady(), communityBalance: shared.balance };
 }
 
 const SKILL_NAME: Record<Skill, string> = { speaking: 'speaking', writing: 'writing' };
@@ -206,7 +197,7 @@ export async function refundAttempt(ref: AttemptRef) {
   }
 }
 
-/** Loads the caller's payer once (c.get('payer')) and runs the rest of the request with their own OpenRouter key, so turn-based live (STT, LLM, TTS) is paid by them. Use after requireUser. */
+/** Loads the caller's payer once (c.get('payer')) and runs the rest of the request with their own OpenRouter key, so their analysis is paid by them. Use after requireUser. */
 export const withPayer = createMiddleware<AppEnv>(async (c, next) => {
   const u = c.get('user');
   if (!u) throw new HTTPException(401, { message: 'Sign in required' });
@@ -215,16 +206,7 @@ export const withPayer = createMiddleware<AppEnv>(async (c, next) => {
   await keyCtx.run({ openrouter: payer.keys.openrouter, cost: { userId: u.id }, onAuthFail: () => void markKeyInvalid(u.id, 'openrouter') }, next);
 });
 
-/** Live examiner is never paid from the community balance: turn-based needs the user's own OpenRouter key, GPT-Live an OpenAI key, Gemini Live a Gemini key
- *  ('duplex' = either of the last two, for starting a session before the client picks). The owner may use the server's keys. */
-export function requireLive(p: Payer, provider: LiveProvider | 'duplex') {
-  const have = liveProviders(p);
-  // 'duplex' passes with LiveKit alone: that only creates the session; every engine route checks its own provider (LiveKit: reserve + room cap).
-  if (provider === 'duplex' ? have.some((x) => x !== 'turn') : have.includes(provider)) return;
-  const need = provider === 'livekit' ? 'the server examiner, which is not configured' : provider === 'turn' ? 'your own OpenRouter key' : provider === 'gpt-live' || provider === 'realtime-mini' ? 'your own OpenAI key' : provider === 'gemini-live' ? 'your own Gemini key' : 'your own OpenAI or Gemini key';
-  throw new ApiError(403, {
-    error: p.tier === 'guest' ? `The live examiner needs an account and ${need}.` : `The live examiner runs on ${need}. Add it in Settings.`,
-    code: 'live_requires_own_key',
-    tier: p.tier,
-  });
+/** The live examiner is LiveKit on the server's keys: unavailable only when the server has not configured it. */
+export function requireLive() {
+  if (!livekitReady()) throw new HTTPException(503, { message: 'The live examiner is not available right now.' });
 }

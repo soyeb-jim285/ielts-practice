@@ -3,9 +3,8 @@ import { Headphones, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { MicCheck } from '@/components/speaking/MicCheck';
-import { Alert, Button, buttonStyles, Card, PageContainer, PageHeader } from '@/components/ui';
+import { Button, buttonStyles, Card, PageContainer, PageHeader } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
-import { PROVIDER_LABEL, type Provider } from '@/components/settings/LiveProvider';
 
 const STEPS = [
   ['1', '4-5 min', 'Questions about you and familiar topics.'],
@@ -13,8 +12,8 @@ const STEPS = [
   ['3', '4-5 min', 'A discussion of broader ideas linked to Part 2.'],
 ] as const;
 
-/** Before the test (in the exam frame, Exit back to Speaking): how it runs, which examiner, and a mic check with a live level meter. */
-export function PreScreen({ style, fallback, onStart }: { style: Provider | 'livekit'; fallback: false | 'failed' | 'locked'; onStart: () => void }) {
+/** Before the test (in the exam frame, Exit back to Speaking): how it runs and a mic check with a live level meter. */
+export function PreScreen({ onStart }: { onStart: () => void }) {
   const mic = useRecorder();
   const live = mic.state === 'recording';
   // Ask for the microphone on entry so the check is already running (and Start works in one tap). The ref keeps StrictMode from asking twice.
@@ -65,32 +64,7 @@ export function PreScreen({ style, fallback, onStart }: { style: Provider | 'liv
               ))}
             </ol>
           </Card>
-          <p className="type-caption mt-3">
-            {/* Same labels as Settings, Live examiner. The LiveKit examiner is the default for everyone: nothing to change. */}
-            {style === 'livekit' ? (
-              'A natural conversation: talk back and forth as in the real test.'
-            ) : (
-              <>
-                Examiner style: <span className="font-medium text-ink">{PROVIDER_LABEL[style]}</span>.{' '}
-                <Link to="/settings" className={buttonStyles({ variant: 'link', className: 'hit' })}>
-                  Change
-                </Link>
-              </>
-            )}
-          </p>
-          {fallback === 'failed' && (
-            <Alert tone="warn" className="mt-4" title="Natural conversation isn't available right now">
-              Your examiner will wait for you to finish each answer instead. It runs the same test.
-            </Alert>
-          )}
-          {fallback === 'locked' && (
-            <Alert tone="info" className="mt-4" title="Natural conversation needs your own OpenAI or Gemini key">
-              Your examiner will wait for you to finish each answer instead. It runs the same test.{' '}
-              <Link to="/settings" hash="api-keys" className={buttonStyles({ variant: 'link', className: 'hit' })}>
-                Add a key
-              </Link>
-            </Alert>
-          )}
+          <p className="type-caption mt-3">A natural conversation: talk back and forth as in the real test.</p>
         </section>
 
         <div className="sticky bottom-0 z-10 -mx-4 space-y-2 border-t border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">

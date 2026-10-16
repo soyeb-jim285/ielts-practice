@@ -6,7 +6,7 @@ import { db } from './db/client';
 import { userApiKeys } from './db/schema';
 import { env } from './env';
 
-export const PROVIDERS = ['openrouter', 'openai', 'gemini'] as const;
+export const PROVIDERS = ['openrouter'] as const;
 export type Provider = (typeof PROVIDERS)[number];
 export type Keys = Partial<Record<Provider, string>>;
 
@@ -33,11 +33,11 @@ export function decryptKey(row: { ciphertext: string; iv: string }, userId: stri
 
 /** The user's working keys, decrypted. Keys the provider rejected (valid = false) and rows that no longer decrypt (secret rotated) are left out. */
 export async function getUserKeys(userId: string): Promise<Keys> {
-  const rows = await db.select().from(userApiKeys).where(and(eq(userApiKeys.userId, userId), eq(userApiKeys.valid, true)));
+  const rows = await db.select().from(userApiKeys).where(and(eq(userApiKeys.userId, userId), eq(userApiKeys.provider, 'openrouter'), eq(userApiKeys.valid, true)));
   const out: Keys = {};
   for (const r of rows) {
     try {
-      out[r.provider] = decryptKey(r, userId, r.provider);
+      out.openrouter = decryptKey(r, userId, 'openrouter');
     } catch {
       console.error('user key could not be decrypted', r.provider); // no key material in the message
     }
@@ -46,10 +46,8 @@ export async function getUserKeys(userId: string): Promise<Keys> {
 }
 
 export async function listKeys(userId: string) {
-  const rows = await db.select().from(userApiKeys).where(eq(userApiKeys.userId, userId));
-  return rows
-    .sort((a, b) => PROVIDERS.indexOf(a.provider) - PROVIDERS.indexOf(b.provider))
-    .map((r) => ({ provider: r.provider, last4: r.last4, addedAt: r.createdAt.toISOString(), valid: r.valid }));
+  const rows = await db.select().from(userApiKeys).where(and(eq(userApiKeys.userId, userId), eq(userApiKeys.provider, 'openrouter')));
+  return rows.map((r) => ({ provider: 'openrouter' as const, last4: r.last4, addedAt: r.createdAt.toISOString(), valid: r.valid }));
 }
 
 export async function saveKey(userId: string, provider: Provider, key: string) {
@@ -68,8 +66,6 @@ export const markKeyInvalid = (userId: string, provider: Provider) =>
 
 const CHECK: Record<Provider, { url: string; headers: (k: string) => Record<string, string> }> = {
   openrouter: { url: 'https://openrouter.ai/api/v1/key', headers: (k) => ({ Authorization: `Bearer ${k}` }) },
-  openai: { url: 'https://api.openai.com/v1/models', headers: (k) => ({ Authorization: `Bearer ${k}` }) },
-  gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', headers: (k) => ({ 'x-goog-api-key': k }) }, // header, not ?key=, so it never lands in a URL log
 };
 
 /** Cheap live check before saving: a key-listing call that costs nothing. 'unreachable' = the provider did not answer (not the user's fault). */
@@ -78,7 +74,7 @@ export async function validateKey(provider: Provider, key: string): Promise<'val
   try {
     const res = await httpFetch(c.url, { headers: c.headers(key), signal: AbortSignal.timeout(10_000) });
     if (res.ok) return 'valid';
-    return res.status === 400 || res.status === 401 || res.status === 403 ? 'invalid' : 'unreachable'; // Gemini answers 400 "API key not valid"
+    return res.status === 400 || res.status === 401 || res.status === 403 ? 'invalid' : 'unreachable';
   } catch {
     return 'unreachable';
   }

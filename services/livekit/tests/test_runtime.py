@@ -58,6 +58,25 @@ async def test_shutdown_report_once_even_cleanup_error(monkeypatch):
     r.client.aclose.assert_awaited_once()
 
 
+async def test_usage_is_reported_in_batches_and_a_failed_batch_is_resent_unchanged(monkeypatch):
+    r = await runtime()
+    r.meter.entries.extend({"costUsd": 1e-9 * i} for i in range(1200))
+    sent, fail = [], [True]
+    async def report(_client, _d, report_id, entries):
+        sent.append((report_id, len(entries)))
+        if fail and report_id.endswith(":500"):
+            fail.pop()
+            return False
+        return True
+    monkeypatch.setattr("worker.send_report", report)
+    assert not await r.flush()
+    r.meter.entries.append({"costUsd": 1e-9})  # usage keeps arriving while a batch waits to be retried
+    assert await r.flush()
+    rid = r.report_id
+    assert sent == [(f"{rid}:0", 500), (f"{rid}:500", 500), (f"{rid}:500", 500), (f"{rid}:1000", 201)]
+    assert await r.flush() and len(sent) == 4  # nothing new: nothing sent
+
+
 def test_actual_local_detector_no_cloud():
     detector = inference.TurnDetector(version="v1-mini")
     assert detector._cloud_opts is None

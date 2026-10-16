@@ -22,7 +22,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-// Microphone side of the speaking flows (port of iOS Audio/Recorder.swift, LiveAudio.swift, VAD.swift). One AudioRecord pipeline
+// Microphone side of the speaking flows (port of iOS Audio/Recorder.swift, LiveAudio.swift). One AudioRecord pipeline
 // feeds everything: an AAC .m4a file (what the server expects), a 50 ms energy timeline on the web scale, and level meters.
 
 /** Voice threshold on the web energy scale (matches web VOICE and core computeSpeechMetrics voiceThreshold). */
@@ -51,28 +51,6 @@ fun estimateWpm(energy: List<Int>): Int {
         if (win[i] >= VOICE_ENERGY && win[i] > win[i - 1] && win[i] >= win[i + 1] && i - last >= 3) { peaks++; last = i }
     }
     return (peaks / 1.5 * (200.0 / win.size) * 6).roundToInt()
-}
-
-/** Energy VAD: speech starts after [startAfter] s above [threshold]; the turn ends after [endAfter] s of silence following speech. */
-class Vad(var threshold: Double = 0.3, var startAfter: Double = 0.15, var endAfter: Double = 1.2) {
-    var speaking = false; private set
-    var heardSpeech = false; private set
-    private var above = 0.0
-    private var below = 0.0
-
-    /** Feed one level sample (0..1) covering [dt] seconds. Returns true exactly once when a turn ends. */
-    fun feed(level: Double, dt: Double): Boolean {
-        if (level > threshold) {
-            above += dt; below = 0.0
-            if (above >= startAfter) { speaking = true; heardSpeech = true }
-        } else {
-            above = 0.0
-            if (!speaking) return false
-            below += dt
-            if (below >= endAfter) { speaking = false; below = 0.0; return true }
-        }
-        return false
-    }
 }
 
 /** Mono PCM16 capture on its own thread, in ~40 ms chunks. Needs RECORD_AUDIO granted. [onPcm] runs on the capture thread. */

@@ -134,6 +134,20 @@
       "when": 1792101890728,
       "tag": "0018_prompt_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792141277386,
+      "tag": "0019_drop_unused_live_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792141905616,
+      "tag": "0020_cost_precision",
+      "breakpoints": true
     }
   ]
 }

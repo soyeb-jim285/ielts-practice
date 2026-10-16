@@ -1,8 +1,10 @@
 // Cost ledger writer (docs/admin/COSTS-AND-UI.md section 4). Every paid call leaves one `ai_costs` row; who/what it belongs to comes from keyCtx.cost.
+import { and, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { aiCosts } from '../db/schema';
 import { env } from '../env';
 import { keyCtx } from './keyctx';
+import { httpFetch } from './openrouter';
 
 export type CostRow = {
   stage: string;
@@ -17,7 +19,7 @@ export type CostRow = {
   characters?: number;
   credits?: number;
   meta?: Record<string, unknown>;
-  /** Outside a request (GPT-Live websocket events) there is no keyCtx: pass the owner explicitly. */
+  /** Outside a request there is no keyCtx: pass the owner explicitly. */
   userId?: string;
   sessionId?: string;
   paidBy?: 'house' | 'own_key';
@@ -65,22 +67,6 @@ export function asRetry<T>(f: () => Promise<T>): Promise<T> {
 const WHISPER_USD_PER_HOUR = 0.11;
 export const whisperUsd = (seconds: number) => (seconds / 3600) * WHISPER_USD_PER_HOUR;
 export const scribeUsd = (seconds: number) => (seconds / 3600) * env.ELEVENLABS_SCRIBE_USD_PER_HOUR;
-/** GPT-Live is billed per second: $0.05/min (env.ts). */
-export const gptLiveUsd = (seconds: number) => (seconds / 60) * 0.05;
-
-/** Token counts of a Gemini Live session, summed over its replies (each reply's usageMetadata re-counts the context it read). */
-export type GeminiLiveUsage = { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number; thoughts: number };
-/** USD per 1M tokens, Gemini Live paid tier (ai.google.dev/gemini-api/docs/pricing, 3.8 on 2026-10-09, the others 2026-10-13); thinking is billed as output text.
- *  Gemini returns no cost, only tokens. Audio costs the same on every Live model; only 2.5's text is cheaper. */
-const GEMINI_LIVE_PER_M: Record<string, { inputText: number; inputAudio: number; inputMedia: number; outputText: number; outputAudio: number }> = {
-  'gemini-3.8-live': { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 },
-  'gemini-3.1-flash-live-preview': { inputText: 0.75, inputAudio: 3, inputMedia: 1, outputText: 4.5, outputAudio: 12 },
-  'gemini-2.5-flash-native-audio-preview-12-2025': { inputText: 0.5, inputAudio: 3, inputMedia: 3, outputText: 2, outputAudio: 12 },
-};
-export const geminiLiveUsd = (u: GeminiLiveUsage, model = 'gemini-3.8-live') => {
-  const p = GEMINI_LIVE_PER_M[model] ?? GEMINI_LIVE_PER_M['gemini-3.8-live']!;
-  return (u.inputText * p.inputText + u.inputAudio * p.inputAudio + u.inputMedia * p.inputMedia + (u.outputText + u.thoughts) * p.outputText + u.outputAudio * p.outputAudio) / 1e6;
-};
 
 /** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK key only, the upstream provider cost OpenRouter reports separately (on the house key it is already inside `cost`). */
 export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; outputTokens?: number; exact: boolean } {
@@ -88,4 +74,28 @@ export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; 
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
   const cost = n(x.cost);
   return { costUsd: (cost ?? 0) + (keyCtx.getStore()?.openrouter ? (n(x.cost_details?.upstream_inference_cost) ?? 0) : 0), inputTokens: n(x.prompt_tokens), outputTokens: n(x.completion_tokens), exact: cost !== undefined };
+}
+
+/** Replaces estimated OpenRouter costs with what OpenRouter actually charged. The live examiner's LLM rows are priced from the catalogue, but OpenRouter
+ *  routes to providers at different prices; /generation has the real figure a minute or two later. House-key rows only (a user's key is needed to look
+ *  up their own generations). Runs from the periodic sweep; a row it cannot settle is retried until it is two days old. */
+export async function reconcileCosts(limit = 500): Promise<number> {
+  if (!env.OPENROUTER_API_KEY) return 0;
+  const gen = sql<string>`coalesce(${aiCosts.meta}->>'generationId', ${aiCosts.meta}->>'requestId')`;
+  const due = await db
+    .select({ id: aiCosts.id, costUsd: aiCosts.costUsd, meta: aiCosts.meta, gen })
+    .from(aiCosts)
+    .where(and(eq(aiCosts.provider, 'openrouter'), eq(aiCosts.paidBy, 'house'), sql`${aiCosts.meta}->>'estimated' = 'true'`, sql`${gen} like 'gen-%'`,
+      lt(aiCosts.createdAt, new Date(Date.now() - 120_000)), gt(aiCosts.createdAt, new Date(Date.now() - 2 * 86_400_000))))
+    .limit(limit);
+  let n = 0;
+  const settle = async (r: (typeof due)[number]) => {
+    const res = await httpFetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(r.gen)}`, { headers: { Authorization: `Bearer ${env.OPENROUTER_API_KEY}` }, signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    const total = res?.ok ? ((await res.json()) as { data?: { total_cost?: unknown } }).data?.total_cost : undefined;
+    if (typeof total !== 'number' || !Number.isFinite(total)) return; // not ready yet: next sweep
+    await db.update(aiCosts).set({ costUsd: total, meta: { ...r.meta, estimated: false, reconciled: true, estimatedUsd: r.costUsd } }).where(eq(aiCosts.id, r.id));
+    n++;
+  };
+  for (let i = 0; i < due.length; i += 10) await Promise.all(due.slice(i, i + 10).map(settle));
+  return n;
 }

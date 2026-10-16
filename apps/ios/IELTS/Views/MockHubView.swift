@@ -132,7 +132,7 @@ struct MockHubView: View {
     }
 
     private var speakingChoice: some View {
-        let live = !(api.quota?.liveProviders.isEmpty ?? true)
+        let live = api.quota?.live ?? false
         return VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Last section").font(.caption.weight(.medium)).foregroundStyle(.brand)
@@ -154,10 +154,7 @@ struct MockHubView: View {
                 Button { Task { await chooseLive() } } label: { Text("Start live examiner").frame(maxWidth: .infinity, minHeight: 28) }
                     .secondaryButton().controlSize(.large).disabled(busy || !live)
                 if !live {
-                    HStack(spacing: 6) {
-                        Label("Needs your own OpenAI or Gemini key.", systemImage: "lock").font(.caption).foregroundStyle(.muted)
-                        Button("Add your own key") { api.openKeys() }.font(.caption.weight(.medium))
-                    }
+                    Label("Not available right now.", systemImage: "mic.slash").font(.caption).foregroundStyle(.muted)
                 }
             }
             Divider()

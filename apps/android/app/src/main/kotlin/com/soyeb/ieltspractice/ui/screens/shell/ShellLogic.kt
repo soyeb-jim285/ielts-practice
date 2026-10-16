@@ -276,25 +276,5 @@ fun emailStatusLine(s: EmailStatus?, nowMs: Long, zone: java.time.ZoneId = java.
     return "Code sent to $to$time. Check your spam folder if it doesn't show up." to false
 }
 
-/** Short model id for display ("openai/gpt-6-luna" -> "gpt-6-luna"). */
-fun shortModel(id: String): String = id.substringAfterLast('/')
-
-/** OpenRouter prices are USD per token (as strings): "$0.10 in · $0.50 out per 1M tokens"; null when free or unknown. */
-fun modelPrice(prompt: String?, completion: String?): String? {
-    val i = prompt?.toDoubleOrNull() ?: return null
-    val o = completion?.toDoubleOrNull() ?: return null
-    if (i <= 0 && o <= 0) return null
-    return String.format(Locale.US, "\$%.2f in · \$%.2f out per 1M tokens", i * 1e6, o * 1e6)
-}
-
-/** Mirrors DEFAULT_SETTINGS.models in apps/server/src/settings.ts (and the web's DEFAULT_MODELS). */
-object DefaultModels {
-    const val ANALYSIS = "openai/gpt-6-luna"
-    const val EXAMINER = "openai/gpt-6-luna"
-    const val STT = "openai/whisper-large-v3"
-    const val TTS = "google/gemini-3.8-flash-tts"
-}
-
-
 /** The demo `tab` argument without the "+end" suffix (which only asks ScreenScaffold to start scrolled to the bottom). */
 fun demoTab(d: com.soyeb.ieltspractice.core.DemoConfig?): String? = d?.tab?.removeSuffix("+end")

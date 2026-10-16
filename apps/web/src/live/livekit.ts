@@ -1,9 +1,14 @@
 import { DEFAULT_LIVEKIT, LIVEKIT_TTS_MODELS, type LiveKitConfig, type LiveKitPartConfig } from '@ielts/core';
 import type { RemoteTrack, Room } from 'livekit-client';
 import { api } from '@/lib/api';
-import type { ReplyTiming, StartupStep } from './cascade';
 import { useDuplexExaminer, type CueKey, type Duplex, type Handlers } from './duplex';
 import type { LiveExaminer, LiveSource } from './turn';
+
+export type StartupStep = { key: string; label: string; state: 'running' | 'done' | 'failed' | 'skipped'; ms?: number; detail?: string };
+/** One answered turn, ms from the candidate's last sound to the examiner's first sound, split into stages that add up to `total`:
+ *  wait (silence before the turn counted as finished), stt (turn end → final transcript), llm, tts, net (the rest of the round trip).
+ *  turnModel, decode and checks are always 0 / empty here; the timeline view keeps their columns. */
+export type ReplyTiming = { at: number; wait: number; turnModel: number; stt: number; llm: number; tts: number; net: number; decode: number; total: number; text: string; checks: number[]; label: string };
 
 export const LIVEKIT_KEY = 'admin-livekit-config';
 export function loadLiveKitConfig(): LiveKitConfig {
@@ -215,6 +220,6 @@ export class LiveKitDuplex implements Duplex {
 }
 
 /** The live examiner: LiveKit on the server's keys (the default for everyone). */
-export function useLiveKitExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, onUnavailable?: (reason: string) => void, source?: LiveSource, mockId?: string): LiveExaminer {
-  return useDuplexExaminer(() => new LiveKitDuplex(), onFinished, onUnavailable, source, mockId);
+export function useLiveKitExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, source?: LiveSource, mockId?: string): LiveExaminer {
+  return useDuplexExaminer(() => new LiveKitDuplex(), onFinished, source, mockId);
 }

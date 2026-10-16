@@ -25,7 +25,7 @@ export function register(app: App) {
       method: 'put',
       path: '/api/settings',
       tags: ['Settings'],
-      summary: 'Update settings (partial; models merge per key)',
+      summary: 'Update settings (partial)',
       security: [{ bearer: [] }],
       middleware: [requireAccount] as const,
       request: { body: { required: true, content: { 'application/json': { schema: SettingsPatchSchema.openapi('SettingsPatch') } } } },

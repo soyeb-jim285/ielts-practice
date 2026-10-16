@@ -1,26 +1,9 @@
 import SwiftUI
 
-/// Mirrors DEFAULT_SETTINGS.models in apps/server/src/settings.ts (and the web's DEFAULT_MODELS).
-private enum DefaultModels {
-    static let analysis = "openai/gpt-6-luna"
-    static let examiner = "openai/gpt-6-luna"
-    static let stt = "openai/whisper-large-v3"
-    static let tts = "google/gemini-3.8-flash-tts"
-}
-
-private func shortModel(_ id: String) -> String { id.split(separator: "/").last.map(String.init) ?? id }
-
-/// A TTS model with the voices it supports (GET /api/models?capability=tts). Local: the shared ModelInfo has no `voices`.
-private struct TtsModel: Decodable {
-    let id: String
-    let voices: [String]?
-}
-
 struct SettingsView: View {
     @Environment(APIClient.self) private var api
     @State private var s: AppSettings?
     @State private var targetDraft = 7.0
-    @State private var voices: [String: [String]] = [:]
     @State private var error: String?
     @State private var showDelete = false
 
@@ -61,21 +44,11 @@ struct SettingsView: View {
             s = api.me?.settings
             targetDraft = s?.targetBand ?? 7
         }
-        .task {
-            if let list: ListOf<TtsModel> = try? await api.get("/api/models", query: ["capability": "tts"]) {
-                voices = Dictionary(list.items.compactMap { m in m.voices.map { (m.id, $0) } }, uniquingKeysWith: { a, _ in a })
-            }
-        }
         .onChange(of: s) { old, new in
             guard let new, old != nil, new != api.me?.settings else { return }
             Task {
                 do { try await api.saveSettings(new); error = nil } catch is CancellationError {} catch { self.error = error.localizedDescription }
             }
-        }
-        // A new voice model may not offer the current voice: switch to its first one (web pickVoice).
-        .onChange(of: s?.models.tts) { _, new in
-            guard let new, let list = voices[new], let first = list.first, let cur = s?.models.ttsVoice, !list.contains(cur) else { return }
-            s?.models.ttsVoice = first
         }
         .sheet(isPresented: $showDelete) { DeleteAccountSheet() }
         .onChange(of: api.wantsKeys, initial: true) { _, wants in
@@ -101,37 +74,9 @@ struct SettingsView: View {
         }
     }
 
-    /// One conversation-mode choice as a full-width radio row.
-    private func providerRow(_ value: String, _ title: String, _ description: String, current: String, enabled: Bool = true, set: @escaping () -> Void) -> some View {
-        Button(action: set) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).foregroundStyle(.ink)
-                    Text(description).font(.caption).foregroundStyle(.muted).multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: current == value ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(current == value ? Color.brand : Color.muted)
-                    .accessibilityHidden(true)
-            }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.5)
-        .accessibilityAddTraits(current == value ? .isSelected : [])
-    }
-
     @ViewBuilder
     private var settingsSections: some View {
         let b = binding
-        // Per user: a live examiner is on only with the matching own key (turn-based: an OpenRouter key).
-        let live = api.quota.map { Set($0.liveProviders) } ?? []
-        let turnOK = live.contains("turn")
-        let gptLiveOK = api.quota != nil ? live.contains("gpt-live") : api.me?.gptLiveAvailable == true
-        let geminiOK = api.quota != nil ? live.contains("gemini-live") : api.me?.geminiLiveAvailable == true
-        let natural = "Talk back and forth as in the real test. You can interrupt each other."
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -165,72 +110,6 @@ struct SettingsView: View {
             Text("Writing")
         } footer: {
             Text("How the timed essay editor behaves.")
-        }
-        Section {
-            providerRow("turn", "Examiner waits for you to finish",
-                        turnOK ? "The examiner asks a question, then listens until you pause." : "Needs your own OpenRouter key.",
-                        current: b.wrappedValue.liveProvider, enabled: turnOK) {
-                s?.liveProvider = "turn"
-            }
-            providerRow("gpt-live", "Natural conversation (GPT-Live)", gptLiveOK ? natural : "Needs your own OpenAI key.",
-                        current: b.wrappedValue.liveProvider, enabled: gptLiveOK) {
-                s?.liveProvider = "gpt-live"
-            }
-            providerRow("gemini-live", "Natural conversation (Gemini)", geminiOK ? natural : "Needs your own Gemini key.",
-                        current: b.wrappedValue.liveProvider, enabled: geminiOK) {
-                s?.liveProvider = "gemini-live"
-            }
-        } header: {
-            Text("Live examiner")
-        } footer: {
-            Text(live.isEmpty ? "The live examiner never uses the community balance. Add your own key under Your API keys to unlock it."
-                 : "How the live speaking test talks to you.")
-        }
-        Section {
-            DisclosureGroup {
-                Text("Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.").font(.caption).foregroundStyle(.muted)
-                ModelRow(title: "Scoring and feedback", capability: "text", hint: nil, defaultID: DefaultModels.analysis, value: b.models.analysis)
-                ModelRow(title: "Examiner", capability: "text", hint: "Asks the questions when the examiner waits for you to finish.", defaultID: DefaultModels.examiner, value: b.models.examiner)
-                ModelRow(title: "Speech to text", capability: "stt", hint: "Needs word timestamps for fluency metrics.", defaultID: DefaultModels.stt, value: b.models.stt)
-                ModelRow(title: "Examiner voice model", capability: "tts", hint: nil, defaultID: DefaultModels.tts, value: b.models.tts)
-                Picker("Voice", selection: b.models.ttsVoice) {
-                    let list = voices[b.wrappedValue.models.tts] ?? []
-                    ForEach(list.contains(b.wrappedValue.models.ttsVoice) ? list : [b.wrappedValue.models.ttsVoice] + list, id: \.self) { Text($0).tag($0) }
-                }
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Customise models")
-                    Text("Scoring: \(shortModel(b.wrappedValue.models.analysis))").font(.caption).foregroundStyle(.muted)
-                }
-            }
-        } header: {
-            Text("AI models")
-        } footer: {
-            Text(api.quota?.tier == "own-key" ? "The models that score your work and play the examiner. The defaults suit most people."
-                 : "Community tests always use the default models. A custom model applies only with your own OpenRouter key.")
-        }
-    }
-}
-
-/// A model choice: opens the searchable list, with the web's hint and "Reset to default" under it.
-private struct ModelRow: View {
-    let title: String
-    let capability: String
-    let hint: String?
-    let defaultID: String
-    @Binding var value: String
-
-    var body: some View {
-        NavigationLink {
-            ModelPickerView(title: title, capability: capability, selection: $value)
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                LabeledContent(title, value: shortModel(value))
-                if let hint { Text(hint).font(.caption).foregroundStyle(.muted) }
-            }
-        }
-        if value != defaultID {
-            Button("Reset to default (\(shortModel(defaultID)))") { value = defaultID }.font(.subheadline)
         }
     }
 }
@@ -277,64 +156,5 @@ private struct DeleteAccountSheet: View {
         } catch {
             self.error = error.localizedDescription
         }
-    }
-}
-
-struct ModelPickerView: View {
-    let title: String
-    let capability: String
-    @Binding var selection: String
-
-    @Environment(APIClient.self) private var api
-    @Environment(\.dismiss) private var dismiss
-    @State private var models: [ModelInfo] = []
-    @State private var query = ""
-    @State private var error: String?
-    @State private var loading = true
-
-    private var filtered: [ModelInfo] {
-        query.isEmpty ? models : models.filter { $0.id.localizedCaseInsensitiveContains(query) || ($0.name ?? "").localizedCaseInsensitiveContains(query) }
-    }
-
-    var body: some View {
-        List {
-            if let error { ErrorLine(message: error) }
-            if loading { ProgressView() }
-            ForEach(filtered) { m in
-                Button {
-                    selection = m.id
-                    dismiss()
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(m.name ?? m.id).foregroundStyle(.primary)
-                            Text(m.id).font(.caption.monospaced()).foregroundStyle(.muted)
-                            if let p = price(m) { Text(p).font(.caption).foregroundStyle(.muted) }
-                        }
-                        Spacer()
-                        if m.id == selection { Image(systemName: "checkmark").foregroundStyle(.brand) }
-                    }
-                }
-            }
-        }
-        .canvasList()
-        .demoScroll()
-        .navigationTitle(title)
-        .searchable(text: $query, prompt: "Search models")
-        .task {
-            do {
-                let list: ListOf<ModelInfo> = try await api.get("/api/models", query: ["capability": capability])
-                models = list.items
-            } catch {
-                self.error = error.localizedDescription
-            }
-            loading = false
-        }
-    }
-
-    /// OpenRouter prices are USD per token (as strings) → per 1M tokens.
-    private func price(_ m: ModelInfo) -> String? {
-        guard let p = m.pricing, let i = Double(p.prompt ?? ""), let o = Double(p.completion ?? ""), i > 0 || o > 0 else { return nil }
-        return String(format: "$%.2f in · $%.2f out per 1M tokens", i * 1e6, o * 1e6)
     }
 }

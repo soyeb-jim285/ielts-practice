@@ -82,7 +82,7 @@ function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
           {live.items.map((i, k) => <Item key={k} i={i} />)}
         </ul>
       ) : (
-        <p className="type-caption mt-1">No live-model costs recorded (Gemini Live is not metered).</p>
+        <p className="type-caption mt-1">No live examiner costs recorded for this session.</p>
       )}
       <details className="mt-4">
         <summary className="cursor-pointer text-sm font-semibold">Live transcript ({live.transcript.length} turns)</summary>
@@ -96,7 +96,7 @@ function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
             ))}
           </ol>
         ) : (
-          <p className="type-caption mt-1">No server-side transcript for this session (Gemini Live keeps none).</p>
+          <p className="type-caption mt-1">No server-side transcript for this session.</p>
         )}
       </details>
     </section>

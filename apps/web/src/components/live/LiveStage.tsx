@@ -1,4 +1,4 @@
-import { Captions, CaptionsOff, Check, Volume2 } from 'lucide-react';
+import { Captions, CaptionsOff, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { CueCard } from '@/components/speaking/CueCard';
@@ -102,21 +102,9 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
           <p className={cn('min-h-6 font-medium', part2 ? 'text-sm' : 'text-body')} aria-live="polite">
             {STATUS_TEXT[ex.status] || '\u00a0'}
           </p>
-          {ex.needsTap && (
-            <Button icon={<Volume2 />} onClick={ex.resume}>
-              Play the examiner
-            </Button>
-          )}
         </Card>
 
-        {ex.voiceError && (
-          // ponytail: the server's detail (model id, Settings hint) is for logs, not the candidate.
-          <Alert tone="warn" title="The examiner's voice isn't available right now">
-            Questions will appear as text below. The test carries on as normal.
-          </Alert>
-        )}
-
-        {(captions || ex.voiceError) && ex.caption && (
+        {captions && ex.caption && (
           <p className="type-reading w-full max-w-none rounded-lg bg-surface-2 px-5 py-4 text-left" aria-live="polite">
             {ex.caption}
           </p>

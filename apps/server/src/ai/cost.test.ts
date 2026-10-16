@@ -4,12 +4,12 @@ import { expect, it, vi } from 'vitest';
 import { db } from '../db/client';
 import { aiCosts } from '../db/schema';
 import { env } from '../env';
-import { asRetry, flushCosts, recordCost, usageCost } from './cost';
+import { asRetry, flushCosts, reconcileCosts, recordCost, usageCost } from './cost';
 import { keyCtx } from './keyctx';
-import { chatJson, chatText, setFetch, speak, transcribe } from './openrouter';
+import { chatJson, chatText, setFetch, transcribe } from './openrouter';
 import { analyzeSpeaking } from './speaking';
 import { analyzeWriting } from './writing';
-import { settings, speakingLlm, sttWords, writingChat } from './fixtures';
+import { models, speakingLlm, sttWords, writingChat } from './fixtures';
 import { z } from 'zod';
 
 const ctx = { userId: 'u1', attemptId: 'a1', sessionId: 's1', promptId: 'p1', skill: 'speaking' as const, part: 2 };
@@ -19,11 +19,11 @@ const withUsage = (route: (u: string, i: RequestInit) => Response | Promise<Resp
   json({ ...((await (await route(u, i)).json()) as object), id: 'gen-1', provider: 'Acme', usage: { prompt_tokens: 100, completion_tokens: 20, cost } });
 
 it('recordCost writes one row from the request context: payer, owner, attempt', async () => {
-  keyCtx.run({ openrouter: 'sk-own', cost: ctx }, () => recordCost({ stage: 'score', provider: 'openrouter', model: 'm', costUsd: 0.0123456 }));
-  recordCost({ stage: 'live_realtime', provider: 'openai', model: 'gpt-live-1', costUsd: 1, userId: 'u2', sessionId: 's2', paidBy: 'own_key' });
+  keyCtx.run({ openrouter: 'sk-own', cost: ctx }, () => recordCost({ stage: 'score', provider: 'openrouter', model: 'm', costUsd: 0.0000001234567 }));
+  recordCost({ stage: 'examiner_llm', provider: 'openrouter', model: 'deepseek/deepseek-v4.1-flash', costUsd: 1, userId: 'u2', sessionId: 's2', paidBy: 'own_key' });
   const [a, b] = await all();
-  expect(a).toMatchObject({ userId: 'u1', attemptId: 'a1', sessionId: 's1', promptId: 'p1', skill: 'speaking', part: 2, stage: 'score', paidBy: 'own_key', costUsd: 0.012346, ok: true, retry: false });
-  expect(b).toMatchObject({ userId: 'u2', attemptId: null, paidBy: 'own_key', provider: 'openai' });
+  expect(a).toMatchObject({ userId: 'u1', attemptId: 'a1', sessionId: 's1', promptId: 'p1', skill: 'speaking', part: 2, stage: 'score', paidBy: 'own_key', costUsd: 0.000000123457, ok: true, retry: false });
+  expect(b).toMatchObject({ userId: 'u2', attemptId: null, paidBy: 'own_key', provider: 'openrouter' });
 });
 
 it('recordCost never throws or rejects into the caller when the database fails', async () => {
@@ -86,7 +86,7 @@ it('speaking pipeline: one primed STT pass, no audio review, feedback, one Jev s
   };
   const jev = () => json({ answers: Object.fromEntries(['fc', 'lr', 'gra'].map((k) => [k, { score: 2, probabilities: { 2: 1 } }])), usage: { input_tokens: 700, output_tokens: 15, cost: 0.01 } });
   setFetch(fakeFetch({ '/audio/transcriptions': () => json({ ...sttWords, usage: { cost: 0.002 } }), '/chat/completions': withUsage(chat, 0.01), '/systemone': jev }));
-  await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, settings: settings({ models: { ...settings().models, stt: 'openai/whisper-large-v3' } }) }));
+  await keyCtx.run({ cost: ctx }, () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['Q?'], part: 2, models: models({ stt: 'openai/whisper-large-v3' }) }));
   const rows = await all();
   const by = (stage: string) => rows.filter((r) => r.stage === stage);
   expect(by('stt')).toHaveLength(1); // the primed pass was sane on its own: one Whisper charge, no plain pass
@@ -116,19 +116,11 @@ it('Scribe: house-paid ElevenLabs row from audio seconds, a failed call as ok=fa
   expect(fallback!.meta).toMatchObject({ fallbackFrom: 'elevenlabs/scribe_v2', estimated: true });
 });
 
-it('TTS: one estimated row per synthesised chunk with its characters', async () => {
-  setFetch(fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'audio/mpeg' } }) }));
-  await keyCtx.run({ cost: ctx }, () => speak({ model: 'openai/tts', voice: 'alloy', text: 'Hello there.' }));
-  const [r] = await all();
-  expect(r).toMatchObject({ stage: 'examiner_tts', characters: 12 });
-  expect(r!.meta).toMatchObject({ estimated: true });
-});
-
 it('writing: the feedback call and the Jev scoring call each leave a row with the mocked usage.cost', async () => {
   const jev = () => json({ answers: Object.fromEntries(['ta', 'cc', 'lr', 'gra'].map((k) => [k, { score: 3, probabilities: {} }])), usage: { input_tokens: 900, output_tokens: 20, cost: 0.02 } });
   setFetch(fakeFetch({ '/chat/completions': withUsage(writingChat(), 0.02), '/systemone': jev }));
   const essay = `Many people has argued that technology makes life easier.\n\n${'In my view it helps us work, learn and stay in touch with family every day. '.repeat(16)}`;
-  await keyCtx.run({ cost: { ...ctx, skill: 'writing' } }, () => analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt: { title: 'T', body: 'Discuss.' }, settings: settings({ models: { ...settings().models, analysis: 'other/model' } }) }));
+  await keyCtx.run({ cost: { ...ctx, skill: 'writing' } }, () => analyzeWriting({ text: essay, task: 2, variant: 'academic', prompt: { title: 'T', body: 'Discuss.' }, models: models({ analysis: 'other/model' }) }));
   await flushCosts();
   const done = await all();
   expect(done.filter((r) => r.stage === 'feedback')).toHaveLength(1);
@@ -142,4 +134,23 @@ it('a billed primed transcription is recorded even when the fallback plain pass 
   await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm', verbatim: true })).catch(() => {});
   const rows = await all();
   expect(rows.some((r) => r.stage === 'stt_verbatim' && r.ok && r.costUsd === 0.002)).toBe(true);
+});
+
+it('reconcile: estimated house OpenRouter rows take the charged cost from /generation, sub-micro-dollar digits kept; own-key, fresh and unsettled rows are left', async () => {
+  const old = new Date(Date.now() - 10 * 60_000);
+  await db.insert(aiCosts).values([
+    { stage: 'examiner_llm', provider: 'openrouter', model: 'm', costUsd: 0.00002, paidBy: 'house', createdAt: old, meta: { estimated: true, requestId: 'gen-a' } },
+    { stage: 'examiner_llm', provider: 'openrouter', model: 'm', costUsd: 0.00002, paidBy: 'house', createdAt: old, meta: { estimated: true, requestId: 'gen-late' } },
+    { stage: 'examiner_llm', provider: 'openrouter', model: 'm', costUsd: 0.00002, paidBy: 'own_key', createdAt: old, meta: { estimated: true, requestId: 'gen-b' } },
+    { stage: 'examiner_llm', provider: 'openrouter', model: 'm', costUsd: 0.00002, paidBy: 'house', meta: { estimated: true, requestId: 'gen-c' } }, // too fresh
+  ]);
+  const f = fakeFetch({ 'id=gen-a': () => json({ data: { total_cost: 0.000000123456789 } }), 'id=gen-late': () => json({ error: { code: 404 } }, 404) });
+  setFetch(f);
+  env.OPENROUTER_API_KEY ??= 'sk-or-test';
+  expect(await reconcileCosts()).toBe(1);
+  expect(f.calls.map((c) => c.url.split('id=')[1]).sort()).toEqual(['gen-a', 'gen-late']);
+  const a = (await all()).find((r) => r.meta?.requestId === 'gen-a')!;
+  expect(a.costUsd).toBeCloseTo(0.000000123456789, 12);
+  expect(a.meta).toMatchObject({ estimated: false, reconciled: true, estimatedUsd: 0.00002 });
+  expect(await reconcileCosts()).toBe(0); // settled rows are not fetched again
 });

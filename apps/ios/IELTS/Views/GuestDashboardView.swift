@@ -6,7 +6,7 @@ struct GuestDashboardView: View {
 
     private let features: [(icon: String, title: String, body: String)] = [
         ("mic", "Speaking test", "All three parts, recorded. Fluency, vocabulary, grammar and pronunciation are scored, with your pauses timed in the transcript."),
-        ("bubble.left.and.bubble.right", "Live examiner", "A spoken conversation: an AI examiner asks, listens and follows up on what you say. Runs on your own API key."),
+        ("bubble.left.and.bubble.right", "Live examiner", "A spoken conversation: an AI examiner asks, listens and follows up on what you say."),
         ("pencil.line", "Writing Task 1 and 2", "Timed tasks marked against the public band descriptors, with each mistake underlined and corrected."),
         ("exclamationmark.triangle", "Mistake log", "The errors you repeat, grouped, so you know what to fix first."),
         ("rectangle.on.rectangle.angled", "Review deck", "Turn corrections into short flashcards that come back just before you forget them."),

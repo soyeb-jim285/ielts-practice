@@ -1,9 +1,4 @@
-// Admin playground helpers: transcript stats and live-engine price estimates. The price tables mirror the server's (ai/cost.ts geminiLiveUsd,
-// ai/openai-realtime.ts realtimeUsd, ai/cost.ts gptLiveUsd): the ledger keeps the authoritative figure, these only drive the live readout.
-import type { GeminiModel } from '@/live/gemini';
-import type { GeminiUsage } from '@/live/geminiProtocol';
-import type { RealtimeModel, RealtimeUsage } from '@/live/realtime';
-
+// Admin playground helpers: transcript stats and audio encoding.
 /** A filled pause ("um", "uhh", "er", "hmm"), the same rule as the server's verbatim check. */
 const FILLER = /^(u+m+|u+h+|e+r+m*|a+h+|h+m+|m+)$/;
 export const bare = (w: string) => w.toLowerCase().replace(/[^a-z0-9']/g, '');
@@ -69,30 +64,6 @@ export async function toWav16k(blob: Blob): Promise<Blob> {
     void ctx.close();
   }
 }
-
-/** Gemini Live, USD per 1M tokens (paid tier): [text in, audio in, media in, text out, audio out]. */
-const GEMINI: Record<GeminiModel, [number, number, number, number, number]> = {
-  'gemini-3.8-live': [0.75, 3, 1, 4.5, 12],
-  'gemini-3.1-flash-live-preview': [0.75, 3, 1, 4.5, 12],
-  'gemini-2.5-flash-native-audio-preview-12-2025': [0.5, 3, 3, 2, 12],
-};
-export const geminiUsd = (model: GeminiModel, u: GeminiUsage) => {
-  const [ti, ai, mi, to, ao] = GEMINI[model];
-  return (u.inputText * ti + u.inputAudio * ai + u.inputMedia * mi + (u.outputText + u.thoughts) * to + u.outputAudio * ao) / 1e6;
-};
-/** OpenAI Realtime, USD per 1M tokens, plus the candidate's input transcription per minute. */
-const REALTIME: Record<RealtimeModel, [number, number, number, number, number]> = {
-  'gpt-realtime': [4, 32, 0.4, 16, 64],
-  'gpt-realtime-mini': [0.6, 10, 0.3, 2.4, 20],
-  'gpt-realtime-2.1': [4, 32, 0.4, 24, 64],
-  'gpt-realtime-2.1-mini': [0.6, 10, 0.3, 2.4, 20],
-};
-export const realtimeUsd = (model: RealtimeModel, u: RealtimeUsage) => {
-  const [ti, ai, ci, to, ao] = REALTIME[model];
-  return (u.textIn * ti + u.audioIn * ai + u.cachedIn * ci + u.textOut * to + u.audioOut * ao) / 1e6 + (u.transcribeSeconds / 60) * 0.003;
-};
-/** GPT-Live bills the session by the second. */
-export const gptLiveUsd = (seconds: number) => (seconds / 60) * 0.05;
 
 export const blobToBase64 = (b: Blob) =>
   new Promise<string>((resolve, reject) => {

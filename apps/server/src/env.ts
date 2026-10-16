@@ -16,7 +16,7 @@ const Env = z.object({
   OPENROUTER_API_KEY: secret('test-openrouter'),
   // Optional: ElevenLabs Scribe v2 speech-to-text (spec §5.2). Unset: Whisper via OpenRouter is the default stt.
   ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
-  // Optional: Soniox real-time speech-to-text (stt-rt-v5) for the fast cascade examiner. Unset: that transcriber is refused.
+  // Soniox real-time STT and TTS for the LiveKit examiner (worker). Unset: live tests are unavailable.
   SONIOX_API_KEY: z.string().optional().transform((v) => v || undefined),
   CARTESIA_API_KEY: z.string().optional().transform((v) => v || undefined),
   INWORLD_API_KEY: z.string().optional().transform((v) => v || undefined),
@@ -30,17 +30,7 @@ const Env = z.object({
   LIVEKIT_API_SECRET: z.string().optional().transform((v) => v || undefined),
   LIVEKIT_AGENT_NAME: z.string().min(1).max(128).default('ielts-examiner'),
   LIVEKIT_REPORT_SECRET: z.preprocess((v) => v || undefined, z.string().min(32).optional()),
-  // Optional: the Pipecat examiner service (services/voice) for the admin playground; unset VOICE_URL: the engine is refused.
-  VOICE_URL: z.string().optional().transform((v) => v || undefined), // e.g. http://host.docker.internal:7860
-  VOICE_SECRET: z.string().optional().transform((v) => v || undefined), // shared with the voice service (x-voice-secret); default derived from OPENROUTER_API_KEY
-  // Optional: live examiner over OpenAI GPT-Live (sessions created server-side with this key) and Gemini Live (ephemeral tokens). Unset: that option is hidden.
-  OPENAI_API_KEY: z.string().optional().transform((v) => v || undefined),
-  OPENAI_LIVE_MODEL: z.string().default('gpt-live-1'), // $0.05/min, billed per second
-  OPENAI_REALTIME_MODEL: z.enum(['gpt-realtime-mini', 'gpt-realtime', 'gpt-realtime-2.1-mini', 'gpt-realtime-2.1']).default('gpt-realtime-mini'), // the realtime-mini examiner (ai/openai-realtime.ts)
   ELEVENLABS_SCRIBE_USD_PER_HOUR: z.coerce.number().min(0).default(0.4), // Scribe has no per-call price in its response: cost = audio hours x this (cost ledger, flagged estimated)
-  OPENAI_LIVE_VOICE: z.string().default('vesper'), // British, natural, masculine
-  GEMINI_API_KEY: z.string().optional().transform((v) => v || undefined),
-  GEMINI_LIVE_MODEL: z.string().default('gemini-3.8-live'),
   // Optional: Hugging Face token for the CrisperWhisper Spaces in the admin playground (ai/hfspace.ts); raises the ZeroGPU quota. Unset: anonymous quota.
   HF_TOKEN: z.string().optional().transform((v) => v || undefined),
   // Optional: our verbatim Whisper on Modal for the admin playground (ai/modal.ts). A Modal proxy-auth token; unset: that model returns an error.

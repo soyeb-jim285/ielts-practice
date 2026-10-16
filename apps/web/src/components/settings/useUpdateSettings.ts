@@ -12,7 +12,7 @@ export function useUpdateSettings() {
     mutationFn: (patch: SettingsPatch) => call(client.PUT('/api/settings', { body: patch })),
     onMutate: (patch) => {
       const prev = queryClient.getQueryData<Me>(meQuery.queryKey)?.settings;
-      patchMe((s) => ({ ...s, ...patch, models: { ...s.models, ...patch.models } }));
+      patchMe((s) => ({ ...s, ...patch }));
       return { prev };
     },
     onError: (e, _patch, ctx) => {

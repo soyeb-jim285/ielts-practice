@@ -78,15 +78,6 @@ jobs:
             ghcr.io/soyeb-jim285/ielts-practice:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - uses: docker/build-push-action@v6
-        with:
-          context: services/voice
-          push: true
-          tags: |
-            ghcr.io/soyeb-jim285/ielts-voice:latest
-            ghcr.io/soyeb-jim285/ielts-voice:${{ github.sha }}
-          cache-from: type=gha,scope=voice
-          cache-to: type=gha,mode=max,scope=voice
       - name: Publish LiveKit worker
         uses: docker/build-push-action@v6
         with:

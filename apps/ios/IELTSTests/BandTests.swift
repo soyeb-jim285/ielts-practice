@@ -23,14 +23,6 @@ final class BandTests: XCTestCase {
         XCTAssertEqual(b.band, 7)
     }
 
-    func testVadEndsOneTurnAfterSilence() {
-        var vad = VAD()
-        var ends = 0
-        for _ in 0..<6 { if vad.feed(level: 0.8, dt: 0.05) { ends += 1 } } // 0.3 s speech
-        for _ in 0..<26 { if vad.feed(level: 0.05, dt: 0.05) { ends += 1 } } // 1.3 s silence
-        XCTAssertEqual(ends, 1)
-    }
-
     func testMistakeLogAndAttemptPageDecode() throws {
         let log = #"{"groups":[{"category":"grammar.articles","count":2}],"items":[{"id":"m1","attemptId":"a1","skill":"writing","part":2,"promptTitle":"P","category":"grammar.articles","original":"a apple","correction":"an apple","explanation":"vowel","time":null,"inDeck":false,"createdAt":"2026-09-30T00:00:00.000Z"}],"total":1,"page":1,"pageSize":30}"#
         let m = try JSONDecoder().decode(MistakeLog.self, from: Data(log.utf8))

@@ -8,7 +8,7 @@ import { PROVIDERS, quotaText, useQuota, type Provider } from '@/lib/community';
 import { formatDate } from '@/lib/format';
 
 type KeyInfo = Schemas['ApiKeyInfo'];
-const ORDER: Provider[] = ['openrouter', 'openai', 'gemini'];
+const ORDER: Provider[] = ['openrouter'];
 const keysQuery = { queryKey: ['keys'], queryFn: () => call(client.GET('/api/keys')), staleTime: 60_000 };
 
 /** The words for what went wrong saving a key (docs/community.md, Client UX 9). */
@@ -25,8 +25,6 @@ function saveError(e: unknown, provider: Provider) {
 
 const REMOVE_NOTE: Record<Provider, string> = {
   openrouter: 'Your tests go back to the community balance, with 1 test a day for speaking and for writing.',
-  openai: 'GPT-Live stops working until you add an OpenAI key again.',
-  gemini: 'Gemini Live stops working until you add a Gemini key again.',
 };
 
 /** One provider: what it unlocks and where to get a key, then either a masked saved key (Replace, Remove) or the field to add one. */

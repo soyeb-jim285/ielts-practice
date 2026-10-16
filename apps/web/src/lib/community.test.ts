@@ -59,7 +59,6 @@ describe('blocker copy', () => {
   it('sends a guest to an account, not to a key they cannot save', () => {
     expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'guest' }).body).toContain('Create an account, then add your own OpenRouter key');
     expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'community' }).body).toContain('Add your own OpenRouter key');
-    expect(blockerCopy({ code: 'live_requires_own_key', tier: 'community' }).body).toContain('OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live');
   });
 });
 

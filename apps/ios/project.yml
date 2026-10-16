@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+packages:
+  LiveKit: # the live examiner's room (WebRTC audio + data channel)
+    url: https://github.com/livekit/client-sdk-swift
+    exactVersion: 2.17.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -14,6 +18,8 @@ targets:
     type: application
     platform: iOS
     sources: [IELTS]
+    dependencies:
+      - package: LiveKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.soyeb.ieltspractice

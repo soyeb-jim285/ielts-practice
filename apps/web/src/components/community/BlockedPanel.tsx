@@ -1,11 +1,11 @@
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Clock, Gauge, Lock, Users, Wallet } from 'lucide-react';
+import { Clock, Gauge, Users, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Alert, Button, buttonStyles, IconTile } from '@/components/ui';
 import { blockerCopy, isGuestTier, type Blocker } from '@/lib/community';
 import { BalanceMeter } from './BalanceMeter';
 
-const ICON = { quota_exceeded: Clock, community_balance_exhausted: Wallet, community_busy: Users, too_many_requests: Gauge, live_requires_own_key: Lock } as const;
+const ICON = { quota_exceeded: Clock, community_balance_exhausted: Wallet, community_busy: Users, too_many_requests: Gauge } as const;
 
 /** The ways out, per reason (docs/community.md, Client UX 3). The first is the primary action. */
 function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?: () => void; size?: 'sm'; back?: ReactNode }) {
@@ -38,13 +38,6 @@ function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?:
       return (
         <>
           {guest ? create('Create an account', true) : addKey('Add your own OpenRouter key')}
-          {back}
-        </>
-      );
-    case 'live_requires_own_key':
-      return (
-        <>
-          {guest ? create('Create an account', true) : addKey('Add your own key')}
           {back}
         </>
       );

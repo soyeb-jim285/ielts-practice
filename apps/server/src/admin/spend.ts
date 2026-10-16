@@ -14,7 +14,6 @@ const json = <T extends z.ZodType>(schema: T, description: string) => ({ descrip
 const ErrorSchema = z.object({ error: z.string() });
 
 const rows = async <T>(q: SQL) => [...(await db.execute(q))] as unknown as T[];
-const r6 = (n: number | string | null | undefined) => Math.round(Number(n ?? 0) * 1e6) / 1e6;
 const num = (n: number | string | null | undefined) => Number(n ?? 0);
 const since = (days: number) => daysAgo(days - 1); // "last n days" = the n Dhaka calendar days ending today
 const paid = (p: 'house' | 'own_key' | 'all', col = sql`c.paid_by`) => (p === 'all' ? sql`true` : sql`${col} = ${p}`);
@@ -35,8 +34,8 @@ async function waste(days: number, pb: 'house' | 'own_key' | 'all') {
     rows<{ kind: SpendWasteKind; usd: string; calls: string }>(sql`select kind, sum(usd) as usd, sum(calls) as calls from (select ${KIND} as kind, c.cost_usd as usd, 1 as calls from ai_costs c ${WASTE_JOIN} where c.created_at >= ${since(days)} and ${paid(pb)}) w where kind is not null group by kind`),
     rows<{ usd: string }>(sql`select coalesce(sum(c.cost_usd), 0) as usd from ai_costs c where c.created_at >= ${since(days)} and ${paid(pb)}`),
   ]);
-  const totalUsd = r6(parts.reduce((s, p) => s + num(p.usd), 0)), spendUsd = r6(t!.usd);
-  return { totalUsd, spendUsd, share: spendUsd > 0 ? totalUsd / spendUsd : 0, parts: parts.map((p) => ({ kind: p.kind, usd: r6(p.usd), calls: Number(p.calls) })) };
+  const totalUsd = num(parts.reduce((s, p) => s + num(p.usd), 0)), spendUsd = num(t!.usd);
+  return { totalUsd, spendUsd, share: spendUsd > 0 ? totalUsd / spendUsd : 0, parts: parts.map((p) => ({ kind: p.kind, usd: num(p.usd), calls: Number(p.calls) })) };
 }
 type SpendWasteKind = z.infer<typeof SpendWaste>['parts'][number]['kind'];
 
@@ -72,19 +71,19 @@ export function register(app: App) {
         waste(days, paidBy),
         getCosts(),
       ]);
-      const tot = (key: string) => (({ k }) => ({ house: r6(t![`${k}_house`]), ownKey: r6(t![`${k}_own_key`]), calls: Number(t![`${k}_house_n`]) + Number(t![`${k}_own_key_n`]) }))({ k: key.toLowerCase() }); // unquoted aliases fold to lower case
+      const tot = (key: string) => (({ k }) => ({ house: num(t![`${k}_house`]), ownKey: num(t![`${k}_own_key`]), calls: Number(t![`${k}_house_n`]) + Number(t![`${k}_own_key_n`]) }))({ k: key.toLowerCase() }); // unquoted aliases fold to lower case
       const or = costs.openrouter;
-      const week = r6(rec!.week);
+      const week = num(rec!.week);
       return c.json(
         {
           since: t!.first ? new Date(t!.first).toISOString() : null,
           today: tot('today'), last7d: tot('last7d'), last30d: tot('last30d'), allTime: tot('allTime'),
           okRate: Number(ok!.n) ? Number(ok!.ok) / Number(ok!.n) : null,
           waste: { usd: w.totalUsd, share: w.share },
-          perAttempt: per.map((p) => ({ skill: p.skill, part: p.part, n: Number(p.n), avgUsd: r6(p.avg), medianUsd: r6(p.med), p90Usd: r6(p.p90), wasteUsd: r6(p.waste) })),
+          perAttempt: per.map((p) => ({ skill: p.skill, part: p.part, n: Number(p.n), avgUsd: num(p.avg), medianUsd: num(p.med), p90Usd: num(p.p90), wasteUsd: num(p.waste) })),
           unrecordedAttempts: Number(unrec!.n),
           drift: {
-            recorded: { day: r6(rec!.day), week, month: r6(rec!.month) },
+            recorded: { day: num(rec!.day), week, month: num(rec!.month) },
             openrouter: { day: or.usageDaily, week: or.usageWeekly, month: or.usageMonthly },
             warn: !!t!.first && Date.now() - new Date(t!.first).getTime() >= 7 * 86_400_000 && or.usageWeekly != null && Math.max(week, or.usageWeekly) > 0.01 && Math.abs(week - or.usageWeekly) / Math.max(week, or.usageWeekly) > 0.05,
           },
@@ -106,7 +105,7 @@ export function register(app: App) {
       const d = sql`to_char(date_trunc(${b}, created_at at time zone 'Asia/Dhaka'), 'YYYY-MM-DD')`;
       const r = await rows<{ d: string; house: string; own: string; n: string }>(sql`select ${d} as d, coalesce(sum(cost_usd) filter (where paid_by = 'house'), 0) as house, coalesce(sum(cost_usd) filter (where paid_by = 'own_key'), 0) as own, count(*) as n
         from ai_costs where created_at >= ${since(days)} group by 1 order by 1`);
-      return c.json({ bucket, points: r.map((x) => ({ date: x.d, house: r6(x.house), ownKey: r6(x.own), calls: Number(x.n) })) }, 200);
+      return c.json({ bucket, points: r.map((x) => ({ date: x.d, house: num(x.house), ownKey: num(x.own), calls: Number(x.n) })) }, 200);
     },
   );
 
@@ -131,7 +130,7 @@ export function register(app: App) {
         select ${D.key} as k, ${D.label} as label, sum(c.cost_usd) as cost, count(*) as calls, count(distinct c.attempt_id) as attempts, sum(sum(c.cost_usd)) over () as total
         from ai_costs c ${D.join ?? sql``} where c.created_at >= ${since(days)} and ${paid(paidBy)} group by 1, 2 order by cost desc, k limit ${limit}`);
       const total = num(r[0]?.total);
-      return c.json({ dim, total: r6(total), items: r.map((x) => ({ key: x.k, label: x.label, costUsd: r6(x.cost), calls: Number(x.calls), attempts: Number(x.attempts), avgPerCall: r6(num(x.cost) / Number(x.calls)), share: total > 0 ? num(x.cost) / total : 0 })) }, 200);
+      return c.json({ dim, total: num(total), items: r.map((x) => ({ key: x.k, label: x.label, costUsd: num(x.cost), calls: Number(x.calls), attempts: Number(x.attempts), avgPerCall: num(num(x.cost) / Number(x.calls)), share: total > 0 ? num(x.cost) / total : 0 })) }, 200);
     },
   );
 
@@ -159,7 +158,7 @@ export function register(app: App) {
       ]);
       const item = (i: Row) => ({
         at: i.at, stage: i.stage, provider: i.provider, model: i.model, paidBy: i.paid_by, inputTokens: i.input_tokens, outputTokens: i.output_tokens, audioSeconds: i.audio_seconds == null ? null : num(i.audio_seconds), characters: i.characters,
-        costUsd: r6(i.cost), ok: i.ok, retry: i.retry,
+        costUsd: num(i.cost), ok: i.ok, retry: i.retry,
         estimated: i.meta?.estimated === true, criterion: typeof i.meta?.criterion === 'string' ? i.meta.criterion : null, sample: typeof i.meta?.sample === 'number' ? i.meta.sample : null,
         extra: i.meta?.extra === true, kept: typeof i.meta?.kept === 'boolean' ? i.meta.kept : null, timeout: i.meta?.timeout === true,
       });
@@ -173,14 +172,14 @@ export function register(app: App) {
           attempt: { id: a.id, skill: a.skill, part: a.part, status: a.status, createdAt: a.at, userId: a.user_id, email: a.guest ? '' : a.email, isGuest: a.guest, title: a.title },
           recorded: items.length > 0,
           items: items.map(item),
-          stages: [...stages].map(([stage, s]) => ({ stage, costUsd: r6(s.costUsd), calls: s.calls })),
-          totalUsd: r6(items.reduce((s, i) => s + num(i.cost), 0)),
-          wasteUsd: r6(items.filter((i) => i.w).reduce((s, i) => s + num(i.cost), 0)),
-          sessionTotal: sess ? { usd: r6(sess.usd), parts: Number(sess.parts) } : null,
+          stages: [...stages].map(([stage, s]) => ({ stage, costUsd: num(s.costUsd), calls: s.calls })),
+          totalUsd: num(items.reduce((s, i) => s + num(i.cost), 0)),
+          wasteUsd: num(items.filter((i) => i.w).reduce((s, i) => s + num(i.cost), 0)),
+          sessionTotal: sess ? { usd: num(sess.usd), parts: Number(sess.parts) } : null,
           live: live
             ? {
                 items: liveItems.map(item),
-                totalUsd: r6(liveItems.reduce((s, i) => s + num(i.cost), 0)),
+                totalUsd: num(liveItems.reduce((s, i) => s + num(i.cost), 0)),
                 transcript: (ls?.state.history ?? []).filter((t) => t.text?.trim()).map((t) => ({ role: t.role, text: t.text, at: new Date(t.at).toISOString(), phase: t.phase })),
               }
             : null,
@@ -209,13 +208,13 @@ export function register(app: App) {
       const remaining = costs.openrouter.remaining;
       const daysLeft = remaining != null && burn.p7 ? remaining / burn.p7 : null;
       const usableLeft = remaining != null ? Math.max(0, remaining - env.COMMUNITY_MIN_BALANCE) : null;
-      const avgCost = avg!.avg == null ? null : r6(avg!.avg);
+      const avgCost = avg!.avg == null ? null : num(avg!.avg);
       const out = daysLeft == null ? null : new Date(Date.now() + daysLeft * 86_400_000);
       return c.json(
         {
           remaining,
-          burnPerDay7d: burn.p7 == null ? null : r6(burn.p7),
-          burnPerDay14d: burn.p14 == null ? null : r6(burn.p14),
+          burnPerDay7d: burn.p7 == null ? null : num(burn.p7),
+          burnPerDay14d: burn.p14 == null ? null : num(burn.p14),
           daysLeft: daysLeft == null ? null : Math.round(daysLeft * 10) / 10,
           runsOutOn: out ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(out) : null,
           usableLeft,

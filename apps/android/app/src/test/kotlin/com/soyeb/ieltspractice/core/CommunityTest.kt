@@ -27,7 +27,7 @@ class CommunityTest {
 
     @AfterTest fun resetClock() { Clocks.now = { Instant.now() }; Clocks.zone = { ZoneId.systemDefault() } }
 
-    private fun quota(tier: String, s: SkillQuota, w: SkillQuota = s, live: List<String> = emptyList(), balance: Balance? = Balance(20.0, 7.6, 12.4)) =
+    private fun quota(tier: String, s: SkillQuota, w: SkillQuota = s, live: Boolean = true, balance: Balance? = Balance(20.0, 7.6, 12.4)) =
         Quota(tier, s, w, live, balance)
 
     // MARK: Copy
@@ -73,7 +73,7 @@ class CommunityTest {
         val q = quota("community", SkillQuota(0, 1, 1, day, "day"))
         assertEquals(
             "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use. " +
-                "You have 1 speaking test left today. Want unlimited tests and the live examiner? Add your own API key in Settings.",
+                "You have 1 speaking test left today. Want unlimited tests? Add your own OpenRouter key in Settings.",
             FairUse.body(q, "speaking", guest = false),
         )
         val guest = quota("guest", SkillQuota(0, 1, 1, week, "week"))
@@ -113,22 +113,19 @@ class CommunityTest {
         assertNull(busy.primary)
         assertEquals("You're going a bit fast", GateText.copy(Codes.FAST, "speaking", "guest", null).title)
         assertEquals("Try again in a moment.", GateText.copy(Codes.FAST, "speaking", "guest", null).body)
-        assertEquals(GateAction.Account, GateText.copy(Codes.LIVE, "speaking", "guest", null).primary?.second)
-        val live = GateText.copy(Codes.LIVE, "speaking", "community", null, needs = "OpenAI")
-        assertEquals("The live examiner runs on your own key", live.title)
-        assertEquals("Add your own OpenAI key in Settings.", live.body)
-        assertEquals("Add your own Gemini key in Settings.", GateText.copy(Codes.LIVE, "speaking", "community", null, needs = "Gemini").body)
-        assertEquals("Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live.", GateText.copy(Codes.LIVE, "speaking", "community", null).body)
+        val live = GateText.copy(Codes.LIVE, "speaking", "guest", null)
+        assertEquals("The live examiner isn't available right now", live.title)
+        assertEquals("Try again later, or take the recorded test instead.", live.body)
+        assertNull(live.primary)
     }
 
     @Test fun keyErrorsNameTheProvider() {
-        assertEquals("OpenAI didn't accept that key. Check that you copied all of it.", KeyCopy.error("openai", 400, Codes.INVALID_KEY, "x"))
-        assertEquals("Couldn't reach Gemini to check the key. Try again.", KeyCopy.error("gemini", 502, Codes.KEY_CHECK, "x"))
+        assertEquals("OpenRouter didn't accept that key. Check that you copied all of it.", KeyCopy.error("openrouter", 400, Codes.INVALID_KEY, "x"))
+        assertEquals("Couldn't reach OpenRouter to check the key. Try again.", KeyCopy.error("openrouter", 502, Codes.KEY_CHECK, "x"))
         Clocks.zone = { ZoneId.of("UTC") }
         assertEquals("•••• ab12, added Oct 3", KeyCopy.saved(KeyInfo("openrouter", "ab12", "2026-10-03T10:15:00.000Z")))
         assertEquals("Unlimited tests", Providers.unlocks("openrouter"))
-        assertEquals("OpenAI", Providers.name(Providers.keyFor("gpt-live")))
-        assertEquals("OpenRouter", Providers.name(Providers.keyFor("turn")))
+        assertEquals("OpenRouter", Providers.name("openrouter"))
     }
 
     // MARK: Models
@@ -136,11 +133,10 @@ class CommunityTest {
     @Test fun meCarriesTheQuota() {
         val me = AppJson.decodeFromString(
             Me.serializer(),
-            """{"user":{"id":"u","email":"","name":"Guest","isAnonymous":true},"settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v"},
-              "liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
+            """{"user":{"id":"u","email":"","name":"Guest","isAnonymous":true},"settings":{"targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
               "tier":"guest","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$week","window":"week","blocked":null},
               "writing":{"used":1,"limit":1,"remaining":0,"resetAt":"$week","window":"week","blocked":"quota_exceeded"},
-              "liveProviders":[],"communityBalance":{"limit":20,"used":7.6,"remaining":12.4,"updatedAt":"x"}}""",
+              "live":true,"communityBalance":{"limit":20,"used":7.6,"remaining":12.4,"updatedAt":"x"}}""",
         )
         assertTrue(me.user.isAnonymous)
         val q = assertNotNull(me.quota())
@@ -148,10 +144,11 @@ class CommunityTest {
         assertEquals(Codes.QUOTA, q.writing.blocked)
         assertNull(q.speaking.blocked)
         assertEquals(12.4, q.communityBalance?.remaining)
+        assertTrue(q.live)
     }
 
     @Test fun anOwnKeyQuotaHasNullLimits() {
-        val q = AppJson.decodeFromString(Quota.serializer(), """{"tier":"own-key","speaking":{"used":3,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"writing":{"used":0,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"liveProviders":["turn","gpt-live"],"communityBalance":{"limit":null,"used":null,"remaining":null,"updatedAt":null}}""")
+        val q = AppJson.decodeFromString(Quota.serializer(), """{"tier":"own-key","speaking":{"used":3,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"writing":{"used":0,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"live":true,"communityBalance":{"limit":null,"used":null,"remaining":null,"updatedAt":null}}""")
         assertTrue(q.unlimited)
         assertNull(q.speaking.limit)
         assertEquals("Unlimited with your key", QuotaCopy.left(q, "speaking"))
@@ -180,9 +177,9 @@ class CommunityTest {
 
     private fun me(anonymous: Boolean, tier: String) =
         """{"user":{"id":"${if (anonymous) "g1" else "u1"}","email":"${if (anonymous) "" else "a@b.c"}","name":"N","isAnonymous":$anonymous},
-          "settings":{"models":{"analysis":"a","examiner":"b","stt":"c","tts":"d","ttsVoice":"v"},"liveProvider":"turn","targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
+          "settings":{"targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
           "tier":"$tier","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},
-          "writing":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},"liveProviders":[],"communityBalance":null}"""
+          "writing":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},"live":true,"communityBalance":null}"""
 
     @Test fun guestSessionUsesTheBearerHeaderAndLinksOnVerify() = runBlocking {
         val server = FakeServer()
@@ -248,20 +245,20 @@ class CommunityTest {
         val server = FakeServer()
         server.respond = { r ->
             when {
-                r.method == "PUT" && r.url.encodedPath == "/api/keys/openai" -> Triple(200, """{"provider":"openai","last4":"cdef","addedAt":"2026-10-03T10:15:00.000Z","valid":true}""", emptyMap())
+                r.method == "PUT" && r.url.encodedPath == "/api/keys/openrouter" -> Triple(200, """{"provider":"openrouter","last4":"cdef","addedAt":"2026-10-03T10:15:00.000Z","valid":true}""", emptyMap())
                 r.url.encodedPath == "/api/me" -> Triple(200, me(false, "community"), emptyMap())
                 else -> Triple(200, "{}", emptyMap())
             }
         }
         val api = ApiClient("https://t.test", MemoryTokenStore(), server, initialToken = "t")
-        val info = api.saveKey("openai", "  sk-abcdef  ")
+        val info = api.saveKey("openrouter", "  sk-abcdef  ")
         assertEquals("cdef", info.last4)
         assertEquals("""{"key":"sk-abcdef"}""", server.bodies.first()) // trimmed, sent once
-        assertTrue(server.seen.first().url.toString().endsWith("/api/keys/openai"))
+        assertTrue(server.seen.first().url.toString().endsWith("/api/keys/openrouter"))
         assertFalse(info.toString().contains("sk-abcdef"))
         server.respond = { Triple(400, """{"error":"Invalid key","code":"invalid_key"}""", emptyMap()) }
-        val bad = assertFailsWith<ApiError> { api.saveKey("openai", "sk-wrong-key") }
-        assertEquals("OpenAI didn't accept that key. Check that you copied all of it.", KeyCopy.error("openai", bad.status, bad.code, bad.message))
+        val bad = assertFailsWith<ApiError> { api.saveKey("openrouter", "sk-wrong-key") }
+        assertEquals("OpenRouter didn't accept that key. Check that you copied all of it.", KeyCopy.error("openrouter", bad.status, bad.code, bad.message))
     }
 
     @Test fun demoOverlayBuildsTheCommunityStates() {
@@ -274,8 +271,9 @@ class CommunityTest {
         assertEquals("community", AppJson.decodeFromString(Me.serializer(), spent.getValue("/api/me")).tier)
         val guest = DemoCommunity.overlay(base, "guest-result", null)
         assertTrue(AppJson.decodeFromString(Me.serializer(), guest.getValue("/api/me")).user.isAnonymous)
-        assertEquals("OpenAI", Providers.name(DemoCommunity.keys("settings-own-key", null)[1].provider))
-        assertTrue(DemoCommunity.guest("gate-live-guest"))
-        assertFalse(DemoCommunity.anonymousSession("gate-live-guest"))
+        assertEquals("openrouter", DemoCommunity.keys("settings-own-key", null).single().provider)
+        assertFalse(AppJson.decodeFromString(Quota.serializer(), DemoCommunity.overlay(base, "gate-live", null).getValue("/api/quota")).live)
+        assertTrue(DemoCommunity.guest("gate-quota-guest"))
+        assertFalse(DemoCommunity.anonymousSession("gate-quota-guest"))
     }
 }

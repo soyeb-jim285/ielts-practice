@@ -57,7 +57,7 @@ enum CommunityText {
             out += "\n\nYou have \(n) \(skill) \(n == 1 ? "test" : "tests") left \(sq.window == "week" ? "this week" : "today")."
         }
         // The balance itself is the meter under this text; saying it twice only makes the paragraph longer.
-        out += q.tier == "guest" ? "\n\nCreate an account for 1 test a day." : "\n\nWant unlimited tests and the live examiner? Add your own API key in Settings."
+        out += q.tier == "guest" ? "\n\nCreate an account for 1 test a day." : "\n\nWant unlimited tests? Add your own OpenRouter key in Settings."
         return out
     }
 }
@@ -66,7 +66,7 @@ enum IssueAction { case createAccount, addKey, addOpenRouterKey, retry }
 
 /// A community error code, ready to show: friendly title and message plus the way out (never the raw server text).
 struct CommunityIssue: Equatable {
-    enum Kind: Equatable { case quota, balance, busy, liveKey, tooFast }
+    enum Kind: Equatable { case quota, balance, busy, liveOff, tooFast }
     let kind: Kind
     var skill: String? = nil
     var resetAt: Date? = nil
@@ -87,7 +87,6 @@ struct CommunityIssue: Equatable {
         case "community_balance_exhausted": self.init(kind: .balance)
         case "community_busy": self.init(kind: .busy)
         case "too_many_requests": self.init(kind: .tooFast)
-        case "live_requires_own_key": self.init(kind: .liveKey, tier: e.tier)
         default: return nil
         }
     }
@@ -107,7 +106,7 @@ struct CommunityIssue: Equatable {
         case .quota: return isGuest ? "You've used this week's free test" : "You've used today's free test"
         case .balance: return "The community balance is used up for now"
         case .busy: return "A lot of people are practising right now"
-        case .liveKey: return "The live examiner runs on your own key"
+        case .liveOff: return "The live examiner isn't available right now"
         case .tooFast: return "You're going a bit fast"
         }
     }
@@ -119,9 +118,7 @@ struct CommunityIssue: Equatable {
         case .balance:
             return "Free tests are paid from one shared balance, and it has run out. " + (isGuest ? "Create an account, then add" : "Add") + " your own OpenRouter key to keep practising, or try again later."
         case .busy: return "Try again in a few minutes."
-        case .liveKey:
-            return isGuest ? "Create an account, then add your own OpenAI or Gemini key in Settings."
-                : "Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live."
+        case .liveOff: return "Try again later, or take the recorded speaking test."
         case .tooFast: return "Try again in a moment."
         }
     }
@@ -130,8 +127,7 @@ struct CommunityIssue: Equatable {
         switch kind {
         case .quota: return isGuest ? .createAccount : .addKey
         case .balance: return isGuest ? .createAccount : .addOpenRouterKey
-        case .liveKey: return isGuest ? .createAccount : .addKey
-        case .busy, .tooFast: return .retry
+        case .busy, .liveOff, .tooFast: return .retry
         }
     }
 

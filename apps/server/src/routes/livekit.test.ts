@@ -33,7 +33,7 @@ async function session() {
   for (const topic of ['home', 'food', 'work']) await seedPrompt({ topic, followUps: ['Why?'] });
   await seedPrompt({ part: 2, type: 'cue-card', groupId: 'lk', title: 'Describe a book' });
   await seedPrompt({ part: 3, type: 'p3-discussion', groupId: 'lk', followUps: ['Why read?'] });
-  const res = await req('/api/live/start', { headers: owner.headers, body: { skipTts: true } });
+  const res = await req('/api/live/start', { headers: owner.headers, body: {} });
   expect(res.status).toBe(200);
   const { sessionId } = await res.json() as { sessionId: string };
   return { ...owner, sessionId };
@@ -155,7 +155,7 @@ it('opens to everyone on the server keys: one test a day, free reconnects up to 
   await seedPrompt({ part: 3, type: 'p3-discussion', groupId: 'lk', followUps: ['Why read?'] });
   const u = await testUser();
   const start = async () => {
-    const res = await req('/api/live/start', { headers: u.headers, body: { skipTts: true } });
+    const res = await req('/api/live/start', { headers: u.headers, body: {} });
     return res.status === 200 ? ((await res.json()) as { sessionId: string }).sessionId : res.status;
   };
   const sessionId = await start();
@@ -170,13 +170,13 @@ it('opens to everyone on the server keys: one test a day, free reconnects up to 
   const next = await start();
   expect((await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId: next } })).status).toBe(429);
   const community = await testUser(undefined, { key: false });
-  const res = await req('/api/live/start', { headers: community.headers, body: { skipTts: true } });
+  const res = await req('/api/live/start', { headers: community.headers, body: {} });
   expect(res.status).toBe(200); // the LiveKit examiner needs no key of their own
 });
 
 it('caps reconnects even when starts race, and sends the worker the only cue texts it may accept', async () => {
   const s = await session(), u = await testUser();
-  const res = await req('/api/live/start', { headers: u.headers, body: { skipTts: true } });
+  const res = await req('/api/live/start', { headers: u.headers, body: {} });
   const { sessionId } = (await res.json()) as { sessionId: string };
   const codes = await Promise.all(Array.from({ length: 6 }, async () => (await req('/api/live/livekit/start', { headers: u.headers, body: { sessionId } })).status));
   expect(codes.filter((c) => c === 429)).toHaveLength(3); // only 3 rooms ever opened
@@ -196,7 +196,7 @@ it('never picks a question list an examiner cannot ask (a Listening dialogue imp
   await seedPrompt({ part: 3, type: 'p3-discussion', groupId: 'lk', followUps: ['Why read?'] });
   const u = await testUser();
   for (let i = 0; i < 5; i++) {
-    const s = (await (await req('/api/live/start', { headers: u.headers, body: { skipTts: true } })).json()) as { test: { part1: { topic: string }[] } };
+    const s = (await (await req('/api/live/start', { headers: u.headers, body: {} })).json()) as { test: { part1: { topic: string }[] } };
     expect(s.test.part1.map((p) => p.topic)).not.toContain('Settling into a new flat');
   }
 });

@@ -10,7 +10,7 @@ import { db } from '../db/client';
 import { analyses, attempts, liveSessions, lrAttempts, lrTests, mockExams, prompts } from '../db/schema';
 import { ApiError } from '../errors';
 import { clientIpHash } from '../ip';
-import { checkStart, liveProviders, payerOf, quotaSnapshot, requireLive } from '../quota';
+import { checkStart, payerOf, quotaSnapshot, requireLive } from '../quota';
 import { lrSaveLimit } from '../ratelimit';
 import type { App, SessionUser } from '../types';
 import { CodedError, QuotaFields } from './community';
@@ -409,7 +409,7 @@ export function register(app: App) {
       method: 'post',
       path: '/api/mock/{id}/speaking/choose',
       summary: 'Choose how to do Speaking: recorded test or live examiner',
-      description: 'Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the person\'s own key (403 live_requires_own_key); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.',
+      description: 'Needs Writing submitted. recorded: returns the test and the session id (send both `mockId` and `sessionId` with each speaking attempt); the speaking allowance is checked again now. live: needs the live examiner configured (503); pass `mockId` to /api/live/start, then POST speaking/attach. Switching is allowed until a speaking attempt has been submitted.',
       request: { params: Id, body: { required: true, content: { 'application/json': { schema: z.object({ mode: z.enum(['recorded', 'live']) }) } } } },
       responses: {
         200: json(
@@ -417,7 +417,6 @@ export function register(app: App) {
           'Chosen',
         ),
         402: json(CodedError, 'community_balance_exhausted'),
-        403: json(CodedError, 'live_requires_own_key'),
         429: json(CodedError, 'quota_exceeded'),
         503: json(CodedError, 'community_busy'),
         ...notFound,
@@ -434,7 +433,7 @@ export function register(app: App) {
       if (sections[3]!.state !== 'todo' && !resume) throw new ApiError(409, { error: 'Speaking has already been submitted.', code: 'section_done' });
       const payer = await payerOf(user);
       if (mode === 'live') {
-        if (!liveProviders(payer).length) requireLive(payer, 'turn');
+        requireLive();
         await db.update(mockExams).set({ speakingMode: 'live', speakingPromptIds: null, speakingSessionId: null }).where(eq(mockExams.id, m.id));
         return c.json({ mode: 'live' as const, source: m.source, ref: m.ref }, 200);
       }

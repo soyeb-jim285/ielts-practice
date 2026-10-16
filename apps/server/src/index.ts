@@ -6,13 +6,12 @@ import { createApp } from './app';
 import { loadCambridgeGrants } from './auth';
 import { env } from './env';
 import { purgeGuests, recoverStale } from './jobs';
-import { attachLiveRelay } from './routes/live-ws';
 import { purgeAiLogs } from './ai/ailog';
+import { reconcileCosts } from './ai/cost';
 import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
 const app = createApp();
-const injectWebSocket = attachLiveRelay(app); // native GPT-Live relay; before the SPA catch-all below
 
 if (existsSync(env.WEB_DIST)) {
   const indexHtml = readFileSync(join(env.WEB_DIST, 'index.html'), 'utf8');
@@ -30,7 +29,7 @@ if (existsSync(env.WEB_DIST)) {
   app.get('*', (c) => (c.req.path.startsWith('/api') || c.req.path.startsWith('/assets/') ? c.notFound() : c.html(renderShell(indexHtml, c.req.path))));
 }
 
-const sweep = () => recoverStale().catch((e) => console.error('recoverStale failed', e));
+const sweep = () => Promise.all([recoverStale().catch((e) => console.error('recoverStale failed', e)), reconcileCosts().catch((e) => console.error('reconcileCosts failed', e))]);
 await sweep();
 setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become stale 10 min after submit
 const purge = () => purgeGuests().catch((e) => console.error('purgeGuests failed', e));
@@ -45,5 +44,4 @@ setInterval(purgeLogs, 24 * 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute
-const server = serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
-injectWebSocket(server);
+serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));

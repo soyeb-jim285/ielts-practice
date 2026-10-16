@@ -47,7 +47,7 @@ class ApiError(
     /** quota_exceeded extras (docs/community.md): when the window resets (ISO), which skill, and the caller's tier. */
     val resetAt: String? = null, val skill: String? = null, val tier: String? = null,
 ) : Exception(message) {
-    /** One of the "you can't start or finish a test now" codes (quota, balance, busy, too fast, live needs a key). */
+    /** One of the "you can't start or finish a test now" codes (quota, balance, busy, too fast, live examiner unavailable). */
     val isLimit: Boolean get() = code in Codes.limits
 }
 
@@ -353,9 +353,8 @@ class ApiClient(
         loadMe()
     }
 
-    /** The live examiners this person may start (docs/community.md): turn, gpt-live, gemini-live. */
-    val liveProviders: List<String>
-        get() = _quota.value?.liveProviders ?: _me.value?.let { m -> listOfNotNull(if (m.gptLive) "gpt-live" else null, if (m.geminiLiveAvailable) "gemini-live" else null) }.orEmpty()
+    /** The live examiner is set up on the server (docs/community.md). */
+    val liveAvailable: Boolean get() = _quota.value?.live ?: _me.value?.live ?: false
 
     suspend fun signOut() {
         runCatching { raw("POST", "/api/auth/sign-out") }

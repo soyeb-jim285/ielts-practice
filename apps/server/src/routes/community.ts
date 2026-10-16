@@ -10,14 +10,14 @@ import type { App } from '../types';
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 
-const Code = z.enum(['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests', 'live_requires_own_key', 'account_required', 'cambridge_required', 'keys_unavailable', 'invalid_key', 'key_check_failed']);
+const Code = z.enum(['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests', 'account_required', 'cambridge_required', 'keys_unavailable', 'invalid_key', 'key_check_failed']);
 export const CodedError = z
   .object({
     error: z.string().openapi({ description: 'Friendly, safe to show' }),
     code: Code,
     skill: z.enum(['speaking', 'writing']).optional().openapi({ description: 'quota_exceeded' }),
     resetAt: z.string().nullable().optional().openapi({ description: 'quota_exceeded: ISO time the window resets (00:00 UTC daily, Monday 00:00 UTC weekly)' }),
-    tier: z.enum(['guest', 'community', 'own-key']).optional().openapi({ description: 'quota_exceeded, live_requires_own_key' }),
+    tier: z.enum(['guest', 'community', 'own-key']).optional().openapi({ description: 'quota_exceeded' }),
   })
   .openapi('CodedError', { description: 'Errors with a machine-readable code (docs/community.md). Map `code` to UX; `error` is a fallback.' });
 
@@ -45,7 +45,7 @@ export const QuotaFields = {
   tier: z.enum(['guest', 'community', 'own-key']),
   speaking: SkillQuota,
   writing: SkillQuota,
-  liveProviders: z.array(z.enum(['livekit', 'turn', 'realtime-mini', 'gpt-live', 'gemini-live'])).openapi({ description: 'Live examiner providers this user may use: livekit (server keys, everyone, one test a day / a week for guests), or their own keys (the owner may use the server keys)' }),
+  live: z.boolean().openapi({ description: 'The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests)' }),
   communityBalance: BalanceSchema,
 };
 const QuotaSchema = z.object(QuotaFields).openapi('Quota');

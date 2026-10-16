@@ -1,5 +1,5 @@
-// Fast cascade (admin playground): where each reply's time went, from the end of the candidate's speech to the examiner's first audio.
-import type { ReplyTiming, StartupStep } from '@/live/cascade';
+// Live examiner (admin playground): where each reply's time went, from the end of the candidate's speech to the examiner's first audio.
+import type { ReplyTiming, StartupStep } from '@/live/livekit';
 import { Card } from '@/components/ui';
 
 const STAGES = [

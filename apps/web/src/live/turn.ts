@@ -1,17 +1,14 @@
-// Live examiner, turn-based: server TTS lines, local VAD turns, one recording per part sent to /live/finish.
+// Live examiner shared pieces: the stage contract, the /live/start body and the per-part recorder (one recording per part sent to /live/part).
 import type { LiveTest, Phase } from '@server/ai/examiner';
-import type { Prompt, SpeakingTest } from '@server/routes/prompts';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useCountdown } from '@/hooks/useCountdown';
+import type { Prompt } from '@server/routes/prompts';
+import { useCallback, useRef } from 'react';
 import { useRecorder, type Recording } from '@/hooks/useRecorder';
-import { useVad } from '@/hooks/useVad';
 import { api } from '@/lib/api';
 import { withDeadline } from './deadline';
 import { recordMix, type MixRecording } from './mix';
 
 export type { Phase };
-export type ExaminerLine = { examinerText: string; audioUrl: string | null; voiceError?: string; phase: Phase; transcript?: string; prepSeconds?: number; cueCard?: Prompt };
-export type LiveStarted = ExaminerLine & { sessionId: string; test: LiveTest };
+export type LiveStarted = { sessionId: string; test: LiveTest; examinerText: string; phase: Phase };
 /** Which bank /live/start draws the test from; undefined = the server default (any visible prompt). */
 export type LiveSource = 'cambridge' | 'generated' | undefined;
 /** The /live/start body: inside a mock test the server picks the questions from the mock, so only `mockId` is sent. The local hour picks the examiner's greeting. */
@@ -37,11 +34,6 @@ export type LiveExaminer = {
   /** The examiner's audio as it plays (conversation engines), for the voice visualizer; absent: the bars animate without it. */
   voice?: MediaStream;
   error?: string;
-  /** Examiner voice failed: the test continues on captions only. */
-  voiceError?: string;
-  /** Browser blocked autoplay: show a tap-to-play control that calls resume(). */
-  needsTap: boolean;
-  resume(): void;
   retry?: () => void;
   /** Button text for retry (default "Try again"). */
   retryLabel?: string;
@@ -52,10 +44,8 @@ export type LiveExaminer = {
   end(): Promise<void>;
 };
 
-const message = (e: unknown) => (e instanceof Error && e.message) || 'Something went wrong. Check your connection and try again.';
-
 /** Presigned upload of one candidate recording into this live session; returns the storage key. */
-export async function uploadRecording(sessionId: string, r: Recording): Promise<string> {
+async function uploadRecording(sessionId: string, r: Recording): Promise<string> {
   const { key, uploadUrl } = await withDeadline(api.post<{ key: string; uploadUrl: string }>('/live/upload-url', { sessionId, audioContentType: r.mime }));
   const res = await withDeadline(fetch(uploadUrl, { method: 'PUT', body: r.blob, headers: { 'content-type': r.mime }, signal: AbortSignal.timeout(45_000) })).catch(() => null);
   if (!res?.ok) throw new Error("Couldn't upload your recording. Check your connection and try again.");
@@ -208,191 +198,4 @@ export function usePartRecorder() {
   const session = useCallback((sid: string) => void (sessionId.current = sid), []);
 
   return { start, stop, examiner, question, output, add, finish, session, level: rec.level, state: rec.state, error: rec.error };
-}
-
-/** Plays examiner audio on one element (created on the Start click so autoplay is allowed). */
-function useExaminerAudio() {
-  const el = useRef<HTMLAudioElement | null>(null);
-  const [needsTap, setNeedsTap] = useState(false);
-  const pending = useRef<() => void>(() => {});
-  const complete = useRef<() => void>(() => {});
-  useEffect(() => () => { el.current?.pause(); complete.current(); }, []);
-  return {
-    needsTap,
-    prime: () => (el.current ??= new Audio()),
-    stop: () => { el.current?.pause(); complete.current(); },
-    resume: () => {
-      setNeedsTap(false);
-      pending.current();
-    },
-    play: (url: string) =>
-      new Promise<void>((resolve) => {
-        const a = (el.current ??= new Audio());
-        complete.current();
-        const timer = setTimeout(() => { a.pause(); done(); }, 30_000);
-        const done = () => {
-          clearTimeout(timer);
-          a.onended = a.onerror = null;
-          complete.current = pending.current = () => {};
-          setNeedsTap(false);
-          resolve();
-        };
-        complete.current = done;
-        a.onended = a.onerror = done;
-        a.src = url;
-        a.play().catch(() => {
-          pending.current = () => void a.play().catch(done);
-          setNeedsTap(true);
-        });
-      }),
-  };
-}
-
-export function useTurnExaminer(onFinished: (sessionId: string, attemptIds: string[]) => void, source?: LiveSource, mockId?: string): LiveExaminer {
-  const [status, setStatus] = useState<LiveExaminer['status']>('idle');
-  const [phase, setPhase] = useState<Phase>('intro');
-  const [caption, setCaption] = useState('');
-  const [cueCard, setCueCard] = useState<Prompt>();
-  const [error, setError] = useState<string>();
-  const [voiceError, setVoiceError] = useState<string>();
-  const [retry, setRetry] = useState<() => void>();
-  const turn = useRecorder();
-  const parts = usePartRecorder();
-  const audio = useExaminerAudio();
-  const s = useRef({ sessionId: '', phase: 'intro' as Phase, busy: false, ended: false, prepTimer: undefined as ReturnType<typeof setTimeout> | undefined });
-
-  const fail = (e: unknown, again: () => void) => {
-    setError(message(e));
-    setRetry(() => () => {
-      setError(undefined);
-      setRetry(undefined);
-      again();
-    });
-    setStatus('error');
-  };
-
-  const prep = useCountdown(PREP_S, { onEnd: () => void submit(null) });
-  const talk = useCountdown(TALK_S, { onEnd: () => endTurn() });
-
-  async function finish() {
-    const c = s.current;
-    c.ended = true;
-    clearTimeout(c.prepTimer);
-    audio.stop();
-    prep.stop();
-    talk.stop();
-    setStatus('finishing');
-    if (turn.state === 'recording') {
-      const r = await withDeadline(turn.stop(), 10_000).catch(() => null);
-      if (r && c.phase === 'p2-talk') parts.add(2, r);
-    }
-    try {
-      onFinished(c.sessionId, await parts.finish(c.sessionId));
-    } catch (e) {
-      fail(e, () => void finish());
-    }
-  }
-
-  async function play(line: ExaminerLine) {
-    const c = s.current;
-    if (c.ended) return;
-    c.phase = line.phase;
-    setPhase(line.phase);
-    setCaption(line.examinerText);
-    if (line.voiceError) setVoiceError(line.voiceError);
-    // Part recorders follow the phase; the Part 2 long turn reuses its turn recording.
-    if (line.phase === 'p1' || line.phase === 'p3') {
-      parts.examiner(true); // the examiner line plays now: not part of the candidate's recording
-      await parts.start(line.phase === 'p1' ? 1 : 3);
-    } else await parts.stop();
-    if (line.phase === 'p2-prep') {
-      setCueCard(line.cueCard);
-    }
-    setStatus('examiner');
-    if (line.audioUrl) await audio.play(line.audioUrl); // null = TTS failed: captions only, go straight to listening
-    parts.examiner(false);
-    if (c.ended) return;
-    if (line.phase === 'done') return void finish();
-    if (line.phase === 'p2-prep') {
-      setStatus('waiting');
-      if (prep.left === PREP_S) prep.start();
-      else c.prepTimer = setTimeout(() => void submit(null), Math.max(1, line.prepSeconds ?? 5) * 1000);
-      return;
-    }
-    if (!(await turn.start())) throw new Error('Could not start recording. Check your microphone permissions and retry.');
-    if (c.ended) return;
-    setStatus('candidate');
-    if (line.phase === 'p2-talk') talk.start();
-  }
-
-  /** Upload the candidate's turn (null = no answer / prep over) and play the examiner's reply. */
-  async function submit(r: Recording | null) {
-    const c = s.current;
-    if (c.ended) return;
-    parts.examiner(true); // the wait for the examiner's reply is not the candidate's pause: close the answer window now
-    setStatus('thinking');
-    try {
-      if (r && c.phase === 'p2-talk') parts.add(2, r);
-      const audioKey = r && r.blob.size ? await uploadRecording(c.sessionId, r) : undefined;
-      if (c.ended) return;
-      if (r && audioKey && c.phase === 'p2-talk') parts.add(2, r, audioKey);
-      const line = await withDeadline(api.post<ExaminerLine>('/live/turn', { sessionId: c.sessionId, audioKey, skipped: !audioKey }), 90_000);
-      c.busy = false;
-      await play(line);
-    } catch (e) {
-      if (!c.ended) fail(e, () => void submit(r));
-    }
-  }
-
-  function endTurn() {
-    const c = s.current;
-    if (c.busy || c.ended || turn.state !== 'recording') return;
-    c.busy = true;
-    talk.stop();
-    setStatus('thinking');
-    void withDeadline(turn.stop(), 10_000).then(submit, () => submit(null));
-  }
-
-  // The Part 2 long turn is ended by the candidate or the 2:00 hard stop, never by a pause.
-  useVad(turn.level, { active: status === 'candidate' && phase !== 'p2-talk', onTurnEnd: endTurn });
-
-  useEffect(() => {
-    if ((turn.state === 'denied' || turn.state === 'unsupported') && !s.current.ended) fail(new Error(turn.error), () => void turn.start().then(() => setStatus('candidate')));
-  }, [turn.state]);
-
-  useEffect(() => () => { s.current.ended = true; clearTimeout(s.current.prepTimer); }, []);
-
-  async function start() {
-    s.current.ended = false;
-    audio.prime();
-    setStatus('starting');
-    try {
-      const st = await withDeadline(api.post<LiveStarted>('/live/start', liveStartBody(source, mockId)));
-      if (s.current.ended) return;
-      s.current.sessionId = st.sessionId;
-      parts.session(st.sessionId);
-      await play(st);
-    } catch (e) {
-      fail(e, () => void start());
-    }
-  }
-
-  return {
-    status,
-    phase,
-    caption,
-    cueCard,
-    prepLeft: prep.left,
-    talkLeft: talk.left,
-    talkRunning: talk.running,
-    level: turn.level,
-    error,
-    voiceError,
-    needsTap: audio.needsTap,
-    resume: audio.resume,
-    retry,
-    endTurn: status === 'candidate' ? endTurn : null,
-    start,
-    end: finish,
-  };
 }

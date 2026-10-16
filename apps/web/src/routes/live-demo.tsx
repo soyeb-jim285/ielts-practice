@@ -134,8 +134,6 @@ function LiveDemo() {
     talkRunning: !!step.talk,
     level,
     voice: voice.stream,
-    needsTap: false,
-    resume: () => {},
     endTurn: step.talk ? () => setI((n) => n + 1) : null,
     start: async () => {},
     end: async () => setI(STEPS.length - 1),

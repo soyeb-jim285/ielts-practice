@@ -7,15 +7,13 @@ struct ApiKeysSection: View {
     @State private var keys: [String: ApiKeyInfo] = [:]
 
     struct Provider: Identifiable {
-        let id: String // openrouter | openai | gemini
+        let id: String // openrouter
         let name: String
         let unlocks: String
     }
 
     static let providers = [
         Provider(id: "openrouter", name: "OpenRouter", unlocks: "Unlimited tests"),
-        Provider(id: "openai", name: "OpenAI", unlocks: "GPT-Live examiner"),
-        Provider(id: "gemini", name: "Gemini", unlocks: "Gemini Live examiner"),
     ]
 
     var body: some View {
@@ -39,7 +37,7 @@ struct ApiKeysSection: View {
         keys = Dictionary((list["keys"] ?? []).map { ($0.provider, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
-    /// Keys change the tier and the live examiners: refetch both.
+    /// A key changes the tier: refetch the quota and the account.
     private func refresh() async {
         await api.loadQuota(force: true)
         try? await api.loadMe()
@@ -81,7 +79,7 @@ private struct KeyRow: View {
             Button("Remove key", role: .destructive) { Task { await remove() } }
             Button("Keep it", role: .cancel) {}
         } message: {
-            Text(provider.id == "openrouter" ? "You'll go back to the community balance and 1 test a day." : "The \(provider.unlocks) will be locked again.")
+            Text("You'll go back to the community balance and 1 test a day.")
         }
     }
 

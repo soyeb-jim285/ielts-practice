@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { repeatedLabel, computeTextMetrics, countWords, MIN_WORDS, promptOverlap, roundBand, taskBand, textFlags, type TextFlag } from '@ielts/core';
-import type { Settings } from '../settings';
+import type { Models } from '../settings';
 import { asCalibration, calibrationFor, calibrationKey, type Calibration } from './calibration';
 import { bandDescriptor, EXAMINER_RULES, fmt, WRITING_DESCRIPTORS } from './descriptors';
 import { acceptsImages, chatJson, decide, DECISION_MODEL, type ContentPart, type JevQuestion, type Served } from './openrouter';
@@ -87,7 +87,7 @@ export type WritingInput = {
   /** image: the figure as a URL (data: or https) when there is no chart data. */
   prompt: { title: string; body: string; bullets?: string[] | null; chart?: unknown; image?: string | null };
   plan?: string | null;
-  settings: Settings;
+  models: Models;
 };
 type Sample = Record<WritingKey, CriterionScore>;
 /** Raw scoring output of one essay: what the eval harness caches and the calibration is fitted on. */
@@ -101,13 +101,13 @@ export const ownWords = (i: Pick<WritingInput, 'text' | 'prompt'>) => countWords
 export const TOO_SHORT_WORDS = 20;
 
 async function figureFor(i: WritingInput): Promise<Figure> {
-  return i.prompt.chart ? 'data' : i.prompt.image && (await acceptsImages(i.settings.models.analysis)) ? 'image' : 'none';
+  return i.prompt.chart ? 'data' : i.prompt.image && (await acceptsImages(i.models.analysis)) ? 'image' : 'none';
 }
 
 /** Steps 0-2 (§2.1): deterministic pre-checks and the K anchored scoring calls. Each sample rotates its anchors and criterion order. */
 export async function scoreWriting(i: WritingInput, o: { mode?: ScoringMode; k?: number; figure?: Figure; early?: boolean; skipAnchor?: string } = {}): Promise<Scored> {
   const { mode = 'joint', k = WRITING_K } = o;
-  const model = i.settings.models.analysis, fam = family(i), metrics = computeTextMetrics(i.text);
+  const model = i.models.analysis, fam = family(i), metrics = computeTextMetrics(i.text);
   const figure = o.figure ?? (await figureFor(i));
   const copied = promptOverlap(i.text, promptText(i.prompt));
   const anchors = await loadAnchors();
@@ -341,7 +341,7 @@ export async function feedbackWriting(i: WritingInput, figure: Figure) {
   });
   const fb = await retryOnce(() =>
     chatJson({
-      model: i.settings.models.analysis,
+      model: i.models.analysis,
       system: feedbackSystem(i.task, i.variant, figure),
       user: withImage(figure === 'image' ? i.prompt.image : null, `${user}\n\n<candidate_response>\n${i.text}\n</candidate_response>`),
       schema: plan ? WritingPlanFeedbackSchema : WritingFeedbackSchema,
@@ -391,10 +391,10 @@ export async function analyzeWriting(i: WritingInput & { skipAnchor?: string; on
 
   const t1 = Date.now();
   const jev = scored.promptHash === JEV_WRITING_HASH;
-  const cal = await calibrationFor(scored.key, jev ? DECISION_MODEL : i.settings.models.analysis);
+  const cal = await calibrationFor(scored.key, jev ? DECISION_MODEL : i.models.analysis);
   // A record fitted in one output mode does not carry over to the other (json_object fallback, §2.3).
   const mode = cal.record?.cv && (cal.record.cv as { mode?: string }).mode;
-  const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key, undefined, i.settings.models.analysis) : cal;
+  const applied = mode && scored.served.some((s) => s.mode && s.mode !== mode) ? asCalibration(scored.key, undefined, i.models.analysis) : cal;
   const r = settleWriting(scored, applied, {
     task: i.task, text: i.text,
     rules: { task: i.task, variant: i.variant, words: own, text: i.text, facts: feedbackFacts(fb, errors, textMetrics.sentences) },

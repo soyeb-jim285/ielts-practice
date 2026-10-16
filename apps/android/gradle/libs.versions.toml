@@ -13,6 +13,7 @@ datastore = "1.1.7"
 coroutines = "1.10.2"
 serialization = "1.9.0"
 okhttp = "4.12.0"
+livekit = "2.28.2"
 robolectric = "4.16"
 roborazzi = "1.59.0"
 junit = "4.13.2"
@@ -38,6 +39,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+livekit-android = { module = "io.livekit:livekit-android", version.ref = "livekit" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

@@ -13,7 +13,6 @@ import com.soyeb.ieltspractice.core.Codes
 import com.soyeb.ieltspractice.core.FairUse
 import com.soyeb.ieltspractice.core.FairUseAck
 import com.soyeb.ieltspractice.core.Gate
-import com.soyeb.ieltspractice.core.Providers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -71,7 +70,7 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
      */
     fun startTest(skill: String, go: () -> Unit) = begin(skill, live = false, go)
 
-    /** The live examiner: needs the person's own key for it (OpenRouter for turn-based, OpenAI for GPT-Live, Gemini for Gemini Live). */
+    /** The live examiner: a speaking test, when the server has the examiner set up. */
     fun startLive(go: () -> Unit) = begin("speaking", live = true, go)
 
     private fun begin(skill: String, live: Boolean, go: () -> Unit) {
@@ -92,9 +91,8 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
             return
         }
         val guest = !api.hasAccount.value
-        if (live && q.liveProviders.isEmpty()) {
-            val chosen = api.me.value?.settings?.provider ?: "turn"
-            gate = Gate.Blocked(Codes.LIVE, skill, q.tier, null, q.communityBalance, needs = Providers.name(Providers.keyFor(chosen)))
+        if (live && !q.live) {
+            gate = Gate.Blocked(Codes.LIVE, skill, q.tier, null, q.communityBalance)
             return
         }
         val s = q.of(skill)
@@ -124,11 +122,11 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
      * A request refused with a limit code (the quota ran out in another tab, the balance ran out, too fast): show the same panel as at start.
      * [keep] says what was kept ("Your essay is still here."). Returns false when [e] is not a limit error.
      */
-    fun reportBlocked(e: ApiError, skill: String, keep: String? = null, needs: String? = null): Boolean {
+    fun reportBlocked(e: ApiError, skill: String, keep: String? = null): Boolean {
         if (!e.isLimit) return false
         val q = api.quota.value
         val tier = e.tier ?: if (!api.hasAccount.value) "guest" else q?.tier ?: "community"
-        gate = Gate.Blocked(e.code.orEmpty(), e.skill ?: skill, tier, e.resetAt, q?.communityBalance, needs, keep)
+        gate = Gate.Blocked(e.code.orEmpty(), e.skill ?: skill, tier, e.resetAt, q?.communityBalance, keep)
         return true
     }
 

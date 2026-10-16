@@ -8,9 +8,9 @@
 import { parseArgs } from 'node:util';
 import { evaluateDisfluency } from '../packages/core/src/disfluency.fixtures';
 import { llmDisfluencies } from '../apps/server/src/ai/disfluency';
-import { DEFAULT_SETTINGS } from '../apps/server/src/settings';
+import { MODELS } from '../apps/server/src/settings';
 
-const { values: a } = parseArgs({ options: { llm: { type: 'boolean' }, model: { type: 'string', default: DEFAULT_SETTINGS.models.analysis } } });
+const { values: a } = parseArgs({ options: { llm: { type: 'boolean' }, model: { type: 'string', default: MODELS.analysis } } });
 const TARGET = 0.8, GATED = ['filled', 'repetition', 'false_start'];
 const score = await evaluateDisfluency({ extra: a.llm ? (words) => llmDisfluencies(words, a.model!) : undefined });
 const f = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '–');

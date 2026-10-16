@@ -3,7 +3,7 @@ import {
   alignWords, cleanTranscript, computeSpeechMetrics, disfluencyProfile, fluencyBand, fluencyComposite, fluencyFeatures, type FluencyNorms, frameMsOf, fuseDisfluencies, PAUSE_MS, reconcileFillers, repeatedLabel, roundBand, speakingOverall, tagDisfluencies,
   type FluencyFeatures, type SpeechMetrics, type Word,
 } from '@ielts/core';
-import type { Settings } from '../settings';
+import type { Models } from '../settings';
 import { bandDescriptor, BELOW_4, EXAMINER_RULES, fmt, SPEAKING_DESCRIPTORS } from './descriptors';
 import { llmDisfluencies } from './disfluency';
 import { asRetry } from './cost';
@@ -341,10 +341,10 @@ export async function analyzeSpeaking(i: {
   segments?: Segment[] | null;
   questions: string[];
   part: 1 | 2 | 3;
-  settings: Settings;
+  models: Models;
   onStage?: (s: AnalysisStage) => void;
 }): Promise<AnalysisResult> {
-  const { models } = i.settings;
+  const { models } = i;
   const t0 = Date.now();
   i.onStage?.('transcribing');
   // The phoneme model listens to the recording itself (its own windows and transcript), so it starts with transcription: its cold start overlaps it.

@@ -59,7 +59,7 @@ extension View {
     func appRoutes() -> some View {
         navigationDestination(for: Route.self) { route in
             switch route {
-            // Guests can take a test (a guest session starts at Start) and see its result; the live examiner needs the user's own key.
+            // Guests can take a test (a guest session starts at Start) and see its result; the live examiner counts as a speaking test.
             case let .speaking(mode): StartGate(skill: "speaking") { SpeakingSessionView(mode: mode) }
             case .live: LiveGate { LiveExamView() }
             case let .writing(mode): StartGate(skill: "writing") { WritingEditorView(mode: mode) }

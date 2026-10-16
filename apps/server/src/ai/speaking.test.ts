@@ -3,7 +3,7 @@ import { chatReply, fakeFetch, json } from '../test/helpers';
 import { setFetch } from './openrouter';
 import { analyzeSpeaking, anchorSpan, dropHallucinations, MAX_OFF_TOPIC_PENALTY, mergeBackchannels, offTopicPenalty, questionBoundaries, SPEAKING_FLUENCY_NORMS, speakingCurve, spokenQuestions, transitionsOf } from './speaking';
 import { fluencyComposite } from '@ielts/core';
-import { settings, speakingLlm, sttWords } from './fixtures';
+import { models, speakingLlm, sttWords } from './fixtures';
 
 const score = (band: number) => ({ checks: [{ band: Math.min(9, band + 1), feature: 'Error-free sentences are frequent', verdict: 'not_met', quote: 'I goes' }], evidence: ['I goes'], descriptor: 'A range of structures flexibly used.', summary: 'More complex sentences.', injection: false, band });
 const bands: Record<string, number> = { fc: 7, lr: 6, gra: 6, p: 6 };
@@ -15,7 +15,7 @@ const chat = (o: { feedback?: unknown; bands?: Record<string, number>; tags?: un
   if (name === 'criterion_score') return chatReply(score({ ...bands, ...o.bands }[body.messages[1].content.match(/<criterion id="(\w+)"/)[1] as string]!));
   throw new Error(`Unexpected chat schema: ${name}`);
 };
-const run = () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['What did you do yesterday?'], part: 1, settings: settings() });
+const run = () => analyzeSpeaking({ audio: new Uint8Array([1, 2]), format: 'webm', durationMs: 3000, questions: ['What did you do yesterday?'], part: 1, models: models() });
 
 it('scores, rounds and locates errors in time', async () => {
   const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': chat() });

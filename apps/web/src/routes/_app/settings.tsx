@@ -1,16 +1,13 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { ChevronDown, LogOut, Trash2 } from 'lucide-react';
+import { LogOut, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { AccountGate } from '@/components/community/AccountGate';
 import { ApiKeys } from '@/components/settings/ApiKeys';
-import { LiveProvider } from '@/components/settings/LiveProvider';
-import { DEFAULT_MODELS, ModelPicker, TtsPicker, useModels } from '@/components/settings/ModelPicker';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
-import { Alert, Button, buttonStyles, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
+import { Button, buttonStyles, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
 import { authClient, signOut } from '@/lib/auth';
-import type { Settings } from '@/lib/api';
 import { useAccount, useMe } from '@/lib/query';
 import { cn } from '@/lib/utils';
 
@@ -54,13 +51,8 @@ const InlineRow = ({ title, description, children }: { title: ReactNode; descrip
 
 function SettingsPage() {
   const me = useMe().data!;
-  const community = me.tier !== 'own-key'; // custom models only run on the user's own OpenRouter key
   const s = me.settings;
   const { mutate } = useUpdateSettings();
-  const setModel = (key: keyof Settings['models']) => (v: string) => mutate({ models: { [key]: v } });
-  // Human name of the scoring model for the collapsed summary (same cached query as the picker), falling back to the id's last segment.
-  const { data: textModels } = useModels('text');
-  const scoringName = textModels?.models.find((m) => m.id === s.models.analysis)?.name ?? s.models.analysis.split('/').pop();
 
   return (
     <PageContainer className="pb-8">
@@ -72,7 +64,7 @@ function SettingsPage() {
           </Row>
         </Section>
 
-        <Section id="api-keys" title="Your API keys" description="Practise without limits, or use the live examiner, with your own keys.">
+        <Section id="api-keys" title="Your API keys" description="Practise without limits with your own OpenRouter key.">
           <ApiKeys />
         </Section>
 
@@ -85,52 +77,10 @@ function SettingsPage() {
           </Row>
         </Section>
 
-        <Section title="Live examiner" description="How the live speaking test talks to you.">
-          <LiveProvider
-            value={s.liveProvider}
-            available={{ turn: me.liveProviders.includes('turn'), 'realtime-mini': me.gptLiveAvailable, 'gpt-live': me.gptLiveAvailable, 'gemini-live': me.geminiLiveAvailable }}
-            onChange={(v) => mutate({ liveProvider: v })}
-          />
-        </Section>
-
         <Section title="Appearance" description="Saved in this browser.">
           <InlineRow title="Theme" description="Light, dark, or follow your device.">
             <ThemeToggle />
           </InlineRow>
-        </Section>
-
-        <Section title="AI models" description="The models that score your work and play the examiner. The defaults suit most people.">
-          <Collapsible>
-            <CollapsibleTrigger className="group -my-1 flex min-h-14 w-full items-center gap-3 rounded-md py-2 text-left hover:text-accent-text">
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Customise models</span>
-                <span className="type-caption mt-0.5 block truncate">Scoring: {scoringName}</span>
-              </span>
-              <ChevronDown className="size-4 shrink-0 text-muted transition-transform duration-150 group-data-[state=open]:rotate-180" aria-hidden />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="divide-y divide-line border-t border-line">
-                {community && (
-                  <div className="py-4">
-                    <Alert tone="info">Your own OpenRouter key is needed to use other models. Until then, tests paid from the community balance always use the default models.</Alert>
-                  </div>
-                )}
-                <p className="type-caption max-w-[65ch] py-4">Any OpenRouter model works. Costs are rough estimates for scoring one essay or spoken answer.</p>
-                <Row>
-                  <ModelPicker label="Scoring and feedback" capability="text" value={s.models.analysis} defaultValue={DEFAULT_MODELS.analysis} onChange={setModel('analysis')} />
-                </Row>
-                <Row>
-                  <ModelPicker label="Examiner" capability="text" value={s.models.examiner} defaultValue={DEFAULT_MODELS.examiner} onChange={setModel('examiner')} hint="Asks the questions when the examiner waits for you to finish." />
-                </Row>
-                <Row>
-                  <ModelPicker label="Speech to text" capability="stt" value={s.models.stt} defaultValue={DEFAULT_MODELS.stt} onChange={setModel('stt')} hint="Needs word timestamps. Scribe v2 and Whisper keep um/uh; most other models drop them, which hides hesitation from your fluency score." />
-                </Row>
-                <Row>
-                  <TtsPicker value={s.models.tts} voice={s.models.ttsVoice} onChange={(models) => mutate({ models })} />
-                </Row>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
         </Section>
 
         <Account email={me.user.email} />

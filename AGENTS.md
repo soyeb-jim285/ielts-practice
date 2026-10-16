@@ -1,7 +1,7 @@
 # Agent notes (Codex / Claude)
 
 ## Project rules (from the owner)
-- **Cost:** never use Anthropic/Claude models for app or eval calls. Use cheap OpenRouter models: `openai/gpt-6-luna` (default), `deepseek/deepseek-v4.1-flash`. Don't use Qwen (too slow). State the estimated cost before any paid run. The OpenAI key is only for Realtime and the Pipecat examiner's OpenAI TTS voices.
+- **Cost:** never use Anthropic/Claude models for app or eval calls. Use cheap OpenRouter models: `openai/gpt-6-luna` (default), `deepseek/deepseek-v4.1-flash`. Don't use Qwen (too slow). State the estimated cost before any paid run. The live examiner is LiveKit only (services/livekit worker, Soniox + OpenRouter); no OpenAI key is used.
 - **Content** (questions, passages, scripts, chart descriptions) is written by coding agents themselves, not by OpenRouter calls. OpenRouter is for app runtime only.
 - **Android/Gradle builds** run on GitHub CI only. The laptop is too slow.
 - **Design:** decide UI details yourself and keep WCAG AA; don't ask the owner palette or font questions.

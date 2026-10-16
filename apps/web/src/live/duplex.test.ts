@@ -18,7 +18,7 @@ it('awaits a part configuration before sending the boundary cue', async () => {
   let h!: Handlers, release!: () => void;
   const configurePart = vi.fn((part: number) => part === 2 ? new Promise<void>((resolve) => { release = resolve; }) : Promise.resolve());
   const transport = { connect: async (handlers: Handlers) => { h = handlers; }, cue: vi.fn((_text: string, _heard?: boolean, _key?: string) => {}), listen: vi.fn(), close: vi.fn(), configurePart };
-  const hook = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false }));
+  const hook = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, { record: false }));
   await act(() => hook.result.current.start());
   await act(async () => toPart1(h));
   act(() => h.speaking(true)); // Keep the stall watchdog out of this boundary-ordering test.
@@ -193,7 +193,7 @@ it('record: false (playground) runs the script without recording parts, and debu
   const cue = vi.fn((_t: string, _heard?: boolean, key?: string) => void (NUDGES.includes(key!) && (h.speaking(true), h.speaking(false))));
   const transport = { connect: vi.fn(async (handlers: Handlers) => { h = handlers; }), cue, listen: vi.fn(), close: vi.fn() };
   script(2);
-  const { result, unmount } = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, undefined, { record: false, debug: { heard: (t) => seen.push(`heard ${t}`), speaking: (on) => seen.push(`speaking ${on}`) } }));
+  const { result, unmount } = renderHook(() => useDuplexExaminer(() => transport, vi.fn(), undefined, undefined, { record: false, debug: { heard: (t) => seen.push(`heard ${t}`), speaking: (on) => seen.push(`speaking ${on}`) } }));
   await act(() => result.current.start());
   act(() => { h.speaking(true); h.speaking(false); h.heard?.('My name is Jim'); h.answered(); });
   expect(result.current.phase).toBe('intro');

@@ -7,7 +7,6 @@ const PROTECTED: [string, string][] = [
   ['GET', '/api/me'],
   ['GET', '/api/settings'],
   ['PUT', '/api/settings'],
-  ['GET', '/api/models'],
   ['GET', '/api/attempts'],
   ['POST', '/api/attempts'],
   ['GET', '/api/attempts/x'],
@@ -19,9 +18,6 @@ const PROTECTED: [string, string][] = [
   ['POST', '/api/cards'],
   ['GET', '/api/speaking/test'],
   ['POST', '/api/live/start'],
-  ['POST', '/api/live/turn'],
-  ['POST', '/api/live/gpt-live/session'],
-  ['POST', '/api/live/gpt-live/cue'],
   ['POST', '/api/live/finish'],
 ];
 

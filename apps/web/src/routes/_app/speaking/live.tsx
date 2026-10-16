@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, Lock } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { TestGate } from '@/components/community/TestGate';
 import { ExamShell } from '@/components/layout/ExamShell';
 import { LiveStage } from '@/components/live/LiveStage';
@@ -9,12 +9,8 @@ import { buttonStyles, IconTile, Skeleton, toast } from '@/components/ui';
 import { rememberSession } from '@/lib/attempt';
 import { api } from '@/lib/api';
 import { useQuota } from '@/lib/community';
-import { queryClient, useMe } from '@/lib/query';
-import { useGeminiExaminer } from '@/live/gemini';
-import { useRealtimeExaminer } from '@/live/realtime';
-import { useGptLiveExaminer } from '@/live/gptLive';
+import { queryClient } from '@/lib/query';
 import { useLiveKitExaminer } from '@/live/livekit';
-import { useTurnExaminer, type LiveExaminer, type LiveSource } from '@/live/turn';
 
 export const Route = createFileRoute('/_app/speaking/live')({
   validateSearch: (s: Record<string, unknown>): { source?: 'cambridge' | 'generated'; mock?: string } => ({ source: s.source === 'cambridge' || s.source === 'generated' ? s.source : undefined, mock: typeof s.mock === 'string' ? s.mock : undefined }),
@@ -22,10 +18,7 @@ export const Route = createFileRoute('/_app/speaking/live')({
   component: LivePage,
 });
 
-type Style = 'livekit' | 'turn' | 'realtime-mini' | 'gpt-live' | 'gemini-live';
-type Run = { style: Style; fallback: false | 'failed' | 'locked'; source: LiveSource; mockId?: string; onFinished: (sessionId: string, attemptIds: string[]) => void; onUnavailable?: () => void };
-
-/** The live examiner runs on the person's own key and is never paid from the community balance: no key, no live. */
+/** The live examiner: LiveKit on the server's keys, for everyone (the speaking test allowance applies). */
 function LivePage() {
   const quota = useQuota();
   if (quota.isPending)
@@ -34,16 +27,15 @@ function LivePage() {
         <Skeleton className="h-9 w-2/3" />
       </ExamShell>
     );
-  const providers = quota.data?.liveProviders ?? [];
-  if (!providers.length) return <Locked guest={quota.data?.tier === 'guest'} />;
+  if (!quota.data?.live) return <Unavailable />;
   return (
     <TestGate skill="speaking" title="Live examiner">
-      <Live providers={providers} />
+      <Live />
     </TestGate>
   );
 }
 
-function Locked({ guest }: { guest: boolean }) {
+function Unavailable() {
   return (
     <ExamShell title="Live examiner">
       <div className="space-y-5">
@@ -51,23 +43,11 @@ function Locked({ guest }: { guest: boolean }) {
           <Lock />
         </IconTile>
         <div className="space-y-2">
-          <h1 className="type-title-sm text-balance">Live needs your own OpenAI or Gemini key</h1>
-          <p className="type-lede max-w-[56ch]">
-            The live examiner talks with you in real time, so it runs on your own key and never uses the community balance. Add an OpenAI key for GPT-Live or a Gemini key for Gemini Live.
-          </p>
-          <p className="type-caption max-w-[56ch]">{guest ? 'Keys belong to an account, so create one first. ' : ''}An OpenRouter key also unlocks the turn-based examiner, which waits for you to finish each answer.</p>
+          <h1 className="type-title-sm text-balance">The live examiner isn't available right now</h1>
+          <p className="type-lede max-w-[56ch]">Please try again later. You can still take a recorded speaking test.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row [&>*]:max-sm:w-full">
-          {guest ? (
-            <Link to="/signup" search={{ redirect: '/speaking/live' }} className={buttonStyles()}>
-              Create an account
-            </Link>
-          ) : (
-            <Link to="/settings" hash="api-keys" className={buttonStyles()}>
-              Add your own key
-            </Link>
-          )}
-          <Link to="/speaking" className={buttonStyles({ variant: 'ghost' })}>
+          <Link to="/speaking" className={buttonStyles()}>
             <ArrowLeft aria-hidden /> Back to speaking
           </Link>
         </div>
@@ -76,12 +56,9 @@ function Locked({ guest }: { guest: boolean }) {
   );
 }
 
-function Live({ providers }: { providers: Style[] }) {
-  const { data: me } = useMe();
+function Live() {
   const navigate = useNavigate();
   const { source, mock } = Route.useSearch();
-  // Set when the chosen conversation provider couldn't connect: the turn-based examiner runs the same test instead (when the person has an OpenRouter key).
-  const [failed, setFailed] = useState(false);
   const onFinished = useCallback(
     (sessionId: string, [first, ...rest]: string[]) => {
       if (mock) {
@@ -105,41 +82,7 @@ function Live({ providers }: { providers: Style[] }) {
     },
     [navigate, mock],
   );
-  const wanted: Style = providers.includes('livekit') && !failed ? 'livekit' : (me?.settings.liveProvider ?? 'turn'); // LiveKit on the server's keys comes first
-  const canTurn = providers.includes('turn');
-  const natural = providers.find((p) => p !== 'turn' && !(failed && p === 'livekit'));
-  // The saved choice if it is allowed; else turn-based; else whichever conversation provider their key unlocks.
-  const chosen: Style = providers.includes(wanted) && !(failed && wanted !== 'turn') ? wanted : canTurn ? 'turn' : (natural ?? 'turn');
-  // No notice when the default examiner (Realtime mini) is out of reach: most people never chose it, so falling back to turn-based is not news.
-  const fallback = wanted !== 'turn' && chosen === 'turn' ? (providers.includes(wanted) ? 'failed' : wanted === 'realtime-mini' ? false : 'locked') : false;
-  // LiveKit falls back to whatever the person's own keys unlock; without any, its error and retry show instead.
-  const backup = chosen === 'livekit' ? providers.some((p) => p !== 'livekit') : canTurn;
-  const run: Run = { style: chosen, fallback, source, mockId: mock, onFinished, onUnavailable: backup ? () => setFailed(true) : undefined };
-  // Separate components so each provider's hook is always called unconditionally.
-  return chosen === 'livekit' ? <LiveKitLive {...run} /> : chosen === 'realtime-mini' ? <RealtimeLive {...run} /> : chosen === 'gpt-live' ? <GptLive {...run} /> : chosen === 'gemini-live' ? <GeminiLive {...run} /> : <TurnLive {...run} />;
-}
-
-function TurnLive(p: Run) {
-  return <Stage ex={useTurnExaminer(p.onFinished, p.source, p.mockId)} {...p} />;
-}
-
-function LiveKitLive(p: Run) {
-  return <Stage ex={useLiveKitExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
-}
-
-function RealtimeLive(p: Run) {
-  return <Stage ex={useRealtimeExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
-}
-
-function GptLive(p: Run) {
-  return <Stage ex={useGptLiveExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
-}
-
-function GeminiLive(p: Run) {
-  return <Stage ex={useGeminiExaminer(p.onFinished, p.onUnavailable, p.source, p.mockId)} {...p} />;
-}
-
-function Stage({ ex, style, fallback }: Run & { ex: LiveExaminer }) {
-  if (ex.status === 'idle') return <PreScreen style={style} fallback={fallback} onStart={() => void ex.start()} />;
+  const ex = useLiveKitExaminer(onFinished, source, mock);
+  if (ex.status === 'idle') return <PreScreen onStart={() => void ex.start()} />;
   return <LiveStage ex={ex} />;
 }

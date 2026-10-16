@@ -4,7 +4,6 @@ import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class MicTest {
@@ -51,16 +50,5 @@ class MicTest {
         val energy = List(200) { if (it % 3 == 1) 120 else 20 }
         val wpm = estimateWpm(energy)
         assertEquals(264, wpm)
-    }
-
-    @Test fun vadEndsATurnAfterSilenceFollowingSpeech() {
-        val v = Vad(endAfter = 1.0)
-        assertFalse(v.feed(0.0, 0.5)) // silence before speech never ends a turn
-        assertFalse(v.feed(0.8, 0.2))
-        assertTrue(v.speaking && v.heardSpeech)
-        assertFalse(v.feed(0.0, 0.6))
-        assertTrue(v.feed(0.0, 0.5))
-        assertFalse(v.feed(0.0, 2.0)) // fires once
-        assertTrue(v.heardSpeech)
     }
 }

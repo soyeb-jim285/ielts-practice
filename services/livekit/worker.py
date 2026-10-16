@@ -43,6 +43,10 @@ def privacy():
     os.environ["OTEL_SDK_DISABLED"] = "true"
 
 
+REPORT_BATCH = 500  # the server takes at most 1000 entries per report
+REPORT_EVERY_S = 60
+
+
 class Meter:
     def __init__(self):
         self.entries = []
@@ -181,6 +185,9 @@ class Runtime:
         self.last_activity = self.born = time.monotonic()
         self.reported = False
         self.report_id = str(uuid.uuid4())
+        self.sent = 0  # usage entries the server has taken
+        self.batch = None  # (start, end) of the batch in flight: resent as is until taken
+        self.report_lock = asyncio.Lock()
         self.client = httpx.AsyncClient(timeout=15, follow_redirects=False)
         self.rates = {}
         self.committing_audio = False
@@ -296,6 +303,27 @@ class Runtime:
             if not self.floor.started and now - self.born > 60:
                 self.done.set()
 
+    async def flush(self) -> bool:
+        """Sends the usage recorded so far, in batches the server accepts (<= REPORT_BATCH entries). A batch keeps its id and
+        entries until the server takes it, so a retry after a lost response is never counted twice."""
+        async with self.report_lock:
+            while True:
+                if self.batch is None:
+                    end = min(len(self.meter.entries), self.sent + REPORT_BATCH)
+                    if end == self.sent:
+                        return True
+                    self.batch = (self.sent, end)
+                start, end = self.batch
+                if not await send_report(self.client, self.d, f"{self.report_id}:{start}", self.meter.entries[start:end]):
+                    return False
+                self.sent, self.batch = end, None
+
+    async def reporter(self):
+        # A crash or a failed final report loses at most the last minute of usage, not the whole session.
+        while True:
+            await asyncio.sleep(REPORT_EVERY_S)
+            await self.flush()
+
     async def shutdown(self):
         if self.reported:
             return
@@ -308,8 +336,13 @@ class Runtime:
         for agent in list(self.agents):
             await self.close_resources(agent)
         try:
-            if not await send_report(self.client, self.d, self.report_id, self.meter.entries):
-                log.error("Usage report delivery exhausted; reportId=%s entries=%d", self.report_id, len(self.meter.entries))
+            for attempt in range(4):
+                if await self.flush():
+                    break
+                await asyncio.sleep(5 * (attempt + 1))
+            else:
+                # Costs only (no transcript or user content): enough to replay into the ledger by hand.
+                log.error("Usage report delivery exhausted; reportId=%s unsent=%s", self.report_id, json.dumps(self.meter.entries[self.sent:]))
         finally:
             await self.client.aclose()
 
@@ -368,7 +401,7 @@ class Runtime:
                 self.emit({"type": "error", "message": "Voice provider failed; please reconnect."})
                 self.done.set()
 
-        tasks = [asyncio.create_task(self.publish()), asyncio.create_task(self.watchdog())]
+        tasks = [asyncio.create_task(self.publish()), asyncio.create_task(self.watchdog()), asyncio.create_task(self.reporter())]
         try:
             for part in (1, 2, 3):
                 self.rates[part] = await pricing(self.client, self.d.config(part))

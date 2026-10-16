@@ -26,12 +26,12 @@ import { asCalibration, calibrationKey, getCalibration, type Calibration } from 
 import { listModels, setFetch } from '../apps/server/src/ai/openrouter';
 import { loadAnchors, promptHash, WRITING_KEYS, type ScoringMode } from '../apps/server/src/ai/prompts';
 import { feedbackFacts, feedbackWriting, FEEDBACK_HASH, type FeedbackFacts, grammarDensity, ownWords, scoreWriting, settleWriting, TOO_SHORT_WORDS, WRITING_EFFORT, WRITING_K, type RuleInput, type Scored, type WritingInput } from '../apps/server/src/ai/writing';
-import { DEFAULT_SETTINGS } from '../apps/server/src/settings';
+import { MODELS } from '../apps/server/src/settings';
 import { storage } from '../apps/server/src/storage';
 
 const { values: a } = parseArgs({
   options: {
-    model: { type: 'string', default: DEFAULT_SETTINGS.models.analysis }, split: { type: 'string', default: 'calib' }, k: { type: 'string', default: '3' },
+    model: { type: 'string', default: MODELS.analysis }, split: { type: 'string', default: 'calib' }, k: { type: 'string', default: '3' },
     fit: { type: 'boolean' }, 'with-anchors': { type: 'boolean' }, 'with-ceilings': { type: 'boolean' }, ablate: { type: 'string' }, 'no-feedback': { type: 'boolean' }, 
     limit: { type: 'string' }, ids: { type: 'string' }, conc: { type: 'string', default: '16' }, yes: { type: 'boolean' },
   },
@@ -42,7 +42,7 @@ if (/qwen/i.test(model)) { console.error('SKIPPED: Qwen was dropped by the user 
 if (!['calib', 'test', 'probe'].includes(split)) throw new Error('--split calib|test|probe');
 if (a.ablate && a.ablate !== 'per-criterion') throw new Error('--ablate per-criterion');
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const settings = { ...DEFAULT_SETTINGS, models: { ...DEFAULT_SETTINGS.models, analysis: model } };
+const models = { ...MODELS, analysis: model };
 
 // ---------- scripts ----------
 type Row = typeof scoringScripts.$inferSelect;
@@ -63,7 +63,7 @@ async function input(r: Row): Promise<WritingInput> {
   const p = r.prompt ?? { title: '', body: '' };
   const chart = (p.slug && charts.get(p.slug)) || undefined;
   const image = !chart && p.imageKey ? await storage.get(p.imageKey).then((b) => `data:image/png;base64,${Buffer.from(b).toString('base64')}`, () => null) : null;
-  return { text: r.text ?? '', task: r.taskFamily === 't2' ? 2 : 1, variant: r.taskFamily === 't1g' ? 'general' : 'academic', prompt: { title: p.title, body: p.body, bullets: p.bullets, chart, image }, settings };
+  return { text: r.text ?? '', task: r.taskFamily === 't2' ? 2 : 1, variant: r.taskFamily === 't1g' ? 'general' : 'academic', prompt: { title: p.title, body: p.body, bullets: p.bullets, chart, image }, models };
 }
 
 // ---------- scoring with cache ----------

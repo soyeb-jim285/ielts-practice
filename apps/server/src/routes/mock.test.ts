@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 import type { LrTest } from '@ielts/core';
 import { analyses, attempts, liveSessions, lrAttempts, lrTests, mockExams, quotaUsage } from '../db/schema';
 import { db } from '../db/client';
 import { req, seedPrompt, testUser } from '../test/helpers';
+import { env } from '../env';
 
 const body = async (r: Response) => (await r.json()) as any;
 const fixture = (n: string) => JSON.parse(readFileSync(new URL(`../test/fixtures/lr/lr-${n}.json`, import.meta.url), 'utf8')) as LrTest;
@@ -238,6 +239,8 @@ describe('full mock test', () => {
     await markedAttempt(me.user.id, row.writingPromptIds[1]!, 'writing', 2, row.writingSessionId, 6);
     const attach = (sessionId: string) => req(`/api/mock/${m.id}/speaking/attach`, { headers: me.headers, body: { sessionId } });
     expect((await attach('live-1')).status).toBe(409); // live not chosen yet
+    Object.assign(env, { LIVEKIT_URL: 'wss://x', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 's', LIVEKIT_REPORT_SECRET: 'r'.repeat(32), SONIOX_API_KEY: 'sx' });
+    onTestFinished(() => void Object.assign(env, { LIVEKIT_URL: undefined, LIVEKIT_API_KEY: undefined, LIVEKIT_API_SECRET: undefined, LIVEKIT_REPORT_SECRET: undefined, SONIOX_API_KEY: undefined }));
     const chosen = await body(await req(`/api/mock/${m.id}/speaking/choose`, { headers: me.headers, body: { mode: 'live' } }));
     expect(chosen).toEqual({ mode: 'live', source: 'generated', ref: null });
     const [p] = await db.select().from(attempts).limit(1);
@@ -254,7 +257,7 @@ describe('full mock test', () => {
     expect((await body(ok)).sections[3]).toMatchObject({ mode: 'live', sessionId: 'mine-live', state: 'done', band: 6.5 });
   });
 
-  it('live mode is refused without the person\'s own key, and recorded checks the allowance again', async () => {
+  it('live mode is refused while the live examiner is not configured, and recorded checks the allowance again', async () => {
     const { headers, user } = await testUser(undefined, { key: false });
     const m = await body(await create(headers));
     const row = (await db.query.mockExams.findFirst({ where: eq(mockExams.id, m.id) }))!;
@@ -263,7 +266,7 @@ describe('full mock test', () => {
     await markedAttempt(user.id, row.writingPromptIds[0]!, 'writing', 1, row.writingSessionId, 6);
     await markedAttempt(user.id, row.writingPromptIds[1]!, 'writing', 2, row.writingSessionId, 6);
     const live = await req(`/api/mock/${m.id}/speaking/choose`, { headers, body: { mode: 'live' } });
-    expect([live.status, (await body(live)).code]).toEqual([403, 'live_requires_own_key']);
+    expect(live.status).toBe(503);
     // the day's speaking test was used elsewhere in the meantime
     await db.insert(quotaUsage).values({ userId: user.id, skill: 'speaking', unitKey: 'other', tier: 'community', members: [] });
     const rec = await req(`/api/mock/${m.id}/speaking/choose`, { headers, body: { mode: 'recorded' } });

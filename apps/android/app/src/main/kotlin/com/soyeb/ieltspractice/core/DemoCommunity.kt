@@ -44,16 +44,16 @@ object DemoCommunity {
             "gate-balance" -> { balance = LOW; speaking = blocked(window, Codes.BALANCE); writing = blocked(window, Codes.BALANCE) }
             "gate-busy" -> { speaking = blocked(window, Codes.BUSY); writing = blocked(window, Codes.BUSY) }
         }
-        if (own) return Quota("own-key", SkillQuota(), SkillQuota(), listOf("turn", "gpt-live"), balance)
-        // The live examiner screens run as if the person had their keys (the gate before them is its own screenshot).
-        if (screen?.startsWith("live") == true) return Quota("own-key", SkillQuota(), SkillQuota(), listOf("turn", "gpt-live", "gemini-live"), balance)
-        return Quota(if (guest) "guest" else "community", speaking, writing, emptyList(), balance)
+        if (own) return Quota("own-key", SkillQuota(), SkillQuota(), true, balance)
+        // The live examiner screens run with no limits (the gates before them are their own screenshots).
+        if (screen?.startsWith("live") == true) return Quota("own-key", SkillQuota(), SkillQuota(), true, balance)
+        return Quota(if (guest) "guest" else "community", speaking, writing, screen != "gate-live", balance)
     }
 
     fun keys(screen: String?, tab: String?): List<KeyInfo> = when {
-        screen == "settings-own-key" -> listOf(KeyInfo("openrouter", "k3Qa", "2026-10-01T09:00:00.000Z"), KeyInfo("openai", "x91Z", "2026-10-02T09:00:00.000Z"))
+        screen == "settings-own-key" -> listOf(KeyInfo("openrouter", "k3Qa", "2026-10-01T09:00:00.000Z"))
         screen == "settings-keys" && tab == "Saved" -> listOf(KeyInfo("openrouter", "k3Qa", "2026-10-01T09:00:00.000Z"))
-        screen == "settings-keys" && tab == "Stopped" -> listOf(KeyInfo("openai", "x91Z", "2026-09-28T09:00:00.000Z", valid = false))
+        screen == "settings-keys" && tab == "Stopped" -> listOf(KeyInfo("openrouter", "x91Z", "2026-09-28T09:00:00.000Z", valid = false))
         else -> emptyList()
     }
 
@@ -85,8 +85,7 @@ object DemoCommunity {
             "gate-quota-community" -> Gate.Blocked(Codes.QUOTA, "speaking", "community", DAY, q.communityBalance)
             "gate-balance" -> Gate.Blocked(Codes.BALANCE, "speaking", "community", null, q.communityBalance)
             "gate-busy" -> Gate.Blocked(Codes.BUSY, "writing", "community", null, q.communityBalance)
-            "gate-live-guest" -> Gate.Blocked(Codes.LIVE, "speaking", "guest", null, q.communityBalance)
-            "gate-live-community" -> Gate.Blocked(Codes.LIVE, "speaking", "community", null, q.communityBalance, needs = "OpenRouter")
+            "gate-live" -> Gate.Blocked(Codes.LIVE, "speaking", "community", null, q.communityBalance)
             "editor-blocked" -> Gate.Blocked(Codes.QUOTA, "writing", "community", DAY, q.communityBalance, keep = "Your essay is still here.")
             else -> null
         }

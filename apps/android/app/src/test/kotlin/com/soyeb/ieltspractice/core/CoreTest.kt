@@ -48,12 +48,11 @@ class CoreTest {
         assertTrue(decode(MistakeLog.serializer(), "/api/mistakes").items.isNotEmpty())
         fixtures.keys.filter { it.startsWith("/api/prompts/random") }.forEach { decode(Prompt.serializer(), it) }
         decode(SpeakingTest.serializer(), "/api/speaking/test")
-        decode(LiveReply.serializer(), "/api/live/start")
+        decode(LiveStart.serializer(), "/api/live/start")
     }
 
     @Test fun listsAcceptWrappers() {
         assertTrue(AppJson.decodeList<ReviewCard>(fixtures.getValue("/api/cards/due")).isNotEmpty()) // { items }
-        assertTrue(AppJson.decodeList<ModelInfo>(fixtures.getValue("/api/models")).isNotEmpty()) // { models }
         assertEquals(2, AppJson.decodeList<ReviewCard>("""[{"id":"1","front":"a","back":"b"},{"id":"2","front":"c","back":"d"}]""").size) // bare
         assertEquals(1, AppJson.decodeList<ReviewCard>("""{"cards":[{"id":"1","front":"a","back":"b"}]}""").size)
         assertEquals(1, AppJson.decodeList<ReviewCard>("""{"data":[{"id":"1","front":"a","back":"b"}]}""").size)

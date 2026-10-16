@@ -11,11 +11,8 @@ import { analyseAttempt, tfngPattern } from '../../../packages/core/src/lr-revie
 const out = join(dirname(fileURLToPath(import.meta.url)), '../IELTS/Demo/fixtures.json');
 const day = (n) => new Date(Date.UTC(2026, 8, 30 - n, 9, 30)).toISOString();
 
-const settings = {
-  models: { analysis: 'openai/gpt-6-luna', examiner: 'openai/gpt-6-luna', stt: 'elevenlabs/scribe_v2', tts: 'google/gemini-3.8-flash-tts', ttsVoice: 'Charon' },
-  liveProvider: 'turn', targetBand: 7, writingAutoSubmit: true, blockPaste: true,
-};
-const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true, isAnonymous: false }, settings, cambridgeAccess: true, gptLiveAvailable: true, geminiLiveAvailable: true };
+const settings = { targetBand: 7, writingAutoSubmit: true, blockPaste: true };
+const me = { user: { id: 'demo', email: 'maya@example.com', name: 'Maya Rahman', emailVerified: true, isAnonymous: false }, settings, cambridgeAccess: true };
 
 const p = (o) => ({ variant: null, type: null, topic: null, bullets: null, followUps: null, chart: null, imageUrl: null, groupId: null, done: false, source: 'generated', ...o });
 const sp1 = p({ id: 'sp1', skill: 'speaking', part: 1, topic: 'Hometown', title: 'Your hometown', body: 'Let\'s talk about where you grew up.', followUps: ['Where is your hometown?', 'What do you like most about it?', 'Has it changed much since you were a child?', 'Would you like to live there in the future?'] });
@@ -193,8 +190,6 @@ const cards = [
   { id: 'c3', front: 'really changed', back: 'transformed / reshaped — stronger verbs for band 7+.' },
 ];
 
-const models = (ids) => ({ models: ids.map(([id, name, pr, co]) => ({ id, name, pricing: { prompt: String(pr), completion: String(co) } })) });
-const textModels = models([['openai/gpt-6-luna', 'OpenAI: GPT-6 Luna', 1e-7, 5e-7], ['deepseek/deepseek-v4.1-flash', 'DeepSeek: V4.1 Flash', 1.5e-7, 6e-7], ['google/gemini-3.8-flash', 'Google: Gemini 3.8 Flash', 2.5e-7, 1e-6]]);
 
 const fx = {
   '/api/me': me,
@@ -210,7 +205,6 @@ const fx = {
   '/api/attempts/aw0': attempt('aw0', w2, { ...writingAnalysis, overall: 6.5, comparison: null }, { text: essay }),
   '/api/cards/due': { items: cards },
   '/api/mistakes': { groups: [{ category: 'grammar.article', count: 9 }, { category: 'grammar.verb-tense', count: 6 }, { category: 'vocabulary.collocation', count: 4 }, { category: 'grammar.agreement', count: 3 }], items: mistakes, total: mistakes.length },
-  '/api/models': textModels,
   '/api/prompts': { items: [sp1, sp2, sp3, w2, w1a, w1g, p({ id: 'sp4', skill: 'speaking', part: 1, topic: 'Music', title: 'Music', body: 'Do you like music?', followUps: ['What kind of music do you like?'], done: true })], total: 7, page: 1, pageSize: 30 },
   '/api/prompts/random?part=1&skill=speaking': sp1,
   '/api/prompts/random?part=2&skill=speaking': sp2,
@@ -226,30 +220,30 @@ const fx = {
   '/api/prompts?page=1&skill=speaking': { items: [sp1, sp2, sp3], total: 3, page: 1, pageSize: 30 },
   '/api/prompts?page=1&skill=writing': { items: [w2, w1a, w1g], total: 3, page: 1, pageSize: 30 },
   '/api/prompts/meta': { groups: [{ skill: 'speaking', part: 1, topics: ['Hometown', 'Music'], types: ['p1-topic'] }, { skill: 'speaking', part: 2, topics: ['Books'], types: ['cue-card'] }, { skill: 'speaking', part: 3, topics: ['Reading'], types: ['discussion'] }, { skill: 'writing', part: 1, topics: ['Energy', 'Housing'], types: ['line', 'letter-complaint'] }, { skill: 'writing', part: 2, topics: ['Technology'], types: ['opinion'] }] },
-  '/api/models?capability=tts': { models: [{ id: 'google/gemini-3.8-flash-tts', name: 'Google: Gemini 3.8 Flash TTS', voices: ['Charon', 'Puck', 'Kore'], pricing: { prompt: '0', completion: '0' } }] },
-  '/api/live/start': { sessionId: 'live-demo', examinerText: 'Good morning. My name is Daniel and I will be your examiner today. Can you tell me your full name, please?', audioUrl: null, voiceError: null, phase: 'p1', prepSeconds: null, cueCard: null, test: { part1: [sp1], part2: sp2, part3: sp3 } },
+  '/api/live/start': { sessionId: 'live-demo', examinerText: 'Good morning. My name is Daniel and I will be your examiner today. Can you tell me your full name, please?', phase: 'intro', test: { part1: [sp1], part2: sp2, part3: sp3 } },
 };
 // Community mode (docs/community.md). "@@DAY@@" / "@@WEEK@@" in a resetAt are filled in at run time by the demo clients (next 00:00 UTC / next Monday 00:00 UTC),
 // so "Resets in 5 h" never goes stale. "path#screen" keys answer only that `-screen`; "path#guest" answers every guest-* screen.
 const sq = (used, limit, window, resetAt, blocked = null) => ({ used, limit, remaining: limit === null ? null : Math.max(0, limit - used), resetAt, window, blocked });
 const unlimited = { used: 0, limit: null, remaining: null, resetAt: null, window: null, blocked: null };
 const bal = (remaining) => ({ limit: 20, used: +(20 - remaining).toFixed(2), remaining, updatedAt: day(0) });
-const quota = (tier, speaking, writing, liveProviders, communityBalance = bal(12.4)) => ({ tier, speaking, writing, liveProviders, communityBalance });
-const community = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'), []);
-const guest = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'), []);
+const quota = (tier, speaking, writing, communityBalance = bal(12.4), live = true) => ({ tier, speaking, writing, live, communityBalance });
+const community = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'));
+const guest = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'));
 fx['/api/quota'] = community;
 fx['/api/quota#guest'] = guest;
-fx['/api/quota#live'] = quota('own-key', unlimited, unlimited, ['turn', 'gpt-live', 'gemini-live']);
-fx['/api/quota#quota-exhausted'] = quota('community', sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), sq(0, 1, 'day', '@@DAY@@'), []);
-fx['/api/quota#writing-quota-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), []);
-fx['/api/quota#guest-quota-exhausted'] = quota('guest', sq(1, 1, 'week', '@@WEEK@@', 'quota_exceeded'), sq(0, 1, 'week', '@@WEEK@@'), []);
-fx['/api/quota#balance-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), [], bal(0.18));
-fx['/api/quota#balance'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), [], bal(1.4));
-fx['/api/quota#keys-settings'] = quota('own-key', unlimited, unlimited, ['turn']);
+fx['/api/quota#live'] = quota('own-key', unlimited, unlimited);
+fx['/api/quota#live-locked'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'), bal(12.4), false);
+fx['/api/quota#guest-live-locked'] = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'), bal(12.4), false);
+fx['/api/quota#quota-exhausted'] = quota('community', sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), sq(0, 1, 'day', '@@DAY@@'));
+fx['/api/quota#writing-quota-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'));
+fx['/api/quota#guest-quota-exhausted'] = quota('guest', sq(1, 1, 'week', '@@WEEK@@', 'quota_exceeded'), sq(0, 1, 'week', '@@WEEK@@'));
+fx['/api/quota#balance-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), bal(0.18));
+fx['/api/quota#balance'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), bal(1.4));
+fx['/api/quota#keys-settings'] = quota('own-key', unlimited, unlimited);
 fx['/api/keys'] = { keys: [] };
 fx['/api/keys#keys-settings'] = { keys: [
   { provider: 'openrouter', last4: 'ab12', addedAt: day(2), valid: true },
-  { provider: 'gemini', last4: '9xQ2', addedAt: day(9), valid: false },
 ] };
 fx['/api/community/balance'] = bal(12.4);
 for (const x of [w2, w1a, w1g, w1b, w1p, w1t, w1pr, w1m]) fx[`/api/prompts/${x.id}`] = x; // the editor and the prompt bank open a task by id

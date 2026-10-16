@@ -91,7 +91,7 @@ struct IssuePanel: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                Image(systemName: issue.kind == .liveKey ? "lock" : "hourglass")
+                Image(systemName: issue.kind == .liveOff ? "mic.slash" : "hourglass")
                     .font(.title)
                     .foregroundStyle(.ink)
                     .frame(width: 64, height: 64)
@@ -258,7 +258,7 @@ struct StartGate<Content: View>: View {
     }
 }
 
-/// In front of the live examiner: it never runs on the community balance, so it needs the user's own key.
+/// In front of the live examiner: the server must offer it, and it counts as a speaking test.
 struct LiveGate<Content: View>: View {
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
@@ -272,8 +272,8 @@ struct LiveGate<Content: View>: View {
     var body: some View {
         Group {
             if let q = api.quota, loaded {
-                if q.liveProviders.isEmpty {
-                    IssuePanel(issue: CommunityIssue(kind: .liveKey, tier: q.tier), onRetry: nil, onDismiss: { dismiss() })
+                if !q.live {
+                    IssuePanel(issue: CommunityIssue(kind: .liveOff, tier: q.tier), onRetry: { check += 1 }, onDismiss: { dismiss() })
                 } else if let issue = CommunityIssue(blocked: q.speaking.blocked, skill: "speaking", quota: q.speaking, tier: q.tier) {
                     IssuePanel(issue: issue, balance: q.communityBalance, onRetry: { check += 1 }, onDismiss: { dismiss() })
                 } else {

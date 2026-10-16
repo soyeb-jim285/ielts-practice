@@ -41,7 +41,7 @@ export function FairUseDialog({ open, quota, skill, onStart, onClose }: { open: 
           </p>
         )}
         <BalanceMeter />
-        <p className="text-muted">{guest ? 'Create an account for 1 test a day.' : 'Want unlimited tests and the live examiner? Add your own API key in Settings.'}</p>
+        <p className="text-muted">{guest ? 'Create an account for 1 test a day.' : 'Want unlimited tests? Add your own OpenRouter key in Settings.'}</p>
       </div>
     </Dialog>
   );
