@@ -568,20 +568,31 @@ const pcmOnly = (model: string) => /^google\/.*tts/.test(model);
 
 type Speech = { audio: Uint8Array; contentType: 'audio/mpeg' | 'audio/wav' };
 
-async function speakOnce(o: { model: string; voice: string; text: string }): Promise<Speech> {
+/** Gemini TTS bills its audio output as tokens at this rate (measured against OpenRouter's /generation on 2026-10-16). */
+const GEMINI_TTS_TOKENS_PER_SECOND = 25;
+
+/** USD of one TTS call from its catalogue price. The response is raw audio, no usage block: per-character models (ElevenLabs, Kokoro…) bill the prompt
+ *  price per character; models with an output price (Gemini) bill input text tokens (~4 characters) plus output audio tokens. */
+export function ttsUsd(pricing: { prompt: string; completion: string } | undefined, characters: number, audioSeconds: number) {
+  const inP = Number(pricing?.prompt), outP = Number(pricing?.completion) || 0;
+  if (!Number.isFinite(inP)) return undefined;
+  return outP ? Math.ceil(characters / 4) * inP + audioSeconds * GEMINI_TTS_TOKENS_PER_SECOND * outP : characters * inP;
+}
+
+async function speakOnce(o: { model: string; voice: string; text: string }, pricing: Promise<ModelInfo['pricing'] | undefined>): Promise<Speech> {
   const pcm = pcmOnly(o.model);
   const res = await call('/audio/speech', { model: o.model, input: o.text, voice: o.voice, response_format: pcm ? 'pcm' : 'mp3' }, undefined, 'POST', 'examiner_tts').catch((e) => {
     recordFailure(e, { stage: 'examiner_tts', model: o.model, meta: { characters: o.text.length } });
     throw e;
   });
-  // The response is raw audio: no usage block. Price = characters x the catalogue's per-token rate when the catalogue is cached, else 0; always flagged estimated.
-  const rate = Number(modelCache?.models.find((m) => m.id === o.model)?.pricing.prompt);
-  recordCost({ stage: 'examiner_tts', provider: 'openrouter', model: o.model, costUsd: Number.isFinite(rate) ? o.text.length * rate : 0, characters: o.text.length, meta: { estimated: true, generationId: res.headers.get('x-generation-id') ?? undefined } });
   const audio = new Uint8Array(await res.arrayBuffer());
-  if (!pcm) return { audio, contentType: 'audio/mpeg' };
   // content-type is e.g. "audio/pcm;rate=24000;channels=1"
   const param = (k: string, d: number) => Number(res.headers.get('content-type')?.match(new RegExp(`${k}=(\\d+)`))?.[1] ?? d);
-  return { audio: pcmToWav(audio, param('rate', 24000), param('channels', 1)), contentType: 'audio/wav' };
+  const rate = param('rate', 24000), channels = param('channels', 1), seconds = pcm ? audio.length / (rate * channels * 2) : 0;
+  const costUsd = ttsUsd(await pricing, o.text.length, seconds);
+  recordCost({ stage: 'examiner_tts', provider: 'openrouter', model: o.model, costUsd: costUsd ?? 0, characters: o.text.length, ...(pcm && { audioSeconds: seconds }), meta: { estimated: true, generationId: res.headers.get('x-generation-id') ?? undefined, ...(costUsd === undefined && { unknownCost: true }) } });
+  if (!pcm) return { audio, contentType: 'audio/mpeg' };
+  return { audio: pcmToWav(audio, rate, channels), contentType: 'audio/wav' };
 }
 
 /** Sentence groups of a long line (at most 3, about 80+ characters each) so that they can be synthesised in parallel: TTS time grows with text length. */
@@ -609,7 +620,9 @@ function joinSpeech(parts: Speech[]): Speech {
 /** Returns mp3 (audio/mpeg) or, for PCM-only models, WAV (audio/wav). A line of several sentences is synthesised as parallel chunks (lower time to first audio). */
 export async function speak(o: { model: string; voice: string; text: string }): Promise<Speech> {
   const chunks = speechChunks(o.text);
-  return joinSpeech(await Promise.all(chunks.map((text) => speakOnce({ ...o, text }))));
+  // Fetched alongside the synthesis (cached 1 h), so pricing adds no latency once warm. Before this, a cold cache priced every line at $0.
+  const pricing = listModels().then((ms) => ms.find((m) => m.id === o.model)?.pricing, () => undefined);
+  return joinSpeech(await Promise.all(chunks.map((text) => speakOnce({ ...o, text }, pricing))));
 }
 
 export type ModelInfo = { id: string; name: string; input: string[]; output: string[]; pricing: { prompt: string; completion: string }; voices: string[] };

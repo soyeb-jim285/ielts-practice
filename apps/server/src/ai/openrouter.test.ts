@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { chatReply, fakeFetch, json } from '../test/helpers';
-import { AiError, chatJson, punctuate, setFetch, speak, speechChunks, toStrictSchema, transcribe, verbatimAlone, verbatimSane } from './openrouter';
+import { AiError, chatJson, punctuate, setFetch, speak, speechChunks, ttsUsd, toStrictSchema, transcribe, verbatimAlone, verbatimSane } from './openrouter';
 
 const schema = z.object({ band: z.number().int(), range: z.tuple([z.number(), z.number()]) });
 const ask = () => chatJson({ model: 'm/x', system: 's', user: 'u', schema, schemaName: 'x' });
@@ -180,7 +180,7 @@ it('speak: PCM-only Gemini TTS is requested as pcm and wrapped in a WAV header; 
   const f = fakeFetch({ '/audio/speech': () => new Response(pcm, { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }) });
   setFetch(f);
   const r = await speak({ model: 'google/gemini-3.8-flash-tts', voice: 'Charon', text: 'Hi' });
-  expect(f.calls[0]!.body.response_format).toBe('pcm');
+  expect(f.calls.find((c) => c.url.includes('/audio/speech'))!.body.response_format).toBe('pcm');
   expect(r.contentType).toBe('audio/wav');
   const b = Buffer.from(r.audio);
   expect([b.toString('ascii', 0, 4), b.toString('ascii', 8, 12), b.readUInt32LE(24), b.readUInt32LE(40), b.length]).toEqual(['RIFF', 'WAVE', 24000, 4, 48]);
@@ -188,7 +188,7 @@ it('speak: PCM-only Gemini TTS is requested as pcm and wrapped in a WAV header; 
   const g = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([9]), { headers: { 'Content-Type': 'audio/mpeg' } }) });
   setFetch(g);
   expect((await speak({ model: 'deepgram/aura-2', voice: 'aura-2-thalia-en', text: 'Hi' })).contentType).toBe('audio/mpeg');
-  expect(g.calls[0]!.body.response_format).toBe('mp3');
+  expect(g.calls.find((c) => c.url.includes('/audio/speech'))!.body.response_format).toBe('mp3');
 });
 
 it('speak: a long multi-sentence line is synthesised as parallel chunks and joined in order (one WAV header)', async () => {
@@ -202,10 +202,20 @@ it('speak: a long multi-sentence line is synthesised as parallel chunks and join
   const f = fakeFetch({ '/audio/speech': () => new Response(new Uint8Array([++n, 0]), { headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' } }) });
   setFetch(f);
   const r = await speak({ model: 'google/gemini-3.8-flash-tts', voice: 'Charon', text });
-  expect(f.calls.map((c) => c.body.input)).toEqual(chunks);
+  expect(f.calls.filter((c) => c.url.includes('/audio/speech')).map((c) => c.body.input)).toEqual(chunks);
   const b = Buffer.from(r.audio);
   expect([b.toString('ascii', 0, 4), b.readUInt32LE(24), b.readUInt32LE(40), b.length]).toEqual(['RIFF', 24000, chunks.length * 2, 44 + chunks.length * 2]);
   expect([...b.subarray(44)].filter((_, i) => i % 2 === 0)).toEqual(chunks.map((_, i) => i + 1));
+});
+
+it('ttsUsd: matches what OpenRouter billed (/generation total_cost)', () => {
+  // ElevenLabs bills per character: 50 characters on eleven-v4-turbo cost $0.001.
+  expect(ttsUsd({ prompt: '0.00002', completion: '0' }, 50, 0)).toBeCloseTo(0.001, 9);
+  // Gemini bills text tokens in + audio tokens out: a ~55-character line, 3.72 s of audio = 14 + 93 tokens = $0.000844.
+  expect(ttsUsd({ prompt: '0.0000005', completion: '0.000009' }, 55, 3.72)).toBeCloseTo(0.000844, 5);
+  // Measured 2026-10-16: 113 characters, 311040 bytes of 24 kHz PCM (6.48 s) = 29 + 162 tokens = $0.0014715.
+  expect(ttsUsd({ prompt: '0.0000005', completion: '0.000009' }, 113, 311040 / 48000)).toBeCloseTo(0.0014715, 5);
+  expect(ttsUsd(undefined, 50, 0)).toBeUndefined(); // catalogue down: flagged unknownCost, not silently $0
 });
 
 // Live smoke test of the default voice (a fraction of a cent): SMOKE=1 OPENROUTER_API_KEY=… pnpm exec vitest run src/ai/openrouter.test.ts -t smoke
