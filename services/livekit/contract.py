@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -125,7 +126,12 @@ async def send_report(client, dispatch: Dispatch, report_id: str, entries: list,
                                   headers={"x-livekit-report-token": dispatch.reportToken})
             r.raise_for_status()
             return True
-        except Exception:
+        except Exception as e:
+            # Status and body (the server's validation message), never the token or entries.
+            res = getattr(e, "response", None)
+            logging.getLogger("ielts.livekit").warning("Usage report %s failed (attempt %d): %s %s", report_id, attempt + 1,
+                                                       res.status_code if res is not None else type(e).__name__,
+                                                       res.text[:300] if res is not None else "")
             if attempt < 2:
                 await asyncio.sleep(delay * 2 ** attempt)
     return False
