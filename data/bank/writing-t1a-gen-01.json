@@ -1,0 +1,829 @@
+[
+  {
+    "slug": "t1a-g01-rooftop-panels-regions",
+    "topic": "Energy",
+    "type": "line",
+    "body": "The line graph below shows the percentage of homes with rooftop solar panels in two regions of one country between 2016 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Share of homes with rooftop solar panels in two regions, 2016–2024",
+      "xLabel": "Year",
+      "yLabel": "Homes with rooftop panels (%)",
+      "unit": "%",
+      "categories": [
+        "2016",
+        "2018",
+        "2020",
+        "2022",
+        "2024"
+      ],
+      "series": [
+        {
+          "name": "Coastal region",
+          "values": [
+            2,
+            4,
+            9,
+            16,
+            23
+          ]
+        },
+        {
+          "name": "Inland region",
+          "values": [
+            3,
+            3,
+            4,
+            7,
+            6
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-electricity-price-countries",
+    "topic": "Energy",
+    "type": "line",
+    "body": "The graph below gives information about the average price of household electricity in four countries between 2016 and 2026.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average household electricity price in four countries, 2016–2026",
+      "xLabel": "Year",
+      "yLabel": "Price (cents per kWh)",
+      "unit": "cents per kWh",
+      "categories": [
+        "2016",
+        "2018",
+        "2020",
+        "2022",
+        "2024",
+        "2026"
+      ],
+      "series": [
+        {
+          "name": "Country A",
+          "values": [
+            14,
+            15,
+            15,
+            21,
+            27,
+            25
+          ]
+        },
+        {
+          "name": "Country B",
+          "values": [
+            18,
+            17,
+            16,
+            17,
+            19,
+            22
+          ]
+        },
+        {
+          "name": "Country C",
+          "values": [
+            24,
+            24,
+            23,
+            29,
+            31,
+            28
+          ]
+        },
+        {
+          "name": "Country D",
+          "values": [
+            21,
+            22,
+            23,
+            24,
+            25,
+            26
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-wind-capacity-projections",
+    "topic": "Energy",
+    "type": "line",
+    "body": "The line graph below shows the installed wind power capacity in four countries from 2000 to 2025, with projections for 2030.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Installed wind power capacity in four countries, 2000–2030",
+      "xLabel": "Year",
+      "yLabel": "Installed capacity (GW)",
+      "unit": "GW",
+      "categories": [
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025",
+        "2030*"
+      ],
+      "series": [
+        {
+          "name": "Country A",
+          "values": [
+            3,
+            9,
+            24,
+            47,
+            73,
+            89,
+            96
+          ]
+        },
+        {
+          "name": "Country B",
+          "values": [
+            3,
+            5,
+            13,
+            28,
+            54,
+            86,
+            110
+          ]
+        },
+        {
+          "name": "Country C",
+          "values": [
+            6,
+            12,
+            20,
+            29,
+            38,
+            43,
+            45
+          ]
+        },
+        {
+          "name": "Country D",
+          "values": [
+            3,
+            4,
+            6,
+            9,
+            14,
+            19,
+            24
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-air-conditioning-countries",
+    "topic": "Weather",
+    "type": "bar",
+    "body": "The bar chart below shows the proportion of homes fitted with air conditioning in four countries in 2010 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Homes fitted with air conditioning in four countries, 2010 and 2024",
+      "xLabel": "Country",
+      "yLabel": "Homes with air conditioning (%)",
+      "unit": "%",
+      "categories": [
+        "Country A",
+        "Country B",
+        "Country C",
+        "Country D"
+      ],
+      "series": [
+        {
+          "name": "2010",
+          "values": [
+            12,
+            35,
+            48,
+            21
+          ]
+        },
+        {
+          "name": "2024",
+          "values": [
+            27,
+            61,
+            66,
+            44
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-heatwave-decades-cities",
+    "topic": "Weather",
+    "type": "bar",
+    "body": "The bar chart below gives information about the average number of heatwave days per year in three cities across four decades, from the 1990s to the 2020s.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average heatwave days per year in three cities, 1990s to 2020s",
+      "xLabel": "Decade",
+      "yLabel": "Heatwave days per year (average)",
+      "unit": "days",
+      "categories": [
+        "1990s",
+        "2000s",
+        "2010s",
+        "2020s"
+      ],
+      "series": [
+        {
+          "name": "City A",
+          "values": [
+            3,
+            4,
+            7,
+            15
+          ]
+        },
+        {
+          "name": "City B",
+          "values": [
+            6,
+            9,
+            10,
+            13
+          ]
+        },
+        {
+          "name": "City C",
+          "values": [
+            2,
+            3,
+            6,
+            4
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-ski-resort-snow-days",
+    "topic": "Weather",
+    "type": "bar",
+    "body": "The bar chart below shows the number of days with snow cover at five ski resorts in three winter seasons: 2005–06, 2015–16 and 2025–26.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Days with snow cover at five ski resorts, three winter seasons",
+      "xLabel": "Ski resort",
+      "yLabel": "Days with snow cover (days)",
+      "unit": "days",
+      "categories": [
+        "Resort A",
+        "Resort B",
+        "Resort C",
+        "Resort D",
+        "Resort E"
+      ],
+      "series": [
+        {
+          "name": "2005–06",
+          "values": [
+            120,
+            95,
+            80,
+            62,
+            45
+          ]
+        },
+        {
+          "name": "2015–16",
+          "values": [
+            118,
+            90,
+            74,
+            40,
+            47
+          ]
+        },
+        {
+          "name": "2025–26",
+          "values": [
+            101,
+            78,
+            63,
+            28,
+            52
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-home-heating-fuel",
+    "topic": "Energy",
+    "type": "pie",
+    "body": "The pie charts below show the main fuels used to heat homes in one country in 2000 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Main fuel used to heat homes, 2000 and 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2000",
+          "slices": [
+            {
+              "label": "Gas",
+              "value": 52
+            },
+            {
+              "label": "Heating oil",
+              "value": 28
+            },
+            {
+              "label": "Electricity",
+              "value": 12
+            },
+            {
+              "label": "Wood and other",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "name": "2024",
+          "slices": [
+            {
+              "label": "Gas",
+              "value": 34
+            },
+            {
+              "label": "Heating oil",
+              "value": 9
+            },
+            {
+              "label": "Electricity",
+              "value": 47
+            },
+            {
+              "label": "Wood and other",
+              "value": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-household-water-purpose",
+    "topic": "Water",
+    "type": "pie",
+    "body": "The pie charts below give information about how water is used for each purpose in the typical home in one country in 2005 and in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Water used for each purpose in the typical home, 2005 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2005",
+          "slices": [
+            {
+              "label": "Toilets",
+              "value": 30
+            },
+            {
+              "label": "Showers and baths",
+              "value": 25
+            },
+            {
+              "label": "Laundry",
+              "value": 15
+            },
+            {
+              "label": "Kitchen",
+              "value": 12
+            },
+            {
+              "label": "Garden",
+              "value": 6
+            },
+            {
+              "label": "Other",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            {
+              "label": "Toilets",
+              "value": 21
+            },
+            {
+              "label": "Showers and baths",
+              "value": 24
+            },
+            {
+              "label": "Laundry",
+              "value": 13
+            },
+            {
+              "label": "Kitchen",
+              "value": 13
+            },
+            {
+              "label": "Garden",
+              "value": 14
+            },
+            {
+              "label": "Other",
+              "value": 15
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-energy-purpose-fuels",
+    "topic": "Energy",
+    "type": "mixed",
+    "body": "The charts below give information about the purposes for which households use energy and the fuels that supply it in one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Household energy use by purpose and by fuel supply, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Use by purpose",
+          "slices": [
+            {
+              "label": "Space heating",
+              "value": 48
+            },
+            {
+              "label": "Water heating",
+              "value": 19
+            },
+            {
+              "label": "Cooking",
+              "value": 7
+            },
+            {
+              "label": "Appliances and lighting",
+              "value": 18
+            },
+            {
+              "label": "Cooling",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "name": "Fuel supply",
+          "slices": [
+            {
+              "label": "Gas",
+              "value": 41
+            },
+            {
+              "label": "Electricity",
+              "value": 37
+            },
+            {
+              "label": "Heating oil",
+              "value": 9
+            },
+            {
+              "label": "Renewables",
+              "value": 13
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-water-supply-bills",
+    "topic": "Water",
+    "type": "mixed",
+    "body": "The charts below give information about where one city gets its water, how household water bills are shared between household sizes and which water-saving devices were fitted in new homes in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Water supply sources, household bills and water-saving devices, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Water supply sources",
+          "slices": [
+            {
+              "label": "Reservoirs",
+              "value": 46
+            },
+            {
+              "label": "Rivers",
+              "value": 22
+            },
+            {
+              "label": "Groundwater",
+              "value": 21
+            },
+            {
+              "label": "Recycled water",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "name": "Share of water bills by household size",
+          "slices": [
+            {
+              "label": "One person",
+              "value": 18
+            },
+            {
+              "label": "Two people",
+              "value": 38
+            },
+            {
+              "label": "Three or four people",
+              "value": 31
+            },
+            {
+              "label": "Five or more people",
+              "value": 13
+            }
+          ]
+        },
+        {
+          "name": "Devices fitted in new homes",
+          "slices": [
+            {
+              "label": "Low-flow showers",
+              "value": 34
+            },
+            {
+              "label": "Dual-flush toilets",
+              "value": 28
+            },
+            {
+              "label": "Rainwater tanks",
+              "value": 21
+            },
+            {
+              "label": "Greywater systems",
+              "value": 17
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-bottled-tap-litres",
+    "topic": "Water",
+    "type": "table",
+    "body": "The table below shows the amount of tap water and bottled water drunk per person per year in four countries in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Tap and bottled water drunk per person per year in four countries, 2024",
+      "columns": [
+        "Country",
+        "Tap water (litres per person per year)",
+        "Bottled water (litres per person per year)"
+      ],
+      "rows": [
+        [
+          "Country A",
+          180,
+          22
+        ],
+        [
+          "Country B",
+          95,
+          61
+        ],
+        [
+          "Country C",
+          40,
+          98
+        ],
+        [
+          "Country D",
+          150,
+          35
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-city-water-leakage",
+    "topic": "Water",
+    "type": "table",
+    "body": "The table below gives information about daily water use per person, water lost through leaks and the share of households with water meters in five cities in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Daily water use, leakage and metering in five cities, 2024",
+      "columns": [
+        "City",
+        "Water use per person per day (litres)",
+        "Water lost through leaks (%)",
+        "Households with water meters (%)"
+      ],
+      "rows": [
+        [
+          "Northport",
+          142,
+          18.5,
+          96
+        ],
+        [
+          "Riverside",
+          118,
+          9.2,
+          64
+        ],
+        [
+          "Lakeview",
+          165,
+          24.0,
+          31
+        ],
+        [
+          "Easton",
+          109,
+          6.5,
+          88
+        ],
+        [
+          "Hillford",
+          131,
+          14.8,
+          52
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-sector-energy-emissions",
+    "topic": "Energy",
+    "type": "table",
+    "body": "The table below gives information about energy use, its share of the total and CO2 emissions in four sectors of one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Energy use and CO2 emissions by sector, 2024",
+      "columns": [
+        "Sector",
+        "Energy use, 2024 (TWh)",
+        "Share of total energy use (%)",
+        "CO2 emissions, 2024 (million tonnes)"
+      ],
+      "rows": [
+        [
+          "Industry",
+          351,
+          31.1,
+          214
+        ],
+        [
+          "Transport",
+          302,
+          26.8,
+          231
+        ],
+        [
+          "Homes",
+          248,
+          22.0,
+          96
+        ],
+        [
+          "Services",
+          226,
+          20.1,
+          58
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-rainwater-reuse-house",
+    "topic": "Water",
+    "type": "process",
+    "body": "The diagram below shows how rainwater is collected, stored and reused in a house.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How rainwater is collected and reused in a house",
+      "steps": [
+        "Rain falls onto the roof and runs into gutters",
+        "Gutters carry the water into a downpipe",
+        "Leaves and debris are removed by a leaf screen",
+        "Filtered water flows into an underground storage tank",
+        "Sediment settles at the bottom of the tank",
+        "A pump draws water from the tank when it is needed",
+        "Water is pumped to the toilets and the washing machine",
+        "Excess water leaves the tank through an overflow pipe"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-tidal-barrage-steps",
+    "topic": "Energy",
+    "type": "process",
+    "body": "The diagram below shows how a tidal barrage generates electricity from the rise and fall of the sea.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How a tidal barrage generates electricity",
+      "steps": [
+        "Seawater flows into the basin through sluice gates on the incoming tide",
+        "The sluice gates close once the basin is full at high tide",
+        "Water is held in the basin while the sea level outside falls",
+        "When the difference in level is large enough, the turbine gates open",
+        "Water rushes out of the basin through the turbines",
+        "The turbines drive generators that produce electricity",
+        "Electricity is sent to the national grid through underground cables",
+        "At low demand, turbines can run in reverse to pump water into the basin",
+        "Sediment settles on the basin floor and is removed by dredging",
+        "Dredged material is taken ashore and used in construction",
+        "Sensors send faults back to maintenance before the cycle restarts"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g01-valley-dam-reservoir",
+    "topic": "Water",
+    "type": "map",
+    "body": "The maps below show a river valley in 1990 and in 2024, after a dam and a reservoir were built across it.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A river valley before and after a dam and reservoir were built",
+      "before": {
+        "label": "1990",
+        "features": [
+          "A small village lies on the north bank of the river",
+          "A wooden bridge crosses the river next to the village",
+          "Farmland covers the flat land on the south side of the valley",
+          "A main road runs along the east side of the valley",
+          "A railway line crosses the valley in the west",
+          "A water mill stands beside the river in the south-west corner",
+          "A school is on the edge of the village, near the main road",
+          "A petrol station sits at the road junction in the middle of the valley",
+          "Two fishing huts are on the river bank to the east",
+          "Forest covers the hills to the north of the village"
+        ]
+      },
+      "after": {
+        "label": "2024",
+        "features": [
+          "The village has been moved to the hillside in the north-east corner",
+          "The wooden bridge next to the old village site has been removed",
+          "A concrete dam stretches across the narrowest point of the valley in the west",
+          "A large reservoir fills the valley behind the dam in the centre",
+          "The water mill has been converted into a visitor centre beside the dam",
+          "The railway line has been rerouted along the eastern edge of the reservoir",
+          "A small power station stands at the foot of the dam on the south side",
+          "The main road now runs across the top of the dam",
+          "The school has been rebuilt next to the new village",
+          "The fishing huts have been removed from the river bank",
+          "Forest on the hills to the north is still unchanged"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g01-farm-solar-conversion",
+    "topic": "Energy",
+    "type": "map",
+    "body": "The maps below show a working farm in 2020 and how the same land is planned to look once it is converted into a solar farm.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A farm site before and after its conversion into a solar farm",
+      "before": {
+        "label": "2020",
+        "features": [
+          "A farmhouse stands in the north-west corner next to the lane",
+          "A large orchard covers the east side of the site",
+          "Four arable fields lie between the lane and the pond",
+          "A wooden barn stands in the centre of the site",
+          "A pond lies in the south-west corner",
+          "A hedge runs along the southern boundary",
+          "A gravel lane runs along the western boundary to the farmhouse"
+        ]
+      },
+      "after": {
+        "label": "Planned",
+        "features": [
+          "Rows of solar panels cover the four fields between the lane and the pond",
+          "The farmhouse remains in the north-west corner next to the lane, unchanged",
+          "The orchard on the east side is kept, with footpaths running through it",
+          "The barn in the centre will be converted into a visitor centre with a cafe",
+          "A car park will be built next to the lane near the entrance",
+          "The pond in the south-west corner will be enlarged",
+          "A bird hide is planned on the bank of the enlarged pond",
+          "The hedge along the southern boundary is kept"
+        ]
+      }
+    }
+  }
+]

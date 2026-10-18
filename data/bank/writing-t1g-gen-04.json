@@ -1,0 +1,189 @@
+[
+  {
+    "slug": "t1g-g04-garden-centre-summer-post",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "While studying for your degree, you want paid work over the summer holidays. You saw an advertisement on the website of a garden centre on the edge of your town, asking for seasonal sales assistants. The advertisement did not mention pay, hours or whether weekend shifts were required.\n\nWrite a letter to the manager of the garden centre.",
+    "bullets": [
+      "say which dates you are available to work",
+      "describe your experience with plants and customers",
+      "ask what the hourly rate and weekly hours would be"
+    ]
+  },
+  {
+    "slug": "t1g-g04-reference-from-former-employer",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "After three years as a dispatch coordinator at a logistics firm, you left last spring when the company closed its regional depot. A recruitment firm now wants a reference before it will offer you a post, and it has asked your former employer to confirm your dates and performance.\n\nWrite a letter to the human resources manager of the logistics firm.",
+    "bullets": [
+      "remind them of the dates you worked and your main duties",
+      "outline the scheduling projects you led in your final year",
+      "request a written reference before the end of the month"
+    ]
+  },
+  {
+    "slug": "t1g-g04-training-provider-complaint",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "Last month you paid for a five-day project management course run by a training company. The course leader cancelled two of the sessions at short notice, and the materials promised in the brochure never arrived. When you asked for a refund for those sessions, the company replied that its terms did not allow one.\n\nWrite a letter to the managing director of the training company.",
+    "bullets": [
+      "describe the two cancelled sessions and how much notice you received",
+      "explain why the missing materials affected your coursework",
+      "say what compensation you would accept as a fair settlement"
+    ]
+  },
+  {
+    "slug": "t1g-g04-internship-enquiry-architects",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "In the final year of your architecture degree, you want practical experience before you graduate next summer. A small architectural practice in the city sometimes takes on interns, but its website gives no information about whether any places are open.\n\nWrite a letter to the senior partner of the architectural practice.",
+    "bullets": [
+      "give details of your studies and the design software you can use",
+      "ask whether there are any internship places next year",
+      "suggest a convenient time for an interview at the office"
+    ]
+  },
+  {
+    "slug": "t1g-g04-agency-misdescribed-placement",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "An employment agency placed you in a temporary administrative role at a logistics company. You were told it was Monday to Friday, but in practice you worked two weekends in every three and covered night shifts at short notice. You have now resigned, and the agency has asked you to accept its next placement.\n\nWrite a letter to the branch manager of the employment agency.",
+    "bullets": [
+      "describe how you raised the problem with the company before resigning",
+      "say how the weekend and night shifts affected your family commitments",
+      "explain whether you would consider another placement and on what terms"
+    ]
+  },
+  {
+    "slug": "t1g-g04-staff-canteen-healthy-menu",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "Your company has moved to a business park where only one canteen is available, run by an external catering firm. Many staff have complained that the menu offers very few vegetarian dishes and that the salads are expensive. Several colleagues have asked you to raise the matter on their behalf.\n\nWrite a letter to the catering manager of the company that runs the canteen.",
+    "bullets": [
+      "introduce yourself and the department you work in",
+      "suggest three vegetarian dishes that could be added to the menu",
+      "propose a monthly meeting where staff can give feedback"
+    ]
+  },
+  {
+    "slug": "t1g-g04-mentoring-scheme-application",
+    "topic": "Work",
+    "type": "letter-formal",
+    "body": "A large engineering company has announced a twelve-month mentoring scheme for junior staff who want to move into management. Places are limited, and applicants must have worked for the company for at least one year. You have spent fourteen months in the quality control department and would like to be considered for a place.\n\nWrite a letter to the coordinator of the mentoring scheme.",
+    "bullets": [
+      "give details of your current role and the duties you have taken on",
+      "describe what you hope to gain from working with a mentor",
+      "outline how you would make use of the scheme over the year"
+    ]
+  },
+  {
+    "slug": "t1g-g04-transfer-another-branch",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "You have worked as a customer advisor at a bank's city centre branch for four years. Your partner has accepted a hospital job in another town, and you would like to move with them. The bank's branch there has a vacancy, but you have not yet discussed it with anyone at work.\n\nWrite a letter to your manager.",
+    "bullets": [
+      "explain how your current customers could be handed over",
+      "ask whether the bank would consider you for the vacancy",
+      "say when you could start if your application were successful"
+    ]
+  },
+  {
+    "slug": "t1g-g04-faulty-headset-calls",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "Last week the headset you use for calls at the office began crackling, and it has now stopped working on one side. You reported the fault to the IT team, but nothing has been done yet, and you have been borrowing a colleague's spare headset.\n\nWrite a letter to your supervisor.",
+    "bullets": [
+      "describe the fault and when it first started",
+      "say what you have already done to try to fix it",
+      "ask for a replacement headset to be arranged this week"
+    ]
+  },
+  {
+    "slug": "t1g-g04-thanks-colleague-report",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "A colleague in your team helped you finish a long report for a client last month. She checked the figures and rewrote the final section while you were away on a training day. The client was pleased with the report and has since asked for a similar one.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "thank her for checking the figures while you were away",
+      "say what you learned from the way she rewrote the final section",
+      "invite her to lunch next week to celebrate"
+    ]
+  },
+  {
+    "slug": "t1g-g04-supplier-dispute-handover",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "Since your move to a new department, a colleague has taken over a supplier account you used to manage. She has written to say the supplier is disputing the delivery terms you agreed last year, and she cannot find the agreement in the files.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "explain what was agreed with the supplier and why",
+      "tell her where she might find a copy of the agreement",
+      "offer to join a call with the supplier next week"
+    ]
+  },
+  {
+    "slug": "t1g-g04-shift-swap-childcare",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "Your supervisor has changed the warehouse shift rota, and from next month you would work every second weekend and two late finishes a week. You collect your daughter from school on those days. A colleague on the early team has offered to take your late finishes in exchange for some of your morning shifts.\n\nWrite a letter to your supervisor.",
+    "bullets": [
+      "ask whether the swap could be agreed before the rota is confirmed",
+      "explain how the team would still be fully covered",
+      "say how long you would like the arrangement to last"
+    ]
+  },
+  {
+    "slug": "t1g-g04-friend-job-offer-abroad",
+    "topic": "Work",
+    "type": "letter-informal",
+    "body": "A friend of yours from university has always been the person you ask for advice. You have been offered a post as a marketing analyst in Toronto, starting in January, and you have one week to reply. You are excited about it, but you are worried about leaving your family and your flat.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe the job and the salary you have been offered",
+      "ask for their honest opinion about moving abroad",
+      "suggest meeting for a coffee before you make your decision"
+    ]
+  },
+  {
+    "slug": "t1g-g04-friend-promotion-congratulations",
+    "topic": "Work",
+    "type": "letter-informal",
+    "body": "Your old friend from school has just been promoted to head of the sales team at the company where you both started your careers. You heard the news from a mutual friend, but you have not yet had a chance to contact them yourself.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "congratulate them on the promotion and tell them how pleased you are",
+      "ask how the new responsibilities are going so far",
+      "invite them to visit you at the weekend"
+    ]
+  },
+  {
+    "slug": "t1g-g04-suggest-friend-apply-company",
+    "topic": "Work",
+    "type": "letter-informal",
+    "body": "Your friend has been looking for work for several months and would like to move into data analysis. Your company has just advertised a junior analyst post, and you know the team well. Applications close in ten days.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "tell them what the role involves day to day",
+      "explain why you think they would suit the team",
+      "recommend that they send their application to you before Friday"
+    ]
+  },
+  {
+    "slug": "t1g-g04-first-week-new-role",
+    "topic": "Work",
+    "type": "letter-informal",
+    "body": "You started work as a pharmacy technician at a hospital last Monday, after two years on the tills at a supermarket. Your friend asked how things were going, and you promised to write once you had settled in.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe the first few days and the colleagues you have met",
+      "say what has surprised you most about the work so far",
+      "ask how their course is going and whether they have time to visit"
+    ]
+  },
+  {
+    "slug": "t1g-g04-friend-quit-job-bakery",
+    "topic": "Work",
+    "type": "letter-informal",
+    "body": "Your close friend has told you that they plan to resign from a stable accounts job and open a bakery with the savings from six years of work. You think the idea has real potential, but you are worried that they have not yet tested the market or spoken to a bank. You are meeting them on Saturday.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "explain why you think the idea has genuine potential",
+      "ask how long their savings would last if the bakery made a loss",
+      "suggest a way to test the bakery idea before they resign"
+    ]
+  }
+]

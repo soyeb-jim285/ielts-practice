@@ -1,0 +1,860 @@
+[
+  {
+    "slug": "t1a-g03-pupils-per-teacher",
+    "topic": "Education",
+    "type": "line",
+    "body": "The line graph below gives information about the number of pupils for each teacher in primary schools in five countries between 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Pupils per teacher in primary schools in five countries, 2000–2020",
+      "xLabel": "Year",
+      "yLabel": "Pupils per teacher",
+      "unit": "pupils",
+      "categories": [
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Kenya",
+          "values": [
+            52,
+            48,
+            45,
+            43,
+            39
+          ]
+        },
+        {
+          "name": "Brazil",
+          "values": [
+            26,
+            24,
+            22,
+            23,
+            24
+          ]
+        },
+        {
+          "name": "Japan",
+          "values": [
+            19,
+            18,
+            17,
+            16,
+            15
+          ]
+        },
+        {
+          "name": "Canada",
+          "values": [
+            18,
+            17,
+            16,
+            15,
+            15
+          ]
+        },
+        {
+          "name": "Germany",
+          "values": [
+            14,
+            14,
+            13,
+            13,
+            12
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-evening-language-enrolments",
+    "topic": "Language",
+    "type": "line",
+    "body": "The line graph below shows the number of students who signed up for evening language classes in one city, by language, from 2014 to 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Sign-ups for evening language classes by language, 2014–2024",
+      "xLabel": "Year",
+      "yLabel": "Sign-ups (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "2014",
+        "2016",
+        "2018",
+        "2020",
+        "2022",
+        "2024"
+      ],
+      "series": [
+        {
+          "name": "Spanish",
+          "values": [
+            38,
+            41,
+            44,
+            29,
+            36,
+            40
+          ]
+        },
+        {
+          "name": "French",
+          "values": [
+            30,
+            28,
+            26,
+            19,
+            21,
+            22
+          ]
+        },
+        {
+          "name": "Mandarin",
+          "values": [
+            9,
+            13,
+            18,
+            16,
+            22,
+            27
+          ]
+        },
+        {
+          "name": "German",
+          "values": [
+            12,
+            11,
+            10,
+            7,
+            8,
+            9
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-rd-spending-gdp",
+    "topic": "Science",
+    "type": "line",
+    "body": "The line graph below gives information about spending on research and development in four countries, as a percentage of GDP, between 1990 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Research and development spending as a share of GDP in four countries, 1990–2020",
+      "xLabel": "Year",
+      "yLabel": "Spending (% of GDP)",
+      "unit": "%",
+      "categories": [
+        "1990",
+        "1995",
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Sweden",
+          "values": [
+            2.9,
+            3.0,
+            3.4,
+            3.5,
+            3.3,
+            3.2,
+            3.4
+          ]
+        },
+        {
+          "name": "South Korea",
+          "values": [
+            2.0,
+            2.2,
+            2.5,
+            2.9,
+            3.4,
+            4.2,
+            4.6
+          ]
+        },
+        {
+          "name": "Germany",
+          "values": [
+            2.6,
+            2.2,
+            2.2,
+            2.5,
+            2.8,
+            2.9,
+            3.1
+          ]
+        },
+        {
+          "name": "Portugal",
+          "values": [
+            0.4,
+            0.5,
+            0.7,
+            0.9,
+            1.5,
+            1.3,
+            1.7
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-patent-filings-four-countries",
+    "topic": "Science",
+    "type": "bar",
+    "body": "The bar chart below shows the number of patent applications filed in four countries in 2005 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Patent applications filed in four countries, 2005 and 2025",
+      "xLabel": "Country",
+      "yLabel": "Applications (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "South Korea",
+        "Germany",
+        "Japan",
+        "China"
+      ],
+      "series": [
+        {
+          "name": "2005",
+          "values": [
+            172,
+            180,
+            390,
+            310
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            230,
+            160,
+            300,
+            1250
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-homework-hours-age",
+    "topic": "Education",
+    "type": "bar",
+    "body": "The bar chart below gives information about how much homework secondary school pupils in one country were set each week at each age from 11 to 17, in 2005, 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Weekly homework load by pupil age, 2005, 2015 and 2025",
+      "xLabel": "Age (years)",
+      "yLabel": "Homework (hours per week)",
+      "unit": "hours",
+      "categories": [
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17"
+      ],
+      "series": [
+        {
+          "name": "2005",
+          "values": [
+            3.0,
+            3.5,
+            4.5,
+            5.5,
+            7.0,
+            8.5,
+            7.5
+          ]
+        },
+        {
+          "name": "2015",
+          "values": [
+            4.0,
+            4.5,
+            5.5,
+            6.5,
+            8.0,
+            10.0,
+            8.5
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            3.5,
+            4.0,
+            5.0,
+            7.0,
+            9.5,
+            12.5,
+            9.0
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-second-language-adults",
+    "topic": "Language",
+    "type": "bar",
+    "body": "The bar chart below shows the proportion of adults who can hold a conversation in a second language, by age band, in one European country in 2010 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Adults who speak a second language, 2010 and 2024",
+      "xLabel": "Age group",
+      "yLabel": "Adults who speak a second language (%)",
+      "unit": "%",
+      "categories": [
+        "16–24",
+        "25–34",
+        "35–44",
+        "45–54",
+        "55–64",
+        "65 and over"
+      ],
+      "series": [
+        {
+          "name": "2010",
+          "values": [
+            58,
+            52,
+            41,
+            33,
+            24,
+            12
+          ]
+        },
+        {
+          "name": "2024",
+          "values": [
+            71,
+            64,
+            55,
+            46,
+            35,
+            18
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-science-degrees-sex",
+    "topic": "Science",
+    "type": "pie",
+    "body": "The pie charts below show how male and female students were distributed across five science subjects at one university in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Science degree students by sex and subject, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Male students",
+          "slices": [
+            {
+              "label": "Biology",
+              "value": 24
+            },
+            {
+              "label": "Chemistry",
+              "value": 19
+            },
+            {
+              "label": "Physics",
+              "value": 30
+            },
+            {
+              "label": "Mathematics",
+              "value": 14
+            },
+            {
+              "label": "Computer science",
+              "value": 13
+            }
+          ]
+        },
+        {
+          "name": "Female students",
+          "slices": [
+            {
+              "label": "Biology",
+              "value": 48
+            },
+            {
+              "label": "Chemistry",
+              "value": 24
+            },
+            {
+              "label": "Physics",
+              "value": 9
+            },
+            {
+              "label": "Mathematics",
+              "value": 12
+            },
+            {
+              "label": "Computer science",
+              "value": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-university-applicants-age",
+    "topic": "Education",
+    "type": "pie",
+    "body": "The pie charts below show how university applicants were divided between four age bands in 2010 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "University applicants by age band, 2010 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2010",
+          "slices": [
+            {
+              "label": "Under 20",
+              "value": 46
+            },
+            {
+              "label": "20–24",
+              "value": 31
+            },
+            {
+              "label": "25–29",
+              "value": 11
+            },
+            {
+              "label": "30 and over",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            {
+              "label": "Under 20",
+              "value": 38
+            },
+            {
+              "label": "20–24",
+              "value": 29
+            },
+            {
+              "label": "25–29",
+              "value": 14
+            },
+            {
+              "label": "30 and over",
+              "value": 19
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-online-course-completion",
+    "topic": "Education",
+    "type": "table",
+    "body": "The table below shows the number of enrolments, the completion rate and the average study time for online courses in seven subjects in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Online course enrolments, completion rates and study time by subject, 2024",
+      "columns": [
+        "Subject",
+        "Enrolments (thousands)",
+        "Completion rate (%)",
+        "Average study time (hours)"
+      ],
+      "rows": [
+        [
+          "Business and management",
+          530,
+          12.4,
+          38
+        ],
+        [
+          "Languages",
+          385,
+          9.1,
+          52
+        ],
+        [
+          "Computing",
+          412,
+          8.6,
+          61
+        ],
+        [
+          "Health and medicine",
+          210,
+          18.6,
+          33
+        ],
+        [
+          "Mathematics",
+          149,
+          4.9,
+          74
+        ],
+        [
+          "Engineering",
+          164,
+          11.8,
+          58
+        ],
+        [
+          "Arts and humanities",
+          176,
+          7.3,
+          29
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-school-meal-choices",
+    "topic": "Education",
+    "type": "table",
+    "body": "The table below gives information about how pupils eat their midday meal at school, by phase of education, in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "How pupils take their midday meal at school, by phase of education, 2025",
+      "columns": [
+        "Phase of education",
+        "School lunch (%)",
+        "Packed lunch (%)",
+        "No lunch (%)"
+      ],
+      "rows": [
+        [
+          "Primary",
+          74,
+          19,
+          7
+        ],
+        [
+          "Lower secondary",
+          52,
+          33,
+          15
+        ],
+        [
+          "Upper secondary",
+          31,
+          44,
+          25
+        ],
+        [
+          "Sixth form",
+          14,
+          51,
+          35
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-spending-per-pupil-regions",
+    "topic": "Education",
+    "type": "table",
+    "body": "The table below shows how much money each school student received in five regions of one country in 2025, and how primary funding has changed since 2015.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Public funding for each student in five regions, 2025",
+      "columns": [
+        "Region",
+        "Primary funding per student (£)",
+        "Secondary funding per student (£)",
+        "Change in primary funding since 2015 (%)"
+      ],
+      "rows": [
+        [
+          "Northern",
+          6240,
+          7410,
+          14.2
+        ],
+        [
+          "Southern",
+          7930,
+          8620,
+          5.1
+        ],
+        [
+          "Eastern",
+          6870,
+          7250,
+          3.6
+        ],
+        [
+          "Western",
+          6110,
+          6980,
+          9.7
+        ],
+        [
+          "Central",
+          6750,
+          7840,
+          8.4
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-school-budget-income-spending",
+    "topic": "Education",
+    "type": "mixed",
+    "body": "The charts below give information about where a secondary school gets its funding and how its expenditure is divided, in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Funding and expenditure at a secondary school, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Sources of income",
+          "slices": [
+            {
+              "label": "Government grants",
+              "value": 68
+            },
+            {
+              "label": "Parents' contributions",
+              "value": 14
+            },
+            {
+              "label": "Fundraising and donations",
+              "value": 9
+            },
+            {
+              "label": "Other income",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "name": "How the budget is spent",
+          "slices": [
+            {
+              "label": "Teachers' salaries",
+              "value": 56
+            },
+            {
+              "label": "Buildings and utilities",
+              "value": 19
+            },
+            {
+              "label": "Learning resources",
+              "value": 11
+            },
+            {
+              "label": "Support staff",
+              "value": 9
+            },
+            {
+              "label": "Other costs",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-learner-subjects-study-methods",
+    "topic": "Language",
+    "type": "mixed",
+    "body": "The charts below show the subjects chosen by adult learners of a foreign language and the ways in which they choose to study, in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Subjects chosen and study methods of adult language learners, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Subjects chosen",
+          "slices": [
+            {
+              "label": "Business English",
+              "value": 31
+            },
+            {
+              "label": "Conversation",
+              "value": 26
+            },
+            {
+              "label": "Exam preparation",
+              "value": 22
+            },
+            {
+              "label": "Culture and history",
+              "value": 11
+            },
+            {
+              "label": "Other subjects",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "name": "Study methods",
+          "slices": [
+            {
+              "label": "Self-study online",
+              "value": 38
+            },
+            {
+              "label": "Classes with a tutor",
+              "value": 27
+            },
+            {
+              "label": "Group classes",
+              "value": 21
+            },
+            {
+              "label": "Intensive residential courses",
+              "value": 14
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-pencil-manufacture",
+    "topic": "Education",
+    "type": "process",
+    "body": "The diagram below shows the stages in the manufacture of wooden pencils, from raw timber to the finished product.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Manufacture of wooden pencils",
+      "steps": [
+        "Cedar logs are sawn into long, thin planks",
+        "The planks are dried in kilns to remove moisture",
+        "Shallow grooves are cut along each plank",
+        "Graphite and clay are mixed and formed into thin rods",
+        "The rods are baked in an oven until they harden",
+        "Graphite rods are placed into the grooves",
+        "A second plank is glued on top to form a sandwich",
+        "The sandwich is cut into individual pencils and painted",
+        "The pencils are sharpened, packed and sent to retailers"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-research-article-publication",
+    "topic": "Science",
+    "type": "process",
+    "body": "The diagram below shows the stages a research article passes through, from submission to publication in a peer-reviewed journal.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Stages in publishing a research article in a peer-reviewed journal",
+      "steps": [
+        "Authors submit a manuscript to a journal",
+        "The editor checks whether the paper fits the journal's scope",
+        "Papers outside the scope are rejected without review",
+        "Suitable papers are sent to two or three referees",
+        "Referees read the paper and send written reports",
+        "The editor decides to accept, revise or reject",
+        "Papers needing changes return to the authors",
+        "Authors revise the paper and answer each comment",
+        "The revised version is checked again by referees",
+        "Accepted papers are copyedited and typeset",
+        "Authors check and approve the proofs",
+        "The article is published online and in print"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g03-primary-school-site-extension",
+    "topic": "Education",
+    "type": "map",
+    "body": "The maps below show a primary school site in 1995 and the same site today, after several buildings and facilities were added or moved.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Layout of a primary school site in 1995 and today",
+      "before": {
+        "label": "1995",
+        "features": [
+          "a playground to the north of the main building",
+          "a single-storey classroom block in the centre of the site",
+          "a vegetable garden behind the classroom block",
+          "a car park next to the main entrance on the west side",
+          "a grass sports field to the east of the site",
+          "a small library opposite the head teacher's office",
+          "a row of trees along the southern boundary"
+        ]
+      },
+      "after": {
+        "label": "Now",
+        "features": [
+          "a playground to the north of the main building",
+          "a single-storey classroom block in the centre of the site",
+          "a two-storey classroom block in the north-east corner",
+          "a car park next to the main entrance on the west side",
+          "a larger car park behind the new classroom block",
+          "an artificial pitch on the grass sports field to the east of the site",
+          "a sports hall to the south of the sports field",
+          "a computer room in place of the old library",
+          "a nursery garden along the southern boundary"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g03-farmland-science-park",
+    "topic": "Science",
+    "type": "map",
+    "body": "The plans below show a farm on the edge of a city in 2010 and the science park that replaced it by 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Farmland and a science park on the edge of a city, 2010 and 2025",
+      "before": {
+        "label": "2010",
+        "features": [
+          "a farmhouse beside the lane on the north side",
+          "three large fields to the west of the farm buildings",
+          "an orchard along the eastern edge of the site",
+          "a barn in the centre of the site next to the farmhouse",
+          "a small pond in the south-west corner",
+          "a gravel track running from the lane to the barn",
+          "a row of poplar trees along the southern boundary"
+        ]
+      },
+      "after": {
+        "label": "2025",
+        "features": [
+          "the farmhouse, now a visitor centre, beside the lane on the north side",
+          "a car park beside the main entrance on the north side",
+          "two large research laboratories across the western fields",
+          "a glass-fronted office block in the centre of the site",
+          "a conference hall between the office block and the orchard",
+          "an orchard along the eastern edge of the site",
+          "a small pond in the south-west corner",
+          "a tree-lined road running from the lane to the laboratories",
+          "a bus stop beside the main entrance"
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,522 @@
+[
+  {
+    "slug": "p2g10-photographer-eye",
+    "topic": "People",
+    "title": "Describe a person you know who is good at taking photographs.",
+    "bullets": [
+      "who this person is",
+      "how they first became interested in photography",
+      "what kinds of pictures they usually take"
+    ],
+    "explain": "and explain why their photographs stand out to you.",
+    "followUps": [
+      "Has this person ever taken a picture of you that you liked?"
+    ],
+    "p3Topics": [
+      "Photography as a hobby",
+      "Images in everyday life"
+    ],
+    "p3": [
+      "Which kinds of people are most likely to take up photography as a hobby?",
+      "In what ways do amateur photographers differ from professionals?",
+      "Why might so many people feel the urge to photograph ordinary moments?",
+      "Has the smartphone changed the way ordinary people record their lives?",
+      "To what extent do shared photos change the way people remember events?",
+      "Could photographs in future be replaced entirely by devices that record everything?"
+    ]
+  },
+  {
+    "slug": "p2g10-unusual-career",
+    "topic": "People",
+    "title": "Describe a person you know who has an unusual job.",
+    "bullets": [
+      "who this person is",
+      "what their work involves day to day",
+      "how they ended up doing this job"
+    ],
+    "explain": "and explain why you think this job suits them so well.",
+    "followUps": [
+      "Would you ever consider doing a job like this?"
+    ],
+    "p3Topics": [
+      "Unusual careers",
+      "Work and personal fulfilment"
+    ],
+    "p3": [
+      "Which jobs do people usually describe as unusual?",
+      "Who tends to react with surprise when someone chooses an unfamiliar career?",
+      "Why are some people more willing than others to take an unconventional path?",
+      "Is job security generally better in traditional careers than in unusual ones?",
+      "Does public respect for hard work depend on how conventional a job looks?",
+      "Are unconventional careers likely to become more common as work changes?"
+    ]
+  },
+  {
+    "slug": "p2g10-rooted-in-one-place",
+    "topic": "People",
+    "title": "Describe a person who has lived in the same place all their life.",
+    "bullets": [
+      "who this person is",
+      "where they live",
+      "what the area has been like over the years"
+    ],
+    "explain": "and explain whether you think this is a good way to live.",
+    "followUps": [
+      "Do you know anyone else who has never moved away from home?"
+    ],
+    "p3Topics": [
+      "Staying put in a mobile world",
+      "Community and belonging"
+    ],
+    "p3": [
+      "What advantages could a person gain from knowing one community well?",
+      "In what ways do attitudes to moving house differ between towns and cities?",
+      "Why is it harder for some people to leave the place where they grew up?",
+      "What effect does it have on local character when a population stays put?",
+      "Will remote working make it more common for people to stay in one place?",
+      "Do stable neighbourhoods tend to have stronger ties between neighbours?"
+    ]
+  },
+  {
+    "slug": "p2g10-evening-haunts",
+    "topic": "Places",
+    "title": "Describe a place where you like to go in the evening.",
+    "bullets": [
+      "where this place is",
+      "what you usually do there",
+      "who you normally go with"
+    ],
+    "explain": "and explain why you enjoy spending time there at that hour.",
+    "followUps": [
+      "Do you go there more in the summer or in the winter?"
+    ],
+    "p3Topics": [
+      "Evening leisure",
+      "Night life in towns"
+    ],
+    "p3": [
+      "Which kinds of places are busiest in towns once the working day is over?",
+      "Where do young adults and retired people tend to spend their evenings?",
+      "Why would many people rather relax outdoors once the sun has gone down?",
+      "Has the evening economy grown much in towns over the last few decades?",
+      "What effect does late-night noise have on people who live near busy areas?",
+      "Could shops and cafes in future keep longer opening hours as a matter of course?"
+    ]
+  },
+  {
+    "slug": "p2g10-night-under-stars",
+    "topic": "Places",
+    "title": "Describe a place where you stayed outdoors overnight.",
+    "bullets": [
+      "where this place was",
+      "how you ended up sleeping outside",
+      "what the night was like"
+    ],
+    "explain": "and explain what you remember most about that night.",
+    "followUps": [
+      "Would you like to try it again?"
+    ],
+    "p3Topics": [
+      "Camping and the outdoors",
+      "Access to nature"
+    ],
+    "p3": [
+      "Which items do people most often pack when they plan a night outdoors?",
+      "Are camping holidays usually cheaper than hotel stays for families?",
+      "Why do some people find it hard to sleep away from their own bed?",
+      "What benefits do communities gain from nature areas that the public can visit?",
+      "How has the popularity of outdoor holidays grown as life has moved online?",
+      "Will wild places be protected well enough to stay open to visitors?"
+    ]
+  },
+  {
+    "slug": "p2g10-changing-skyline",
+    "topic": "Places",
+    "title": "Describe a place you think will look very different in twenty years.",
+    "bullets": [
+      "where this place is",
+      "what it looks like at the moment",
+      "what changes you expect to see"
+    ],
+    "explain": "and explain why you think it will change so much.",
+    "followUps": [
+      "Do you think the change will be a good thing?"
+    ],
+    "p3Topics": [
+      "Changing cities",
+      "Planning for the future"
+    ],
+    "p3": [
+      "Which kinds of change are most common in towns that are growing quickly?",
+      "Do new buildings usually harm the character of an older neighbourhood?",
+      "Why do some historic areas survive development while others are rebuilt?",
+      "On what basis do councils decide which old buildings to protect?",
+      "Will cities one day be planned around walking rather than around cars?",
+      "How much do rising temperatures affect the design of city streets?"
+    ]
+  },
+  {
+    "slug": "p2g10-exported-favourite",
+    "topic": "Objects",
+    "title": "Describe a product made in your country that is popular abroad.",
+    "bullets": [
+      "what the product is",
+      "how it is made",
+      "what people abroad like about it"
+    ],
+    "explain": "and explain how this product came to be known internationally.",
+    "followUps": [
+      "Have you ever bought this product when you were overseas?"
+    ],
+    "p3Topics": [
+      "Exporting national products",
+      "Global tastes and local identity"
+    ],
+    "p3": [
+      "What types of goods do countries export most often to the rest of the world?",
+      "Can small producers compete with large companies when they sell abroad?",
+      "Why do some local products become global favourites while others stay at home?",
+      "What risks does a traditional product face when it is changed for foreign buyers?",
+      "To what degree do export industries shape how other countries see a nation?",
+      "Will global brands make local products less distinctive over time?"
+    ]
+  },
+  {
+    "slug": "p2g10-confusing-notice",
+    "topic": "Objects",
+    "title": "Describe a sign or notice you saw that you did not understand at first.",
+    "bullets": [
+      "where you saw it",
+      "what it said",
+      "how you eventually worked out its meaning"
+    ],
+    "explain": "and explain why it confused you so much.",
+    "followUps": [
+      "Do signs like that still catch you out now?"
+    ],
+    "p3Topics": [
+      "Public signs",
+      "Clear communication"
+    ],
+    "p3": [
+      "Which signs are most common in busy places such as stations and airports?",
+      "How well do symbols help people who do not speak the local language?",
+      "Why are some notices worded so confusingly when a simpler message would do?",
+      "Do road signs differ much from one country to another in the way they communicate?",
+      "Might printed signs in future give way to directions on people's phones?",
+      "What effect does a badly designed sign have on the people who rely on it?"
+    ]
+  },
+  {
+    "slug": "p2g10-comfort-cushion",
+    "topic": "Objects",
+    "title": "Describe a blanket, cushion or pillow that is special to you.",
+    "bullets": [
+      "what it is",
+      "where it came from",
+      "how often you use it"
+    ],
+    "explain": "and explain why it means so much to you.",
+    "followUps": [
+      "Do you take it with you when you travel?"
+    ],
+    "p3Topics": [
+      "Comfort and everyday objects",
+      "Home textiles and fashion"
+    ],
+    "p3": [
+      "What sorts of household objects do people keep mainly for comfort?",
+      "How do soft furnishings today differ from those of earlier generations?",
+      "Why does an ordinary object sometimes gain emotional value over the years?",
+      "Which features separate cheap household textiles from well-made ones?",
+      "How has the design of home interiors shifted as people spend more time indoors?",
+      "Will people in future buy fewer household items and keep them longer?"
+    ]
+  },
+  {
+    "slug": "p2g10-fireworks-night",
+    "topic": "Events",
+    "title": "Describe a fireworks display you watched.",
+    "bullets": [
+      "when and where it took place",
+      "who you watched it with",
+      "what the fireworks looked like"
+    ],
+    "explain": "and explain how the display made you feel.",
+    "followUps": [
+      "Do fireworks still excite you as much as they used to?"
+    ],
+    "p3Topics": [
+      "Fireworks and public events",
+      "Noise and spectacle"
+    ],
+    "p3": [
+      "Which public events usually include fireworks as part of the programme?",
+      "How do local authorities decide whether a big display is worth its cost?",
+      "Why do so many people enjoy watching things that are both bright and loud?",
+      "Is a large public display more of a shared experience than a private one?",
+      "Will public firework shows survive if towns turn to quieter, light-based displays?",
+      "What effect do loud celebrations have on animals and on people who dislike noise?"
+    ]
+  },
+  {
+    "slug": "p2g10-street-show",
+    "topic": "Events",
+    "title": "Describe a street performance you stopped to watch.",
+    "bullets": [
+      "what the performer did",
+      "where it happened",
+      "how the audience reacted"
+    ],
+    "explain": "and explain why you decided to stop and watch.",
+    "followUps": [
+      "Do you usually give money to street performers?"
+    ],
+    "p3Topics": [
+      "Street culture and public spaces",
+      "Art in everyday life"
+    ],
+    "p3": [
+      "Who gains more from street performers, the performers or the shops nearby?",
+      "In what ways do public spaces shape the kinds of art people see each day?",
+      "Why are some passers-by drawn to a performance while others walk on?",
+      "What are the main arguments for and against letting performers work in busy centres?",
+      "Could digital entertainment change the place of live performance in public life?",
+      "Does a lively street scene make a city feel safer, or just busier?"
+    ]
+  },
+  {
+    "slug": "p2g10-family-roots",
+    "topic": "Experiences",
+    "title": "Describe a time when you learned something about your family history.",
+    "bullets": [
+      "what you found out",
+      "how you came to find it out",
+      "who you told about it afterwards"
+    ],
+    "explain": "and explain how this changed the way you see your relatives.",
+    "followUps": [
+      "Has anyone else in your family shown an interest in this?"
+    ],
+    "p3Topics": [
+      "Family stories",
+      "Tracing ancestors"
+    ],
+    "p3": [
+      "What are people usually hoping to discover when they research their ancestry?",
+      "Which sources, such as old letters and photographs, help families rebuild the past?",
+      "Why do some families keep careful records while others lose their history?",
+      "Has the internet made it easier for ordinary people to research their ancestors?",
+      "What effect does knowing about one's ancestors have on a sense of identity?",
+      "Will the next generation still care about family history, or will interest fade?"
+    ]
+  },
+  {
+    "slug": "p2g10-too-many-options",
+    "topic": "Experiences",
+    "title": "Describe a time when you had too many choices.",
+    "bullets": [
+      "what there was to choose from",
+      "where you were at the time",
+      "how you finally made your decision"
+    ],
+    "explain": "and explain whether having so many options made the decision easier.",
+    "followUps": [
+      "Do you prefer having a small range of things to pick from?"
+    ],
+    "p3Topics": [
+      "Choice in modern life",
+      "Abundance and decisions"
+    ],
+    "p3": [
+      "Which decisions do people in modern societies find hardest to make?",
+      "How well do shops and websites present choice to their customers?",
+      "Why might fewer options leave some people more satisfied than more?",
+      "What costs come with living in a society where almost everything is available?",
+      "Might people in future leave routine choices to software?",
+      "Has streaming changed the way families choose how to spend their evenings?"
+    ]
+  },
+  {
+    "slug": "p2g10-brush-with-fame",
+    "topic": "Experiences",
+    "title": "Describe an occasion when you met or saw someone famous.",
+    "bullets": [
+      "who the person was",
+      "where you saw them",
+      "how you felt at the time"
+    ],
+    "explain": "and explain why that brief encounter has stayed in your memory.",
+    "followUps": [
+      "Did you tell many people about it afterwards?"
+    ],
+    "p3Topics": [
+      "Fame and public attention",
+      "Celebrity and ordinary people"
+    ],
+    "p3": [
+      "Which kinds of people does the public most often regard as famous?",
+      "Are film stars more influential over young people than sports champions?",
+      "Why are ordinary people so curious about the private lives of celebrities?",
+      "What effect does constant media attention have on those who are followed by it?",
+      "How has social media altered the routes by which people become famous?",
+      "Is it fair that someone can become famous without any special talent?"
+    ]
+  },
+  {
+    "slug": "p2g10-friends-weekend-away",
+    "topic": "Experiences",
+    "title": "Describe a weekend away with friends.",
+    "bullets": [
+      "where you went",
+      "how you travelled and where you stayed",
+      "what you did together"
+    ],
+    "explain": "and explain how the effort of planning it compared with the enjoyment of the trip.",
+    "followUps": [
+      "Do you think you will go away with the same friends again?"
+    ],
+    "p3Topics": [
+      "Group travel and friendship",
+      "Short breaks and their value"
+    ],
+    "p3": [
+      "Which group activities help friends feel closer to one another?",
+      "Can short breaks replace longer holidays for people with demanding jobs?",
+      "Why do some groups find it harder than others to agree on plans?",
+      "What pressures stop many young adults from taking short trips?",
+      "In what way has cheap air travel changed how people spend free weekends?",
+      "Will short trips become a bigger part of how people relax in future?"
+    ]
+  },
+  {
+    "slug": "p2g10-shared-pastime",
+    "topic": "Activities",
+    "title": "Describe an activity you did with a friend that you both enjoyed.",
+    "bullets": [
+      "what the activity was",
+      "when you did it",
+      "what each of you contributed"
+    ],
+    "explain": "and explain how the activity brought you closer together.",
+    "followUps": [
+      "Do you still do this activity together?"
+    ],
+    "p3Topics": [
+      "Doing things together",
+      "Shared hobbies"
+    ],
+    "p3": [
+      "What kinds of activity do friends usually choose to share?",
+      "Are shared hobbies a stronger basis for friendship than long conversations?",
+      "Why do some friendships last for decades while others quickly fade?",
+      "What benefits come from a hobby that involves other people?",
+      "Will people in future have to work harder to meet friends in person?",
+      "How have clubs and group sports adjusted to more people working from home?"
+    ]
+  },
+  {
+    "slug": "p2g10-prized-collection",
+    "topic": "Activities",
+    "title": "Describe a collection you have or would like to start.",
+    "bullets": [
+      "what the collection is or would be",
+      "how you got started",
+      "what makes it interesting to you"
+    ],
+    "explain": "and explain why you do or would enjoy collecting these things.",
+    "followUps": [
+      "Do you know anyone who collects something unusual?"
+    ],
+    "p3Topics": [
+      "Collecting as a pastime",
+      "Value and meaning of possessions"
+    ],
+    "p3": [
+      "Which objects do people most often choose to collect?",
+      "On what basis do collectors judge whether an item is worth buying?",
+      "Why would some people find a complete set so satisfying?",
+      "Which risks come with treating a collection as an investment?",
+      "Has online trading changed the market for collectable things?",
+      "Will physical collections still matter when so much is kept online?"
+    ]
+  },
+  {
+    "slug": "p2g10-mood-lifter",
+    "topic": "Activities",
+    "title": "Describe an activity that puts you in a good mood.",
+    "bullets": [
+      "what the activity is",
+      "how often you do it",
+      "who you usually do it with"
+    ],
+    "explain": "and explain how it affects the rest of your day.",
+    "followUps": [
+      "Is there something you do to cheer yourself up on a dull day?"
+    ],
+    "p3Topics": [
+      "Leisure and wellbeing",
+      "Mood and public life"
+    ],
+    "p3": [
+      "Which leisure activities do people turn to when they want cheering up?",
+      "Do different age groups relax in very different ways?",
+      "Why are so many people happier after time spent outdoors?",
+      "What wider benefits do communities gain when they have good places to relax?",
+      "Will people in future spend more of their time on leisure than on paid work?",
+      "How has the balance between work and leisure shifted over a generation?"
+    ]
+  },
+  {
+    "slug": "p2g10-quiz-show-tv",
+    "topic": "Media",
+    "title": "Describe a quiz or game show on television.",
+    "bullets": [
+      "what the show is called",
+      "how the programme is organised",
+      "what makes it entertaining to watch"
+    ],
+    "explain": "and explain why it is or is not a good way to test people's knowledge.",
+    "followUps": [
+      "Do you ever try to answer the questions at home?"
+    ],
+    "p3Topics": [
+      "Television and public knowledge",
+      "Entertainment that tests people"
+    ],
+    "p3": [
+      "What kinds of knowledge do popular quiz programmes tend to test?",
+      "How does a quiz show compare with a documentary as a way of learning?",
+      "Why would audiences enjoy watching ordinary people compete for prizes?",
+      "What dangers come with judging people's intelligence through entertainment?",
+      "Do families still gather in one room to watch the same programme?",
+      "Could quizzes on phones eventually draw viewers away from television shows?"
+    ]
+  },
+  {
+    "slug": "p2g10-disappointing-film",
+    "topic": "Media",
+    "title": "Describe a film you did not enjoy.",
+    "bullets": [
+      "what the film was about",
+      "when and where you watched it",
+      "what put you off"
+    ],
+    "explain": "and explain why it disappointed you.",
+    "followUps": [
+      "Do you usually finish a film if you start to dislike it?"
+    ],
+    "p3Topics": [
+      "Films and audiences",
+      "Film and personal taste"
+    ],
+    "p3": [
+      "Which kinds of films are most popular with young people today?",
+      "Do cinemas attract audiences in a different way from home streaming?",
+      "How can a film win praise from critics yet leave ordinary viewers cold?",
+      "What makes a film stay in people's memories long after they have seen it?",
+      "Has the way films are made changed much over the last fifty years?",
+      "Will the cinema remain a popular night out for families?"
+    ]
+  }
+]

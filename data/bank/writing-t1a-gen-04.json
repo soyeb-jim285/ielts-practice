@@ -1,0 +1,441 @@
+[
+  {
+    "slug": "t1a-g04-pool-visits-season",
+    "topic": "Leisure",
+    "type": "line",
+    "body": "The line graph below gives information about the number of visits to an indoor and an outdoor public swimming pool in one town in 2023, recorded every two months.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Public swimming pool visits every two months, 2023",
+      "xLabel": "Month",
+      "yLabel": "Visits (thousands)",
+      "unit": "thousands",
+      "categories": ["January", "March", "May", "July", "September", "November"],
+      "series": [
+        { "name": "Indoor pool", "values": [11.2, 10.8, 11.5, 10.1, 11.9, 12.4] },
+        { "name": "Outdoor pool", "values": [1.1, 2.3, 4.8, 9.6, 5.2, 0.9] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-sleep-hours-age",
+    "topic": "Health",
+    "type": "bar",
+    "body": "The bar chart below shows how many hours adults in five age bands slept each night in one country in 2014 and in 2024, based on a national sleep survey.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Nightly sleep by age band, 2014 and 2024",
+      "xLabel": "Age band",
+      "yLabel": "Sleep (hours per night)",
+      "unit": "hours",
+      "categories": ["18–24", "25–34", "35–49", "50–64", "65 and over"],
+      "series": [
+        { "name": "2014", "values": [7.6, 7.3, 6.9, 6.7, 7.2] },
+        { "name": "2024", "values": [6.8, 6.6, 6.3, 6.5, 7.5] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-child-tooth-decay",
+    "topic": "Health",
+    "type": "bar",
+    "body": "The bar chart below gives information about the proportion of five-year-old children with tooth decay in six regions of one country in 2012 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Five-year-olds with tooth decay by region, 2012 and 2022",
+      "xLabel": "Region",
+      "yLabel": "Children with tooth decay (%)",
+      "unit": "%",
+      "categories": ["North", "South", "East", "West", "Capital", "Islands"],
+      "series": [
+        { "name": "2012", "values": [34, 22, 29, 18, 26, 38] },
+        { "name": "2022", "values": [27, 18, 31, 12, 16, 33] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-cycling-exercise-commuting",
+    "topic": "Sport",
+    "type": "line",
+    "body": "The line graph below shows the percentage of adults in one city who cycled at least once a week, by reason, between 2005 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Weekly cycling among adults by reason, 2005–2025",
+      "xLabel": "Year",
+      "yLabel": "Adults cycling at least weekly (%)",
+      "unit": "%",
+      "categories": ["2005", "2010", "2015", "2020", "2025"],
+      "series": [
+        { "name": "For exercise", "values": [9, 12, 17, 21, 19] },
+        { "name": "To work or college", "values": [14, 13, 14, 18, 22] },
+        { "name": "For errands and visits", "values": [6, 5, 5, 6, 7] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-marathon-finishers-age",
+    "topic": "Sport",
+    "type": "bar",
+    "body": "The bar chart below gives information about the share of finishers in each age band of one city marathon in 2005, 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Marathon finishers by age band, 2005, 2015 and 2025",
+      "xLabel": "Age band",
+      "yLabel": "Share of finishers (%)",
+      "unit": "%",
+      "categories": ["Under 25", "25–34", "35–44", "45–54", "55–64", "65 and over"],
+      "series": [
+        { "name": "2005", "values": [14, 26, 27, 19, 9, 5] },
+        { "name": "2015", "values": [9, 21, 24, 24, 15, 7] },
+        { "name": "2025", "values": [6, 15, 18, 25, 23, 13] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-daily-steps-occupation",
+    "topic": "Health",
+    "type": "bar",
+    "body": "The bar chart below shows the average number of steps taken each day by men and by women in six occupations in one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average daily steps by occupation and sex, 2024",
+      "xLabel": "Occupation",
+      "yLabel": "Average steps per day (thousands)",
+      "unit": "thousands",
+      "categories": ["Office workers", "Teachers", "Nurses", "Retail staff", "Construction workers", "Retired people"],
+      "series": [
+        { "name": "Men", "values": [5.1, 7.9, 9.8, 9.1, 10.5, 6.2] },
+        { "name": "Women", "values": [4.8, 8.4, 10.2, 8.7, 7.6, 5.6] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-clinic-treatment-mix",
+    "topic": "Sport",
+    "type": "pie",
+    "body": "The pie charts below show the types of injury treated at a sports injury clinic in one city in 2019 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Injuries treated at a sports clinic by type, 2019 and 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2019",
+          "slices": [
+            { "label": "Sprains and strains", "value": 34 },
+            { "label": "Muscle tears", "value": 22 },
+            { "label": "Fractures", "value": 9 },
+            { "label": "Tendon injuries", "value": 12 },
+            { "label": "Overuse injuries", "value": 17 },
+            { "label": "Other", "value": 6 }
+          ]
+        },
+        {
+          "name": "2024",
+          "slices": [
+            { "label": "Sprains and strains", "value": 28 },
+            { "label": "Muscle tears", "value": 19 },
+            { "label": "Fractures", "value": 8 },
+            { "label": "Tendon injuries", "value": 11 },
+            { "label": "Overuse injuries", "value": 26 },
+            { "label": "Other", "value": 8 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-tennis-ball-manufacture",
+    "topic": "Sport",
+    "type": "process",
+    "body": "The diagram below shows how tennis balls are manufactured in a factory, from the mixing of rubber to the packing of the finished product.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Manufacture of tennis balls",
+      "steps": [
+        "Rubber compound is mixed with other materials in an industrial mixer",
+        "The mixture is pressed into thin sheets",
+        "The sheets are cut into strips and placed in moulds",
+        "The moulds are heated to form two hollow rubber halves",
+        "The halves are joined and the core is pressurised with gas",
+        "Two curved pieces of felt are glued onto the core",
+        "The covered balls are pressed in a machine to shape the seam",
+        "Balls are checked for size, weight and bounce",
+        "Approved balls are sealed in pressurised tubes of three"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-donated-blood-processing",
+    "topic": "Health",
+    "type": "process",
+    "body": "The diagram below shows the process by which donated blood is tested, separated and stored before it is issued to hospitals.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Processing and storage of donated blood",
+      "steps": [
+        "Whole blood is collected from donors in sterile bags containing an anticoagulant",
+        "Each bag is given a unique code and a small sample is taken for testing",
+        "Samples are screened in a laboratory for infections and blood group",
+        "Bags that fail screening are discarded and the donor is informed",
+        "Approved blood is spun in a centrifuge to separate its components",
+        "Red cells, plasma and platelets are transferred into separate bags",
+        "Empty bags and used tubing are sent for recycling",
+        "Plasma is frozen within hours to preserve its clotting factors",
+        "Platelets are stored at room temperature and gently agitated",
+        "Red cells are chilled and kept in refrigerators for up to 42 days",
+        "Components that fail the final quality check are returned for re-testing",
+        "Released components are issued to hospitals on request"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-stadium-area-tournament",
+    "topic": "Sport",
+    "type": "map",
+    "body": "The maps below show the area around a stadium in 2005 and in 2016, after the city hosted a major sports tournament.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Area around a stadium, 2005–2016",
+      "before": {
+        "label": "2005",
+        "features": [
+          "Old stadium in the centre of the site, with a small main stand",
+          "Railway station to the west, linked by a footpath",
+          "Open car park to the north, next to the river",
+          "Derelict warehouses along the eastern edge",
+          "Playing fields to the south, used by local schools",
+          "Single bus stop on the main road to the south"
+        ]
+      },
+      "after": {
+        "label": "2016",
+        "features": [
+          "Stadium in the centre rebuilt with a larger main stand and a roof",
+          "Railway station to the west, with a new platform added",
+          "Open car park to the north replaced by a six-storey car park",
+          "Derelict warehouses on the east demolished and replaced by a hotel",
+          "Playing fields to the south converted into a fan zone with screens",
+          "Bus stop moved off the main road to a new access road in the north-east corner",
+          "New footbridge over the river linking the stadium to housing on the north bank",
+          "Tram stop added next to the main entrance on the western side",
+          "The main road to the south still forms the boundary of the site"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g04-seafront-promenade-redesign",
+    "topic": "Leisure",
+    "type": "map",
+    "body": "The plans below show a seafront promenade as it is now and as it is planned to look after a redesign with cycle lanes and play areas.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Seafront promenade: current layout and planned redesign",
+      "before": {
+        "label": "Now",
+        "features": [
+          "Promenade runs along the whole seafront, with a single footpath",
+          "Pier at the centre of the seafront, with a café at its end",
+          "Car park at the western end, next to the lifeboat station",
+          "Two-lane road along the seafront, used by cars and buses",
+          "Public toilets beside the pier",
+          "Bandstand on the grass between the pier and the eastern end",
+          "Children's playground at the eastern end, next to the beach café",
+          "Ice-cream kiosk at the western end, near the car park",
+          "Benches along the sea side of the footpath",
+          "Beach café beside the eastern playground"
+        ]
+      },
+      "after": {
+        "label": "Planned",
+        "features": [
+          "Promenade still runs along the whole seafront, now six metres wide",
+          "Café at the end of the pier replaced by a kiosk",
+          "Car park at the western end reduced and moved inland, behind the lifeboat station",
+          "Two-lane road along the seafront reduced to one lane for buses",
+          "Separate two-way cycle lane added along the sea side",
+          "Public toilets beside the pier demolished and rebuilt to the west",
+          "Children's playground at the eastern end enlarged with a water play area",
+          "Bandstand removed to make room for the cycle lane",
+          "New skate park added on the former bandstand site",
+          "Ice-cream kiosk at the western end moved to the foot of the pier",
+          "New trees planted along the landward side of the footpath",
+          "Beach café beside the eastern playground, in the same position"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g04-sports-club-members",
+    "topic": "Sport",
+    "type": "pie",
+    "body": "The charts below give information about the main reasons members joined a community sports club and how often they attend.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Members of a community sports club, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Reasons for joining",
+          "slices": [
+            { "label": "Health and fitness", "value": 38 },
+            { "label": "Making friends", "value": 24 },
+            { "label": "Competition", "value": 13 },
+            { "label": "Coaching and skills", "value": 15 },
+            { "label": "Family activities", "value": 10 }
+          ]
+        },
+        {
+          "name": "How often members attend",
+          "slices": [
+            { "label": "Several times a week", "value": 29 },
+            { "label": "Once a week", "value": 41 },
+            { "label": "Two or three times a month", "value": 18 },
+            { "label": "Less often", "value": 12 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-injury-causes-locations",
+    "topic": "Sport",
+    "type": "pie",
+    "body": "The two charts below show the causes of injuries reported at community leisure centres in 2024 and where those injuries happened.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Injuries reported at community leisure centres, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Causes of injury",
+          "slices": [
+            { "label": "Falls", "value": 31 },
+            { "label": "Collisions with other players", "value": 22 },
+            { "label": "Overuse", "value": 19 },
+            { "label": "Equipment failure", "value": 8 },
+            { "label": "Other causes", "value": 20 }
+          ]
+        },
+        {
+          "name": "Where injuries happened",
+          "slices": [
+            { "label": "Outdoor pitch", "value": 34 },
+            { "label": "Gym", "value": 21 },
+            { "label": "Swimming pool", "value": 9 },
+            { "label": "Changing rooms and car park", "value": 17 },
+            { "label": "Other places", "value": 19 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-fruit-veg-sources",
+    "topic": "Health",
+    "type": "pie",
+    "body": "The charts below give information about where adults in one country get their fruit and vegetables and how many portions they eat each day in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Fruit and vegetable sources and daily portions, 2023",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Where adults get their fruit and vegetables",
+          "slices": [
+            { "label": "Supermarkets", "value": 58 },
+            { "label": "Greengrocers and markets", "value": 12 },
+            { "label": "Grown at home", "value": 9 },
+            { "label": "Restaurants and takeaways", "value": 11 },
+            { "label": "Other sources", "value": 10 }
+          ]
+        },
+        {
+          "name": "Portions eaten each day",
+          "slices": [
+            { "label": "Under 2 portions", "value": 38 },
+            { "label": "2 to 4 portions", "value": 45 },
+            { "label": "5 or more portions", "value": 17 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-family-doctor-visits",
+    "topic": "Health",
+    "type": "table",
+    "body": "The table below shows how often people in five age groups visited a family doctor in one country in 2024, and how long they waited for an appointment.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Family doctor visits and waiting times by age group, 2024",
+      "columns": [
+        "Age group",
+        "Average visits per year (number)",
+        "Patients with four or more visits (%)",
+        "Average wait for an appointment (days)"
+      ],
+      "rows": [
+        ["Under 18", 4.8, 19, 2.5],
+        ["18–34", 2.9, 7, 4.1],
+        ["35–54", 3.4, 11, 3.6],
+        ["55–74", 5.1, 24, 5.3],
+        ["75 and over", 7.6, 41, 6.8]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-hip-surgery-waits",
+    "topic": "Health",
+    "type": "line",
+    "body": "The line graph below shows the average waiting time for a hip replacement operation in four regions of one country between 2014 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average wait for hip replacement by region, 2014–2024",
+      "xLabel": "Year",
+      "yLabel": "Average waiting time (weeks)",
+      "unit": "weeks",
+      "categories": ["2014", "2016", "2018", "2020", "2022", "2024"],
+      "series": [
+        { "name": "North", "values": [16, 19, 24, 33, 29, 25] },
+        { "name": "Coastal", "values": [21, 20, 17, 25, 28, 30] },
+        { "name": "Capital", "values": [12, 13, 13, 22, 18, 15] },
+        { "name": "Inland towns", "values": [18, 17, 15, 20, 17, 16] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g04-outdoor-activities-season",
+    "topic": "Leisure",
+    "type": "pie",
+    "body": "The charts below show the main outdoor activities adults in one town chose in summer and in winter in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Main outdoor activities by season, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Summer",
+          "slices": [
+            { "label": "Walking", "value": 36 },
+            { "label": "Cycling", "value": 24 },
+            { "label": "Running", "value": 13 },
+            { "label": "Water sports", "value": 19 },
+            { "label": "Team sports", "value": 8 }
+          ]
+        },
+        {
+          "name": "Winter",
+          "slices": [
+            { "label": "Walking", "value": 49 },
+            { "label": "Cycling", "value": 12 },
+            { "label": "Running", "value": 22 },
+            { "label": "Water sports", "value": 4 },
+            { "label": "Team sports", "value": 13 }
+          ]
+        }
+      ]
+    }
+  }
+]

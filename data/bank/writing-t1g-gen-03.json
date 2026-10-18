@@ -1,0 +1,189 @@
+[
+  {
+    "slug": "t1g-g03-agency-deposit-deductions",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "You rented a flat through a letting agency for two years and moved out in June. The agency has kept £650 of your £900 deposit, saying that the carpets and kitchen needed professional cleaning. You left both in good condition and took photographs on the day you handed back the keys, but the agency has not sent an inspection report or an itemised list of costs.\n\nWrite a letter to the manager of the letting agency.",
+    "bullets": [
+      "request a written, itemised list of every deduction",
+      "explain why the flat was left in good condition",
+      "say when you expect the remaining deposit to be returned"
+    ]
+  },
+  {
+    "slug": "t1g-g03-lift-repair-delay",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "The lift in your block of flats has been out of order for three weeks. The housing association told residents that a replacement part was on order, but no date has been given for the repair. An elderly resident on the top floor has been unable to leave her flat, and families with pushchairs have been carrying their shopping up the stairs.\n\nWrite a letter to the repairs manager of the housing association.",
+    "bullets": [
+      "say how many residents have complained about the lift so far",
+      "give the dates on which the fault was reported and the replies you received",
+      "propose a temporary arrangement until the lift has been repaired"
+    ]
+  },
+  {
+    "slug": "t1g-g03-removal-company-breakages",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "A removal company moved your belongings to your new flat last Friday. When you unpacked on Saturday, you found that a wooden dining table had a broken leg and that the glass in a bookcase was cracked. The driver had signed the delivery sheet as undamaged, and the company's helpline has told you that the problem should have been reported on the day.\n\nWrite a letter to the customer services manager of the removal company.",
+    "bullets": [
+      "tell them which other items you have found damaged since unpacking",
+      "explain why you could not check everything at the time of delivery",
+      "say how much compensation you are asking for"
+    ]
+  },
+  {
+    "slug": "t1g-g03-housing-association-mould",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "You have lived in a housing association flat for four years. In March you reported black mould on the bathroom ceiling and behind the bedroom wardrobe, and an operative painted over the patches. Within a month the mould had returned and had spread to the corner of the living room. You have been coughing at night, and your young son has had a cold for several weeks.\n\nWrite a letter to the area manager of the housing association.",
+    "bullets": [
+      "give the dates of each report and the repairs the operative carried out",
+      "say whether you have seen a doctor about your coughing and your son's cold",
+      "request a full inspection and a permanent repair"
+    ]
+  },
+  {
+    "slug": "t1g-g03-basement-cycle-storage",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "Residents in your block of flats have nowhere safe to keep bicycles, so many are left in the entrance hall, where they block the way to the stairs. A storage room in the basement has stood empty since the building's boiler was replaced. The building's insurers have warned that the hallway must be kept clear.\n\nWrite a letter to the managing agent of the building.",
+    "bullets": [
+      "propose a way of turning the basement room into secure cycle storage",
+      "explain why simply banning bicycles from the hallway would not work",
+      "suggest how residents could contribute to the cost"
+    ]
+  },
+  {
+    "slug": "t1g-g03-viewing-agent-no-show",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "You arranged a viewing of a two-bedroom flat through an estate agency. The negotiator arrived forty minutes late, did not show you the second bedroom, and then did not return two phone calls about the property. You had taken the afternoon off work to attend.\n\nWrite a letter to the branch manager of the estate agency.",
+    "bullets": [
+      "give the date you arranged the viewing and the dates of your two calls",
+      "explain how the delay affected your plans",
+      "ask for a different negotiator to handle your enquiry"
+    ]
+  },
+  {
+    "slug": "t1g-g03-site-hours-dust-complaint",
+    "topic": "Housing",
+    "type": "letter-formal",
+    "body": "A property company has started building flats on the site next to your home. Work begins at 7 am on weekdays and on some Saturdays, and the drilling and lorries have made it hard to work from home. Dust settles on your windows and washing, and the company's leaflet promised that work would finish by 5 pm.\n\nWrite a letter to the project manager of the property company.",
+    "bullets": [
+      "say how many weeks the work is expected to last",
+      "explain why the early start is unreasonable",
+      "request a change to working hours and a dust control plan"
+    ]
+  },
+  {
+    "slug": "t1g-g03-living-room-redecorating",
+    "topic": "Housing",
+    "type": "letter-semi",
+    "body": "You have rented your flat for three years and have always paid on time. The paint in the living room has faded badly, and the bathroom door no longer closes properly. Your landlord has not visited since you moved in, and you would like the flat to look and feel well cared for.\n\nWrite a letter to your landlord.",
+    "bullets": [
+      "say whether you have reported these problems before",
+      "ask whether the landlord would be willing to repaint the room",
+      "offer to pay for half of the cost of the work"
+    ]
+  },
+  {
+    "slug": "t1g-g03-rent-rise-negotiation",
+    "topic": "Housing",
+    "type": "letter-semi",
+    "body": "Your landlord has written to say that your rent will rise by 12 per cent from next month. You have paid on time for four years and kept the flat in excellent condition, and the increase is more than you can comfortably afford on your current salary. The letter gave no reason for the change.\n\nWrite a letter to your landlord.",
+    "bullets": [
+      "ask for the reasons behind the increase, which the letter did not give",
+      "remind your landlord of your record as a tenant",
+      "propose a smaller increase or a longer agreement"
+    ]
+  },
+  {
+    "slug": "t1g-g03-storm-broken-window",
+    "topic": "Housing",
+    "type": "letter-semi",
+    "body": "During last night's storm a loose satellite dish blew off the roof of your building and struck your bedroom window, cracking the glass. Rain has blown into the room, and a towel is holding the frame in place. You phoned the letting office this morning, but you were told that a repairer would not be sent until after the weekend.\n\nWrite a letter to your landlord.",
+    "bullets": [
+      "say whether anyone was hurt when the glass cracked",
+      "give the time of your phone call and the name of the person you spoke to",
+      "ask who will arrange the repair and when it will be done"
+    ]
+  },
+  {
+    "slug": "t1g-g03-boundary-fence-dispute",
+    "topic": "Neighbours",
+    "type": "letter-semi",
+    "body": "The fence between your garden and your neighbour's garden blew down in a storm last week. Your neighbour built the fence six years ago and assumed it stood on his land, but you believe the boundary runs about half a metre further into your garden. Neither of you has yet agreed who should pay for a new one.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "say what your old photographs or records show about the fence line",
+      "suggest asking a surveyor to check the land registry plan",
+      "propose sharing the cost of a new fence if the boundary is confirmed"
+    ]
+  },
+  {
+    "slug": "t1g-g03-loft-conversion-driveway",
+    "topic": "Neighbours",
+    "type": "letter-semi",
+    "body": "Your neighbour is converting the loft of his house, and the builders have parked their van and stored a skip on the shared driveway for three weeks. You have not been able to get your car out before 10 am on weekdays, and a delivery for your own work could not reach your door last Tuesday.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "say what time the builders start and finish each day",
+      "ask for a firm date when the skip will be removed",
+      "suggest moving the van and skip onto the road outside"
+    ]
+  },
+  {
+    "slug": "t1g-g03-sharing-flat-offer",
+    "topic": "Housing",
+    "type": "letter-informal",
+    "body": "Your friend from university has moved to the city where you work and is looking for a flat. She has asked whether you would like to share a three-bedroom flat near the station, with the rent split between the two of you. You have been living alone for a year and are not sure whether you are ready to share again.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "explain what you are looking for in a flat",
+      "describe your daily routine and how often you have visitors",
+      "ask how she would like to split the bills"
+    ]
+  },
+  {
+    "slug": "t1g-g03-canal-district-description",
+    "topic": "Neighbours",
+    "type": "letter-informal",
+    "body": "Last month you left a busy city centre for a quieter district beside a canal. Your cousin has never visited the area and has asked what it is like, because she is thinking of looking for a home there herself. You have been walking along the towpath most mornings.\n\nWrite a letter to your cousin.",
+    "bullets": [
+      "describe the area and the people who live there",
+      "tell her about the shops, parks and transport links",
+      "invite her to visit you at the weekend"
+    ]
+  },
+  {
+    "slug": "t1g-g03-first-flat-advice",
+    "topic": "Housing",
+    "type": "letter-informal",
+    "body": "Your friend Hannah has found a one-bedroom flat to rent and plans to sign the contract next week. She has never rented before, and she has told you that the letting agent seemed friendly and the price is low. You are worried that she has not checked the details, because your own first rented flat caused you a lot of trouble.\n\nWrite a letter to your friend Hannah.",
+    "bullets": [
+      "suggest questions she should ask the agent before signing anything",
+      "explain why she should check the energy certificate and the deposit protection scheme",
+      "recommend a way to test the flat before the contract is signed"
+    ]
+  },
+  {
+    "slug": "t1g-g03-housewarming-invitation",
+    "topic": "Housing",
+    "type": "letter-informal",
+    "body": "You have just bought your first house after years of renting, and you are holding a housewarming on the first Saturday of next month. Your friend Tom has not seen the house yet, and he lives two hours away by train. You would like him to come and stay for the weekend.\n\nWrite a letter to your friend Tom.",
+    "bullets": [
+      "give the date, time and address of the housewarming",
+      "say whether you can offer him a bed for the night",
+      "ask him to tell you which day he can arrive"
+    ]
+  },
+  {
+    "slug": "t1g-g03-burst-pipe-thanks",
+    "topic": "Housing",
+    "type": "letter-informal",
+    "body": "A burst pipe in the flat above yours flooded your home, and you spent five weeks staying in your grandparents' spare room while the repairs were done. They cooked for you every evening and drove you to work on the days the buses were cancelled. Your flat is now dry again, and you want to thank them properly.\n\nWrite a letter to your grandparents.",
+    "bullets": [
+      "thank them for their kindness and patience",
+      "describe how the repairs went and how long they took",
+      "invite them to visit your flat for a meal"
+    ]
+  }
+]

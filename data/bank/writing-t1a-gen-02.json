@@ -1,0 +1,818 @@
+[
+  {
+    "slug": "t1a-g02-regional-airport-passengers",
+    "topic": "Transport",
+    "type": "line",
+    "body": "The line graph below gives information about the annual number of passengers at three regional airports in one country, between 2000 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Annual passengers at three regional airports, 2000–2025",
+      "xLabel": "Year",
+      "yLabel": "Passengers (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Eastport",
+          "values": [
+            1850,
+            2300,
+            2950,
+            3400,
+            1120,
+            2860
+          ]
+        },
+        {
+          "name": "Westbridge",
+          "values": [
+            1200,
+            1260,
+            1190,
+            1150,
+            480,
+            1010
+          ]
+        },
+        {
+          "name": "Northgate",
+          "values": [
+            600,
+            720,
+            980,
+            1290,
+            690,
+            1340
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-commute-time-two-cities",
+    "topic": "Transport",
+    "type": "line",
+    "body": "The line graph below gives information about how long people spent getting to work each way in two cities, from 2005 to 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average one-way commuting time in two cities, 2005–2025",
+      "xLabel": "Year",
+      "yLabel": "Commuting time (minutes)",
+      "unit": "minutes",
+      "categories": [
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Maxton",
+          "values": [
+            27,
+            30,
+            34,
+            37,
+            40
+          ]
+        },
+        {
+          "name": "Velden",
+          "values": [
+            23,
+            22,
+            22,
+            21,
+            22
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-cruise-passengers-destination-region",
+    "topic": "Tourism",
+    "type": "line",
+    "body": "The line graph below shows the number of cruise passengers visiting four destination regions between 2010 and 2025, with projections for 2030.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Cruise passengers by destination region, 2010–2030 (2030 projected)",
+      "xLabel": "Year",
+      "yLabel": "Passengers (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "2010",
+        "2015",
+        "2020",
+        "2025",
+        "2030*"
+      ],
+      "series": [
+        {
+          "name": "Mediterranean",
+          "values": [
+            2850,
+            3120,
+            380,
+            2940,
+            3300
+          ]
+        },
+        {
+          "name": "Northern Europe",
+          "values": [
+            1350,
+            1480,
+            240,
+            1410,
+            1620
+          ]
+        },
+        {
+          "name": "North America",
+          "values": [
+            1780,
+            1850,
+            110,
+            1300,
+            1420
+          ]
+        },
+        {
+          "name": "Asia-Pacific",
+          "values": [
+            640,
+            1090,
+            150,
+            1020,
+            1780
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-daily-cycling-trips-cities",
+    "topic": "Transport",
+    "type": "bar",
+    "body": "The bar chart below shows the average number of cycle trips made each day in four cities, in 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average daily cycle trips in four cities, 2015 and 2025",
+      "xLabel": "City",
+      "yLabel": "Cycle trips per day (thousands)",
+      "unit": "thousands",
+      "categories": [
+        "Ashford",
+        "Bramley",
+        "Calder",
+        "Dunmore"
+      ],
+      "series": [
+        {
+          "name": "2015",
+          "values": [
+            62,
+            145,
+            38,
+            91
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            118,
+            152,
+            96,
+            74
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-driving-test-pass-rates",
+    "topic": "Transport",
+    "type": "bar",
+    "body": "The bar chart below shows the percentage of learner drivers who passed their driving test at the first attempt, by age group, in 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "First-attempt driving test pass rates by age group, 2015 and 2025",
+      "xLabel": "Age group",
+      "yLabel": "Pass rate (%)",
+      "unit": "%",
+      "categories": [
+        "17–19",
+        "20–24",
+        "25–34",
+        "35–49",
+        "50 and over"
+      ],
+      "series": [
+        {
+          "name": "2015",
+          "values": [
+            41,
+            46,
+            53,
+            58,
+            47
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            52,
+            55,
+            58,
+            61,
+            49
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-hotel-nights-visitor-origin",
+    "topic": "Tourism",
+    "type": "bar",
+    "body": "The bar chart below shows the number of hotel nights spent in one country by visitors from six regions of origin, in 2005, 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Hotel nights spent by visitors, by region of origin, 2005, 2015 and 2025",
+      "xLabel": "Region of origin",
+      "yLabel": "Nights (millions)",
+      "unit": "millions",
+      "categories": [
+        "Domestic",
+        "Neighbouring countries",
+        "Western Europe",
+        "North America",
+        "East Asia",
+        "Other regions"
+      ],
+      "series": [
+        {
+          "name": "2005",
+          "values": [
+            74,
+            22,
+            15,
+            9,
+            4,
+            6
+          ]
+        },
+        {
+          "name": "2015",
+          "values": [
+            81,
+            27,
+            21,
+            8,
+            14,
+            7
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            69,
+            33,
+            19,
+            13,
+            22,
+            9
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-holiday-types-by-age",
+    "topic": "Tourism",
+    "type": "pie",
+    "body": "The pie charts below show the types of holiday taken by three age groups of travellers in one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Holiday types chosen by age group, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Under 35",
+          "slices": [
+            {
+              "label": "City break",
+              "value": 38
+            },
+            {
+              "label": "Beach",
+              "value": 22
+            },
+            {
+              "label": "Adventure",
+              "value": 31
+            },
+            {
+              "label": "Rural",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "name": "35 to 54",
+          "slices": [
+            {
+              "label": "City break",
+              "value": 27
+            },
+            {
+              "label": "Beach",
+              "value": 42
+            },
+            {
+              "label": "Adventure",
+              "value": 16
+            },
+            {
+              "label": "Rural",
+              "value": 15
+            }
+          ]
+        },
+        {
+          "name": "55 and over",
+          "slices": [
+            {
+              "label": "City break",
+              "value": 25
+            },
+            {
+              "label": "Beach",
+              "value": 51
+            },
+            {
+              "label": "Adventure",
+              "value": 6
+            },
+            {
+              "label": "Rural",
+              "value": 18
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-car-sharing-usage-frequency",
+    "topic": "Transport",
+    "type": "pie",
+    "body": "The pie charts below give information about how often members of car-sharing clubs in two cities booked a shared car in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Car-sharing club members by frequency of use, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "City A",
+          "slices": [
+            {
+              "label": "More than once a week",
+              "value": 18
+            },
+            {
+              "label": "About once a week",
+              "value": 34
+            },
+            {
+              "label": "Two or three times a month",
+              "value": 29
+            },
+            {
+              "label": "Once a month or less",
+              "value": 19
+            }
+          ]
+        },
+        {
+          "name": "City B",
+          "slices": [
+            {
+              "label": "More than once a week",
+              "value": 7
+            },
+            {
+              "label": "About once a week",
+              "value": 16
+            },
+            {
+              "label": "Two or three times a month",
+              "value": 32
+            },
+            {
+              "label": "Once a month or less",
+              "value": 45
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-train-punctuality-operators",
+    "topic": "Transport",
+    "type": "table",
+    "body": "The table below shows how reliably five train operators ran their services in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Punctuality and reliability of five train operators, 2025",
+      "columns": [
+        "Operator",
+        "On-time arrivals (%)",
+        "Average delay (minutes)",
+        "Cancelled trains (%)"
+      ],
+      "rows": [
+        [
+          "Coastline Trains",
+          89.4,
+          3.1,
+          1.2
+        ],
+        [
+          "Midland Express",
+          92.7,
+          2.4,
+          0.9
+        ],
+        [
+          "Metro Link",
+          84.1,
+          4.8,
+          2.6
+        ],
+        [
+          "Valley Rail",
+          78.5,
+          6.9,
+          3.8
+        ],
+        [
+          "Southern Line",
+          87.3,
+          3.7,
+          1.9
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-coach-rail-long-distance",
+    "topic": "Travel",
+    "type": "table",
+    "body": "The table below gives information about coach and rail journeys in one country, by distance travelled, in 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Coach and rail journeys by distance, 2015 and 2025",
+      "columns": [
+        "Journey type",
+        "Journeys in 2015 (millions)",
+        "Journeys in 2025 (millions)",
+        "Average fare in 2025 (£)",
+        "Average journey time in 2025 (hours)"
+      ],
+      "rows": [
+        [
+          "Coach, under 300 km",
+          18.6,
+          22.1,
+          14.5,
+          3.2
+        ],
+        [
+          "Coach, 300 km and over",
+          9.8,
+          14.7,
+          27.9,
+          6.8
+        ],
+        [
+          "Rail, under 300 km",
+          47.3,
+          41.6,
+          22.4,
+          2.1
+        ],
+        [
+          "Rail, 300 km and over",
+          21.2,
+          26.9,
+          61.3,
+          4.1
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-visit-purpose-transport-mode",
+    "topic": "Travel",
+    "type": "mixed",
+    "body": "The charts below give information about the main purposes of visits to a coastal resort and the transport visitors used to reach it in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Purposes of visits and transport used to reach a coastal resort, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Purpose of visit",
+          "slices": [
+            {
+              "label": "Leisure and holidays",
+              "value": 58
+            },
+            {
+              "label": "Visiting friends and relatives",
+              "value": 19
+            },
+            {
+              "label": "Business",
+              "value": 12
+            },
+            {
+              "label": "Events and festivals",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "name": "Transport used to reach the resort",
+          "slices": [
+            {
+              "label": "Car",
+              "value": 44
+            },
+            {
+              "label": "Train",
+              "value": 27
+            },
+            {
+              "label": "Coach",
+              "value": 13
+            },
+            {
+              "label": "Plane",
+              "value": 11
+            },
+            {
+              "label": "Other",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-holiday-reasons-accommodation",
+    "topic": "Tourism",
+    "type": "mixed",
+    "body": "The charts below give information about the main reasons people gave for choosing a holiday destination and the types of accommodation they booked, in one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Reasons for choosing a holiday destination and accommodation booked, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Main reason for choosing a destination",
+          "slices": [
+            {
+              "label": "Good weather",
+              "value": 31
+            },
+            {
+              "label": "Low cost",
+              "value": 22
+            },
+            {
+              "label": "Culture and history",
+              "value": 18
+            },
+            {
+              "label": "Food and drink",
+              "value": 14
+            },
+            {
+              "label": "Family connections",
+              "value": 15
+            }
+          ]
+        },
+        {
+          "name": "Type of accommodation booked",
+          "slices": [
+            {
+              "label": "Hotel",
+              "value": 38
+            },
+            {
+              "label": "Rented flat",
+              "value": 27
+            },
+            {
+              "label": "Friends or relatives",
+              "value": 17
+            },
+            {
+              "label": "Campsite",
+              "value": 9
+            },
+            {
+              "label": "Hostel",
+              "value": 9
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-scooter-trips-purpose-season",
+    "topic": "Transport",
+    "type": "mixed",
+    "body": "The charts below give information about why people made trips on rented electric scooters in one city in 2025 and how those trips were spread across the seasons.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Rented electric scooter trips by purpose and by season, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Trips by purpose",
+          "slices": [
+            {
+              "label": "Commuting to work or study",
+              "value": 36
+            },
+            {
+              "label": "Leisure",
+              "value": 29
+            },
+            {
+              "label": "Shopping and errands",
+              "value": 21
+            },
+            {
+              "label": "Other",
+              "value": 14
+            }
+          ]
+        },
+        {
+          "name": "Trips by season",
+          "slices": [
+            {
+              "label": "Spring",
+              "value": 26
+            },
+            {
+              "label": "Summer",
+              "value": 41
+            },
+            {
+              "label": "Autumn",
+              "value": 22
+            },
+            {
+              "label": "Winter",
+              "value": 11
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-checked-luggage-airport-route",
+    "topic": "Travel",
+    "type": "process",
+    "body": "The diagram below shows how checked luggage is moved from the check-in desk to the aircraft at a large airport.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How checked luggage travels from the check-in desk to the aircraft",
+      "steps": [
+        "Passenger hands the bag over at the check-in desk",
+        "Airline staff weigh the bag and print a baggage tag",
+        "The tag is attached and the bag is placed on a conveyor",
+        "The bag passes through an automated security scanner",
+        "Flagged bags are checked by hand and returned to the conveyor",
+        "Bags with unreadable tags are sent to a manual sorting station",
+        "Cleared bags are sorted by flight and loaded into containers",
+        "Containers are driven across the apron to the aircraft",
+        "Ground crew lift the bags into the aircraft hold"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-bicycle-frame-manufacture",
+    "topic": "Transport",
+    "type": "process",
+    "body": "The diagram below shows the stages in the manufacture of an aluminium bicycle frame.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Manufacture of an aluminium bicycle frame",
+      "steps": [
+        "Aluminium tubes are cut to the required lengths",
+        "The tube ends are shaped to fit the joints",
+        "The tubes are fixed together in a jig",
+        "The joints are welded by a robot",
+        "The frame is heat-treated to strengthen the metal",
+        "The frame is cleaned and checked for cracks",
+        "The frame is painted and the brand logo is applied",
+        "Finished frames are packed and sent to assembly plants"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g02-railway-station-redevelopment",
+    "topic": "Transport",
+    "type": "map",
+    "body": "The maps below show a railway station and the streets around it in 2015 and after planned changes for 2030.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Railway station and surrounding streets, 2015 and 2030 (planned)",
+      "before": {
+        "label": "2015",
+        "features": [
+          "Single-storey station building on the north side of the tracks",
+          "Ticket office next to the main entrance on Station Road",
+          "Car park for 40 cars opposite the station building",
+          "Bus stop on the east side of Station Road",
+          "Taxi rank between the car park and the main entrance",
+          "Cycle parking in the north-west corner of the site",
+          "Small café beside platform 1",
+          "Goods yard along the south edge of the site",
+          "Level crossing at the west end of Station Road",
+          "Public toilets behind the café",
+          "Footbridge across the tracks near platform 2"
+        ]
+      },
+      "after": {
+        "label": "2030 (planned)",
+        "features": [
+          "Two-storey station building on the north side of the tracks",
+          "Ticket office relocated to the south side of the main concourse",
+          "Car park for 40 cars opposite the station building",
+          "Underground passage in place of the level crossing at the west end",
+          "Bus interchange with six bays on the east side of Station Road",
+          "Taxi rank between the bus interchange and the main entrance",
+          "Cycle parking for 200 bicycles in the north-west corner",
+          "Café with outdoor seating beside platform 1",
+          "Housing on the former goods yard along the south edge",
+          "Footbridge across the tracks near platform 2"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g02-mountain-village-ski-resort",
+    "topic": "Tourism",
+    "type": "map",
+    "body": "The maps below show a small mountain village in 1990 and how it had developed into a ski resort by 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A mountain village before and after its development as a ski resort",
+      "before": {
+        "label": "1990",
+        "features": [
+          "Small church in the centre of the village",
+          "Single road into the village from the valley in the south",
+          "Wooden farmhouses on the slopes to the north",
+          "Farmland to the east of the village",
+          "Small school beside the church",
+          "Stream running along the western edge"
+        ]
+      },
+      "after": {
+        "label": "2025",
+        "features": [
+          "Small church in the centre of the village",
+          "Wider road into the village from the valley in the south",
+          "Wooden farmhouses converted into holiday flats on the slopes to the north",
+          "Hotel with 120 rooms on the former farmland to the east",
+          "Chairlift from the north edge of the village up the mountain",
+          "Ski school beside the church",
+          "Car park next to the chairlift station",
+          "Stream along the western edge, now crossed by a footbridge"
+        ]
+      }
+    }
+  }
+]

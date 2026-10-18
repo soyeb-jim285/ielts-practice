@@ -1,0 +1,322 @@
+[
+  {
+    "slug": "p3g05-cycling-cities",
+    "topic": "Cycling in cities",
+    "subtopics": [
+      "Getting around by bike",
+      "Bicycles and city life"
+    ],
+    "questions": [
+      "Which groups of people are most likely to cycle to work or school?",
+      "Why do some people prefer cycling to the bus for short journeys?",
+      "What might explain why cycling is far more popular in some cities than in others?",
+      "In what ways could a city make it easier and safer for people to ride bikes?",
+      "Do you think cycling will become more common in cities over the next twenty years?",
+      "How much would a city change if most of its residents decided to travel by bicycle?"
+    ]
+  },
+  {
+    "slug": "p3g05-online-shopping",
+    "topic": "Online shopping and delivery",
+    "subtopics": [
+      "Buying things on the internet",
+      "Deliveries and their wider effects"
+    ],
+    "questions": [
+      "Which products do people most often prefer to buy online rather than in person?",
+      "What makes so many shoppers feel more comfortable buying clothes in a real shop?",
+      "What are the main differences between ordering something online and visiting a shop?",
+      "What effect does the rise in delivery vans have on traffic in large cities?",
+      "Do you think people will still visit shopping centres in fifty years' time?",
+      "Would a world without parcel deliveries make daily life noticeably harder for families?"
+    ]
+  },
+  {
+    "slug": "p3g05-food-in-schools",
+    "topic": "Food in schools",
+    "subtopics": [
+      "Lunch and what children eat",
+      "Food lessons and healthy habits"
+    ],
+    "questions": [
+      "What do children typically eat for lunch on a normal school day?",
+      "How important is it for school meals to be healthy and well balanced?",
+      "What leads some children to prefer a packed lunch from home?",
+      "Which subjects, apart from science, could help children learn about nutrition?",
+      "How has the quality of school dinners changed over the last few decades?",
+      "Do you think teaching cooking in schools will help children eat better as adults?"
+    ]
+  },
+  {
+    "slug": "p3g05-colours-daily-life",
+    "topic": "Colours in daily life",
+    "subtopics": [
+      "Colours all around us",
+      "Colour and mood"
+    ],
+    "questions": [
+      "Which colours do people tend to notice most on busy city streets?",
+      "What reasons lead companies to choose particular colours for their logos and packaging?",
+      "To what extent do people choose brightly coloured clothes in order to stand out?",
+      "What effect do colours have on the way people feel in a room?",
+      "Has the use of colour in advertising changed much in recent years?",
+      "Could the colours of a city shape the way its residents behave, do you think?"
+    ]
+  },
+  {
+    "slug": "p3g05-libraries-digital-age",
+    "topic": "Libraries in the digital age",
+    "subtopics": [
+      "Using libraries today",
+      "What libraries offer beyond books"
+    ],
+    "questions": [
+      "What do people mainly go to a public library for these days?",
+      "Why do some people still prefer printed books to digital ones?",
+      "How important is it for libraries to keep large collections of printed books?",
+      "What services could a library offer that a bookshop cannot?",
+      "Are libraries likely to remain important for local communities in the future?",
+      "Would a town be worse off if its library closed, in your view?"
+    ]
+  },
+  {
+    "slug": "p3g05-handwriting-typing",
+    "topic": "Handwriting and typing",
+    "subtopics": [
+      "Writing by hand and on screens",
+      "Skills people lose or gain"
+    ],
+    "questions": [
+      "In what situations do people still prefer to write things by hand?",
+      "Why do some teachers still believe handwriting matters for young children?",
+      "Is it better for students to take notes in lectures by hand or on a laptop?",
+      "In what ways might the decline of handwriting affect how people remember things?",
+      "Has the spread of keyboards and touchscreens changed the way children learn to read?",
+      "Do you think people will still need to write by hand in fifty years' time?"
+    ]
+  },
+  {
+    "slug": "p3g05-farming-futures",
+    "topic": "Farming",
+    "subtopics": [
+      "Who works the land",
+      "Feeding a growing population"
+    ],
+    "questions": [
+      "What sort of work does a typical farmer do over the course of a year?",
+      "What puts some young people off working on farms at all?",
+      "What benefits do small family farms bring to the countryside around them?",
+      "What are the main problems farmers face when the weather changes unexpectedly?",
+      "How might farming methods need to change to produce enough food for everyone?",
+      "Would people accept food grown in labs or factories instead of on farms?"
+    ]
+  },
+  {
+    "slug": "p3g05-crowds-personal-space",
+    "topic": "Crowds and personal space",
+    "subtopics": [
+      "Being close to strangers",
+      "Crowded places in modern cities"
+    ],
+    "questions": [
+      "Where do people tend to feel most uncomfortable when a place gets crowded?",
+      "Why do people keep a certain distance from strangers when they are waiting in a queue?",
+      "Why might people accept standing close to strangers on a train but not in an empty park?",
+      "What effect does living in a densely populated city have on people's patience?",
+      "Are people in large cities more relaxed about physical closeness than people in small towns?",
+      "How could architects design public spaces so that large crowds feel less stressful?"
+    ]
+  },
+  {
+    "slug": "p3g05-teenagers-independence",
+    "topic": "Teenagers and independence",
+    "subtopics": [
+      "Growing up and making choices",
+      "Freedom and family life"
+    ],
+    "questions": [
+      "What tasks do most teenagers manage for themselves by the age of sixteen?",
+      "What makes it hard for some parents to let their children make their own decisions?",
+      "What do young people gain by leaving home to study rather than staying with their family?",
+      "At what age do young people usually start managing their own money?",
+      "Has the expectation that teenagers should be independent changed in recent decades?",
+      "Do you think a teenager who is given more freedom will be better prepared for adult life?"
+    ]
+  },
+  {
+    "slug": "p3g05-road-safety",
+    "topic": "Road safety",
+    "subtopics": [
+      "Crossing and driving on busy roads",
+      "Making streets safer for everyone"
+    ],
+    "questions": [
+      "What are the most common mistakes that drivers make at road junctions?",
+      "What makes some pedestrians cross without waiting when the road seems empty?",
+      "Why are some roads far more dangerous than others, even with the same speed limit?",
+      "Which measures, such as speed cameras or wider pavements, work best at reducing accidents?",
+      "Have roads in most countries become safer over the last ten years?",
+      "Would people drive more carefully if their car reminded them of their speed every few minutes?"
+    ]
+  },
+  {
+    "slug": "p3g05-urban-wildlife-nature",
+    "topic": "Urban wildlife",
+    "subtopics": [
+      "Animals that share our towns",
+      "Nature and the built environment"
+    ],
+    "questions": [
+      "Which wild animals can people in large cities most often spot?",
+      "What makes a busy city a surprisingly good place for some wild animals to live?",
+      "How does the wildlife in a city park compare with the animals found in the countryside?",
+      "What are the benefits of having wild creatures close to where people work and live?",
+      "How might towns be designed to give animals more room without disturbing people?",
+      "Do you think cities will contain more wildlife in fifty years than they do today?"
+    ]
+  },
+  {
+    "slug": "p3g05-working-for-yourself",
+    "topic": "Working for yourself",
+    "subtopics": [
+      "Running your own business",
+      "Freelancing and the economy"
+    ],
+    "questions": [
+      "What skills do people need before they can start working for themselves?",
+      "Why do some people prefer self-employment to working for a large company?",
+      "How does being self-employed compare with having a fixed salary and regular hours?",
+      "What are the biggest risks of running a small business without a steady income?",
+      "Is it becoming easier for individuals to earn a living from their own ideas?",
+      "Would more people choose to work for themselves if the government offered them more support?"
+    ]
+  },
+  {
+    "slug": "p3g05-emojis-texting",
+    "topic": "Emojis and texting",
+    "subtopics": [
+      "Using symbols in messages",
+      "How digital conversation is changing"
+    ],
+    "questions": [
+      "Which emojis do people use most often in their everyday messages?",
+      "What leads some people to add a smiley face to a message that already seems clear?",
+      "How do emojis change the meaning of a text message compared with plain words?",
+      "What might be lost if people relied on symbols rather than words to express feelings?",
+      "Has the way people write informally changed a great deal since mobile phones became common?",
+      "Do you think a shared language of pictures could ever become a universal way to communicate?"
+    ]
+  },
+  {
+    "slug": "p3g05-instructions-manuals",
+    "topic": "Instructions and manuals",
+    "subtopics": [
+      "Reading written guidance",
+      "Designing clearer instructions"
+    ],
+    "questions": [
+      "What products tend to come with a long set of written instructions?",
+      "Why do many people skip the manual and try to work things out for themselves?",
+      "How do pictures and diagrams help people follow instructions compared with long paragraphs of text?",
+      "What makes an instruction manual easy or difficult for an ordinary person to follow?",
+      "Are video tutorials replacing printed manuals in the way people learn to use new technology?",
+      "Would companies be wise to spend more money on clear instructions than on new features?"
+    ]
+  },
+  {
+    "slug": "p3g05-24-hour-services",
+    "topic": "24-hour services",
+    "subtopics": [
+      "Shops and services that never close",
+      "Living at any hour"
+    ],
+    "questions": [
+      "Which services do people in large cities expect to be open around the clock?",
+      "Why do some people prefer to shop late at night rather than during the day?",
+      "What problems can arise for a neighbourhood when shops and services never close?",
+      "What kinds of workers benefit most when services are available at any time of day?",
+      "How has the expansion of round-the-clock services changed family routines over time?",
+      "Do you think the constant availability of services makes people less patient?"
+    ]
+  },
+  {
+    "slug": "p3g05-nostalgia-past",
+    "topic": "Nostalgia",
+    "subtopics": [
+      "Looking back fondly on the past",
+      "Nostalgia and the modern world"
+    ],
+    "questions": [
+      "Which everyday objects from the past do older people tend to miss?",
+      "What makes an old song or a childhood game so emotionally powerful for adults?",
+      "At what age do people usually start to feel nostalgic, and why?",
+      "Why do films and advertisements so often recreate the styles of earlier decades?",
+      "Is nostalgia a healthy feeling, or does it stop people from embracing the present?",
+      "Could a society preoccupied with the past ever build a truly new culture?"
+    ]
+  },
+  {
+    "slug": "p3g05-pace-modern-life",
+    "topic": "The pace of modern life",
+    "subtopics": [
+      "Rushing through the day",
+      "Slowing down in a fast world"
+    ],
+    "questions": [
+      "Does life today feel faster to most people than it did for their grandparents?",
+      "What makes so many people feel they never have enough time to finish their tasks?",
+      "What distinguishes a busy life from a truly hurried one?",
+      "To what extent does technology create pressure to reply quickly to messages and requests?",
+      "Could the constant pace of modern work eventually harm people's health and relationships?",
+      "Would people be happier if societies deliberately slowed down the pace of everyday life?"
+    ]
+  },
+  {
+    "slug": "p3g05-self-driving-vehicles",
+    "topic": "Self-driving vehicles",
+    "subtopics": [
+      "Trusting machines on the road",
+      "Transport and wider society"
+    ],
+    "questions": [
+      "Which driving tasks could a car handle on its own more safely than a tired person?",
+      "What makes some people uneasy about being a passenger in a vehicle with no driver?",
+      "What would persuade most people to trust a car that drives itself?",
+      "What effect could driverless taxis have on the number of cars parked in city centres?",
+      "Would the ownership of private cars decline significantly if transport became fully automated?",
+      "How might road design need to change if most vehicles drove themselves?"
+    ]
+  },
+  {
+    "slug": "p3g05-boredom-creativity",
+    "topic": "Boredom and creativity",
+    "subtopics": [
+      "Doing nothing and the mind",
+      "Boredom in a busy world"
+    ],
+    "questions": [
+      "What do people usually do when they find themselves with nothing to do for an hour?",
+      "Why do some people claim their best ideas come to them when they are bored?",
+      "Is daydreaming a waste of time, or can it actually help people solve problems?",
+      "What role might boredom play in encouraging children to invent their own games?",
+      "Has the constant availability of entertainment reduced people's capacity for original thought?",
+      "Could a society that never lets its people be bored lose its capacity to innovate?"
+    ]
+  },
+  {
+    "slug": "p3g05-cash-cashless-payments",
+    "topic": "Cash and cashless payments",
+    "subtopics": [
+      "Paying with notes, coins and cards",
+      "The future of money"
+    ],
+    "questions": [
+      "Which methods of payment do people use most for small everyday purchases?",
+      "What reasons do shopkeepers give for refusing cards for very small amounts?",
+      "Is it easier to keep track of your spending with cash or with a card?",
+      "What are the main risks of a society that relies almost entirely on digital payments?",
+      "Would cashless payments make it harder for some groups, such as older people, to manage money?",
+      "Do you think physical money will have disappeared completely by the end of this century?"
+    ]
+  }
+]

@@ -1,0 +1,431 @@
+[
+  {
+    "slug": "t1a-g09-plastic-packaging-households",
+    "topic": "Environment",
+    "type": "line",
+    "body": "The line graph below shows how much plastic packaging waste each household produced in two regions between 2008 and 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Plastic packaging waste per household in two regions, 2008–2023",
+      "xLabel": "Year",
+      "yLabel": "Waste per household (kg)",
+      "unit": "kg",
+      "categories": ["2008", "2011", "2014", "2017", "2020", "2023"],
+      "series": [
+        { "name": "Coastal region", "values": [88, 96, 104, 112, 117, 124] },
+        { "name": "Inland region", "values": [61, 58, 55, 52, 49, 47] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-poor-air-quality-days",
+    "topic": "Environment",
+    "type": "line",
+    "body": "The line graph below gives information about how many days each year had poor air quality in four cities, from 2015 to 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Days of poor air quality in four cities, 2015–2023",
+      "xLabel": "Year",
+      "yLabel": "Days with poor air quality (days)",
+      "unit": "days",
+      "categories": ["2015", "2017", "2019", "2021", "2023"],
+      "series": [
+        { "name": "Port Alba", "values": [71, 66, 52, 48, 33] },
+        { "name": "Northfield", "values": [58, 49, 41, 27, 24] },
+        { "name": "Easthaven", "values": [34, 38, 44, 39, 31] },
+        { "name": "Riverton", "values": [22, 19, 17, 20, 26] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-trees-planted-districts",
+    "topic": "Environment",
+    "type": "bar",
+    "body": "The bar chart below shows how many trees a city council planted in each of five districts in 2019 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Trees planted by the city council in five districts, 2019 and 2024",
+      "xLabel": "District",
+      "yLabel": "Trees planted (number)",
+      "unit": "trees",
+      "categories": ["Riverside", "Old Town", "Harbour", "Northgate", "Hillcrest"],
+      "series": [
+        { "name": "2019", "values": [310, 120, 540, 260, 190] },
+        { "name": "2024", "values": [520, 470, 580, 230, 410] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-noise-complaints-sources",
+    "topic": "Environment",
+    "type": "bar",
+    "body": "The bar chart below gives information about the noise complaints a city council received from five sources in 2022 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Noise complaints received by a city council, by source, 2022 and 2025",
+      "xLabel": "Source",
+      "yLabel": "Complaints (number)",
+      "unit": "complaints",
+      "categories": ["Road traffic", "Building works", "Bars and clubs", "Neighbours", "Delivery vans"],
+      "series": [
+        { "name": "2022", "values": [1840, 1210, 760, 980, 340] },
+        { "name": "2025", "values": [1620, 1930, 690, 1010, 880] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-gallery-exhibition-visits",
+    "topic": "Arts",
+    "type": "bar",
+    "body": "The bar chart below shows how many visitors a regional art gallery drew to each type of exhibition in 2023 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Gallery visitors by exhibition type, 2023 and 2025",
+      "xLabel": "Exhibition type",
+      "yLabel": "Visitors (thousands)",
+      "unit": "thousands",
+      "categories": ["Painting", "Photography", "Sculpture", "Textiles", "Digital art"],
+      "series": [
+        { "name": "2023", "values": [48, 21, 16, 12, 9] },
+        { "name": "2025", "values": [52, 37, 14, 19, 31] }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-dance-drama-enrolments",
+    "topic": "Arts",
+    "type": "pie",
+    "body": "The pie charts below show how enrolments in dance and drama classes at a community arts centre were split between age groups in 2021 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Dance and drama class enrolments by age group, 2021 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2021",
+          "slices": [
+            { "label": "Under 12", "value": 38 },
+            { "label": "12–17", "value": 27 },
+            { "label": "18–30", "value": 14 },
+            { "label": "31–50", "value": 13 },
+            { "label": "Over 50", "value": 8 }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            { "label": "Under 12", "value": 29 },
+            { "label": "12–17", "value": 24 },
+            { "label": "18–30", "value": 19 },
+            { "label": "31–50", "value": 17 },
+            { "label": "Over 50", "value": 11 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-playhouse-audience-ages",
+    "topic": "Arts",
+    "type": "pie",
+    "body": "The pie charts below show the age profile of audiences at a regional playhouse in 2019 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Playhouse attendance by age group, 2019 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2019",
+          "slices": [
+            { "label": "Under 18", "value": 9 },
+            { "label": "18–34", "value": 21 },
+            { "label": "35–54", "value": 34 },
+            { "label": "55–69", "value": 23 },
+            { "label": "70 and over", "value": 13 }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            { "label": "Under 18", "value": 14 },
+            { "label": "18–34", "value": 28 },
+            { "label": "35–54", "value": 26 },
+            { "label": "55–69", "value": 19 },
+            { "label": "70 and over", "value": 13 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-summer-festival-visitors",
+    "topic": "Culture",
+    "type": "table",
+    "body": "The table below gives information about visitors to three summer festivals in one coastal region in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Three summer festivals in one coastal region, 2024",
+      "columns": [
+        "Festival",
+        "Visitors (thousands)",
+        "Visitors from outside the region (%)",
+        "Average spend per visitor (£)"
+      ],
+      "rows": [
+        ["Harbour Jazz Weekend", 86, 41, 112],
+        ["Cliffside Folk Festival", 54, 62, 96],
+        ["Lantern Film Festival", 23, 35, 58],
+        ["All three festivals", 163, 47, 99]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-concert-ticket-genres",
+    "topic": "Arts",
+    "type": "table",
+    "body": "The table below shows how much a concert ticket cost, on average, in six music genres in one country in 2020 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Average concert ticket prices by music genre, 2020 and 2025",
+      "columns": [
+        "Genre",
+        "Average price 2020 (£)",
+        "Average price 2025 (£)",
+        "Change (%)",
+        "Tickets bought online in 2025 (%)"
+      ],
+      "rows": [
+        ["Classical", 38, 46, 21, 71],
+        ["Jazz", 31, 37, 19, 58],
+        ["Pop", 52, 74, 42, 88],
+        ["Rock", 45, 61, 36, 84],
+        ["Folk", 27, 29, 7, 49],
+        ["Opera", 61, 68, 11, 66]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-community-arts-grants",
+    "topic": "Arts",
+    "type": "table",
+    "body": "The table below gives information about applications for community arts grants made to a regional council, by art form, in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Community arts grant applications by art form, 2024",
+      "columns": [
+        "Art form",
+        "Applications received",
+        "Grants awarded",
+        "Average grant (£)",
+        "Success rate (%)"
+      ],
+      "rows": [
+        ["Visual arts", 420, 96, 3800, 23],
+        ["Theatre", 310, 74, 5200, 24],
+        ["Music", 260, 88, 2900, 34],
+        ["Dance", 150, 27, 4300, 18],
+        ["Creative writing", 190, 31, 1700, 16]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-beach-litter-origins",
+    "topic": "Environment",
+    "type": "mixed",
+    "body": "The charts below give information about the types of litter collected on one coastline and where that litter came from in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Litter collected on one coastline by type and by source, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Type of litter",
+          "slices": [
+            { "label": "Plastic", "value": 61 },
+            { "label": "Paper and card", "value": 12 },
+            { "label": "Textiles and rubber", "value": 8 },
+            { "label": "Glass", "value": 8 },
+            { "label": "Metal", "value": 6 },
+            { "label": "Other", "value": 5 }
+          ]
+        },
+        {
+          "name": "Source of litter",
+          "slices": [
+            { "label": "Tourists and day visitors", "value": 42 },
+            { "label": "Rivers and drains", "value": 24 },
+            { "label": "Fishing and boats", "value": 17 },
+            { "label": "Local residents", "value": 12 },
+            { "label": "Street run-off", "value": 5 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-theatre-income-spending",
+    "topic": "Arts",
+    "type": "mixed",
+    "body": "The charts below give information about the sources of income and the areas of spending of a regional theatre in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Income and spending of a regional theatre, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Income",
+          "slices": [
+            { "label": "Ticket sales", "value": 46 },
+            { "label": "Government grants", "value": 21 },
+            { "label": "Private donations", "value": 14 },
+            { "label": "Sponsorship", "value": 9 },
+            { "label": "Bar and café", "value": 7 },
+            { "label": "Venue hire", "value": 3 }
+          ]
+        },
+        {
+          "name": "Spending",
+          "slices": [
+            { "label": "Actors and production staff", "value": 38 },
+            { "label": "Building maintenance", "value": 17 },
+            { "label": "Administration", "value": 14 },
+            { "label": "Set and costume", "value": 12 },
+            { "label": "Education programme", "value": 10 },
+            { "label": "Marketing", "value": 9 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-amateur-music-rehearsal",
+    "topic": "Culture",
+    "type": "mixed",
+    "body": "The pie charts below show the kinds of amateur music group in one town and the places where they rehearse, in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Amateur music groups in one town by type and rehearsal venue, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Type of group",
+          "slices": [
+            { "label": "Choral", "value": 34 },
+            { "label": "Brass and wind bands", "value": 22 },
+            { "label": "Rock and pop bands", "value": 18 },
+            { "label": "Orchestras", "value": 11 },
+            { "label": "Folk", "value": 9 },
+            { "label": "Other", "value": 6 }
+          ]
+        },
+        {
+          "name": "Rehearsal venue",
+          "slices": [
+            { "label": "Community centres", "value": 41 },
+            { "label": "School halls", "value": 23 },
+            { "label": "Churches", "value": 14 },
+            { "label": "Private homes", "value": 10 },
+            { "label": "Pubs and clubs", "value": 8 },
+            { "label": "Rented studios", "value": 4 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-compost-garden-waste",
+    "topic": "Environment",
+    "type": "process",
+    "body": "The diagram below shows the process of making compost from garden waste and food scraps.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How compost is made from garden and food waste",
+      "steps": [
+        "Garden waste and food scraps are collected separately from household rubbish",
+        "Woody branches are shredded into small pieces",
+        "Shredded wood is mixed with food scraps and grass clippings",
+        "The mixture is piled into long rows called windrows",
+        "The windrows are turned regularly so that air reaches the centre",
+        "Heat from microbial activity raises the temperature of the pile to about 60°C",
+        "Liquid draining from the pile is collected and sprayed back over the rows",
+        "The material is screened to remove large pieces that have not decomposed",
+        "Oversized pieces are returned to the start of the process",
+        "The screened material is left to mature for about three months",
+        "Samples are tested for moisture, nutrients and contaminants",
+        "Finished compost is bagged or sold in bulk to farms and gardeners"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g09-quarry-nature-reserve",
+    "topic": "Environment",
+    "type": "map",
+    "body": "The maps below show a disused limestone quarry in 2010 and the nature reserve it had become by 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A disused quarry before and after its restoration as a nature reserve",
+      "before": {
+        "label": "2010",
+        "features": [
+          "Limestone quarry covering most of the site in the centre",
+          "Crusher plant in the north-east corner",
+          "Access road running from the south gate to the crusher plant",
+          "Small pond at the bottom of the quarry floor",
+          "Wooded area along the western boundary",
+          "Car park next to the main gate"
+        ]
+      },
+      "after": {
+        "label": "2025",
+        "features": [
+          "Former quarry pit in the centre now a lake",
+          "Crusher plant demolished and the north-east corner turned into a meadow",
+          "Access road from the south gate now a footpath",
+          "Visitor centre built next to the main gate",
+          "Wooded area along the western boundary, still unchanged",
+          "Bird hides on the eastern edge, with a car park opposite the visitor centre"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g09-railway-yard-arts",
+    "topic": "Culture",
+    "type": "map",
+    "body": "The plans below show a disused railway yard as it is now and the arts quarter planned for 2030.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A railway yard before and after its conversion into an arts quarter",
+      "before": {
+        "label": "Now",
+        "features": [
+          "Engine shed with a long curved roof in the north-west corner",
+          "Goods warehouse along the eastern boundary, next to the canal",
+          "Four sets of railway tracks running east to west across the centre",
+          "Signal box beside the main gate on the southern edge",
+          "Water tower opposite the engine shed",
+          "Coal store at the south end of the yard",
+          "Footbridge linking the yard to the housing estate in the north",
+          "Office block next to the signal box",
+          "Wasteland of weeds between the tracks and the canal",
+          "Access road from the main gate to the goods warehouse"
+        ]
+      },
+      "after": {
+        "label": "2030 (planned)",
+        "features": [
+          "Engine shed converted into a theatre, keeping its roof",
+          "Goods warehouse turned into artist studios, next to the canal",
+          "Tracks removed from the centre and replaced by a public square",
+          "Signal box kept as a café beside the main gate",
+          "Water tower repainted and fitted with a climbing wall, opposite the theatre",
+          "Coal store demolished to make room for a sculpture park at the south end",
+          "Footbridge widened and now linking the square to the housing estate in the north",
+          "New gallery built on the site of the office block, next to the signal box",
+          "Gardens and wetland between the square and the canal",
+          "Bus stop moved from the main gate to the edge of the square"
+        ]
+      }
+    }
+  }
+]

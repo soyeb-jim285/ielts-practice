@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g06-ice-cream",
+    "topic": "Ice cream",
+    "questions": [
+      "What's your favourite flavour of ice cream? Why?",
+      "How often do you buy ice cream?",
+      "Do you usually have it in a cone or a cup?",
+      "Would you eat ice cream on a cold winter day? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-t-shirts",
+    "topic": "T-shirts",
+    "questions": [
+      "What colour T-shirts do you wear most often?",
+      "Where do you usually buy your T-shirts?",
+      "Is a plain T-shirt or a printed one more your style? Why?",
+      "What would you print on a T-shirt if you designed one?"
+    ]
+  },
+  {
+    "slug": "p1g06-postcards",
+    "topic": "Postcards",
+    "questions": [
+      "Do you still send postcards to anyone?",
+      "Where do you usually buy a postcard when you travel?",
+      "Who would you most like to get a postcard from? Why?",
+      "How do you feel when a handwritten card arrives in the post?"
+    ]
+  },
+  {
+    "slug": "p1g06-summer-days",
+    "topic": "Summer",
+    "questions": [
+      "What does a typical summer day look like for you?",
+      "Which summer activity do you enjoy most? Why?",
+      "How do you keep cool when the weather gets hot?",
+      "If you could spend one summer anywhere, where would you go? Why?"
+    ]
+  },
+  {
+    "slug": "p1g06-markets",
+    "topic": "Markets",
+    "questions": [
+      "Do you enjoy going to a market to buy things? Why?",
+      "Would you be comfortable haggling over the price of something? Why/why not?",
+      "Which market food do you find hardest to resist?",
+      "How often do you choose a market over a supermarket?"
+    ]
+  },
+  {
+    "slug": "p1g06-evening-meals",
+    "topic": "Evening meals",
+    "questions": [
+      "Which meal of the day do you enjoy most? Why?",
+      "What time do you usually sit down for your evening meal?",
+      "How much do you enjoy cooking for other people?",
+      "Is a meal more enjoyable when you eat it slowly? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-plastic-use",
+    "topic": "Plastic",
+    "questions": [
+      "What kinds of plastic items do you use every single day?",
+      "Do you carry your own bag when you go shopping? Why/why not?",
+      "Is it easy for you to avoid products in plastic packaging? Why/why not?",
+      "How much extra would you pay for food sold without plastic wrapping?"
+    ]
+  },
+  {
+    "slug": "p1g06-hiking-trips",
+    "topic": "Hiking",
+    "questions": [
+      "Have you ever been hiking in the countryside?",
+      "What do you usually pack for a long walk over hills?",
+      "Is walking alone or in a group more enjoyable for you? Why?",
+      "Where would you like to go hiking if you had a free week?"
+    ]
+  },
+  {
+    "slug": "p1g06-making-by-hand",
+    "topic": "Making things by hand",
+    "questions": [
+      "Do you enjoy making things with your own hands? Why?",
+      "What is the most useful thing you have ever made yourself?",
+      "How long does it usually take you to finish a small project?",
+      "Is a handmade gift worth more than a bought one? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-street-performers",
+    "topic": "Street performers",
+    "questions": [
+      "What kinds of street performers can you see in busy city centres?",
+      "How do you usually react when you walk past a street performer?",
+      "Which kind of street performance impresses you most? Why?",
+      "Could you imagine performing in the street yourself? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-shopping-centres",
+    "topic": "Shopping centres",
+    "questions": [
+      "Which shopping centre do you visit most often?",
+      "What do you usually do there apart from shopping?",
+      "Do you enjoy spending a whole afternoon in a shopping centre? Why/why not?",
+      "Is there a shop you could never walk past without going in? Why?"
+    ]
+  },
+  {
+    "slug": "p1g06-long-journeys",
+    "topic": "Long journeys",
+    "questions": [
+      "What do you like to bring with you on a long journey?",
+      "How do you pass the time on a train or a coach?",
+      "Is the journey or the destination more enjoyable for you? Why?",
+      "How would you prepare for a journey lasting a whole day?"
+    ]
+  },
+  {
+    "slug": "p1g06-sunrise-sunset",
+    "topic": "Sunrise and sunset",
+    "questions": [
+      "Have you ever got up early just to watch the sunrise?",
+      "When do you usually notice the sky changing colour?",
+      "Which do you find more beautiful, a sunrise or a sunset? Why?",
+      "What is the best time of day for a walk outside?"
+    ]
+  },
+  {
+    "slug": "p1g06-small-children",
+    "topic": "Small children",
+    "questions": [
+      "Do you spend much time around small children?",
+      "What games do small children seem to enjoy most?",
+      "How patient are you with noisy children? Why?",
+      "What would you plan for a day out with a group of small children?"
+    ]
+  },
+  {
+    "slug": "p1g06-smiling",
+    "topic": "Smiling",
+    "questions": [
+      "What usually makes you smile during an ordinary day?",
+      "Who in your life makes you smile the most? Why?",
+      "Is it easy for you to smile when you feel tired? Why/why not?",
+      "Can a smile change how a conversation goes? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-making-plans",
+    "topic": "Making plans",
+    "questions": [
+      "How far ahead do you usually plan a weekend?",
+      "What do you do when a plan falls through at the last minute?",
+      "Are you happier with a carefully planned trip or a spontaneous one? Why?",
+      "Tell me about a plan you are looking forward to."
+    ]
+  },
+  {
+    "slug": "p1g06-talking-strangers",
+    "topic": "Talking to strangers",
+    "questions": [
+      "Are you the kind of person who starts a conversation on a train?",
+      "What do you find most awkward about chatting with someone you have just met?",
+      "Where do you find it easiest to chat with someone new? Why?",
+      "How much can a short chat with a stranger change your mood?"
+    ]
+  },
+  {
+    "slug": "p1g06-learning-new",
+    "topic": "Learning new things",
+    "questions": [
+      "What are you trying to learn at the moment?",
+      "Do you pick things up faster from a teacher or on your own? Why?",
+      "Is it harder to learn something new as an adult than as a child? Why/why not?",
+      "Which skill would you love to master one day? Why?"
+    ]
+  },
+  {
+    "slug": "p1g06-smells",
+    "topic": "Smells",
+    "questions": [
+      "Which smell brings back the strongest memories for you?",
+      "Are there any smells you find hard to tolerate? Why?",
+      "What makes a room smell pleasant to you?",
+      "Do you think smell has a big effect on how much you enjoy food? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g06-spelling",
+    "topic": "Spelling",
+    "questions": [
+      "How strong is your spelling in English?",
+      "Which words do you find hardest to spell correctly?",
+      "Do you rely on a spell-checker when you write? Why/why not?",
+      "Does correct spelling still matter in short text messages? Why?"
+    ]
+  }
+]

@@ -1,0 +1,178 @@
+[
+  {
+    "slug": "t1g-g07-sports-centre-booking-failure",
+    "topic": "Sport",
+    "type": "letter-formal",
+    "body": "You booked a badminton court for Saturday morning through the sports centre's website and paid for it in advance. When you arrived, the court was not on the reception system, and the staff could not find any record of your booking.\n\nWrite a letter to the manager of the sports centre.",
+    "bullets": [
+      "say what confirmation or reference number you received when you booked",
+      "explain what happened when you arrived",
+      "say what you would like the centre to do about the payment"
+    ]
+  },
+  {
+    "slug": "t1g-g07-pool-cleanliness-complaint",
+    "topic": "Leisure",
+    "type": "letter-formal",
+    "body": "Since joining a leisure centre two years ago, you have swum there every week. Over the past month, the water in the main swimming pool has often looked cloudy, and there has been a strong smell of chemicals in the changing rooms.\n\nWrite a letter to the leisure centre manager.",
+    "bullets": [
+      "describe what you have noticed at the pool",
+      "explain how this has affected your swimming",
+      "ask the centre to test the water and explain its findings"
+    ]
+  },
+  {
+    "slug": "t1g-g07-dental-cancellation-fee",
+    "topic": "Health",
+    "type": "letter-formal",
+    "body": "You cancelled a dental appointment by phone two days before it was due, because of a family emergency. The practice has still charged you the full fee for a missed appointment, and the receptionist told you the policy could not be changed.\n\nWrite a letter to the practice manager.",
+    "bullets": [
+      "explain why you think the charge is unfair",
+      "describe how the charge has affected your household budget",
+      "request that the fee is refunded or waived"
+    ]
+  },
+  {
+    "slug": "t1g-g07-half-marathon-organisation",
+    "topic": "Sport",
+    "type": "letter-formal",
+    "body": "You ran the half-marathon in your city last Sunday. The race was poorly organised: the water stations ran out early, the route signs were missing on part of the course, and the medals did not arrive until most runners had gone home.\n\nWrite a letter to the race director.",
+    "bullets": [
+      "describe the problems you noticed on the day",
+      "explain how these problems affected your race",
+      "suggest how the arrangements could be improved next year"
+    ]
+  },
+  {
+    "slug": "t1g-g07-hospital-visitor-parking",
+    "topic": "Health",
+    "type": "letter-formal",
+    "body": "You visit your father in a city hospital almost every day while he has physiotherapy. The hospital has recently introduced a £12 daily charge for visitors using its car park. You often stay for several hours, and many patients have no other way to reach the hospital.\n\nWrite a letter to the chief executive of the hospital.",
+    "bullets": [
+      "say why the hospital needs income from its car park",
+      "explain why the charge is a problem for regular visitors",
+      "propose a discounted rate for people who visit frequently"
+    ]
+  },
+  {
+    "slug": "t1g-g07-outdoor-gym-proposal",
+    "topic": "Leisure",
+    "type": "letter-formal",
+    "body": "Residents on your estate have asked for outdoor exercise equipment in the small park, which is used by children and older people but has no equipment for working-age adults. A nearby district recently had a similar scheme turned down because of its cost.\n\nWrite a letter to the leisure services team at the local council.",
+    "bullets": [
+      "outline the benefits an outdoor gym would bring to local people",
+      "suggest a suitable area of the park and explain why it is practical",
+      "recommend a smaller scheme that would keep the cost down"
+    ]
+  },
+  {
+    "slug": "t1g-g07-coach-team-switch",
+    "topic": "Sport",
+    "type": "letter-semi",
+    "body": "For a year you have played in your local football club's under-21 team. Your new shift pattern at work ends too late for the team's Tuesday training sessions, but the club's reserve team trains on Thursday evenings, and a friend who plays for it has suggested you move across.\n\nWrite a letter to your coach.",
+    "bullets": [
+      "explain how your new shift pattern affects your training",
+      "suggest moving to the reserve team for the rest of the season",
+      "ask whether you could return to the under-21 team later"
+    ]
+  },
+  {
+    "slug": "t1g-g07-dance-class-level-up",
+    "topic": "Leisure",
+    "type": "letter-semi",
+    "body": "Three months into the beginners' salsa class at the community centre, you find the steps easy and would like more of a challenge.\n\nWrite a letter to your instructor.",
+    "bullets": [
+      "describe what you have learned in the beginners' class",
+      "ask whether you could move up to the intermediate group",
+      "suggest a short trial in the intermediate class before you decide"
+    ]
+  },
+  {
+    "slug": "t1g-g07-doctor-appointment-times",
+    "topic": "Health",
+    "type": "letter-semi",
+    "body": "You work full time as a teacher, and your surgery offers most appointments between nine and eleven in the morning. You have missed two appointments this month because you could not leave school, and you feel you are falling behind with your medication review.\n\nWrite a letter to your doctor.",
+    "bullets": [
+      "explain why the morning appointments do not suit you",
+      "ask whether a late afternoon or telephone appointment is possible",
+      "suggest how the surgery could help working patients book more easily"
+    ]
+  },
+  {
+    "slug": "t1g-g07-rowing-committee-vacancy",
+    "topic": "Sport",
+    "type": "letter-semi",
+    "body": "Having rowed with the riverside club for five years, you would like to contribute more. The committee has a vacancy for someone to run the junior training programme, which you think you could manage.\n\nWrite a letter to your club secretary.",
+    "bullets": [
+      "say why you would like to join the committee",
+      "describe the experience you could bring to the role",
+      "ask what the next steps are for applying"
+    ]
+  },
+  {
+    "slug": "t1g-g07-climbing-course-injury",
+    "topic": "Sport",
+    "type": "letter-semi",
+    "body": "Eight weeks into a bouldering course at an indoor climbing wall, you were making good progress until you strained your shoulder. Your instructor has asked you to join the advanced routes next week, but you are still in pain and your physiotherapist has advised rest.\n\nWrite a letter to your instructor.",
+    "bullets": [
+      "say why you are not ready for the advanced routes yet",
+      "explain how the injury has changed your plans for the course",
+      "propose a lighter programme or a later start that keeps you involved"
+    ]
+  },
+  {
+    "slug": "t1g-g07-friend-try-badminton",
+    "topic": "Sport",
+    "type": "letter-informal",
+    "body": "You have started playing badminton on Sunday mornings at a local club and you are really enjoying it. You know your friend has been wanting to get more exercise but has never played a racket sport.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe what a typical session is like",
+      "explain why you think they would enjoy it",
+      "invite them to come along with you next Sunday"
+    ]
+  },
+  {
+    "slug": "t1g-g07-friend-ankle-recovery",
+    "topic": "Health",
+    "type": "letter-informal",
+    "body": "You tore a ligament in your ankle playing five-a-side football three months ago. You can finally walk without pain, but you have had to give up the sport you love and you have been feeling low about it.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "tell them how much longer your recovery is likely to take",
+      "thank them for the lifts they offered you to physiotherapy appointments",
+      "ask whether they would like to play a gentle game once you are fit"
+    ]
+  },
+  {
+    "slug": "t1g-g07-friend-hiking-weekend",
+    "topic": "Leisure",
+    "type": "letter-informal",
+    "body": "A group of us are planning a two-night hiking trip in the hills next month, and there is one place left. Your friend enjoys long walks but has never camped, so this could be a good chance to try it.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "give details of the route and where you will stay",
+      "explain what equipment they would need to bring",
+      "invite them to join the group"
+    ]
+  },
+  {
+    "slug": "t1g-g07-friend-fitness-class",
+    "topic": "Health",
+    "type": "letter-informal",
+    "body": "Your friend mentioned last week that they are finding it hard to stick to their exercise plan. You have been going to a Saturday morning circuit class at the sports hall near your flat, and it has made a big difference.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe what the class involves",
+      "say how it has changed your energy levels",
+      "recommend that you try a session before the end of the month"
+    ]
+  },
+  {
+    "slug": "t1g-g07-friend-netball-match",
+    "topic": "Sport",
+    "type": "letter-informal",
+    "body": "Your workplace's social club has a women's netball team, and you have joined it for an important match this Saturday. Your friend played netball at school, and you think they would enjoy being part of the team for an afternoon.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "give details of where and when the match takes place",
+      "explain why the team needs an extra player",
+      "ask whether they could play as a substitute"
+    ]
+  }
+]

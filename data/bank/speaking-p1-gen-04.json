@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g04-garden-vegetables",
+    "topic": "Vegetables",
+    "questions": [
+      "Which vegetables do you eat most often?",
+      "Are there any vegetables you really cannot stand? Why/why not?",
+      "How do you usually prepare them for dinner?",
+      "Have you ever tried growing your own?"
+    ]
+  },
+  {
+    "slug": "p1g04-carrying-umbrellas",
+    "topic": "Umbrellas",
+    "questions": [
+      "How often do you carry an umbrella with you?",
+      "What colour of umbrella suits you best? Why?",
+      "Is it easy to find a good umbrella in the shops near you?",
+      "Have you ever had an umbrella blow inside out?"
+    ]
+  },
+  {
+    "slug": "p1g04-scented-candles",
+    "topic": "Candles",
+    "questions": [
+      "Do you own any candles at the moment?",
+      "Which smells do you find most relaxing? Why?",
+      "Which is better in the evening, a candle or a lamp? Why?",
+      "When do you usually light a candle?"
+    ]
+  },
+  {
+    "slug": "p1g04-garden-birds",
+    "topic": "Birds",
+    "questions": [
+      "Do you often see birds in the park or garden nearby?",
+      "Which bird do you find the most beautiful? Why?",
+      "Have you ever fed birds in winter?",
+      "What would you do if you found a hurt bird outside?"
+    ]
+  },
+  {
+    "slug": "p1g04-cafe-visits",
+    "topic": "Cafés",
+    "questions": [
+      "How often do you go to a café?",
+      "What do you usually order when you get there?",
+      "Do you prefer a quiet café or a busy one? Why?",
+      "Have you ever thought about opening a café? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-hot-spicy-food",
+    "topic": "Spicy food",
+    "questions": [
+      "What sort of spicy food do you enjoy most?",
+      "Is there a dish you find too hot to eat? Why/why not?",
+      "Do you add extra chilli to your meals? Why?",
+      "Who first taught you to cook with spices?"
+    ]
+  },
+  {
+    "slug": "p1g04-keeping-old-things",
+    "topic": "Old things",
+    "questions": [
+      "Are you the sort of person who keeps things for years? Why/why not?",
+      "Would you rather buy something new or mend an old thing? Why?",
+      "Which old object in your life means the most to you?",
+      "What is the oldest item you still own?"
+    ]
+  },
+  {
+    "slug": "p1g04-learning-to-drive",
+    "topic": "Driving",
+    "questions": [
+      "Do you enjoy driving, or would you rather not drive at all? Why?",
+      "What is the most important skill for a good driver?",
+      "At what age should someone start learning to drive, in your opinion?",
+      "How safe would you feel in a car with no driver? Why?"
+    ]
+  },
+  {
+    "slug": "p1g04-martial-arts-classes",
+    "topic": "Martial arts",
+    "questions": [
+      "Have you ever watched a martial arts film?",
+      "Which martial art would you most like to learn? Why?",
+      "How important is discipline in a sport like karate?",
+      "Is a self-defence class something you might try? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-theatre-trips",
+    "topic": "The theatre",
+    "questions": [
+      "When did you last go to the theatre?",
+      "What makes a play memorable for you? Why?",
+      "Do you prefer comedies or dramas on stage?",
+      "What would you say if a friend asked you to act in a play?"
+    ]
+  },
+  {
+    "slug": "p1g04-group-chats",
+    "topic": "Group chats",
+    "questions": [
+      "How many group chats are you part of at the moment?",
+      "Do you check them every few minutes? Why/why not?",
+      "Which group chat is the most useful to you?",
+      "Have you ever muted a group chat for good?"
+    ]
+  },
+  {
+    "slug": "p1g04-tourist-sights",
+    "topic": "Sightseeing",
+    "questions": [
+      "Which sight in your country would you show a visitor first?",
+      "Do you find sightseeing relaxing or tiring? Why?",
+      "Is it more fun to explore a new place with a guide or alone? Why?",
+      "What landmark that you have only seen in photos would you most like to see?"
+    ]
+  },
+  {
+    "slug": "p1g04-wild-animals",
+    "topic": "Wild animals",
+    "questions": [
+      "Which wild animal would you most like to see in real life?",
+      "How much do you know about the wild animals near you?",
+      "When did you last see a wild animal outdoors?",
+      "What small things could you do to help wildlife nearby?"
+    ]
+  },
+  {
+    "slug": "p1g04-having-guests",
+    "topic": "Guests",
+    "questions": [
+      "How often do people come to stay with you?",
+      "What do you usually serve when friends visit? Why?",
+      "Is it easy for you to relax when you have visitors?",
+      "Which do you enjoy more, hosting a big party or a quiet dinner? Why?"
+    ]
+  },
+  {
+    "slug": "p1g04-everyday-maths",
+    "topic": "Maths",
+    "questions": [
+      "Are you good at working out sums in your head?",
+      "Do you use a calculator much? Why/why not?",
+      "How comfortable do you feel with numbers in everyday life?",
+      "Is maths more useful to you than art? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-remembering-dreams",
+    "topic": "Dreams",
+    "questions": [
+      "Do you usually remember your dreams in the morning?",
+      "What is the strangest dream you have ever had?",
+      "Could dreams tell us something about our own feelings? Why/why not?",
+      "If you could choose tonight's dream, what would it be about?"
+    ]
+  },
+  {
+    "slug": "p1g04-helping-others",
+    "topic": "Helping others",
+    "questions": [
+      "When do you find it easiest to help someone?",
+      "Is there a kind of help you find difficult to give? Why?",
+      "What makes a person good at helping others, in your view?",
+      "Is it ever right to say no when someone asks for help? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-regional-accents",
+    "topic": "Accents",
+    "questions": [
+      "Do you find some accents easier to understand than others? Why/why not?",
+      "How would you describe your own accent to a stranger?",
+      "What makes an accent sound friendly to you?",
+      "Is it worth trying to lose your accent when you speak English? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-curious-minds",
+    "topic": "Curiosity",
+    "questions": [
+      "What kinds of things make you curious?",
+      "How often do you look something up when you do not know the answer?",
+      "Is curiosity something people are born with, or is it learned?",
+      "Can being too curious ever cause problems? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g04-famous-people",
+    "topic": "Famous people",
+    "questions": [
+      "Are there any famous people you admire? Why/why not?",
+      "How much do you follow the lives of famous people online?",
+      "What makes someone worth admiring, rather than just famous?",
+      "Does fame give a person more freedom or less, do you think? Why?"
+    ]
+  }
+]

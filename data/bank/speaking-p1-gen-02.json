@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g02-breakfast",
+    "topic": "Breakfast",
+    "questions": [
+      "What do you usually eat for breakfast?",
+      "Do you eat breakfast at home or on the way out? Why?",
+      "Would you skip breakfast if you were in a hurry? Why/why not?",
+      "How long do you usually spend on breakfast?"
+    ]
+  },
+  {
+    "slug": "p1g02-hats",
+    "topic": "Hats",
+    "questions": [
+      "Which hats do you own at the moment?",
+      "Do you wear a hat when it is cold? Why?",
+      "Are hats a good present to give someone? Why/why not?",
+      "What kind of hat suits you best?"
+    ]
+  },
+  {
+    "slug": "p1g02-kites",
+    "topic": "Kites",
+    "questions": [
+      "What is the best thing about flying a kite?",
+      "Which colour kite do you like the look of? Why?",
+      "Are kites only for children, in your view? Why/why not?",
+      "How easy do you find it to get a kite up in the air?"
+    ]
+  },
+  {
+    "slug": "p1g02-running",
+    "topic": "Running",
+    "questions": [
+      "How often do you go running?",
+      "Do you prefer running alone or with someone? Why?",
+      "Where do you usually run?",
+      "Is it easy to get motivated to run? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g02-farms",
+    "topic": "Farms",
+    "questions": [
+      "Would you enjoy spending a day on a farm? Why?",
+      "What animals do you associate with farms?",
+      "Have you ever tried growing vegetables yourself? Why/why not?",
+      "What would you most like to see on a farm?"
+    ]
+  },
+  {
+    "slug": "p1g02-takeaway-food",
+    "topic": "Takeaway food",
+    "questions": [
+      "How often do you order takeaway food?",
+      "What is your favourite takeaway to order? Why?",
+      "Do you ever cook a meal instead of ordering in? Why/why not?",
+      "Would you ever give up takeaways completely? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g02-uniforms",
+    "topic": "Uniforms",
+    "questions": [
+      "Do you own any clothes that feel like a uniform to you?",
+      "How do you feel when you wear smart clothes for an occasion?",
+      "Would you like to wear a uniform for a sports team one day? Why/why not?",
+      "What is the most comfortable piece of clothing you own?"
+    ]
+  },
+  {
+    "slug": "p1g02-flying",
+    "topic": "Flying",
+    "questions": [
+      "How do you feel about flying?",
+      "Which do you prefer, a window seat or an aisle seat? Why?",
+      "Do you find it hard to sleep on a plane? Why/why not?",
+      "What is the first thing you do when you land somewhere?"
+    ]
+  },
+  {
+    "slug": "p1g02-chess",
+    "topic": "Chess",
+    "questions": [
+      "Do you know how to play chess?",
+      "Who do you usually play chess with?",
+      "Is chess a game you find relaxing or stressful? Why?",
+      "What makes a good chess player, in your view?"
+    ]
+  },
+  {
+    "slug": "p1g02-concerts",
+    "topic": "Concerts",
+    "questions": [
+      "What kind of concerts do you enjoy most?",
+      "Would you pay a lot of money for a ticket to see your favourite band? Why/why not?",
+      "Do you prefer big stadium shows or small venues? Why?",
+      "Which concert would you most like to go to next? Why?"
+    ]
+  },
+  {
+    "slug": "p1g02-selfies",
+    "topic": "Selfies",
+    "questions": [
+      "How many selfies do you take in a typical week?",
+      "Are you someone who likes being photographed? Why/why not?",
+      "Which app do you use for taking photos on your phone?",
+      "Do you think selfies say something about a person? Why?"
+    ]
+  },
+  {
+    "slug": "p1g02-countryside",
+    "topic": "The countryside",
+    "questions": [
+      "What do you picture when you hear the word countryside?",
+      "Would you enjoy a quiet village for a short break? Why/why not?",
+      "Is the countryside easy to reach from where you are?",
+      "Which season do you think the countryside looks best in? Why?"
+    ]
+  },
+  {
+    "slug": "p1g02-bargains",
+    "topic": "Bargains",
+    "questions": [
+      "What is the best bargain you can recall getting?",
+      "Do you enjoy looking for bargains, or does it stress you out? Why?",
+      "Where is the best place to find a bargain near you?",
+      "Would you buy something just because it was cheap? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g02-fireworks",
+    "topic": "Fireworks",
+    "questions": [
+      "Do you enjoy watching fireworks? Why?",
+      "Would you rather watch fireworks from a park or from a balcony? Why?",
+      "What is your favourite time of year to see fireworks?",
+      "How do you feel about fireworks going off late at night?"
+    ]
+  },
+  {
+    "slug": "p1g02-relaxation",
+    "topic": "Relaxation",
+    "questions": [
+      "How do you like to relax after a long day?",
+      "Do you find it easy to switch off in the evening? Why/why not?",
+      "What kind of place helps you to relax the most?",
+      "Is there anything you do to relax that other people find strange? Why?"
+    ]
+  },
+  {
+    "slug": "p1g02-remembering-things",
+    "topic": "Remembering things",
+    "questions": [
+      "How good is your memory for names and faces?",
+      "Would you rather remember everything or forget some things? Why?",
+      "Do you use any tricks to help you remember things? Why?",
+      "Which is easier for you to remember, a song or a phone number?"
+    ]
+  },
+  {
+    "slug": "p1g02-sharing",
+    "topic": "Sharing",
+    "questions": [
+      "What is the hardest thing for you to share with others?",
+      "Do you find it natural to share your things with friends? Why/why not?",
+      "Do you enjoy sharing a meal more than eating alone? Why?",
+      "Would you lend something valuable to a friend? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g02-tidiness",
+    "topic": "Tidiness",
+    "questions": [
+      "How tidy is your room usually?",
+      "Do you tidy up as you go, or wait until the end? Why?",
+      "Is it hard for you to keep your things in order? Why/why not?",
+      "What helps you stay organised day to day?"
+    ]
+  },
+  {
+    "slug": "p1g02-trying-new-things",
+    "topic": "Trying new things",
+    "questions": [
+      "What new thing are you hoping to try this year?",
+      "Do you usually enjoy trying something unfamiliar? Why?",
+      "Would you rather stick with what you know or take a risk? Why?",
+      "What makes you hesitate before doing something new?"
+    ]
+  },
+  {
+    "slug": "p1g02-robots",
+    "topic": "Robots",
+    "questions": [
+      "Which tasks would you happily hand over to a robot?",
+      "Would you trust a robot to cook a meal for you? Why/why not?",
+      "How comfortable are you with machines that talk back?",
+      "Is there a robot you remember from a film or cartoon? Why?"
+    ]
+  }
+]

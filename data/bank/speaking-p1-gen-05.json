@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g05-chocolate",
+    "topic": "Chocolate",
+    "questions": [
+      "How often do you eat chocolate?",
+      "Which kind do you prefer, milk or dark? Why?",
+      "Is it easy to resist chocolate when it is in the house? Why/why not?",
+      "Have you ever tried making your own chocolate?"
+    ]
+  },
+  {
+    "slug": "p1g05-watches",
+    "topic": "Watches",
+    "questions": [
+      "Which watch do you wear most days?",
+      "What sort of watch would you choose for yourself? Why?",
+      "Would you like a watch that tracks your heart rate? Why/why not?",
+      "Do you think wearing a watch is still necessary? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-houseplants",
+    "topic": "Houseplants",
+    "questions": [
+      "Have you got any plants indoors at the moment?",
+      "How do you look after your houseplants?",
+      "Which plant would you find the hardest to keep alive? Why?",
+      "What do you say to someone who thinks houseplants are too much bother?"
+    ]
+  },
+  {
+    "slug": "p1g05-snow",
+    "topic": "Snow",
+    "questions": [
+      "Does it snow where you are at this time of year?",
+      "Do you enjoy playing in the snow, or do you find it a nuisance? Why?",
+      "What is the best thing about a snowy morning?",
+      "How would you feel about a winter with no snow at all? Why?"
+    ]
+  },
+  {
+    "slug": "p1g05-bookshops",
+    "topic": "Bookshops",
+    "questions": [
+      "Which bookshop do you go to most often?",
+      "Do you prefer buying books in a shop or online? Why?",
+      "What makes a bookshop feel welcoming to you?",
+      "Do you enjoy spending a whole afternoon in a bookshop? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-lunchtime",
+    "topic": "Lunchtime",
+    "questions": [
+      "What do you usually eat at lunchtime?",
+      "Do you ever skip lunch when you are busy? Why/why not?",
+      "How long is your usual lunch break?",
+      "Is a long lunch with friends better than a quick bite on your own? Why?"
+    ]
+  },
+  {
+    "slug": "p1g05-puzzles",
+    "topic": "Puzzles",
+    "questions": [
+      "Are puzzles a regular part of your free time?",
+      "What kind of puzzle do you find most satisfying? Why?",
+      "How did you first get interested in puzzles?",
+      "Can a puzzle ever make you lose your temper? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-motorbikes",
+    "topic": "Motorbikes",
+    "questions": [
+      "Do you know anyone who rides a motorbike?",
+      "Would you ever want to learn to ride one? Why/why not?",
+      "What do drivers most often misunderstand about motorbikes?",
+      "Which do you think is more fun, a motorbike or a bicycle? Why?"
+    ]
+  },
+  {
+    "slug": "p1g05-climbing",
+    "topic": "Climbing",
+    "questions": [
+      "Have you ever tried climbing?",
+      "What do you think is the appeal of climbing? Why?",
+      "How hard would it be to learn the basics?",
+      "Do you think climbing is safer than it looks? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-whistling",
+    "topic": "Whistling",
+    "questions": [
+      "Can you whistle a tune?",
+      "Who taught you to whistle, if anyone?",
+      "Do you whistle when you are happy? Why/why not?",
+      "Would you find it annoying if someone nearby whistled for hours? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-hotels",
+    "topic": "Hotels",
+    "questions": [
+      "How many nights do you usually stay in a hotel?",
+      "What is the first thing you notice in a hotel room?",
+      "Do you prefer big hotels or small guesthouses? Why?",
+      "Have you ever had a bad experience in a hotel?"
+    ]
+  },
+  {
+    "slug": "p1g05-day-trips",
+    "topic": "Day trips",
+    "questions": [
+      "Do you enjoy going on day trips?",
+      "Where would you most like to go for a day trip?",
+      "How do you usually prepare for a day out?",
+      "Are day trips more satisfying than long holidays? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-insects",
+    "topic": "Insects",
+    "questions": [
+      "Which insects do you notice most in summer?",
+      "Are you afraid of any insects? Why/why not?",
+      "What do you think is the most useful insect?",
+      "Could you ever bring yourself to eat an insect? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-grandparents",
+    "topic": "Grandparents",
+    "questions": [
+      "Are you close to your grandparents?",
+      "What did your grandparents teach you?",
+      "Would you like to be a grandparent one day? Why?",
+      "How often do you talk to your grandparents?"
+    ]
+  },
+  {
+    "slug": "p1g05-fashion",
+    "topic": "Fashion",
+    "questions": [
+      "Would you describe yourself as fashionable? Why?",
+      "Which shops do you usually buy clothes from?",
+      "How has your style changed since you were a teenager?",
+      "Do you think clothes can change how people treat you? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-spending-time-alone",
+    "topic": "Spending time alone",
+    "questions": [
+      "What do you like to do on a free evening when you are on your own?",
+      "Would you rather spend a day alone or with a group of friends? Why?",
+      "Is it important for you to have some time alone? Why?",
+      "What would you miss most if you never had any quiet time?"
+    ]
+  },
+  {
+    "slug": "p1g05-good-manners",
+    "topic": "Good manners",
+    "questions": [
+      "What do good manners mean to you?",
+      "Which manners do you think matter most at the dinner table? Why?",
+      "Have you noticed any change in how polite your friends are?",
+      "Would you ever correct a friend who had bad manners? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g05-speaking-in-public",
+    "topic": "Speaking in public",
+    "questions": [
+      "How do you feel before you speak in front of a group?",
+      "Have you ever given a presentation?",
+      "Would you enjoy being a teacher or a presenter? Why/why not?",
+      "What is the most useful advice for a nervous speaker? Why?"
+    ]
+  },
+  {
+    "slug": "p1g05-daydreaming",
+    "topic": "Daydreaming",
+    "questions": [
+      "How often do you find yourself daydreaming?",
+      "What do you usually daydream about?",
+      "Where are you most likely to start daydreaming?",
+      "Do you think daydreaming can be useful? Why?"
+    ]
+  },
+  {
+    "slug": "p1g05-brands",
+    "topic": "Brands",
+    "questions": [
+      "Which brands do you feel loyal to?",
+      "Would you pay more for something you know is well made? Why?",
+      "Does the brand of a product matter to you when you buy it? Why/why not?",
+      "What makes a brand trustworthy in your eyes?"
+    ]
+  }
+]

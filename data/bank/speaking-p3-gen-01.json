@@ -1,0 +1,322 @@
+[
+  {
+    "slug": "p3g01-toys-childhood",
+    "topic": "Toys",
+    "subtopics": [
+      "Playing with toys",
+      "Toys and learning"
+    ],
+    "questions": [
+      "Which toys do young children in your country play with most often?",
+      "In what ways are today's toys different from those of earlier generations?",
+      "Why do some adults still keep the toys they had as children?",
+      "What can a child learn from playing with simple building blocks?",
+      "Are educational toys more valuable than toys that are just for fun?",
+      "Will traditional toys such as dolls and model trains still be popular in fifty years' time?"
+    ]
+  },
+  {
+    "slug": "p3g01-car-ownership-daily-life",
+    "topic": "Car ownership",
+    "subtopics": [
+      "Owning a car",
+      "Cars in everyday life"
+    ],
+    "questions": [
+      "Roughly how many cars does a typical household own in your country?",
+      "What do most people use their cars for during the working week?",
+      "Would most families find it easy to manage without a car?",
+      "How does owning a car compare with using public transport for everyday journeys?",
+      "Is it becoming more expensive to keep a car on the road than it used to be?",
+      "What effect might a shortage of parking have on the way people choose to travel?"
+    ]
+  },
+  {
+    "slug": "p3g01-video-calls-distance",
+    "topic": "Video calls",
+    "subtopics": [
+      "Making video calls",
+      "Keeping in touch at a distance"
+    ],
+    "questions": [
+      "Which apps do people in your country use most for video calls?",
+      "How often do families in your country use video calls to stay in touch?",
+      "Why can a video call feel more tiring than a conversation in person?",
+      "What advantages do video calls have over a simple phone call?",
+      "In what ways have video calls changed working life over the past few years?",
+      "Are there some kinds of meeting that a video screen can never really replace?"
+    ]
+  },
+  {
+    "slug": "p3g01-weather-and-mood",
+    "topic": "Weather and mood",
+    "subtopics": [
+      "Weather and daily plans",
+      "Weather and wellbeing"
+    ],
+    "questions": [
+      "How does the weather usually affect people's plans for the day?",
+      "Which kind of weather do most people say they prefer?",
+      "What is it about grey, rainy days that makes some people feel tired?",
+      "What can people do to lift their spirits during long, dark winters?",
+      "Are people in cold countries more affected by the weather than people in warm ones?",
+      "How might climate change alter the way people feel about the changing seasons?"
+    ]
+  },
+  {
+    "slug": "p3g01-famous-landmarks-symbols",
+    "topic": "Famous landmarks",
+    "subtopics": [
+      "Landmarks and visitors",
+      "What landmarks stand for"
+    ],
+    "questions": [
+      "Which famous landmarks do tourists usually want to see when they visit a city?",
+      "Why do cities often choose a landmark as a symbol of their identity?",
+      "How do visitors usually prepare before they see a famous monument?",
+      "What turns an old building into a landmark rather than just another old building?",
+      "Do landmarks bring more benefits or more problems to the people who live nearby?",
+      "Could a newly built structure ever become as recognisable as the historic landmarks it sits among?"
+    ]
+  },
+  {
+    "slug": "p3g01-manners-everyday-courtesy",
+    "topic": "Manners and politeness",
+    "subtopics": [
+      "Good manners in everyday life",
+      "Changing standards of politeness"
+    ],
+    "questions": [
+      "What counts as good manners when a group of people eats together in a restaurant?",
+      "What do children learn from being taught manners at home?",
+      "How do expectations of politeness differ between a busy city and a quiet village?",
+      "Are people less polite than they were a generation ago?",
+      "How much can a small act of courtesy, such as holding a door open, change someone's mood?",
+      "Is politeness something that can be learned, or is it simply a matter of personality?"
+    ]
+  },
+  {
+    "slug": "p3g01-community-spirit-neighbours",
+    "topic": "Community spirit",
+    "subtopics": [
+      "Neighbours helping one another",
+      "Building stronger communities"
+    ],
+    "questions": [
+      "In what ways do neighbours usually help one another?",
+      "What makes some neighbourhoods feel closer than others?",
+      "How does community life in a big city differ from community life in a small town?",
+      "What can local groups do to bring people together who would not otherwise meet?",
+      "Is community spirit weaker today than it was in the past?",
+      "To what extent can technology help a community stay connected?"
+    ]
+  },
+  {
+    "slug": "p3g01-woodland-protection",
+    "topic": "Forests and woodland",
+    "subtopics": [
+      "Woodland and everyday life",
+      "Protecting forests for the future"
+    ],
+    "questions": [
+      "What do people in your region usually use forests for?",
+      "Why are woodlands so important to the wildlife that lives in them?",
+      "How has the area covered by forest changed in many countries over the last century?",
+      "What effect does the loss of forest have on the water supply of nearby towns?",
+      "Would it be realistic to restore ancient woodland that has already been lost?",
+      "Is enough being done to protect forests in most parts of the world?"
+    ]
+  },
+  {
+    "slug": "p3g01-sharing-a-home-living",
+    "topic": "Sharing a home",
+    "subtopics": [
+      "Living with other people",
+      "Shared living in the future"
+    ],
+    "questions": [
+      "What are the main difficulties people face when they share a flat with strangers?",
+      "What attracts many young adults to sharing a home rather than living alone?",
+      "How important is it for housemates to keep to similar daily routines?",
+      "How can housemates make a shared home comfortable for everyone who lives in it?",
+      "Is it easier to share a home with close friends or with people you have never met?",
+      "Will more people choose to share homes in future as property prices continue to rise?"
+    ]
+  },
+  {
+    "slug": "p3g01-vegetarian-diets-choices",
+    "topic": "Vegetarian diets",
+    "subtopics": [
+      "Choosing a meat-free diet",
+      "Food choices and society"
+    ],
+    "questions": [
+      "How easy is it to find vegetarian food in your country?",
+      "What leads some people to give up eating meat altogether?",
+      "How do the costs of vegetarian meals compare with the costs of meals containing meat?",
+      "What are the health benefits and drawbacks of cutting out meat completely?",
+      "Are restaurants doing enough to offer tasty meat-free dishes on their menus?",
+      "Do you think eating less meat will become the norm in most countries within a generation?"
+    ]
+  },
+  {
+    "slug": "p3g01-renting-over-a-lifetime",
+    "topic": "Renting instead of buying",
+    "subtopics": [
+      "Renting or buying",
+      "Flexibility and home ownership"
+    ],
+    "questions": [
+      "What are the main reasons people choose to rent a home rather than buy one?",
+      "What tends to make a tenant stay in the same place for many years?",
+      "How does the cost of renting compare with paying a mortgage over the same period?",
+      "What advantages does renting offer to someone who changes jobs often?",
+      "Is owning a home still the best way for most families to build wealth?",
+      "How might attitudes to renting change as more people spend their whole lives without owning property?"
+    ]
+  },
+  {
+    "slug": "p3g01-studying-overseas-students",
+    "topic": "Studying abroad",
+    "subtopics": [
+      "Students moving overseas",
+      "Benefits for the wider world"
+    ],
+    "questions": [
+      "Why do so many students choose to study in a country other than their own?",
+      "What difficulties do international students usually face in their first year?",
+      "How does spending time in another country change the way a young person sees the world?",
+      "Would it be fair for universities to charge international students higher fees?",
+      "Is studying abroad worth the expense for the average student?",
+      "What effect could a large number of international students have on the character of a university town?"
+    ]
+  },
+  {
+    "slug": "p3g01-work-placements-teenagers",
+    "topic": "Work experience for young people",
+    "subtopics": [
+      "Young people at work",
+      "Preparing for a career"
+    ],
+    "questions": [
+      "Where do teenagers in your country usually go for work experience?",
+      "Why might some employers prefer to hire people who have already done a placement?",
+      "How useful is a short placement compared with a part-time job at the weekend?",
+      "What can a young person develop during a few weeks in an office or a workshop?",
+      "Are schools preparing pupils well enough for the world of work?",
+      "Could a good work placement ever be more valuable than a university degree for some people?"
+    ]
+  },
+  {
+    "slug": "p3g01-wearable-devices-health",
+    "topic": "Wearable technology",
+    "subtopics": [
+      "Gadgets worn on the body",
+      "Technology and personal health"
+    ],
+    "questions": [
+      "Which wearable devices are most common among people in your country?",
+      "What motivates many people to track their steps or the quality of their sleep?",
+      "How reliable are the readings that wearable devices give about a person's health?",
+      "What are the main privacy concerns with devices that record personal information all day?",
+      "Will wearable technology eventually take the place of the smartphone?",
+      "To what extent could wearable devices help doctors monitor patients who are recovering at home?"
+    ]
+  },
+  {
+    "slug": "p3g01-vocational-training-trades",
+    "topic": "Vocational training",
+    "subtopics": [
+      "Learning a trade",
+      "Routes into skilled work"
+    ],
+    "questions": [
+      "Which jobs are usually learned through vocational training rather than at university?",
+      "What draws some young people towards practical training rather than academic study?",
+      "How does the status of vocational courses compare with that of a university degree?",
+      "What are the benefits of learning on the job rather than only in a classroom?",
+      "Is it wise for a teenager to choose a trade at the age of sixteen?",
+      "Could vocational training help to close the gap when a country has too few skilled workers?"
+    ]
+  },
+  {
+    "slug": "p3g01-trust-between-people",
+    "topic": "Trust",
+    "subtopics": [
+      "Trusting other people",
+      "Trust in the wider world"
+    ],
+    "questions": [
+      "Why are people sometimes willing to trust a stranger they have only just met?",
+      "What causes trust to be so hard to rebuild once it has been broken?",
+      "How do people decide whether an advertisement can be believed?",
+      "Is it possible to trust someone completely, or is some doubt always healthy?",
+      "What part does trust play in the success of a long business partnership?",
+      "What would daily life be like if people had no reason to believe what others told them?"
+    ]
+  },
+  {
+    "slug": "p3g01-forecasting-long-term",
+    "topic": "Predicting the future",
+    "subtopics": [
+      "Forecasting and its limits",
+      "Preparing for what lies ahead"
+    ],
+    "questions": [
+      "What kinds of predictions do people most often make about their own lives?",
+      "What explains why experts so often get long-term forecasts wrong?",
+      "How reliable are predictions that depend on a technology nobody has yet perfected?",
+      "What can a society gain by planning for decades rather than for the next few years?",
+      "Is it possible to prepare for events that nobody expected to happen?",
+      "Would people behave differently if they knew with certainty what the future held?"
+    ]
+  },
+  {
+    "slug": "p3g01-group-pressure-friends",
+    "topic": "Peer pressure",
+    "subtopics": [
+      "Pressure from friends",
+      "Influence across a lifetime"
+    ],
+    "questions": [
+      "What are some common ways in which friends try to influence one another?",
+      "Why might a person go along with a group even when they disagree with it?",
+      "How does peer pressure change between childhood and adulthood?",
+      "What helps a young person to refuse when a group pushes them towards something risky?",
+      "Is peer pressure mostly harmful, or can it sometimes encourage good behaviour?",
+      "To what extent do adults still feel peer pressure in the workplace?"
+    ]
+  },
+  {
+    "slug": "p3g01-virtual-reality-experience",
+    "topic": "Virtual reality",
+    "subtopics": [
+      "Experiencing virtual worlds",
+      "Virtual reality in society"
+    ],
+    "questions": [
+      "What kinds of activities can people now enjoy in virtual reality?",
+      "What makes some people feel uncomfortable after wearing a virtual reality headset?",
+      "How might virtual reality change the way doctors are trained?",
+      "What are the main risks of spending long periods inside a virtual world?",
+      "Is virtual reality likely to become a normal part of everyday life?",
+      "Would people still value real experiences if virtual ones felt almost identical to them?"
+    ]
+  },
+  {
+    "slug": "p3g01-multitasking-focus",
+    "topic": "Multitasking",
+    "subtopics": [
+      "Doing several things at once",
+      "Multitasking at work and study"
+    ],
+    "questions": [
+      "How common is multitasking in people's everyday lives?",
+      "Why is it so hard for many people to concentrate on a single task?",
+      "How does trying to do several things at once affect the quality of a student's work?",
+      "What are the costs of constantly switching from one task to another?",
+      "Is multitasking a useful skill in every kind of job?",
+      "Could people learn to multitask more effectively, or is the human brain simply limited?"
+    ]
+  }
+]

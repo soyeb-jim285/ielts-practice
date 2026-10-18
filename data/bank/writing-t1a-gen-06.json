@@ -1,0 +1,803 @@
+[
+  {
+    "slug": "t1a-g06-minimum-wage-rises",
+    "topic": "Work",
+    "type": "line",
+    "body": "The line graph below shows the minimum hourly wage for adults and for workers under 21 in one country between 2005 and 2025, in local currency.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Minimum hourly wage for adults and young workers, 2005–2025",
+      "xLabel": "Year",
+      "yLabel": "Minimum wage (local currency per hour)",
+      "unit": "local currency",
+      "categories": [
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Adults (21 and over)",
+          "values": [
+            7.2,
+            8.0,
+            9.1,
+            10.4,
+            11.6
+          ]
+        },
+        {
+          "name": "Workers under 21",
+          "values": [
+            5.4,
+            6.1,
+            6.9,
+            8.2,
+            9.3
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-household-savings-rates",
+    "topic": "Money",
+    "type": "line",
+    "body": "The graph below shows household savings rates in three countries between 2000 and 2025, expressed as a percentage of disposable income.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Household savings rate in three countries, 2000–2025",
+      "xLabel": "Year",
+      "yLabel": "Savings rate (% of disposable income)",
+      "unit": "%",
+      "categories": [
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Country A",
+          "values": [
+            9.8,
+            8.1,
+            5.9,
+            4.6,
+            9.4,
+            7.2
+          ]
+        },
+        {
+          "name": "Country B",
+          "values": [
+            3.1,
+            4.0,
+            6.8,
+            8.9,
+            11.7,
+            10.2
+          ]
+        },
+        {
+          "name": "Country C",
+          "values": [
+            6.0,
+            5.6,
+            5.1,
+            4.8,
+            5.2,
+            5.5
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-sector-employment-shares",
+    "topic": "Economy",
+    "type": "line",
+    "body": "The line graph below gives information about the share of the working population employed in agriculture, industry and services in one country from 1970 to 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Share of employment in agriculture, industry and services, 1970–2020",
+      "xLabel": "Year",
+      "yLabel": "Share of total employment (%)",
+      "unit": "%",
+      "categories": [
+        "1970",
+        "1980",
+        "1990",
+        "2000",
+        "2010",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Agriculture",
+          "values": [
+            25,
+            18,
+            12,
+            8,
+            6,
+            5
+          ]
+        },
+        {
+          "name": "Industry",
+          "values": [
+            38,
+            40,
+            36,
+            29,
+            23,
+            19
+          ]
+        },
+        {
+          "name": "Services",
+          "values": [
+            37,
+            42,
+            52,
+            63,
+            71,
+            76
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-self-employed-ages",
+    "topic": "Work",
+    "type": "bar",
+    "body": "The bar chart below gives information about the proportion of workers who were self-employed in each age group in one country in 2010 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Self-employed share of workers by age group, 2010 and 2025",
+      "xLabel": "Age group",
+      "yLabel": "Self-employed workers (% of each age group)",
+      "unit": "%",
+      "categories": [
+        "16–24",
+        "25–34",
+        "35–49",
+        "50–64",
+        "65 and over"
+      ],
+      "series": [
+        {
+          "name": "2010",
+          "values": [
+            4.8,
+            11.2,
+            17.6,
+            19.3,
+            24.5
+          ]
+        },
+        {
+          "name": "2025",
+          "values": [
+            5.6,
+            12.9,
+            18.4,
+            21.7,
+            33.8
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-weekly-hours-countries",
+    "topic": "Work",
+    "type": "bar",
+    "body": "The bar chart below shows the average number of hours worked each week by full-time employees in five countries in 2010 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average weekly hours worked by full-time employees in five countries, 2010 and 2024",
+      "xLabel": "Country",
+      "yLabel": "Average hours per week",
+      "unit": "hours",
+      "categories": [
+        "Mexico",
+        "Japan",
+        "United Kingdom",
+        "Germany",
+        "Sweden"
+      ],
+      "series": [
+        {
+          "name": "2010",
+          "values": [
+            44.1,
+            42.0,
+            37.3,
+            35.6,
+            36.2
+          ]
+        },
+        {
+          "name": "2024",
+          "values": [
+            42.8,
+            38.6,
+            36.9,
+            34.1,
+            35.5
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-card-cash-payments",
+    "topic": "Money",
+    "type": "pie",
+    "body": "The pie charts below show how customers paid for goods in shops, by cash, debit or credit card and mobile phone, in 2015 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "How customers paid for goods in shops, 2015 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2015",
+          "slices": [
+            {
+              "label": "Cash",
+              "value": 58
+            },
+            {
+              "label": "Debit or credit card",
+              "value": 34
+            },
+            {
+              "label": "Mobile phone",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            {
+              "label": "Cash",
+              "value": 21
+            },
+            {
+              "label": "Debit or credit card",
+              "value": 52
+            },
+            {
+              "label": "Mobile phone",
+              "value": 27
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-startup-sectors",
+    "topic": "Business",
+    "type": "pie",
+    "body": "The pie charts below give information about the sectors in which new businesses were set up in one country in 2010 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "New business start-ups by sector, 2010 and 2025 (%)",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2010",
+          "slices": [
+            {
+              "label": "Retail and hospitality",
+              "value": 31
+            },
+            {
+              "label": "Professional services",
+              "value": 18
+            },
+            {
+              "label": "Construction",
+              "value": 17
+            },
+            {
+              "label": "Information technology",
+              "value": 6
+            },
+            {
+              "label": "Health and care",
+              "value": 9
+            },
+            {
+              "label": "Other",
+              "value": 19
+            }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            {
+              "label": "Retail and hospitality",
+              "value": 20
+            },
+            {
+              "label": "Professional services",
+              "value": 26
+            },
+            {
+              "label": "Construction",
+              "value": 12
+            },
+            {
+              "label": "Information technology",
+              "value": 22
+            },
+            {
+              "label": "Health and care",
+              "value": 13
+            },
+            {
+              "label": "Other",
+              "value": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-staff-turnover-industries",
+    "topic": "Work",
+    "type": "table",
+    "body": "The table below shows staff turnover, average length of service, vacancies and average hourly pay in seven industries in one country in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Staff turnover, service, vacancies and pay by industry, 2024",
+      "columns": [
+        "Industry",
+        "Staff turnover rate (%)",
+        "Average length of service (years)",
+        "Vacancies (per 100 employees)",
+        "Average hourly pay (£)"
+      ],
+      "rows": [
+        [
+          "Hospitality",
+          38.4,
+          2.1,
+          6.2,
+          11.9
+        ],
+        [
+          "Retail",
+          29.6,
+          3.4,
+          4.8,
+          12.6
+        ],
+        [
+          "Healthcare",
+          16.3,
+          5.9,
+          5.1,
+          18.4
+        ],
+        [
+          "Construction",
+          19.8,
+          4.6,
+          3.9,
+          19.3
+        ],
+        [
+          "Education",
+          12.7,
+          7.3,
+          2.9,
+          22.6
+        ],
+        [
+          "Information technology",
+          17.4,
+          4.2,
+          6.7,
+          27.8
+        ],
+        [
+          "Public administration",
+          9.1,
+          9.7,
+          1.8,
+          20.1
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-part-time-by-sex",
+    "topic": "Work",
+    "type": "table",
+    "body": "The table below shows the percentage of men and of women working part time, and the number of part-time workers, in six sectors in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Part-time employment by sex and sector, 2025",
+      "columns": [
+        "Sector",
+        "Men working part time (% of men in sector)",
+        "Women working part time (% of women in sector)",
+        "Part-time workers (thousands)"
+      ],
+      "rows": [
+        [
+          "Retail",
+          21.4,
+          48.9,
+          1240
+        ],
+        [
+          "Health and social care",
+          12.8,
+          38.5,
+          980
+        ],
+        [
+          "Education",
+          15.2,
+          35.7,
+          760
+        ],
+        [
+          "Finance",
+          8.9,
+          24.6,
+          520
+        ],
+        [
+          "Transport",
+          9.7,
+          19.2,
+          330
+        ],
+        [
+          "Manufacturing",
+          6.1,
+          17.3,
+          410
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-occupation-earnings",
+    "topic": "Money",
+    "type": "table",
+    "body": "The table below gives information about average annual earnings, the share of women and the number of workers in six occupations in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Earnings, gender balance and size of six occupations, 2025",
+      "columns": [
+        "Occupation",
+        "Average annual earnings (£)",
+        "Workers who are women (%)",
+        "Workers in occupation (thousands)"
+      ],
+      "rows": [
+        [
+          "Software developer",
+          52400,
+          19,
+          420
+        ],
+        [
+          "Accountant",
+          41300,
+          58,
+          360
+        ],
+        [
+          "Secondary school teacher",
+          38900,
+          66,
+          470
+        ],
+        [
+          "Electrician",
+          35600,
+          2.4,
+          310
+        ],
+        [
+          "Nurse",
+          34800,
+          88,
+          690
+        ],
+        [
+          "Shop assistant",
+          19700,
+          61,
+          540
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-company-revenue-spending",
+    "topic": "Business",
+    "type": "mixed",
+    "body": "The charts below show where a small manufacturing company earned its revenue in 2025 and how it spent that revenue.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Revenue sources and spending of a small manufacturing company, 2025 (%)",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Sources of revenue",
+          "slices": [
+            {
+              "label": "Product sales",
+              "value": 58
+            },
+            {
+              "label": "Spare parts and servicing",
+              "value": 22
+            },
+            {
+              "label": "Contract manufacturing",
+              "value": 9
+            },
+            {
+              "label": "Government grants",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "name": "Uses of revenue",
+          "slices": [
+            {
+              "label": "Staff costs",
+              "value": 38
+            },
+            {
+              "label": "Materials",
+              "value": 24
+            },
+            {
+              "label": "Premises and utilities",
+              "value": 10
+            },
+            {
+              "label": "Marketing",
+              "value": 13
+            },
+            {
+              "label": "Profit retained",
+              "value": 15
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-bank-account-habits",
+    "topic": "Money",
+    "type": "mixed",
+    "body": "The charts below give information about how adults managed their current accounts in 2025 and why they chose their bank.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "How adults managed their current accounts and why they chose their bank, 2025 (%)",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "How adults managed their accounts",
+          "slices": [
+            {
+              "label": "Banking app on a phone",
+              "value": 52
+            },
+            {
+              "label": "Internet banking on a computer",
+              "value": 19
+            },
+            {
+              "label": "Visits to a branch",
+              "value": 14
+            },
+            {
+              "label": "Telephone",
+              "value": 9
+            },
+            {
+              "label": "Post",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "name": "Main reason for choosing a bank",
+          "slices": [
+            {
+              "label": "Lower fees",
+              "value": 31
+            },
+            {
+              "label": "Convenient app",
+              "value": 24
+            },
+            {
+              "label": "Interest on savings",
+              "value": 17
+            },
+            {
+              "label": "Recommended by a friend",
+              "value": 16
+            },
+            {
+              "label": "Branch close to home",
+              "value": 12
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-coin-minting",
+    "topic": "Money",
+    "type": "process",
+    "body": "The diagram below shows how coins are made at a national mint, from the arrival of metal at the factory to the delivery of finished coins to banks.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How coins are minted at a national mint",
+      "steps": [
+        "Metal is delivered to the mint in large sheets",
+        "Sheets are rolled into a long strip of the correct thickness",
+        "Blank discs are punched out of the metal strip",
+        "Discs are cleaned and heated so that the metal softens",
+        "A press stamps the design onto both faces of each disc",
+        "Coins that fail weight or size checks are returned to be melted",
+        "Accepted coins are counted, bagged and sent to banks"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-cotton-tshirt-production",
+    "topic": "Economy",
+    "type": "process",
+    "body": "The diagram below shows the stages in the production of a cotton T-shirt, from the planting of cotton to the arrival of the shirt in shops.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How a cotton T-shirt is produced, from field to shop",
+      "steps": [
+        "Cotton seeds are planted on large farms in warm regions",
+        "Cotton bolls are harvested by machine once they open",
+        "Raw cotton is taken to a ginnery",
+        "Seeds are removed and fibres are pressed into bales",
+        "Fibres are spun into yarn on large machines",
+        "Yarn is knitted into long tubes of fabric",
+        "Fabric is dyed, washed and dried",
+        "Fabric is cut into body and sleeve panels",
+        "Panels are sewn together and checked for faults",
+        "Faulty shirts are returned to the sewing line for repair",
+        "Finished shirts are pressed, folded and packed",
+        "Packed shirts are shipped to warehouses and then to shops"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-recruitment-stages",
+    "topic": "Work",
+    "type": "process",
+    "body": "The diagram below shows the stages a company goes through when it recruits a new employee, including the points at which applicants are rejected.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "How a company recruits a new employee",
+      "steps": [
+        "A manager submits a request to fill a vacancy",
+        "HR advertises the post on job boards and the company website",
+        "Applications are screened against the essential criteria",
+        "Applicants who do not meet the criteria receive a rejection letter",
+        "Shortlisted candidates complete an online aptitude test",
+        "Candidates below the pass mark are rejected and given feedback",
+        "Remaining candidates attend a panel interview",
+        "The panel scores each candidate and selects the strongest",
+        "HR checks references before any offer is made",
+        "A written offer is sent to the chosen candidate",
+        "If the offer is declined, the next-ranked candidate is contacted",
+        "The successful candidate signs the contract and starts work"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g06-high-street-change",
+    "topic": "Business",
+    "type": "map",
+    "body": "The maps below show a high street in 2000 and how its shops and services had changed by the present day.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Shops and services on a high street, 2000 and now",
+      "before": {
+        "label": "2000",
+        "features": [
+          "A public library at the northern end of High Street",
+          "A bakery on the north side, beside the library",
+          "A post office on the east side, next to the bank",
+          "An independent bookshop opposite the town hall",
+          "A bank on the corner of High Street and Market Street",
+          "A cinema at the southern end of High Street",
+          "A department store on the west side, facing the market square",
+          "A row of shoe repair and key-cutting shops along the east side",
+          "A bus station behind the market square"
+        ]
+      },
+      "after": {
+        "label": "Now",
+        "features": [
+          "A public library in a new building beside the market square",
+          "An independent bookshop opposite the town hall, still trading",
+          "A coffee shop in the former bank on the corner of High Street and Market Street",
+          "A gym at the southern end of High Street, in the former cinema",
+          "A supermarket on the west side, on the site of the department store",
+          "A nail bar and two charity shops along the east side",
+          "A post office on the east side, unchanged",
+          "The bakery on the north side, still in its original place",
+          "A row of empty units along the market square",
+          "A car park behind the market square, on the site of the former bus station"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g06-retail-park-expansion",
+    "topic": "Economy",
+    "type": "map",
+    "body": "The plans below show an out-of-town retail park in 2015 and how the site is planned to look after its expansion.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "An out-of-town retail park, 2015 and after planned expansion",
+      "before": {
+        "label": "2015",
+        "features": [
+          "A supermarket at the northern end of the site",
+          "A cinema in the north-east corner, with four screens",
+          "A furniture store in the centre, facing the main road",
+          "A row of three fast-food restaurants along the eastern edge",
+          "A surface car park covering the southern half of the site",
+          "A petrol station next to the main entrance",
+          "A garden centre behind the furniture store, on the western side",
+          "A bus stop opposite the main entrance",
+          "A pedestrian path linking the car park to the shops",
+          "An empty plot in the north-west corner"
+        ]
+      },
+      "after": {
+        "label": "After expansion",
+        "features": [
+          "A supermarket relocated to the western edge, with its entrance facing the car park",
+          "The cinema in the north-east corner, extended to six screens",
+          "A hotel on the site of the former furniture store, facing the main road",
+          "A gym replacing the fast-food row along the eastern edge",
+          "A three-storey car park along the western edge, behind the supermarket",
+          "The surface car park reduced to the southern quarter of the site",
+          "The petrol station unchanged, beside the main entrance",
+          "A garden centre relocated to the northern end, on the former supermarket site",
+          "A bowling alley in the north-west corner, built on the former empty plot",
+          "A bus stop moved to the main entrance, opposite the petrol station",
+          "A cycle path linking the entrance to the cinema and the gym"
+        ]
+      }
+    }
+  }
+]

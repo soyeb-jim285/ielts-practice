@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g10-drinking-water",
+    "topic": "Drinking water",
+    "questions": [
+      "How much water do you drink on a typical day?",
+      "Do you prefer still water or sparkling water? Why?",
+      "What do you usually drink when you first wake up?",
+      "Is the tap water where you live good to drink? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-headphones",
+    "topic": "Headphones",
+    "questions": [
+      "Which kind of headphones do you use most often?",
+      "Are headphones something you always carry with you? Why/why not?",
+      "When did you last buy a new pair?",
+      "Have you ever regretted buying a cheap pair of headphones? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-taxis",
+    "topic": "Taxis",
+    "questions": [
+      "How often do you travel by taxi?",
+      "Is it cheaper to take a taxi or a bus in your city?",
+      "What is the best thing about getting into a taxi on a cold night? Why?",
+      "Have you ever shared a taxi with a stranger? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-theme-parks",
+    "topic": "Theme parks",
+    "questions": [
+      "Is there a theme park you can reach easily by public transport? Why/why not?",
+      "Are you the sort of person who likes fast rides? Why/why not?",
+      "What part of a theme park visit do you enjoy most?",
+      "When did you last visit one?"
+    ]
+  },
+  {
+    "slug": "p1g10-cartoons",
+    "topic": "Cartoons",
+    "questions": [
+      "Which cartoons are most popular with children at the moment?",
+      "Would you like to draw your own cartoon one day? Why?",
+      "Do you think cartoons are only for children? Why/why not?",
+      "What makes a cartoon character memorable?"
+    ]
+  },
+  {
+    "slug": "p1g10-vegetarian-food",
+    "topic": "Vegetarian food",
+    "questions": [
+      "How many of your meals in a week contain no meat?",
+      "Is it easy to find vegetarian food where you usually eat out? Why/why not?",
+      "What is your favourite vegetarian dish? Why?",
+      "Could you give up meat completely if you had to?"
+    ]
+  },
+  {
+    "slug": "p1g10-paper",
+    "topic": "Paper",
+    "questions": [
+      "For which everyday tasks do you reach for paper first?",
+      "Do you prefer writing on paper or on a screen? Why?",
+      "What did you enjoy folding or cutting out as a child?",
+      "How would you feel about a day with no paper at all? Why?"
+    ]
+  },
+  {
+    "slug": "p1g10-yoga",
+    "topic": "Yoga",
+    "questions": [
+      "How do you feel about yoga as a form of exercise? Why?",
+      "Which kind of exercise helps you relax the most?",
+      "Is yoga more about the body or the mind, in your view? Why?",
+      "Would you ever try a yoga class with a group? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-stories",
+    "topic": "Stories",
+    "questions": [
+      "Do you enjoy hearing true stories or made-up ones more?",
+      "Who is the best storyteller you know? Why?",
+      "Which parts of a story do you remember the longest?",
+      "Do you ever tell stories to make people laugh? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-quizzes",
+    "topic": "Quizzes",
+    "questions": [
+      "Do you ever take part in quizzes on the radio or online?",
+      "Would you enjoy setting a quiz for your friends? Why/why not?",
+      "Do you prefer general knowledge quizzes or ones on one subject? Why?",
+      "What kind of questions do you find hardest to answer?"
+    ]
+  },
+  {
+    "slug": "p1g10-mountains",
+    "topic": "Mountains",
+    "questions": [
+      "Do you like being in high places, such as hills or mountains? Why?",
+      "What is the most appealing thing about a mountain view?",
+      "Which is harder for you, walking uphill or walking downhill? Why?",
+      "Would you like to spend a week in the mountains? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-online-shopping",
+    "topic": "Online shopping",
+    "questions": [
+      "Which items do you most often buy online?",
+      "Would you be happy to do all your shopping online? Why/why not?",
+      "How do you decide whether an online store can be trusted?",
+      "Have you ever changed your mind after ordering something online? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-new-year",
+    "topic": "New Year",
+    "questions": [
+      "How do you usually celebrate the start of a new year?",
+      "What did you do to celebrate last New Year?",
+      "What is your favourite way to begin a year? Why?",
+      "Do you make resolutions at the start of the year? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-evenings",
+    "topic": "Evenings",
+    "questions": [
+      "What do you usually do on weekday evenings?",
+      "Are you more productive in the morning or in the evening? Why?",
+      "How do you wind down before going to bed?",
+      "Is a quiet evening at home more relaxing for you than a night out? Why?"
+    ]
+  },
+  {
+    "slug": "p1g10-gloves-scarves",
+    "topic": "Gloves and scarves",
+    "questions": [
+      "Do you wear gloves in winter? Why/why not?",
+      "Which colour do you usually choose for a scarf?",
+      "How do you stop your gloves from getting lost?",
+      "Do you think knitted gloves are warmer than leather ones? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-asking-for-advice",
+    "topic": "Asking for advice",
+    "questions": [
+      "How do you decide who to ask for advice?",
+      "What kind of advice is the hardest for you to accept? Why?",
+      "When you need advice, who do you trust most to give it?",
+      "Is it ever better to make a decision on your own? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-goals",
+    "topic": "Goals",
+    "questions": [
+      "What makes a goal feel achievable to you? Why?",
+      "How do you keep track of your progress towards a goal?",
+      "Do you think a big goal or several small ones is easier to stick to? Why?",
+      "How important is it to share your goals with other people? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g10-rules",
+    "topic": "Rules",
+    "questions": [
+      "Which everyday rule do you think is the most sensible?",
+      "What makes a rule feel fair to you? Why?",
+      "Would you break a rule if you thought it was unnecessary? Why/why not?",
+      "How easy is it to change a rule that nobody follows?"
+    ]
+  },
+  {
+    "slug": "p1g10-conversations",
+    "topic": "Conversations",
+    "questions": [
+      "How do you usually start a conversation with someone new?",
+      "When did you last have a conversation that changed your mind?",
+      "What makes a conversation feel genuinely interesting? Why?",
+      "How do you feel about talking by message compared with face to face?"
+    ]
+  },
+  {
+    "slug": "p1g10-winning-prizes",
+    "topic": "Winning prizes",
+    "questions": [
+      "What kind of prize would you be most excited to win? Why?",
+      "How do you feel when you lose a competition you expected to win? Why?",
+      "Is it better to win a small prize often or a big one only occasionally? Why?",
+      "Have you ever won anything in a competition? Why/why not?"
+    ]
+  }
+]

@@ -1,0 +1,189 @@
+[
+  {
+    "slug": "t1g-g02-cottage-not-as-advertised",
+    "topic": "Travel",
+    "type": "letter-formal",
+    "body": "You booked a holiday cottage for a week in the countryside through an online agency. The website advertised a garden with a hot tub and a village within walking distance, but on arrival the hot tub was broken and the nearest shop was over five kilometres away.\n\nWrite a letter to the customer services manager of the holiday agency.",
+    "bullets": [
+      "describe the differences between the advertisement and the cottage you stayed in",
+      "explain how these problems affected your holiday",
+      "request a partial refund for the week"
+    ]
+  },
+  {
+    "slug": "t1g-g02-tour-itinerary-changed",
+    "topic": "Tourism",
+    "type": "letter-formal",
+    "body": "You paid for a five-day guided walking tour of the Scottish Highlands. The brochure described a visit to a whisky distillery and two nights in a mountain lodge. The tour operator has since changed the itinerary without consulting you, and you now have one night in a hostel instead of the lodge.\n\nWrite a letter to the managing director of the tour company.",
+    "bullets": [
+      "outline the changes that were made to the original itinerary",
+      "say why these changes are unacceptable to you",
+      "propose a suitable form of compensation"
+    ]
+  },
+  {
+    "slug": "t1g-g02-car-hire-extra-charges",
+    "topic": "Travel",
+    "type": "letter-formal",
+    "body": "You hired a car for a week while visiting another city. When you returned it, the company charged you £240 for a scratch on the rear bumper. You believe the mark was already there when you collected the car, and the staff did not offer you any photographs of the vehicle at that time.\n\nWrite a letter to the customer services manager of the car hire company.",
+    "bullets": [
+      "explain why you dispute the charge",
+      "describe what you did when you collected the car",
+      "ask the company to review the charge and send you the evidence"
+    ]
+  },
+  {
+    "slug": "t1g-g02-group-dinner-booking",
+    "topic": "Food",
+    "type": "letter-formal",
+    "body": "You are organising a dinner for thirty people to celebrate a retirement. Several guests have severe nut allergies, two guests use wheelchairs and the group would like a private room. You have not yet received written confirmation that the restaurant can meet these needs.\n\nWrite a letter to the restaurant manager.",
+    "bullets": [
+      "outline how the menu should be planned for guests with allergies",
+      "explain why the group needs one fixed menu rather than individual choices",
+      "confirm the date and time you have provisionally booked"
+    ]
+  },
+  {
+    "slug": "t1g-g02-insurance-claim-rejected",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "You bought travel insurance before a trip abroad. While there, you injured your ankle and paid for treatment at a private clinic. The insurer has now rejected your claim on the grounds of a pre-existing condition, although you had not had any problems with that ankle for several years.\n\nWrite a letter to the claims department of the insurance company.",
+    "bullets": [
+      "explain why your earlier injury should not count as a pre-existing condition",
+      "describe the treatment you received and the costs involved",
+      "say what evidence you can provide to support your claim"
+    ]
+  },
+  {
+    "slug": "t1g-g02-tourist-office-enquiry",
+    "topic": "Tourism",
+    "type": "letter-formal",
+    "body": "You are planning a long weekend in a historic seaside town next spring with a group of six friends. You have found very little information about the town online and would like some help with your plans.\n\nWrite a letter to the tourist information office in the town.",
+    "bullets": [
+      "ask about accommodation that can take a group of six people",
+      "request a copy of the town's walking routes and maps",
+      "say which events take place in April"
+    ]
+  },
+  {
+    "slug": "t1g-g02-guide-praise-letter",
+    "topic": "Travel",
+    "type": "letter-formal",
+    "body": "Last month you joined a walking tour of the old town led by a local guide. The guide was knowledgeable and patient with a group that included several elderly visitors, and at the end of the day had arranged a surprise picnic by the river.\n\nWrite a letter to the director of the tour company.",
+    "bullets": [
+      "describe the parts of the tour that you enjoyed most",
+      "thank the company for providing such a helpful guide",
+      "suggest how the company could make use of the guide's skills on future tours"
+    ]
+  },
+  {
+    "slug": "t1g-g02-manager-holiday-dates",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "You have annual leave booked for the first half of next month, but your family has just been offered a much cheaper holiday in Greece at a different time of year. Your team is busy with a large project in the weeks before your planned leave.\n\nWrite a letter to your manager.",
+    "bullets": [
+      "explain why the new dates would suit your family better",
+      "say which dates you would like instead",
+      "propose who could take on your responsibilities during the leave"
+    ]
+  },
+  {
+    "slug": "t1g-g02-colleague-client-visit",
+    "topic": "Business",
+    "type": "letter-semi",
+    "body": "Next week you were due to host a visit from a client who has bought from your company for many years. You have now been asked to attend a conference abroad on the same days, so you will be unable to meet the client.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "give details of the arrival time and the schedule planned for the visit",
+      "explain which documents the client expects to receive",
+      "ask your colleague to take over the meetings"
+    ]
+  },
+  {
+    "slug": "t1g-g02-tutor-missed-class",
+    "topic": "Education",
+    "type": "letter-semi",
+    "body": "Your family is travelling to a wedding abroad next Tuesday, which means you will miss the morning practical session on your cookery course. You have not yet told anyone on the course about the absence.\n\nWrite a letter to your tutor.",
+    "bullets": [
+      "apologise for missing the practical session",
+      "explain why the trip cannot be moved to another date",
+      "ask what work you should complete to catch up"
+    ]
+  },
+  {
+    "slug": "t1g-g02-neighbour-camping-equipment",
+    "topic": "Leisure",
+    "type": "letter-semi",
+    "body": "You are planning a camping weekend with your children in the hills, but you do not own a tent or sleeping bags. Your neighbour has a large camping set in the garage, which you saw when you were chatting over the fence last summer.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "introduce your plans for the weekend",
+      "ask whether you could borrow the tent and sleeping bags",
+      "offer to pay for any damage or cleaning"
+    ]
+  },
+  {
+    "slug": "t1g-g02-landlord-sublet-placement",
+    "topic": "Housing",
+    "type": "letter-semi",
+    "body": "You have been offered a three-month work placement in Japan, starting in January. Your flat is rented on a standard twelve-month contract that prohibits subletting, and your landlord has been hard to reach in the past when you have needed repairs.\n\nWrite a letter to your landlord.",
+    "bullets": [
+      "explain why the placement is important for your career",
+      "propose an arrangement for the flat while you are away",
+      "say how you would like the rent to be handled during your absence"
+    ]
+  },
+  {
+    "slug": "t1g-g02-invite-friend-coast",
+    "topic": "Travel",
+    "type": "letter-informal",
+    "body": "Your friend has just finished her exams and says she badly needs a break. You are driving to the Lake District for a week in June and have already booked a cottage for two.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "give details of the cottage and the area around it",
+      "invite her to join you for the week",
+      "tell her roughly how much the trip will cost each"
+    ]
+  },
+  {
+    "slug": "t1g-g02-recommend-porto-cousin",
+    "topic": "Tourism",
+    "type": "letter-informal",
+    "body": "Your cousin is thinking about taking a holiday next year and has asked you for ideas. You spent last summer in Porto, which you loved for its food, its views over the river and its quiet old streets.\n\nWrite a letter to your cousin.",
+    "bullets": [
+      "describe the places you enjoyed most",
+      "recommend the best time of year to visit",
+      "suggest a few restaurants or cafés she should try"
+    ]
+  },
+  {
+    "slug": "t1g-g02-disappointing-resort-brother",
+    "topic": "Travel",
+    "type": "letter-informal",
+    "body": "You went on a package holiday to a resort in the south of Spain with your partner. The hotel looked lovely in the brochure, but the pool was closed for most of the week and the buffet menu hardly changed from one day to the next.\n\nWrite a letter to your brother.",
+    "bullets": [
+      "describe the staff and the other guests you met at the resort",
+      "explain what you did to make the holiday more enjoyable",
+      "say whether you would book with the same company again"
+    ]
+  },
+  {
+    "slug": "t1g-g02-seoul-dining-customs",
+    "topic": "Food",
+    "type": "letter-informal",
+    "body": "A friend from university has moved to Seoul for work and has invited you to visit next spring. You are a little nervous about eating out there, because you do not speak Korean and you have heard that some dining customs are very different from home.\n\nWrite a letter to a friend who lives abroad.",
+    "bullets": [
+      "thank your friend for the invitation",
+      "ask which restaurants are worth visiting",
+      "explain which dining customs you should know about before you go"
+    ]
+  },
+  {
+    "slug": "t1g-g02-apologise-cancelled-italy",
+    "topic": "Travel",
+    "type": "letter-informal",
+    "body": "Months ago you agreed to join your cousin on a food tour of Italy this summer. Your job has now changed and you cannot take the time off, so you have to pull out. Your cousin has already paid a deposit on the flat they booked for the group.\n\nWrite a letter to your cousin.",
+    "bullets": [
+      "apologise for cancelling so late",
+      "explain what has happened at work",
+      "suggest a different trip you could join later in the year"
+    ]
+  }
+]

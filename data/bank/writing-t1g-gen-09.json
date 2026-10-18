@@ -1,0 +1,178 @@
+[
+  {
+    "slug": "t1g-g09-theatre-cancelled-refund",
+    "topic": "Arts",
+    "type": "letter-formal",
+    "body": "You booked two tickets for a play at a city theatre three months ago. Two weeks before the performance, the theatre cancelled the show because of a problem with the set, and it has now offered you only a voucher for a future production.\n\nWrite a letter to the box office manager.",
+    "bullets": [
+      "explain why the voucher does not meet your needs",
+      "describe the extra costs you incurred for the evening",
+      "ask for a full refund of the tickets"
+    ]
+  },
+  {
+    "slug": "t1g-g09-museum-membership-benefits",
+    "topic": "Culture",
+    "type": "letter-formal",
+    "body": "Last year you took out an annual membership of a national museum, which included free entry to temporary exhibitions and a discount in the café. Since your renewal in June, you have found that neither benefit is available.\n\nWrite a letter to the membership manager of the museum.",
+    "bullets": [
+      "give details of the membership you renewed",
+      "describe the benefits you have been unable to use",
+      "ask for an explanation and some compensation"
+    ]
+  },
+  {
+    "slug": "t1g-g09-concert-hall-access",
+    "topic": "Arts",
+    "type": "letter-formal",
+    "body": "You bought tickets for a classical concert for you and your father, who uses a wheelchair. The booking website did not mention that the only entrance to the stalls had steps, and when you arrived, staff could not offer an alternative route.\n\nWrite a letter to the accessibility officer of the concert hall.",
+    "bullets": [
+      "explain what the booking website said about access",
+      "describe the difficulties you and your father faced",
+      "suggest how the hall could improve its information for disabled visitors"
+    ]
+  },
+  {
+    "slug": "t1g-g09-television-late-night-documentary",
+    "topic": "Media",
+    "type": "letter-formal",
+    "body": "For the past two years you have watched a weekly documentary series on a national television channel at eight in the evening, and it has become one of your favourite programmes. The channel has now moved the series to a time after midnight without any notice to viewers.\n\nWrite a letter to the controller of programmes at the channel.",
+    "bullets": [
+      "explain why the new time does not suit you and other viewers",
+      "propose a repeat at an earlier time or on another channel",
+      "say whether you will continue to watch the channel"
+    ]
+  },
+  {
+    "slug": "t1g-g09-nature-trust-volunteer-application",
+    "topic": "Community",
+    "type": "letter-formal",
+    "body": "You have seen an advertisement on the website of a regional nature conservation group, which is recruiting volunteers to help restore a wetland reserve at weekends. You have no formal qualifications in ecology, but you have spent many years walking and birdwatching in the area.\n\nWrite a letter to the volunteer coordinator of the group.",
+    "bullets": [
+      "give details of your knowledge of the reserve and its wildlife",
+      "explain why you would like to help with the reserve",
+      "ask what training is given to new volunteers"
+    ]
+  },
+  {
+    "slug": "t1g-g09-gallery-teenage-workshop-proposal",
+    "topic": "Arts",
+    "type": "letter-formal",
+    "body": "You teach art at a secondary school, and you have noticed that many of your students never visit a gallery or take part in practical art activities outside lessons. The local art gallery runs regular workshops for adults but nothing for young people.\n\nWrite a letter to the education director of the gallery.",
+    "bullets": [
+      "outline the aims of a Saturday workshop for teenagers",
+      "describe the facilities your school could offer to help",
+      "propose a trial of six sessions over the spring term"
+    ]
+  },
+  {
+    "slug": "t1g-g09-company-volunteering-day",
+    "topic": "Community",
+    "type": "letter-semi",
+    "body": "Your company has announced that every employee will receive one paid day a year to volunteer for a local charity. You work in the customer support team, which is especially busy in the spring, and you are not sure how the department will manage.\n\nWrite a letter to your manager.",
+    "bullets": [
+      "say which local charity you think the team would enjoy supporting",
+      "describe how the day would affect urgent tasks",
+      "suggest a way of covering the phones on that day"
+    ]
+  },
+  {
+    "slug": "t1g-g09-book-festival-thanks-organiser",
+    "topic": "Culture",
+    "type": "letter-semi",
+    "body": "Last month you helped at the town's book festival, selling tickets and guiding visitors between the author talks. The event was very busy, and the organiser kept the volunteers calm and well informed throughout the weekend.\n\nWrite a letter to the organiser of the book festival.",
+    "bullets": [
+      "thank the organiser for the opportunity to take part",
+      "describe the part of the weekend you enjoyed most",
+      "ask whether volunteers will be needed for next year's event"
+    ]
+  },
+  {
+    "slug": "t1g-g09-charity-quiz-team-invite",
+    "topic": "Leisure",
+    "type": "letter-semi",
+    "body": "Your colleague has asked you to join a team for a charity quiz night in aid of a local children's hospital. The event takes place on a Thursday evening in a pub near the office, and the entry fee per team is quite high.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "explain whether you are able to join the team",
+      "suggest a different date if you cannot come on Thursday",
+      "say how much you could contribute towards the entry fee"
+    ]
+  },
+  {
+    "slug": "t1g-g09-cultural-trip-tutor-clash",
+    "topic": "Education",
+    "type": "letter-semi",
+    "body": "Your tutor has arranged a group visit to a contemporary art exhibition in another city as part of your arts management module. The trip falls on the same day as a shift you agreed to cover at your part-time job several weeks ago.\n\nWrite a letter to your tutor.",
+    "bullets": [
+      "explain why you cannot attend the visit on that day",
+      "ask whether there is another way to complete the assignment",
+      "describe the arrangements you have made with your employer"
+    ]
+  },
+  {
+    "slug": "t1g-g09-street-mural-neighbour",
+    "topic": "Community",
+    "type": "letter-semi",
+    "body": "A group of residents on your street wants to paint a mural on the blank wall of the community hall opposite your house. The plan has not yet been discussed with the people who live closest to the hall, including you.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "say what you think of the idea",
+      "describe any concerns you have about cost or long-term upkeep",
+      "suggest how residents could help decide the design"
+    ]
+  },
+  {
+    "slug": "t1g-g09-band-concert-last-weekend",
+    "topic": "Arts",
+    "type": "letter-informal",
+    "body": "Last weekend you finally saw a band you have followed since school play live. The tickets were expensive, but you think the evening was worth every penny.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe the atmosphere in the hall",
+      "tell them who played as the support act",
+      "suggest going to the next concert together"
+    ]
+  },
+  {
+    "slug": "t1g-g09-community-garden-cousin",
+    "topic": "Community",
+    "type": "letter-informal",
+    "body": "You have started helping at a community garden on the edge of your neighbourhood, where local people grow vegetables and run a small café for the volunteers. It has been a surprisingly good way to meet new people.\n\nWrite a letter to your cousin.",
+    "bullets": [
+      "describe the work you do there each Saturday",
+      "explain why you think they would enjoy the group",
+      "ask whether they could come along next month"
+    ]
+  },
+  {
+    "slug": "t1g-g09-detective-series-brother",
+    "topic": "Media",
+    "type": "letter-informal",
+    "body": "Your brother has been struggling to find something to watch since he finished his exams. You remember how much he enjoyed detective stories when you were at school together.\n\nWrite a letter to your brother.",
+    "bullets": [
+      "recommend a television series you finished last month",
+      "describe the main characters and the setting",
+      "say why you think he would enjoy the ending"
+    ]
+  },
+  {
+    "slug": "t1g-g09-library-book-club-abroad",
+    "topic": "Culture",
+    "type": "letter-informal",
+    "body": "You have recently joined a book club that meets at the public library. This year the members are reading novels in translation from around the world, and you know how much your friend enjoys reading in a second language.\n\nWrite a letter to a friend who lives abroad.",
+    "bullets": [
+      "describe the book club and the books you have read",
+      "explain how the members choose each month's title",
+      "invite them to join a video meeting next time"
+    ]
+  },
+  {
+    "slug": "t1g-g09-photography-exhibition-sister",
+    "topic": "Arts",
+    "type": "letter-informal",
+    "body": "A new photography exhibition opens at the art gallery in your city next Friday evening. The photographer will give a short talk at the start of the event, and the gallery is serving drinks afterwards.\n\nWrite a letter to your sister.",
+    "bullets": [
+      "invite them to the opening evening",
+      "give details of the time and the entrance fee",
+      "ask whether they could meet you there after work"
+    ]
+  }
+]

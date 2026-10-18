@@ -1,0 +1,522 @@
+[
+  {
+    "slug": "p2g01-tidy-planner",
+    "topic": "People",
+    "title": "Describe a person you know who is very organised.",
+    "bullets": [
+      "who this person is",
+      "how you came to know them",
+      "what they do to stay so organised"
+    ],
+    "explain": "and explain how their organisation affects the people around them.",
+    "followUps": [
+      "Do you think you are more organised than most of your friends?"
+    ],
+    "p3Topics": [
+      "Organising everyday life",
+      "Planning in a changing world"
+    ],
+    "p3": [
+      "What kinds of jobs usually demand the most organisation from the people who do them?",
+      "Why are some people naturally tidier than others, and does it matter?",
+      "How do busy families keep track of school, work and social commitments?",
+      "Has the way people plan their time changed much over the last thirty years?",
+      "How might household robots change the way families divide their chores?",
+      "Will people in future need to plan their lives as carefully as they do today?"
+    ]
+  },
+  {
+    "slug": "p2g01-animal-carer",
+    "topic": "People",
+    "title": "Describe a person you know who loves animals.",
+    "bullets": [
+      "who this person is",
+      "what kinds of animals they care for",
+      "how their love for animals shows"
+    ],
+    "explain": "and explain why animals mean so much to them.",
+    "followUps": [
+      "Have you ever wanted a pet of your own?"
+    ],
+    "p3Topics": [
+      "Keeping pets",
+      "Animals and modern cities"
+    ],
+    "p3": [
+      "What are the most common reasons people give for keeping a pet?",
+      "In what ways can pets benefit people who live alone?",
+      "Which unusual animals are people keeping as pets these days?",
+      "How has the number of households with pets changed in recent decades?",
+      "Would cities be better places for wildlife if more land were set aside for it?",
+      "Is it realistic to expect towns to make room for more animals as populations grow?"
+    ]
+  },
+  {
+    "slug": "p2g01-always-busy",
+    "topic": "People",
+    "title": "Describe a person you know who always seems to be busy.",
+    "bullets": [
+      "who this person is",
+      "what keeps them so occupied",
+      "how they manage to fit everything in"
+    ],
+    "explain": "and explain why they seem to enjoy such a full life.",
+    "followUps": [
+      "Would you like to be as busy as this person?"
+    ],
+    "p3Topics": [
+      "Busy lifestyles",
+      "Work and free time"
+    ],
+    "p3": [
+      "What do people in cities usually do to unwind after a demanding week?",
+      "How does a packed schedule affect health over many years?",
+      "Which professions tend to demand the longest hours from their workers?",
+      "What causes so many people to feel they never have enough free time?",
+      "Will technology ever give ordinary workers more free time, or will it simply fill it?",
+      "Is it inevitable that competitive economies will demand longer working hours?"
+    ]
+  },
+  {
+    "slug": "p2g01-cafe-hideaway",
+    "topic": "Places",
+    "title": "Describe a cafe you like to spend time in.",
+    "bullets": [
+      "where this cafe is",
+      "what the inside looks like",
+      "how often you go there and with whom"
+    ],
+    "explain": "and explain why it is such a comfortable place to think or work.",
+    "followUps": [
+      "Would you recommend this cafe to a friend?"
+    ],
+    "p3Topics": [
+      "Cafe culture in cities",
+      "Public spaces and community"
+    ],
+    "p3": [
+      "What role do independent coffee shops play that large chains often cannot?",
+      "To what extent do cafes shape the character of a neighbourhood?",
+      "Why do some city districts have far more cafes per street than others?",
+      "Are there enough free public places where people can sit and talk without spending money?",
+      "How much do shared spaces contribute to a sense of belonging in a crowded city?",
+      "Will the coffee shop still be a common meeting place in fifty years' time?"
+    ]
+  },
+  {
+    "slug": "p2g01-station-crossing",
+    "topic": "Places",
+    "title": "Describe an airport or train station you have been through.",
+    "bullets": [
+      "which place it was",
+      "how you travelled there",
+      "what the building was like"
+    ],
+    "explain": "and explain how easy or difficult it was to find your way around.",
+    "followUps": [
+      "Do you usually arrive early for trains or flights?"
+    ],
+    "p3Topics": [
+      "Travel hubs",
+      "Getting around large stations"
+    ],
+    "p3": [
+      "What facilities do most large stations offer passengers waiting for a connection?",
+      "How important is clear signage in a busy airport or station?",
+      "Which groups of people are most likely to find large transport hubs confusing?",
+      "How have airports and stations changed in appearance over the last twenty years?",
+      "How might self-service ticket machines change the role of station staff?",
+      "Are railway stations likely to matter more than airports for short journeys in future?"
+    ]
+  },
+  {
+    "slug": "p2g01-coastal-surprise",
+    "topic": "Places",
+    "title": "Describe a place you visited that was different from what you expected.",
+    "bullets": [
+      "where it was",
+      "what you had imagined before you arrived",
+      "what the place was actually like"
+    ],
+    "explain": "and explain how the visit changed your idea of that kind of place.",
+    "followUps": [
+      "Would you like to go back there one day?"
+    ],
+    "p3Topics": [
+      "Expectations and reality",
+      "Tourism and first impressions"
+    ],
+    "p3": [
+      "What do travel brochures tend to emphasise about a holiday destination?",
+      "In what ways can a place's reputation differ from its everyday reality?",
+      "How much do films and social media shape people's expectations of somewhere new?",
+      "Why do some popular destinations disappoint visitors who have read so much about them?",
+      "How has the arrival of visitors changed the character of small coastal towns?",
+      "Will travellers in future rely more on first-hand reviews than on guidebooks?"
+    ]
+  },
+  {
+    "slug": "p2g01-inherited-watch",
+    "topic": "Objects",
+    "title": "Describe a watch or piece of jewellery you often wear.",
+    "bullets": [
+      "what it looks like",
+      "where it came from",
+      "when you usually wear it"
+    ],
+    "explain": "and explain why it means so much to you.",
+    "followUps": [
+      "Would you ever give it to someone else?"
+    ],
+    "p3Topics": [
+      "Jewellery and personal style",
+      "Watches in the age of smartphones"
+    ],
+    "p3": [
+      "What kinds of accessories do people choose to express their personality?",
+      "Why have certain pieces of jewellery stayed popular for generations?",
+      "How much do fashion trends influence what people choose to buy?",
+      "Have wristwatches become less common now that phones show the time?",
+      "Will luxury watches still sell well as smartwatches become more capable?",
+      "How might the market for handmade jewellery change as more people shop online?"
+    ]
+  },
+  {
+    "slug": "p2g01-festive-dish",
+    "topic": "Food",
+    "title": "Describe a dish your family prepares for special occasions.",
+    "bullets": [
+      "what the dish is",
+      "who usually cooks it",
+      "how it is prepared"
+    ],
+    "explain": "and explain why this dish matters so much to your family.",
+    "followUps": [
+      "Would you like to learn how to make it yourself?"
+    ],
+    "p3Topics": [
+      "Traditional food and celebrations",
+      "Food heritage in a changing world"
+    ],
+    "p3": [
+      "What role does food play in marking important occasions across different cultures?",
+      "Why do some traditional recipes survive while others disappear within a generation?",
+      "How do families pass cooking skills on to the next generation?",
+      "To what extent can a family recipe change without losing its identity?",
+      "Could the growth of ready-made meals weaken the link between food and family tradition?",
+      "Is it possible to preserve food heritage without turning it into a museum piece?"
+    ]
+  },
+  {
+    "slug": "p2g01-seasonal-produce",
+    "topic": "Food",
+    "title": "Describe a fruit or vegetable you enjoy eating.",
+    "bullets": [
+      "what it is",
+      "what it tastes like",
+      "where you first tried it"
+    ],
+    "explain": "and explain how it fits into your usual meals.",
+    "followUps": [
+      "Do you grow any fruit or vegetables yourself?"
+    ],
+    "p3Topics": [
+      "Eating fresh produce",
+      "Seasonal food"
+    ],
+    "p3": [
+      "What kinds of fruit and vegetables do people eat most often where they live?",
+      "Which is easier for young children to accept, fresh fruit or vegetables?",
+      "Why do supermarkets sell produce that has been grown thousands of miles away?",
+      "How has the choice of fresh produce in shops changed over the last few decades?",
+      "Will people eat more seasonal food in future as weather patterns become less predictable?",
+      "How might local farms benefit if more people bought fruit in season?"
+    ]
+  },
+  {
+    "slug": "p2g01-open-air-gig",
+    "topic": "Events",
+    "title": "Describe a concert or live performance you went to.",
+    "bullets": [
+      "what kind of performance it was",
+      "who was performing",
+      "how the audience reacted"
+    ],
+    "explain": "and explain why the performance stayed with you.",
+    "followUps": [
+      "Do you prefer live music or recordings?"
+    ],
+    "p3Topics": [
+      "Live music and audiences",
+      "Performing for a living"
+    ],
+    "p3": [
+      "What kinds of live events attract the largest crowds in most countries?",
+      "Why do some people prefer hearing a band live rather than at home?",
+      "How much does the atmosphere of a venue affect the quality of a performance?",
+      "Is it harder for young musicians to earn a living from performing than it used to be?",
+      "Will live performance become more valuable as recorded music becomes cheaper to produce?",
+      "What effect have streaming services had on the income of professional musicians?"
+    ]
+  },
+  {
+    "slug": "p2g01-new-high-street-shop",
+    "topic": "Events",
+    "title": "Describe the opening of a new shop or restaurant near you.",
+    "bullets": [
+      "what kind of business it was",
+      "when it opened",
+      "how local people responded to it"
+    ],
+    "explain": "and explain why it has changed the area for better or worse.",
+    "followUps": [
+      "Have you been there yet?"
+    ],
+    "p3Topics": [
+      "Local businesses and communities",
+      "Shopping on the high street"
+    ],
+    "p3": [
+      "What kinds of new businesses tend to open first on a quiet high street?",
+      "How do new shops affect the rents of the properties around them?",
+      "What causes some local shops to close while new chains open nearby?",
+      "How has the high street changed in towns across the country over recent decades?",
+      "Could online shopping eventually make the traditional high street disappear altogether?",
+      "What would a town centre need to keep people shopping after the evening rush?"
+    ]
+  },
+  {
+    "slug": "p2g01-plans-changed",
+    "topic": "Experiences",
+    "title": "Describe a time when you had to change your plans at the last minute.",
+    "bullets": [
+      "what plans you had made",
+      "what made you change them",
+      "how the new plans turned out"
+    ],
+    "explain": "and explain why you think the change was the right decision.",
+    "followUps": [
+      "Do you usually plan things well in advance?"
+    ],
+    "p3Topics": [
+      "Flexibility and planning",
+      "Uncertainty in modern life"
+    ],
+    "p3": [
+      "What kinds of situations force people to alter their plans at short notice?",
+      "How do people usually react when their arrangements fall through unexpectedly?",
+      "Are some cultures more tolerant of changed plans than others?",
+      "To what extent does a culture of punctuality make flexibility harder to achieve?",
+      "Could a more flexible working week reduce the stress caused by uncertain schedules?",
+      "Is a world of fixed timetables becoming harder to rely on as events grow less predictable?"
+    ]
+  },
+  {
+    "slug": "p2g01-unexpected-kindness",
+    "topic": "Experiences",
+    "title": "Describe a time when someone's behaviour surprised you.",
+    "bullets": [
+      "who this person was",
+      "what they did that surprised you",
+      "how the people around you reacted"
+    ],
+    "explain": "and explain why their behaviour still stands out to you.",
+    "followUps": [
+      "Do people often surprise you in this way?"
+    ],
+    "p3Topics": [
+      "First impressions of people",
+      "Kindness towards strangers"
+    ],
+    "p3": [
+      "In what ways do people usually form their first impressions of someone?",
+      "What kinds of behaviour do people find most surprising in others?",
+      "Are people today more willing to help strangers than they were in the past?",
+      "Why do some people find it hard to trust others they have only just met?",
+      "Does constant online sharing make people less careful about how they judge strangers?",
+      "Will technology make people more or less willing to help strangers in future?"
+    ]
+  },
+  {
+    "slug": "p2g01-sorry-said",
+    "topic": "Experiences",
+    "title": "Describe a time when you had to apologise to someone.",
+    "bullets": [
+      "who you had to apologise to",
+      "what had happened",
+      "how you made your apology"
+    ],
+    "explain": "and explain how the other person responded.",
+    "followUps": [
+      "Do you find admitting a mistake harder than apologising?"
+    ],
+    "p3Topics": [
+      "Saying sorry",
+      "Forgiveness in communities"
+    ],
+    "p3": [
+      "What do people usually expect to hear from someone who is apologising?",
+      "Why do some people find it harder to admit mistakes than others?",
+      "How important is a sincere apology compared with practical compensation?",
+      "In what ways do schools teach children to make amends after a quarrel?",
+      "How does a public apology differ from one made in private?",
+      "Are public apologies from well-known figures usually sincere?"
+    ]
+  },
+  {
+    "slug": "p2g01-summer-memory",
+    "topic": "Experiences",
+    "title": "Describe a summer you remember well.",
+    "bullets": [
+      "which year it was",
+      "where you spent it",
+      "what made it memorable"
+    ],
+    "explain": "and explain why it stands out in your memory.",
+    "followUps": [
+      "Have you had a summer like it since?"
+    ],
+    "p3Topics": [
+      "Seasons and memory",
+      "Summer holidays"
+    ],
+    "p3": [
+      "What do most people associate with the summer months in their country?",
+      "What effect do long school holidays have on children's development?",
+      "Why are childhood summers so often remembered more vividly than other seasons?",
+      "Have summer holidays become shorter or longer compared with previous generations?",
+      "Will warmer summers change how people in temperate countries spend their free time?",
+      "What effect has cheap air travel had on the way families spend the summer?"
+    ]
+  },
+  {
+    "slug": "p2g01-evening-unwind",
+    "topic": "Activities",
+    "title": "Describe an activity you do to relax at the end of the day.",
+    "bullets": [
+      "what the activity is",
+      "how long it usually takes",
+      "who you usually do it with"
+    ],
+    "explain": "and explain how this activity helps you unwind.",
+    "followUps": [
+      "Do you think everyone needs a routine like this?"
+    ],
+    "p3Topics": [
+      "Ways of unwinding",
+      "Leisure and modern pressure"
+    ],
+    "p3": [
+      "What kinds of activities do people most commonly use to unwind after work?",
+      "In what ways do different cultures approach rest at the end of the working day?",
+      "Is there a link between the amount of leisure people have and how happy they feel?",
+      "Do people today find it harder to relax than their parents did?",
+      "Could the expectation of being constantly available make it harder for people to switch off?",
+      "How might working habits change if more people valued a proper evening of rest?"
+    ]
+  },
+  {
+    "slug": "p2g01-playground-classic",
+    "topic": "Activities",
+    "title": "Describe a game from your childhood that children still play.",
+    "bullets": [
+      "what the game is called",
+      "how it is played",
+      "who taught you to play it"
+    ],
+    "explain": "and explain why you think children still enjoy playing it.",
+    "followUps": [
+      "Did you play it with friends or with family?"
+    ],
+    "p3Topics": [
+      "Traditional games",
+      "Play and technology"
+    ],
+    "p3": [
+      "What kinds of games do children tend to play without any equipment?",
+      "Why do some traditional games last for generations?",
+      "Compared with screen games, what makes playground games so appealing to children?",
+      "Are children today less active than children were when games were played outdoors?",
+      "How has the arrival of video games changed the way children spend their free time?",
+      "Will traditional outdoor games still be common in twenty years' time?"
+    ]
+  },
+  {
+    "slug": "p2g01-time-saver",
+    "topic": "Activities",
+    "title": "Describe a way of saving time that you have found useful.",
+    "bullets": [
+      "what the method is",
+      "how you learned about it",
+      "how much time it has saved you"
+    ],
+    "explain": "and explain whether you would recommend it to others.",
+    "followUps": [
+      "Do you think you waste much time during the day?"
+    ],
+    "p3Topics": [
+      "Time management habits",
+      "Saving time in modern society"
+    ],
+    "p3": [
+      "What kinds of tasks do people most often try to speed up in their daily lives?",
+      "What effect do time-saving gadgets have on the way households spend their weekends?",
+      "Why do some people feel busier even when they have more time-saving tools?",
+      "Do appliances and apps actually give people more free time, or do they raise expectations?",
+      "Which is more valuable to society, saving money or saving time?",
+      "Could a shorter working week ever become a practical way of saving everyone time?"
+    ]
+  },
+  {
+    "slug": "p2g01-radio-habit",
+    "topic": "Media",
+    "title": "Describe a podcast or radio programme you enjoy.",
+    "bullets": [
+      "what the programme is about",
+      "how often it is released",
+      "who presents it"
+    ],
+    "explain": "and explain what you enjoy most about listening to it.",
+    "followUps": [
+      "Do you listen to podcasts while doing other things?"
+    ],
+    "p3Topics": [
+      "Audio entertainment",
+      "Spoken news and information"
+    ],
+    "p3": [
+      "What kinds of programmes do people tend to listen to in the car?",
+      "How do audio programmes differ from television in the way they hold attention?",
+      "Why has spoken-word content grown in popularity in recent years?",
+      "How much does a presenter's tone shape the way listeners judge a story?",
+      "Will audio content eventually become more influential than written journalism?",
+      "To what extent can audio reach people who rarely read newspapers?"
+    ]
+  },
+  {
+    "slug": "p2g01-online-voice",
+    "topic": "Media",
+    "title": "Describe a blog or social media account you follow.",
+    "bullets": [
+      "what it covers",
+      "how you first came across it",
+      "how often you check it"
+    ],
+    "explain": "and explain whether it is worth the time you spend on it.",
+    "followUps": [
+      "Do you ever post anything yourself?"
+    ],
+    "p3Topics": [
+      "Online influence",
+      "Credibility of online voices"
+    ],
+    "p3": [
+      "What kinds of online content do people most often share with their friends?",
+      "How do independent writers build an audience that trusts them?",
+      "Why might some online voices gain more followers than specialists with better knowledge?",
+      "To what extent does an online following translate into real influence in everyday life?",
+      "Could the rise of individual creators weaken the authority of established institutions over time?",
+      "Is it realistic to expect audiences to tell reliable commentary from paid promotion without help?"
+    ]
+  }
+]

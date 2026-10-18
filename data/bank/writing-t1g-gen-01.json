@@ -1,0 +1,189 @@
+[
+  {
+    "slug": "t1g-g01-sofa-delivery-damage",
+    "topic": "Shopping",
+    "type": "letter-formal",
+    "body": "You ordered a three-seater sofa from an online furniture company and paid for it in full. The delivery team left it in your hallway last Saturday, and when you unwrapped it you found a long tear in the fabric on one arm. The customer service team has replied that the damage is your responsibility because the delivery note was signed without an inspection.\n\nWrite a letter to the customer services manager of the furniture company.",
+    "bullets": [
+      "give details of your order and the delivery",
+      "describe the damage and when you first noticed it",
+      "say what you expect the company to do"
+    ]
+  },
+  {
+    "slug": "t1g-g01-laptop-warranty-dispute",
+    "topic": "Shopping",
+    "type": "letter-formal",
+    "body": "Eleven months ago you bought a laptop from an electronics retailer, which came with a two-year warranty covering manufacturing faults. The screen now flickers, and an engineer at an authorised repair centre confirmed a fault in the display panel. The retailer has refused to cover the repair, saying that the warranty was voided by a third-party cooling programme you installed.\n\nWrite a letter to the head of customer relations at the retailer.",
+    "bullets": [
+      "explain why the cooling programme did not cause the screen fault",
+      "give the date and findings of the repair centre's report",
+      "request a free repair under the terms of the warranty"
+    ]
+  },
+  {
+    "slug": "t1g-g01-gas-bill-overcharge",
+    "topic": "Energy",
+    "type": "letter-formal",
+    "body": "Your gas and electricity supplier has sent you a quarterly bill for £840. The amount is based on estimated readings entered before you moved into your flat. You have since submitted actual meter readings twice, but the account has not been updated and the bill still shows as overdue.\n\nWrite a letter to the customer accounts department of the energy supplier.",
+    "bullets": [
+      "give the dates and figures of your meter readings",
+      "explain why the estimated amount is wrong",
+      "ask the company to recalculate the bill and confirm any refund"
+    ]
+  },
+  {
+    "slug": "t1g-g01-broadband-outage-compensation",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "Over the past six weeks your home broadband has stopped working on nine separate occasions. Each time you called the helpline you were told the fault would be fixed within 48 hours, but no engineer has visited and the connection remains unreliable. You work from home and have lost several working days as a result.\n\nWrite a letter to the customer services director of your broadband provider.",
+    "bullets": [
+      "describe the outages and the dates they happened",
+      "explain how the problems have affected your work",
+      "request compensation and a clear date for a permanent repair"
+    ]
+  },
+  {
+    "slug": "t1g-g01-bank-card-blocked-abroad",
+    "topic": "Money",
+    "type": "letter-formal",
+    "body": "While on holiday in Portugal last month, your debit card was declined when you tried to pay a hotel bill. The card was then blocked without any warning. You had not been told that the bank restricted foreign transactions, and you were without access to your money for two days until the block was lifted by telephone.\n\nWrite a letter to the customer manager of your bank.",
+    "bullets": [
+      "ask the bank to confirm in writing why the card was blocked",
+      "describe the problems this caused during your stay",
+      "suggest how the bank could warn customers before blocking a card"
+    ]
+  },
+  {
+    "slug": "t1g-g01-phone-contract-terms",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "Two months ago a sales adviser in a mobile phone shop told you that your monthly contract included unlimited data and free calls to other countries. The written contract you received later says that data is capped at 5GB and that calls abroad are charged per minute. You have already paid for extra calls and have not received a satisfactory reply from the shop.\n\nWrite a letter to the complaints team of the mobile network.",
+    "bullets": [
+      "give the date you signed the contract and the name of the shop",
+      "outline the terms that differ from what you were promised",
+      "ask the network to cancel the contract without a penalty"
+    ]
+  },
+  {
+    "slug": "t1g-g01-dry-cleaner-coat-damage",
+    "topic": "Shopping",
+    "type": "letter-formal",
+    "body": "You took a long wool coat to a local dry cleaner that you have used for years. When you collected it, the lining was torn and a large stain on one sleeve had not been removed. The owner has offered you £20 in compensation, which is far less than the coat cost.\n\nWrite a letter to the owner of the dry cleaner's.",
+    "bullets": [
+      "describe the condition of the coat when you left it",
+      "explain why the offer is not enough",
+      "say what compensation you would be willing to accept"
+    ]
+  },
+  {
+    "slug": "t1g-g01-neighbour-opened-parcel",
+    "topic": "Neighbours",
+    "type": "letter-semi",
+    "body": "Last Tuesday your neighbour signed for a parcel addressed to you while you were at work. When you collected it from her flat that evening, the box had been opened and taped up again, and a set of kitchen knives inside had been moved to a different corner. You have no idea how this happened.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "ask her whether she or anyone else in the building opened the box",
+      "explain why the way it was packed worries you",
+      "suggest how parcels can be handled more carefully in future"
+    ]
+  },
+  {
+    "slug": "t1g-g01-colleague-bulk-order",
+    "topic": "Business",
+    "type": "letter-semi",
+    "body": "Your colleague suggested that the office team buy printer paper, coffee and cleaning supplies together in bulk to save money. She has placed the order, but the supplier now requires payment in advance, and only three people have agreed to contribute. You have not paid your share yet because your budget is tight this month.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "explain why you cannot pay your share this month",
+      "suggest a way to spread the cost over the next two months",
+      "ask her to send everyone a full breakdown of the costs"
+    ]
+  },
+  {
+    "slug": "t1g-g01-staff-discount-code",
+    "topic": "Shopping",
+    "type": "letter-semi",
+    "body": "Your company has introduced a staff discount scheme with a large clothing retailer. Staff have been given a discount code, but it does not work in most branches, and different managers have told people different things about which products are included. Several colleagues have asked you to raise the matter.\n\nWrite a letter to your manager.",
+    "bullets": [
+      "give examples of the branches where the code was refused",
+      "ask whether the scheme will continue after the trial period",
+      "recommend a clear written summary of the terms for all staff"
+    ]
+  },
+  {
+    "slug": "t1g-g01-landlord-water-bill",
+    "topic": "Services",
+    "type": "letter-semi",
+    "body": "You moved out of your rented flat in June, but the water company has since sent a bill for three months of usage after you left. You gave your landlord the meter reading on the day you moved out and returned the keys. The account still appears to be in your name.\n\nWrite a letter to your landlord.",
+    "bullets": [
+      "suggest a date when you could meet to check the final meter reading together",
+      "explain why you believe the bill is not yours",
+      "ask the landlord to contact the water company and update the account"
+    ]
+  },
+  {
+    "slug": "t1g-g01-club-fee-increase",
+    "topic": "Leisure",
+    "type": "letter-semi",
+    "body": "The sports club where you play has raised its annual membership fee by 40 per cent. The club secretary has asked members to pay the new fee in cash at the front desk, and no receipts have been issued to those who have already paid. You are finding the increase difficult to afford this year.\n\nWrite a letter to your club secretary.",
+    "bullets": [
+      "ask for a written receipt for every payment made",
+      "explain what you would have to give up to keep your membership",
+      "suggest paying the fee in two instalments"
+    ]
+  },
+  {
+    "slug": "t1g-g01-running-shoes-recommendation",
+    "topic": "Shopping",
+    "type": "letter-informal",
+    "body": "Your friend Priya is training for her first half-marathon and has asked where she should buy proper running shoes. Last month you bought a pair from a small independent shop near the station, where the staff filmed you running on a treadmill to check your gait.\n\nWrite a letter to your friend Priya.",
+    "bullets": [
+      "describe the shop and the kind of shoes it sells",
+      "explain why the staff were so helpful",
+      "suggest the best time of day to go to avoid crowds"
+    ]
+  },
+  {
+    "slug": "t1g-g01-friend-abroad-pen",
+    "topic": "Shopping",
+    "type": "letter-informal",
+    "body": "Next week your friend is flying to Tokyo for a work conference. You have been looking for a limited-edition fountain pen that is sold only in a few shops in Japan and is not available where you live.\n\nWrite a letter to your friend who is travelling to Japan.",
+    "bullets": [
+      "tell her which model and colour you want",
+      "ask how much it would cost her to buy",
+      "offer to pay her back and cover any extra baggage charges"
+    ]
+  },
+  {
+    "slug": "t1g-g01-gift-voucher-thanks",
+    "topic": "Shopping",
+    "type": "letter-informal",
+    "body": "For your birthday your friend Sam sent you a gift voucher for a large department store. You finally used it last weekend and spent most of it on a warm winter coat and a pair of boots.\n\nWrite a letter to your friend Sam.",
+    "bullets": [
+      "thank him for the voucher and the birthday card",
+      "say what you bought and why you chose those items",
+      "invite him to lunch when he is next in your town"
+    ]
+  },
+  {
+    "slug": "t1g-g01-selling-items-online",
+    "topic": "Money",
+    "type": "letter-informal",
+    "body": "A friend of yours has decided to clear out her flat and asked for advice about selling old clothes, books and a bicycle. Over the past year you have sold a lot of things through an online marketplace and made more money from it than you expected.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "describe which online marketplace you used and why",
+      "explain how you chose the prices for your items",
+      "recommend which things she should sell first"
+    ]
+  },
+  {
+    "slug": "t1g-g01-grandparents-television",
+    "topic": "Shopping",
+    "type": "letter-informal",
+    "body": "Your grandparents' television has stopped working, and they have asked you to help them choose a new one. They do not use the internet much and find remote controls confusing. Their budget is about £300, and they would like a screen that is easy to read from across the room.\n\nWrite a letter to your grandparents.",
+    "bullets": [
+      "suggest two or three models with simple controls",
+      "explain where they could buy one near home",
+      "tell them which warranty they should ask for"
+    ]
+  }
+]

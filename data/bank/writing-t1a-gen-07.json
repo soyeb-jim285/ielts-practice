@@ -1,0 +1,718 @@
+[
+  {
+    "slug": "t1a-g07-streaming-versus-dvd-rentals",
+    "topic": "Media",
+    "type": "line",
+    "body": "The line graph below gives information about the number of video streaming subscriptions and DVD rentals in one country between 2010 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Video streaming subscriptions and DVD rentals, 2010–2025",
+      "xLabel": "Year",
+      "yLabel": "Subscriptions or rentals (millions)",
+      "unit": "millions",
+      "categories": [
+        "2010",
+        "2013",
+        "2016",
+        "2019",
+        "2022",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Streaming subscriptions",
+          "values": [
+            2.5,
+            8.0,
+            14.6,
+            19.2,
+            22.8,
+            24.1
+          ]
+        },
+        {
+          "name": "DVD rentals",
+          "values": [
+            48.0,
+            33.0,
+            19.5,
+            9.2,
+            4.1,
+            1.6
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-news-site-comments-trend",
+    "topic": "Media",
+    "type": "line",
+    "body": "The line graph below shows the number of reader comments posted on online news websites per 1,000 readers in three countries from 2017 to 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Reader comments on online news websites per 1,000 readers, 2017–2025",
+      "xLabel": "Year",
+      "yLabel": "Comments per 1,000 readers",
+      "unit": "comments",
+      "categories": [
+        "2017",
+        "2019",
+        "2021",
+        "2023",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Country A",
+          "values": [
+            12.4,
+            15.8,
+            21.6,
+            19.2,
+            14.9
+          ]
+        },
+        {
+          "name": "Country B",
+          "values": [
+            8.1,
+            9.6,
+            12.3,
+            14.8,
+            17.5
+          ]
+        },
+        {
+          "name": "Country C",
+          "values": [
+            3.2,
+            3.5,
+            4.1,
+            4.4,
+            5.0
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-podcast-genres-listeners",
+    "topic": "Media",
+    "type": "bar",
+    "body": "The bar chart below shows the percentage of monthly podcast listeners who listened to each genre in one country in 2016 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Podcast genres heard by monthly listeners, 2016 and 2024",
+      "xLabel": "Genre",
+      "yLabel": "Monthly listeners of each genre (%)",
+      "unit": "%",
+      "categories": [
+        "Comedy",
+        "News and current affairs",
+        "True crime",
+        "Education",
+        "Music"
+      ],
+      "series": [
+        {
+          "name": "2016",
+          "values": [
+            31,
+            38,
+            14,
+            22,
+            9
+          ]
+        },
+        {
+          "name": "2024",
+          "values": [
+            36,
+            33,
+            41,
+            29,
+            11
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-email-instant-messaging-work",
+    "topic": "Communication",
+    "type": "bar",
+    "body": "The chart below gives information about the share of employees who used email and instant messaging every day at work, by sector, in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Daily use of email and instant messaging at work, by sector, 2025",
+      "xLabel": "Sector",
+      "yLabel": "Employees using daily (%)",
+      "unit": "%",
+      "categories": [
+        "Banking",
+        "Public sector",
+        "Software",
+        "Retail",
+        "Hospitality"
+      ],
+      "series": [
+        {
+          "name": "Email",
+          "values": [
+            91,
+            84,
+            72,
+            58,
+            37
+          ]
+        },
+        {
+          "name": "Instant messaging",
+          "values": [
+            64,
+            61,
+            89,
+            73,
+            52
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-game-revenue-by-platform",
+    "topic": "Technology",
+    "type": "bar",
+    "body": "The bar chart below shows the revenue earned from video games on four platforms in one country in 2019 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Video game revenue by platform, 2019 and 2024",
+      "xLabel": "Platform",
+      "yLabel": "Revenue (£ billion)",
+      "unit": "£ billion",
+      "categories": [
+        "Mobile",
+        "Console",
+        "PC",
+        "Handheld"
+      ],
+      "series": [
+        {
+          "name": "2019",
+          "values": [
+            2.4,
+            1.5,
+            1.4,
+            0.2
+          ]
+        },
+        {
+          "name": "2024",
+          "values": [
+            2.8,
+            1.4,
+            1.5,
+            0.1
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-music-formats-share",
+    "topic": "Media",
+    "type": "pie",
+    "body": "The pie charts below show the share of music listening by format in one country in 2005 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Share of music listening by format, 2005 and 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2005",
+          "slices": [
+            {
+              "label": "CD",
+              "value": 84
+            },
+            {
+              "label": "Digital downloads",
+              "value": 13
+            },
+            {
+              "label": "Vinyl",
+              "value": 2
+            },
+            {
+              "label": "Streaming",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "2024",
+          "slices": [
+            {
+              "label": "CD",
+              "value": 9
+            },
+            {
+              "label": "Digital downloads",
+              "value": 8
+            },
+            {
+              "label": "Vinyl",
+              "value": 12
+            },
+            {
+              "label": "Streaming",
+              "value": 71
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-household-computer-tablet-ownership",
+    "topic": "Technology",
+    "type": "pie",
+    "body": "The pie charts below give information about the computers and tablets that households owned in one country in 2012 and in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Computers and tablets owned by households, 2012 and 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2012",
+          "slices": [
+            {
+              "label": "Desktop only",
+              "value": 34
+            },
+            {
+              "label": "Laptop only",
+              "value": 18
+            },
+            {
+              "label": "Desktop and laptop",
+              "value": 29
+            },
+            {
+              "label": "Tablet with another device",
+              "value": 2
+            },
+            {
+              "label": "No computer or tablet",
+              "value": 17
+            }
+          ]
+        },
+        {
+          "name": "2024",
+          "slices": [
+            {
+              "label": "Desktop only",
+              "value": 8
+            },
+            {
+              "label": "Laptop only",
+              "value": 24
+            },
+            {
+              "label": "Desktop and laptop",
+              "value": 19
+            },
+            {
+              "label": "Tablet with another device",
+              "value": 45
+            },
+            {
+              "label": "No computer or tablet",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-postal-letters-parcels",
+    "topic": "Communication",
+    "type": "table",
+    "body": "The table below shows the number of letters and parcels handled by a national postal service, and the share of parcels delivered on time, in 2015, 2018, 2021 and 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Letters and parcels handled by a national postal service, 2015–2024",
+      "columns": [
+        "Year",
+        "Letters posted (billions)",
+        "Parcels handled (millions)",
+        "Parcels delivered on time (%)"
+      ],
+      "rows": [
+        [
+          "2015",
+          14.1,
+          610,
+          92.4
+        ],
+        [
+          "2018",
+          11.2,
+          1020,
+          93.1
+        ],
+        [
+          "2021",
+          8.9,
+          1690,
+          88.6
+        ],
+        [
+          "2024",
+          6.8,
+          2240,
+          90.7
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-device-repair-cities",
+    "topic": "Technology",
+    "type": "table",
+    "body": "The table below gives information about device repairs in five cities in 2023, including the number of repairs per 1,000 residents, the share carried out by independent shops and the average repair cost.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Device repairs in five cities, 2023",
+      "columns": [
+        "City",
+        "Repairs per 1,000 residents",
+        "Done by independent shops (%)",
+        "Average repair cost (£)"
+      ],
+      "rows": [
+        [
+          "City A",
+          48,
+          62,
+          64
+        ],
+        [
+          "City B",
+          21,
+          35,
+          71
+        ],
+        [
+          "City C",
+          33,
+          58,
+          52
+        ],
+        [
+          "City D",
+          12,
+          27,
+          89
+        ],
+        [
+          "City E",
+          56,
+          71,
+          45
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-film-viewing-devices-places",
+    "topic": "Media",
+    "type": "mixed",
+    "body": "The charts below give information about the devices people used to watch films and the places where they watched them in one country in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "How people watched films in one country, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Device used to watch films",
+          "slices": [
+            {
+              "label": "TV set",
+              "value": 38
+            },
+            {
+              "label": "Laptop",
+              "value": 22
+            },
+            {
+              "label": "Tablet",
+              "value": 14
+            },
+            {
+              "label": "Smartphone",
+              "value": 26
+            }
+          ]
+        },
+        {
+          "name": "Place where films were watched",
+          "slices": [
+            {
+              "label": "Living room",
+              "value": 41
+            },
+            {
+              "label": "Bedroom",
+              "value": 23
+            },
+            {
+              "label": "Other people's homes",
+              "value": 14
+            },
+            {
+              "label": "On public transport",
+              "value": 12
+            },
+            {
+              "label": "Cinema",
+              "value": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-e-waste-types-disposal",
+    "topic": "Technology",
+    "type": "mixed",
+    "body": "The charts below show the types of electronic waste generated in one country and what happened to that waste in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Electronic waste by type and by disposal route, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Types of e-waste, by weight",
+          "slices": [
+            {
+              "label": "Large household appliances",
+              "value": 35
+            },
+            {
+              "label": "Small household appliances",
+              "value": 26
+            },
+            {
+              "label": "IT and telecom equipment",
+              "value": 21
+            },
+            {
+              "label": "Screens and lighting",
+              "value": 8
+            },
+            {
+              "label": "Other",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "name": "What happened to the waste",
+          "slices": [
+            {
+              "label": "Collected and recycled",
+              "value": 42
+            },
+            {
+              "label": "Stored at home",
+              "value": 27
+            },
+            {
+              "label": "Thrown away with household waste",
+              "value": 21
+            },
+            {
+              "label": "Donated or resold",
+              "value": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-streaming-plans-subscribers",
+    "topic": "Media",
+    "type": "mixed",
+    "body": "The charts below give information about the plans chosen by customers of one streaming service and the age groups of its subscribers in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Subscription plans and subscriber age groups, 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Subscription plans",
+          "slices": [
+            {
+              "label": "Basic with adverts",
+              "value": 34
+            },
+            {
+              "label": "Standard",
+              "value": 41
+            },
+            {
+              "label": "Premium",
+              "value": 17
+            },
+            {
+              "label": "Family plan",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "name": "Subscribers by age group",
+          "slices": [
+            {
+              "label": "16 to 24",
+              "value": 29
+            },
+            {
+              "label": "25 to 34",
+              "value": 27
+            },
+            {
+              "label": "35 to 54",
+              "value": 28
+            },
+            {
+              "label": "55 and over",
+              "value": 16
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-old-phone-recycling",
+    "topic": "Technology",
+    "type": "process",
+    "body": "The diagram below shows how old mobile phones are recycled at a specialist recycling plant.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Recycling old mobile phones at a specialist plant",
+      "steps": [
+        "Old phones are collected through shops, post and recycling bins",
+        "Phones are sorted by model and checked for reuse",
+        "Phones that still work are cleaned, tested and resold",
+        "Batteries are removed and sent for separate treatment",
+        "Screens and casings are separated by hand or by machine",
+        "Circuit boards are shredded into small fragments",
+        "Metals are separated using magnets and chemical baths",
+        "Fragments that fail a purity test are returned for shredding",
+        "Recovered gold, copper and other metals are sold to refiners"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-newspaper-printing-distribution",
+    "topic": "Media",
+    "type": "process",
+    "body": "The diagram below shows the stages in printing and distributing a daily newspaper.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "Printing and distributing a daily newspaper",
+      "steps": [
+        "Stories and photographs are filed to the newsroom system",
+        "Editors check the copy and design each page on screen",
+        "Finished pages are sent electronically to the printing plant",
+        "A printing plate is made for each page",
+        "Plates are fitted to rotary presses that print onto reels of paper",
+        "Printed sheets are folded, cut and stacked into bundles",
+        "Bundles are wrapped and loaded onto delivery vans",
+        "Vans take bundles to local depots, where newsagents collect them",
+        "Newsagents and delivery drivers sell or deliver copies to readers",
+        "Unsold copies are returned to the depot and recycled"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g07-office-open-plan-conversion",
+    "topic": "Communication",
+    "type": "map",
+    "body": "The plans below show an office floor in 2015 and in 2024, after it was converted to an open-plan layout.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "Office floor layout before and after conversion to open-plan",
+      "before": {
+        "label": "2015",
+        "features": [
+          "Ten small private offices along the north wall",
+          "Reception desk next to the main entrance in the south-west corner",
+          "Two meeting rooms in the centre of the floor",
+          "Long corridor running east to west through the middle of the floor",
+          "Kitchen and staff room in the east, next to the lifts",
+          "Printing room in the north-east corner",
+          "Storage cupboard behind the reception desk",
+          "Terrace accessed through a door in the south-east corner"
+        ]
+      },
+      "after": {
+        "label": "2024",
+        "features": [
+          "Private offices removed and replaced by open desks along the north wall",
+          "Reception desk unchanged next to the main entrance in the south-west corner",
+          "Two meeting rooms in the centre replaced by one large room with glass walls",
+          "Corridor removed to create one open workspace across the floor",
+          "Kitchen extended eastwards with a larger dining area",
+          "Phone booths for private calls added along the west wall",
+          "Printing room unchanged in the north-east corner",
+          "Terrace in the south-east corner now used for outdoor lunch tables"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g07-post-office-coworking-hub",
+    "topic": "Technology",
+    "type": "map",
+    "body": "The maps below show a former post office building in 2010 and the same building today, after it was converted into a co-working and digital skills centre.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A former post office building, 2010 and today",
+      "before": {
+        "label": "2010",
+        "features": [
+          "Sorting hall occupying most of the ground floor",
+          "Public counter along the front wall, facing the high street",
+          "Parcel store at the back, next to the loading bay",
+          "Two small offices on the first floor above the counter",
+          "Staff car park behind the building",
+          "Loading bay on the east side for post vans",
+          "Clock tower on the roof above the main entrance",
+          "Cellar used to store old records in the north-west corner"
+        ]
+      },
+      "after": {
+        "label": "Today",
+        "features": [
+          "Sorting hall divided into open co-working desks across the ground floor",
+          "Public counter removed, and the front wall now has a café and reception desk",
+          "Parcel store at the back converted into a digital skills training room",
+          "Two first-floor offices joined into a glass-walled meeting room",
+          "Staff car park behind the building turned into a bicycle store",
+          "Loading bay on the east side kept for deliveries",
+          "Clock tower unchanged on the roof above the main entrance",
+          "Cellar converted into showers and lockers for cyclists in the north-west corner"
+        ]
+      }
+    }
+  }
+]

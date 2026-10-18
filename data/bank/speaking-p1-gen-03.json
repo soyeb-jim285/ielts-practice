@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "p1g03-fruit",
+    "topic": "Fruit",
+    "questions": [
+      "Which fruits do you usually keep in the kitchen?",
+      "How do you like to eat an apple?",
+      "Is there a fruit you dislike? Why?",
+      "Do you prefer a fresh orange or a glass of juice? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-sunglasses",
+    "topic": "Sunglasses",
+    "questions": [
+      "Do you own a pair of sunglasses at the moment?",
+      "How often do you wear them during the summer?",
+      "What shape of frames suits you best?",
+      "Do you ever lose your sunglasses? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-balloons",
+    "topic": "Balloons",
+    "questions": [
+      "Which colour balloon do you like best? Why?",
+      "When do you usually see balloons at an event?",
+      "How do people usually decorate a room with balloons?",
+      "Do you think balloons are a waste of money? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-picnics",
+    "topic": "Picnics",
+    "questions": [
+      "Are picnics a popular way to spend a sunny afternoon?",
+      "Where is the best place you know for a picnic? Why?",
+      "What do you usually take along on a picnic?",
+      "How do you feel about a picnic in the rain? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-bridges",
+    "topic": "Bridges",
+    "questions": [
+      "Do you walk across bridges often?",
+      "Would you enjoy living near a river with a bridge over it? Why/why not?",
+      "Which bridge do you pass most often? Why?",
+      "What makes a bridge look beautiful to you?"
+    ]
+  },
+  {
+    "slug": "p1g03-street-food",
+    "topic": "Street food",
+    "questions": [
+      "What kind of street food is popular near you?",
+      "How often do you buy something from a street stall? Why?",
+      "Which street food would you recommend to a visitor? Why?",
+      "Would you ever try cooking a street food dish at home? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-perfume",
+    "topic": "Perfume",
+    "questions": [
+      "Do you wear perfume or aftershave every day?",
+      "How do you describe the scent you like most?",
+      "What do you think makes a fragrance memorable?",
+      "Which is more appealing, a light fragrance or a strong one? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-traffic",
+    "topic": "Traffic",
+    "questions": [
+      "How do you describe the traffic on your usual route?",
+      "What is the worst time of day for traffic in your town? Why?",
+      "Which type of vehicle seems to cause the most delays?",
+      "Is it better to cycle through heavy traffic or wait for it to clear? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-winter-sports",
+    "topic": "Winter sports",
+    "questions": [
+      "Which winter sports do people enjoy most in your country?",
+      "Is skating or skiing something you would like to try?",
+      "Have you ever seen snow falling in person?",
+      "What do you like to do when it is very cold outside?"
+    ]
+  },
+  {
+    "slug": "p1g03-musical-instruments",
+    "topic": "Musical instruments",
+    "questions": [
+      "Is there an instrument you can play even a little?",
+      "Which sound from an orchestra do you enjoy most? Why?",
+      "How easy do you think it is to learn the piano?",
+      "What instrument would you like to learn if you had the time? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-video-calls",
+    "topic": "Video calls",
+    "questions": [
+      "How often do you make video calls to friends or family?",
+      "Would you prefer a video call or a phone call for an important talk? Why?",
+      "What do you like most about talking to someone on a screen?",
+      "What usually goes wrong on your video calls?"
+    ]
+  },
+  {
+    "slug": "p1g03-statues-sculptures",
+    "topic": "Statues and sculptures",
+    "questions": [
+      "Are there any statues in the town centre near you?",
+      "Would you like to make a sculpture one day? Why/why not?",
+      "Which sculpture have you seen that impressed you most? Why?",
+      "Who would you choose to have a statue of in your town?"
+    ]
+  },
+  {
+    "slug": "p1g03-pocket-money",
+    "topic": "Pocket money",
+    "questions": [
+      "Do the children you know usually get pocket money?",
+      "Where do children tend to keep their pocket money?",
+      "Would you rather get a small amount each week or a larger sum each month? Why?",
+      "Is saving or spending more appealing to you? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-watching-sport",
+    "topic": "Watching sport",
+    "questions": [
+      "Which sport do you enjoy watching most?",
+      "Do you prefer watching sport on television or in person? Why?",
+      "What do you find exciting about watching a match?",
+      "Do you ever go to a live match on your own? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-staying-up-late",
+    "topic": "Staying up late",
+    "questions": [
+      "How often do you stay up later than you planned?",
+      "Would you find it easy to go to bed earlier? Why/why not?",
+      "When you are awake late at night, what do you usually do? Why?",
+      "Is there a time of night when you feel most productive?"
+    ]
+  },
+  {
+    "slug": "p1g03-concentrating",
+    "topic": "Concentrating",
+    "questions": [
+      "When do you find it easiest to concentrate?",
+      "Which place is the hardest for you to concentrate in? Why?",
+      "How does background noise affect your ability to focus?",
+      "Would you rather get on with a task in silence or with music on? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-borrowing-lending",
+    "topic": "Borrowing and lending",
+    "questions": [
+      "Do you lend things to your friends often?",
+      "Would you rather borrow an item or buy a cheap one of your own? Why?",
+      "What is the most important rule when you borrow something from someone?",
+      "Is it hard to ask for something back once you have lent it? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-losing-things",
+    "topic": "Losing things",
+    "questions": [
+      "What kinds of things do you tend to misplace most often?",
+      "How do you usually go about finding something you have lost?",
+      "Which lost item would upset you the most? Why?",
+      "Is it better to be organised or relaxed about where you leave things? Why?"
+    ]
+  },
+  {
+    "slug": "p1g03-screen-time",
+    "topic": "Screen time",
+    "questions": [
+      "How much of your day do you spend looking at screens?",
+      "Which screen activity is hardest for you to put down? Why?",
+      "Do you set yourself clear limits on screen use? Why/why not?",
+      "Would you be willing to go a whole week without any screens? Why/why not?"
+    ]
+  },
+  {
+    "slug": "p1g03-science-fiction",
+    "topic": "Science fiction",
+    "questions": [
+      "Which kind of science fiction do you enjoy most?",
+      "Would you like to live in a future like the ones shown in science fiction? Why/why not?",
+      "What science fiction film would you recommend? Why?",
+      "How realistic do the ideas in science fiction seem to you?"
+    ]
+  }
+]

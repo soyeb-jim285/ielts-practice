@@ -1,0 +1,178 @@
+[
+  {
+    "slug": "t1g-g08-sister-wedding-venue-overcharge",
+    "topic": "Family",
+    "type": "letter-formal",
+    "body": "Last month you hired a function room at a hotel for your sister's wedding reception. The contract listed the room hire, a set menu and a bar package, but the final invoice contains several extra charges that were never agreed.\n\nWrite a letter to the events manager of the hotel.",
+    "bullets": [
+      "explain what was agreed in the original contract",
+      "describe each extra charge that appears on the invoice",
+      "request a corrected invoice and a refund of the difference"
+    ]
+  },
+  {
+    "slug": "t1g-g08-grandmother-photographer-missed-speeches",
+    "topic": "Family",
+    "type": "letter-formal",
+    "body": "You hired a professional photographer to cover your grandmother's ninetieth birthday celebration. When the photographs arrived, there were none from the first two hours, including the speeches and the moment the whole family gathered for a group photo.\n\nWrite a letter to the owner of the photography studio.",
+    "bullets": [
+      "outline which parts of the day were not photographed",
+      "say how much you paid for the package",
+      "propose a fair way to put this right"
+    ]
+  },
+  {
+    "slug": "t1g-g08-football-shaped-cake-error",
+    "topic": "Family",
+    "type": "letter-formal",
+    "body": "You ordered a cake shaped like a football for your son's seventh birthday. The bakery delivered a plain sponge with the wrong name written on it, and it arrived just before the party was due to start.\n\nWrite a letter to the manager of the bakery.",
+    "bullets": [
+      "give your order number and the design you asked for",
+      "describe the cake that was delivered",
+      "ask for a replacement cake or a full refund"
+    ]
+  },
+  {
+    "slug": "t1g-g08-reunion-buffet-late-catering",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "You booked a catering company to provide a buffet lunch for a family reunion of forty people. The food was due at half past twelve, but the van did not arrive until after two o'clock, and several dishes were cold by the time they were served.\n\nWrite a letter to the owner of the catering company.",
+    "bullets": [
+      "explain how the delay affected your guests",
+      "tell them what you paid for the service",
+      "suggest what they could offer you in return"
+    ]
+  },
+  {
+    "slug": "t1g-g08-hall-double-reservation-deposit",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "You paid a deposit to reserve the main hall at a community centre for your brother's graduation dinner. Two weeks before the event, you were told the hall had been double-booked, and the only alternative offered was a smaller room upstairs.\n\nWrite a letter to the operations director of the community centre.",
+    "bullets": [
+      "explain why the smaller room would not suit your guests",
+      "describe the arrangements you have already made with other suppliers",
+      "propose a solution that protects your deposit and your date"
+    ]
+  },
+  {
+    "slug": "t1g-g08-marquee-undersized-hire-tent",
+    "topic": "Services",
+    "type": "letter-formal",
+    "body": "You hired a large marquee for a family celebration in your back garden. On the day, the company delivered a much smaller tent that could not hold your guests, and the driver left before anyone could check the order.\n\nWrite a letter to the sales manager of the event hire company.",
+    "bullets": [
+      "describe the marquee you ordered and the size you were promised",
+      "explain why the smaller tent cannot be accepted as a replacement",
+      "request an explanation and a refund of the hire fee"
+    ]
+  },
+  {
+    "slug": "t1g-g08-grandfather-eightieth-time-off",
+    "topic": "Family",
+    "type": "letter-semi",
+    "body": "Your family is holding a reunion to celebrate your grandfather's eightieth birthday, and it falls on a Thursday when your team has an important report due.\n\nWrite a letter to your manager.",
+    "bullets": [
+      "explain why the date matters so much to your family",
+      "suggest how you could finish your work before you leave",
+      "ask whether you could take the day as annual leave"
+    ]
+  },
+  {
+    "slug": "t1g-g08-next-door-celebration-warning",
+    "topic": "Neighbours",
+    "type": "letter-semi",
+    "body": "Next Saturday you are holding an engagement party in your back garden for your sister. Your neighbour has a young baby and has complained about noise before, and the music will probably go on until midnight.\n\nWrite a letter to your neighbour.",
+    "bullets": [
+      "invite them to join you for the first hour",
+      "explain when the music will stop",
+      "apologise in advance for any disturbance"
+    ]
+  },
+  {
+    "slug": "t1g-g08-retirement-present-collection",
+    "topic": "Work",
+    "type": "letter-semi",
+    "body": "Gareth is retiring after thirty years in the office, and the team has asked you to choose a present and collect money for it. Several people have already said they can only spare a small amount.\n\nWrite a letter to your colleague.",
+    "bullets": [
+      "suggest two or three presents that would suit him",
+      "ask how much each person can afford to contribute",
+      "propose a date for presenting the gift at the leaving lunch"
+    ]
+  },
+  {
+    "slug": "t1g-g08-lakeside-lodge-rebooking",
+    "topic": "Services",
+    "type": "letter-semi",
+    "body": "Last summer you stayed at a lakeside lodge for a family reunion, and the kitchen equipment was broken for most of the weekend. The organiser was helpful at the time, but you are now thinking about booking the lodge again for another gathering.\n\nWrite a letter to the organiser of the lakeside lodge.",
+    "bullets": [
+      "ask whether the lodge is free for the weekend of 14 June",
+      "explain what would need to change before you would book again",
+      "suggest a discount for a group of around thirty people"
+    ]
+  },
+  {
+    "slug": "t1g-g08-daughter-missed-music-lessons",
+    "topic": "Childhood",
+    "type": "letter-semi",
+    "body": "Your daughter has missed three of her piano lessons this term because the family has been travelling to visit relatives. Her grade examination is in six weeks, and she has not practised much recently.\n\nWrite a letter to your daughter's music teacher.",
+    "bullets": [
+      "explain why the absences could not be avoided",
+      "ask whether she can have two make-up lessons before the exam",
+      "suggest a practice plan that you can follow at home"
+    ]
+  },
+  {
+    "slug": "t1g-g08-parents-thirtieth-anniversary-lunch",
+    "topic": "Family",
+    "type": "letter-informal",
+    "body": "Your parents are celebrating their thirtieth anniversary with a family lunch at a seafood restaurant near the harbour. You have not seen your cousin since last Christmas, and you know your parents would love to catch up.\n\nWrite a letter to your cousin.",
+    "bullets": [
+      "invite your cousin to the lunch on Sunday 12 July",
+      "tell them where the restaurant is",
+      "say that you are looking forward to seeing them"
+    ]
+  },
+  {
+    "slug": "t1g-g08-forgotten-birthday-apology",
+    "topic": "Relationships",
+    "type": "letter-informal",
+    "body": "Last Friday was your friend's birthday, and you completely forgot to send a message or a card. She has not replied to any of your texts since then, and you know she was hoping to hear from you.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "apologise for forgetting her birthday",
+      "explain what happened that week",
+      "suggest meeting for a coffee so you can celebrate properly"
+    ]
+  },
+  {
+    "slug": "t1g-g08-visit-spare-room-invitation",
+    "topic": "Family",
+    "type": "letter-informal",
+    "body": "Your grandparents live two hours away and have never seen your new flat. You have just bought a spare bed, and you have a free week in October.\n\nWrite a letter to your grandparents.",
+    "bullets": [
+      "invite them to stay for a few nights",
+      "describe what you would like to show them in the city",
+      "ask which dates would suit them best"
+    ]
+  },
+  {
+    "slug": "t1g-g08-newborn-baby-congratulations",
+    "topic": "Family",
+    "type": "letter-informal",
+    "body": "Your friend has just had a baby boy, and she shared a photo with the group chat this morning. You were abroad on a work trip when she went into labour, so you only heard the news two days later.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "say how happy you were to hear the news",
+      "explain why you could not visit her in hospital",
+      "offer to bring a meal once she is home"
+    ]
+  },
+  {
+    "slug": "t1g-g08-surprise-fiftieth-party-advice",
+    "topic": "Relationships",
+    "type": "letter-informal",
+    "body": "Your best friend is planning a surprise party for her husband's fiftieth birthday and has asked for your help. He dislikes surprises, and his brother, who would have to keep the secret, is known for being unable to hold anything back.\n\nWrite a letter to your friend.",
+    "bullets": [
+      "tell her honestly whether a surprise suits him",
+      "suggest a smaller celebration that would still feel special",
+      "explain how you could help without giving the plan away"
+    ]
+  }
+]

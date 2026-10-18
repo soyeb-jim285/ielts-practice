@@ -1,0 +1,522 @@
+[
+  {
+    "slug": "p2g09-friend-very-different",
+    "topic": "People",
+    "title": "Describe a friend who is very different from you.",
+    "bullets": [
+      "who this friend is",
+      "how you first met",
+      "what you like doing together"
+    ],
+    "explain": "and explain why this friendship has lasted despite your differences.",
+    "followUps": [
+      "Do you have a lot of close friends?"
+    ],
+    "p3Topics": [
+      "Friendships between different people",
+      "Making friends in modern life"
+    ],
+    "p3": [
+      "What kinds of differences between people matter least in friendship?",
+      "How do friendships across different backgrounds compare with those between similar people?",
+      "Why might some people avoid forming close bonds with someone very different?",
+      "How has the way people meet new friends changed over recent decades?",
+      "What are the main advantages of friendships that cross social divides?",
+      "Could people in future form friendships more easily through shared interests than through shared places?"
+    ]
+  },
+  {
+    "slug": "p2g09-welcoming-host",
+    "topic": "People",
+    "title": "Describe a person who is good at making others feel welcome.",
+    "bullets": [
+      "who this person is",
+      "where you first met them",
+      "what they do to put people at ease"
+    ],
+    "explain": "and explain why you think people enjoy being around them.",
+    "followUps": [
+      "Do you consider yourself a welcoming person?"
+    ],
+    "p3Topics": [
+      "Hospitality towards newcomers",
+      "Welcoming strangers in communities"
+    ],
+    "p3": [
+      "Which kinds of gestures make a newcomer feel at home in a new neighbourhood?",
+      "Are smaller towns more welcoming to newcomers than large cities?",
+      "Why are some communities more open to outsiders than others?",
+      "How have volunteer schemes helped newly arrived families settle in?",
+      "What effect does a welcoming atmosphere have on the wider life of a community?",
+      "Might societies become less hospitable as people spend more time online?"
+    ]
+  },
+  {
+    "slug": "p2g09-generous-person",
+    "topic": "People",
+    "title": "Describe a person you know who is very generous.",
+    "bullets": [
+      "who this person is",
+      "what they have given to others",
+      "how other people have benefited"
+    ],
+    "explain": "and explain how this person's generosity has affected the people around them.",
+    "followUps": [
+      "Do you think generosity runs in families?"
+    ],
+    "p3Topics": [
+      "Generosity and giving",
+      "Charity in society"
+    ],
+    "p3": [
+      "What kinds of gifts do people most often offer to help others?",
+      "Are people in some countries more generous with their money than in others?",
+      "Why would someone give time to a cause rather than money?",
+      "How does giving money to charity differ from volunteering time?",
+      "What are the main reasons governments encourage private donations to good causes?",
+      "Could a culture of giving make societies stronger over the long term?"
+    ]
+  },
+  {
+    "slug": "p2g09-zoo-visit",
+    "topic": "Places",
+    "title": "Describe a zoo, farm or wildlife park you visited.",
+    "bullets": [
+      "where it was and how you got there",
+      "which animals you saw",
+      "what you thought of how they were kept"
+    ],
+    "explain": "and explain whether you think places like this are worth visiting.",
+    "followUps": [
+      "Would you like to visit a wildlife park again?"
+    ],
+    "p3Topics": [
+      "Keeping animals in captivity",
+      "Wildlife parks and conservation"
+    ],
+    "p3": [
+      "What reasons do people give for keeping animals in zoos?",
+      "How do modern zoos differ from the menageries of the past?",
+      "Why do some people object to animals being displayed for public entertainment?",
+      "How far can a zoo's breeding programme help a species avoid extinction?",
+      "Do zoos play a meaningful role in conservation, or is that a convenient argument?",
+      "How should societies weigh animal welfare against the educational value of wildlife attractions?"
+    ]
+  },
+  {
+    "slug": "p2g09-wild-area",
+    "topic": "Places",
+    "title": "Describe a wild natural area you would like to explore, such as a desert or forest.",
+    "bullets": [
+      "where this area is",
+      "what you know about its landscape and wildlife",
+      "what you would hope to do there"
+    ],
+    "explain": "and explain why you would like to visit it.",
+    "followUps": [
+      "Do you enjoy walking in the countryside?"
+    ],
+    "p3Topics": [
+      "The appeal of wild places",
+      "Protecting nature from visitors"
+    ],
+    "p3": [
+      "Which kinds of natural places attract the most visitors in many countries?",
+      "Why are deserts and forests so appealing to people who live in cities?",
+      "How easy is it for ordinary people to reach remote natural areas?",
+      "How has tourism changed the character of remote natural areas over recent decades?",
+      "Might access to wild places need to be restricted in future to protect them?",
+      "What are the main risks to fragile landscapes when large numbers of people arrive?"
+    ]
+  },
+  {
+    "slug": "p2g09-family-place",
+    "topic": "Places",
+    "title": "Describe a place that is special to your family.",
+    "bullets": [
+      "where this place is",
+      "how your family first came to know it",
+      "what you usually do there together"
+    ],
+    "explain": "and explain why it means so much to your family.",
+    "followUps": [
+      "Do you think you will go back there soon?"
+    ],
+    "p3Topics": [
+      "Places that bring families together",
+      "Heritage sites and family history"
+    ],
+    "p3": [
+      "What kinds of places do families return to year after year?",
+      "How important are shared places to the identity of a family?",
+      "Why do some family homes become hard to keep within one household?",
+      "How do historic buildings linked to families get preserved for future generations?",
+      "What are the social benefits of keeping local places that carry family memories?",
+      "Could losing familiar places weaken people's sense of belonging to a community?"
+    ]
+  },
+  {
+    "slug": "p2g09-uniform-worn",
+    "topic": "Objects",
+    "title": "Describe a uniform you have had to wear.",
+    "bullets": [
+      "what the uniform was for",
+      "where you wore it",
+      "how you felt wearing it"
+    ],
+    "explain": "and explain whether you liked wearing it.",
+    "followUps": [
+      "Did you ever feel proud to wear it?"
+    ],
+    "p3Topics": [
+      "Uniforms in schools and work",
+      "Clothing and belonging"
+    ],
+    "p3": [
+      "Which jobs usually require people to wear a uniform?",
+      "Is it fair that some workers must wear a uniform while others choose their own clothes?",
+      "Why do many schools insist that pupils wear the same clothes?",
+      "How do uniforms affect the way people treat one another in public?",
+      "What are the arguments for and against dress codes at work?",
+      "Might changing attitudes to clothing reshape the future of workplace uniforms?"
+    ]
+  },
+  {
+    "slug": "p2g09-smell-memory",
+    "topic": "Objects",
+    "title": "Describe a smell that brings back memories.",
+    "bullets": [
+      "what the smell is",
+      "where you first noticed it",
+      "what it reminds you of"
+    ],
+    "explain": "and explain why this smell is so strongly connected to that memory.",
+    "followUps": [
+      "Do you often notice smells more than sounds?"
+    ],
+    "p3Topics": [
+      "Memory and the senses",
+      "Scent in everyday life"
+    ],
+    "p3": [
+      "What kinds of smells are most often linked with particular times of life?",
+      "How does smell compare with sight or sound when it comes to triggering memories?",
+      "Why might a scent bring back a memory more vividly than a photograph?",
+      "How are perfume and food companies using scent to shape the way people behave?",
+      "How might public spaces change if designers treated scent as carefully as lighting?",
+      "What are the ethical concerns when businesses design smells to influence customers?"
+    ]
+  },
+  {
+    "slug": "p2g09-medal-certificate",
+    "topic": "Objects",
+    "title": "Describe a medal, trophy or certificate you received.",
+    "bullets": [
+      "what you received it for",
+      "when and where you were given it",
+      "how you felt when you got it"
+    ],
+    "explain": "and explain why this award was important to you.",
+    "followUps": [
+      "Do you keep your awards somewhere special?"
+    ],
+    "p3Topics": [
+      "Awards and recognition",
+      "Certificates in education"
+    ],
+    "p3": [
+      "What kinds of achievements do schools usually reward with certificates?",
+      "Are prizes more motivating for children than praise from teachers?",
+      "Why do some people value a certificate more than the skill it represents?",
+      "How have awards ceremonies changed in the way they are organised over the years?",
+      "What are the downsides of a society that relies heavily on formal recognition?",
+      "Will qualifications matter as much in the future as they do today?"
+    ]
+  },
+  {
+    "slug": "p2g09-farewell-party",
+    "topic": "Events",
+    "title": "Describe a farewell party you went to.",
+    "bullets": [
+      "who was leaving",
+      "where the party was held",
+      "what people did during the evening"
+    ],
+    "explain": "and explain how you felt when the evening came to an end.",
+    "followUps": [
+      "Do you usually keep in touch with people after they move away?"
+    ],
+    "p3Topics": [
+      "Leaving and saying goodbye",
+      "Moving away for work"
+    ],
+    "p3": [
+      "What do people usually do to mark a colleague's departure from a company?",
+      "How do leaving celebrations differ between workplaces and schools?",
+      "Why is saying goodbye harder for some people than for others?",
+      "How has moving for work changed the way families stay in touch?",
+      "What are the social costs when skilled people leave a region to find work?",
+      "Could people feel less attached to their communities as relocation becomes common?"
+    ]
+  },
+  {
+    "slug": "p2g09-new-year-start",
+    "topic": "Events",
+    "title": "Describe a celebration at the start of a new year.",
+    "bullets": [
+      "when and where it took place",
+      "who you celebrated with",
+      "what traditions were part of it"
+    ],
+    "explain": "and explain how the start of that year felt different from others.",
+    "followUps": [
+      "Did you celebrate the start of the year in the same way as usual?"
+    ],
+    "p3Topics": [
+      "New Year traditions",
+      "Holidays and national identity"
+    ],
+    "p3": [
+      "Which traditions do families in many countries keep at the start of the year?",
+      "How do New Year celebrations in big cities compare with those in smaller towns?",
+      "Why do so many people feel the need to mark a fresh start?",
+      "How far do shared festivals help bring together people from different backgrounds?",
+      "Will traditional celebrations survive in a world where people are increasingly global?",
+      "What role do public holidays play in building a shared national identity?"
+    ]
+  },
+  {
+    "slug": "p2g09-stranger-chat",
+    "topic": "Experiences",
+    "title": "Describe a time when you started a conversation with a stranger.",
+    "bullets": [
+      "where you were",
+      "who the stranger was",
+      "how the conversation developed"
+    ],
+    "explain": "and explain why you decided to speak to them in the first place.",
+    "followUps": [
+      "Do you find it easy to talk to people you do not know?"
+    ],
+    "p3Topics": [
+      "Talking to strangers",
+      "Chance encounters and community"
+    ],
+    "p3": [
+      "What kinds of situations make people more willing to speak to someone new?",
+      "How does talking to strangers in a city differ from doing so in a village?",
+      "Why are many people in large cities reluctant to speak to strangers?",
+      "How much do casual conversations between strangers contribute to people's wellbeing?",
+      "Is a society of friendly strangers more pleasant to live in than one that values privacy above all?",
+      "Could the decline of chance encounters weaken the bonds holding a neighbourhood together?"
+    ]
+  },
+  {
+    "slug": "p2g09-quick-choice",
+    "topic": "Experiences",
+    "title": "Describe a time when you had to make a decision very quickly.",
+    "bullets": [
+      "what the decision was about",
+      "when this happened",
+      "what you decided and how it turned out"
+    ],
+    "explain": "and explain how you felt once the decision had been made.",
+    "followUps": [
+      "Do you usually prefer to decide things quickly?"
+    ],
+    "p3Topics": [
+      "Decisions under pressure",
+      "Speed in modern working life"
+    ],
+    "p3": [
+      "What kinds of decisions do people often have to make without much time?",
+      "Are quick decisions generally better than carefully considered ones?",
+      "Why do some professions rely on people making fast choices?",
+      "How do emergency services train staff to act quickly under stress?",
+      "Will technology make rapid decision making more common in everyday life?",
+      "What downsides come with a culture that expects instant replies?"
+    ]
+  },
+  {
+    "slug": "p2g09-formal-occasion",
+    "topic": "Experiences",
+    "title": "Describe an occasion when you had to wear formal clothes.",
+    "bullets": [
+      "what the occasion was",
+      "where it took place",
+      "how you felt in what you wore"
+    ],
+    "explain": "and explain why you had to dress so formally.",
+    "followUps": [
+      "Do you enjoy dressing up for special events?"
+    ],
+    "p3Topics": [
+      "Dress codes for events",
+      "Clothing and first impressions"
+    ],
+    "p3": [
+      "What kinds of occasions still call for formal dress in most countries?",
+      "How have dress codes for weddings and the theatre changed over time?",
+      "Why do some people feel uncomfortable in clothes they consider too formal?",
+      "How much does clothing shape the first impression people form of one another?",
+      "Which social pressures push people towards conventional dress at work?",
+      "Will formal dress codes matter less as more people work from home?"
+    ]
+  },
+  {
+    "slug": "p2g09-night-sky",
+    "topic": "Experiences",
+    "title": "Describe an evening you spent outdoors under the stars.",
+    "bullets": [
+      "where you were",
+      "who you were with",
+      "what you could see in the sky"
+    ],
+    "explain": "and explain why this evening stays in your memory.",
+    "followUps": [
+      "Do you often look up at the sky at night?"
+    ],
+    "p3Topics": [
+      "Light pollution in cities",
+      "Astronomy and public interest"
+    ],
+    "p3": [
+      "Which activities do people most enjoy when they spend a night outdoors?",
+      "How much of the night sky can people see from a large city compared with the countryside?",
+      "Why is it that many people never see the stars clearly where they live?",
+      "How has light pollution changed the way people think about the night sky?",
+      "Might cities one day limit street lighting to protect wildlife and stargazing?",
+      "What benefits do public astronomy programmes bring to local communities?"
+    ]
+  },
+  {
+    "slug": "p2g09-physical-challenge",
+    "topic": "Activities",
+    "title": "Describe a physical challenge you would like to take on.",
+    "bullets": [
+      "what the challenge involves",
+      "how you would prepare for it",
+      "which difficulties you expect to face"
+    ],
+    "explain": "and explain whether you think you could complete it.",
+    "followUps": [
+      "Do you enjoy setting yourself difficult goals?"
+    ],
+    "p3Topics": [
+      "Challenge events and endurance",
+      "Fitness and motivation in society"
+    ],
+    "p3": [
+      "Which physical challenges do charities organise to raise money?",
+      "How does an endurance event compare with a team sport in the benefits it offers?",
+      "Why would someone choose an extreme challenge when a gentler option exists?",
+      "How far do challenge events encourage people who would never otherwise exercise?",
+      "What downsides come with a culture that celebrates pushing the body to its limits?",
+      "How should societies balance the health benefits of exercise against the pressure to achieve more?"
+    ]
+  },
+  {
+    "slug": "p2g09-activity-abroad",
+    "topic": "Activities",
+    "title": "Describe an activity you would like to try in another country.",
+    "bullets": [
+      "what the activity is",
+      "which country you would go to",
+      "what you already know about it"
+    ],
+    "explain": "and explain why you would choose to do it there.",
+    "followUps": [
+      "Have you ever tried anything like this before?"
+    ],
+    "p3Topics": [
+      "Learning through travel",
+      "Cultural experiences for visitors"
+    ],
+    "p3": [
+      "What kinds of activities do tourists most often try when they visit a new country?",
+      "Are traditional crafts more appealing to visitors than modern attractions?",
+      "Why might some countries depend so heavily on visitors joining in local customs?",
+      "How does learning a local activity differ from simply watching a performance?",
+      "What benefits do local people gain when visitors take part in their traditions?",
+      "Will travellers in future care more about experiences than sightseeing?"
+    ]
+  },
+  {
+    "slug": "p2g09-summer-plans",
+    "topic": "Activities",
+    "title": "Describe an activity you are planning to do next summer.",
+    "bullets": [
+      "what the activity is",
+      "who you plan to do it with",
+      "how you are preparing for it"
+    ],
+    "explain": "and explain why you have chosen this activity.",
+    "followUps": [
+      "Do you usually plan your holidays well in advance?"
+    ],
+    "p3Topics": [
+      "Planning leisure time",
+      "Seasonal tourism"
+    ],
+    "p3": [
+      "Which leisure activities do people most often plan for the summer months?",
+      "How does a summer holiday now compare with one from a previous generation?",
+      "Is it harder to be spontaneous when so much leisure time is planned ahead?",
+      "How has cheap travel changed what people do during their holidays?",
+      "Will seasonal tourism matter less as remote working spreads through the economy?",
+      "What effects does a summer rush of visitors have on a small town?"
+    ]
+  },
+  {
+    "slug": "p2g09-comedy-film",
+    "topic": "Media",
+    "title": "Describe a comedy show or funny film you enjoyed.",
+    "bullets": [
+      "what it was called",
+      "when and how you came across it",
+      "what made you laugh"
+    ],
+    "explain": "and explain why it has stayed with you.",
+    "followUps": [
+      "Do you prefer comedy shows or films?"
+    ],
+    "p3Topics": [
+      "Humour in entertainment",
+      "Comedy and social commentary"
+    ],
+    "p3": [
+      "What kinds of humour are most popular in films and shows across different countries?",
+      "How does comedy on television differ from stand-up performed before a live audience?",
+      "Why might a joke that works in one culture fall flat in another?",
+      "How much can comedy reveal about the concerns of the society that enjoys it?",
+      "What arguments are made for and against letting comedians push the limits of good taste?",
+      "Could comedy written by machines ever match the human ability to surprise an audience?"
+    ]
+  },
+  {
+    "slug": "p2g09-interview-famous",
+    "topic": "Media",
+    "title": "Describe an interview with a famous person that you watched or read.",
+    "bullets": [
+      "who was being interviewed",
+      "where you came across the interview",
+      "what the interviewer asked and how the guest responded"
+    ],
+    "explain": "and explain how the interview changed your view of that person.",
+    "followUps": [
+      "Do you read or watch many interviews?"
+    ],
+    "p3Topics": [
+      "Celebrity interviews and the press",
+      "Public figures and the media"
+    ],
+    "p3": [
+      "Which kinds of questions do audiences most enjoy hearing famous people answer?",
+      "How does a televised interview differ from a written one in a newspaper?",
+      "Why would a famous person refuse to discuss their private life in public?",
+      "How much influence does the press have over the public image of well-known people?",
+      "What trade-offs exist between public curiosity and the privacy of people in the spotlight?",
+      "Could the line between news and entertainment blur so far that serious journalism loses its audience?"
+    ]
+  }
+]

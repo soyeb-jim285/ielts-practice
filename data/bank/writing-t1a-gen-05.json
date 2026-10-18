@@ -1,0 +1,841 @@
+[
+  {
+    "slug": "t1a-g05-rice-yield-four-countries",
+    "topic": "Agriculture",
+    "type": "line",
+    "body": "The line graph below shows how average rice yields per hectare changed in four countries from 1995 to 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average rice yield per hectare in four countries, 1995–2020",
+      "xLabel": "Year",
+      "yLabel": "Yield (tonnes per hectare)",
+      "unit": "tonnes per hectare",
+      "categories": [
+        "1995",
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Country A",
+          "values": [
+            6.4,
+            6.5,
+            6.6,
+            6.6,
+            6.7,
+            6.8
+          ]
+        },
+        {
+          "name": "Country B",
+          "values": [
+            3.2,
+            3.9,
+            4.7,
+            5.5,
+            6.2,
+            6.9
+          ]
+        },
+        {
+          "name": "Country C",
+          "values": [
+            4.6,
+            4.7,
+            4.5,
+            4.3,
+            4.2,
+            4.4
+          ]
+        },
+        {
+          "name": "Country D",
+          "values": [
+            2.1,
+            2.3,
+            2.6,
+            2.8,
+            3.1,
+            3.5
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-wild-bird-index-habitats",
+    "topic": "Animals",
+    "type": "line",
+    "body": "The line graph below gives information about the population index of wild birds in four types of habitat from 1980 to 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Wild bird population index by habitat, 1980–2020",
+      "xLabel": "Year",
+      "yLabel": "Population index (1980 = 100)",
+      "unit": "index",
+      "categories": [
+        "1980",
+        "1990",
+        "2000",
+        "2010",
+        "2020"
+      ],
+      "series": [
+        {
+          "name": "Woodland",
+          "values": [
+            100,
+            96,
+            88,
+            84,
+            86
+          ]
+        },
+        {
+          "name": "Farmland",
+          "values": [
+            100,
+            79,
+            63,
+            55,
+            49
+          ]
+        },
+        {
+          "name": "Wetland",
+          "values": [
+            100,
+            104,
+            109,
+            115,
+            121
+          ]
+        },
+        {
+          "name": "Urban areas",
+          "values": [
+            100,
+            97,
+            99,
+            103,
+            108
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-protein-sources-trend",
+    "topic": "Food",
+    "type": "line",
+    "body": "The line graph below shows how the average daily protein intake per person from three food sources changed in one country between 2000 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "line",
+      "title": "Average daily protein intake per person by source, 2000–2025",
+      "xLabel": "Year",
+      "yLabel": "Protein intake (grams per day)",
+      "unit": "grams per day",
+      "categories": [
+        "2000",
+        "2005",
+        "2010",
+        "2015",
+        "2020",
+        "2025"
+      ],
+      "series": [
+        {
+          "name": "Meat",
+          "values": [
+            31,
+            30,
+            29,
+            27,
+            24,
+            23
+          ]
+        },
+        {
+          "name": "Plant-based sources",
+          "values": [
+            14,
+            16,
+            19,
+            22,
+            25,
+            27
+          ]
+        },
+        {
+          "name": "Dairy and eggs",
+          "values": [
+            9,
+            9,
+            8,
+            8,
+            7,
+            7
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-organic-land-share",
+    "topic": "Agriculture",
+    "type": "bar",
+    "body": "The bar chart below shows the proportion of farmland that was certified as organic in five countries in 2010 and in 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Share of farmland certified as organic, 2010 and 2020",
+      "xLabel": "Country",
+      "yLabel": "Share of farmland (%)",
+      "unit": "%",
+      "categories": [
+        "Country A",
+        "Country B",
+        "Country C",
+        "Country D",
+        "Country E"
+      ],
+      "series": [
+        {
+          "name": "2010",
+          "values": [
+            2.1,
+            6.4,
+            11.8,
+            4.5,
+            18.9
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            4.7,
+            9.2,
+            12.3,
+            10.1,
+            26.4
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-holding-size-regions",
+    "topic": "Agriculture",
+    "type": "bar",
+    "body": "The bar chart below gives information about the average area of farmland per agricultural holding in four regions in 1990, 2005 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average farmland per agricultural holding by region, 1990–2020",
+      "xLabel": "Region",
+      "yLabel": "Average holding size (hectares)",
+      "unit": "hectares",
+      "categories": [
+        "Region A",
+        "Region B",
+        "Region C",
+        "Region D"
+      ],
+      "series": [
+        {
+          "name": "1990",
+          "values": [
+            32,
+            58,
+            21,
+            105
+          ]
+        },
+        {
+          "name": "2005",
+          "values": [
+            41,
+            66,
+            27,
+            124
+          ]
+        },
+        {
+          "name": "2020",
+          "values": [
+            52,
+            79,
+            34,
+            141
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-grocery-restaurant-income-groups",
+    "topic": "Food",
+    "type": "bar",
+    "body": "The bar chart below gives information about average weekly household spending on groceries and on restaurant meals across four income groups in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "bar",
+      "title": "Average weekly household food spending by income group, 2024",
+      "xLabel": "Income group",
+      "yLabel": "Spending (£ per week)",
+      "unit": "£ per week",
+      "categories": [
+        "Lowest income",
+        "Lower middle income",
+        "Upper middle income",
+        "Highest income"
+      ],
+      "series": [
+        {
+          "name": "Groceries",
+          "values": [
+            52,
+            68,
+            81,
+            103
+          ]
+        },
+        {
+          "name": "Restaurant meals",
+          "values": [
+            9,
+            16,
+            27,
+            48
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-farm-workforce-types",
+    "topic": "Agriculture",
+    "type": "pie",
+    "body": "The pie charts below show how the make-up of the farm workforce in one country changed, by type of worker, in 1980, 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Farm workforce by type of worker, 1980, 2000 and 2020",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "1980 (412,000 workers)",
+          "slices": [
+            {
+              "label": "Family members",
+              "value": 58
+            },
+            {
+              "label": "Full-time hired staff",
+              "value": 17
+            },
+            {
+              "label": "Part-time hired staff",
+              "value": 8
+            },
+            {
+              "label": "Seasonal workers",
+              "value": 12
+            },
+            {
+              "label": "Contractors",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "name": "2000 (296,000 workers)",
+          "slices": [
+            {
+              "label": "Family members",
+              "value": 44
+            },
+            {
+              "label": "Full-time hired staff",
+              "value": 19
+            },
+            {
+              "label": "Part-time hired staff",
+              "value": 11
+            },
+            {
+              "label": "Seasonal workers",
+              "value": 17
+            },
+            {
+              "label": "Contractors",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "name": "2020 (203,000 workers)",
+          "slices": [
+            {
+              "label": "Family members",
+              "value": 31
+            },
+            {
+              "label": "Full-time hired staff",
+              "value": 18
+            },
+            {
+              "label": "Part-time hired staff",
+              "value": 12
+            },
+            {
+              "label": "Seasonal workers",
+              "value": 24
+            },
+            {
+              "label": "Contractors",
+              "value": 15
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-pet-types-ownership",
+    "topic": "Animals",
+    "type": "pie",
+    "body": "The pie charts below show the types of pet that households kept in one country in 2005 and in 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Pets kept by households, by type, 2005 and 2025",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "2005",
+          "slices": [
+            {
+              "label": "Dogs",
+              "value": 27
+            },
+            {
+              "label": "Cats",
+              "value": 24
+            },
+            {
+              "label": "Fish",
+              "value": 19
+            },
+            {
+              "label": "Small mammals",
+              "value": 13
+            },
+            {
+              "label": "Birds",
+              "value": 9
+            },
+            {
+              "label": "Other",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "name": "2025",
+          "slices": [
+            {
+              "label": "Dogs",
+              "value": 22
+            },
+            {
+              "label": "Cats",
+              "value": 31
+            },
+            {
+              "label": "Fish",
+              "value": 12
+            },
+            {
+              "label": "Small mammals",
+              "value": 17
+            },
+            {
+              "label": "Birds",
+              "value": 7
+            },
+            {
+              "label": "Other",
+              "value": 11
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-farm-crops-revenue",
+    "topic": "Agriculture",
+    "type": "mixed",
+    "body": "The charts below give information about the crops grown on one farm and where the farm's income came from in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Crops grown on a farm and its sources of income, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "Crops grown (share of land)",
+          "slices": [
+            {
+              "label": "Wheat",
+              "value": 35
+            },
+            {
+              "label": "Potatoes",
+              "value": 20
+            },
+            {
+              "label": "Sugar beet",
+              "value": 15
+            },
+            {
+              "label": "Vegetables",
+              "value": 18
+            },
+            {
+              "label": "Orchard fruit",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "name": "Sources of income",
+          "slices": [
+            {
+              "label": "Crop sales",
+              "value": 48
+            },
+            {
+              "label": "Livestock sales",
+              "value": 22
+            },
+            {
+              "label": "Government payments",
+              "value": 14
+            },
+            {
+              "label": "Renting out land and buildings",
+              "value": 9
+            },
+            {
+              "label": "Contract work for other farms",
+              "value": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-milk-cheese-consumption",
+    "topic": "Food",
+    "type": "mixed",
+    "body": "The pie charts below show how milk was used in households in one country and the types of cheese those households bought in 2024.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "pie",
+      "title": "Household milk use and cheese purchases by type, 2024",
+      "unit": "%",
+      "pies": [
+        {
+          "name": "How milk is used",
+          "slices": [
+            {
+              "label": "Drunk on its own",
+              "value": 22
+            },
+            {
+              "label": "In tea and coffee",
+              "value": 31
+            },
+            {
+              "label": "With breakfast cereal",
+              "value": 27
+            },
+            {
+              "label": "In cooking and baking",
+              "value": 14
+            },
+            {
+              "label": "Other",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "name": "Types of cheese bought",
+          "slices": [
+            {
+              "label": "Hard cheese",
+              "value": 46
+            },
+            {
+              "label": "Soft and cream cheese",
+              "value": 19
+            },
+            {
+              "label": "Processed and sliced cheese",
+              "value": 23
+            },
+            {
+              "label": "Grated cheese",
+              "value": 12
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-staple-price-index-table",
+    "topic": "Food",
+    "type": "table",
+    "body": "The table below shows how the price index of five staple foods changed between 2020 and 2024, and the share of the food budget that each food takes.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Price index and budget share for five staple foods, 2020 and 2024",
+      "columns": [
+        "Staple food",
+        "Price index in 2020 (2015 = 100)",
+        "Price index in 2024 (2015 = 100)",
+        "Share of food budget (%)"
+      ],
+      "rows": [
+        [
+          "Wheat flour",
+          118,
+          149,
+          9
+        ],
+        [
+          "Rice",
+          104,
+          121,
+          6
+        ],
+        [
+          "Maize meal",
+          131,
+          162,
+          8
+        ],
+        [
+          "Potatoes",
+          112,
+          128,
+          11
+        ],
+        [
+          "Cooking oil",
+          139,
+          118,
+          5
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-managed-bee-colonies",
+    "topic": "Animals",
+    "type": "table",
+    "body": "The table below gives information about managed honeybee colonies, honey yields and winter losses in six regions in 2023.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "table",
+      "title": "Managed honeybee colonies, honey yield and winter losses by region, 2023",
+      "columns": [
+        "Region",
+        "Managed colonies (thousands)",
+        "Honey yield per colony (kg)",
+        "Colony losses over winter (%)"
+      ],
+      "rows": [
+        [
+          "Region A",
+          412,
+          24,
+          14
+        ],
+        [
+          "Region B",
+          198,
+          31,
+          9
+        ],
+        [
+          "Region C",
+          87,
+          18,
+          22
+        ],
+        [
+          "Region D",
+          265,
+          27,
+          11
+        ],
+        [
+          "Region E",
+          140,
+          35,
+          7
+        ],
+        [
+          "Region F",
+          56,
+          12,
+          25
+        ]
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-yoghurt-production-stages",
+    "topic": "Food",
+    "type": "process",
+    "body": "The diagram below shows how yoghurt is produced in a dairy, from fresh milk to the finished product.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "The production of yoghurt in a dairy",
+      "steps": [
+        "Fresh milk is heated to about 85°C to kill harmful bacteria",
+        "The heated milk is cooled to around 43°C",
+        "Live bacterial cultures are added to the milk",
+        "The mixture is kept warm for several hours while it ferments",
+        "Lactic acid forms and the milk thickens into yoghurt",
+        "The yoghurt is cooled rapidly to stop fermentation",
+        "Fruit, flavourings or sweeteners may be stirred in",
+        "The yoghurt is packed into containers and stored chilled"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-hard-cheese-making",
+    "topic": "Food",
+    "type": "process",
+    "body": "The diagram below shows the process of making hard cheese in a dairy, including what happens to cheeses that fail inspection.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "The production of hard cheese",
+      "steps": [
+        "Raw milk is pasteurised or heated gently",
+        "Starter cultures and rennet are added to the milk",
+        "The milk is left until it forms a firm curd",
+        "The curd is cut into small pieces",
+        "Whey is drained away from the curd",
+        "The curds are heated and stirred to remove more whey",
+        "The curds are pressed into moulds to form a block",
+        "The cheese is salted in brine or by hand",
+        "The cheese is left to mature in a cool store for several months",
+        "Cheeses that fail inspection are grated for processed cheese",
+        "Mature cheeses are cut, wrapped and sent to shops"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-ladybird-life-cycle",
+    "topic": "Animals",
+    "type": "process",
+    "body": "The diagram below shows the life cycle of a ladybird, including the stages that take place over winter.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "process",
+      "title": "The life cycle of a ladybird",
+      "steps": [
+        "Adult females lay clusters of yellow eggs on leaves near aphids",
+        "The eggs hatch into larvae after about four days",
+        "Larvae moult several times as they grow",
+        "Larvae feed on large numbers of aphids",
+        "The mature larva attaches itself to a leaf",
+        "The larva sheds its skin to form a pupa",
+        "The adult beetle emerges from the pupa after about a week",
+        "Adults feed on aphids through the summer months",
+        "Some adults lay a second batch of eggs before winter",
+        "Remaining adults shelter in leaf litter to hibernate",
+        "Hibernating adults wake in spring and breed again"
+      ]
+    }
+  },
+  {
+    "slug": "t1a-g05-hill-farm-visitors",
+    "topic": "Agriculture",
+    "type": "map",
+    "body": "The maps below show a hill farm in 2010 and the same farm in 2024, after it had opened to visitors.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A hill farm before and after opening to visitors, 2010 and 2024",
+      "before": {
+        "label": "2010",
+        "features": [
+          "Stone farmhouse at the end of a lane in the south-west corner",
+          "Lambing shed beside the lane, east of the farmhouse",
+          "Sheep pasture covering the hillside north of the stream",
+          "Stone walls dividing the upper pasture into four fields",
+          "Hay meadow along the south bank of the stream",
+          "Ford across the stream at the eastern end of the meadow",
+          "Woodland on the northern ridge"
+        ]
+      },
+      "after": {
+        "label": "2024",
+        "features": [
+          "Stone farmhouse unchanged at the end of the lane in the south-west corner",
+          "Lambing shed converted into a visitor centre and farm shop beside the lane",
+          "New lambing shed built north of the stream, at the foot of the pasture",
+          "Sheep still grazing the hillside north of the stream",
+          "Walls between two of the upper fields removed to make one large field",
+          "Car park for 40 cars on the western half of the hay meadow, next to the lane",
+          "Footbridge across the stream replacing the ford at the eastern end of the meadow",
+          "Six holiday cottages on the eastern half of the hay meadow",
+          "Woodland on the northern ridge kept, with a walking trail through it"
+        ]
+      }
+    }
+  },
+  {
+    "slug": "t1a-g05-market-relocation-redesign",
+    "topic": "Food",
+    "type": "map",
+    "body": "The maps below show a town's outdoor food market in its present layout and the planned layout after the market is moved and redesigned.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+    "chart": {
+      "kind": "map",
+      "title": "A town's outdoor food market, present and planned layouts",
+      "before": {
+        "label": "Now",
+        "features": [
+          "Market stalls in the station car park, north of the high street",
+          "Fruit and vegetable stalls along the northern edge of the car park",
+          "Fishmonger and butcher in a covered hall at the west end of the car park",
+          "Coffee kiosk at the car park entrance from the high street",
+          "Flower stall in the south-east corner of the car park",
+          "Bus station south of the high street, backing onto the river",
+          "Library on the high street, west of the bus station",
+          "Public toilets in the car park, next to the covered hall",
+          "Narrow footpath along the river bank behind the bus station"
+        ]
+      },
+      "after": {
+        "label": "Planned",
+        "features": [
+          "Market moved to the site of the bus station, south of the high street",
+          "Fruit and vegetable stalls arranged around a central square on the former bus station site",
+          "Fishmonger and butcher in a new covered hall on the west side of the square",
+          "Old covered hall in the station car park converted into an indoor food hall",
+          "Station car park returned to parking, with ten spaces kept for stallholders",
+          "Coffee kiosk replaced by a row of food stalls along the river bank, south of the square",
+          "Flower stall removed altogether",
+          "Library unchanged on the high street, west of the square",
+          "New public toilets beside the library, at the west entrance to the square",
+          "Riverside footpath behind the square widened into a promenade with benches",
+          "Cycle racks at the high street entrance to the square"
+        ]
+      }
+    }
+  }
+]

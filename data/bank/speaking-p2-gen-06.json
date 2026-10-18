@@ -1,0 +1,522 @@
+[
+  {
+    "slug": "p2g06-health-worker-respect",
+    "topic": "People",
+    "title": "Describe a health worker you respect.",
+    "bullets": [
+      "what kind of health worker they are",
+      "how you came to know their work",
+      "what makes them stand out from others"
+    ],
+    "explain": "and explain why you respect this person so much.",
+    "followUps": [
+      "Do you know many health workers personally?"
+    ],
+    "p3Topics": [
+      "Valuing health workers",
+      "Careers in healthcare"
+    ],
+    "p3": [
+      "What qualities do patients most often look for in a nurse or doctor?",
+      "Why might some caring professions be paid less than their importance would suggest?",
+      "How much does the public's respect for health workers vary between countries?",
+      "What are the main reasons young people give for avoiding medical careers?",
+      "Could staff shortages in hospitals lower the quality of care over the next decade?",
+      "Would ageing populations make healthcare jobs more attractive, or simply more demanding?"
+    ]
+  },
+  {
+    "slug": "p2g06-late-learner-person",
+    "topic": "People",
+    "title": "Describe a person who started learning something late in life.",
+    "bullets": [
+      "who this person is",
+      "what they decided to learn",
+      "how they went about learning it"
+    ],
+    "explain": "and explain why this decision impressed you.",
+    "followUps": [
+      "Have you ever wanted to learn something new as an adult?"
+    ],
+    "p3Topics": [
+      "Adults learning new skills",
+      "Education across a lifetime"
+    ],
+    "p3": [
+      "Which skills do adults most often take up in their free time?",
+      "Why might older learners find languages harder than music or art?",
+      "In what ways does learning as an adult differ from school learning?",
+      "How are adult education courses changing with the arrival of online classes?",
+      "What effect might lifelong learning have on the health of an ageing population?",
+      "Could a society where everyone keeps learning narrow the gap between generations?"
+    ]
+  },
+  {
+    "slug": "p2g06-relative-similar",
+    "topic": "People",
+    "title": "Describe a relative you feel most similar to.",
+    "bullets": [
+      "who this relative is",
+      "which qualities you share with them",
+      "how those similarities show up in daily life"
+    ],
+    "explain": "and explain how you first noticed the resemblance.",
+    "followUps": [
+      "Do people in your family often say you are alike?"
+    ],
+    "p3Topics": [
+      "Family resemblance",
+      "Nature or nurture"
+    ],
+    "p3": [
+      "What traits tend to be passed down from parents to their children?",
+      "Why does one family seem to share a sense of humour or a way of speaking?",
+      "How much of a person's character comes from upbringing rather than genes?",
+      "What are the main arguments for and against the idea that genes matter more than upbringing?",
+      "Do families who live far apart keep their shared habits for longer?",
+      "How might moving to a different culture change the traits a family has in common?"
+    ]
+  },
+  {
+    "slug": "p2g06-old-bridge-well",
+    "topic": "Places",
+    "title": "Describe a bridge you know well.",
+    "bullets": [
+      "where the bridge is",
+      "what the bridge is made from",
+      "how often you use it"
+    ],
+    "explain": "and explain why this bridge matters to the people nearby.",
+    "followUps": [
+      "Is there a bridge near your home that you like to look at?"
+    ],
+    "p3Topics": [
+      "Bridges and transport",
+      "Building for the future"
+    ],
+    "p3": [
+      "Which kinds of transport depend most heavily on bridges?",
+      "Why are some old bridges restricted to light vehicles while newer ones carry heavy traffic?",
+      "How do bridges help communities that rivers or valleys would otherwise divide?",
+      "What are the trade-offs between one large bridge and several smaller crossings?",
+      "How might climate change affect the design of bridges built in the next fifty years?",
+      "Would cities gain more by investing in public transport than in new road bridges?"
+    ]
+  },
+  {
+    "slug": "p2g06-shopping-centre-known",
+    "topic": "Places",
+    "title": "Describe a shopping centre you know.",
+    "bullets": [
+      "where it is located",
+      "what kinds of shops it has",
+      "how you usually spend your time there"
+    ],
+    "explain": "and explain how this place compares with the high street.",
+    "followUps": [
+      "How often do you visit a shopping centre?"
+    ],
+    "p3Topics": [
+      "Large shopping centres",
+      "High streets and retail"
+    ],
+    "p3": [
+      "Which goods do people in towns most often buy in large centres?",
+      "What draws many shoppers to one place with lots of shops rather than several small ones?",
+      "How have shopping trips changed in the last twenty years?",
+      "What are the main effects of large shopping centres on smaller shops nearby?",
+      "Will online shopping make physical centres unnecessary, or will they adapt instead?",
+      "How could empty shop units be reused to keep high streets lively?"
+    ]
+  },
+  {
+    "slug": "p2g06-public-building-civic",
+    "topic": "Places",
+    "title": "Describe a public building such as a post office or town hall.",
+    "bullets": [
+      "which building you have in mind",
+      "what the building is used for",
+      "what it looks like inside and out"
+    ],
+    "explain": "and explain why this building matters to the local community.",
+    "followUps": [
+      "Have you ever had to visit it for an official reason?"
+    ],
+    "p3Topics": [
+      "Public buildings in towns",
+      "Government services and access"
+    ],
+    "p3": [
+      "What kinds of services are usually provided in a town hall?",
+      "Why do some older civic buildings attract more visitors than newer offices?",
+      "How has the design of public buildings changed over the last century?",
+      "What are the advantages of keeping public services in one central location?",
+      "How might moving services online change the role of local post offices?",
+      "Could the closure of community buildings weaken people's sense of belonging?"
+    ]
+  },
+  {
+    "slug": "p2g06-letter-card-meaning",
+    "topic": "Objects",
+    "title": "Describe a letter or card you received that meant a lot to you.",
+    "bullets": [
+      "who sent it to you",
+      "when you received it",
+      "what it said that moved you"
+    ],
+    "explain": "and explain how you feel about it today.",
+    "followUps": [
+      "Do you still keep letters and cards that people send you?"
+    ],
+    "p3Topics": [
+      "Handwritten letters today",
+      "Preserving personal archives"
+    ],
+    "p3": [
+      "What kinds of messages do people still write by hand these days?",
+      "Why might someone choose a letter over a text message for important news?",
+      "How has the decline of letter writing affected the way families stay in touch?",
+      "What are the benefits of keeping letters for future generations to read?",
+      "How might digital messages be kept for historians in a hundred years' time?",
+      "Would a world without paper correspondence lose something valuable about relationships?"
+    ]
+  },
+  {
+    "slug": "p2g06-costume-special-outfit",
+    "topic": "Objects",
+    "title": "Describe a costume or special outfit you wore for an event.",
+    "bullets": [
+      "what the event was",
+      "what the costume looked like",
+      "where you got it from"
+    ],
+    "explain": "and explain whether you enjoyed wearing it.",
+    "followUps": [
+      "Do you like dressing up for special occasions?"
+    ],
+    "p3Topics": [
+      "Dressing up for events",
+      "Fancy dress and tradition"
+    ],
+    "p3": [
+      "What kinds of occasions do people most often dress up for?",
+      "Why do many children enjoy wearing costumes more than adults do?",
+      "How does a uniform differ from an outfit chosen for a celebration?",
+      "What role do costumes play in traditional festivals in different countries?",
+      "Are costume parties more popular now than they were a generation ago?",
+      "How might clothing trends influence the way communities mark their traditions?"
+    ]
+  },
+  {
+    "slug": "p2g06-pen-favourite-tool",
+    "topic": "Objects",
+    "title": "Describe a pen or pencil you like using.",
+    "bullets": [
+      "what kind of pen or pencil it is",
+      "how long you have had it",
+      "what makes it comfortable to use"
+    ],
+    "explain": "and explain why you prefer it to other writing tools.",
+    "followUps": [
+      "Do you still write by hand very often?"
+    ],
+    "p3Topics": [
+      "Writing tools",
+      "Handwriting in schools"
+    ],
+    "p3": [
+      "Which writing tools are most commonly used in offices and schools today?",
+      "What do people gain from writing by hand rather than typing on a keyboard?",
+      "How has the design of stationery changed in recent decades?",
+      "Why are some educators concerned that handwriting skills are declining?",
+      "How does practising handwriting help children learn to read and spell?",
+      "Could fewer handwriting lessons leave children less able to remember what they have written?"
+    ]
+  },
+  {
+    "slug": "p2g06-street-parade-carnival",
+    "topic": "Events",
+    "title": "Describe a street parade or carnival you watched.",
+    "bullets": [
+      "where and when the parade took place",
+      "what was happening along the route",
+      "which part of it you liked most"
+    ],
+    "explain": "and explain how the atmosphere made it so memorable.",
+    "followUps": [
+      "Do street parades happen often in your town?"
+    ],
+    "p3Topics": [
+      "Public celebrations",
+      "Festivals and community life"
+    ],
+    "p3": [
+      "What kinds of events usually take place along city streets during the year?",
+      "Why do local communities often enjoy parades more than large televised events?",
+      "How do street celebrations bring together people who would not normally meet?",
+      "What are the costs and benefits of closing busy roads for public celebrations?",
+      "Will public celebrations survive if people can enjoy them easily from home?",
+      "How could cultural festivals change as cities become more diverse?"
+    ]
+  },
+  {
+    "slug": "p2g06-fundraising-taking-part",
+    "topic": "Events",
+    "title": "Describe a fundraising event you took part in.",
+    "bullets": [
+      "what the event was for",
+      "what you did to take part",
+      "how much money was raised"
+    ],
+    "explain": "and explain why you decided to get involved.",
+    "followUps": [
+      "Would you take part in a fundraiser again?"
+    ],
+    "p3Topics": [
+      "Charity fundraising",
+      "Giving money and time"
+    ],
+    "p3": [
+      "Which activities do charities most often use to raise money?",
+      "Why do people sometimes give more readily when they can see the results?",
+      "How does giving money compare with giving time as a way of helping others?",
+      "What are the potential drawbacks of charities relying heavily on public donations?",
+      "How might digital giving change the way charities compete for supporters?",
+      "Would people give more generously if giving were a normal part of community life?"
+    ]
+  },
+  {
+    "slug": "p2g06-forgot-something-important",
+    "topic": "Experiences",
+    "title": "Describe a time when you forgot something important.",
+    "bullets": [
+      "what you forgot",
+      "when you realised you had forgotten it",
+      "how the situation was resolved"
+    ],
+    "explain": "and explain how you felt in that moment.",
+    "followUps": [
+      "Do you use reminders to help you remember things now?"
+    ],
+    "p3Topics": [
+      "Memory and reminders",
+      "Technology and remembering"
+    ],
+    "p3": [
+      "Which things do people most often forget in everyday life?",
+      "Why do some people find it easier to remember details than others?",
+      "How do reminders such as notes and calendars help people organise their time?",
+      "What effect has the smartphone had on how well people remember numbers and addresses?",
+      "Does relying on digital devices weaken our ability to remember information?",
+      "How might future tools change the way people manage memory and everyday planning?"
+    ]
+  },
+  {
+    "slug": "p2g06-gave-someone-advice",
+    "topic": "Experiences",
+    "title": "Describe a time when you talked a friend out of a bad plan.",
+    "bullets": [
+      "who the friend was",
+      "what plan they had in mind",
+      "what you said to persuade them"
+    ],
+    "explain": "and explain whether your words made any difference.",
+    "followUps": [
+      "Do you find it easy to tell friends what you really think?"
+    ],
+    "p3Topics": [
+      "Giving and receiving advice",
+      "Professional guidance"
+    ],
+    "p3": [
+      "What kinds of advice do young people most often ask older relatives for?",
+      "Why is it hard for some people to accept advice from others?",
+      "How does advice from a friend differ from advice given by an expert?",
+      "What makes professional guidance more reliable than advice from friends?",
+      "How might online advice forums change the way people make everyday decisions?",
+      "Would people make better choices if unbiased advice were free and easy to find?"
+    ]
+  },
+  {
+    "slug": "p2g06-misunderstanding-clear-up",
+    "topic": "Experiences",
+    "title": "Describe a time when there was a misunderstanding between you and someone else.",
+    "bullets": [
+      "who the other person was",
+      "what caused the misunderstanding",
+      "what happened in the end"
+    ],
+    "explain": "and explain why the misunderstanding was so hard to clear up.",
+    "followUps": [
+      "Are you usually quick to clear up a misunderstanding?"
+    ],
+    "p3Topics": [
+      "Miscommunication in everyday life",
+      "Communication and technology"
+    ],
+    "p3": [
+      "What kinds of situations are most likely to lead to confusion between people?",
+      "Why do written messages cause more misunderstandings than face-to-face conversations?",
+      "How does body language help people avoid confusion when they speak in person?",
+      "How has instant messaging changed the way people argue online?",
+      "How might translation software reduce misunderstandings between speakers of different languages?",
+      "Would clearer communication habits make workplaces more productive, or merely more polite?"
+    ]
+  },
+  {
+    "slug": "p2g06-morning-bad-start",
+    "topic": "Experiences",
+    "title": "Describe a morning that started badly.",
+    "bullets": [
+      "what went wrong at the start",
+      "how the rest of the day was affected",
+      "what you did to recover"
+    ],
+    "explain": "and explain how you dealt with the situation.",
+    "followUps": [
+      "Do you think small problems in the morning affect the rest of the day?"
+    ],
+    "p3Topics": [
+      "Daily routines and stress",
+      "Productivity and mood"
+    ],
+    "p3": [
+      "Which routines do people rely on to start the day calmly?",
+      "Why might small setbacks early in the day affect people's mood for hours?",
+      "How do commuters usually cope with delays on their way to work?",
+      "Which factors determine whether people perform well at work in the morning?",
+      "How might flexible working hours change the pattern of people's daily stress?",
+      "Could a better understanding of body clocks help employers plan the working day?"
+    ]
+  },
+  {
+    "slug": "p2g06-childhood-team-activity",
+    "topic": "Activities",
+    "title": "Describe a team activity you took part in as a child.",
+    "bullets": [
+      "what the activity was",
+      "who was in your team",
+      "how the activity made you feel"
+    ],
+    "explain": "and explain why you enjoyed being part of a team.",
+    "followUps": [
+      "Did you enjoy playing in a team at school?"
+    ],
+    "p3Topics": [
+      "Team games for children",
+      "Teamwork in adult life"
+    ],
+    "p3": [
+      "What kinds of team activities are most popular in primary schools?",
+      "Why are some children more comfortable in groups than others?",
+      "How do group games help children learn to share and take turns?",
+      "What differences exist between working in a team and working alone?",
+      "How has the idea of teamwork changed in offices over the last few decades?",
+      "Would societies that value cooperation outperform those that reward individual achievement?"
+    ]
+  },
+  {
+    "slug": "p2g06-seasonal-anticipation",
+    "topic": "Activities",
+    "title": "Describe a seasonal activity you look forward to.",
+    "bullets": [
+      "what the activity involves",
+      "when it usually takes place",
+      "who you usually do it with"
+    ],
+    "explain": "and explain what makes this season special for you.",
+    "followUps": [
+      "Did you do this last year as well?"
+    ],
+    "p3Topics": [
+      "Seasonal traditions",
+      "Changing seasons"
+    ],
+    "p3": [
+      "Which seasonal activities are most popular with families?",
+      "What makes many people feel more energetic in spring than in winter?",
+      "How do seasonal events help people feel connected to their local area?",
+      "Which traditions are most likely to suffer as winters become warmer?",
+      "How might shorter winters change the way people spend their leisure time?",
+      "Would people still value seasonal traditions if the weather became harder to predict?"
+    ]
+  },
+  {
+    "slug": "p2g06-rainy-day-routine",
+    "topic": "Activities",
+    "title": "Describe a way you like to spend a rainy day.",
+    "bullets": [
+      "what you usually do",
+      "where you do it",
+      "who you spend it with"
+    ],
+    "explain": "and explain why this is your favourite way to spend such a day.",
+    "followUps": [
+      "How often does bad weather spoil your plans for the weekend?"
+    ],
+    "p3Topics": [
+      "Indoor leisure",
+      "Weather and daily life"
+    ],
+    "p3": [
+      "What kinds of indoor activities do people turn to when the weather is poor?",
+      "What draws more visitors to cinemas and museums on wet days?",
+      "How does bad weather change the way people plan their free time?",
+      "What effects does frequent heavy rain have on transport and local business?",
+      "How could cities be designed to keep people comfortable on wet days?",
+      "Would more rainy weather make people more creative, or simply more restless?"
+    ]
+  },
+  {
+    "slug": "p2g06-story-told-young",
+    "topic": "Media",
+    "title": "Describe a story someone told you when you were young.",
+    "bullets": [
+      "who told you the story",
+      "what the story was about",
+      "how you first heard it"
+    ],
+    "explain": "and explain why the story has stayed with you.",
+    "followUps": [
+      "Do you still tell that story to other people?"
+    ],
+    "p3Topics": [
+      "Oral storytelling",
+      "Stories in modern media"
+    ],
+    "p3": [
+      "What kinds of stories are most often told to young children in families?",
+      "Why have old tales passed on by word of mouth survived for so long?",
+      "How does a story told in person differ from one read from a book?",
+      "Which effects do television and streaming have on the way stories are shared?",
+      "How might interactive storytelling change the way children imagine characters?",
+      "Could the decline of bedtime storytelling weaken bonds between parents and children?"
+    ]
+  },
+  {
+    "slug": "p2g06-song-memory-time",
+    "topic": "Media",
+    "title": "Describe a song that reminds you of a particular time.",
+    "bullets": [
+      "what the song is",
+      "when you first heard it",
+      "what was happening in your life then"
+    ],
+    "explain": "and explain why this song brings back those memories.",
+    "followUps": [
+      "Do you still listen to that song?"
+    ],
+    "p3Topics": [
+      "Music and memory",
+      "Songs in people's lives"
+    ],
+    "p3": [
+      "Which kinds of songs do people most often connect with important moments?",
+      "Why does music seem to trigger memories more strongly than photographs?",
+      "How do radio and playlists shape the songs people remember from their youth?",
+      "What role do popular songs play in shaping the identity of a generation?",
+      "How might streaming services change the way future generations remember music?",
+      "Are songs that tell personal stories more memorable than songs with abstract lyrics?"
+    ]
+  }
+]
