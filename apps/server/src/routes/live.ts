@@ -20,6 +20,7 @@ import { pickP1Branches, pickSpeakingTest, PromptSchema } from './prompts';
 
 const AUDIO_EXT: Record<string, 'webm' | 'm4a' | 'wav'> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav' };
 const MIME: Record<string, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav' };
+const LATENCY_MAX = 400; // turns kept per session: a 30-minute test has well under 200
 
 const Phase = z.enum(['intro', 'p1', 'p2-prep', 'p2-talk', 'p2-follow', 'p3', 'closing', 'done']);
 const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
@@ -79,8 +80,8 @@ async function addParts(c: Context<AppEnv>, s: LiveState, userId: string, list: 
     const now = new Set((await tx.select({ part: attempts.part }).from(attempts).where(ofSession)).map((r) => r.part));
     const insert = fresh.filter(({ p }) => !now.has(p.part));
     if (finish) {
-      s.phase = 'done';
-      await tx.update(liveSessions).set({ state: s }).where(eq(liveSessions.id, s.sessionId));
+      // the locked row, not `s`: fields written since this request loaded it (latency, LiveKit rooms) must survive
+      await tx.update(liveSessions).set({ state: { ...(row!.state as LiveState), phase: 'done' } }).where(eq(liveSessions.id, s.sessionId));
     }
     const inserted = insert.length
       ? await tx
@@ -233,6 +234,40 @@ export function register(app: App) {
       if (typeof ids === 'string') return c.json({ error: ids }, 400);
       if (!ids) return c.json({ error: 'This session was already finished' }, 409);
       return c.json({ attemptId: ids[0]! }, 200);
+    },
+  );
+
+  const Ms = z.number().min(0).max(600_000);
+  app.openapi(
+    createRoute({
+      ...authed,
+      method: 'post',
+      path: '/api/live/latency',
+      summary: "Save the reply times the browser measured in this session. Merged by turn time, so a reconnect's second batch adds to the first.",
+      request: body(
+        SessionRef.extend({
+          turns: z
+            .array(z.object({ at: z.number().int().positive(), wait: Ms, stt: Ms, llm: Ms, tts: Ms, net: Ms, total: Ms, label: z.string().max(300).optional() }))
+            .max(LATENCY_MAX)
+            .openapi({ description: 'One per answered turn, ms from the candidate\'s last sound to the examiner\'s first sound; `at` is the turn\'s epoch ms' }),
+        }).openapi('LiveLatency'),
+      ),
+      responses: { 200: json(z.object({ turns: z.number() }).openapi('LiveLatencySaved'), 'Turns now stored for the session'), 404: json(ErrorSchema, 'Not found') },
+    }),
+    async (c) => {
+      const user = currentUser(c);
+      const b = c.req.valid('json');
+      await loadSession(b.sessionId, user.id);
+      const turns = await db.transaction(async (tx) => {
+        const [row] = await tx.select({ state: liveSessions.state }).from(liveSessions).where(and(eq(liveSessions.id, b.sessionId), eq(liveSessions.userId, user.id))).for('update');
+        const st = row!.state as LiveState;
+        const byAt = new Map((st.latency ?? []).map((t) => [t.at, t]));
+        for (const t of b.turns) byAt.set(t.at, t);
+        const latency = [...byAt.values()].sort((x, y) => x.at - y.at).slice(-LATENCY_MAX);
+        await tx.update(liveSessions).set({ state: { ...st, latency } }).where(eq(liveSessions.id, b.sessionId));
+        return latency.length;
+      });
+      return c.json({ turns }, 200);
     },
   );
 

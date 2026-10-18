@@ -72,8 +72,17 @@ export type Duplex = {
   listen(on: boolean, fresh?: boolean): void;
   /** Apply the stored part profile before subsequent cues. Async transports serialize controls. */
   configurePart?(part: 1 | 2 | 3): void | Promise<void>;
+  /** Reply times measured so far, one per answered turn (ms); saved with the session when the transport closes. */
+  timings?(): readonly { at: number; wait: number; stt: number; llm: number; tts: number; net: number; total: number; label?: string }[];
   close(): void;
 };
+
+/** Best effort: reply times never block or fail a test. */
+function saveTimings(sessionId: string, timings: ReturnType<NonNullable<Duplex['timings']>> | undefined) {
+  const turns = (timings ?? []).filter((t) => t.total > 0).slice(-400)
+    .map(({ at, wait, stt, llm, tts, net, total, label }) => ({ at, wait: Math.round(wait), stt: Math.round(stt), llm: Math.round(llm), tts: Math.round(tts), net: Math.round(net), total: Math.round(total), label: label?.slice(0, 300) }));
+  if (sessionId && turns.length) void api.post('/live/latency', { sessionId, turns }).catch(() => {});
+}
 
 export function useDuplexExaminer(
   make: () => Duplex,
@@ -188,6 +197,7 @@ export function useDuplexExaminer(
     c.wait = null;
     c.unwatch?.();
     c.unwatch = undefined;
+    saveTimings(c.sessionId, c.x?.timings?.());
     c.x?.close();
     c.x = undefined;
   }

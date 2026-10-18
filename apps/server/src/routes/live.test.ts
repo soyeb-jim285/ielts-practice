@@ -165,3 +165,21 @@ it('an own-key user can run any number of live sessions', async () => {
     expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
   }
 });
+
+it('reply times are saved per session, merged across batches, kept through finish, and only by the owner', async () => {
+  const { headers } = await testUser();
+  const s = await start(headers);
+  const turn = (at: number, total: number) => ({ at, wait: 500, stt: 100, llm: 600, tts: 200, net: total - 1400, total, label: 'LiveKit test' });
+  const post = (h: Headers, turns: unknown[]) => req('/api/live/latency', { headers: h, body: { sessionId: s.sessionId, turns } });
+  expect(await (await post(headers, [turn(1, 1500), turn(2, 1700)])).json()).toEqual({ turns: 2 });
+  // a reconnect's batch: turn 2 again (updated) plus a new turn 3
+  expect(await (await post(headers, [turn(2, 1800), turn(3, 2000)])).json()).toEqual({ turns: 3 });
+  const other = await testUser();
+  expect((await post(other.headers, [turn(9, 1500)])).status).toBe(404);
+  const audioKey = await upload(headers, s.sessionId);
+  expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts: [{ part: 1, audioKey, durationMs: 1000 }] } })).status).toBe(200);
+  const row = await db.query.liveSessions.findFirst({ where: (t, { eq }) => eq(t.id, s.sessionId) });
+  const st = row!.state as { phase: string; latency: { at: number; total: number }[] };
+  expect(st.phase).toBe('done');
+  expect(st.latency.map((t) => [t.at, t.total])).toEqual([[1, 1500], [2, 1800], [3, 2000]]);
+});

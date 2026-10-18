@@ -7,7 +7,8 @@ import * as spend from './spend';
 import * as stats from './stats';
 import * as pronunciation from './pronunciation';
 import * as stt from './stt';
+import * as latency from './latency';
 
 export function register(app: App) {
-  for (const m of [stats, ops, replay, feedback, spend, stt, pronunciation, logs]) m.register(app);
+  for (const m of [stats, ops, replay, feedback, spend, stt, pronunciation, logs, latency]) m.register(app);
 }

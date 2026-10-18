@@ -1875,6 +1875,86 @@
           "part"
         ]
       },
+      "LiveLatencySaved": {
+        "type": "object",
+        "properties": {
+          "turns": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "turns"
+        ]
+      },
+      "LiveLatency": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "wait": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "stt": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "llm": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "tts": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "net": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "total": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 600000
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "at",
+                "wait",
+                "stt",
+                "llm",
+                "tts",
+                "net",
+                "total"
+              ]
+            },
+            "maxItems": 400,
+            "description": "One per answered turn, ms from the candidate's last sound to the examiner's first sound; `at` is the turn's epoch ms"
+          }
+        },
+        "required": [
+          "sessionId",
+          "turns"
+        ]
+      },
       "Progress": {
         "type": "object",
         "properties": {
@@ -6446,6 +6526,223 @@
           }
         ]
       },
+      "AdminLiveLatency": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer"
+          },
+          "turns": {
+            "type": "integer"
+          },
+          "sessions": {
+            "type": "integer"
+          },
+          "stages": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "total": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              },
+              "wait": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              },
+              "stt": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              },
+              "llm": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              },
+              "tts": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              },
+              "net": {
+                "type": "object",
+                "properties": {
+                  "p50": {
+                    "type": "number"
+                  },
+                  "p95": {
+                    "type": "number"
+                  },
+                  "mean": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "p50",
+                  "p95",
+                  "mean"
+                ],
+                "description": "ms; nearest-rank percentiles"
+              }
+            },
+            "required": [
+              "total",
+              "wait",
+              "stt",
+              "llm",
+              "tts",
+              "net"
+            ],
+            "description": "null with no turns in the window"
+          },
+          "byLabel": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "turns": {
+                  "type": "integer"
+                },
+                "p50": {
+                  "type": "number"
+                },
+                "p95": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "label",
+                "turns",
+                "p50",
+                "p95"
+              ]
+            },
+            "description": "Total reply time per examiner configuration, most turns first"
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string"
+                },
+                "turns": {
+                  "type": "integer"
+                },
+                "p50": {
+                  "type": "number"
+                },
+                "p95": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sessionId",
+                "at",
+                "turns",
+                "p50",
+                "p95"
+              ]
+            },
+            "description": "Last 20 sessions with timings, newest first"
+          }
+        },
+        "required": [
+          "days",
+          "turns",
+          "sessions",
+          "stages",
+          "byLabel",
+          "recent"
+        ]
+      },
       "FeedbackCreated": {
         "type": "object",
         "properties": {
@@ -8266,6 +8563,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CodedError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/live/latency": {
+      "post": {
+        "tags": [
+          "Live"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save the reply times the browser measured in this session. Merged by turn time, so a reconnect's second batch adds to the first.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveLatency"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Turns now stored for the session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveLatencySaved"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -10981,6 +11323,44 @@
                   "required": [
                     "error"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/live-latency": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live examiner reply times measured in real sessions: median and p95 per stage",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latency summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLiveLatency"
                 }
               }
             }

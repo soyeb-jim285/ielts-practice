@@ -309,3 +309,16 @@ export const SpendForecast = z
   })
   .openapi('AdminSpendForecast');
 export type SpendForecast = z.infer<typeof SpendForecast>;
+
+const StageStats = z.object({ p50: z.number(), p95: z.number(), mean: z.number() }).openapi({ description: 'ms; nearest-rank percentiles' });
+export const LiveLatency = z
+  .object({
+    days: z.number().int(),
+    turns: z.number().int(),
+    sessions: z.number().int(),
+    stages: z.object({ total: StageStats, wait: StageStats, stt: StageStats, llm: StageStats, tts: StageStats, net: StageStats }).nullable().openapi({ description: 'null with no turns in the window' }),
+    byLabel: z.array(z.object({ label: z.string(), turns: z.number().int(), p50: z.number(), p95: z.number() })).openapi({ description: 'Total reply time per examiner configuration, most turns first' }),
+    recent: z.array(z.object({ sessionId: z.string(), at: z.string(), turns: z.number().int(), p50: z.number(), p95: z.number() })).openapi({ description: 'Last 20 sessions with timings, newest first' }),
+  })
+  .openapi('AdminLiveLatency');
+export type LiveLatency = z.infer<typeof LiveLatency>;

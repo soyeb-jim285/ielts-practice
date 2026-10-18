@@ -164,6 +164,7 @@ export class LiveKitDuplex implements Duplex {
     this.part = part;
     return this.send({ type: 'configure', part });
   }
+  timings() { return this.stats.timeline; }
   cue(text: string, _heard?: boolean, key?: CueKey) { void this.send({ type: 'cue', text, key }); }
   listen(on: boolean, fresh = false) { void this.send({ type: 'listen', on, fresh }); }
   /** "Your last sound" for the reply timeline, from the published mic track (no second capture). */

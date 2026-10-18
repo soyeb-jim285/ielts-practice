@@ -1,4 +1,4 @@
-import type { Health } from '@server/admin/schemas';
+import type { Health, LiveLatency } from '@server/admin/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
@@ -59,6 +59,57 @@ const COLS: Col<Row>[] = [
   },
 ];
 
+const sec = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
+const STAGE_LABEL: [keyof NonNullable<LiveLatency['stages']>, string, string][] = [
+  ['total', 'Total', 'last sound to the examiner speaking'],
+  ['wait', 'Turn wait', 'silence before the turn counted as finished'],
+  ['stt', 'Transcript', 'turn end to final transcript'],
+  ['llm', 'LLM', 'time to first token'],
+  ['tts', 'Voice', 'time to first audio'],
+  ['net', 'Network and rest', 'everything else in the round trip'],
+];
+
+/** Reply times measured in real live sessions (POST /api/live/latency). */
+function LatencySection() {
+  const q = useAdmin<LiveLatency>('/live-latency', { days: 30 });
+  return (
+    <Section title="Live examiner speed" aside="Last 30 days, measured in the learner's browser">
+      <Load q={q} lines={3}>
+        {(l) =>
+          l.stages ? (
+            <>
+              <p className="mb-3 text-sm text-muted">{l.turns} answered turns from {l.sessions} sessions. Median is the typical turn; p95 is the slow end (1 turn in 20 is slower).</p>
+              <DataTable
+                rows={STAGE_LABEL}
+                rowKey={(r) => r[0]}
+                label="Reply time per stage"
+                cols={[
+                  { head: 'Stage', cell: (r) => <span><span className={r[0] === 'total' ? 'font-semibold' : ''}>{r[1]}</span><span className="type-caption block">{r[2]}</span></span> },
+                  { head: 'Median', cell: (r) => <span className="type-num">{sec(l.stages![r[0]].p50)}</span> },
+                  { head: 'p95', cell: (r) => <span className="type-num">{sec(l.stages![r[0]].p95)}</span> },
+                  { head: 'Mean', cell: (r) => <span className="type-num">{sec(l.stages![r[0]].mean)}</span> },
+                ]}
+              />
+              {l.byLabel.length > 1 && (
+                <ul className="mt-4 divide-y divide-line border-y border-line">
+                  {l.byLabel.map((b) => (
+                    <li key={b.label} className="flex items-baseline justify-between gap-4 py-2 text-sm">
+                      <span className="min-w-0 break-words">{b.label}</span>
+                      <span className="type-caption type-num shrink-0">{b.turns} turns · median {sec(b.p50)} · p95 {sec(b.p95)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted">No timed live turns yet. Run a live test: each answered turn is timed and saved when the test closes.</p>
+          )
+        }
+      </Load>
+    </Section>
+  );
+}
+
 function HealthPage() {
   const q = useAdmin<Health>('/health');
   return (
@@ -75,6 +126,7 @@ function HealthPage() {
               <Stat label="Stuck analyzing" value={h.counts.stuckAnalyzing} />
               <Stat label="Emails failed, 24 h" value={h.counts.emailFailed24h} />
             </dl>
+            <LatencySection />
             <Section title="Errors, grouped" aside="Last 7 days, most common first">
               {h.recentErrors.length ? (
                 <ul className="divide-y divide-line border-y border-line">

@@ -22,7 +22,12 @@ export type LiveState = {
   livekitRooms?: number;
   /** The session's current LiveKit room (a new start closes the previous one). */
   livekitRoom?: string;
+  /** Measured reply times, one per answered turn (POST /api/live/latency). */
+  latency?: TurnTiming[];
 };
+/** One answered turn as the browser measured it, ms from the candidate's last sound to the examiner's first sound: wait (silence before the turn
+ *  counted as finished) + stt + llm + tts + net = total. `label` names the examiner configuration. */
+export type TurnTiming = { at: number; wait: number; stt: number; llm: number; tts: number; net: number; total: number; label?: string };
 
 const P1_MAX_QUESTIONS = 12;
 

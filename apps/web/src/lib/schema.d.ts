@@ -1243,6 +1243,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live/latency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save the reply times the browser measured in this session. Merged by turn time, so a reconnect's second batch adds to the first. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LiveLatency"];
+                };
+            };
+            responses: {
+                /** @description Turns now stored for the session */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveLatencySaved"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/progress": {
         parameters: {
             query?: never;
@@ -3610,6 +3659,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/live-latency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live examiner reply times measured in real sessions: median and p95 per stage */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Latency summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminLiveLatency"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replay/{sessionId}/chunks": {
         parameters: {
             query?: never;
@@ -4821,6 +4908,23 @@ export interface components {
             sessionId: string;
             part: components["schemas"]["LivePart"];
         };
+        LiveLatencySaved: {
+            turns: number;
+        };
+        LiveLatency: {
+            sessionId: string;
+            /** @description One per answered turn, ms from the candidate's last sound to the examiner's first sound; `at` is the turn's epoch ms */
+            turns: {
+                at: number;
+                wait: number;
+                stt: number;
+                llm: number;
+                tts: number;
+                net: number;
+                total: number;
+                label?: string;
+            }[];
+        };
         Progress: {
             /** @description Last 30 analysed attempts, oldest first */
             trend: {
@@ -5957,6 +6061,65 @@ export interface components {
             request?: unknown;
             response?: unknown;
             error: string | null;
+        };
+        AdminLiveLatency: {
+            days: number;
+            turns: number;
+            sessions: number;
+            /** @description null with no turns in the window */
+            stages: {
+                /** @description ms; nearest-rank percentiles */
+                total: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+                /** @description ms; nearest-rank percentiles */
+                wait: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+                /** @description ms; nearest-rank percentiles */
+                stt: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+                /** @description ms; nearest-rank percentiles */
+                llm: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+                /** @description ms; nearest-rank percentiles */
+                tts: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+                /** @description ms; nearest-rank percentiles */
+                net: {
+                    p50: number;
+                    p95: number;
+                    mean: number;
+                };
+            } | null;
+            /** @description Total reply time per examiner configuration, most turns first */
+            byLabel: {
+                label: string;
+                turns: number;
+                p50: number;
+                p95: number;
+            }[];
+            /** @description Last 20 sessions with timings, newest first */
+            recent: {
+                sessionId: string;
+                at: string;
+                turns: number;
+                p50: number;
+                p95: number;
+            }[];
         };
         FeedbackCreated: {
             id: string;
