@@ -88,17 +88,20 @@ export function BandTrend({ points, target, label, domain, height = 140, compact
           <span className="type-num font-semibold">{formatBand(h.band)}</span> · {formatDate(h.date)}
         </div>
       )}
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <tbody>
-          {points.map((p) => (
-            <tr key={p.id}>
-              <th scope="row">{formatDate(p.date)}</th>
-              <td>{formatBand(p.band)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* sr-only on a wrapper: a <caption> renders outside the table box, so the table's own clip would not hide it */}
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <tbody>
+            {points.map((p) => (
+              <tr key={p.id}>
+                <th scope="row">{formatDate(p.date)}</th>
+                <td>{formatBand(p.band)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

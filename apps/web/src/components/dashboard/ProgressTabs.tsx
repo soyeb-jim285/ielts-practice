@@ -15,12 +15,6 @@ type Tab = 'overall' | 'listening' | 'reading' | 'writing' | 'speaking';
 const LABEL: Record<Tab, string> = { overall: 'Overall', listening: 'Listening', reading: 'Reading', writing: 'Writing', speaking: 'Speaking' };
 const ITEMS: TabItem<Tab>[] = (Object.keys(LABEL) as Tab[]).map((value) => ({ value, label: LABEL[value] }));
 
-/** Skill with the newest scored attempt, so the tab you land on is the one you were just working on. */
-export function defaultTab(dates: Partial<Record<Exclude<Tab, 'overall'>, string>>): Tab {
-  const best = Object.entries(dates).sort(([, a], [, b]) => b!.localeCompare(a!))[0];
-  return (best?.[0] as Tab | undefined) ?? 'overall';
-}
-
 /** "+1.0 since your first" in the status tone, or "Same as your first"; null with one attempt. */
 export function Change({ bands }: { bands: number[] }) {
   const d = changeSinceFirst(bands);
@@ -124,10 +118,7 @@ function OverallPanel({ p, lr, target }: { p: Progress; lr?: LrData; target: num
 
 /** One Progress section, five tabs: the skills side by side, then each skill's trend and what to work on. */
 export function ProgressTabs({ p, lr, target }: { p: Progress; lr?: LrData; target: number }) {
-  const newest = (skill: 'speaking' | 'writing' | 'listening' | 'reading') => [...p.trend.filter((t) => t.skill === skill), ...(lr?.trend ?? []).filter((t) => t.skill === skill)].map((t) => t.date).sort().at(-1);
-  const [tab, setTab] = useState<Tab>(() =>
-    defaultTab(Object.fromEntries((['listening', 'reading', 'writing', 'speaking'] as const).flatMap((s) => { const d = newest(s); return d ? [[s, d]] : []; }))),
-  );
+  const [tab, setTab] = useState<Tab>('overall');
   return (
     <Section title="Progress" id="progress">
       <Tabs id="progress-tab" items={ITEMS} value={tab} onChange={setTab} />
