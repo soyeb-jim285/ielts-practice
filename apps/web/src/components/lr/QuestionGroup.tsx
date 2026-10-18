@@ -1,6 +1,7 @@
 import { Check, X } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { controlStyles } from '@/components/ui';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/shadcn/select';
 import { gapPart, multiPicks, numberGapParts, parseContent, parseInline, setGapPart, setMultiPicks, type Block, type Inline, type LrGroup, type LrQuestion, type LrResponses } from '@/lib/lr';
 import { cn } from '@/lib/utils';
 import { keepSelection, Marked } from './Marks';
@@ -82,26 +83,31 @@ export function GapInput({ n, value, onChange, mark, active, wordLimit, part }: 
   );
 }
 
-/** Native select used for match items and word-box gaps. */
+/** Clears the answer: Radix items cannot carry an empty value. */
+const NONE = '__none';
+
+/** shadcn (Radix) select for match items and word-box gaps. The trigger keeps id/data-q for jump-to-question and focus tracking. */
 export function MatchSelect({ n, value, options, onChange, mark, active, className }: { n: number; value: string; options: { key: string; text: string }[]; onChange: (v: string) => void; mark?: Mark; active?: boolean; className?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <select
-        id={`q-${n}`}
-        data-q={n}
-        value={value}
-        disabled={!!mark}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={`Question ${n}`}
-        className={cn(controlStyles, 'type-num h-8 w-auto min-w-[5.5rem] pr-2 font-medium max-md:h-10', stateRing(mark, !!active), mark && 'opacity-100 disabled:opacity-100', className)}
-      >
-        <option value="">{n}</option>
-        {options.map((o) => (
-          <option key={o.key} value={o.key}>
-            {o.key}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={(v) => onChange(v === NONE ? '' : v)} disabled={!!mark}>
+        <SelectTrigger
+          id={`q-${n}`}
+          data-q={n}
+          aria-label={`Question ${n}`}
+          className={cn('type-num h-8 w-auto min-w-[5.5rem] px-2.5 font-medium shadow-none max-md:h-10', stateRing(mark, !!active), mark && 'disabled:cursor-default disabled:opacity-100', className)}
+        >
+          <SelectValue placeholder={n} />
+        </SelectTrigger>
+        <SelectContent data-q={n} position="popper" align="start">
+          {value && <SelectItem value={NONE} className="text-muted">Clear</SelectItem>}
+          {options.map((o) => (
+            <SelectItem key={o.key} value={o.key} className="type-num font-medium">
+              {o.key}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {mark && <Status mark={mark} />}
       <Expected mark={mark} />
     </span>
@@ -327,7 +333,8 @@ export function QuestionGroup({ group: g, responses: r, onChange, assets, review
                 key={o.key}
                 onClick={keepSelection}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3.5 py-2.5 text-body transition-colors duration-[120ms] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
+                  // relative: keeps the sr-only checkbox inside the scrolling pane, else focusing it scrolls the whole page
+                  'relative flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3.5 py-2.5 text-body transition-colors duration-[120ms] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
                   on ? 'border-brand bg-accent-soft' : 'border-line hover:border-input',
                   full && 'cursor-not-allowed opacity-60',
                   review && on && (right ? 'border-good bg-good-soft' : 'border-bad bg-bad-soft'),

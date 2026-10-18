@@ -3,6 +3,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LrGroup } from '@/lib/lr';
 import { QuestionGroup } from './QuestionGroup';
 
+// Radix Select (shadcn) calls these; jsdom lacks them.
+Element.prototype.scrollIntoView ??= () => {};
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
+
+/** Opens a question's select from the keyboard and picks an option. */
+function pick(question: string, option: string) {
+  fireEvent.keyDown(screen.getByLabelText(question), { key: 'Enter' });
+  fireEvent.keyDown(screen.getByRole('option', { name: option }), { key: 'Enter' });
+}
+
 afterEach(cleanup);
 const opts = (o: Record<string, string>) => Object.entries(o).map(([key, text]) => ({ key, text }));
 const base = { instructions: 'Questions 1-3. Do the thing.' };
@@ -84,8 +95,13 @@ describe('match', () => {
     const onChange = setup(g);
     expect(screen.getAllByText('First heading')).toHaveLength(1);
     expect(screen.getByText('List of headings')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Question 2'), { target: { value: 'i' } });
+    pick('Question 2', 'i');
     expect(onChange).toHaveBeenCalledWith({ '2': 'i' });
+  });
+  it('clears a chosen answer', () => {
+    const onChange = setup(g, { '1': 'ii' });
+    pick('Question 1', 'Clear');
+    expect(onChange).toHaveBeenCalledWith({});
   });
   it('shows the figure for image groups and no list when options are bare letters', () => {
     setup({ ...g, image: 'map.svg', options: opts({ A: '', B: '' }) });
@@ -99,7 +115,7 @@ describe('word box', () => {
   it('shows the box and a select per gap', () => {
     const onChange = setup(g);
     expect(screen.getByText('Word box')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Question 1'), { target: { value: 'A' } });
+    pick('Question 1', 'A');
     expect(onChange).toHaveBeenCalledWith({ '1': 'A' });
   });
 });
