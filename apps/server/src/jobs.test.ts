@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 // helpers first: it loads the app, which installs zod .openapi() before settings.ts is evaluated
 import { chatReply, fakeFetch, json, req, seedPrompt, testUser } from './test/helpers';
 import { eq, sql } from 'drizzle-orm';
@@ -7,7 +7,7 @@ import { analyses, attempts, liveSessions, mistakes, prompts } from './db/schema
 import { setFetch } from './ai/openrouter';
 import { speakingLlm, sttWords, writingChat } from './ai/fixtures';
 import type { AnalysisResult } from './ai/types';
-import { recoverStale, runAnalysis } from './jobs';
+import { pump, recoverStale, runAnalysis } from './jobs';
 import { storage } from './storage';
 
 async function speakingAttempt(extra: Partial<typeof attempts.$inferInsert> = {}) {
@@ -52,7 +52,7 @@ it('speaking: stores analysis + mistakes, marks done, compares with parent', asy
   expect(ms).toMatchObject([{ errorId: 'e0', category: 'grammar.tense', original: 'goes', correction: 'went', time: 0.5 }]);
 });
 
-it('writing: uses stored text; a failing AI marks the attempt failed with a readable error', async () => {
+it('writing: uses stored text; a failing AI is retried later, then marked failed with a readable error on the last try', async () => {
   const { user } = await testUser();
   const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
   const text = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
@@ -60,9 +60,17 @@ it('writing: uses stored text; a failing AI marks the attempt failed with a read
 
   setFetch(fakeFetch({ '/chat/completions': () => chatReply('garbage') }));
   await runAnalysis(a!.id);
-  expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'failed', error: expect.stringContaining('retry') });
+  const queued = await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) });
+  expect(queued).toMatchObject({ status: 'analyzing', tries: 1, claimedAt: null });
+  expect(queued!.runAfter!.getTime()).toBeGreaterThan(Date.now() + 20_000); // waits 30 s before the next try
+  await runAnalysis(a!.id); // not due yet: nothing runs
+  expect((await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) }))!.tries).toBe(1);
+  await db.update(attempts).set({ runAfter: null, tries: 2 }).where(eq(attempts.id, a!.id)); // the last try is due
+  await runAnalysis(a!.id);
+  expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'failed', error: expect.stringContaining('retry'), tries: 0 });
 
   setFetch(fakeFetch({ '/chat/completions': writingChat() }));
+  await db.update(attempts).set({ status: 'analyzing' }).where(eq(attempts.id, a!.id)); // as the retry route does
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done' });
   const r = (await db.query.analyses.findFirst({ where: eq(analyses.attemptId, a!.id) }))!.result as AnalysisResult;
@@ -70,8 +78,8 @@ it('writing: uses stored text; a failing AI marks the attempt failed with a read
   expect(await db.select().from(mistakes).where(eq(mistakes.attemptId, a!.id))).toHaveLength(2);
 });
 
-it('recoverStale fails attempts analyzing for over 10 min, leaves recent and finished ones alone', async () => {
-  const old = new Date(Date.now() - 11 * 60_000);
+it('recoverStale fails attempts analyzing for over 30 min, leaves recent and finished ones alone', async () => {
+  const old = new Date(Date.now() - 31 * 60_000);
   const orphan = await speakingAttempt({ updatedAt: old });
   const running = await speakingAttempt();
   const done = await speakingAttempt({ status: 'done', updatedAt: old });
@@ -130,6 +138,7 @@ it('out of AI credit (402): failed, not retryable, candidate-safe message; retry
   expect(row).toMatchObject({ status: 'failed', errorRetryable: false, error: expect.stringContaining('try again later') });
   expect(row!.error).not.toContain('402');
   setFetch(fakeFetch({ '/chat/completions': writingChat() }));
+  await db.update(attempts).set({ status: 'analyzing' }).where(eq(attempts.id, a!.id)); // as the retry route does
   await runAnalysis(a!.id);
   expect(await db.query.attempts.findFirst({ where: eq(attempts.id, a!.id) })).toMatchObject({ status: 'done', errorRetryable: true });
 });
@@ -164,4 +173,37 @@ it('writing: feedback is stored as `partial` (stage scoring) while the scorer st
   expect(done).toMatchObject({ status: 'done', stage: null, partial: null });
   const r = (await db.query.analyses.findFirst({ where: eq(analyses.attemptId, a!.id) }))!.result as AnalysisResult;
   expect(r.timings).toMatchObject({ feedbackMs: expect.any(Number), scorerMs: expect.any(Number), calibrationMs: expect.any(Number) });
+});
+
+it('queue: a fresh claim is left alone, a stale one is taken over, and a job lost too often fails', async () => {
+  setFetch(fakeFetch({ '/chat/completions': writingChat() }));
+  const { user } = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const text = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
+  const job = async (extra: Partial<typeof attempts.$inferInsert>) => (await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing', ...extra }).returning())[0]!;
+  const get = async (id: string) => (await db.query.attempts.findFirst({ where: eq(attempts.id, id) }))!;
+
+  const running = await job({ claimedAt: new Date(), tries: 1 }); // another process has it
+  await runAnalysis(running.id);
+  expect(await get(running.id)).toMatchObject({ status: 'analyzing', tries: 1 });
+
+  const orphan = await job({ claimedAt: new Date(Date.now() - 4 * 60_000), tries: 1 }); // its process died (a deploy)
+  await runAnalysis(orphan.id);
+  expect(await get(orphan.id)).toMatchObject({ status: 'done', tries: 0, claimedAt: null });
+
+  const doomed = await job({ claimedAt: new Date(Date.now() - 4 * 60_000), tries: 3 });
+  await runAnalysis(doomed.id);
+  expect(await get(doomed.id)).toMatchObject({ status: 'failed', error: 'Interrupted, retry' });
+});
+
+it('queue: the pump starts queued jobs, oldest first, and skips ones not due yet', async () => {
+  setFetch(fakeFetch({ '/chat/completions': writingChat() }));
+  const { user } = await testUser();
+  const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+  const text = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
+  const [queued] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing' }).returning();
+  const [later] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, text, status: 'analyzing', runAfter: new Date(Date.now() + 60_000), tries: 1 }).returning();
+  await pump();
+  await vi.waitFor(async () => expect((await db.query.attempts.findFirst({ where: eq(attempts.id, queued!.id) }))!.status).toBe('done'), { timeout: 5000 });
+  expect((await db.query.attempts.findFirst({ where: eq(attempts.id, later!.id) }))!.status).toBe('analyzing');
 });

@@ -104,7 +104,7 @@ export function register(app: App) {
       // No quota: a failed analysis was already refunded. The status guard makes a double click start one run (the second sees a fresh analyzing).
       const [go] = await db
         .update(attempts)
-        .set({ status: 'analyzing', error: null, errorRetryable: true, stage: null, partial: null })
+        .set({ status: 'analyzing', error: null, errorRetryable: true, stage: null, partial: null , claimedAt: null, tries: 0, runAfter: null })
         .where(and(eq(attempts.id, id), eq(attempts.status, a.status)))
        .returning({ id: attempts.id });
       if (!go) return c.json({ error: 'Attempt changed, reload and try again' }, 409);

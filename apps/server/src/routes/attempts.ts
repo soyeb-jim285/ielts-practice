@@ -229,7 +229,7 @@ export function register(app: App) {
       // drizzle skips undefined keys, so a bare {} re-runs a failed attempt with its stored data.
       const [updated] = await db
         .update(attempts)
-        .set({ ...b, status: 'analyzing', error: null, errorRetryable: true, stage: null, partial: null })
+        .set({ ...b, status: 'analyzing', error: null, errorRetryable: true, stage: null, partial: null , claimedAt: null, tries: 0, runAfter: null })
         .where(and(eq(attempts.id, id), eq(attempts.status, a.status)))
         .returning({ id: attempts.id });
       if (!updated) return c.json({ error: 'Attempt is already analyzing' }, 409); // lost a double-submit race

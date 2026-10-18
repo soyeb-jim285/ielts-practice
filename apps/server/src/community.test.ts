@@ -9,7 +9,7 @@ import { auth } from './auth';
 import { env } from './env';
 import { keyCtx } from './ai/keyctx';
 import { chatText, setFetch, transcribe } from './ai/openrouter';
-import { analyze, purgeGuests, recoverStale, setAnalyzer } from './jobs';
+import { analyze, purgeGuests, recoverStale, setAnalyzer, setMaxTries } from './jobs';
 import { speakingLlm, sttWords, writingChat } from './ai/fixtures';
 import { clearBalanceCache } from './community';
 import { decryptKey, encryptKey } from './keys';
@@ -21,7 +21,10 @@ const ESSAY = 'Many people has argued that technology makes life easier, and I s
 let n = 0;
 const ip = () => `203.0.113.${++n}`; // a fresh client address per test (the per-IP caps are in-memory/DB state)
 
-beforeEach(() => setAnalyzer(async () => {}));
+beforeEach(() => {
+  setAnalyzer(async () => {});
+  setMaxTries(1); // these tests are about the final failure and its refund, not the queue's retries
+});
 afterEach(() => vi.useRealTimers());
 
 /** Creates + submits one writing attempt; returns both responses. */
@@ -194,7 +197,7 @@ describe('reserve, refund, retry', () => {
     const { headers, user } = await testUser(undefined, { key: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const { id } = await writing(headers, w);
-    await db.update(attempts).set({ updatedAt: new Date(Date.now() - 11 * 60_000) }).where(eq(attempts.id, id));
+    await db.update(attempts).set({ updatedAt: new Date(Date.now() - 31 * 60_000) }).where(eq(attempts.id, id));
     await recoverStale();
     expect((await rows(user.id))[0]!.refundedAt).toBeInstanceOf(Date);
   });

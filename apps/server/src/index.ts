@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { createApp } from './app';
 import { loadCambridgeGrants } from './auth';
 import { env } from './env';
-import { purgeGuests, recoverStale } from './jobs';
+import { purgeGuests, recoverStale, startQueue } from './jobs';
 import { purgeAiLogs } from './ai/ailog';
 import { reconcileCosts } from './ai/cost';
 import { purgeReplays } from './replay';
@@ -31,7 +31,8 @@ if (existsSync(env.WEB_DIST)) {
 
 const sweep = () => Promise.all([recoverStale().catch((e) => console.error('recoverStale failed', e)), reconcileCosts().catch((e) => console.error('reconcileCosts failed', e))]);
 await sweep();
-setInterval(sweep, 5 * 60_000).unref(); // rows orphaned by a restart become stale 10 min after submit
+setInterval(sweep, 5 * 60_000).unref();
+startQueue(); // analyses: queued jobs, retries, and jobs a restart interrupted
 const purge = () => purgeGuests().catch((e) => console.error('purgeGuests failed', e));
 void purge();
 setInterval(purge, 6 * 3_600_000).unref();

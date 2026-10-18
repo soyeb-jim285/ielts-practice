@@ -119,6 +119,10 @@ export const attempts = pgTable('attempts', {
   errorRetryable: boolean('error_retryable').notNull().default(true), // false: retrying now cannot help (AI credit/key), UI says "try later"
   stage: text('stage').$type<import('../ai/types').AnalysisStage>(), // while analyzing: the pipeline step now running (ai/types.ts AnalysisStage); null otherwise
   partial: jsonb('partial').$type<unknown>(), // while analyzing: feedback that is ready before the scores (AnalysisPartial)
+  // analysis queue (jobs.ts): an `analyzing` row is a job; claimed_at = a worker has it (heartbeat), tries = claims so far, run_after = retry delay
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  tries: integer('tries').notNull().default(0),
+  runAfter: timestamp('run_after', { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => [
