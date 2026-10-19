@@ -293,6 +293,14 @@ class Runtime:
                 self.emit({"type": "error", "message": "Examiner control failed; please reconnect."})
                 self.done.set()
 
+    async def announce(self):
+        # The browser drops events from a participant it has not seen join yet. When it joins before the examiner (a
+        # local install) it can miss the first "ready", so repeat it until "start" arrives.
+        while not self.floor.started and not self.done.is_set():
+            await asyncio.sleep(1)
+            if not self.floor.started:
+                self.emit({"type": "ready"})
+
     async def watchdog(self):
         while not self.done.is_set():
             await asyncio.sleep(1)
@@ -408,6 +416,7 @@ class Runtime:
             await asyncio.wait_for(self.ctx.wait_for_participant(identity=self.d.participantIdentity), 30)
             self.emit({"type": "ready"})
             tasks.append(asyncio.create_task(self.commands()))
+            tasks.append(asyncio.create_task(self.announce()))
             await self.done.wait()
         except Exception:
             self.emit({"type": "error", "message": "Examiner initialization failed; check server configuration."})
