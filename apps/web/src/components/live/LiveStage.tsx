@@ -98,7 +98,7 @@ export function LiveStage({ ex }: { ex: LiveExaminer }) {
               {WHO[ex.status]}
             </p>
           )}
-          <Visualizer state={VOICE[ex.status]} stream={ex.voice} level={ex.level} compact={part2} className={part2 ? 'shrink-0' : undefined} />
+          <Visualizer state={VOICE[ex.status]} stream={ex.voice} level={ex.level} getLevel={ex.micLevel} compact={part2} className={part2 ? 'shrink-0' : undefined} />
           <p className={cn('min-h-6 font-medium', part2 ? 'text-sm' : 'text-body')} aria-live="polite">
             {STATUS_TEXT[ex.status] || '\u00a0'}
           </p>

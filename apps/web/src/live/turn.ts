@@ -31,6 +31,8 @@ export type LiveExaminer = {
   talkRunning: boolean;
   /** Candidate mic level 0..1 while recording. */
   level: number;
+  /** The transport's live mic level 0..1, read every frame: it also covers the introduction, which is not recorded. */
+  micLevel?: () => number;
   /** The examiner's audio as it plays (conversation engines), for the voice visualizer; absent: the bars animate without it. */
   voice?: MediaStream;
   error?: string;

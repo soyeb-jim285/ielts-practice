@@ -41,6 +41,15 @@ async function setup(silent = false) {
   return { ...hook, h, transport };
 }
 
+it("the worker's start-up \"not speaking\" keeps the examiner's turn until its first words", async () => {
+  const { result, h, unmount } = await setup();
+  act(() => h.speaking(false));
+  expect(result.current.status).toBe('thinking');
+  act(() => { h.speaking(true); h.speaking(false); });
+  expect(result.current.status).toBe('candidate');
+  unmount();
+});
+
 it('a connected but silent examiner leaves thinking within a bounded wait', async () => {
   const { result, unmount } = await setup();
   act(() => vi.advanceTimersByTime(46_000));

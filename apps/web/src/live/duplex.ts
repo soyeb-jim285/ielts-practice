@@ -73,6 +73,8 @@ export type Duplex = {
   /** Apply the stored part profile before subsequent cues. Async transports serialize controls. */
   configurePart?(part: 1 | 2 | 3): void | Promise<void>;
   /** Reply times measured so far, one per answered turn (ms); saved with the session when the transport closes. */
+  /** The microphone's current level, 0..1 (the voice bars read it every frame). */
+  level?(): number;
   timings?(): readonly { at: number; wait: number; stt: number; llm: number; tts: number; net: number; total: number; label?: string }[];
   close(): void;
 };
@@ -327,6 +329,7 @@ export function useDuplexExaminer(
         }
         setStatus('examiner');
       } else {
+        if (!c.output) return; // the worker reports "not speaking" while it starts up: still the examiner's turn
         setStatus(c.phase === 'p2-prep' ? 'waiting' : 'candidate');
         if (c.wait === 'speaking') runAfter();
       }
@@ -425,6 +428,7 @@ export function useDuplexExaminer(
     talkLeft: talk.left,
     talkRunning: talk.running,
     level: parts.level,
+    micLevel: () => r.current.x?.level?.() ?? 0,
     voice,
     error,
     retry,

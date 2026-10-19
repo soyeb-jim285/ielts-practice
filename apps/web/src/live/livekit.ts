@@ -58,6 +58,7 @@ export class LiveKitDuplex implements Duplex {
   private ctx?: AudioContext;
   private poll?: ReturnType<typeof setInterval>;
   private lastVoice = 0; // performance.now() of the candidate's last loud mic block
+  private rms = 0; // the latest mic block's loudness
   private answer?: { at: number; voiceAt: number; eot: number; stt: number }; // the finished answer awaiting the examiner's voice
   private reply?: ReplyTiming; // the latest reply, until the worker reports its LLM/TTS timings
   /** Last sound → examiner voice of the latest reply, read once by the playground for the conversation line. */
@@ -164,6 +165,8 @@ export class LiveKitDuplex implements Duplex {
     this.part = part;
     return this.send({ type: 'configure', part });
   }
+  /** Same scale as the recorder's level (square root of the RMS). */
+  level() { return Math.min(1, Math.sqrt(this.rms)); }
   timings() { return this.stats.timeline; }
   cue(text: string, _heard?: boolean, key?: CueKey) { void this.send({ type: 'cue', text, key }); }
   listen(on: boolean, fresh = false) { void this.send({ type: 'listen', on, fresh }); }
@@ -177,7 +180,8 @@ export class LiveKitDuplex implements Duplex {
         an.getFloatTimeDomainData(buf);
         let s = 0;
         for (const v of buf) s += v * v;
-        if (Math.sqrt(s / buf.length) > VOICE_RMS) this.lastVoice = performance.now();
+        this.rms = Math.sqrt(s / buf.length);
+        if (this.rms > VOICE_RMS) this.lastVoice = performance.now();
       }, 20);
     } catch {} // timing only: never fail the session over it
   }

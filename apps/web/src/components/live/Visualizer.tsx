@@ -47,11 +47,13 @@ function bands(stream: MediaStream) {
  * connecting: a light sweeps across them; thinking: a slow wave; idle: they rest. Heights are written straight to the DOM in one animation frame
  * loop, so the 60 fps motion never re-renders React. Reduced motion: still bars per state.
  */
-export function Visualizer({ state, stream, level, compact, className }: { state: VoiceState; stream?: MediaStream; level: number; compact?: boolean; className?: string }) {
+export function Visualizer({ state, stream, level, getLevel, compact, className }: { state: VoiceState; stream?: MediaStream; level: number; getLevel?: () => number; compact?: boolean; className?: string }) {
   const bars = useRef<(HTMLSpanElement | null)[]>([]);
   const halo = useRef<HTMLSpanElement>(null);
   const levelRef = useRef(level);
   levelRef.current = level;
+  const getLevelRef = useRef(getLevel);
+  getLevelRef.current = getLevel;
   const voiceRef = useRef<ReturnType<typeof bands> | null>(null);
 
   // One analyser per examiner stream for the whole test (iOS caps audio contexts), read only while it speaks.
@@ -78,7 +80,7 @@ export function Visualizer({ state, stream, level, compact, className }: { state
       else if (state === 'speaking') {
         if (!voiceRef.current?.read(h)) for (let i = 0; i < BARS; i++) h[i] = 0.2 + 0.7 * centre(i) * Math.abs(Math.sin(t * 5.3 + i * 1.7)); // no audio to read (text-only voice)
       } else if (state === 'listening') {
-        const v = Math.min(1, levelRef.current * 1.8);
+        const v = Math.min(1, Math.max(levelRef.current, getLevelRef.current?.() ?? 0) * 1.8);
         for (let i = 0; i < BARS; i++) h[i] = 0.14 + v * (0.35 + 0.65 * centre(i)) * (0.85 + 0.15 * Math.sin(t * 9 + i));
       } else if (state === 'thinking') {
         for (let i = 0; i < BARS; i++) h[i] = 0.16 + 0.14 * (0.5 + 0.5 * Math.sin(t * 4 - i * 0.9));
