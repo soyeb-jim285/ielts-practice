@@ -1,0 +1,125 @@
+name: ielts-local-demo
+
+x-app-image: &app-image ghcr.io/soyeb-jim285/ielts-practice@sha256:83003f549fd0d0803cd3849cb597c6ed8bf05cd7f383d5577744b55c5e8afe04
+
+services:
+  db:
+    image: postgres:17-alpine
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ielts
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run the Start launcher first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d ielts']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  storage-init:
+    image: *app-image
+    platform: linux/amd64
+    user: '0:0'
+    entrypoint: [sh, -c, 'chown 1000:1000 /storage']
+    volumes:
+      - recordings:/storage
+
+  app:
+    image: *app-image
+    platform: linux/amd64
+    restart: unless-stopped
+    # Local development mode enables disk storage and avoids requiring an email provider.
+    # This bundle only publishes loopback ports and is not an internet deployment.
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
+      BETTER_AUTH_URL: http://localhost:8787
+      WEB_ORIGIN: http://localhost:8787
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Run the Start launcher first}
+      KEY_ENCRYPTION_SECRET: ${KEY_ENCRYPTION_SECRET:?Run the Start launcher first}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Add the OpenRouter key to .env}
+      SONIOX_API_KEY: ${SONIOX_API_KEY:?Add the Soniox key to .env}
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Run the Start launcher first}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Run the Start launcher first}
+      LIVEKIT_REPORT_SECRET: ${LIVEKIT_REPORT_SECRET:?Run the Start launcher first}
+      LIVEKIT_AGENT_NAME: ielts-examiner
+      LOCAL_STORAGE_DIR: /app/data/local-storage
+      CAMBRIDGE_ALLOWED_EMAILS: demo@example.test
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Run the Start launcher first}
+    ports:
+      - '127.0.0.1:8787:8787'
+      - '127.0.0.1:7880:7880'
+      - '127.0.0.1:7881:7881'
+      - '127.0.0.1:7882:7882/udp'
+    volumes:
+      - recordings:/app/data/local-storage
+      - .:/demo:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8787/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
+      retries: 24
+
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    platform: linux/amd64
+    restart: unless-stopped
+    # All three share one network namespace. API calls and usage callbacks use
+    # container loopback. node_ip advertises the container's own socket as
+    # 127.0.0.1, which the browser reaches through the forwarded host ports.
+    # Don't enable the loopback candidate: it answers from 127.0.0.1 inside the
+    # container, so replies never reach the browser.
+    network_mode: service:app
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses: [0.0.0.0]
+        rtc:
+          node_ip: 127.0.0.1
+          use_external_ip: false
+          udp_port: 7882
+          tcp_port: 7881
+        keys:
+          "${LIVEKIT_API_KEY}": "${LIVEKIT_API_SECRET}"
+        logging:
+          level: info
+
+  worker:
+    image: ghcr.io/soyeb-jim285/ielts-livekit-worker@sha256:10620aa05c3f5ca99f429b4d451cb34f8872366ec59cae59e3cb9f1ca5411d68
+    platform: linux/amd64
+    restart: unless-stopped
+    network_mode: service:app
+    stop_grace_period: 90s
+    depends_on:
+      livekit:
+        condition: service_started
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_AGENT_NAME: ielts-examiner
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      SONIOX_API_KEY: ${SONIOX_API_KEY}
+      OTEL_SDK_DISABLED: 'true'
+    healthcheck:
+      test: [CMD, /app/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 90s
+      retries: 30
+
+volumes:
+  database:
+  recordings:
