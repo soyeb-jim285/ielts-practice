@@ -97,7 +97,7 @@ services:
           level: info
 
   worker:
-    image: ghcr.io/soyeb-jim285/ielts-livekit-worker@sha256:10620aa05c3f5ca99f429b4d451cb34f8872366ec59cae59e3cb9f1ca5411d68
+    image: ghcr.io/soyeb-jim285/ielts-livekit-worker@sha256:44dd0b8e82a1f8d072160ba8599353342559e07f19b34299b48e7a33b305f199
     platform: linux/amd64
     restart: unless-stopped
     network_mode: service:app
