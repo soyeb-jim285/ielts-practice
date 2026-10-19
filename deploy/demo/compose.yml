@@ -1,6 +1,6 @@
 name: ielts-local-demo
 
-x-app-image: &app-image ghcr.io/soyeb-jim285/ielts-practice@sha256:83003f549fd0d0803cd3849cb597c6ed8bf05cd7f383d5577744b55c5e8afe04
+x-app-image: &app-image ghcr.io/soyeb-jim285/ielts-practice@sha256:73f64fb478bc6ed1a47aa3ef921ec45c390d72bc4a569abc6855dc5076bc77fe
 
 services:
   db:
