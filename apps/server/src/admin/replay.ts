@@ -70,12 +70,17 @@ export function register(app: App) {
     }),
     async (c) => {
       const { s } = await find(c.req.valid('param').id);
-      const events: unknown[] = [];
-      for (let seq = 0; seq < s.chunks; seq++) {
-        const gz = await storage.get(replayKey(s, seq)).catch(() => null); // a dropped seq has no object
-        if (gz) events.push(...(JSON.parse(gunzipSync(gz).toString()) as unknown[]));
-      }
-      return c.json({ events }, 200);
+      // An hour of a tab is ~360 chunks: fetch 32 at a time and splice the stored JSON arrays as text, without parsing them.
+      const parts: string[] = new Array(s.chunks).fill('');
+      let next = 0;
+      const worker = async () => {
+        for (let seq = next++; seq < s.chunks; seq = next++) {
+          const gz = await storage.get(replayKey(s, seq)).catch(() => null); // a dropped seq has no object
+          if (gz) parts[seq] = gunzipSync(gz).toString().trim().slice(1, -1).trim(); // "[a,b]" -> "a,b"
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(32, s.chunks) }, worker));
+      return new Response(`{"events":[${parts.filter(Boolean).join(',')}]}`, { headers: { 'content-type': 'application/json' } }) as never;
     },
   );
 }

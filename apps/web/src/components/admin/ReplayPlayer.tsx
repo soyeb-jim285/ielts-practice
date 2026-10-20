@@ -41,7 +41,13 @@ export function ReplayPlayer({ sessionId }: { sessionId: string }) {
   }, [data]);
 
   if (events.isError || meta.isError) return <Alert tone="bad">Couldn't load this recording.</Alert>;
-  if (events.isPending || meta.isPending) return <Skeleton className="h-96 w-full" />;
+  if (events.isPending || meta.isPending)
+    return (
+      <div aria-busy>
+        <p className="type-caption mb-2">{meta.data ? `Loading ${meta.data.chunks} pieces (${(meta.data.bytes / 1e6).toFixed(1)} MB). A long session takes a while.` : 'Loading the recording.'}</p>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
   if (!data?.length) return <Alert tone="neutral">This recording has no events.</Alert>;
 
   const start = data[0]!.timestamp;
