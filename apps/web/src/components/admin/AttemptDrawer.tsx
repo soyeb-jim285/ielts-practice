@@ -69,6 +69,26 @@ function Item({ i }: { i: SpendAttempt['items'][number] }) {
   );
 }
 
+type LiveItem = NonNullable<SpendAttempt['live']>['items'][number];
+const add = (a: number | null | undefined, b: number | null | undefined) => (a == null && b == null ? null : (a ?? 0) + (b ?? 0));
+/** The live session reports usage every minute, one row per provider call: sum them into one line per stage and model (STT, LLM, TTS). */
+export function groupLive(items: LiveItem[]) {
+  const by = new Map<string, LiveItem & { calls: number; failed: number }>();
+  for (const i of items) {
+    const k = `${i.stage}|${i.model}`, g = by.get(k);
+    if (!g) { by.set(k, { ...i, calls: 1, failed: i.ok ? 0 : 1 }); continue; }
+    g.costUsd += i.costUsd;
+    g.inputTokens = add(g.inputTokens, i.inputTokens);
+    g.outputTokens = add(g.outputTokens, i.outputTokens);
+    g.audioSeconds = add(g.audioSeconds, i.audioSeconds);
+    g.characters = add(g.characters, i.characters);
+    g.estimated ||= i.estimated;
+    g.calls++;
+    if (!i.ok) g.failed++;
+  }
+  return [...by.values()].sort((a, b) => b.costUsd - a.costUsd);
+}
+
 /** The live session's own calls (shared by all its parts) and its transcript as the live model heard it, for comparing with the analysis transcript. */
 function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
   return (
@@ -79,7 +99,20 @@ function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
       </div>
       {live.items.length ? (
         <ul className="mt-2 divide-y divide-line border-y border-line">
-          {live.items.map((i, k) => <Item key={k} i={i} />)}
+          {groupLive(live.items).map((g) => (
+            <li key={`${g.stage}|${g.model}`} className="py-2.5">
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="min-w-0 font-medium">{stageLabel(g.stage)}</span>
+                <span className="type-num shrink-0 font-semibold">{usdFine(g.costUsd)}</span>
+              </div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="type-caption min-w-0 truncate" title={g.model}>{g.model.split('/').pop()}</span>
+                <span className="type-caption type-num">{[detail({ ...g, criterion: null, sample: null }), `${g.calls} ${g.calls === 1 ? 'report' : 'reports'}`].filter(Boolean).join(' · ')}</span>
+                {g.failed > 0 && <Badge tone="bad">{g.failed} failed</Badge>}
+                {g.estimated && <Badge title="Priced from the model rate, not the billed amount">estimated</Badge>}
+              </div>
+            </li>
+          ))}
         </ul>
       ) : (
         <p className="type-caption mt-1">No live examiner costs recorded for this session.</p>
