@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { forgetRenderedAudio, speakingAudioHash } from '../ai/speaking-audio';
 import { loadCambridgeGrants, OWNER_EMAILS } from '../auth';
 import { db } from '../db/client';
-import { analyses, attempts, cambridgeAccess, feedback, guestConversions, lrAttempts, lrTests, replaySessions, user as userT } from '../db/schema';
+import { analyses, attempts, cambridgeAccess, feedback, guestConversions, liveSessions, lrAttempts, lrTests, replaySessions, user as userT } from '../db/schema';
 import { storage } from '../storage';
 import { req, seedPrompt, testUser } from '../test/helpers';
 import { dhakaTodayStart } from './common';
@@ -101,6 +101,29 @@ describe('admin stats', () => {
     expect(g.conversion).toEqual({ guests: 2, converted: 1, rate: 0.5 });
     expect((await get('/api/admin/growth?days=90')).series).toHaveLength(90);
     expect((await req('/api/admin/growth?days=45', { headers: owner })).status).toBe(400);
+  });
+
+  it('live-now shows who is online, tests under way, live sessions and attempts recording or being scored; stale ones drop out', async () => {
+    const ago = (ms: number) => new Date(Date.now() - ms);
+    const lt = fixture('listening');
+    const [l] = await db.insert(lrTests).values({ slug: lt.slug, skill: lt.skill, variant: lt.variant, source: lt.source, ref: lt.ref, title: lt.title, data: lt }).returning();
+    const sp = await seedPrompt({ part: 2, title: 'Describe a trip', type: 'cue-card' });
+    await db.insert(replaySessions).values([
+      { id: crypto.randomUUID(), userId: 'alice', startedAt: ago(20 * MIN), lastAt: ago(MIN), pages: [{ path: '/', at: 1 }, { path: '/lr/run/x', at: 2 }], bytes: 1, chunks: 1 },
+      { id: crypto.randomUUID(), userId: 'bob', startedAt: ago(30 * MIN), lastAt: ago(10 * MIN), pages: [], bytes: 1, chunks: 1 }, // left 10 min ago
+    ]);
+    await mkLr('n1', 'alice', l!.id, { startedAt: ago(15 * MIN), elapsedS: 600 });
+    await mkLr('n2', 'bob', l!.id, { startedAt: ago(5 * 60 * MIN) }); // abandoned hours ago
+    await db.insert(liveSessions).values([{ userId: 'gus', state: { phase: 'p2-talk' } }, { userId: 'bob', state: { phase: 'done' } }]);
+    await db.insert(attempts).values([
+      { id: 'n3', userId: 'gus', promptId: sp.id, skill: 'speaking', part: 2, status: 'analyzing', tries: 1 },
+      { id: 'n4', userId: 'bob', promptId: sp.id, skill: 'speaking', part: 2, status: 'recording', updatedAt: ago(2 * 60 * MIN) }, // abandoned
+    ]);
+    const d = await get('/api/admin/live-now');
+    expect(d.online).toEqual([expect.objectContaining({ userId: 'alice', email: 'alice@x.dev', page: '/lr/run/x' })]);
+    expect(d.exams).toEqual([expect.objectContaining({ userId: 'alice', skill: 'listening', test: lt.title, elapsedS: 600 })]);
+    expect(d.live).toEqual([expect.objectContaining({ userId: 'gus', email: null, phase: 'p2-talk' })]);
+    expect(d.attempts).toEqual([expect.objectContaining({ id: 'n3', status: 'analyzing', prompt: 'Describe a trip', tries: 1 })]);
   });
 
   it('activity lists attempts and L/R attempts newest first with filters, parts and replays', async () => {

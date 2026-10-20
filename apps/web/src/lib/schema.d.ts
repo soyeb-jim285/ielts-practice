@@ -2305,6 +2305,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/live-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Right now: who is online, Listening/Reading tests under way, live examiner sessions, attempts recording or being scored */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminLiveNow"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/overview": {
         parameters: {
             query?: never;
@@ -5335,6 +5378,49 @@ export interface components {
                 typed: string[];
                 lastAt: string;
             }[];
+        };
+        AdminLiveNow: {
+            online: {
+                userId: string;
+                email: string | null;
+                page: string | null;
+                /** @description ISO-8601 UTC */
+                lastAt: string;
+                userAgent: string | null;
+            }[];
+            exams: {
+                userId: string;
+                email: string | null;
+                skill: string;
+                test: string;
+                mode: string;
+                /** @description ISO-8601 UTC */
+                startedAt: string;
+                elapsedS: number;
+            }[];
+            live: {
+                userId: string;
+                email: string | null;
+                phase: string | null;
+                /** @description ISO-8601 UTC */
+                startedAt: string;
+            }[];
+            attempts: {
+                userId: string;
+                email: string | null;
+                id: string;
+                skill: string;
+                part: number;
+                mode: string;
+                /** @enum {string} */
+                status: "recording" | "analyzing";
+                prompt: string;
+                tries: number;
+                /** @description ISO-8601 UTC */
+                startedAt: string;
+            }[];
+            /** @description ISO-8601 UTC */
+            generatedAt: string;
         };
         AdminOverview: {
             accounts: number;

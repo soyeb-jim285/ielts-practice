@@ -322,3 +322,15 @@ export const LiveLatency = z
   })
   .openapi('AdminLiveLatency');
 export type LiveLatency = z.infer<typeof LiveLatency>;
+
+const Who = { userId: z.string(), email: z.string().nullable() }; // email null: a guest
+export const LiveNow = z
+  .object({
+    online: z.array(z.object({ ...Who, page: z.string().nullable(), lastAt: iso, userAgent: z.string().nullable() })),
+    exams: z.array(z.object({ ...Who, skill: z.string(), test: z.string(), mode: z.string(), startedAt: iso, elapsedS: int })),
+    live: z.array(z.object({ ...Who, phase: z.string().nullable(), startedAt: iso })),
+    attempts: z.array(z.object({ ...Who, id: z.string(), skill: z.string(), part: int, mode: z.string(), status: z.enum(['recording', 'analyzing']), prompt: z.string(), tries: int, startedAt: iso })),
+    generatedAt: iso,
+  })
+  .openapi('AdminLiveNow');
+export type LiveNow = z.infer<typeof LiveNow>;

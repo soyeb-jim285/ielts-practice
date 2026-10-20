@@ -6,6 +6,7 @@ import { usdFine } from '@/components/admin/cost';
 import { dhakaDay, dhakaTime, percent, userLabel } from '@/components/admin/format';
 import { attentionItems, deltaChip, periodDelta } from '@/components/admin/logic';
 import { Load, Section } from '@/components/admin/Load';
+import { LiveNow } from '@/components/admin/LiveNow';
 import { SERIES, TrendChart } from '@/components/admin/MiniChart';
 import { StatStrip } from '@/components/admin/StatStrip';
 import { FunnelView } from '@/components/admin/Views';
@@ -61,6 +62,8 @@ function Dashboard() {
       <AdminHeader title="Dashboard" description={o && `As of ${dhakaTime(o.generatedAt)} Dhaka time. A day is a Dhaka calendar day.`} />
       <div className="space-y-8">
         <AttentionList items={attention} loading={!ready} />
+
+        <LiveNow />
 
         {kpis ? <StatStrip items={kpis} /> : <Skeleton className="h-28 w-full" />}
 

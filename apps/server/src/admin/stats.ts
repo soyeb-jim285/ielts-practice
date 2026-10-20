@@ -11,7 +11,7 @@ import { storage } from '../storage';
 import type { App } from '../types';
 import { ACTIVITY, daysAgo, dhakaDay, pageQuery } from './common';
 import {
-  ActivityItem, ActivityPage, Content, Funnel, Growth, Missed, Overview, SkillS, Tests, UserDetail, UsersPage,
+  ActivityItem, ActivityPage, Content, Funnel, Growth, LiveNow, Missed, Overview, SkillS, Tests, UserDetail, UsersPage,
   type CambridgeInfo, type LimitsInfo, type ReplayItem, type Skill, type TestHealth, type UserRow,
 } from './schemas';
 
@@ -143,6 +143,25 @@ const get = <S extends z.ZodTypeAny, Rq extends NonNullable<RouteConfig['request
   createRoute({ ...A, method: 'get', path, summary, request, responses: { ...ok(response), ...notFound } });
 
 export function register(app: App) {
+  // ponytail: "online" = a replay chunk in the last 5 min (web only; the native apps don't record). Good enough at this traffic.
+  app.openapi(get('/api/admin/live-now', 'Right now: who is online, Listening/Reading tests under way, live examiner sessions, attempts recording or being scored', LiveNow, {}), async (c) => {
+    const who = sql`u.id as "userId", case when coalesce(u.is_anonymous, false) then null else u.email end as email`;
+    const [online, exams, live, att] = await Promise.all([
+      rows<LiveNow['online'][number]>(sql`select * from (select distinct on (r.user_id) ${who}, r.pages->-1->>'path' as page, ${iso('r.last_at')} as "lastAt", r.user_agent as "userAgent"
+        from replay_sessions r join "user" u on u.id = r.user_id where r.last_at > now() - interval '5 minutes' order by r.user_id, r.last_at desc) x order by "lastAt" desc`),
+      rows<LiveNow['exams'][number]>(sql`select ${who}, t.skill, t.title as test, l.mode, ${iso('l.started_at')} as "startedAt", l.elapsed_s as "elapsedS"
+        from lr_attempts l join lr_tests t on t.id = l.test_id join "user" u on u.id = l.user_id
+        where l.status = 'in_progress' and l.started_at > now() - interval '3 hours' order by l.started_at desc limit 50`),
+      rows<LiveNow['live'][number]>(sql`select ${who}, s.state->>'phase' as phase, ${iso('s.created_at')} as "startedAt"
+        from live_sessions s join "user" u on u.id = s.user_id
+        where s.created_at > now() - interval '35 minutes' and coalesce(s.state->>'phase', '') <> 'done' order by s.created_at desc`),
+      rows<LiveNow['attempts'][number]>(sql`select ${who}, a.id, a.skill::text as skill, a.part, a.mode::text as mode, a.status::text as status, p.title as prompt, a.tries, ${iso('a.created_at')} as "startedAt"
+        from attempts a join prompts p on p.id = a.prompt_id join "user" u on u.id = a.user_id
+        where a.status = 'analyzing' or (a.status = 'recording' and a.updated_at > now() - interval '30 minutes') order by a.created_at desc limit 50`),
+    ]);
+    return c.json({ online, exams, live, attempts: att, generatedAt: new Date().toISOString() }, 200);
+  });
+
   app.openapi(get('/api/admin/overview', 'Counts: accounts, guests, signups, active users, tests today', Overview, {}), async (c) => {
     const [[u], active, tests, [fb]] = await Promise.all([
       rows<Record<string, string>>(sql`select

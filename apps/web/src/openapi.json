@@ -3585,6 +3585,195 @@
           "items"
         ]
       },
+      "AdminLiveNow": {
+        "type": "object",
+        "properties": {
+          "online": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "page": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lastAt": {
+                  "type": "string",
+                  "description": "ISO-8601 UTC"
+                },
+                "userAgent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "userId",
+                "email",
+                "page",
+                "lastAt",
+                "userAgent"
+              ]
+            }
+          },
+          "exams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "skill": {
+                  "type": "string"
+                },
+                "test": {
+                  "type": "string"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "ISO-8601 UTC"
+                },
+                "elapsedS": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "userId",
+                "email",
+                "skill",
+                "test",
+                "mode",
+                "startedAt",
+                "elapsedS"
+              ]
+            }
+          },
+          "live": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "phase": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "ISO-8601 UTC"
+                }
+              },
+              "required": [
+                "userId",
+                "email",
+                "phase",
+                "startedAt"
+              ]
+            }
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                },
+                "skill": {
+                  "type": "string"
+                },
+                "part": {
+                  "type": "integer"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "recording",
+                    "analyzing"
+                  ]
+                },
+                "prompt": {
+                  "type": "string"
+                },
+                "tries": {
+                  "type": "integer"
+                },
+                "startedAt": {
+                  "type": "string",
+                  "description": "ISO-8601 UTC"
+                }
+              },
+              "required": [
+                "userId",
+                "email",
+                "id",
+                "skill",
+                "part",
+                "mode",
+                "status",
+                "prompt",
+                "tries",
+                "startedAt"
+              ]
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "description": "ISO-8601 UTC"
+          }
+        },
+        "required": [
+          "online",
+          "exams",
+          "live",
+          "attempts",
+          "generatedAt"
+        ]
+      },
       "AdminOverview": {
         "type": "object",
         "properties": {
@@ -9745,6 +9934,34 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/admin/live-now": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Right now: who is online, Listening/Reading tests under way, live examiner sessions, attempts recording or being scored",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLiveNow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       }
