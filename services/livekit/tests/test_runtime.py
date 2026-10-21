@@ -96,6 +96,7 @@ async def test_all_actual_plugin_constructors(monkeypatch):
             await resource.aclose()
     d = Dispatch.model_validate(metadata(stt="elevenlabs", sttModel="scribe_v2_realtime"))
     a = Examiner(d, d.config(1), Floor(), Meter(), {}, Mock())
+    assert a.resources[2]._opts.extra_body == {"reasoning": {"enabled": False}}  # thinking would eat the whole reply budget
     for resource in a.resources:
         await resource.aclose()
 

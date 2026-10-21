@@ -135,7 +135,10 @@ class Examiner(Agent):
             tts = gradium.TTS(api_key=os.environ["GRADIUM_API_KEY"], model_name=model,
                               **({} if voice == "default" else {"voice_id": voice}))
         llm = openai.LLM(api_key=os.environ["OPENROUTER_API_KEY"], base_url="https://openrouter.ai/api/v1",
-                         model=c.llm, temperature=c.temperature, max_completion_tokens=c.maxTokens)
+                         model=c.llm, temperature=c.temperature, max_completion_tokens=c.maxTokens,
+                         # Hidden reasoning shares max_completion_tokens: a provider that starts thinking spends the whole budget
+                         # there and the turn ends with no words to speak, leaving the examiner silent.
+                         extra_body={"reasoning": {"enabled": False}})
         super().__init__(instructions=d.prompt, chat_ctx=chat_ctx, stt=stt, tts=tts, llm=llm,
                          # ponytail: fixed, stricter than Silero's 0.5 so room noise (fans, traffic, a TV) reads as silence and
                          # the turn can end; make it a per-part setting if quiet speakers start getting cut off.
