@@ -138,7 +138,9 @@ export class LiveKitDuplex implements Duplex {
       // Mic first: with capture active, iOS Safari allows the examiner's audio to play. The tap's gesture has expired by
       // now, so startAudio() may be refused there; that is not fatal (playOnTap unlocks it on the next tap).
       await this.step('mic', 'Publish microphone', async () => {
-        const pub = await room.localParticipant.setMicrophoneEnabled(true);
+        // Voice isolation (where the browser has it) is the strong, ML noise filter; elsewhere it falls back to noise suppression.
+        // Both include a high-pass, so hum and rumble go too. Room noise left in keeps the worker hearing "speech".
+        const pub = await room.localParticipant.setMicrophoneEnabled(true, { echoCancellation: true, noiseSuppression: true, autoGainControl: true, voiceIsolation: true });
         if (pub?.track?.mediaStreamTrack) this.watchMic(pub.track.mediaStreamTrack);
       });
       await this.step('audio', 'Enable browser audio playback', () => room.startAudio().catch(() => this.playOnTap()));

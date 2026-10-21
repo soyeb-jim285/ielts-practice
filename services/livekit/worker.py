@@ -137,7 +137,9 @@ class Examiner(Agent):
         llm = openai.LLM(api_key=os.environ["OPENROUTER_API_KEY"], base_url="https://openrouter.ai/api/v1",
                          model=c.llm, temperature=c.temperature, max_completion_tokens=c.maxTokens)
         super().__init__(instructions=d.prompt, chat_ctx=chat_ctx, stt=stt, tts=tts, llm=llm,
-                         vad=silero.VAD.load(min_silence_duration=c.vadSilence),
+                         # ponytail: fixed, stricter than Silero's 0.5 so room noise (fans, traffic, a TV) reads as silence and
+                         # the turn can end; make it a per-part setting if quiet speakers start getting cut off.
+                         vad=silero.VAD.load(min_silence_duration=c.vadSilence, activation_threshold=0.65, min_speech_duration=0.1),
                          turn_handling={
                              "turn_detection": (inference.TurnDetector(version="v1-mini") if c.turnDetection == "audio" else "vad")
                              if floor.replies and floor.started else "manual",
@@ -192,6 +194,7 @@ class Runtime:
         self.rates = {}
         self.committing_audio = False
         self.answer_pending = False
+        self.words, self.words_at = "", 0.0  # the candidate's transcript so far this turn, and when it last changed
 
     def emit(self, event):
         try:
@@ -301,6 +304,20 @@ class Runtime:
             if not self.floor.started:
                 self.emit({"type": "ready"})
 
+    async def unstick(self):
+        # Noise the browser and VAD let through keeps the candidate "speaking", so the turn never ends. Noise makes no words:
+        # once the transcript has stood still past the longest endpoint wait, close the turn as if they had gone quiet.
+        while not self.done.is_set():
+            await asyncio.sleep(0.5)
+            if self.stalled(time.monotonic()):
+                self.words_at = 0.0
+                await self.session.commit_user_turn(transcript_timeout=3)
+
+    def stalled(self, now):
+        limit = self.d.config(self.part).maxEndpointDelay + 1
+        return bool(self.words_at and now - self.words_at > limit and not self.committing_audio
+                    and self.floor.started and self.floor.replies and self.floor.hearing)
+
     async def watchdog(self):
         while not self.done.is_set():
             await asyncio.sleep(1)
@@ -374,6 +391,8 @@ class Runtime:
         @self.session.on("user_input_transcribed")
         def transcript(event):
             self.last_activity = time.monotonic()
+            if event.transcript != self.words:
+                self.words, self.words_at = event.transcript, self.last_activity
             # Interim transcripts repeat the growing sentence; the client appends each line, so send finals only.
             if event.is_final and self.floor.hearing and self.floor.started:
                 self.emit({"type": "heard", "text": event.transcript})
@@ -387,6 +406,7 @@ class Runtime:
         def agent_state(event):
             if event.new_state == "speaking":
                 self.answer_pending = False
+                self.words_at = 0.0
             self.emit({"type": "speaking", "on": event.new_state == "speaking"})
 
         @self.session.on("conversation_item_added")
@@ -395,6 +415,7 @@ class Runtime:
                     and not event.item.text_content.startswith(self.d.cuePrefix)
                     and self.floor.started and self.floor.replies and not self.committing_audio):
                 self.answer_pending = True
+                self.words_at = 0.0
                 m = getattr(event.item, "metrics", None) or {}
                 # Per-turn timing for the playground timeline (seconds from the end of the candidate's speech).
                 self.emit({"type": "answered", "eot": m.get("end_of_turn_delay"), "stt": m.get("transcription_delay")})
@@ -417,6 +438,7 @@ class Runtime:
             self.emit({"type": "ready"})
             tasks.append(asyncio.create_task(self.commands()))
             tasks.append(asyncio.create_task(self.announce()))
+            tasks.append(asyncio.create_task(self.unstick()))
             await self.done.wait()
         except Exception:
             self.emit({"type": "error", "message": "Examiner initialization failed; check server configuration."})

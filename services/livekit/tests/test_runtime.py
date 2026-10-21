@@ -387,3 +387,16 @@ async def test_cues_outside_the_server_list_are_ignored():
     r.session.generate_reply.assert_not_called()
     await r.command({"type": "cue", "text": "Say the closing line."})
     r.session.generate_reply.assert_called_once_with(user_input="[APP CUE] Say the closing line.")
+
+
+
+async def test_noise_cannot_hold_the_turn_open_once_the_words_stop():
+    r = await runtime()
+    r.floor.started = True
+    limit = r.d.config(1).maxEndpointDelay + 1
+    assert not r.stalled(1000)  # no words yet: silence or noise alone is not an answer
+    r.words_at = 200.0
+    assert not r.stalled(200 + limit - 1)  # still inside the normal endpoint wait
+    assert r.stalled(200 + limit + 0.5)
+    r.floor.listen(False, True)  # Part 2 long turn: the candidate's floor, never closed for them
+    assert not r.stalled(200 + limit + 5)

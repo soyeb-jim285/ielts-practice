@@ -26,7 +26,7 @@ it('starts after mic publication, catches synchronous readiness and sends reliab
   const d = new LiveKitDuplex(DEFAULT_LIVEKIT); await d.connect(handlers(), 's');
   d.configurePart(2); d.cue('Topic', false, 'part2'); d.listen(false, true);
   await vi.waitFor(() => expect(mock.publish).toHaveBeenCalledTimes(4));
-  expect(mock.mic).toHaveBeenCalledWith(true);
+  expect(mock.mic).toHaveBeenCalledWith(true, expect.objectContaining({ noiseSuppression: true, voiceIsolation: true }));
   expect(mock.publish.mock.calls.map(([data]) => JSON.parse(new TextDecoder().decode(data)))).toEqual([{ type: 'start' }, { type: 'configure', part: 2 }, { type: 'cue', text: 'Topic', key: 'part2' }, { type: 'listen', on: false, fresh: true }]);
   expect(mock.publish.mock.calls[0]![1]).toEqual({ reliable: true, topic: 'ielts.control' }); d.close();
 });
