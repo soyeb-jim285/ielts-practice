@@ -1,27 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
-import { PageContainer, PageHeader } from '@/components/ui';
+import { COMPANY, LegalPage, List, Mail, Section } from '@/components/legal/Legal';
 
 export const Route = createFileRoute('/_app/privacy')({ component: Privacy });
 
-const CONTACT_EMAIL = 'soyeb.jim@gmail.com';
-const UPDATED = '5 October 2026';
-
-const Section = ({ title, children }: { title: string; children: ReactNode }) => (
-  <section aria-labelledby={`p-${title}`} className="border-t border-line pt-6">
-    <h2 id={`p-${title}`} className="type-heading">
-      {title}
-    </h2>
-    <div className="mt-3 max-w-[65ch] space-y-3 text-sm leading-relaxed">{children}</div>
-  </section>
-);
-const List = ({ children }: { children: ReactNode }) => <ul className="list-disc space-y-1.5 pl-5">{children}</ul>;
-
 function Privacy() {
   return (
-    <PageContainer className="pb-8">
-      <PageHeader compact title="Privacy policy" description={`Last updated ${UPDATED}.`} />
-      <div className="space-y-8">
+    <LegalPage title="Privacy policy" updated="21 October 2026">
+        <Section title="Who we are">
+          <p>{COMPANY.product} is run by {COMPANY.name}, {COMPANY.country}. {COMPANY.name} is responsible for the data described here.</p>
+        </Section>
+
         <Section title="What we collect">
           <List>
             <li>Your name and email address, when you create an account.</li>
@@ -53,6 +41,7 @@ function Privacy() {
             <li>AI model providers, through OpenRouter and similar services, receive your essays, transcripts and (for the optional pronunciation check) audio so they can score your work.</li>
             <li>Speech and voice providers turn your speech into text and play the examiner&apos;s voice.</li>
             <li>An email service delivers sign-in codes and password resets.</li>
+            <li>Payment providers (such as bKash, SSLCommerz or Paddle) process your payments. We receive the amount, the status and a transaction ID, never your full card or wallet details.</li>
           </List>
           <p>We do not sell your data and we do not show ads.</p>
         </Section>
@@ -66,10 +55,9 @@ function Privacy() {
         </Section>
 
         <Section title="Your rights and contact">
-          <p>You can ask to see, correct or delete your data at any time. Deleting your account does most of this yourself; for anything else, or any question about this policy, write to <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-2">{CONTACT_EMAIL}</a>.</p>
+          <p>You can ask to see, correct or delete your data at any time. Deleting your account does most of this yourself; for anything else, or any question about this policy, write to <Mail />.</p>
           <p>If we change this policy in a way that matters, we will update the date at the top.</p>
         </Section>
-      </div>
-    </PageContainer>
+    </LegalPage>
   );
 }

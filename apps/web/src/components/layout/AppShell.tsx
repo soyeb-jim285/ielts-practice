@@ -26,6 +26,7 @@ import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { openFeedback } from './FeedbackButton';
 import { Logo, LogoMark } from './Logo';
+import { SiteFooter } from './SiteFooter';
 
 type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings' | '/admin'; label: string; short?: string; icon: LucideIcon };
 
@@ -302,7 +303,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppSidebar />
 
       <SidebarInset id="main" className="min-w-0">
-        <div className={cn('mx-auto w-full [--gutter:1rem] px-(--gutter) pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:[--gutter:1.5rem] md:[--gutter:2.5rem] md:pt-10 md:pb-16', isCurrent(pathname, '/admin') ? 'max-w-[1320px]' : 'max-w-[1080px]')}>{children}</div>
+        <div className={cn('mx-auto w-full [--gutter:1rem] px-(--gutter) pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:[--gutter:1.5rem] md:[--gutter:2.5rem] md:pt-10 md:pb-16', isCurrent(pathname, '/admin') ? 'max-w-[1320px]' : 'max-w-[1080px]')}>
+          {children}
+          <SiteFooter />
+        </div>
       </SidebarInset>
 
       {/* Mobile tab bar */}

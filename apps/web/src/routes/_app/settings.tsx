@@ -128,6 +128,11 @@ function Account({ email }: { email: string }) {
             Read
           </Link>
         </InlineRow>
+        <InlineRow title="Terms and refunds" description="The rules for using the service and getting your money back.">
+          <Link to="/terms" className={buttonStyles({ variant: 'outline' })}>
+            Read
+          </Link>
+        </InlineRow>
       </Section>
       <Section title="Danger zone" description="Permanent actions.">
         <InlineRow title="Delete account" description="Removes your recordings, essays, results and review cards. This can't be undone.">

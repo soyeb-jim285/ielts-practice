@@ -18,12 +18,15 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppContactRouteImport } from './routes/_app/contact'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
 import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
+import { Route as AppRefundsRouteImport } from './routes/_app/refunds'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStyleguideRouteImport } from './routes/_app/styleguide'
+import { Route as AppTermsRouteImport } from './routes/_app/terms'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
 import { Route as AppAdminContentRouteImport } from './routes/_app/admin/content'
@@ -98,6 +101,11 @@ const AppBankRoute = AppBankRouteImport.update({
   path: '/bank',
   getParentRoute: () => AppRoute,
 } as any)
+const AppContactRoute = AppContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHistoryRoute = AppHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -113,6 +121,11 @@ const AppPrivacyRoute = AppPrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRefundsRoute = AppRefundsRouteImport.update({
+  id: '/refunds',
+  path: '/refunds',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReviewRoute = AppReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -126,6 +139,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppStyleguideRoute = AppStyleguideRouteImport.update({
   id: '/styleguide',
   path: '/styleguide',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTermsRoute = AppTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
@@ -286,12 +304,15 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/bank': typeof AppBankRoute
+  '/contact': typeof AppContactRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
   '/privacy': typeof AppPrivacyRoute
+  '/refunds': typeof AppRefundsRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
+  '/terms': typeof AppTermsRoute
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/content': typeof AppAdminContentRoute
   '/admin/costs': typeof AppAdminCostsRoute
@@ -329,12 +350,15 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/bank': typeof AppBankRoute
+  '/contact': typeof AppContactRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
   '/privacy': typeof AppPrivacyRoute
+  '/refunds': typeof AppRefundsRoute
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
+  '/terms': typeof AppTermsRoute
   '/': typeof AppIndexRoute
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/content': typeof AppAdminContentRoute
@@ -376,12 +400,15 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/bank': typeof AppBankRoute
+  '/_app/contact': typeof AppContactRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/mistakes': typeof AppMistakesRoute
   '/_app/privacy': typeof AppPrivacyRoute
+  '/_app/refunds': typeof AppRefundsRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/styleguide': typeof AppStyleguideRoute
+  '/_app/terms': typeof AppTermsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/activity': typeof AppAdminActivityRoute
   '/_app/admin/content': typeof AppAdminContentRoute
@@ -424,12 +451,15 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/bank'
+    | '/contact'
     | '/history'
     | '/mistakes'
     | '/privacy'
+    | '/refunds'
     | '/review'
     | '/settings'
     | '/styleguide'
+    | '/terms'
     | '/admin/activity'
     | '/admin/content'
     | '/admin/costs'
@@ -467,12 +497,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/bank'
+    | '/contact'
     | '/history'
     | '/mistakes'
     | '/privacy'
+    | '/refunds'
     | '/review'
     | '/settings'
     | '/styleguide'
+    | '/terms'
     | '/'
     | '/admin/activity'
     | '/admin/content'
@@ -513,12 +546,15 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_app/admin'
     | '/_app/bank'
+    | '/_app/contact'
     | '/_app/history'
     | '/_app/mistakes'
     | '/_app/privacy'
+    | '/_app/refunds'
     | '/_app/review'
     | '/_app/settings'
     | '/_app/styleguide'
+    | '/_app/terms'
     | '/_app/'
     | '/_app/admin/activity'
     | '/_app/admin/content'
@@ -625,6 +661,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/contact': {
+      id: '/_app/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof AppContactRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/history': {
       id: '/_app/history'
       path: '/history'
@@ -646,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPrivacyRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/refunds': {
+      id: '/_app/refunds'
+      path: '/refunds'
+      fullPath: '/refunds'
+      preLoaderRoute: typeof AppRefundsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/review': {
       id: '/_app/review'
       path: '/review'
@@ -665,6 +715,13 @@ declare module '@tanstack/react-router' {
       path: '/styleguide'
       fullPath: '/styleguide'
       preLoaderRoute: typeof AppStyleguideRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/terms': {
+      id: '/_app/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof AppTermsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/': {
@@ -916,12 +973,15 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRoute
+  AppContactRoute: typeof AppContactRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMistakesRoute: typeof AppMistakesRoute
   AppPrivacyRoute: typeof AppPrivacyRoute
+  AppRefundsRoute: typeof AppRefundsRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStyleguideRoute: typeof AppStyleguideRoute
+  AppTermsRoute: typeof AppTermsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMockIdRoute: typeof AppMockIdRoute
   AppSpeakingLiveRoute: typeof AppSpeakingLiveRoute
@@ -942,12 +1002,15 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppBankRoute: AppBankRoute,
+  AppContactRoute: AppContactRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMistakesRoute: AppMistakesRoute,
   AppPrivacyRoute: AppPrivacyRoute,
+  AppRefundsRoute: AppRefundsRoute,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStyleguideRoute: AppStyleguideRoute,
+  AppTermsRoute: AppTermsRoute,
   AppIndexRoute: AppIndexRoute,
   AppMockIdRoute: AppMockIdRoute,
   AppSpeakingLiveRoute: AppSpeakingLiveRoute,
