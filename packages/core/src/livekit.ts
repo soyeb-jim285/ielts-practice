@@ -35,7 +35,7 @@ export const DEFAULT_LIVEKIT: LiveKitConfig = {
   tts: 'soniox', ttsModel: 'tts-rt-v2', voice: 'Adrian',
   turnDetection: 'audio', minEndpointDelay: 0.5, maxEndpointDelay: 4,
   vadSilence: 0.3, interruptions: true, preemptiveGeneration: false,
-  temperature: 0.5, maxTokens: 200,
+  temperature: 0.5, maxTokens: 400,
 };
 
 export function livekitPartConfig(cfg: LiveKitConfig, part: '1' | '2' | '3'): LiveKitPartConfig {

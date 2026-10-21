@@ -59,7 +59,7 @@ it('dispatches private trusted metadata and grants only room scoped audio/data p
   expect(sdk.token).toHaveBeenCalledWith('lk-key', 'lk-secret', { identity: b.participantIdentity, ttl: '5m' });
   expect(sdk.createRoom.mock.calls[0]![0].metadata).toBeUndefined();
   const metadata = JSON.parse(sdk.createDispatch.mock.calls[0]![2].metadata);
-  expect(metadata).toMatchObject({ sessionId: s.sessionId, userId: s.user.id, participantIdentity: b.participantIdentity, prompt: expect.stringContaining('Never give feedback'), reportToken: expect.any(String), cfg: { stt: 'soniox', maxTokens: 200 } });
+  expect(metadata).toMatchObject({ sessionId: s.sessionId, userId: s.user.id, participantIdentity: b.participantIdentity, prompt: expect.stringContaining('Never give feedback'), reportToken: expect.any(String), cfg: { stt: 'soniox', maxTokens: 400 } });
   expect(JSON.stringify(b)).not.toContain(metadata.reportToken);
 });
 

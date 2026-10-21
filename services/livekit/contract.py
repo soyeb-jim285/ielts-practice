@@ -34,7 +34,7 @@ class Config(BaseModel):
     interruptions: bool = True
     preemptiveGeneration: bool = False
     temperature: float = Field(default=0.5, ge=0, le=2)
-    maxTokens: int = Field(default=200, ge=16, le=2048)
+    maxTokens: int = Field(default=400, ge=16, le=2048)
 
     @model_validator(mode="after")
     def consistent(self):
