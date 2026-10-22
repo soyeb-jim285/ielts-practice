@@ -399,6 +399,14 @@ export const aiCosts = pgTable('ai_costs', {
   index('ai_costs_stage_idx').on(t.stage),
 ]);
 
+// Transcription playground results (admin/stt.ts): the same audio, model and settings return the stored run instead of paying again.
+export const sttPlaygroundRuns = pgTable('stt_playground_runs', {
+  key: text('key').primaryKey(), // sha256 of [audio sha256, format, model, prompt, language] (admin/stt.ts runKey)
+  model: text('model').notNull(),
+  result: jsonb('result').$type<unknown>().notNull(), // AdminSttRun as first returned
+  createdAt: createdAt(),
+});
+
 // ---------- AI call log (admin AI logs): the full request and response of every OpenRouter call, for debugging prompts and outputs. Audio and other
 // base64 payloads are replaced by a size note; rows go after AI_LOG_DAYS (ai/ailog.ts), and when the account is deleted. ----------
 export const aiLogs = pgTable('ai_logs', {

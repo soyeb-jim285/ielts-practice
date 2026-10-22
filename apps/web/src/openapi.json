@@ -6178,6 +6178,85 @@
           "status"
         ]
       },
+      "AdminSttRecordings": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSttRecording"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ]
+      },
+      "AdminSttRecording": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "part": {
+            "type": "integer"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "format": {
+            "type": "string"
+          },
+          "audioUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user",
+          "name",
+          "part",
+          "mode",
+          "prompt",
+          "createdAt",
+          "durationMs",
+          "format",
+          "audioUrl"
+        ]
+      },
       "AdminSttModels": {
         "type": "object",
         "properties": {
@@ -6285,6 +6364,28 @@
           },
           "raw": {
             "description": "The provider's response as OpenRouter returned it"
+          },
+          "cached": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "at": {
+                "type": "string"
+              },
+              "costUsd": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "at",
+              "costUsd"
+            ],
+            "description": "Set when this is a stored earlier run (costUsd above is then 0): when it ran and what it cost then"
           }
         },
         "required": [
@@ -6294,7 +6395,8 @@
           "duration",
           "latencyMs",
           "costUsd",
-          "costExact"
+          "costExact",
+          "cached"
         ]
       },
       "AdminSttRequest": {
@@ -6309,7 +6411,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 30000000,
-            "description": "Base64 audio, up to about 22 MB"
+            "description": "Base64 audio, up to about 22 MB; or send recordingId"
           },
           "format": {
             "type": "string",
@@ -6319,7 +6421,17 @@
               "wav",
               "mp3",
               "ogg"
-            ]
+            ],
+            "description": "Required with audio"
+          },
+          "recordingId": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "A stored speaking attempt (GET /api/admin/stt/recordings) instead of audio"
+          },
+          "fresh": {
+            "type": "boolean",
+            "description": "Skip the stored result and run (and store) again"
           },
           "prompt": {
             "type": "string",
@@ -6336,9 +6448,7 @@
           }
         },
         "required": [
-          "model",
-          "audio",
-          "format"
+          "model"
         ]
       },
       "AdminPronRun": {
@@ -11266,6 +11376,65 @@
         }
       }
     },
+    "/api/admin/stt/recordings": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Students' stored speaking recordings, newest first, to transcribe in the playground",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Email, name or prompt title contains"
+            },
+            "required": false,
+            "description": "Email, name or prompt title contains",
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recordings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSttRecordings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/stt/models": {
       "get": {
         "tags": [
@@ -11319,6 +11488,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminSttRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

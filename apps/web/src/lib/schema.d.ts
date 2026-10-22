@@ -3471,6 +3471,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/stt/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Students' stored speaking recordings, newest first, to transcribe in the playground */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Email, name or prompt title contains */
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Recordings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSttRecordings"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/stt/models": {
         parameters: {
             query?: never;
@@ -3537,6 +3578,17 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["AdminSttRun"];
+                    };
+                };
+                /** @description No such recording */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
                     };
                 };
                 /** @description The model failed */
@@ -6023,6 +6075,24 @@ export interface components {
              */
             status: "ok" | "low" | "critical" | "unknown";
         };
+        AdminSttRecordings: {
+            items: components["schemas"]["AdminSttRecording"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AdminSttRecording: {
+            id: string;
+            user: string;
+            name: string;
+            part: number;
+            mode: string;
+            prompt: string | null;
+            createdAt: string;
+            durationMs: number | null;
+            format: string;
+            audioUrl: string;
+        };
         AdminSttModels: {
             models: components["schemas"]["AdminSttModel"][];
         };
@@ -6051,13 +6121,25 @@ export interface components {
             costExact: boolean;
             /** @description The provider's response as OpenRouter returned it */
             raw?: unknown;
+            /** @description Set when this is a stored earlier run (costUsd above is then 0): when it ran and what it cost then */
+            cached: {
+                at: string;
+                costUsd: number | null;
+            } | null;
         };
         AdminSttRequest: {
             model: string;
-            /** @description Base64 audio, up to about 22 MB */
-            audio: string;
-            /** @enum {string} */
-            format: "webm" | "m4a" | "wav" | "mp3" | "ogg";
+            /** @description Base64 audio, up to about 22 MB; or send recordingId */
+            audio?: string;
+            /**
+             * @description Required with audio
+             * @enum {string}
+             */
+            format?: "webm" | "m4a" | "wav" | "mp3" | "ogg";
+            /** @description A stored speaking attempt (GET /api/admin/stt/recordings) instead of audio */
+            recordingId?: string;
+            /** @description Skip the stored result and run (and store) again */
+            fresh?: boolean;
             /** @description Priming prompt (Whisper-style hosts only) */
             prompt?: string;
             /** @description ISO code; null lets the model detect it */

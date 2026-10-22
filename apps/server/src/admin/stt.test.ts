@@ -1,11 +1,12 @@
-import { fakeFetch, json, req, testUser } from '../test/helpers'; // first: loads the app before the modules that import it back
+import { fakeFetch, json, req, seedPrompt, testUser } from '../test/helpers'; // first: loads the app before the modules that import it back
 import { and, eq } from 'drizzle-orm';
 import { expect, it, vi } from 'vitest';
 import { setFetch } from '../ai/openrouter';
 import { env } from '../env';
 import { OWNER_EMAILS } from '../auth';
 import { db } from '../db/client';
-import { aiCosts } from '../db/schema';
+import { aiCosts, attempts } from '../db/schema';
+import { storage } from '../storage';
 
 it('playground: lists OpenRouter transcription models with prices, transcribes with any of them, prices by list price and logs a playground cost; owner only', async () => {
   const or = fakeFetch({
@@ -92,4 +93,41 @@ it('playground: our verbatim Whisper runs on Modal (multipart with proxy-auth he
     Object.assign(env, { MODAL_KEY: saved.k, MODAL_SECRET: saved.s });
     vi.unstubAllGlobals();
   }
+});
+
+it('playground: picks a stored student recording by id, returns the stored run for the same audio, model and settings without calling the model, and runs again on a new setting or on request', async () => {
+  const or = fakeFetch({ '/models?': () => json({ data: [] }), '/audio/transcriptions': () => json({ text: 'Hello there.', duration: 2, words: [] }) });
+  setFetch(or);
+  const student = await testUser('student@test.dev');
+  const p = await seedPrompt({ title: 'Your hometown' });
+  await storage.put('audio/s1.m4a', new TextEncoder().encode('m4a-bytes'), 'audio/mp4');
+  await db.insert(attempts).values({ id: 'rec-1', userId: student.user.id, promptId: p.id, skill: 'speaking', part: 1, audioKey: 'audio/s1.m4a', durationMs: 2000 });
+  await db.insert(attempts).values({ id: 'no-audio', userId: student.user.id, promptId: p.id, skill: 'writing', part: 2, text: 'An essay.' });
+  const { headers } = await testUser(OWNER_EMAILS[0]!);
+  expect((await req('/api/admin/stt/recordings', { headers: student.headers })).status).toBe(404);
+
+  const list = (await (await req('/api/admin/stt/recordings?q=hometown', { headers })).json()) as any;
+  expect(list).toMatchObject({ total: 1, items: [{ id: 'rec-1', user: 'student@test.dev', part: 1, prompt: 'Your hometown', format: 'm4a', durationMs: 2000, audioUrl: 'https://download.test/audio/s1.m4a' }] });
+  expect(((await (await req('/api/admin/stt/recordings?q=nobody', { headers })).json()) as any).total).toBe(0);
+
+  const run = (body: object) => req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/asr-1', language: 'en', ...body } });
+  const calls = () => or.calls.filter((c) => c.url.includes('/audio/transcriptions')).length;
+  const first = (await (await run({ recordingId: 'rec-1' })).json()) as any;
+  expect(first).toMatchObject({ text: 'Hello there.', cached: null });
+  expect(or.calls.find((c) => c.url.includes('/audio/transcriptions'))!.body.input_audio).toEqual({ data: Buffer.from('m4a-bytes').toString('base64'), format: 'm4a' });
+  // the same bytes uploaded hit the same stored run
+  const again = (await (await run({ audio: Buffer.from('m4a-bytes').toString('base64'), format: 'm4a' })).json()) as any;
+  expect(again).toMatchObject({ text: 'Hello there.', costUsd: 0, cached: { at: expect.any(String) } });
+  expect(calls()).toBe(1);
+  await run({ recordingId: 'rec-1', prompt: 'Um, uh.' });
+  await run({ recordingId: 'rec-1', model: 'acme/asr-2' });
+  expect(calls()).toBe(3);
+  expect(((await (await run({ recordingId: 'rec-1', fresh: true })).json()) as any).cached).toBeNull();
+  expect(calls()).toBe(4);
+
+  // never an arbitrary storage key: only attempt rows that have audio
+  expect((await run({ recordingId: 'no-audio' })).status).toBe(404);
+  expect((await run({ recordingId: 'audio/s1.m4a' })).status).toBe(404);
+  expect((await run({})).status).toBe(400);
+  expect((await run({ recordingId: 'rec-1', audio: 'AA==', format: 'wav' })).status).toBe(400);
 });

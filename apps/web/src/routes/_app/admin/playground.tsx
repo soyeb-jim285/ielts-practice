@@ -7,10 +7,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { PronunciationLab } from '@/components/admin/PronunciationLab';
 import { CascadeSteps, CascadeTimeline } from '@/components/admin/CascadeTimeline';
-import { audioFormat, blobToBase64, isFiller, toWav16k, transcriptStats, type Word } from '@/components/admin/playground';
+import { audioFormat, blobToBase64, isFiller, recordingLabel, toWav16k, transcriptStats, type Recording, type Word } from '@/components/admin/playground';
+import { Pager } from '@/components/admin/Pager';
 import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
-import { useAdmin } from '@/lib/admin';
+import { useAdmin, type Page } from '@/lib/admin';
+import { formatDate } from '@/lib/format';
 import { api, ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDuplexExaminer, type Duplex, type Handlers } from '@/live/duplex';
@@ -39,9 +41,11 @@ function Playground() {
 // ---------------------------------------------------------------- transcription
 
 type SttModel = { id: string; name: string; description: string; usdPerSecond: number | null; usdPerMTokIn: number | null; usdPerMTokOut: number | null };
-type SttRun = { model: string; text: string; words: Word[]; duration: number; latencyMs: number; costUsd: number | null; costExact: boolean; raw: unknown };
+type SttRun = { model: string; text: string; words: Word[]; duration: number; latencyMs: number; costUsd: number | null; costExact: boolean; raw: unknown; cached: { at: string; costUsd: number | null } | null };
 type RunState = { status: 'running' } | { status: 'done'; r: SttRun } | { status: 'error'; error: string };
-type Clip = { blob: Blob; url: string; format: NonNullable<ReturnType<typeof audioFormat>>; label: string };
+type Format = NonNullable<ReturnType<typeof audioFormat>>;
+/** A clip from this browser (recorded or uploaded), or a student's recording the server already has (sent by id, not uploaded). */
+type Clip = { url: string; format: Format; label: string } & ({ blob: Blob; recordingId?: undefined } | { recordingId: string; blob?: undefined });
 
 /** The production priming prompt (server ai/openrouter.ts VERBATIM_PROMPT): disfluent text makes Whisper keep um/uh and the speaker's own word forms. */
 const VERBATIM_PROMPT = 'Umm, let me think, uh... he go... he go there. Uh, she have, um, two book. Hmm, I mean, like, you know.';
@@ -78,13 +82,17 @@ function TranscriptionLab() {
       localStorage.setItem(SAVED, JSON.stringify(chosen));
     } catch {}
   }, [chosen]);
-  useEffect(() => () => void (clip && URL.revokeObjectURL(clip.url)), [clip]);
+  useEffect(() => () => void (clip?.blob && URL.revokeObjectURL(clip.url)), [clip]);
 
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   const setAudio = (blob: Blob, label: string, name = '') => {
     const format = audioFormat(blob.type, name);
     if (!format) return setRuns({ _: { status: 'error', error: `Unsupported audio type ${blob.type || name}. Use webm, ogg, m4a, wav or mp3.` } });
     setClip({ blob, url: URL.createObjectURL(blob), format, label });
+    setRuns({});
+  };
+  const pick = (r: Recording) => {
+    setClip({ recordingId: r.id, url: r.audioUrl, format: audioFormat('', `x.${r.format}`) ?? 'webm', label: recordingLabel(r) });
     setRuns({});
   };
   const record = async () => {
@@ -94,16 +102,19 @@ function TranscriptionLab() {
     } else await rec.start();
   };
 
-  const run = async (ids: string[]) => {
+  /** fresh: skip the server's stored run for this audio, model and settings. */
+  const run = async (ids: string[], fresh = false) => {
     if (!clip) return;
-    const audioB64 = await toBase64(clip.blob);
-    const wavB64 = clip.format !== 'wav' && ids.some((id) => id.startsWith('hf/')) ? await toWav16k(clip.blob).then(toBase64) : audioB64; // the CrisperWhisper Space takes WAV only
     const p = prompt === 'verbatim' ? VERBATIM_PROMPT : prompt === 'custom' ? customPrompt.trim() || undefined : undefined;
     setRuns((r) => ({ ...r, ...Object.fromEntries(ids.map((id) => [id, { status: 'running' } as RunState])) }));
+    const src = clip.blob ? { audio: await toBase64(clip.blob), format: clip.format } : { recordingId: clip.recordingId };
+    // the CrisperWhisper Space takes WAV only: convert here, a stored recording too
+    const wav = clip.format !== 'wav' && ids.some((id) => id.startsWith('hf/')) ? (clip.blob ? Promise.resolve(clip.blob) : fetch(clip.url).then((r) => r.blob())).then(toWav16k).then(toBase64) : undefined;
     await Promise.all(
       ids.map(async (id) => {
         try {
-          const r = await api.post<SttRun>('/admin/stt/transcribe', { model: id, ...(id.startsWith('hf/') ? { audio: wavB64, format: 'wav' as const } : { audio: audioB64, format: clip.format }), prompt: p, language: language === 'auto' ? null : 'en' });
+          const audio = id.startsWith('hf/') && wav ? { audio: await wav, format: 'wav' as const } : src;
+          const r = await api.post<SttRun>('/admin/stt/transcribe', { model: id, ...audio, prompt: p, language: language === 'auto' ? null : 'en', fresh });
           setRuns((s) => ({ ...s, [id]: { status: 'done', r } }));
         } catch (e) {
           setRuns((s) => ({ ...s, [id]: { status: 'error', error: e instanceof ApiError ? e.message : (e as Error).message } }));
@@ -139,9 +150,10 @@ function TranscriptionLab() {
             </label>
           </div>
           {rec.error && <p className="mt-2 text-sm text-bad-text">{rec.error}</p>}
+          <RecordingPicker selected={clip?.recordingId} onPick={pick} />
           {clip && (
             <div className="mt-4 space-y-1">
-              <p className="type-caption">{clip.label} · {clip.format} · {(clip.blob.size / 1024).toFixed(0)} KB</p>
+              <p className="type-caption">{clip.label} · {clip.format}{clip.blob && ` · ${(clip.blob.size / 1024).toFixed(0)} KB`}</p>
               <audio ref={audio} src={clip.url} controls className="w-full" />
             </div>
           )}
@@ -199,9 +211,9 @@ function TranscriptionLab() {
 
       <section aria-label="Results" className="space-y-4">
         {runs._?.status === 'error' && <p className="text-sm text-bad-text">{runs._.error}</p>}
-        {!clip && <p className="type-caption">Record or upload a clip, pick models, then transcribe. Click a word to hear it. Highlighted words are filled pauses; dotted ones have low confidence.</p>}
+        {!clip && <p className="type-caption">Record, upload or pick a student's recording, pick models, then transcribe. A model already run on the same audio and options shows its saved result; Run again pays for a new one. Click a word to hear it. Highlighted words are filled pauses; dotted ones have low confidence.</p>}
         {Object.entries(runs).filter(([id]) => id !== '_').map(([id, s]) => (
-          <SttResult key={id} id={id} s={s} model={byId.get(id)} onSeek={seek} onRerun={() => void run([id])} />
+          <SttResult key={id} id={id} s={s} model={byId.get(id)} onSeek={seek} onRerun={() => void run([id], true)} />
         ))}
       </section>
     </div>
@@ -223,6 +235,12 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
       {s.status === 'error' && <p className="mt-3 text-sm text-bad-text">{s.error}</p>}
       {s.status === 'done' && st && (
         <>
+          {s.r.cached && (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <Badge tone="info">Saved result</Badge>
+              <span className="text-muted">from {formatDate(s.r.cached.at, true)}, cost {money(s.r.cached.costUsd)} then. Run again for a fresh one.</span>
+            </p>
+          )}
           <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
             {[
               ['Latency', `${(s.r.latencyMs / 1000).toFixed(1)} s`],
@@ -260,6 +278,39 @@ function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState;
         </>
       )}
     </Card>
+  );
+}
+
+/** Students' stored speaking recordings, newest first: searchable by email, name or prompt. */
+function RecordingPicker({ selected, onPick }: { selected?: string; onPick: (r: Recording) => void }) {
+  const [page, setPage] = useState(1);
+  const [text, setText] = useState('');
+  const [q, setQ] = useState('');
+  const list = useAdmin<Page<Recording>>('/stt/recordings', { page, pageSize: 8, q });
+  const search = () => (setQ(text.trim()), setPage(1));
+  return (
+    <details className="mt-4 rounded-md border border-line">
+      <summary className="cursor-pointer p-3 text-sm font-medium">Student recordings</summary>
+      <div className="space-y-2 p-3 pt-0">
+        <form role="search" onSubmit={(e) => (e.preventDefault(), search())}>
+          <Input label="Search recordings" hideLabel type="search" placeholder="Email, name or prompt" value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text.trim() !== q && search()} />
+        </form>
+        {list.isLoading && <Spinner />}
+        {list.error && <p className="text-sm text-bad-text">{(list.error as Error).message}</p>}
+        {list.data && !list.data.items.length && <p className="type-caption">No recordings match.</p>}
+        <ul className="space-y-1" aria-label="Student recordings">
+          {list.data?.items.map((r) => (
+            <li key={r.id}>
+              <button type="button" aria-pressed={selected === r.id} onClick={() => onPick(r)} className={cn('w-full rounded-md p-2 text-left hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-brand', selected === r.id && 'bg-surface-2 ring-1 ring-brand')}>
+                <span className="block truncate text-sm font-medium">{r.prompt ?? 'Untitled prompt'}</span>
+                <span className="type-caption block truncate">{recordingLabel(r)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {list.data && <Pager page={list.data.page} pageSize={list.data.pageSize} total={list.data.total} onPage={setPage} />}
+      </div>
+    </details>
   );
 }
 

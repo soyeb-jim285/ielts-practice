@@ -1,4 +1,5 @@
-// Admin playground helpers: transcript stats and audio encoding.
+// Admin playground helpers: transcript stats, audio encoding and recording labels.
+import { formatClock, formatDate } from '@/lib/format';
 /** A filled pause ("um", "uhh", "er", "hmm"), the same rule as the server's verbatim check. */
 const FILLER = /^(u+m+|u+h+|e+r+m*|a+h+|h+m+|m+)$/;
 export const bare = (w: string) => w.toLowerCase().replace(/[^a-z0-9']/g, '');
@@ -75,3 +76,8 @@ export const blobToBase64 = (b: Blob) =>
 
 /** Colour band of a pronunciation word score (0-100, uncalibrated): the cut-offs only sort the playground display. */
 export const pronTone = (score: number | null): 'good' | 'warn' | 'bad' | 'none' => (score == null ? 'none' : score >= 80 ? 'good' : score >= 60 ? 'warn' : 'bad');
+
+export type Recording = { id: string; user: string; name: string; part: number; mode: string; prompt: string | null; createdAt: string; durationMs: number | null; format: string; audioUrl: string };
+/** "a@b.c · Part 2 live · 1:42 · 3 Oct 2026, 14:05": who, what and when, for the recording picker and the clip caption. */
+export const recordingLabel = (r: Recording) =>
+  [r.user, `Part ${r.part}${r.mode === 'practice' ? '' : ` ${r.mode}`}`, r.durationMs != null && formatClock(r.durationMs / 1000), formatDate(r.createdAt, true)].filter(Boolean).join(' · ');

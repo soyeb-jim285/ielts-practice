@@ -155,6 +155,13 @@
       "when": 1792348019333,
       "tag": "0021_analysis_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792664320412,
+      "tag": "0022_stt_playground_runs",
+      "breakpoints": true
     }
   ]
 }

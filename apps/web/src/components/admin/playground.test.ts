@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { audioFormat, encodeWav, pronTone, transcriptStats } from './playground';
+import { audioFormat, encodeWav, pronTone, recordingLabel, transcriptStats } from './playground';
 
 it('counts fillers, immediate repetitions and the speaking rate without fillers', () => {
   const words = ['Um,', 'I', 'I', 'think', 'uh', 'the', 'city', 'is', 'is', 'big.'].map((w, i) => ({ w, start: i * 0.5, end: i * 0.5 + 0.4 }));
@@ -23,4 +23,10 @@ it('encodes 16-bit mono WAV with a valid header and clipped samples', async () =
 
 it('bands pronunciation word scores for display', () => {
   expect([pronTone(92), pronTone(80), pronTone(79.9), pronTone(60), pronTone(12), pronTone(null)]).toEqual(['good', 'good', 'warn', 'warn', 'bad', 'none']);
+});
+
+it('labels a stored recording with who, part, mode, length and when', () => {
+  const r = { id: 'a1', user: 'sam@x.dev', name: 'Sam', part: 2, mode: 'live', prompt: null, createdAt: '2026-10-03T08:05:00Z', durationMs: 102_400, format: 'webm', audioUrl: '' };
+  expect(recordingLabel(r)).toMatch(/^sam@x\.dev · Part 2 live · 1:42 · 3 Oct 2026/);
+  expect(recordingLabel({ ...r, mode: 'practice', durationMs: null })).toMatch(/^sam@x\.dev · Part 2 · 3 Oct/);
 });
