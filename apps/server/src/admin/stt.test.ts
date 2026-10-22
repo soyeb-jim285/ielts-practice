@@ -39,8 +39,22 @@ it('playground: lists OpenRouter transcription models with prices, transcribes w
 
   setFetch(fakeFetch({ '/audio/transcriptions': () => new Response('{"error":"bad model"}', { status: 400 }) }));
   const bad = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/nope', audio: 'AA==', format: 'wav' } });
-  expect(bad.status).toBe(502);
+  expect(bad.status).toBe(422);
   expect(((await bad.json()) as any).error).toContain('400');
+
+  // a json-only model (gpt-4o-transcribe): retried without verbose_json, and the upstream reason reaches the admin
+  const fmts: unknown[] = [];
+  setFetch(fakeFetch({ '/audio/transcriptions': (_u, init) => {
+    const b = JSON.parse(String(init!.body));
+    fmts.push(b.response_format);
+    return b.response_format === 'json' ? new Response('{"text":"Hello there."}') : new Response('{"error":{"message":"The selected model does not support response_format \\"verbose_json\\". Use \\"json\\" instead.","code":400}}', { status: 400 });
+  } }));
+  const j = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/json-only', audio: 'AQ==', format: 'wav' } });
+  expect(((await j.json()) as any).text).toBe('Hello there.');
+  expect(fmts).toEqual(['verbose_json', 'json']);
+  setFetch(fakeFetch({ '/audio/transcriptions': () => new Response('{"error":{"message":"Provider returned 400","code":400,"metadata":{"raw":"audio too long"}}}', { status: 400 }) }));
+  const why = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/picky', audio: 'Ag==', format: 'wav' } });
+  expect(((await why.json()) as any).error).toBe('Provider returned 400: audio too long (400)');
 });
 
 it('playground: CrisperWhisper runs on its Hugging Face Space (Gradio upload, call, event stream) and comes back as words with timings, free', async () => {
@@ -75,7 +89,7 @@ it('playground: our verbatim Whisper runs on Modal (multipart with proxy-auth he
     const body = { model: 'modal/verbatim-student4', audio: Buffer.from('webm-bytes').toString('base64'), format: 'webm', language: 'en' };
     env.MODAL_KEY = env.MODAL_SECRET = undefined;
     const off = await req('/api/admin/stt/transcribe', { headers, body });
-    expect(off.status).toBe(502);
+    expect(off.status).toBe(422);
     expect(((await off.json()) as any).error).toContain('MODAL_KEY');
     expect(sent).toHaveLength(0);
 

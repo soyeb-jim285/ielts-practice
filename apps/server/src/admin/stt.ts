@@ -38,6 +38,15 @@ const Recording = z
 
 const FORMATS = ['webm', 'm4a', 'wav', 'mp3', 'ogg'] as const;
 type Format = (typeof FORMATS)[number];
+/** OpenRouter's error JSON -> its message, plus the provider's own text when it passes one (`metadata.raw`). */
+const upstreamWhy = (detail?: string) => {
+  try {
+    const { message, metadata } = (JSON.parse(detail ?? '') as { error: { message?: string; metadata?: { raw?: unknown } } }).error;
+    return [message, metadata?.raw && String(typeof metadata.raw === 'string' ? metadata.raw : JSON.stringify(metadata.raw)).slice(0, 300)].filter(Boolean).join(': ');
+  } catch {
+    return detail;
+  }
+};
 const formatOf = (key: string): Format => FORMATS.find((f) => key.endsWith(`.${f}`)) ?? 'webm';
 /** Cache key of a playground run: everything that changes the transcript. The audio goes in by content hash, so an upload of a stored recording hits the same row. */
 const runKey = (o: { audio: Uint8Array; format: string; model: string; prompt?: string; language: string | null }) =>
@@ -102,7 +111,7 @@ export function register(app: App) {
           },
         },
       },
-      responses: { 200: json(SttRun, 'Transcript'), 404: json(z.object({ error: z.string() }), 'No such recording'), 502: json(z.object({ error: z.string() }), 'The model failed') },
+      responses: { 200: json(SttRun, 'Transcript'), 404: json(z.object({ error: z.string() }), 'No such recording'), 422: json(z.object({ error: z.string() }), 'The model failed (not 502: Cloudflare replaces 502 bodies, hiding the reason)') },
     }),
     async (c) => {
       const { audio, format, recordingId, fresh, ...b } = c.req.valid('json');
@@ -129,7 +138,7 @@ export function register(app: App) {
         await db.insert(sttPlaygroundRuns).values({ key, model: b.model, result: r }).onConflictDoUpdate({ target: sttPlaygroundRuns.key, set: { result: r, createdAt: new Date() } });
         return c.json(r, 200);
       } catch (e) {
-        return c.json({ error: e instanceof AiError ? `${e.message}${e.status ? ` (${e.status})` : ''}` : (e as Error).message }, 502);
+        return c.json({ error: e instanceof AiError ? `${upstreamWhy(e.detail) || e.message}${e.status ? ` (${e.status})` : ''}` : (e as Error).message }, 422);
       }
     },
   );

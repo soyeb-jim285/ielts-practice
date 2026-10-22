@@ -24,6 +24,8 @@ export class AiError extends Error {
     message: string,
     /** Upstream HTTP status when code is 'http'. */
     public status?: number,
+    /** The upstream error text (redacted), for admin screens; users get `message`. */
+    public detail?: string,
   ) {
     super(message);
   }
@@ -117,7 +119,7 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
     console.error(`openrouter ${path} ${res.status}`, ctx?.openrouter ? 'own key' : OPERATOR_HINT[res.status] ?? '', detail.slice(0, 500));
     log({ ok: false, status: res.status, error: detail || `HTTP ${res.status}` });
     if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
-    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status);
+    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status, detail);
   }
 }
 
@@ -512,7 +514,11 @@ export async function sttModels(): Promise<SttModel[]> {
 export async function transcribeOnce(o: { model: string; audio: Uint8Array; format: Format; prompt?: string; language?: string | null }) {
   const t0 = Date.now();
   const options = o.prompt ? { provider: { options: Object.fromEntries(['groq', 'together', 'deepinfra', 'deepinfra/us', 'fireworks'].map((slug) => [slug, { prompt: o.prompt }])) }, prompt: o.prompt } : {};
-  const d = await stt(o, 'playground', { ...options, language: o.language ?? undefined });
+  const extra = { ...options, language: o.language ?? undefined };
+  // gpt-4o-transcribe and friends take only "json": no word timings from them
+  const d = await stt(o, 'playground', extra).catch((e) =>
+    e instanceof AiError && e.status === 400 && /response_format/.test(e.detail ?? '') ? stt(o, 'playground', { ...extra, response_format: 'json', timestamp_granularities: undefined }) : Promise.reject(e),
+  );
   const ms = Date.now() - t0;
   const words = wordsOf(d), seconds = d.duration ?? words.at(-1)?.end ?? 0;
   const u = usageCost(d.usage), price = (await sttModels().catch(() => [])).find((m) => m.id === o.model)?.usdPerSecond;

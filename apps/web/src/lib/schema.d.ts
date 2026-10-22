@@ -3591,8 +3591,8 @@ export interface paths {
                         };
                     };
                 };
-                /** @description The model failed */
-                502: {
+                /** @description The model failed (not 502: Cloudflare replaces 502 bodies, hiding the reason) */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
