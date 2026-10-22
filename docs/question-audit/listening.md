@@ -22,7 +22,7 @@ Each recording is played once. Difficulty rises through the test. Answers come i
 ### Silences in the recordings (measured with silence detection)
 - Start of part: narrator 5-15 s, then 20 s to read the first set of questions (about 50 s in Part 4, which has one long pre-read and no mid-part break).
 - Break inside a part between the two question sets: 30-35 s.
-- End of Parts 1-3: 30 s to check. Part 4 runs straight into the end of the test; we give one minute to check at the end.
+- End of Parts 1-3: 30 s to check. Part 4 runs straight into the end of the test; we give two minutes to check at the end, as the computer-delivered test does.
 - Longest gap about 30 s in Parts 1-3, about 50 s in Part 4.
 
 ## 2. Narrator lines (house wording)
@@ -31,7 +31,7 @@ Each recording is played once. Difficulty rises through the test. Answers come i
 - Part start: "Part 1. You will hear a conversation between ... First you have some time to look at questions 1 to 5." then 20 s, then "Now listen carefully and answer questions 1 to 5."
 - Part 1 example: the form carries an Example line already filled in; the narrator adds "The conversation begins with the example."
 - Break: "Before you hear the rest of the conversation, you have some time to look at questions 6 to 10." (Part 2/4: "talk", "lecture") then 30 s, then "Now listen and answer questions 6 to 10."
-- Part end: "That is the end of Part 1. You now have half a minute to check your answers." (30 s). Part 4: "That is the end of the test. You now have one minute to check your answers."
+- Part end: "That is the end of Part 1. You now have half a minute to check your answers." (30 s). Part 4: "That is the end of the test. You now have two minutes to check your answers." (120 s)
 - Narrator voice: neutral broadcaster (Daniel). The speakers never address the narrator or mention the questions.
 
 ## 3. Question layout per part (measured)

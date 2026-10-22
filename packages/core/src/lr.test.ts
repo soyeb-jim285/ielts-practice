@@ -85,6 +85,7 @@ describe('checkEndsAt', () => {
   it.each([
     ['That is the end of the listening test. In the IELTS test, you would now have ten minutes to transfer your answers to the answer sheet.', 600],
     ['That is the end of part four. You now have one minute to check your answers to part four.', 60],
+    ['That is the end of the test. You now have two minutes to check your answers.', 120],
     ['That is the end of section four. You now have half a minute to check your answers.', 30],
   ])('%s', (line, add) => {
     const words = line.split(' ');

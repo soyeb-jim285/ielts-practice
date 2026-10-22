@@ -406,7 +406,7 @@ function ttsPart(slug: string, i: number, p: PartPlan, s: any, num: number) {
       out.push(N(`Now listen and answer ${q(p.chunks[1])}.`, 1));
     }
   });
-  out.push(i === 3 ? N('That is the end of the test. You now have one minute to check your answers.', 60) : N(`That is the end of Part ${i + 1}. You now have half a minute to check your answers.`, 30));
+  out.push(i === 3 ? N('That is the end of the test. You now have two minutes to check your answers.', 120) : N(`That is the end of Part ${i + 1}. You now have half a minute to check your answers.`, 30));
   return { part: i + 1, voices, turns: out };
 }
 
