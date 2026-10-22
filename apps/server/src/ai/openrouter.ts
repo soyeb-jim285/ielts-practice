@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Word } from '@ielts/core';
 import { env, IS_TEST } from '../env';
-import { recordCost, scribeUsd, usageCost, whisperUsd } from './cost';
+import { recordCost, usageCost, whisperUsd } from './cost';
 import { type AiLogRow, logAi } from './ailog';
 import { keyCtx, redact } from './keyctx';
 
@@ -427,61 +427,28 @@ function recordStt(d: SttResponse, model: string, stage: string, meta: Record<st
   recordCost({ stage, provider: 'openrouter', model, costUsd: u.exact ? u.costUsd : whisperUsd(seconds), audioSeconds: seconds, meta: { ...meta, generationId: d.id, ...(!u.exact && { estimated: true }) } });
 }
 
-export const SCRIBE_MODEL = 'elevenlabs/scribe_v2';
+export const SCRIBE_MODEL = 'elevenlabs/scribe-v2';
 const WHISPER_FALLBACK = 'openai/whisper-large-v3';
-const SCRIBE_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
-const SCRIBE_MIME: Record<Format, string> = { webm: 'audio/webm', m4a: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', ogg: 'audio/ogg' };
-/** A single character held this long (s) marks a prolonged sound (fluent TTS clips reach 0.4 s on stressed vowels; 0.6 s is conservative, unvalidated on real speech). */
-const HELD_CHAR_S = 0.6;
 
-type ScribeResponse = {
-  words?: { text: string; start?: number; end?: number; type: 'word' | 'spacing' | 'audio_event'; logprob?: number; characters?: { text: string; start: number; end: number }[] }[];
-};
-
-/** ElevenLabs Scribe v2 (spec §5.2): verbatim (fillers and false starts kept), character timestamps, audio events tagged then dropped.
- *  Throws on any failure; transcribe() falls back to Whisper. */
+/** ElevenLabs Scribe v2 through OpenRouter (spec §5.2): verbatim (fillers, repeats and false starts kept), word timings, exact cost in `usage`.
+ *  OpenRouter passes no character timings, so `prolonged` comes only from the text ("sooo", core speech.ts). Throws on any failure; transcribe() falls back to Whisper. */
 async function scribe(o: { audio: Uint8Array; format: Format }) {
-  const form = new FormData();
-  form.set('model_id', 'scribe_v2');
-  form.set('language_code', 'en');
-  form.set('no_verbatim', 'false');
-  form.set('timestamps_granularity', 'character');
-  form.set('tag_audio_events', 'true');
-  form.set('file', new Blob([Buffer.from(o.audio)], { type: SCRIBE_MIME[o.format] }), `audio.${o.format}`);
-  let d: ScribeResponse;
-  try {
-    const res = await fetcher(SCRIBE_URL, { method: 'POST', headers: { 'xi-api-key': env.ELEVENLABS_API_KEY! }, body: form, signal: AbortSignal.timeout(120_000) });
-    if (!res.ok) throw new Error(`scribe ${res.status} ${(await res.text().catch(() => '')).slice(0, 300)}`);
-    d = (await res.json()) as ScribeResponse;
-  } catch (e) {
-    recordCost({ stage: 'stt', provider: 'elevenlabs', model: SCRIBE_MODEL, costUsd: 0, ok: false, paidBy: 'house', meta: { error: (e as Error).message.slice(0, 80) } });
-    throw e;
-  }
+  const d = await stt({ ...o, model: SCRIBE_MODEL }, 'stt');
+  recordStt(d, SCRIBE_MODEL, 'stt');
   // "…" and cut-offs ("th-", "I went to the—") stay in the word text: core's rule tagger and the text tagger read them as false starts / partials.
-  const words: SttWord[] = (d.words ?? [])
-    .filter((w) => w.type === 'word' && w.text.trim() && w.start != null && w.end != null)
-    .map((w) => ({
-      w: w.text.trim(), start: w.start!, end: w.end!,
-      conf: w.logprob == null ? undefined : Math.round(Math.exp(w.logprob) * 100) / 100,
-      ...(w.characters?.some((c) => c.end - c.start >= HELD_CHAR_S) && w.text.length > 1 && { prolonged: true }),
-    }));
-  const duration = words.at(-1)?.end ?? 0;
-  // Scribe returns no price: audio seconds x ELEVENLABS_SCRIBE_USD_PER_HOUR, reconciled by the character_count drift on the Costs page.
-  recordCost({ stage: 'stt', provider: 'elevenlabs', model: SCRIBE_MODEL, costUsd: scribeUsd(duration), audioSeconds: duration, paidBy: 'house', meta: { estimated: true } });
-  return { text: words.map((w) => w.w).join(' '), words, duration, verbatim: true, model: SCRIBE_MODEL };
+  const words = wordsOf(d);
+  return { text: d.text ?? words.map((w) => w.w).join(' '), words, duration: d.duration ?? words.at(-1)?.end ?? 0, verbatim: true, model: SCRIBE_MODEL };
 }
 
 /** `verbatim`: for Whisper models, also runs a disfluency-primed pass (in parallel) and keeps it when verbatimSane; `verbatim` in the result says which was used.
- *  model `elevenlabs/scribe_v2` uses ElevenLabs when ELEVENLABS_API_KEY is set and falls back to Whisper on any error or quota; `model` in the result is the one that answered. */
+ *  model `elevenlabs/scribe-v2` falls back to Whisper on any error or quota; `model` in the result is the one that answered. */
 export async function transcribe(o: { model: string; audio: Uint8Array; format: Format; verbatim?: boolean }, fallbackFrom?: string): Promise<{ text: string; words: SttWord[]; duration: number; verbatim: boolean; model: string }> {
   if (o.model === SCRIBE_MODEL) {
-    // ElevenLabs credit is the owner's: users with their own OpenRouter key transcribe with Whisper on their key instead.
-    if (env.ELEVENLABS_API_KEY && !keyCtx.getStore()?.openrouter)
-      try {
-        return await scribe(o);
-      } catch (e) {
-        console.error('ElevenLabs Scribe failed, falling back to Whisper:', (e as Error).message);
-      }
+    try {
+      return await scribe(o);
+    } catch (e) {
+      console.error('Scribe failed, falling back to Whisper:', (e as Error).message);
+    }
     return transcribe({ ...o, model: WHISPER_FALLBACK }, o.model);
   }
   const primed = o.verbatim && /whisper/.test(o.model);
@@ -573,7 +540,6 @@ export async function listModels(): Promise<ModelInfo[]> {
     pricing: { prompt: m.pricing?.prompt ?? '0', completion: m.pricing?.completion ?? '0' },
     voices: m.supported_voices ?? [],
   }));
-  if (env.ELEVENLABS_API_KEY) models.push({ id: SCRIBE_MODEL, name: 'ElevenLabs Scribe v2', input: ['audio'], output: ['transcription'], pricing: { prompt: '0', completion: '0' }, voices: [] });
   modelCache = { at: Date.now(), models };
   return models;
 }

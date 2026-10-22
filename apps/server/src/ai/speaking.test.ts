@@ -217,7 +217,7 @@ it('text disfluency tags are backed by timing evidence and summarised per type',
   expect(fl.events).toEqual([{ kind: 'false_start', start: 0.5, end: 0.9, sources: ['llm'] }]);
   expect(fl.profile).toMatchObject({ byKind: { false_start: { n: 1 } }, total: { n: 1 }, midClauseShare: 1 });
   expect(r.timings).toMatchObject({ sttMs: expect.any(Number), totalMs: expect.any(Number) });
-  expect(r.sttModel).toBe('openai/whisper-large-v3');
+  expect(r.sttModel).toBe('elevenlabs/scribe-v2'); // the default, through OpenRouter
 });
 
 it('retains FC timing bounds and the uncalibrated P heuristic cap', async () => {

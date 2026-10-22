@@ -204,7 +204,7 @@ Pipeline:
 
 ### 5.2 Speech-to-text provider (required)
 
-- When `ELEVENLABS_API_KEY` is set, the default STT is **ElevenLabs Scribe v2** (`POST https://api.elevenlabs.io/v1/speech-to-text`, `model_id=scribe_v2`, `no_verbatim=false`, `timestamps_granularity=character`, `tag_audio_events=true`, `language_code=en`). Settings shows it as `elevenlabs/scribe_v2`. It is verbatim by design: it keeps fillers, repetitions and learner grammar, and marks abandoned phrases with "…". Bake-off in `.eval/stt-verbatim2/`: fillers 95%, repetitions 100%, false starts 67%, grammar kept 100%, 3.4 s per clip, about $0.0037/min, free plan about 150 min a month.
+- The default STT is **ElevenLabs Scribe v2** through OpenRouter (`elevenlabs/scribe-v2` on `/audio/transcriptions`, word timestamps, exact `usage.cost`), with Whisper as the fallback. Until 2026-10-22 it called ElevenLabs directly with `ELEVENLABS_API_KEY` and character timings.
 - Fallback when the key is missing, or on an ElevenLabs error or quota exhaustion: prompted `openai/whisper-large-v3` via OpenRouter (prompt under `provider.options` for each Whisper host).
 - Audio events (`[clears throat]`, laughter) are dropped from the word list, and "…" and cut-offs feed the §5.1 false-start tagger.
 

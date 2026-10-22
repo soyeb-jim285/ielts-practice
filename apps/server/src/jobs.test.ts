@@ -42,7 +42,7 @@ it('speaking: stores analysis + mistakes, marks done, compares with parent', asy
   expect(a).toMatchObject({ status: 'done', error: null });
   const an = await db.query.analyses.findFirst({ where: eq(analyses.attemptId, child.id) });
   const r = an!.result as AnalysisResult;
-  expect(an).toMatchObject({ overall: 6.5, criteria: { fc: 7, lr: 6, gra: 6, p: 6 }, models: { stt: 'openai/whisper-large-v3' } });
+  expect(an).toMatchObject({ overall: 6.5, criteria: { fc: 7, lr: 6, gra: 6, p: 6 }, models: { stt: 'elevenlabs/scribe-v2' } });
   expect(r.questions).toEqual([
     { text: 'Where is your hometown?', startWord: 0 },
     { text: 'What do you like about it?', startWord: 2 },

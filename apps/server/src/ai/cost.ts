@@ -66,7 +66,6 @@ export function asRetry<T>(f: () => Promise<T>): Promise<T> {
 // Prices for calls whose response carries no cost (docs section 2). Rows built from them are flagged meta.estimated.
 const WHISPER_USD_PER_HOUR = 0.11;
 export const whisperUsd = (seconds: number) => (seconds / 3600) * WHISPER_USD_PER_HOUR;
-export const scribeUsd = (seconds: number) => (seconds / 3600) * env.ELEVENLABS_SCRIBE_USD_PER_HOUR;
 
 /** USD actually charged from an OpenRouter `usage` block: `cost` plus, on a BYOK call (`is_byok`, e.g. the house Anthropic key), the upstream provider cost OpenRouter
  *  reports separately (`cost` is then only OpenRouter's fee, often 0; otherwise the upstream cost is already inside `cost`). */

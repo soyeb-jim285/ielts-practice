@@ -190,43 +190,22 @@ it('call: retries network errors and 5xx twice, then gives up with the generic m
   expect(n).toBe(3);
 });
 
-it('transcribe: ElevenLabs Scribe v2 (verbatim, character timing, audio events dropped), Whisper fallback on error or quota', async () => {
-  const { env } = await import('../env');
-  env.ELEVENLABS_API_KEY = 'xi-test';
-  try {
-    const w = (text: string, start: number, end: number, extra: object = {}) => ({ text, start, end, type: 'word', logprob: -0.1, ...extra });
-    const scribe = {
-      words: [
-        w('I', 0, 0.2), { text: ' ', start: 0.2, end: 0.3, type: 'spacing' }, w('um,', 0.4, 0.7, { logprob: -0.7 }), { text: '(laughter)', start: 0.7, end: 1, type: 'audio_event' },
-        w('the—', 1.2, 1.5), w('sooo', 1.6, 2.4, { characters: [{ text: 's', start: 1.6, end: 1.7 }, { text: 'o', start: 1.7, end: 2.35 }, { text: 'o', start: 2.3, end: 2.4 }] }),
-      ],
-    };
-    const f = fakeFetch({ 'api.elevenlabs.io/v1/speech-to-text': () => json(scribe) });
-    setFetch(f);
-    const r = await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1, 2]), format: 'webm', verbatim: true });
-    const form = f.calls[0]!.body as FormData;
-    expect(Object.fromEntries(['model_id', 'no_verbatim', 'timestamps_granularity', 'tag_audio_events'].map((k) => [k, form.get(k)]))).toEqual({ model_id: 'scribe_v2', no_verbatim: 'false', timestamps_granularity: 'character', tag_audio_events: 'true' });
-    expect(r).toMatchObject({ text: 'I um, the— sooo', verbatim: true, model: 'elevenlabs/scribe_v2', duration: 2.4 });
-    expect(r.words.map((x) => x.w)).toEqual(['I', 'um,', 'the—', 'sooo']); // audio event and spacing dropped
-    expect(r.words[1]!.conf).toBeCloseTo(0.5, 1);
-    expect(r.words[3]).toMatchObject({ prolonged: true }); // one character held 0.6 s
-    expect(r.words[0]!.prolonged).toBeUndefined();
+it('transcribe: Scribe v2 through OpenRouter (verbatim words kept), Whisper fallback on error or quota', async () => {
+  const words = [{ word: 'I', start: 0, end: 0.2, confidence: 0.9 }, { word: 'um,', start: 0.4, end: 0.7, confidence: 0.5 }, { word: 'the—', start: 1.2, end: 1.5 }, { word: 'sooo', start: 1.6, end: 2.4 }];
+  const f = fakeFetch({ '/audio/transcriptions': () => json({ text: 'I um, the— sooo', duration: 2.4, words, usage: { seconds: 2.4, cost: 0.0001 } }) });
+  setFetch(f);
+  const r = await transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1, 2]), format: 'webm', verbatim: true });
+  expect(f.calls).toHaveLength(1); // one pass: Scribe is verbatim, no primed Whisper pass
+  expect(f.calls[0]!.body).toMatchObject({ model: 'elevenlabs/scribe-v2', language: 'en', input_audio: { format: 'webm' } });
+  expect(r).toMatchObject({ text: 'I um, the— sooo', verbatim: true, model: 'elevenlabs/scribe-v2', duration: 2.4 });
+  expect(r.words.map((x) => x.w)).toEqual(['I', 'um,', 'the—', 'sooo']);
+  expect(r.words[1]!.conf).toBe(0.5);
 
-    // quota / outage: Whisper answers instead, and the result says so
-    for (const scribeFail of [() => json({ detail: 'quota_exceeded' }, 401), () => { throw new TypeError('fetch failed'); }]) {
-      const g = fakeFetch({ 'api.elevenlabs.io': scribeFail, '/audio/transcriptions': () => json({ text: 'hello there', duration: 1, words: [{ word: 'hello', start: 0, end: 0.4 }, { word: 'there', start: 0.5, end: 0.9 }] }) });
-      setFetch(g);
-      const fb = await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' });
-      expect(fb).toMatchObject({ text: 'hello there', model: 'openai/whisper-large-v3' });
-    }
-
-    // no key: straight to Whisper, Scribe is never called
-    env.ELEVENLABS_API_KEY = undefined;
-    const h = fakeFetch({ '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [{ word: 'hi', start: 0, end: 0.4 }] }) });
-    setFetch(h);
-    expect((await transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' })).model).toBe('openai/whisper-large-v3');
-    expect(h.calls.every((c) => !c.url.includes('elevenlabs'))).toBe(true);
-  } finally {
-    env.ELEVENLABS_API_KEY = undefined;
+  // quota / outage: Whisper answers instead, and the result says so
+  for (const scribeFail of [() => json({ error: { message: 'quota' } }, 402), () => { throw new TypeError('fetch failed'); }]) {
+    const g = fakeFetch({ '/audio/transcriptions': (_u: string, init?: RequestInit) => (JSON.parse(String(init?.body)).model === 'elevenlabs/scribe-v2' ? scribeFail() : json({ text: 'hello there', duration: 1, words: [{ word: 'hello', start: 0, end: 0.4 }, { word: 'there', start: 0.5, end: 0.9 }] })) });
+    setFetch(g);
+    const fb = await transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1]), format: 'webm' });
+    expect(fb).toMatchObject({ text: 'hello there', model: 'openai/whisper-large-v3' });
   }
 });

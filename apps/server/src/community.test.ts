@@ -631,21 +631,14 @@ describe('routing to the user key', () => {
     expect(new Set(f.calls.map((c) => c.headers.authorization))).toEqual(new Set(['Bearer sk-or-CTXKEY-0002']));
   });
 
-  it('ElevenLabs Scribe stays on the server key for community users; users with their own OpenRouter key use Whisper on their key', async () => {
-    env.ELEVENLABS_API_KEY = 'xi-owner';
-    try {
-      const eleven = fakeFetch({ 'api.elevenlabs.io': () => json({ words: [{ text: 'Hi', start: 0, end: 0.4, type: 'word' }] }), '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [] }) });
-      setFetch(eleven);
-      const scribe = (key?: string) => keyCtx.run({ openrouter: key }, () => transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' }));
-      expect((await scribe()).model).toBe('elevenlabs/scribe_v2');
-      expect(eleven.calls.map((c) => c.url)).toEqual(['https://api.elevenlabs.io/v1/speech-to-text']);
-      eleven.calls.length = 0;
-      expect((await scribe('sk-or-OWN-0003')).model).toBe('openai/whisper-large-v3');
-      expect(eleven.calls.some((c) => c.url.includes('elevenlabs'))).toBe(false);
-      expect(eleven.calls.every((c) => c.headers.authorization === 'Bearer sk-or-OWN-0003')).toBe(true);
-    } finally {
-      env.ELEVENLABS_API_KEY = undefined;
-    }
+  it('Scribe goes through OpenRouter on whichever key the request runs with: the server key for community users, their own key otherwise', async () => {
+    const f = fakeFetch({ '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [{ word: 'hi', start: 0, end: 0.4 }] }) });
+    setFetch(f);
+    const scribe = (key?: string) => keyCtx.run({ openrouter: key }, () => transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1]), format: 'webm' }));
+    expect((await scribe()).model).toBe('elevenlabs/scribe-v2');
+    expect((await scribe('sk-or-OWN-0003')).model).toBe('elevenlabs/scribe-v2');
+    expect(f.calls.every((c) => c.url.includes('openrouter.ai'))).toBe(true);
+    expect(f.calls.at(-1)!.headers.authorization).toBe('Bearer sk-or-OWN-0003');
   });
 
   it('analysis runs on the default models for everyone, own key or not', async () => {

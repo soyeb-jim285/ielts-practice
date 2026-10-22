@@ -100,21 +100,17 @@ it('speaking pipeline: one primed STT pass, no audio review, feedback, one Jev s
   expect(scores[0]).toMatchObject({ model: 'typesafe/jev-1.13', costUsd: 0.01, attemptId: 'a1', part: 2, ok: true });
 });
 
-it('Scribe: house-paid ElevenLabs row from audio seconds, a failed call as ok=false and the Whisper fallback tagged', async () => {
-  (env as { ELEVENLABS_API_KEY?: string }).ELEVENLABS_API_KEY = 'xi-test';
-  const words = [{ text: 'hello', start: 0, end: 36, type: 'word' }];
-  setFetch(fakeFetch({ elevenlabs: () => json({ words }) }));
-  await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' }));
-  setFetch(fakeFetch({ elevenlabs: () => new Response('no', { status: 500 }), '/audio/transcriptions': () => json({ text: 'hi', duration: 3600, words: [{ word: 'hi', start: 0, end: 1 }] }) }));
-  await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'elevenlabs/scribe_v2', audio: new Uint8Array([1]), format: 'webm' }));
-  (env as { ELEVENLABS_API_KEY?: string }).ELEVENLABS_API_KEY = undefined;
+it('Scribe: an OpenRouter row with the exact usage.cost, and the Whisper fallback tagged', async () => {
+  setFetch(fakeFetch({ '/audio/transcriptions': () => json({ text: 'hello', duration: 36, words: [{ word: 'hello', start: 0, end: 36 }], usage: { seconds: 36, cost: 0.0022 } }) }));
+  await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1]), format: 'webm' }));
+  setFetch(fakeFetch({ '/audio/transcriptions': (_u: string, init?: RequestInit) => (JSON.parse(String(init?.body)).model === 'elevenlabs/scribe-v2' ? new Response('no', { status: 500 }) : json({ text: 'hi', duration: 3600, words: [{ word: 'hi', start: 0, end: 1 }] })) }));
+  await keyCtx.run({ cost: ctx }, () => transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1]), format: 'webm' }));
   const rows = await all(); // inserts race, so pick by what they are, not by order
-  const ok = rows.find((r) => r.provider === 'elevenlabs' && r.ok), failed = rows.find((r) => r.provider === 'elevenlabs' && !r.ok), fallback = rows.find((r) => r.provider === 'openrouter');
-  expect(ok).toMatchObject({ provider: 'elevenlabs', ok: true, audioSeconds: 36, paidBy: 'house' });
-  expect(ok!.costUsd).toBeCloseTo((36 / 3600) * env.ELEVENLABS_SCRIBE_USD_PER_HOUR, 6);
-  expect(failed).toMatchObject({ provider: 'elevenlabs', ok: false, costUsd: 0 });
-  expect(fallback).toMatchObject({ provider: 'openrouter', stage: 'stt', ok: true });
-  expect(fallback!.meta).toMatchObject({ fallbackFrom: 'elevenlabs/scribe_v2', estimated: true });
+  const ok = rows.find((r) => r.model === 'elevenlabs/scribe-v2' && r.ok), fallback = rows.find((r) => r.model === 'openai/whisper-large-v3' && r.ok);
+  expect(ok).toMatchObject({ provider: 'openrouter', stage: 'stt', audioSeconds: 36, costUsd: 0.0022 });
+  expect(rows.some((r) => r.provider === 'elevenlabs')).toBe(false);
+  expect(fallback).toMatchObject({ provider: 'openrouter', stage: 'stt' });
+  expect(fallback!.meta).toMatchObject({ fallbackFrom: 'elevenlabs/scribe-v2', estimated: true });
 });
 
 it('writing: the feedback, proofreading and labelling calls and the Jev scoring call each leave a row with the mocked usage.cost', async () => {

@@ -14,7 +14,7 @@ const Env = z.object({
   BETTER_AUTH_SECRET: secret('test-secret-test-secret-test-secret'),
   BETTER_AUTH_URL: z.string().default('http://localhost:8787'),
   OPENROUTER_API_KEY: secret('test-openrouter'),
-  // Optional: ElevenLabs Scribe v2 speech-to-text (spec §5.2). Unset: Whisper via OpenRouter is the default stt.
+  // Optional: the LiveKit worker's ElevenLabs STT/TTS options and the admin Costs balance. Speaking STT (Scribe) goes through OpenRouter.
   ELEVENLABS_API_KEY: z.string().optional().transform((v) => v || undefined),
   // Soniox real-time STT and TTS for the LiveKit examiner (worker). Unset: live tests are unavailable.
   SONIOX_API_KEY: z.string().optional().transform((v) => v || undefined),
@@ -30,7 +30,6 @@ const Env = z.object({
   LIVEKIT_API_SECRET: z.string().optional().transform((v) => v || undefined),
   LIVEKIT_AGENT_NAME: z.string().min(1).max(128).default('ielts-examiner'),
   LIVEKIT_REPORT_SECRET: z.preprocess((v) => v || undefined, z.string().min(32).optional()),
-  ELEVENLABS_SCRIBE_USD_PER_HOUR: z.coerce.number().min(0).default(0.4), // Scribe has no per-call price in its response: cost = audio hours x this (cost ledger, flagged estimated)
   // Optional: Hugging Face token for the CrisperWhisper Spaces in the admin playground (ai/hfspace.ts); raises the ZeroGPU quota. Unset: anonymous quota.
   HF_TOKEN: z.string().optional().transform((v) => v || undefined),
   // Optional: our verbatim Whisper on Modal for the admin playground (ai/modal.ts). A Modal proxy-auth token; unset: that model returns an error.
