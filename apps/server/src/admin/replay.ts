@@ -5,7 +5,7 @@ import { db } from '../db/client';
 import { replaySessions, user } from '../db/schema';
 import { HTTPException } from 'hono/http-exception';
 import { replayKey } from '../replay';
-import { storage } from '../storage';
+import { resignUrls, storage } from '../storage';
 import type { App } from '../types';
 import { requireOwner } from '../auth';
 import { adminRoute, pageQuery, Paged } from './common';
@@ -80,7 +80,7 @@ export function register(app: App) {
         }
       };
       await Promise.all(Array.from({ length: Math.min(32, s.chunks) }, worker));
-      return new Response(`{"events":[${parts.filter(Boolean).join(',')}]}`, { headers: { 'content-type': 'application/json' } }) as never;
+      return new Response(`{"events":[${await resignUrls(parts.filter(Boolean).join(','))}]}`, { headers: { 'content-type': 'application/json' } }) as never;
     },
   );
 }

@@ -117,3 +117,26 @@ export let storage: Storage = R2_CONFIGURED ? r2 : localDisk;
 export function setStorage(s: Storage) {
   storage = s;
 }
+
+const SIGNED_URL = /https?:\/\/[^"'\\\s]+[?&](?:X-Amz-Signature|sig)=[0-9a-f]+[^"'\\\s]*/g;
+/** Storage key behind one of our signed GET URLs (R2 path or virtual-host style, or the dev disk), null for any other URL. */
+function signedKey(raw: string): string | null {
+  try {
+    const u = new URL(raw), path = decodeURIComponent(u.pathname.slice(1)), host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+    if (u.searchParams.has('sig')) return path.startsWith('api/local-storage/') ? path.slice('api/local-storage/'.length) : null;
+    if (u.hostname === host) return path.startsWith(`${Bucket}/`) ? path.slice(Bucket.length + 1) : null;
+    return u.hostname === `${Bucket}.${host}` ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Our signed URLs inside stored text (a replay's <audio src>) signed afresh: they expire (listening audio after 6 h) and an old replay would play silence. */
+export async function resignUrls(text: string, expiresS = 12 * 3600): Promise<string> {
+  const fresh = new Map<string, string>();
+  for (const [url] of text.matchAll(SIGNED_URL)) {
+    const key = fresh.has(url) ? null : signedKey(url);
+    if (key) fresh.set(url, await storage.presignGet(key, expiresS));
+  }
+  return fresh.size ? text.replace(SIGNED_URL, (u) => fresh.get(u) ?? u) : text;
+}
