@@ -17,3 +17,15 @@ it('resignUrls: our signed R2 and dev-disk URLs in stored text get fresh signatu
   ]);
   expect(await resignUrls('{"no":"urls"}')).toBe('{"no":"urls"}');
 });
+
+it('resignUrls: never signs a key outside lr/ (recordings are user data), and stays fast on crafted input', async () => {
+  setStorage({ ...localDisk, presignGet: async (key) => `https://fresh.test/${key}` });
+  const planted = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET}/speaking/u1/a.webm?X-Amz-Signature=abc`;
+  const escape = 'http://localhost:5173/api/local-storage/lr/../speaking/a.webm?exp=1&sig=0a';
+  const text = JSON.stringify({ a: planted, b: escape });
+  expect(await resignUrls(text)).toBe(text);
+  const t0 = performance.now();
+  await resignUrls(`"${'https://a'.repeat(200_000)}"`); // 1.8 MB with no "?": quadratic with a backtracking pattern
+  await resignUrls(`"https://x/?${'sig=0a&'.repeat(300_000)}"`); // 2 MB of signature markers
+  expect(performance.now() - t0).toBeLessThan(500);
+});

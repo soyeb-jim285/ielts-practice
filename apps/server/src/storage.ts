@@ -118,14 +118,34 @@ export function setStorage(s: Storage) {
   storage = s;
 }
 
-const SIGNED_URL = /https?:\/\/[^"'\\\s]+[?&](?:X-Amz-Signature|sig)=[0-9a-f]+[^"'\\\s]*/g;
-/** Storage key behind one of our signed GET URLs (R2 path or virtual-host style, or the dev disk), null for any other URL. */
+const STOP = new Set(['"', "'", '\\', ' ', '\n', '\t', '\r']);
+/** URL-shaped runs around each signature parameter. Linear: no regex backtracking, and no character is scanned twice
+ *  (recordings are user-uploaded text, so the input can be crafted). The signature itself is checked by signedKey. */
+function signedUrls(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const marker of ['X-Amz-Signature=', 'sig=']) {
+    for (let i = text.indexOf(marker), done = 0; i !== -1 && found.size < 50; i = text.indexOf(marker, Math.max(i + 1, done))) {
+      let start = i, end = i;
+      while (start > done && i - start < 2048 && !STOP.has(text[start - 1]!)) start--;
+      while (end < text.length && end - i < 4096 && !STOP.has(text[end]!)) end++;
+      const url = text.slice(start, end);
+      if (/^https?:\/\//.test(url)) found.add(url);
+      done = end;
+    }
+  }
+  return found;
+}
+/** Storage key behind one of our signed GET URLs (R2 path or virtual-host style, or the dev disk), null for any other URL.
+ *  Only listening/reading assets (lr/): a recording is user data, so a planted URL must not get any other object signed. */
 function signedKey(raw: string): string | null {
   try {
     const u = new URL(raw), path = decodeURIComponent(u.pathname.slice(1)), host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-    if (u.searchParams.has('sig')) return path.startsWith('api/local-storage/') ? path.slice('api/local-storage/'.length) : null;
-    if (u.hostname === host) return path.startsWith(`${Bucket}/`) ? path.slice(Bucket.length + 1) : null;
-    return u.hostname === `${Bucket}.${host}` ? path : null;
+    const key = u.searchParams.has('sig')
+      ? path.startsWith('api/local-storage/') ? path.slice('api/local-storage/'.length) : null
+      : !u.searchParams.has('X-Amz-Signature') ? null
+      : u.hostname === host ? (path.startsWith(`${Bucket}/`) ? path.slice(Bucket.length + 1) : null)
+      : u.hostname === `${Bucket}.${host}` ? path : null;
+    return key?.startsWith('lr/') && !key.includes('..') ? key : null;
   } catch {
     return null;
   }
@@ -133,10 +153,9 @@ function signedKey(raw: string): string | null {
 
 /** Our signed URLs inside stored text (a replay's <audio src>) signed afresh: they expire (listening audio after 6 h) and an old replay would play silence. */
 export async function resignUrls(text: string, expiresS = 12 * 3600): Promise<string> {
-  const fresh = new Map<string, string>();
-  for (const [url] of text.matchAll(SIGNED_URL)) {
-    const key = fresh.has(url) ? null : signedKey(url);
-    if (key) fresh.set(url, await storage.presignGet(key, expiresS));
+  for (const url of signedUrls(text)) {
+    const key = signedKey(url);
+    if (key) text = text.split(url).join(await storage.presignGet(key, expiresS));
   }
-  return fresh.size ? text.replace(SIGNED_URL, (u) => fresh.get(u) ?? u) : text;
+  return text;
 }
