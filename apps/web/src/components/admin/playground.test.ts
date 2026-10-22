@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { audioFormat, encodeWav, pronTone, recordingLabel, transcriptStats } from './playground';
+import { audioFormat, encodeWav, pronTone, recordingLabel, runWords, transcriptDiff, transcriptStats } from './playground';
 
 it('counts fillers, immediate repetitions and the speaking rate without fillers', () => {
   const words = ['Um,', 'I', 'I', 'think', 'uh', 'the', 'city', 'is', 'is', 'big.'].map((w, i) => ({ w, start: i * 0.5, end: i * 0.5 + 0.4 }));
@@ -29,4 +29,13 @@ it('labels a stored recording with who, part, mode, length and when', () => {
   const r = { id: 'a1', user: 'sam@x.dev', name: 'Sam', part: 2, mode: 'live', prompt: null, createdAt: '2026-10-03T08:05:00Z', durationMs: 102_400, format: 'webm', audioUrl: '' };
   expect(recordingLabel(r)).toMatch(/^sam@x\.dev · Part 2 live · 1:42 · 3 Oct 2026/);
   expect(recordingLabel({ ...r, mode: 'practice', durationMs: null })).toMatch(/^sam@x\.dev · Part 2 · 3 Oct/);
+});
+
+it('diffs transcripts word by word, ignoring case and punctuation', () => {
+  const ws = (s: string) => s.split(' ').map((w, i) => ({ w, start: i, end: i + 0.5 }));
+  const d = transcriptDiff(ws('Um, I went to the market.'), ws('I I went to market'));
+  expect(d.toks.map((t) => `${t.kind[0]}:${t.w}`)).toEqual(['d:Um,', 's:I', 'a:I', 's:went', 's:to', 'd:the', 's:market']);
+  expect(d).toMatchObject({ added: 1, removed: 2, same: 4 });
+  expect(transcriptDiff(ws('questions 1 to 6'), ws('questions one to six.')).same).toBe(4);
+  expect(runWords({ words: [], text: ' a  b ' }).map((w) => w.w)).toEqual(['a', 'b']);
 });

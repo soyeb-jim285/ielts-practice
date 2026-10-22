@@ -6119,6 +6119,8 @@ export interface components {
             costUsd: number | null;
             /** @description true: OpenRouter's own usage.cost; false: list price x audio seconds */
             costExact: boolean;
+            /** @description true: the model rejected the priming prompt, so this ran without it */
+            promptDropped?: boolean;
             /** @description The provider's response as OpenRouter returned it */
             raw?: unknown;
             /** @description Set when this is a stored earlier run (costUsd above is then 0): when it ran and what it cost then */

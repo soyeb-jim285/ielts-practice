@@ -52,6 +52,16 @@ it('playground: lists OpenRouter transcription models with prices, transcribes w
   const j = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/json-only', audio: 'AQ==', format: 'wav' } });
   expect(((await j.json()) as any).text).toBe('Hello there.');
   expect(fmts).toEqual(['verbose_json', 'json']);
+  // a host that rejects any prompt (Together for Parakeet): run again without it, flagged
+  const prompts: unknown[] = [];
+  setFetch(fakeFetch({ '/audio/transcriptions': (_u, init) => {
+    const b = JSON.parse(String(init!.body));
+    prompts.push(b.prompt ?? null);
+    return b.prompt ? new Response('{"error":{"message":"Provider returned 400","code":400}}', { status: 400 }) : new Response('{"text":"Hi."}');
+  } }));
+  const np = (await (await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/no-prompt', audio: 'Aw==', format: 'wav', prompt: 'Uh, um.' } })).json()) as any;
+  expect(np).toMatchObject({ text: 'Hi.', promptDropped: true });
+  expect(prompts).toEqual(['Uh, um.', null]);
   setFetch(fakeFetch({ '/audio/transcriptions': () => new Response('{"error":{"message":"Provider returned 400","code":400,"metadata":{"raw":"audio too long"}}}', { status: 400 }) }));
   const why = await req('/api/admin/stt/transcribe', { headers, body: { model: 'acme/picky', audio: 'Ag==', format: 'wav' } });
   expect(((await why.json()) as any).error).toBe('Provider returned 400: audio too long (400)');

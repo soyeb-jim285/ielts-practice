@@ -1,4 +1,5 @@
 // Admin playground helpers: transcript stats, audio encoding and recording labels.
+import { diffArrays } from 'diff';
 import { formatClock, formatDate } from '@/lib/format';
 /** A filled pause ("um", "uhh", "er", "hmm"), the same rule as the server's verbatim check. */
 const FILLER = /^(u+m+|u+h+|e+r+m*|a+h+|h+m+|m+)$/;
@@ -81,3 +82,18 @@ export type Recording = { id: string; user: string; name: string; part: number; 
 /** "a@b.c · Part 2 live · 1:42 · 3 Oct 2026, 14:05": who, what and when, for the recording picker and the clip caption. */
 export const recordingLabel = (r: Recording) =>
   [r.user, `Part ${r.part}${r.mode === 'practice' ? '' : ` ${r.mode}`}`, r.durationMs != null && formatClock(r.durationMs / 1000), formatDate(r.createdAt, true)].filter(Boolean).join(' · ');
+
+// "1" and "one" are the same word to a reader; models differ only in how they write numbers. ponytail: 0-20 only, add more when a diff shows them
+const NUM = 'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty'.split(' ');
+const same = (w: string) => { const b = bare(w); return NUM[Number(b)] && /^\d+$/.test(b) ? NUM[Number(b)]! : b; };
+export type DiffTok = { w: string; kind: 'same' | 'add' | 'del'; start?: number };
+/** Word diff of one transcript against a baseline, ignoring case and punctuation ("Um," = "um"): `add` = only in `other`, `del` = only in the baseline. */
+export function transcriptDiff(base: Word[], other: Word[]) {
+  const toks: DiffTok[] = [];
+  for (const p of diffArrays(base, other, { comparator: (a, b) => same(a.w) === same(b.w) }))
+    for (const w of p.value) toks.push({ w: w.w, kind: p.added ? 'add' : p.removed ? 'del' : 'same', start: w.start });
+  const added = toks.filter((t) => t.kind === 'add').length, removed = toks.filter((t) => t.kind === 'del').length;
+  return { toks, added, removed, same: toks.length - added - removed };
+}
+/** Words of a run: timed ones, or the text split on spaces for models without word times. */
+export const runWords = (r: { words: Word[]; text: string }): Word[] => (r.words.length ? r.words : r.text.split(/\s+/).filter(Boolean).map((w) => ({ w, start: NaN, end: NaN })));

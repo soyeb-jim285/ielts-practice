@@ -7,9 +7,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { PronunciationLab } from '@/components/admin/PronunciationLab';
 import { CascadeSteps, CascadeTimeline } from '@/components/admin/CascadeTimeline';
-import { audioFormat, blobToBase64, isFiller, recordingLabel, toWav16k, transcriptStats, type Recording, type Word } from '@/components/admin/playground';
+import { audioFormat, blobToBase64, isFiller, recordingLabel, runWords, toWav16k, transcriptDiff, transcriptStats, type Recording, type Word } from '@/components/admin/playground';
 import { Pager } from '@/components/admin/Pager';
-import { Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
+import { Alert, Badge, Button, Card, Chip, Input, PageContainer, Segmented, Select, Spinner, Textarea } from '@/components/ui';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useAdmin, type Page } from '@/lib/admin';
 import { formatDate } from '@/lib/format';
@@ -41,7 +41,7 @@ function Playground() {
 // ---------------------------------------------------------------- transcription
 
 type SttModel = { id: string; name: string; description: string; usdPerSecond: number | null; usdPerMTokIn: number | null; usdPerMTokOut: number | null };
-type SttRun = { model: string; text: string; words: Word[]; duration: number; latencyMs: number; costUsd: number | null; costExact: boolean; raw: unknown; cached: { at: string; costUsd: number | null } | null };
+type SttRun = { model: string; text: string; words: Word[]; duration: number; latencyMs: number; costUsd: number | null; costExact: boolean; promptDropped?: boolean; raw: unknown; cached: { at: string; costUsd: number | null } | null };
 type RunState = { status: 'running' } | { status: 'done'; r: SttRun } | { status: 'error'; error: string };
 type Format = NonNullable<ReturnType<typeof audioFormat>>;
 /** A clip from this browser (recorded or uploaded), or a student's recording the server already has (sent by id, not uploaded). */
@@ -136,7 +136,8 @@ function TranscriptionLab() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <div className="space-y-6">
+      {/* sticky: the player stays in reach while reading long results (clicking a word plays it) */}
+      <div className="min-w-0 space-y-6 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
         <Card>
           <h2 className="type-h4 mb-3">1. Audio</h2>
           <div className="flex flex-wrap gap-2">
@@ -209,73 +210,159 @@ function TranscriptionLab() {
         </Card>
       </div>
 
-      <section aria-label="Results" className="space-y-4">
-        {runs._?.status === 'error' && <p className="text-sm text-bad-text">{runs._.error}</p>}
-        {!clip && <p className="type-caption">Record, upload or pick a student's recording, pick models, then transcribe. A model already run on the same audio and options shows its saved result; Run again pays for a new one. Click a word to hear it. Highlighted words are filled pauses; dotted ones have low confidence.</p>}
-        {Object.entries(runs).filter(([id]) => id !== '_').map(([id, s]) => (
-          <SttResult key={id} id={id} s={s} model={byId.get(id)} onSeek={seek} onRerun={() => void run([id], true)} />
-        ))}
-      </section>
+      <Results runs={runs} byId={byId} hasClip={!!clip} onSeek={seek} onRerun={(id) => void run([id], true)} />
     </div>
   );
 }
 
-function SttResult({ id, s, model, onSeek, onRerun }: { id: string; s: RunState; model?: SttModel; onSeek: (t: number) => void; onRerun: () => void }) {
-  const st = s.status === 'done' ? transcriptStats(s.r.words) : null;
+type Done = { id: string; r: SttRun };
+/** Results: a comparison table, then one card per model, each as its transcript or as a word diff against a baseline run. */
+function Results({ runs, byId, hasClip, onSeek, onRerun }: { runs: Record<string, RunState>; byId: Map<string, SttModel>; hasClip: boolean; onSeek: (t: number) => void; onRerun: (id: string) => void }) {
+  const entries = Object.entries(runs).filter(([id]) => id !== '_');
+  const done: Done[] = entries.flatMap(([id, s]) => (s.status === 'done' ? [{ id, r: s.r }] : []));
+  const [view, setView] = useState<'text' | 'diff'>('text');
+  const [baseId, setBaseId] = useState<string>();
+  const base = done.find((d) => d.id === baseId) ?? done[0];
+  const canDiff = done.length > 1;
+  const diffs = new Map(base ? done.map((d) => [d.id, transcriptDiff(runWords(base.r), runWords(d.r))]) : []);
+  const name = (id: string) => byId.get(id)?.name ?? id;
+
+  if (runs._?.status === 'error') return <Alert tone="bad">{runs._.error}</Alert>;
+  if (!hasClip || !entries.length)
+    return (
+      <section aria-label="Results">
+        <Card className="text-sm text-muted">
+          <p>Record, upload or pick a student's recording, pick models, then transcribe.</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>A model already run on the same audio and options shows its saved result; Run again pays for a new one.</li>
+            <li>Click a word to hear it. Highlighted words are filled pauses; dotted ones have low confidence.</li>
+            <li>With two or more results, Diff shows each transcript against the one you pick as baseline.</li>
+          </ul>
+        </Card>
+      </section>
+    );
+
+  return (
+    <section aria-label="Results" className="min-w-0 space-y-4">
+      {done.length > 0 && (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <caption className="sr-only">Results compared</caption>
+            <thead className="text-left text-muted">
+              <tr className="border-b border-line">
+                {['Model', 'Latency', 'Cost', 'Words', 'Fillers / repeats', 'Rate', ...(canDiff ? ['Diff'] : [])].map((h, i) => (
+                  <th key={h} scope="col" className={cn('px-2.5 py-2 font-medium whitespace-nowrap', i > 0 && 'text-right')}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="type-num">
+              {done.map(({ id, r }) => {
+                const st = transcriptStats(runWords(r)), d = diffs.get(id);
+                return (
+                  <tr key={id} className="border-b border-line last:border-0">
+                    <th scope="row" className="max-w-52 truncate px-2.5 py-2 text-left font-medium" title={id}>{name(id)}</th>
+                    <td className="px-2.5 py-2 text-right">{r.cached ? <Badge tone="info">saved</Badge> : `${(r.latencyMs / 1000).toFixed(1)} s`}</td>
+                    <td className="px-2.5 py-2 text-right whitespace-nowrap">{money(r.cached ? r.cached.costUsd : r.costUsd)}{!r.costExact && r.costUsd != null ? ' est.' : ''}</td>
+                    <td className="px-2.5 py-2 text-right">{st.words}</td>
+                    <td className="px-2.5 py-2 text-right">{st.fillers} / {st.repeats}</td>
+                    <td className="px-2.5 py-2 text-right whitespace-nowrap">{r.words.length ? `${st.wpm} wpm` : '—'}</td>
+                    {canDiff && <td className="px-2.5 py-2 text-right whitespace-nowrap">{id === base!.id ? 'baseline' : d ? `+${d.added} / −${d.removed}` : ''}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+      {canDiff && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <Segmented label="Result view" size="sm" value={view} onChange={setView} options={[{ value: 'text', label: 'Transcripts' }, { value: 'diff', label: 'Diff' }]} />
+          {view === 'diff' && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-sm whitespace-nowrap text-muted" aria-hidden>Compared with</span>
+                <Select label="Compared with" hideLabel value={base!.id} onChange={(e) => setBaseId(e.target.value)} className="w-64">
+                  {done.map((d) => <option key={d.id} value={d.id}>{name(d.id)}</option>)}
+                </Select>
+              </div>
+              <p className="type-caption flex items-center gap-2">
+                <ins className="rounded-sm bg-good-soft px-1.5 text-good-text no-underline">only in this one</ins>
+                <del className="rounded-sm bg-bad-soft px-1.5 text-bad-text">only in baseline</del>
+              </p>
+            </>
+          )}
+        </div>
+      )}
+      {entries.map(([id, s]) => (
+        <SttResult key={id} id={id} s={s} model={byId.get(id)} onSeek={onSeek} onRerun={() => onRerun(id)} diff={view === 'diff' && canDiff && id !== base!.id ? diffs.get(id) : undefined} baseName={base && name(base.id)} isBase={view === 'diff' && canDiff && id === base!.id} />
+      ))}
+    </section>
+  );
+}
+
+function DiffText({ toks, onSeek }: { toks: ReturnType<typeof transcriptDiff>['toks']; onSeek: (t: number) => void }) {
+  return (
+    <p className="mt-3 flex flex-wrap gap-x-1 gap-y-1.5 leading-relaxed">
+      {toks.map((t, i) => {
+        const Tag = t.kind === 'add' ? 'ins' : t.kind === 'del' ? 'del' : 'span';
+        const cls = cn('rounded px-0.5', t.kind === 'add' && 'bg-good-soft text-good-text no-underline', t.kind === 'del' && 'bg-bad-soft text-bad-text decoration-bad/60');
+        return Number.isFinite(t.start) ? (
+          <button key={i} type="button" onClick={() => onSeek(t.start!)} className="rounded hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-brand" title={`${t.start!.toFixed(2)} s`}>
+            <Tag className={cls}>{t.w}</Tag>
+          </button>
+        ) : (
+          <Tag key={i} className={cls}>{t.w}</Tag>
+        );
+      })}
+    </p>
+  );
+}
+
+function SttResult({ id, s, model, onSeek, onRerun, diff, baseName, isBase }: { id: string; s: RunState; model?: SttModel; onSeek: (t: number) => void; onRerun: () => void; diff?: ReturnType<typeof transcriptDiff>; baseName?: string; isBase?: boolean }) {
   return (
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate font-semibold">{model?.name ?? id}</h3>
-          <p className="type-caption truncate">{id}</p>
+          <h3 className="flex flex-wrap items-center gap-2 font-semibold">
+            <span className="truncate">{model?.name ?? id}</span>
+            {isBase && <Badge tone="neutral">Baseline</Badge>}
+            {s.status === 'done' && s.r.cached && <Badge tone="info">Saved {formatDate(s.r.cached.at, true)}</Badge>}
+          </h3>
+          <p className="type-caption truncate">{id}{s.status === 'done' && !s.r.words.length && ' · no word times'}</p>
         </div>
-        <Button size="sm" variant="ghost" onClick={onRerun} disabled={s.status === 'running'}>Run again</Button>
+        <Button size="sm" variant="outline" onClick={onRerun} disabled={s.status === 'running'}>Run again</Button>
       </div>
       {s.status === 'running' && <div className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Transcribing…</div>}
-      {s.status === 'error' && <p className="mt-3 text-sm text-bad-text">{s.error}</p>}
-      {s.status === 'done' && st && (
-        <>
-          {s.r.cached && (
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <Badge tone="info">Saved result</Badge>
-              <span className="text-muted">from {formatDate(s.r.cached.at, true)}, cost {money(s.r.cached.costUsd)} then. Run again for a fresh one.</span>
-            </p>
-          )}
-          <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-            {[
-              ['Latency', `${(s.r.latencyMs / 1000).toFixed(1)} s`],
-              ['Cost', `${money(s.r.costUsd)}${s.r.costUsd != null && !s.r.costExact ? ' est.' : ''}`],
-              ['Words', st.words],
-              ['Fillers', st.fillers],
-              ['Repeats', st.repeats],
-              ['Rate', `${st.wpm} wpm`],
-              ['Word times', s.r.words.length ? 'yes' : 'none'],
-            ].map(([k, v]) => (
-              <div key={k as string} className="flex gap-1.5"><dt className="text-muted">{k}</dt><dd className="type-num font-medium">{v}</dd></div>
+      {s.status === 'error' && <Alert tone="bad" title="This model failed" className="mt-3">{s.error}</Alert>}
+      {s.status === 'done' && s.r.promptDropped && <Alert tone="warn" className="mt-3">This model's host rejects a priming prompt, so it ran without one.</Alert>}
+      {s.status === 'done' &&
+        (diff ? (
+          <>
+            <p className="type-caption mt-3">Against {baseName}: {diff.added} words only here, {diff.removed} only in the baseline, {diff.same} shared.</p>
+            <DiffText toks={diff.toks} onSeek={onSeek} />
+          </>
+        ) : s.r.words.length ? (
+          <p className="mt-3 flex flex-wrap gap-x-1 gap-y-1.5 leading-relaxed">
+            {s.r.words.map((w, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSeek(w.start)}
+                title={`${w.start.toFixed(2)}–${w.end.toFixed(2)} s${w.conf != null ? ` · conf ${w.conf}` : ''}`}
+                className={cn('rounded px-0.5 hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-brand', isFiller(w.w) && 'bg-warn-soft text-warn-text', w.conf != null && w.conf < 0.5 && 'underline decoration-dotted underline-offset-4')}
+              >
+                {w.w}
+              </button>
             ))}
-          </dl>
-          {s.r.words.length ? (
-            <p className="mt-3 flex flex-wrap gap-x-1 gap-y-1.5 leading-relaxed">
-              {s.r.words.map((w, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => onSeek(w.start)}
-                  title={`${w.start.toFixed(2)}–${w.end.toFixed(2)} s${w.conf != null ? ` · conf ${w.conf}` : ''}`}
-                  className={cn('rounded px-0.5 hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-brand', isFiller(w.w) && 'bg-warn-soft text-warn-text', w.conf != null && w.conf < 0.5 && 'underline decoration-dotted underline-offset-4')}
-                >
-                  {w.w}
-                </button>
-              ))}
-            </p>
-          ) : (
-            <p className="mt-3 whitespace-pre-wrap">{s.r.text || <span className="text-muted">(empty)</span>}</p>
-          )}
-          <details className="mt-3">
-            <summary className="cursor-pointer text-sm text-muted">Raw response</summary>
-            <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-surface-2 p-3 text-xs">{JSON.stringify(s.r.raw, null, 2)}</pre>
-          </details>
-        </>
+          </p>
+        ) : (
+          <p className="mt-3 whitespace-pre-wrap">{s.r.text || <span className="text-muted">(empty)</span>}</p>
+        ))}
+      {s.status === 'done' && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm text-muted">Raw response</summary>
+          <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-surface-2 p-3 text-xs">{JSON.stringify(s.r.raw, null, 2)}</pre>
+        </details>
       )}
     </Card>
   );

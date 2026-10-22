@@ -514,17 +514,23 @@ export async function sttModels(): Promise<SttModel[]> {
 export async function transcribeOnce(o: { model: string; audio: Uint8Array; format: Format; prompt?: string; language?: string | null }) {
   const t0 = Date.now();
   const options = o.prompt ? { provider: { options: Object.fromEntries(['groq', 'together', 'deepinfra', 'deepinfra/us', 'fireworks'].map((slug) => [slug, { prompt: o.prompt }])) }, prompt: o.prompt } : {};
-  const extra = { ...options, language: o.language ?? undefined };
-  // gpt-4o-transcribe and friends take only "json": no word timings from them
-  const d = await stt(o, 'playground', extra).catch((e) =>
-    e instanceof AiError && e.status === 400 && /response_format/.test(e.detail ?? '') ? stt(o, 'playground', { ...extra, response_format: 'json', timestamp_granularities: undefined }) : Promise.reject(e),
-  );
+  let promptDropped = false;
+  // A 400 that a narrower request avoids: gpt-4o-transcribe and friends take only "json" (no word timings then); Together rejects any prompt for
+  // Parakeet (its only host), so a prompted run goes again without one and says so (promptDropped).
+  const go = (x: Record<string, unknown>): Promise<SttResponse> =>
+    stt(o, 'playground', x).catch((e) => {
+      if (!(e instanceof AiError && e.status === 400)) throw e;
+      if (/response_format/.test(e.detail ?? '') && x.response_format !== 'json') return go({ ...x, response_format: 'json', timestamp_granularities: undefined });
+      if (x.prompt) return go({ ...x, prompt: undefined, provider: undefined }).then((d) => ((promptDropped = true), d));
+      throw e;
+    });
+  const d = await go({ ...options, language: o.language ?? undefined });
   const ms = Date.now() - t0;
   const words = wordsOf(d), seconds = d.duration ?? words.at(-1)?.end ?? 0;
   const u = usageCost(d.usage), price = (await sttModels().catch(() => [])).find((m) => m.id === o.model)?.usdPerSecond;
   const costUsd = u.exact ? u.costUsd : price != null ? price * seconds : null;
   recordCost({ stage: 'playground', provider: 'openrouter', model: o.model, costUsd: costUsd ?? 0, audioSeconds: seconds, paidBy: 'house', meta: { generationId: d.id, ...(!u.exact && { estimated: true }), ...(costUsd == null && { unknownCost: true }) } });
-  return { model: o.model, text: d.text ?? words.map((w) => w.w).join(' '), words, duration: seconds, latencyMs: ms, costUsd, costExact: u.exact, raw: d };
+  return { model: o.model, text: d.text ?? words.map((w) => w.w).join(' '), words, duration: seconds, latencyMs: ms, costUsd, costExact: u.exact, promptDropped, raw: d };
 }
 
 export type ModelInfo = { id: string; name: string; input: string[]; output: string[]; pricing: { prompt: string; completion: string }; voices: string[] };

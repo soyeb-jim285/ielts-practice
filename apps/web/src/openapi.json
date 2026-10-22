@@ -6362,6 +6362,10 @@
             "type": "boolean",
             "description": "true: OpenRouter's own usage.cost; false: list price x audio seconds"
           },
+          "promptDropped": {
+            "type": "boolean",
+            "description": "true: the model rejected the priming prompt, so this ran without it"
+          },
           "raw": {
             "description": "The provider's response as OpenRouter returned it"
           },

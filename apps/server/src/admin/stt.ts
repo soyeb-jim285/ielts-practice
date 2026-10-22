@@ -28,6 +28,7 @@ const SttRun = z
     latencyMs: z.number(),
     costUsd: z.number().nullable().openapi({ description: 'null: token-priced model and OpenRouter sent no usage' }),
     costExact: z.boolean().openapi({ description: "true: OpenRouter's own usage.cost; false: list price x audio seconds" }),
+    promptDropped: z.boolean().optional().openapi({ description: 'true: the model rejected the priming prompt, so this ran without it' }),
     raw: z.unknown().openapi({ description: "The provider's response as OpenRouter returned it" }),
     cached: z.object({ at: z.string(), costUsd: z.number().nullable() }).nullable().openapi({ description: 'Set when this is a stored earlier run (costUsd above is then 0): when it ran and what it cost then' }),
   })
