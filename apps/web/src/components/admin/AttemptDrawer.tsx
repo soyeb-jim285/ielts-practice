@@ -139,15 +139,22 @@ function Live({ live }: { live: NonNullable<SpendAttempt['live']> }) {
 function Body({ d }: { d: SpendAttempt }) {
   const a = d.attempt;
   if (!d.recorded) return <p className="text-sm text-muted">No costs were recorded for this attempt. It ran before cost tracking started.</p>;
+  const live = d.live?.totalUsd ?? 0;
   return (
     <>
       <p className="text-sm text-muted">
         <span className="capitalize">{a.skill}</span> part {a.part} · {userLabel({ id: a.userId, email: a.email })} · {dhakaTime(a.createdAt)} · {a.status}
       </p>
-      <p className="type-num mt-2 text-3xl font-semibold tracking-tight">{usdFine(d.totalUsd)}</p>
+      <p className="type-num mt-2 text-3xl font-semibold tracking-tight">{usdFine(d.totalUsd + live)}</p>
+      {d.live && <p className="type-caption">Part {a.part} scoring {usdFine(d.totalUsd)} + live examiner {usdFine(live)} (estimated, shared by all parts).</p>}
       {d.wasteUsd > 0 && <p className="type-caption">{usdFine(d.wasteUsd)} of it was wasted on failed or repeated calls.</p>}
-      {d.sessionTotal && <p className="type-caption">Whole session {usdFine(d.sessionTotal.usd)} across {d.sessionTotal.parts} parts.</p>}
-      <Waterfall stages={d.stages} total={d.totalUsd} />
+      {d.sessionTotal && (
+        <p className="type-caption">
+          Whole session {usdFine(d.sessionTotal.usd)}
+          {d.live ? ` = ${d.sessionTotal.parts} parts' scoring ${usdFine(d.sessionTotal.usd - live)} + live examiner ${usdFine(live)}.` : ` across ${d.sessionTotal.parts} parts.`}
+        </p>
+      )}
+      <Waterfall stages={live ? [...d.stages, { stage: 'live_examiner', costUsd: live, calls: d.live!.items.length }] : d.stages} total={d.totalUsd + live} />
       <ul className="mt-5 divide-y divide-line border-y border-line">
         {d.items.map((i, k) => <Item key={k} i={i} />)}
       </ul>

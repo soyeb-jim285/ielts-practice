@@ -8,6 +8,7 @@ const STAGES: Record<string, string> = {
   examiner_llm: 'Examiner reply (LLM)',
   examiner_tts: 'Examiner voice (TTS)',
   live_realtime: 'Live realtime',
+  live_examiner: 'Live examiner',
   stt_verbatim: 'Verbatim transcription',
   lr_mistake: 'Mistake reasons',
   relevance: 'Relevance check',
