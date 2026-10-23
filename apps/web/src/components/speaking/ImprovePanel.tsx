@@ -17,12 +17,12 @@ export function useAddFixes(fixes: Fix[], inDeck: boolean): AddFixes {
   return { add: () => m.mutate(), added: inDeck || m.isSuccess, pending: m.isPending };
 }
 
-/** Improve tab: the band+1 rewrite of their own answer, then the fixes as review cards. Retry lives in the action row above the tabs. */
+/** Improve tab: the Band 9 rewrite of their own answer, then the fixes as review cards. Retry lives in the action row above the tabs. */
 export function ImprovePanel({ result, deck }: { result: AnalysisResult; deck: AddFixes }) {
   return (
     <div className="space-y-8 md:space-y-12">
       {result.rewrite.text && (
-        <Section title="Your answer, one band higher">
+        <Section title="Your answer at Band 9">
           <p className="type-reading max-w-[68ch] whitespace-pre-wrap">{result.rewrite.text}</p>
           {result.rewrite.note && <Alert>{result.rewrite.note}</Alert>}
         </Section>

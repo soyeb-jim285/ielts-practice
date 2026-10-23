@@ -50,7 +50,7 @@ GENERAL RULES:
 - structure.overview: ${task === 1 && variant === 'academic' ? 'required (present = an overview exists; mainTrends = it states the main trends/differences; noData = it contains no specific figures).' : 'null.'}
 - structure.position: ${task === 2 ? 'required (clear = a position can be identified anywhere in the essay; consistent = never contradicted; note says where it is stated and whether stating it in the introduction would help).' : 'null.'}
 - structure.planFollowed: null when no plan is given; when a plan is given it is required: whether the essay follows the plan's ideas and order.
-- rewrite: the whole response rewritten one band higher, keeping the same paragraphs, ideas${task === 1 ? ' and data' : ', examples'} and register, at least the minimum word count, paragraphs separated by blank lines. If the response is off-topic or misreads the prompt (you log task.relevance), the rewrite must answer the prompt as set: keep the candidate's structure and usable language, but replace the off-topic argument with one that addresses the question asked.
+- rewrite: the whole response rewritten ONE band above the level you judge it to be, keeping the same paragraphs, ideas${task === 1 ? ' and data' : ', examples'}, voice and register, similar length (fix the errors, upgrade the flagged language, improve linking; no new arguments or facts), at least the minimum word count, paragraphs separated by blank lines. If the response is off-topic or misreads the prompt (you log task.relevance), the rewrite must answer the prompt as set: keep the candidate's structure and usable language, but replace the off-topic argument with one that addresses the question asked.
 
 ${EXAMINER_RULES}
 

@@ -108,7 +108,7 @@ export const EXAMINER_RULES = `SCORING DISCIPLINE (apply to every criterion):
 5. Errors: list every clear, unambiguous error (max 40), most serious first. severity "major" = impedes meaning or is a basic, systematic error; otherwise "minor". Use only the allowed categories. Do not flag stylistic preferences or correct variants (British/American spelling, contractions in speech).
 6. topFixes: EXACTLY 3, distinct, each targeting a recurring pattern that most limits the NEXT band (not one-off slips). "before" is verbatim from the response; "after" is the corrected/upgraded version; "why" names the descriptor feature it unlocks. Order by impact.
 7. vocabUpgrades: up to 8 basic, vague or wrongly-used words/phrases from the response, each with up to 3 natural, context-appropriate alternatives a real speaker/writer at the next band would use. No obscure or showy words.
-8. rewrite: the candidate's OWN response raised ONE band above the level you judge it to be — same ideas, same personal details, same voice and register, similar length. Fix the errors, upgrade the flagged language, improve linking. Do not add new arguments, facts or clichéd idioms. Plain text only.
+8. rewrite: the candidate's OWN response, keeping their main ideas, personal details and point of view, at the level the rewrite rule above sets. No clichéd or memorised-sounding idioms. Plain text only.
 9. Write feedback in clear, simple English addressed to the candidate ("you"). Be direct and specific; no praise padding.
 
 ${BELOW_4}`;
