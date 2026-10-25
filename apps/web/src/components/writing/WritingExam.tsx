@@ -4,7 +4,7 @@ import { ChevronDown, Clock, NotebookPen, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { BlockedAlert } from '@/components/community/BlockedPanel';
 import { ExamShell } from '@/components/layout/ExamShell';
-import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, Tabs, toast } from '@/components/ui';
+import { Alert, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Dialog, toast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { blockerOf, type Blocker } from '@/lib/community';
 import { formatClock, plural } from '@/lib/format';
@@ -148,6 +148,7 @@ export function WritingExam({
   const current = prompts.find((p) => p.id === active)!;
   const draft = drafts[current.id]!;
   const multi = prompts.length > 1;
+  const exam = mode === 'exam';
   const words = countWords(draft.text);
   const min = minWords(current.part);
   // Manual submit needs a real attempt at every task; the time-up auto-submit still sends whatever is there.
@@ -165,9 +166,11 @@ export function WritingExam({
       }
       status={
         <>
-          <span aria-hidden className={clsx('type-num shrink-0 whitespace-nowrap text-sm font-medium', words >= min ? 'text-good-text' : 'text-muted')}>
-            {words} / {min}
-          </span>
+          {!exam && (
+            <span aria-hidden className={clsx('type-num shrink-0 whitespace-nowrap text-sm font-medium', words >= min ? 'text-good-text' : 'text-muted')}>
+              {words} / {min}
+            </span>
+          )}
           <TimerPill left={left} />
           <Button onClick={() => setConfirm('submit')} loading={busy}>
             Submit
@@ -176,15 +179,13 @@ export function WritingExam({
       }
     >
       <div className="flex h-full flex-col">
-        {multi && (
-          <Tabs
-            id="task"
-            className="shrink-0 bg-surface px-3 sm:px-5"
-            value={active}
-            onChange={setActive}
-            items={prompts.map((p) => ({ value: p.id, label: `${p.part === 1 ? 'Task 1' : 'Task 2'}, ${plural(countWords(drafts[p.id]!.text), 'word')}` }))}
-          />
-        )}
+        {/* the part banner across the top, as on the computer test */}
+        <div className="mx-3 mt-3 shrink-0 rounded-md border border-line bg-surface-2 px-4 py-2.5 sm:mx-5">
+          <h2 className="text-sm font-semibold text-ink">Part {current.part}</h2>
+          <p className="text-sm text-ink">
+            You should spend about {current.part === 1 ? 20 : 40} minutes on this task. Write at least {min} words.
+          </p>
+        </div>
         {blocker && <BlockedAlert blocker={blocker} keeps="Your answer is still here and saved on this device." className="m-3 shrink-0 sm:mx-5" />}
         {error && (
           <Alert tone="bad" title="Submit failed" className="m-3 shrink-0 sm:mx-5">
@@ -192,9 +193,6 @@ export function WritingExam({
           </Alert>
         )}
         <div
-          role={multi ? 'tabpanel' : undefined}
-          id={multi ? 'task-panel' : undefined}
-          aria-labelledby={multi ? `task-${active}` : undefined}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden"
         >
           <section aria-label="Question" className={clsx('shrink-0 border-b border-line bg-surface lg:overflow-y-auto lg:border-r lg:border-b-0', !promptOpen && 'max-lg:sticky max-lg:top-0 max-lg:z-10')}>
@@ -213,7 +211,7 @@ export function WritingExam({
               </span>
             </button>
             <div id="question-body" className={clsx('px-4 pt-2 pb-6 sm:px-6 lg:px-12 lg:py-10', !promptOpen && 'max-lg:hidden')}>
-              <PromptPanel key={current.id} prompt={current} />
+              <PromptPanel key={current.id} prompt={current} banner />
             </div>
           </section>
           <section aria-label="Answer" className="flex min-h-[70vh] flex-1 flex-col gap-3 px-4 py-4 sm:px-6 lg:min-h-0 lg:overflow-y-auto lg:px-10 lg:py-10">
@@ -228,10 +226,22 @@ export function WritingExam({
               }}
               blockPaste={blockPaste}
               minWords={minWords(current.part)}
+              plain={exam}
               label={`Your answer to ${current.part === 1 ? 'Task 1' : 'Task 2'}`}
             />
           </section>
         </div>
+        {/* full test: Part 1 / Part 2 switch along the bottom, as on the computer test */}
+        {multi && (
+          <nav aria-label="Parts" className="flex shrink-0 gap-2 border-t border-line bg-surface px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5">
+            {prompts.map((p) => (
+              <Button key={p.id} variant={p.id === active ? 'secondary' : 'ghost'} aria-current={p.id === active ? 'step' : undefined} onClick={() => setActive(p.id)}>
+                Part {p.part}
+                {!exam && <span className="type-num font-normal text-muted">{plural(countWords(drafts[p.id]!.text), 'word')}</span>}
+              </Button>
+            ))}
+          </nav>
+        )}
       </div>
 
       <Dialog

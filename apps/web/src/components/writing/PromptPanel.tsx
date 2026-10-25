@@ -17,16 +17,19 @@ export type WritingPrompt = {
 };
 
 /** Exam-paper rendering of a writing prompt: instructions, the figure (chart JSON or Cambridge image), letter bullets. */
-export function PromptPanel({ prompt }: { prompt: WritingPrompt }) {
+/** `banner`: the exam screen shows the timing in its part banner, so the caption here is dropped. */
+export function PromptPanel({ prompt, banner }: { prompt: WritingPrompt; banner?: boolean }) {
   const chart = asChart(prompt.chart);
   const time = prompt.part === 1 ? 20 : 40;
   const opening = letterOpening(prompt);
   return (
     <article className="mx-auto max-w-[68ch] space-y-6 lg:mx-0">
       <header className="space-y-2">
-        <p className="type-caption">
-          {taskLabel(prompt)}. You should spend about {time} minutes on this task.
-        </p>
+        {!banner && (
+          <p className="type-caption">
+            {taskLabel(prompt)}. You should spend about {time} minutes on this task.
+          </p>
+        )}
         {/* Seeded titles are the body's first sentence (cut with "…" past 120 chars); the figure repeats its own title. Don't print either twice. */}
         {!prompt.body.startsWith(prompt.title.replace(/…$/, '')) && chart?.title !== prompt.title && <h2 className="type-heading text-balance">{prompt.title}</h2>}
       </header>

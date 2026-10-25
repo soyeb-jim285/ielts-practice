@@ -91,6 +91,7 @@ export function WritingEditor({
   minWords,
   label = 'Your answer',
   className,
+  plain,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -98,6 +99,8 @@ export function WritingEditor({
   minWords: number;
   label?: string;
   className?: string;
+  /** exam mode: a bare "Words: N" under the box, as on the computer test (no progress bar or target hints) */
+  plain?: boolean;
 }) {
   const id = useId();
   const words = countWords(value);
@@ -124,6 +127,12 @@ export function WritingEditor({
         className="type-reading min-h-[18rem] w-full max-w-none flex-1 resize-none bg-transparent px-5 py-5 text-ink outline-none placeholder:text-muted sm:px-7 sm:py-6"
         {...NO_ASSIST}
       />
+      {plain ? (
+        <p id={`${id}-count`} aria-live="polite" className="type-num border-t border-line px-5 py-3 text-sm text-ink sm:px-7">
+          Words: {words}
+        </p>
+      ) : (
+        <>
       <ProgressBar label="Progress to the minimum word count" value={words / minWords} tone={under ? 'accent' : 'good'} className="h-1 rounded-none" />
       <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm sm:px-7">
         <span id={`${id}-count`} aria-live="polite" className={clsx('type-num font-medium', !under ? 'text-good-text' : words >= minWords * 0.9 ? 'text-warn-text' : 'text-muted')}>
@@ -131,6 +140,8 @@ export function WritingEditor({
         </span>
         <span className="type-num text-muted">{!under ? `${minWords}-word minimum reached` : words ? `${minWords - words} more to reach ${minWords}` : `Minimum ${minWords} words`}</span>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import { useBlocker, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, ArrowRight, Check, CircleHelp, CloudOff, EyeOff, Flag, Headphones, LayoutGrid, LoaderCircle, MoreHorizontal, Settings2, StickyNote, Timer, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Alert, Button, Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Popover, Segmented, Sheet, Tabs, toast } from '@/components/ui';
+import { ArrowLeft, ArrowRight, Bookmark, Check, CircleHelp, CloudOff, EyeOff, Headphones, LayoutGrid, LoaderCircle, MoreHorizontal, Settings2, StickyNote, Timer, X } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Alert, Button, Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Popover, Segmented, Sheet, toast } from '@/components/ui';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatClock, plural } from '@/lib/format';
 import { clockAlert, flatQuestions, isAnswered, lsGet, lsSet, partsLabel, readingClock, readingSeconds, type LrAttempt, type LrMark, type LrSection } from '@/lib/lr';
 import { cn } from '@/lib/utils';
-import { ExamAudioBar, PracticeAudio, useExamPlaylist } from './Audio';
+import { ExamAudioControls, PracticeAudio, useExamPlaylist } from './Audio';
 import { Navigator, type NavPart } from './Navigator';
 import { HelpSheet, HidePanel } from './HelpSheet';
 import { SettingsPanel, useLrSettings } from './LrSettings';
@@ -80,9 +80,9 @@ function useWallClock(base: number, running: boolean, out: { current: number }) 
   return t;
 }
 
-export function GroupsPane({ section, responses, onChange, assets, active, review }: { section: LrSection; responses: Record<string, string>; onChange: (r: Record<string, string>) => void; assets: Record<string, string>; active: number | null; review?: Map<number, Mark> }) {
+export function GroupsPane({ section, responses, onChange, assets, active, review, start }: { section: LrSection; responses: Record<string, string>; onChange: (r: Record<string, string>) => void; assets: Record<string, string>; active: number | null; review?: Map<number, Mark>; start?: boolean }) {
   return (
-    <div className="mx-auto max-w-[46rem] space-y-10 pb-16">
+    <div className={cn('max-w-[46rem] space-y-10 pb-16', !start && 'mx-auto')}>
       {section.groups.map((g) => (
         <QuestionGroup key={g.from} group={g} responses={responses} onChange={onChange} assets={assets} active={active} review={review} />
       ))}
@@ -242,14 +242,15 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
     },
     [flat, sections],
   );
-  const toggleFlag = () =>
+  const toggleFlag = (n: number) =>
     setFlagged((s) => {
       const next = new Set(s);
-      if (!next.delete(current)) next.add(current);
+      if (!next.delete(n)) next.add(n);
       return next;
     });
+  const flagsShown = [...new Set([current, ...flagged])].filter((n) => flat.some((f) => f.n === n && f.part === section.part));
 
-  const navParts: NavPart[] = sections.map((s) => ({ part: s.part, label: `${listening ? 'Part' : 'Passage'} ${s.part}`, questions: s.groups.flatMap((g) => g.questions.map((q) => q.n)) }));
+  const navParts: NavPart[] = sections.map((s) => ({ part: s.part, label: `Part ${s.part}`, questions: s.groups.flatMap((g) => g.questions.map((q) => q.n)) }));
   const answered = (n: number) => isAnswered(responses, n);
   const unanswered = flat.filter((f) => !answered(f.n)).length;
   const idx = flat.findIndex((f) => f.n === current);
@@ -274,11 +275,18 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
   };
 
   const questions = (
-    <div onFocusCapture={onFocusCapture} onBlurCapture={onBlurCapture}>
-      <p className="type-caption mb-5">
-        {listening ? 'Part' : 'Passage'} {section.part}: Questions {section.groups[0]?.from} to {section.groups.at(-1)?.to}
+    <div onFocusCapture={onFocusCapture} onBlurCapture={onBlurCapture} className="relative pr-12">
+      <GroupsPane section={section} responses={responses} onChange={change} assets={assets} active={active} start={listening} />
+      {started && flagsShown.map((n) => <QuestionFlag key={n} n={n} on={flagged.has(n)} onToggle={() => toggleFlag(n)} />)}
+    </div>
+  );
+  // the part banner across the top, as on the computer test
+  const banner = (
+    <div data-lr-chrome className="mx-3 mt-3 shrink-0 rounded-md border border-line bg-surface-2 px-4 py-2.5 sm:mx-5">
+      <h2 className="text-sm font-semibold text-ink">Part {section.part}</h2>
+      <p className="text-sm text-ink">
+        {listening ? 'Listen and answer' : 'Read the text and answer'} questions {section.groups[0]?.from}–{section.groups.at(-1)?.to}.
       </p>
-      <GroupsPane section={section} responses={responses} onChange={change} assets={assets} active={active} />
     </div>
   );
   const passage = <Passage section={section} />;
@@ -305,11 +313,13 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
     );
   } else if (listening) {
     body = (
-      <div className="h-full overflow-y-auto px-4 py-5 sm:px-6">
-        <div className="mx-auto max-w-[46rem]">
-          <div data-lr-chrome className="sticky top-0 z-20 -mx-2 mb-6 rounded-lg border border-line bg-card px-4 py-3 shadow-card">
-            {exam ? <ExamAudioBar playlist={playlist} parts={attempt.parts ? sections.map((s) => s.part) : undefined} /> : <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} resume={{ start: session.audio.start(section.part), rate: session.audio.rate, set: (p, r) => session.audio.set(section.part, p, r), save: session.audio.save }} />}
+      <div className="h-full overflow-y-auto px-4 py-5 sm:px-8">
+        <div className="max-w-6xl">
+          {!exam && (
+          <div data-lr-chrome className="sticky top-0 z-20 -mx-2 mb-6 max-w-[49rem] rounded-lg border border-line bg-card px-4 py-3 shadow-card">
+            <PracticeAudio key={section.audio} src={assets[section.audio ?? ''] ?? ''} label={`Part ${section.part}`} resume={{ start: session.audio.start(section.part), rate: session.audio.rate, set: (p, r) => session.audio.set(section.part, p, r), save: session.audio.save }} />
           </div>
+          )}
           {questions}
         </div>
       </div>
@@ -421,22 +431,10 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
 
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div inert={hidden} className="flex min-h-0 flex-1 flex-col">
-          {started && (
-            <div className="shrink-0 border-b border-line bg-surface px-3 sm:px-5">
-              <Tabs
-                id="lr-part"
-                value={String(section.part)}
-                onChange={(v) => !examListening && goPart(sections.findIndex((s) => s.part === +v))}
-                items={navParts.map((p) => ({ value: String(p.part), label: p.label, count: p.questions.filter(answered).length }))}
-                className="border-b-0"
-              />
-            </div>
-          )}
-
-          <main id="main" data-lr-size={settings.size} data-lr-scheme={settings.scheme} className="min-h-0 flex-1 overflow-hidden" key={section.part}>
-            <div role="tabpanel" id="lr-part-panel" aria-labelledby={`lr-part-${section.part}`} className="h-full">
-              {body}
-            </div>
+          {/* no part tabs on top: parts switch from the navigator at the bottom, as on the computer test */}
+          <main id="main" data-lr-size={settings.size} data-lr-scheme={settings.scheme} className="flex min-h-0 flex-1 flex-col overflow-hidden" key={section.part}>
+            {started && banner}
+            <div className="min-h-0 flex-1">{body}</div>
           </main>
 
       {started && (
@@ -447,7 +445,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
                 Question {current} of {total}
                 <span className="ml-auto text-muted">{total - unanswered} answered</span>
               </Button>
-              <FlagButton on={flagged.has(current)} onClick={toggleFlag} compact />
+              {examListening && <ExamAudioControls playlist={playlist} />}
               <Button variant="outline" size="icon" aria-label="Previous question" disabled={idx <= 0} onClick={() => jump(flat[idx - 1]!.n)}>
                 <ArrowLeft />
               </Button>
@@ -459,7 +457,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
             <div className="flex items-center justify-between gap-4">
               <Navigator parts={navParts} isAnswered={answered} flagged={flagged} current={current} onJump={jump} onPart={(p) => jump(navParts.find((x) => x.part === p)!.questions[0]!)} />
               <div className="flex shrink-0 items-center gap-2">
-                <FlagButton on={flagged.has(current)} onClick={toggleFlag} />
+                {examListening && <ExamAudioControls playlist={playlist} />}
                 <Button variant="outline" icon={<ArrowLeft />} disabled={idx <= 0} onClick={() => jump(flat[idx - 1]!.n)}>
                   Previous
                 </Button>
@@ -511,7 +509,7 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
             {[...flagged].sort((a, b) => a - b).map((n) => (
               <li key={n}>
                 <Button size="sm" variant="outline" onClick={() => { setConfirm(false); jump(n); }}>
-                  <Flag className="fill-warn text-warn" aria-hidden /> {n}
+                  <Bookmark className="fill-warn text-warn" aria-hidden /> {n}
                 </Button>
               </li>
             ))}
@@ -540,11 +538,36 @@ export function Runner({ attempt, mockId }: { attempt: LrAttempt; mockId?: strin
   );
 }
 
-function FlagButton({ on, onClick, compact }: { on: boolean; onClick: () => void; compact?: boolean }) {
+/** Bookmark at the right edge of a question's first line, as on the computer test: shown for the current question and every flagged one. */
+function QuestionFlag({ n, on, onToggle }: { n: number; on: boolean; onToggle: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [top, setTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const box = ref.current?.parentElement;
+    if (!box) return;
+    const place = () => {
+      const el = document.getElementById(`qrow-${n}`) ?? document.getElementById(`q-${n}`);
+      if (!el) return setTop(null);
+      const r = el.getBoundingClientRect();
+      setTop(r.top - box.getBoundingClientRect().top + Math.min(r.height, 40) / 2 - 16);
+    };
+    place();
+    const ro = new ResizeObserver(place); // text size setting, window width, images loading
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [n]);
   return (
-    <Button variant={on ? 'secondary' : 'outline'} size={compact ? 'icon' : undefined} aria-pressed={on} aria-label={on ? 'Remove flag from this question' : 'Flag this question for review'} onClick={onClick}>
-      <Flag className={on ? 'fill-warn text-warn' : undefined} aria-hidden />
-      {!compact && (on ? 'Flagged' : 'Flag')}
-    </Button>
+    <button
+      ref={ref}
+      type="button"
+      aria-pressed={on}
+      aria-label={on ? `Remove flag from question ${n}` : `Flag question ${n} for review`}
+      title={on ? 'Remove flag' : 'Flag for review'}
+      onClick={onToggle}
+      style={{ top: top ?? 0, visibility: top == null ? 'hidden' : undefined }}
+      className="absolute right-0 grid size-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-md:size-10"
+    >
+      <Bookmark className={cn('size-5', on && 'fill-warn text-warn')} aria-hidden />
+    </button>
   );
 }

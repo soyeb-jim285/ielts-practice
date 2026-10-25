@@ -1,7 +1,7 @@
 import { clusterMoments } from '@ielts/core';
-import { Headphones, Pause, Play, RotateCcw, RotateCw, Volume2 } from 'lucide-react';
+import { Pause, Play, RotateCcw, RotateCw, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Button, ProgressBar, Segmented } from '@/components/ui';
+import { Button, Segmented } from '@/components/ui';
 import { formatClock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { LISTENING_REVIEW_SECONDS } from '@/lib/lr';
@@ -324,28 +324,20 @@ export function useExamPlaylist(urls: string[], startElapsed: number, checkEndsA
   return { el, durations, error, phase, idx, elapsed, total, start, resume, stalled, reviewLeft, reviewSeconds };
 }
 
-/** Exam recording bar: whole-test progress, which part is playing, volume. No transport controls on purpose. */
-export function ExamAudioBar({ playlist, parts }: { playlist: ReturnType<typeof useExamPlaylist>; parts?: number[] }) {
-  const { phase, idx, elapsed, total, durations, stalled, resume, reviewLeft, el } = playlist;
+/** Exam recording controls, as on the computer test: no progress bar and no transport, only volume; Resume if the device paused the audio. */
+export function ExamAudioControls({ playlist }: { playlist: ReturnType<typeof useExamPlaylist> }) {
+  const { phase, stalled, resume, el } = playlist;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2" role="group" aria-label="Recording">
-      <Headphones className="size-5 shrink-0 text-accent-text" aria-hidden />
-      <div className="min-w-0 flex-1 basis-56">
-        <p className="type-num text-sm font-medium">
-          {phase === 'review' ? 'Recording finished. Check your answers.' : parts ? `Part ${parts[idx]} is playing` : `Part ${idx + 1} of ${durations?.length ?? 4} is playing`}
-        </p>
-        <div className="mt-1.5 flex items-center gap-3">
-          <ProgressBar label="Recording progress" value={total ? Math.min(1, elapsed / total) : 0} className="h-1.5 flex-1" />
-          {total > 0 && phase !== 'review' && <span className="type-num shrink-0 text-xs text-muted">{formatClock(Math.min(elapsed, total))} / {formatClock(total)}</span>}
-        </div>
-      </div>
-      {phase === 'review' && <span className="type-num rounded-md bg-warn-soft px-2.5 py-1 text-sm font-semibold text-warn-text">{formatClock(reviewLeft)} left to review</span>}
+    <div className="flex items-center gap-3" role="group" aria-label="Recording">
+      {phase === 'review' && <span role="status" className="type-caption">Recording finished</span>}
       {stalled && phase === 'audio' && (
         <Button size="sm" onClick={resume}>
           Resume audio
         </Button>
       )}
-      <Volume el={el} />
+      <span className="max-md:hidden">
+        <Volume el={el} />
+      </span>
     </div>
   );
 }

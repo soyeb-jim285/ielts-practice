@@ -1,9 +1,9 @@
-import { Flag } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type NavPart = { part: number; label: string; questions: number[] };
 
-/** Question number button: filled teal = answered, amber flag = marked for review, ring = where you are. */
+/** Question number button: filled teal = answered, amber bookmark = marked for review, ring = where you are. */
 export function QButton({ n, answered, flagged, current, onJump, className }: { n: number; answered: boolean; flagged: boolean; current: boolean; onJump: (n: number) => void; className?: string }) {
   return (
     <button
@@ -19,7 +19,7 @@ export function QButton({ n, answered, flagged, current, onJump, className }: { 
       )}
     >
       {n}
-      {flagged && <Flag aria-hidden className="absolute -top-1.5 -right-1.5 size-3.5 fill-warn text-warn" />}
+      {flagged && <Bookmark aria-hidden className="absolute -top-1.5 -right-1.5 size-3.5 fill-warn text-warn" />}
     </button>
   );
 }
