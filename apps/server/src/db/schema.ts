@@ -241,9 +241,9 @@ export const userApiKeys = pgTable('user_api_keys', {
 export const quotaUsage = pgTable('quota_usage', {
   id: id(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  skill: skillEnum('skill').notNull(),
+  skill: text('skill').$type<'speaking' | 'writing' | 'examiner'>().notNull(), // examiner = a live (LiveKit) session, speaking = recorded practice
   unitKey: text('unit_key').notNull(),
-  tier: text('tier').notNull(), // 'guest' | 'community' at reservation time
+  tier: text('tier').notNull(), // payer tier at reservation time ('guest' | 'community' | 'subscriber' | 'unlimited'; 'own-key' in rows before 2026-10-25)
   ipHash: text('ip_hash'), // salted HMAC of the client IP; null when the address is unknown
   createdAt: createdAt(),
   refundedAt: timestamp('refunded_at', { withTimezone: true }),
@@ -327,9 +327,11 @@ export const promptSeen = pgTable('prompt_seen', {
 // Per-user test limits set by the owner in admin (quota.ts). null = the default for the person's tier; unlimited = no quota at all (incl. the LiveKit examiner).
 export const userLimits = pgTable('user_limits', {
   userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
-  speaking: integer('speaking'), // speaking tests per window (day; week for guests), live tests included
+  speaking: integer('speaking'), // practice speaking tests per window (replaces the plan's count; live sessions are not affected)
   writing: integer('writing'),
   unlimited: boolean('unlimited').notNull().default(false),
+  /** Paid plan (docs/community.md): subscriber limits until this instant. Set by the admin now, by the payment webhook later. */
+  subscribedUntil: timestamp('subscribed_until', { withTimezone: true }),
   updatedBy: text('updated_by').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

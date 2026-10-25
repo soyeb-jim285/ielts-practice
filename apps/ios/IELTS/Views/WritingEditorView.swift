@@ -43,7 +43,7 @@ struct WritingEditorView: View {
     @State private var autoFired = false
     @State private var stage: Stage = .loading
     @State private var submitError: String?
-    @State private var submitIssue: CommunityIssue? // no test left, balance used up, busy: the draft stays and the notice says so
+    @State private var submitIssue: CommunityIssue? // no test left, scoring paused, busy: the draft stays and the notice says so
     @State private var showSubmit = false
     @State private var showExit = false
     @State private var toast: Toast?

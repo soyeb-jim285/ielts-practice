@@ -20,7 +20,7 @@ export function KeepResult() {
         </Link>
       }
     >
-      Guest results are deleted after 30 days. With an account this test is saved, and you get 1 test a day.
+      Guest results are deleted after 30 days. With an account this test is saved, and you get more tests.
     </Alert>
   );
 }
@@ -28,6 +28,6 @@ export function KeepResult() {
 /** "This one didn't count against your tests": a failed analysis or a silent recording is refunded by the server. Only people with a test limit care. */
 export function RefundNote({ className }: { className?: string }) {
   const { data } = useQuota();
-  if (!data || data.tier === 'own-key') return null;
+  if (!data || data.tier === 'unlimited') return null;
   return <span className={cn('type-caption mt-1 block', className)}>This one didn't count against your tests.</span>;
 }

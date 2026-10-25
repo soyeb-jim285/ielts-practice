@@ -1,11 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { analyseAttempt, CAUSES, lrTypeLabel, maskWord, pickParts, residualGaps, scoreLr, stripAnswers, tfngPattern, type CauseFamily, type GapEntry, type LrAnalysis, type LrTest } from '@ielts/core';
-import { and, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, or, sql, type SQL } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { aiGapReasons } from '../ai/lr-mistakes';
 import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { cards, lrAttempts, lrTests } from '../db/schema';
+import { isSubscribed } from '../quota';
 import { lrSaveLimit } from '../ratelimit';
 import { storage } from '../storage';
 import type { App } from '../types';
@@ -30,10 +31,33 @@ const json = <T extends z.ZodType>(schema: T, description: string) => ({ descrip
 const common = { tags: ['Listening & Reading'], security: [{ bearer: [] }], middleware: [requireUser] };
 const errors = { 404: json(ErrorSchema, 'Not found (also for a Cambridge test this user may not open)') };
 
-type Viewer = Parameters<typeof isCambridgeAllowed>[0];
-/** Our own tests are open to everyone; Cambridge (restricted) tests only to allow-listed, verified accounts. */
-export const canOpen = (t: { restricted: boolean }, u: Viewer) => !t.restricted || isCambridgeAllowed(u);
-const visibleWhere = (u: Viewer): SQL | undefined => (isCambridgeAllowed(u) ? undefined : eq(lrTests.restricted, false));
+type Viewer = { id: string; email: string; emailVerified: boolean; isAnonymous?: boolean | null } | null | undefined;
+const range = (prefix: string, from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${String(from + i).padStart(2, '0')}`);
+// Reading picks pass scripts/reading-agent-check.ts (the oldest ones, gen-r-01..09 and gen-rg-01..06, mostly do not).
+const guestLr = [...range('gen-l-', 1, 10), ...range('gen-r-', 10, 16), ...range('gen-rg-', 7, 9)];
+/** Our own tests by plan (docs/community.md): guests open 10 Listening + 10 Reading (7 Academic, 3 General Training), accounts 20 more of each,
+ *  subscribers every one (null = no slug limit). A slug that is not imported yet simply is not there. */
+export const LR_PLANS: { guest: string[] | null; account: string[] | null } = {
+  guest: guestLr,
+  account: [...guestLr, ...range('gen-l-', 11, 30), ...range('gen-r-', 17, 30), ...range('gen-rg-', 10, 15)],
+};
+/** Cambridge (restricted) tests stay for allow-listed, verified accounts only, whatever the plan. */
+async function openSlugs(u: Viewer): Promise<{ cambridge: boolean; slugs: string[] | null }> {
+  if (isCambridgeAllowed(u)) return { cambridge: true, slugs: null };
+  if (!u || u.isAnonymous) return { cambridge: false, slugs: LR_PLANS.guest };
+  return { cambridge: false, slugs: (await isSubscribed(u.id)) ? null : LR_PLANS.account };
+}
+/** A replaced test keeps its plan: gen-l-01-v2 counts as gen-l-01. */
+const baseSlug = (slug: string) => slug.replace(/-v\d+$/, '');
+const baseSlugSql = sql`regexp_replace(${lrTests.slug}, '-v[0-9]+$', '')`;
+export async function canOpen(t: { restricted: boolean; slug: string }, u: Viewer) {
+  const a = await openSlugs(u);
+  return a.cambridge || (!t.restricted && (!a.slugs || a.slugs.includes(baseSlug(t.slug))));
+}
+export async function visibleWhere(u: Viewer): Promise<SQL | undefined> {
+  const a = await openSlugs(u);
+  return a.cambridge ? undefined : and(eq(lrTests.restricted, false), a.slugs ? inArray(baseSlugSql, a.slugs) : undefined);
+}
 
 const Option = z.object({ key: z.string(), text: z.string() });
 const QuestionReview = z
@@ -205,7 +229,7 @@ async function ownAttempt(id: string, user: { id: string; email: string; emailVe
   const a = await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.id, id), any ? undefined : eq(lrAttempts.userId, user.id)) });
   if (!a) throw new HTTPException(404, { message: 'Attempt not found' });
   const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, a.testId) });
-  if (!t || (!any && !canOpen(t, user))) throw new HTTPException(404, { message: 'Test not found' });
+  if (!t || (!any && !(await canOpen(t, user)))) throw new HTTPException(404, { message: 'Test not found' });
   return { a, t };
 }
 
@@ -255,7 +279,7 @@ export function register(app: App) {
           sizes: sql<Record<string, number>>`(select jsonb_object_agg(s->>'part', (select count(*) from jsonb_array_elements(s->'groups') g, jsonb_array_elements(g->'questions'))) from jsonb_array_elements(${lrTests.data}->'sections') s)`,
         })
         .from(lrTests)
-        .where(and(visibleWhere(user), eq(lrTests.retired, false), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
+        .where(and(await visibleWhere(user), eq(lrTests.retired, false), q.skill ? eq(lrTests.skill, q.skill) : undefined, q.variant ? eq(lrTests.variant, q.variant) : undefined, q.source ? eq(lrTests.source, q.source) : undefined))
         .orderBy(lrTests.ref);
       const mine = user ? await db.select().from(lrAttempts).where(eq(lrAttempts.userId, user.id)).orderBy(desc(lrAttempts.startedAt)) : [];
       const byTest = new Map<string, typeof mine>();
@@ -307,12 +331,12 @@ export function register(app: App) {
     async (c) => {
       const user = currentUser(c);
       let t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
-      if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' });
+      if (!t || !(await canOpen(t, user))) throw new HTTPException(404, { message: 'Test not found' });
       const { mode, parts, fresh } = c.req.valid('json');
       if (t.retired && (fresh || !(await db.query.lrAttempts.findFirst({ where: and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')) })))) {
         // replaced (Retake on an old result): start its newer version, the live test with the same ref; an open attempt on the old one still resumes below
         const next = await db.query.lrTests.findFirst({ where: and(eq(lrTests.ref, t.ref), eq(lrTests.skill, t.skill), eq(lrTests.variant, t.variant), eq(lrTests.retired, false)) });
-        if (!next || !canOpen(next, user)) throw new HTTPException(404, { message: 'This test has been replaced and is no longer available' });
+        if (!next || !(await canOpen(next, user))) throw new HTTPException(404, { message: 'This test has been replaced and is no longer available' });
         if (fresh) await db.delete(lrAttempts).where(and(eq(lrAttempts.userId, user.id), eq(lrAttempts.testId, t.id), eq(lrAttempts.status, 'in_progress')));
         t = next;
       }
@@ -339,7 +363,7 @@ export function register(app: App) {
     }),
     async (c) => {
       const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, c.req.valid('param').id) });
-      if (!t || !canOpen(t, currentUser(c))) throw new HTTPException(404, { message: 'Test not found' });
+      if (!t || !(await canOpen(t, currentUser(c)))) throw new HTTPException(404, { message: 'Test not found' });
       return c.json({ id: t.id, test: stripAnswers(t.data), assets: await assetUrls(t.data) }, 200);
     },
   );
@@ -494,12 +518,13 @@ export function register(app: App) {
       }
       const byType = [...acc.values()].sort((a, b) => a.skill.localeCompare(b.skill) || a.label.localeCompare(b.label));
       const weakest = byType.filter((t) => t.total >= 4).sort((a, b) => a.right / a.total - b.right / b.total || b.total - a.total).slice(0, 3);
+      const open = await openSlugs(user);
       const rowsT = weakest[0]
         ? ((await db.execute(sql`
             select t.id, t.title, (select coalesce(jsonb_agg(jsonb_build_object('type', g->>'type', 'title', g->>'title', 'instructions', g->>'instructions', 'options', g->'options', 'image', g->>'image', 'n', jsonb_array_length(g->'questions'))), '[]'::jsonb)
               from jsonb_array_elements(t.data->'sections') s, jsonb_array_elements(s->'groups') g) as groups
             from lr_tests t
-            where t.skill = ${weakest[0].skill} ${isCambridgeAllowed(user) ? sql`` : sql`and t.restricted = false`}
+            where t.skill = ${weakest[0].skill} ${open.cambridge ? sql`` : sql`and t.restricted = false`} ${open.slugs ? sql`and regexp_replace(t.slug, '-v[0-9]+$', '') in ${open.slugs}` : sql``}
               and not exists (select 1 from lr_attempts a where a.test_id = t.id and a.user_id = ${user.id} and a.status = 'submitted' and a.parts is null)
           `)) as unknown as { id: string; title: string; groups: { type: 'gap'; title?: string; instructions: string; options?: unknown; image?: unknown; n: number }[] }[])
         : [];

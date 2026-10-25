@@ -1,41 +1,33 @@
-# Community mode
+# Plans and test limits
 
-The app is a community project: everyone can practise for free from one shared OpenRouter balance (the owner's key, with a spend limit). Heavy users and the live examiner run on their own API keys. This file is the contract between the server and the web, iOS and Android clients. The OpenAPI document (`/openapi.json`, `apps/web/src/openapi.json`) has the schemas; this file has the rules, the flows and the copy.
+Everyone practises on the server's provider keys (OpenRouter for analysis and scoring, LiveKit + Soniox for the live examiner). What a person may do is set by their plan. There are no user API keys and no public "community balance" (both removed 2026-10-25). This file is the contract between the server and the web, iOS and Android clients. The OpenAPI document (`/openapi.json`, `apps/web/src/openapi.json`) has the schemas; this file has the rules, the flows and the copy.
 
 ## Rules
 
-| Who | Speaking tests | Writing tests | Live examiner | Paid from |
-| --- | --- | --- | --- | --- |
-| Guest (anonymous session, no account) | 1 per week | 1 per week | No | Community balance |
-| Signed in, no own keys | 1 per day | 1 per day | No | Community balance |
-| Signed in + own OpenRouter key | Unlimited | Unlimited | Turn-based live only | Their key |
-| Signed in + own OpenAI and/or Gemini key | Per their OpenRouter status (above) | Same | GPT-Live with the OpenAI key, Gemini Live with the Gemini key | Their key |
-| Owner (`CAMBRIDGE_ALLOWED_EMAILS`, verified email) | Unlimited | Unlimited | All three (server keys) | Server keys |
+Plans (all windows are rolling: the last 24 h, 7 days or 30 days; a test frees up one window after it was reserved). Limits live in `PLANS` (`apps/server/src/quota.ts`) and `LR_PLANS` (`apps/server/src/routes/lr.ts`).
 
-- **Tier** (`tier` in `/api/me` and `/api/quota`): `guest`, `community` (signed in, no OpenRouter key) or `own-key` (has a working OpenRouter key, or is the owner). Having only an OpenAI or Gemini key keeps you on `community` for the 1-per-day tests, but unlocks that live provider. A user with an OpenAI key and no OpenRouter key can run a live session; its analysis is paid from the community balance, so it uses their daily speaking test and is checked at start.
-- **Live examiner is never paid from the community balance.** Turn-based live (STT, LLM and TTS through OpenRouter) needs the user's own OpenRouter key. GPT-Live needs an OpenAI key, Gemini Live a Gemini key.
+| Plan (`tier`) | Writing | Speaking practice (recorded) | Live examiner (LiveKit) | Listening / Reading (our own) |
+| --- | --- | --- | --- | --- |
+| Guest (`guest`, anonymous session) | 2 / 7 days | 5 / 30 days | 3 / 30 days | the guest 10 + 10 |
+| Signed in, free (`community`) | 5 / 7 days | 10 / 30 days | 5 / 30 days | the guest set + 20 + 20 more |
+| Subscriber (`subscriber`, `user_limits.subscribed_until` in the future) | Unlimited | Unlimited | 5 / 24 h and 40 / 30 days | All |
+| Owner, or admin "No test limits" (`unlimited`) | Unlimited | Unlimited | Unlimited | All (+ Cambridge for the owner) |
+
+- Payments are not live yet: the admin user page has a "Subscriber" switch that grants 30 days. The payment webhook will set `subscribed_until`.
+- Cambridge tests stay allow-list only (`CAMBRIDGE_ALLOWED_EMAILS`, admin grants) on every plan.
+- Analysis always uses the default models.
 - **One test** is one speaking session (one practice part, or a full test with all parts sharing one `sessionId`) or one writing submission (one task, or Task 1 + Task 2 sharing one `sessionId`). Clients MUST send the same `sessionId` on every attempt of a full test. A part is paid once per `sessionId`: sending a part again under another attempt (even after deleting the first) counts as a separate test, and retrying the same attempt is free. Concurrent submits are serialised.
 - **Reserved at submit** (`POST /api/attempts/{id}/submit`, and `POST /api/live/finish`), checked earlier at start (`POST /api/attempts`, `POST /api/live/start`, and `GET /api/quota`). A speaking session is reserved when its first part is submitted.
 - **Refunded automatically** when the analysis fails (status `failed`, including interrupted runs) or when no speech was heard (`analysis.noSpeech`). For a full test it is refunded only if no other part still counts. A user (for guests: an IP) gets at most 5 refunds per 24 h; past that the test stays spent, so failures and silent recordings cannot be an endless free retry loop. Re-submitting the same attempt (the retry button) reserves it again from the refund, so it is never charged twice; if the quota was used elsewhere in the meantime the retry gets 429 and the attempt (with its draft) stays.
-- **Windows:** daily resets at 00:00 UTC; weekly resets Monday 00:00 UTC. `resetAt` is an ISO instant: show it in local time ("Resets in 5 h", "Resets Monday 6:00").
-- **Guest abuse guard:** the weekly limit applies per anonymous user (1) AND per client IP (`GUEST_IP_WEEKLY_CAP`, default 3, per skill, across all anonymous users). Both must have room. The IP is the `CF-Connecting-IP` header (Cloudflare Tunnel; `X-Forwarded-For` is ignored when it is present), else the last `X-Forwarded-For` hop (the one our proxy wrote), else the socket address; values that are not an IP are ignored, IPv6 is counted per /64, and it is stored only as a salted HMAC. A guest who signs up keeps counting against the IP for that week.
-- **Community-paid analysis always uses the default models.** A custom analysis/examiner/STT/TTS model in Settings applies only with the user's own OpenRouter key (so nobody burns the shared balance on a pricey model). Say so next to the model pickers for community users.
-- **With an own OpenRouter key every OpenRouter call uses that key** (analysis, scoring, STT, TTS, audio pronunciation), and ElevenLabs Scribe is skipped (Whisper on their key instead; Scribe stays on the server key for community users).
+- **Windows** are rolling (`window`: `day` = 24 h, `week` = 7 days, `month` = 30 days). With two windows (subscriber live) the one with less room is reported. `resetAt` is when the next test frees up (null when none is used): show it in local time ("in 5 h", "Monday 6:00").
+- **Skills counted:** `writing`, `speaking` (recorded practice, `POST /api/attempts`) and `examiner` (a live session, reserved at `POST /api/live/livekit/start`; its parts join that one unit at finish).
+- **Guest abuse guard:** each guest limit applies per anonymous user AND per client IP (`GUESTS_PER_IP` times the guest limit, default 3, per skill and window, across all anonymous users). Both must have room. The IP is the `CF-Connecting-IP` header (Cloudflare Tunnel; `X-Forwarded-For` is ignored when it is present), else the last `X-Forwarded-For` hop (the one our proxy wrote), else the socket address; values that are not an IP are ignored, IPv6 is counted per /64, and it is stored only as a salted HMAC. A guest who signs up keeps counting against the IP for that week.
 - **Retention:** guest data (attempts, recordings) is deleted 30 days after the anonymous user was created. Say "Create an account to keep this result".
+- **Server guards** (not per person): when the server's OpenRouter key has less than `COMMUNITY_MIN_BALANCE` USD left, limited tests are refused with `402 community_balance_exhausted`; past `COMMUNITY_MAX_PER_HOUR` reservations per rolling hour, with `503 community_busy`. `unlimited` users are not affected. Clients show neutral copy (see below) and never mention a balance. The admin Costs page shows the key's spend.
 
 ## Listening & Reading access
 
-Our own (generated) Listening and Reading tests are open to everyone, guests included; scoring is objective, so there is no AI cost and no quota or fair-use dialog. Cambridge tests (`lr_tests.restricted`, set by `scripts/lr-import.ts` for `source = cambridge`) are for `CAMBRIDGE_ALLOWED_EMAILS` with a verified email only. `GET /api/lr/tests` works without a session and lists only the tests the caller may open. Opening, starting, saving or submitting against a Cambridge test the caller may not open answers 404 (never 403, so its existence does not leak), including an old attempt after access is lost. Clients show Listening and Reading to everyone and never hint at hidden Cambridge content.
-
-## Community balance
-
-`GET /api/community/balance` (public, no auth, cached 60 s on the server, last known value if OpenRouter is unreachable):
-
-```json
-{ "limit": 20, "used": 7.6, "remaining": 12.4, "updatedAt": "2026-10-03T10:15:00.000Z" }
-```
-
-USD. `limit`/`remaining` are `null` when the key has no spend limit or the value is unknown (then nothing is blocked). Below `COMMUNITY_MIN_BALANCE` (default 0.25) community tests are blocked (402). The same object is `communityBalance` in `/api/me` and `/api/quota`.
+Our own (generated) Listening and Reading tests open by plan (`LR_PLANS`): guests and visitors gen-l-01..10, gen-r-10..16, gen-rg-07..09; signed-in accounts also gen-l-11..30, gen-r-17..30, gen-rg-10..15 (reading picks pass `reading-agent-check.ts`); a replaced version (`-v2`) keeps its plan; subscribers every one. A test outside the caller's plan is not listed and answers 404 like a Cambridge one. Scoring is objective, so there is no AI cost and no quota or fair-use dialog. Cambridge tests (`lr_tests.restricted`, set by `scripts/lr-import.ts` for `source = cambridge`) are for `CAMBRIDGE_ALLOWED_EMAILS` with a verified email only. `GET /api/lr/tests` works without a session and lists only the tests the caller may open. Opening, starting, saving or submitting against a Cambridge test the caller may not open answers 404 (never 403, so its existence does not leak), including an old attempt after access is lost. Clients show Listening and Reading to everyone and never hint at hidden Cambridge content.
 
 ## API contract
 
@@ -47,34 +39,21 @@ Call it when a test is about to start (and to render the "N tests left" labels).
 
 ```json
 {
-  "tier": "guest | community | own-key",
-  "speaking": { "used": 0, "limit": 1, "remaining": 1, "resetAt": "2026-10-05T00:00:00.000Z", "window": "week", "blocked": null },
-  "writing":  { "used": 1, "limit": 1, "remaining": 0, "resetAt": "2026-10-04T00:00:00.000Z", "window": "day", "blocked": "quota_exceeded" },
-  "liveProviders": ["turn", "gpt-live", "gemini-live"],
-  "communityBalance": { "limit": 20, "used": 7.6, "remaining": 12.4, "updatedAt": "..." }
+  "tier": "guest | community | subscriber | unlimited",
+  "speaking": { "used": 0, "limit": 10, "remaining": 10, "resetAt": null, "window": "month", "blocked": null },
+  "writing":  { "used": 5, "limit": 5, "remaining": 0, "resetAt": "2026-10-28T09:12:00.000Z", "window": "week", "blocked": "quota_exceeded" },
+  "examiner": { "used": 1, "limit": 5, "remaining": 4, "resetAt": "2026-11-20T18:00:00.000Z", "window": "month", "blocked": null },
+  "live": true
 }
 ```
 
-- `limit`, `remaining`, `resetAt`, `window` are `null` for `own-key` (unlimited). `window` is `"day"` or `"week"`.
+- `limit`, `remaining`, `resetAt`, `window` are `null` when unlimited.
 - `blocked` is why a test of that skill cannot start now: `quota_exceeded`, `community_balance_exhausted` or `community_busy`; `null` means go.
-- `liveProviders` lists the live examiners this user may use: `turn` (own OpenRouter key), `gpt-live` (OpenAI key), `gemini-live` (Gemini key). The owner gets all three.
+- `live`: the LiveKit examiner is configured on this server.
 
 ### `GET /api/me` (session required; guests have one)
 
-As before plus everything in `/api/quota` (same field names, same shapes), and:
-
-- `user.isAnonymous: boolean` (a guest). For a guest `user.email` is `""`; never show it.
-- `gptLiveAvailable` / `geminiLiveAvailable`: this user has an OpenAI / Gemini key (or is the owner). `realtimeAvailable` is the deprecated alias of `gptLiveAvailable`. Turn-based availability is `liveProviders.includes("turn")`.
-
-### Keys (account required)
-
-`GET /api/keys` → `{ "keys": [{ "provider": "openrouter", "last4": "ab12", "addedAt": "ISO", "valid": true }] }` (providers `openrouter`, `openai`, `gemini`; only those that are set). The key itself is never returned.
-
-`PUT /api/keys/{provider}` with `{ "key": "sk-..." }` (8-512 characters, no spaces). The server checks the key with a free call (OpenRouter `GET /api/v1/key`, OpenAI `GET /v1/models`, Gemini `GET /v1beta/models`) before saving; it is stored AES-256-GCM encrypted. Returns the same object as one entry of `GET /api/keys`. Errors: `400 invalid_key` (provider rejected it), `502 key_check_failed` (provider unreachable, try again), `503 keys_unavailable` (server has no `KEY_ENCRYPTION_SECRET`), `403 account_required` (guest), `429` too many tries (5 checks per client address, then 1 per 30 s, so the server is no key-testing oracle). A replaced key overwrites the old one.
-
-`DELETE /api/keys/{provider}` → `{ "ok": true }` (also when none was set).
-
-`valid: false` means the provider rejected the saved key during use (401/403). That key is ignored (the user is back on the community tier for that provider) until they enter a new one: show "This key stopped working. Enter a new one." with the entry field.
+As before plus everything in `/api/quota` (same field names, same shapes), and `user.isAnonymous: boolean` (a guest). For a guest `user.email` is `""`; never show it.
 
 ### Guest sessions (Better Auth anonymous plugin)
 
@@ -83,8 +62,7 @@ As before plus everything in `/api/quota` (same field names, same shapes), and:
 - **Web (cookie):** `fetch('/api/auth/sign-in/anonymous', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' })`. The session cookie is set; nothing to store. (Better Auth's client: `authClient.signIn.anonymous()`.)
 - **iOS / Android (bearer):** same request without cookies. Read the token from the **`set-auth-token` response header** and store it like a normal sign-in token (Keychain / encrypted storage); send `Authorization: Bearer <token>` afterwards. (The `token` field in the JSON body is the raw session token, not the signed bearer value; use the header.) Also keep a flag that this token is a guest (`/api/me` → `user.isAnonymous`).
 - A guest token works on: `/api/me`, `/api/quota`, prompts, `/api/speaking/test`, creating/submitting attempts, `GET /api/attempts/{id}` (their own result page), `GET /api/attempts/{id}/status`, `DELETE /api/attempts/{id}`.
-- A guest token gets `403 { code: "account_required" }` on history (`GET /api/attempts`), mistakes, cards, progress, `PUT /api/settings` and `/api/keys`. Show "Create an account" gates there, not an error. It must NOT be treated as an expired session.
-- Live endpoints answer `403 live_requires_own_key` with `tier: "guest"`.
+- A guest token gets `403 { code: "account_required" }` on history (`GET /api/attempts`), mistakes, cards, progress and `PUT /api/settings`. Show "Create an account" gates there, not an error. It must NOT be treated as an expired session.
 
 #### Linking a guest to an account
 
@@ -101,74 +79,53 @@ When a guest signs up or signs in, their attempts, recordings, live sessions, mi
 
 | Status | `code` | When | Body fields |
 | --- | --- | --- | --- |
-| 429 | `quota_exceeded` | No test left in the window (at `POST /api/attempts`, at submit, at `/api/live/start`, at `/api/live/finish`) | `skill`, `resetAt` (ISO), `tier` |
-| 402 | `community_balance_exhausted` | The shared balance is below the floor (community and guest tests only) | |
-| 503 | `community_busy` | More than `COMMUNITY_MAX_PER_HOUR` community tests started this hour across all users | |
+| 429 | `quota_exceeded` | No test left in the window (at `POST /api/attempts`, at submit, at live start and finish) | `skill`, `resetAt` (ISO), `window`, `tier` |
+| 402 | `community_balance_exhausted` | Server guard: the server key is nearly out of credit (limited plans only) | |
+| 503 | `community_busy` | Server guard: too many tests started this hour | |
 | 429 | `too_many_requests` | Per-IP burst limit (20 attempt creates/submits, then 1 per 3 s) or anonymous sign-in limit | |
-| 403 | `live_requires_own_key` | A live endpoint without the matching own key (turn: OpenRouter; GPT-Live: OpenAI; Gemini Live: Gemini). Guests too | `tier` |
 | 403 | `account_required` | A guest on a sign-in-only endpoint | |
-| 400 | `invalid_key` | PUT key rejected by the provider; also when GPT-Live/Gemini rejected a saved key at session start (that key is flagged `valid: false`) | |
-| 502 | `key_check_failed` | Provider could not be reached to check the key | |
-| 503 | `keys_unavailable` | Server has no `KEY_ENCRYPTION_SECRET` | |
 
-`POST /api/attempts` and `POST /api/live/start` run the same quota/balance/busy checks as submit without reserving anything, so people hear "no tests left" before they write the essay. When a writing submit is refused, a `text`/`plan` sent in the request body is still saved on the attempt (status stays `recording`), so nothing typed is lost.
-
-Analysis failures with the user's own key say so on the attempt (`error`, `retryable: false`): "Your OpenRouter key is out of credit..." or "...was rejected".
-
-### Live gating
-
-`/api/live/start` (`skipTts: false` = turn-based needs an own OpenRouter key; `skipTts: true` = GPT-Live/Gemini Live needs an OpenAI or Gemini key), `/api/live/turn` (OpenRouter key), `/api/live/gpt-live/session` and `/api/live/gpt-live/ws` (OpenAI key; the relay opens the upstream connection with the user's key), `/api/live/gemini-token` (Gemini key). The server never uses its own `OPENAI_API_KEY`/`GEMINI_API_KEY` for non-owner users. Clients hide or disable live providers that are not in `liveProviders` and point to Settings → "Your API keys".
+`POST /api/attempts` and live start run the same checks as submit without reserving anything, so people hear "no tests left" before they write the essay. When a writing submit is refused, a `text`/`plan` sent in the request body is still saved on the attempt (status stays `recording`), so nothing typed is lost.
 
 ## Environment variables
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `KEY_ENCRYPTION_SECRET` | none | Encrypts saved user keys (AES-256-GCM, HKDF-derived key, per-row random IV; the user id and provider are authenticated data). **Set it in production** (`openssl rand -hex 32`, at least 32 characters; a shorter one is ignored), separate from `BETTER_AUTH_SECRET`. Without it production refuses to save keys (`503 keys_unavailable`); dev and tests fall back to a key derived from `BETTER_AUTH_SECRET`. Changing it makes saved keys unreadable (users re-enter them). |
-| `COMMUNITY_MIN_BALANCE` | `0.25` | USD. Community tests are blocked below this remaining balance. |
-| `COMMUNITY_MAX_PER_HOUR` | `60` | Community-paid test reservations per rolling hour across all users; above it `community_busy`. Refunded tests do not count. |
-| `GUEST_IP_WEEKLY_CAP` | `3` | Guest tests per skill per IP per week across anonymous users. |
+| `COMMUNITY_MIN_BALANCE` | `0.25` | USD. Limited tests pause below this much left on the server OpenRouter key. |
+| `COMMUNITY_MAX_PER_HOUR` | `60` | Limited test reservations per rolling hour across all users; above it `community_busy`. Refunded tests do not count. |
+| `GUESTS_PER_IP` | `3` | Guests' worth of tests per IP (times the guest limit, per skill and window) across anonymous users. |
 | `IP_HASH_SALT` | derived from `BETTER_AUTH_SECRET` | Salt for the IP hash. Raw IPs are never stored. |
-| `OPENROUTER_API_KEY` | | The shared community key. Give it a spend limit in OpenRouter (about $20): its `limit` and `usage` are the public balance. |
-| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY` | | Server keys. OpenAI/Gemini are used only for the owner's live sessions; ElevenLabs only for users without their own OpenRouter key. |
-| `CAMBRIDGE_ALLOWED_EMAILS` | `soyebjim@gmail.com` | The owner: exempt from quotas, may use the server's live keys. Needs a verified email. |
+| `OPENROUTER_API_KEY` | | The server key for all analysis. Give it a spend limit in OpenRouter. |
+| `CAMBRIDGE_ALLOWED_EMAILS` | `soyebjim@gmail.com` | The owner: exempt from limits. Needs a verified email. |
 
 ## Database
 
-Migration `0004_community`: `user.is_anonymous`, `user_api_keys` (encrypted keys), `quota_usage` (one row per paid test: user, skill, unit key, tier, IP hash, created, refunded). The server sweeps guests older than 30 days every 6 hours.
+`quota_usage`: one row per counted test (user, skill, unit key, tier at the time, IP hash, created, refunded). Rows before 2026-10-25 may carry tier `own-key`. `user_limits`: the admin's per-user overrides and `subscribed_until`. The old `user_api_keys` table is no longer read or written. The server sweeps guests older than 30 days every 6 hours.
 
 ## Client UX requirements
 
 Common to web, iOS and Android; copy is sentence case and the same everywhere.
 
 1. **Browse freely.** Guests can open every prompt and the test screens. No session is created until Start.
-2. **Start button with remaining quota.** Fetch `GET /api/quota` when the test screen opens (and again at Start). Under or inside the Start button: "1 test left today" / "1 test left this week" / "No tests left. Resets Monday 6:00" / "Unlimited with your key". Use `window` and `resetAt` (local time). Reset phrase, identical on every platform: up to a minute away "in a moment"; under an hour "in N min" (minutes rounded up); under a day "in N h" (hours rounded to the nearest, at least 1); otherwise the local weekday and 24-hour time ("Monday 6:00"). Speaking and writing are separate counters. Refresh the numbers after a submit and after an analysis ends (a refund changes them).
-3. **Blocked before they start** (`blocked` not null, or 429/402/503 on `POST /api/attempts` / live start): never begin recording or typing. Show one panel with the reason and the way out. Titles and bodies are the same on every platform ({when} is the reset phrase from 2):
+2. **Start button with remaining quota.** Fetch `GET /api/quota` when the test screen opens (and again at Start). Under or inside the Start button: "3 tests left this week" / "No tests left. Resets Monday 6:00". Unlimited plans show nothing. Use `window` and `resetAt` (local time). Reset phrase, identical on every platform: up to a minute away "in a moment"; under an hour "in N min" (minutes rounded up); under a day "in N h" (hours rounded to the nearest, at least 1); otherwise the local weekday and 24-hour time ("Monday 6:00"). Refresh the numbers after a submit and after an analysis ends (a refund changes them).
+3. **Blocked before they start** (`blocked` not null, or 429/402/503 on `POST /api/attempts` / live start): never begin recording or typing. Show one panel with the reason and the way out ({when} is the reset phrase from 2):
 
-   | Code | Title | Body | Primary | Secondary |
-   | --- | --- | --- | --- | --- |
-   | `quota_exceeded`, guest | You've used this week's free test | It resets {when}. | **Create an account for 1 test a day** | not now |
-   | `quota_exceeded`, community | You've used today's free test | It resets {when}. | **Add your own key** (→ Settings → Your API keys) | wait |
-   | `community_balance_exhausted` | The community balance is used up for now | Free tests are paid from one shared balance, and it has run out. Add your own OpenRouter key to keep practising, or try again later. (Guests: "Create an account, then add your own OpenRouter key to keep practising, or try again later.") | **Add your own OpenRouter key**; guests **Create an account** (they cannot hold keys) | not now |
-   | `community_busy` | A lot of people are practising right now | Try again in a few minutes. | none | close |
-   | `live_requires_own_key` | The live examiner runs on your own key | Guests: "Create an account, then add your own OpenAI or Gemini key in Settings." Signed in: "Add your own key in Settings: OpenRouter for the turn-based examiner, OpenAI for GPT-Live, Gemini for Gemini Live." (or "Add your own {provider} key in Settings." when the provider is known) | **Create an account** / **Add your own key** | not now |
-   | `too_many_requests` | You're going a bit fast | Try again in a moment. | none | close |
+   | Code | Title | Body | Primary |
+   | --- | --- | --- | --- |
+   | `quota_exceeded`, guest | You've used your free tests | They reset {when}. A free account gets more. | **Create an account** |
+   | `quota_exceeded`, signed in | You've used your tests for now | They reset {when}. | none |
+   | `community_balance_exhausted` | Scoring is paused for a short while | Please try again later. | none |
+   | `community_busy` | A lot of people are practising right now | Try again in a few minutes. | none |
+   | `too_many_requests` | You're going a bit fast | Try again in a moment. | none |
 
    Where there is only room for a sentence (a refused upload), use "{title}. {body} {what was kept}".
 
-4. **Fair-use dialog** before a test that will use the community balance (tier `guest` or `community`, `blocked` null), shown once per user per day (remember the acknowledgement locally per user id, or per device for guests, per UTC day). Web: shadcn Dialog/AlertDialog; iOS: a sheet; Android: ModalBottomSheet or AlertDialog.
-   - Title: **You're using the community balance**
-   - Body: "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use. You have {N} {speaking|writing} test{s} left {today|this week}. The community balance has ${remaining} left. Want unlimited tests and the live examiner? Add your own API key in Settings." (Guests: replace the last sentence with "Create an account for 1 test a day.")
-   - Buttons: **Start test** (primary), **Use my own key** (secondary, → Settings; for guests **Create an account**).
-5. **Balance meter.** A compact "Community balance $12.40 of $20" with a thin bar (`remaining` of `limit`; hide the number if `remaining` is null) in the web sidebar/header, the mobile home and Settings, and inside the fair-use dialog and blocked panels. Teal is for "act here", so draw the meter in a neutral/muted tone, switching to the warning tone under 10 %. Always give it a text alternative; it refreshes at most once a minute.
-6. **Quota ran out mid-test** (a second tab, the window rolled, the balance ran out): the submit returns 429/402/503. Keep the draft on screen (the server also keeps writing text), say what happened and when it resets, and offer the same way out as in 3. Do not discard anything.
-7. **After submit failures that were refunded** (analysis failed, no speech): say "This one didn't count against your tests." The retry button re-submits the same attempt.
-8. **Guest result.** The result page of a guest's own test works. Show "Create an account to keep this result" (results are kept 30 days). History, Mistakes and Review show a friendly gate ("Create an account to see your history") instead of calling their endpoints, and map `403 account_required` to the same gate if a call happens anyway. Settings for guests: no keys section.
-9. **Settings → Your API keys** (signed in only): three rows (OpenRouter, OpenAI, Gemini), each: provider, what it unlocks ("Unlimited tests" for OpenRouter; "GPT-Live examiner" for OpenAI; "Gemini Live examiner" for Gemini), a masked field, **Save** (calls `PUT`, shows "Checking your key..."), after saving "•••• ab12, added Oct 3" with **Replace** and **Remove**. Show `invalid_key` as "OpenAI didn't accept that key. Check that you copied all of it." and `key_check_failed` as "Couldn't reach OpenAI to check the key. Try again." `valid: false` rows show "This key stopped working." Say plainly: "Your key is stored encrypted on our server and only used for your tests. Remove it any time."
-10. **Live provider pickers** show only what `liveProviders` allows; the rest are disabled with "Needs your own {provider} key" and a link to Settings. A saved `liveProvider` that is no longer allowed falls back to turn-based if allowed, else shows the blocked panel.
-11. **After sign-in or sign-up**, refetch `/api/me` and `/api/quota`; the guest's test now counts as the account's (a guest who tested today has no test left today).
+4. **Quota ran out mid-test** (a second tab, the window rolled): the submit returns 429/402/503. Keep the draft on screen (the server also keeps writing text), say what happened and when it resets. Do not discard anything.
+5. **After submit failures that were refunded** (analysis failed, no speech): say "This one didn't count against your tests." The retry button re-submits the same attempt.
+6. **Guest result.** The result page of a guest's own test works. Show "Create an account to keep this result" (results are kept 30 days). History, Mistakes and Review show a friendly gate ("Create an account to see your history") instead of calling their endpoints, and map `403 account_required` to the same gate if a call happens anyway.
+7. **After sign-in or sign-up**, refetch `/api/me` and `/api/quota`; the guest's used tests now count on the account.
 
 ## Operations
 
 - Guest limits and the IP caps rely on the real client address. Keep the app reachable only through the Cloudflare Tunnel, which sets `CF-Connecting-IP`; if it were reachable directly, that header could be forged.
-- The in-process limits (per-IP burst, per-user AI bucket) are per server process, like the existing rate limits. The quota ledger, the per-IP weekly caps and the hourly guard live in Postgres and hold across instances.
-- If the owner's own OpenRouter usage should not count against the public meter, use a separate key for the owner (the meter reads the shared key's usage).
+- The in-process limits (per-IP burst, per-user AI bucket) are per server process, like the existing rate limits. The quota ledger, the per-IP caps and the hourly guard live in Postgres and hold across instances.

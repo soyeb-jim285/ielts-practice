@@ -3,7 +3,7 @@ import type { Word } from '@ielts/core';
 import { env, IS_TEST } from '../env';
 import { recordCost, usageCost, whisperUsd } from './cost';
 import { type AiLogRow, logAi } from './ailog';
-import { keyCtx, redact } from './keyctx';
+import { redact } from './keyctx';
 
 const BASE = 'https://openrouter.ai/api/v1';
 
@@ -36,9 +36,7 @@ export class AiError extends Error {
 }
 
 /** Candidate-facing copy per upstream status; only 429/5xx/timeouts say "retry". Operator detail goes to the server log. */
-function httpMessage(status: number, own = false) {
-  if (own && status === 402) return 'Your OpenRouter key is out of credit. Add credit to it, or remove it in Settings to use the community balance.';
-  if (own && (status === 401 || status === 403)) return 'Your OpenRouter key was rejected. Check it in Settings.';
+function httpMessage(status: number) {
   if (status === 429) return 'The AI service is rate-limited right now. Please retry in a minute.';
   if (status >= 500) return `The AI service returned an error (${status}). Please retry.`;
   if (status === 402 || status === 401 || status === 403) return 'The AI service is temporarily unavailable. Your work is saved, so try again later.';
@@ -70,8 +68,7 @@ function logBody(buf: ArrayBuffer, type: string): unknown {
 /** Retries network errors, 429 and 5xx twice with jittered backoff; timeouts are not retried (they already waited minutes).
  *  Every POST is written to the AI log (ai/ailog.ts) once, with its final outcome; `stage` names the pipeline step, as in the cost ledger. */
 async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'POST', stage = 'other'): Promise<Response> {
-  const ctx = keyCtx.getStore();
-  const apiKey = ctx?.openrouter ?? env.OPENROUTER_API_KEY; // the user's own key when they have one: their credit, not the community's
+  const apiKey = env.OPENROUTER_API_KEY;
   const t0 = Date.now();
   const log = (r: Pick<AiLogRow, 'ok' | 'status' | 'response' | 'error' | 'served' | 'costUsd'>) =>
     method === 'POST' && logAi({ stage, path, model: (body as { model?: string } | undefined)?.model, latencyMs: Date.now() - t0, request: body, ...r });
@@ -116,10 +113,9 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
       continue;
     }
     const detail = redact((await res.text().catch(() => '')).slice(0, 2000), apiKey);
-    console.error(`openrouter ${path} ${res.status}`, ctx?.openrouter ? 'own key' : OPERATOR_HINT[res.status] ?? '', detail.slice(0, 500));
+    console.error(`openrouter ${path} ${res.status}`, OPERATOR_HINT[res.status] ?? '', detail.slice(0, 500));
     log({ ok: false, status: res.status, error: detail || `HTTP ${res.status}` });
-    if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
-    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status, detail);
+    throw new AiError('http', httpMessage(res.status), res.status, detail);
   }
 }
 
@@ -261,8 +257,7 @@ export async function chatText(o: {
 /** chatText, streamed: `onDelta` gets each text piece as it arrives (server-sent events), the full text is returned at the end.
  *  No retry once bytes have arrived (a half-spoken reply can't be restarted); before that, a failed request throws AiError like call(). */
 export async function chatTextStream(o: Parameters<typeof chatText>[0] & { onDelta: (text: string) => void; timeoutMs?: number }): Promise<string> {
-  const ctx = keyCtx.getStore();
-  const apiKey = ctx?.openrouter ?? env.OPENROUTER_API_KEY;
+  const apiKey = env.OPENROUTER_API_KEY;
   const stage = o.cost?.stage ?? 'examiner_llm';
   const body = { model: o.model, messages: o.messages, temperature: o.temperature ?? 0.7, max_tokens: o.maxTokens, stream: true, usage: { include: true }, ...(o.effort && { reasoning: o.effort === 'none' ? { enabled: false } : { effort: o.effort } }) };
   const t0 = Date.now();
@@ -281,8 +276,7 @@ export async function chatTextStream(o: Parameters<typeof chatText>[0] & { onDel
   if (!res.ok || !res.body) {
     const detail = redact((await res.text().catch(() => '')).slice(0, 2000), apiKey);
     logAi({ stage, path: '/chat/completions', model: o.model, latencyMs: Date.now() - t0, request: body, ok: false, status: res.status, error: detail || `HTTP ${res.status}` });
-    if (ctx?.openrouter && (res.status === 401 || res.status === 403)) ctx.onAuthFail?.();
-    throw new AiError('http', httpMessage(res.status, !!ctx?.openrouter), res.status);
+    throw new AiError('http', httpMessage(res.status), res.status);
   }
   let text = '', buf = '', usage: unknown, provider: string | undefined, id: string | undefined;
   const dec = new TextDecoder();

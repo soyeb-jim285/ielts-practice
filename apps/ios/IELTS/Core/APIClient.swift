@@ -5,10 +5,10 @@ import Security
 struct APIError: LocalizedError {
     let status: Int
     let message: String
-    var code: String? = nil // Better Auth error code (INVALID_OTP) or a community code (quota_exceeded, live_requires_own_key, ...)
+    var code: String? = nil // Better Auth error code (INVALID_OTP) or a plan code (quota_exceeded, community_busy, ...)
     var skill: String? = nil // quota_exceeded
     var resetAt: String? = nil // quota_exceeded, ISO
-    var tier: String? = nil // quota_exceeded, live_requires_own_key
+    var tier: String? = nil // quota_exceeded
     var errorDescription: String? { message }
 }
 
@@ -34,13 +34,11 @@ final class APIClient {
     /// A real account. A guest has a session (`hasSession`) but is not signed in.
     var isSignedIn: Bool { token != nil && !isGuest }
     var hasSession: Bool { token != nil }
-    /// Community quota and balance (GET /api/quota), refreshed at most once a minute unless forced.
+    /// What the plan allows now (GET /api/quota), refreshed at most once a minute unless forced.
     private(set) var quota: Quota?
     @ObservationIgnored private var quotaLoadedAt = Date.distantPast
-    /// Tab selection lives here so "Add your own key" can jump to Settings from anywhere.
+    /// Tab selection lives here so any screen can switch tabs.
     var tab = Demo.initialTab
-    /// Set when something sent the user to Settings → Your API keys; Settings scrolls there and clears it.
-    var wantsKeys = false
     /// Non-nil while the sign-in sheet should be up (see `requestSignIn`).
     var signInRequest: SignInRequest?
     private(set) var signingIn = false
@@ -230,11 +228,6 @@ final class APIClient {
             quota = try await send("GET", "/api/quota")
             quotaLoadedAt = Date()
         } catch {} // the labels simply stay hidden; the start gate reports a failure itself
-    }
-
-    /// Jump to Settings → Your API keys (signed-in users), or ask a guest to create an account first.
-    func openKeys() {
-        if isSignedIn { wantsKeys = true; tab = 4 } else { requestSignIn("Create an account to add your own key.", signUp: true) }
     }
 
     func signOut() async {

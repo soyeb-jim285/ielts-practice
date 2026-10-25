@@ -11,7 +11,7 @@ export function PractiseList({ liveReady }: { liveReady: boolean }) {
   const { data: q } = useQuota();
   const left = (k: 'speaking' | 'writing') => {
     if (!q) return null;
-    const t = quotaText(q[k], q.tier);
+    const t = quotaText(q[k]);
     return <span className={`type-caption type-num ml-2 font-normal ${t.warn ? 'text-warn-text' : ''}`}>{t.text}</span>;
   };
   return (
@@ -20,14 +20,14 @@ export function PractiseList({ liveReady }: { liveReady: boolean }) {
         <li>
           <Link to="/listening" className={rowStyles}>
             <RowIcon><Headphones /></RowIcon>
-            <RowText title="Listening" meta="Unlimited free practice tests, 40 questions, or one part at a time" />
+            <RowText title="Listening" meta="Free practice tests, 40 questions, or one part at a time" />
             <RowChevron />
           </Link>
         </li>
         <li>
           <Link to="/reading" className={rowStyles}>
             <RowIcon><BookOpen /></RowIcon>
-            <RowText title="Reading" meta="Unlimited free practice tests, 40 questions, or one passage" />
+            <RowText title="Reading" meta="Free practice tests, 40 questions, or one passage" />
             <RowChevron />
           </Link>
         </li>
@@ -41,7 +41,7 @@ export function PractiseList({ liveReady }: { liveReady: boolean }) {
         <li>
           <Link to="/speaking" className={rowStyles}>
             <RowIcon><Mic /></RowIcon>
-            <RowText title={<>Speaking{left('speaking')}</>} meta={`Full test 11-14 min, or one part. Live examiner: ${liveReady ? 'a spoken conversation with an AI examiner' : 'needs your own API key, added in Settings'}`} />
+            <RowText title={<>Speaking{left('speaking')}</>} meta={`Full test 11-14 min, or one part. Live examiner: ${liveReady ? 'a spoken conversation with an AI examiner' : 'not available right now'}`} />
             <RowChevron />
           </Link>
         </li>

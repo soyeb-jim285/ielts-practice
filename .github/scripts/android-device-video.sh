@@ -160,13 +160,6 @@ clip_review() {
   sleep 1.5; tap_text "Show answer" 0 2.5; tap_text "Good" 0 2; tap_text "Show answer" 0 2.5; tap_text "Easy" 0 2
   rec_stop
 }
-clip_settings_keys() {
-  launch settings-keys light Empty; rec_start "08-settings-keys-light"
-  sleep 1.5; tap_text "OpenRouter API key" 0 1.5
-  typewords "sk-or-v1-" "demo-key-" "0123456789"
-  sleep 0.8; tap_text "Show" 0 2.5 # (Save answers an error in demo mode, so it is not tapped)
-  rec_stop
-}
 clip_guest_home() {
   launch guest-home light; rec_start "09-guest-home-light"
   sleep 0.7; swipe_up 900 1.3; swipe_up 900 1.5; swipe_down 800 0.8; swipe_down 800 1
@@ -183,7 +176,6 @@ clip_result_tabs light
 clip_fluency_dot light
 clip_writing_type light
 clip_review
-clip_settings_keys
 clip_guest_home
 clip_home dark
 clip_result_tabs dark

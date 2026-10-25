@@ -12,12 +12,12 @@ import { FairUseDialog } from './FairUseDialog';
 
 type State = { kind: 'checking' } | { kind: 'error' } | { kind: 'blocked'; blocker: Blocker } | { kind: 'ack'; quota: Quota } | { kind: 'go' };
 
-const HUB = { speaking: { to: '/speaking', label: 'Speaking' }, writing: { to: '/writing', label: 'Writing' } } as const;
+const HUB = { speaking: { to: '/speaking', label: 'Speaking' }, examiner: { to: '/speaking', label: 'Speaking' }, writing: { to: '/writing', label: 'Writing' } } as const;
 
 /**
  * Wraps a test screen. Before anything is recorded or typed it asks /api/quota what this person may start, then:
  *   blocked          -> one panel with the reason and the way out
- *   community tier   -> the fair-use dialog (once a day)
+ *   guest or free    -> the fair-use dialog (once a day)
  *   otherwise        -> makes sure there is a session (a guest session on the first test) and shows the test.
  * The quota is only reserved later, when the attempt is submitted.
  */
@@ -48,7 +48,7 @@ export function TestGate({ skill, title, children }: { skill: Skill; title: stri
     }
     const blocker = blockerFromQuota(quota, skill);
     if (blocker) return setState({ kind: 'blocked', blocker });
-    if (quota.tier !== 'own-key' && !fairUseAcknowledged(userId)) return setState({ kind: 'ack', quota });
+    if ((quota.tier === 'guest' || quota.tier === 'community') && !fairUseAcknowledged(userId)) return setState({ kind: 'ack', quota });
     await proceed();
   }, [qc, skill, userId, proceed]);
 

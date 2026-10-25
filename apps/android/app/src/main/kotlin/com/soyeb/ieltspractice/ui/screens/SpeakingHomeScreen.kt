@@ -81,7 +81,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // Mirrors: iOS Views/SpeakingHomeView.swift, web routes/_app/speaking/index.tsx
-// Speaking hub: unsent recordings, the two ways to practise, single parts, recent results. Guests see it too and can start a test: no account needed (one free test a week).
+// Speaking hub: unsent recordings, the two ways to practise, single parts, recent results. Guests see it too and can start a test: no account needed (a few free tests).
 
 private class PartInfo(val n: Int, val title: String, val desc: String, val time: String)
 

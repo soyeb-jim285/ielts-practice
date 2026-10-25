@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { gapLine, ScoreHero, Section, SkillBandStrip, type SkillBandItem } from '@/components/result';
-import { BalanceMeter } from '@/components/community/BalanceMeter';
-import { useQuota } from '@/lib/community';
 import { lrProgressQuery } from '@/lib/lr';
 import { formatBand } from '@/lib/format';
 import { averageBand, overallEstimate } from './overall';
@@ -26,7 +24,6 @@ export function useSkillBands(p: Progress) {
 /** The focal block: the overall band estimate, then the four skills as equal peers, then what you can still start today. */
 export function YourPicture({ p, target }: { p: Progress; target: number }) {
   const { bands } = useSkillBands(p);
-  const { data: quota } = useQuota();
   const items: SkillBandItem[] = [
     { skill: 'listening', ...bands.listening, to: { to: '/listening' }, target, state: 'Not tried', offer: bands.listening.band == null ? 'Take a free test' : undefined },
     { skill: 'reading', ...bands.reading, to: { to: '/reading' }, target, offer: bands.reading.band == null ? 'Take a free test' : undefined },
@@ -45,7 +42,6 @@ export function YourPicture({ p, target }: { p: Progress; target: number }) {
         />
         <SkillBandStrip items={items} />
       </div>
-      {quota?.tier !== 'own-key' && <BalanceMeter className="w-full sm:w-64 md:hidden" />}
     </Section>
   );
 }

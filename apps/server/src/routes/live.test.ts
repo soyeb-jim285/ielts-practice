@@ -121,22 +121,22 @@ it('the introduction is picked per session: time-of-day greeting, one to three q
 });
 
 it('a signed-in user without an OpenRouter key: the quota is checked at start and reserved at finish', async () => {
-  const { headers, user } = await testUser(undefined, { key: false });
+  const { headers, user } = await testUser(undefined, { unlimited: false });
   const s = await start(headers);
   expect(s.sessionId).toBeTruthy();
   const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
   const done = await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } });
   expect(done.status).toBe(200);
-  expect(await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id))).toMatchObject([{ skill: 'speaking', unitKey: s.sessionId, tier: 'community' }]);
+  expect(await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id))).toMatchObject([{ skill: 'examiner', unitKey: s.sessionId, tier: 'community' }]);
 
-  // the one speaking test of the day is gone: the next live session is refused before it starts
+  // the examiner session of the window is gone: the next live session is refused before it starts
   const again = await req('/api/live/start', { headers, body: {} });
   expect(again.status).toBe(429);
-  expect(await again.json()).toMatchObject({ code: 'quota_exceeded', skill: 'speaking', tier: 'community' });
+  expect(await again.json()).toMatchObject({ code: 'quota_exceeded', skill: 'examiner', tier: 'community' });
 });
 
 it('live finish with an exhausted community balance is refused (402) and creates no attempts', async () => {
-  const { headers } = await testUser(undefined, { key: false });
+  const { headers } = await testUser(undefined, { unlimited: false });
   const s = await start(headers);
   const f = fakeFetch({ '/api/v1/key': () => json({ data: { limit: 20, usage: 20, limit_remaining: 0 } }) });
   setFetch(f);
@@ -148,22 +148,13 @@ it('live finish with an exhausted community balance is refused (402) and creates
 });
 
 it('a retried finish after a refund is a 409 and does not charge the test again', async () => {
-  const { headers, user } = await testUser(undefined, { key: false });
+  const { headers, user } = await testUser(undefined, { unlimited: false });
   const s = await start(headers);
   const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
   await db.update(quotaUsage).set({ refundedAt: new Date() }).where(eq(quotaUsage.userId, user.id)); // its analysis failed and was given back
   expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(409);
   expect((await db.select().from(quotaUsage).where(eq(quotaUsage.userId, user.id)))[0]!.refundedAt).toBeInstanceOf(Date);
-});
-
-it('an own-key user can run any number of live sessions', async () => {
-  const { headers } = await testUser();
-  for (let i = 0; i < 3; i++) {
-    const s = await start(headers);
-    const parts = [{ part: 1, audioKey: await upload(headers, s.sessionId), durationMs: 60_000 }];
-    expect((await req('/api/live/finish', { headers, body: { sessionId: s.sessionId, parts } })).status).toBe(200);
-  }
 });
 
 it('reply times are saved per session, merged across batches, kept through finish, and only by the owner', async () => {

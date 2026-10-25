@@ -47,7 +47,7 @@ export function recordCost(row: CostRow): void {
         promptId: c?.promptId,
         skill: c?.skill,
         part: c?.part,
-        paidBy: paidBy ?? (ctx?.openrouter ? 'own_key' : 'house'),
+        paidBy: paidBy ?? 'house',
       }),
     ).catch((e: Error) => console.error('recordCost failed:', e.message));
     pending.add(p);
@@ -73,7 +73,7 @@ export function usageCost(u: unknown): { costUsd: number; inputTokens?: number; 
   const x = (u ?? {}) as { cost?: unknown; is_byok?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown; cost_details?: { upstream_inference_cost?: unknown } };
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
   const cost = n(x.cost);
-  return { costUsd: (cost ?? 0) + ((x.is_byok ?? keyCtx.getStore()?.openrouter) ? (n(x.cost_details?.upstream_inference_cost) ?? 0) : 0), inputTokens: n(x.prompt_tokens), outputTokens: n(x.completion_tokens), exact: cost !== undefined };
+  return { costUsd: (cost ?? 0) + (x.is_byok ? (n(x.cost_details?.upstream_inference_cost) ?? 0) : 0), inputTokens: n(x.prompt_tokens), outputTokens: n(x.completion_tokens), exact: cost !== undefined };
 }
 
 /** Replaces estimated OpenRouter costs with what OpenRouter actually charged. The live examiner's LLM rows are priced from the catalogue, but OpenRouter

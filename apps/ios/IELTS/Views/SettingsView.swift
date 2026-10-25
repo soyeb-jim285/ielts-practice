@@ -8,11 +8,9 @@ struct SettingsView: View {
     @State private var showDelete = false
 
     var body: some View {
-        ScrollViewReader { proxy in
         Form {
             if let error { Section { ErrorLine(message: error) } }
             CommunitySection()
-            ApiKeysSection()
             Section {
                 NavigationLink(value: Route.history(skill: nil)) { Label("Past attempts", systemImage: "clock.arrow.circlepath") }
                 NavigationLink(value: Route.mistakes(category: nil)) { Label("Mistakes", systemImage: "exclamationmark.triangle") }
@@ -51,14 +49,7 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showDelete) { DeleteAccountSheet() }
-        .onChange(of: api.wantsKeys, initial: true) { _, wants in
-            // "Add your own key" from a blocked panel: bring the plan and key rows into view.
-            guard wants else { return }
-            api.wantsKeys = false
-            withAnimation { proxy.scrollTo("community", anchor: .top) }
-        }
         .task { await api.loadQuota() }
-        }
     }
 
     private var binding: Binding<AppSettings> {

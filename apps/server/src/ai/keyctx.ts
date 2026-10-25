@@ -1,15 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-/** Per-request provider credentials. The OpenRouter calls in openrouter.ts read this instead of taking a key parameter, so every call site
- *  (analysis, scoring, STT, audio pronunciation) uses the user's own key without threading it through. docs/community.md */
 /** Who a paid call belongs to (ai/cost.ts recordCost reads it). `retry` marks everything run inside asRetry(). */
 export type CostCtx = { userId?: string; attemptId?: string; sessionId?: string; promptId?: string; skill?: 'speaking' | 'writing' | 'listening' | 'reading'; part?: number; retry?: boolean };
 export type KeyCtx = {
   cost?: CostCtx;
-  /** The user's own OpenRouter key. Unset: the shared community key. */
-  openrouter?: string;
-  /** Called once when the provider rejects that key (401/403), so it can be flagged invalid. */
-  onAuthFail?: () => void;
   /** Sums every recordCost in this context (a request that reports its own cost). */
   tally?: { usd: number };
 };

@@ -13,8 +13,10 @@ export const COMPANY = {
   country: 'Bangladesh',
 };
 
-export const TRADEMARK =
-  'IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press & Assessment. NextBand is not affiliated with, approved or endorsed by them.';
+const IELTS_TM = 'IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press & Assessment.';
+export const TRADEMARK = `${IELTS_TM} NextBand is not affiliated with, approved or endorsed by them.`;
+/** Footer version: fits one line on a laptop-width page. */
+export const TRADEMARK_SHORT = `${IELTS_TM} NextBand is not affiliated with them.`;
 
 const PAGES = [
   { to: '/privacy', label: 'Privacy' },

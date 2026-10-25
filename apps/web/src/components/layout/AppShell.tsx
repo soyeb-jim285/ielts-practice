@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/shadcn/sidebar';
 import { signOut, useIsOwner } from '@/lib/auth';
 import { ADMIN_ITEMS, Marker, useAdminNav } from '@/components/admin/AdminNav';
-import { BalanceMeter } from '@/components/community/BalanceMeter';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
 import { openFeedback } from './FeedbackButton';
@@ -172,17 +171,6 @@ function SidebarTop() {
   );
 }
 
-/** The shared balance, always in view in the sidebar (hidden in the icon rail, where there is no room for a label). */
-function SidebarBalance() {
-  const { state } = useSidebar();
-  if (state === 'collapsed') return null;
-  return (
-    <div className="px-2 pt-1 pb-2">
-      <BalanceMeter />
-    </div>
-  );
-}
-
 /** On /admin the sidebar is the admin's own nav (one sidebar, not the app's plus a second rail), with a way back to the app. */
 function AdminSideNav() {
   const { marks, current } = useAdminNav();
@@ -244,7 +232,6 @@ function AppSidebar() {
         </nav>}
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
-        <SidebarBalance />
         <SidebarMenu>
           {signedIn && <SideLink item={SETTINGS} />}
           {signedIn && owner && !inAdmin && <SideLink item={ADMIN} />}
@@ -365,14 +352,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           Privacy
         </Link>
         <Separator className="my-4" />
-        <BalanceMeter className="mb-4" />
         {me ? (
           <Button variant="ghost" icon={<LogOut />} onClick={doSignOut}>
             Sign out
           </Button>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted">Create an account to keep your results and get 1 test a day.</p>
+            <p className="text-sm text-muted">Create an account to keep your results and get more tests.</p>
             <Link to="/signup" search={{ redirect: backTo }} onClick={() => setMore(false)} className={buttonStyles({ size: 'lg', className: 'h-11 w-full' })}>
               Create account
             </Link>

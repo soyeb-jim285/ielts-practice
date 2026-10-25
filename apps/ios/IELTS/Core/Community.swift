@@ -1,6 +1,6 @@
 import Foundation
 
-// Community mode (docs/community.md): quota labels, reset times, the fair-use text and the error-code UX. Pure logic, no views.
+// Plans and limits (docs/community.md): quota labels, reset times, the fair-use text and the error-code UX. Pure logic, no views.
 
 enum CommunityText {
     /// ISO instants arrive with or without fractional seconds.
@@ -10,12 +10,6 @@ enum CommunityText {
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
     }
-
-    /// "$12.40"
-    static func money(_ v: Double) -> String { String(format: "$%.2f", v) }
-
-    /// "$20" for a whole limit, "$12.50" otherwise.
-    static func limit(_ v: Double) -> String { v.rounded() == v ? String(format: "$%.0f", v) : money(v) }
 
     /// "in 40 min", "in 5 h" (under a day) or "Monday 6:00", always in the viewer's local time.
     static func resetWhen(_ d: Date, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
@@ -38,35 +32,37 @@ enum CommunityText {
 
     /// The line under a Start button.
     static func left(_ q: SkillQuota, now: Date = Date(), calendar: Calendar = .current) -> String {
-        if q.blocked == "community_balance_exhausted" { return "The community balance is used up for now" }
+        if q.blocked == "community_balance_exhausted" { return "Scoring is paused, try again later" }
         if q.blocked == "community_busy" { return "Busy right now, try again in a few minutes" }
-        guard q.limit != nil, let remaining = q.remaining else { return "Unlimited with your key" }
-        let when = q.window == "week" ? "this week" : "today"
+        guard q.limit != nil, let remaining = q.remaining else { return "Unlimited" }
+        let when = windowWord(q.window)
         if remaining > 0 { return "\(remaining) \(remaining == 1 ? "test" : "tests") left \(when)" }
         if let d = date(q.resetAt) { return "No tests left. " + resets(d, now: now, calendar: calendar) }
         return "No tests left \(when)"
     }
+
+    /// Windows are rolling (last 24 h / 7 / 30 days): "today", "this week", "this month".
+    static func windowWord(_ window: String?) -> String { window == "month" ? "this month" : window == "week" ? "this week" : "today" }
 
     static func skillQuota(_ q: Quota, _ skill: String) -> SkillQuota { skill == "speaking" ? q.speaking : q.writing }
 
     /// Body of the fair-use dialog (the same words on every platform).
     static func fairUseBody(skill: String, quota q: Quota) -> String {
         let sq = skillQuota(q, skill)
-        var out = "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use."
+        var out = "Please practise fairly: no spamming tests and no automated use."
         if let n = sq.remaining {
-            out += "\n\nYou have \(n) \(skill) \(n == 1 ? "test" : "tests") left \(sq.window == "week" ? "this week" : "today")."
+            out += "\n\nYou have \(n) \(skill) \(n == 1 ? "test" : "tests") left \(windowWord(sq.window))."
         }
-        // The balance itself is the meter under this text; saying it twice only makes the paragraph longer.
-        out += q.tier == "guest" ? "\n\nCreate an account for 1 test a day." : "\n\nWant unlimited tests? Add your own OpenRouter key in Settings."
+        if q.tier == "guest" { out += "\n\nCreate a free account for more tests." }
         return out
     }
 }
 
-enum IssueAction { case createAccount, addKey, addOpenRouterKey, retry }
+enum IssueAction { case createAccount, retry }
 
 /// A community error code, ready to show: friendly title and message plus the way out (never the raw server text).
 struct CommunityIssue: Equatable {
-    enum Kind: Equatable { case quota, balance, busy, liveOff, tooFast }
+    enum Kind: Equatable { case quota, paused, busy, liveOff, tooFast }
     let kind: Kind
     var skill: String? = nil
     var resetAt: Date? = nil
@@ -84,7 +80,7 @@ struct CommunityIssue: Equatable {
     init?(_ e: APIError) {
         switch e.code {
         case "quota_exceeded": self.init(kind: .quota, skill: e.skill, resetAt: CommunityText.date(e.resetAt), tier: e.tier)
-        case "community_balance_exhausted": self.init(kind: .balance)
+        case "community_balance_exhausted": self.init(kind: .paused) // 402: scoring is paused for everyone for a while
         case "community_busy": self.init(kind: .busy)
         case "too_many_requests": self.init(kind: .tooFast)
         default: return nil
@@ -95,7 +91,7 @@ struct CommunityIssue: Equatable {
     init?(blocked: String?, skill: String, quota q: SkillQuota, tier: String) {
         switch blocked {
         case "quota_exceeded": self.init(kind: .quota, skill: skill, resetAt: CommunityText.date(q.resetAt), tier: tier)
-        case "community_balance_exhausted": self.init(kind: .balance, skill: skill, tier: tier)
+        case "community_balance_exhausted": self.init(kind: .paused, skill: skill, tier: tier)
         case "community_busy": self.init(kind: .busy, skill: skill, tier: tier)
         default: return nil
         }
@@ -103,8 +99,8 @@ struct CommunityIssue: Equatable {
 
     var title: String {
         switch kind {
-        case .quota: return isGuest ? "You've used this week's free test" : "You've used today's free test"
-        case .balance: return "The community balance is used up for now"
+        case .quota: return "You've used all your \(unit)s for now"
+        case .paused: return "Scoring is paused for now"
         case .busy: return "A lot of people are practising right now"
         case .liveOff: return "The live examiner isn't available right now"
         case .tooFast: return "You're going a bit fast"
@@ -114,9 +110,8 @@ struct CommunityIssue: Equatable {
     func message(now: Date = Date()) -> String {
         switch kind {
         case .quota:
-            return resetAt.map { "It resets " + CommunityText.resetWhen($0, now: now) + "." } ?? "It resets soon."
-        case .balance:
-            return "Free tests are paid from one shared balance, and it has run out. " + (isGuest ? "Create an account, then add" : "Add") + " your own OpenRouter key to keep practising, or try again later."
+            return "Your next one frees up " + (resetAt.map { CommunityText.resetWhen($0, now: now) } ?? "soon") + "." + (isGuest ? " Create a free account for more." : "")
+        case .paused: return "Scoring is paused for a short while. Please try again later."
         case .busy: return "Try again in a few minutes."
         case .liveOff: return "Try again later, or take the recorded speaking test."
         case .tooFast: return "Try again in a moment."
@@ -125,20 +120,17 @@ struct CommunityIssue: Equatable {
 
     var primary: IssueAction? {
         switch kind {
-        case .quota: return isGuest ? .createAccount : .addKey
-        case .balance: return isGuest ? .createAccount : .addOpenRouterKey
-        case .busy, .liveOff, .tooFast: return .retry
+        case .quota: return isGuest ? .createAccount : nil
+        case .paused, .busy, .liveOff, .tooFast: return .retry
         }
     }
 
-    /// Whether the shared balance meter belongs in the panel.
-    var showsBalance: Bool { kind == .balance }
+    /// One of what the skill counts (web UNIT): "speaking test", "writing test", "live session".
+    private var unit: String { skill == "examiner" ? "live session" : skill == "speaking" ? "speaking test" : "writing test" }
 
     func label(_ a: IssueAction) -> String {
         switch a {
-        case .createAccount: return kind == .quota ? "Create an account for 1 test a day" : "Create an account"
-        case .addKey: return "Add your own key"
-        case .addOpenRouterKey: return "Add your own OpenRouter key"
+        case .createAccount: return "Create a free account"
         case .retry: return "Try again"
         }
     }

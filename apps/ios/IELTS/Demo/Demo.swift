@@ -16,7 +16,7 @@ enum Demo {
     static var hasGuestSession: Bool { screen == "guest-result" || screen?.hasPrefix("guest-recent") == true }
 
     /// `-screen` → which tab opens, and what is pushed onto the Home stack.
-    static var initialTab: Int { ["speaking": 1, "writing": 2, "review": 3, "settings": 4, "guest-speaking": 1, "guest-writing": 2, "guest-recent-writing": 2, "guest-recent-speaking": 1, "guest-review": 3, "guest-settings": 4, "keys-settings": 4][screen ?? ""] ?? 0 }
+    static var initialTab: Int { ["speaking": 1, "writing": 2, "review": 3, "settings": 4, "guest-speaking": 1, "guest-writing": 2, "guest-recent-writing": 2, "guest-recent-speaking": 1, "guest-review": 3, "guest-settings": 4][screen ?? ""] ?? 0 }
     @MainActor static var initialPath: [Route] {
         switch screen {
         case "bank": [.bank(skill: "speaking")]

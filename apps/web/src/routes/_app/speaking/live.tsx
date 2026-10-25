@@ -29,7 +29,7 @@ function LivePage() {
     );
   if (!quota.data?.live) return <Unavailable />;
   return (
-    <TestGate skill="speaking" title="Live examiner">
+    <TestGate skill="examiner" title="Live examiner">
       <Live />
     </TestGate>
   );

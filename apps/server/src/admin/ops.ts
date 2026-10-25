@@ -141,7 +141,7 @@ export function register(app: App) {
       ...adminRoute,
       method: 'post',
       path: '/api/admin/users/{id}/limits',
-      summary: "Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test.",
+      summary: "Set a user's test limits: counts per plan window (null = default), unlimited, or the paid plan until a date. Applies to their next test.",
       request: { params: Id, body: { required: true, content: { 'application/json': { schema: LimitsBody } } } },
       responses: { 200: json(LimitsInfo, 'New limits'), 404: json(ErrorSchema, 'Unknown user, or a guest') },
     }),
@@ -150,9 +150,11 @@ export function register(app: App) {
       const b = c.req.valid('json');
       const [u] = await db.select({ isAnonymous: user.isAnonymous }).from(user).where(eq(user.id, id));
       if (!u || u.isAnonymous) return c.json({ error: 'User not found' }, 404);
-      if (b.speaking == null && b.writing == null && !b.unlimited) await db.delete(userLimits).where(eq(userLimits.userId, id)); // back to the defaults
+      const [cur] = await db.select({ until: userLimits.subscribedUntil }).from(userLimits).where(eq(userLimits.userId, id));
+      const until = b.subscribedUntil === undefined ? (cur?.until ?? null) : b.subscribedUntil ? new Date(b.subscribedUntil) : null;
+      if (b.speaking == null && b.writing == null && !b.unlimited && !until) await db.delete(userLimits).where(eq(userLimits.userId, id)); // back to the defaults
       else {
-        const row = { ...b, updatedBy: c.get('user')!.email.toLowerCase(), updatedAt: new Date() };
+        const row = { speaking: b.speaking, writing: b.writing, unlimited: b.unlimited, subscribedUntil: until, updatedBy: c.get('user')!.email.toLowerCase(), updatedAt: new Date() };
         await db.insert(userLimits).values({ userId: id, ...row }).onConflictDoUpdate({ target: userLimits.userId, set: row });
       }
       return c.json(await limitsInfo(id, false), 200);

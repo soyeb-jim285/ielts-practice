@@ -7,7 +7,7 @@ const WHAT: Record<'history' | 'mistakes' | 'review' | 'settings' | 'mock', { ti
   mistakes: { title: 'Create an account to see your mistakes', page: 'Mistakes', icon: TriangleAlert, heading: 'Mistakes', body: 'Your repeated errors are collected across all your tests, so you know what to fix first.' },
   review: { title: 'Create an account to build a review deck', page: 'Review', icon: Layers, heading: 'Review', body: 'Turn your corrections into flashcards that come back just before you forget them.' },
   mock: { title: 'Create an account to take a full mock test', page: 'Mock', icon: ClipboardCheck, heading: 'Full mock test', body: 'A mock test runs over several sections and days, and keeps your place and your bands with your account.' },
-  settings: { title: 'Create an account to change settings', page: 'Settings', icon: Settings, heading: 'Settings', body: 'Your target band, examiner and your own API keys live in your account.' },
+  settings: { title: 'Create an account to change settings', page: 'Settings', icon: Settings, heading: 'Settings', body: 'Your target band and examiner live in your account.' },
 };
 
 /** What a guest sees instead of a personal page: what it is for and the way to get it. Never an error, never a redirect. */

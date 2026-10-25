@@ -20,7 +20,7 @@ const submit = (headers: Headers, id: string) => req(`/api/attempts/${id}/submit
 
 describe('one payment cannot cover endless attempts of a session', () => {
   it('concurrent submits of the same part in one session: exactly one rides on the payment', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const sessionId = crypto.randomUUID();
     const ids: string[] = [];
@@ -31,7 +31,7 @@ describe('one payment cannot cover endless attempts of a session', () => {
   });
 
   it('deleting the paid attempt does not free its slot: the same part again in that session is a new test', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const sessionId = crypto.randomUUID();
     const first = await body(await create(headers, p.id, { sessionId }));
@@ -46,7 +46,7 @@ describe('one payment cannot cover endless attempts of a session', () => {
   });
 
   it('a retry of a paid attempt in a session stays free', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const sessionId = crypto.randomUUID();
     const { id } = await body(await create(headers, p.id, { sessionId }));
@@ -59,7 +59,7 @@ describe('one payment cannot cover endless attempts of a session', () => {
 
 describe('refunds cannot be farmed', () => {
   it('past the cap in 24 h a failed analysis keeps the test spent', async () => {
-    const { user } = await testUser(undefined, { key: false });
+    const { user } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const mk = async () => {
       const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, status: 'failed' }).returning();
@@ -77,7 +77,7 @@ describe('refunds cannot be farmed', () => {
   });
 
   it('a refund that is re-reserved and refunded again still counts every time', async () => {
-    const { user } = await testUser(undefined, { key: false });
+    const { user } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const [a] = await db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'writing', part: 2, status: 'failed' }).returning();
     await db.insert(quotaUsage).values({ userId: user.id, skill: 'writing', unitKey: a!.id, tier: 'community' });
@@ -125,20 +125,3 @@ describe('client address', () => {
   });
 });
 
-describe('the key check is not an oracle', () => {
-  it('a client address gets a handful of checks, then 429 without any call to the provider', async () => {
-    const f = fakeFetch({ '/api/v1/key': () => json({ error: 'no' }, 401) });
-    setFetch(f);
-    const ip = '198.51.100.77';
-    const who = await Promise.all([testUser(undefined, { key: false }), testUser(undefined, { key: false })]);
-    const codes: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const h = new Headers(who[i % 2]!.headers);
-      h.set('CF-Connecting-IP', ip);
-      const r = await req('/api/keys/openrouter', { method: 'PUT', headers: h, body: { key: `sk-or-guess-${i}-aaaaaaaa` } });
-      codes.push((await body(r)).code);
-    }
-    expect(codes).toEqual(['invalid_key', 'invalid_key', 'invalid_key', 'invalid_key', 'invalid_key', 'too_many_requests', 'too_many_requests']);
-    expect(f.calls).toHaveLength(5);
-  });
-});

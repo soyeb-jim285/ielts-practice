@@ -70,8 +70,8 @@ async function addParts(c: Context<AppEnv>, s: LiveState, userId: string, list: 
   const ofSession = and(eq(attempts.sessionId, s.sessionId), eq(attempts.userId, userId));
   const have = new Set((await db.select({ part: attempts.part }).from(attempts).where(ofSession)).map((r) => r.part));
   const fresh = list.filter((p) => !have.has(p.part)).map((p) => ({ p, id: crypto.randomUUID() }));
-  // One speaking test for the whole session, reserved before any analysis spends community credit; later parts join the same unit.
-  if (fresh.length) await reserve(c.get('payer')!, 'speaking', s.sessionId, clientIpHash(c), fresh.map(({ p, id }) => ({ part: p.part, id })));
+  // One examiner session for the whole session (already reserved at LiveKit start), reserved before any analysis spends community credit; later parts join the same unit.
+  if (fresh.length) await reserve(c.get('payer')!, 'examiner', s.sessionId, clientIpHash(c), fresh.map(({ p, id }) => ({ part: p.part, id })));
   const promptId = { 1: s.test.part1[0]!.id, 2: s.test.part2.id, 3: s.test.part3.id };
   const out = await db.transaction(async (tx) => {
     // Row lock serialises concurrent sends (double click, client retry, /part racing /finish).
@@ -146,7 +146,7 @@ export function register(app: App) {
       const source = mock?.source ?? asked;
       const payer = c.get('payer')!;
       requireLive();
-      await checkStart(payer, 'speaking', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
+      await checkStart(payer, 'examiner', clientIpHash(c)); // its analysis may still run on the community balance: tell them now, not after 14 minutes
       const picked = await pickSpeakingTest(user, source, mock?.ref);
       if (!picked) return c.json({ error: 'No speaking test available' }, 404);
       const test = { ...picked, branches: await pickP1Branches(user), script: sessionScript(localHour, picked.part1[0]?.topic) };

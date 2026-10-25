@@ -29,12 +29,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
-import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.R
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.AppSettings
 import com.soyeb.ieltspractice.core.Band
-import com.soyeb.ieltspractice.ui.community.ApiKeysCard
 import com.soyeb.ieltspractice.ui.community.QuotaSummary
 import com.soyeb.ieltspractice.ui.LoadContent
 import com.soyeb.ieltspractice.ui.ScreenScaffold
@@ -80,7 +78,7 @@ private fun GuestSettings(nav: AppNav) {
     QuotaSummary(nav)
     AppCard {
         SectionTitle("Account")
-        Text("Create an account to keep your results, history and settings, and to add your own API keys.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
+        Text("Create a free account to keep your results, history and settings, and to get more tests.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.ext.muted)
         PrimaryButton("Create account", { nav.openLogin("Create an account to save your practice.", signUp = true) }, Modifier.fillMaxWidth())
         SecondaryButton("Sign in", { nav.openLogin("Sign in to see your settings.") }, Modifier.fillMaxWidth())
     }
@@ -110,8 +108,7 @@ private fun SettingsBody(initial: AppSettings, email: String, nav: AppNav) {
 
     error?.let { ErrorLine(it) }
 
-    if (LocalDemo.current?.screen != "settings-keys") QuotaSummary(nav, action = false) // the keys screenshots start at the keys
-    ApiKeysCard()
+    QuotaSummary(nav)
 
     AppCard {
         SectionTitle("More")

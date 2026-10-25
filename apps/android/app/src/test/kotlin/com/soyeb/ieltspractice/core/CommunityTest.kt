@@ -18,7 +18,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Community mode: quota and reset copy, the fair-use text, limit panels, own keys, and the guest session wiring against a fake server. */
+/** Community mode: quota and reset copy, the fair-use text, limit panels, and the guest session wiring against a fake server. */
 class CommunityTest {
     private val now = Instant.parse("2026-10-03T18:00:00Z") // a Saturday
     private val dhaka = ZoneId.of("Asia/Dhaka")
@@ -27,8 +27,8 @@ class CommunityTest {
 
     @AfterTest fun resetClock() { Clocks.now = { Instant.now() }; Clocks.zone = { ZoneId.systemDefault() } }
 
-    private fun quota(tier: String, s: SkillQuota, w: SkillQuota = s, live: Boolean = true, balance: Balance? = Balance(20.0, 7.6, 12.4)) =
-        Quota(tier, s, w, live, balance)
+    private fun quota(tier: String, s: SkillQuota, w: SkillQuota = s, live: Boolean = true) =
+        Quota(tier, s, w, SkillQuota(), live)
 
     // MARK: Copy
 
@@ -53,32 +53,27 @@ class CommunityTest {
         assertEquals("1 test left this week", QuotaCopy.left(quota("guest", weekly), "writing", now, dhaka))
         assertEquals("No tests left. Resets Monday 6:00", QuotaCopy.left(quota("guest", SkillQuota(1, 1, 0, week, "week", Codes.QUOTA)), "speaking", now, dhaka))
         assertEquals("No tests left. Resets in 6 h", QuotaCopy.left(quota("community", SkillQuota(1, 1, 0, day, "day", Codes.QUOTA)), "speaking", now, dhaka))
-        assertEquals("Unlimited with your key", QuotaCopy.left(quota("own-key", SkillQuota()), "speaking", now, dhaka))
-        assertEquals("The community balance is used up for now", QuotaCopy.left(quota("community", SkillQuota(0, 1, 1, day, "day", Codes.BALANCE)), "writing", now, dhaka))
+        assertEquals("Unlimited", QuotaCopy.left(quota("unlimited", SkillQuota()), "speaking", now, dhaka))
+        assertEquals("Unlimited", QuotaCopy.left(quota("subscriber", SkillQuota()), "writing", now, dhaka)) // a null limit is unlimited on any plan
+        assertEquals("3 tests left this month", QuotaCopy.left(quota("guest", SkillQuota(2, 5, 3, day, "month")), "speaking", now, dhaka))
+        assertEquals("Scoring is paused for now", QuotaCopy.left(quota("community", SkillQuota(0, 1, 1, day, "day", Codes.BALANCE)), "writing", now, dhaka))
         assertEquals("2 tests left today", QuotaCopy.left(quota("community", SkillQuota(0, 2, 2, day, "day")), "speaking", now, dhaka))
-    }
-
-    @Test fun balanceMeterText() {
-        assertEquals("Community balance \$12.40 of \$20", BalanceCopy.line(Balance(20.0, 7.6, 12.4)))
-        assertEquals("Community balance \$0.18 of \$20.50", BalanceCopy.line(Balance(20.5, 20.32, 0.18)))
-        assertNull(BalanceCopy.line(Balance(null, null, null))) // no limit: nothing to show
-        assertNull(BalanceCopy.line(Balance(20.0, null, null)))
-        assertEquals(0.62f, BalanceCopy.fraction(Balance(20.0, 7.6, 12.4))!!, 0.001f)
-        assertFalse(BalanceCopy.low(Balance(20.0, 7.6, 12.4)))
-        assertTrue(BalanceCopy.low(Balance(20.0, 19.82, 0.18)))
-        assertFalse(BalanceCopy.low(null))
     }
 
     @Test fun fairUseTextMatchesTheContract() {
         val q = quota("community", SkillQuota(0, 1, 1, day, "day"))
         assertEquals(
-            "This test is paid from a shared balance that everyone uses. Please don't abuse it: no spamming tests and no automated use. " +
-                "You have 1 speaking test left today. Want unlimited tests? Add your own OpenRouter key in Settings.",
+            "Free tests are shared by everyone. Please don't abuse them: no spamming tests and no automated use. " +
+                "You have 1 speaking test left today.",
             FairUse.body(q, "speaking", guest = false),
         )
         val guest = quota("guest", SkillQuota(0, 1, 1, week, "week"))
-        assertTrue(FairUse.body(guest, "writing", guest = true).endsWith("You have 1 writing test left this week. Create an account for 1 test a day."))
-        assertEquals("You're using the community balance", FairUse.TITLE)
+        assertTrue(FairUse.body(guest, "writing", guest = true).endsWith("You have 1 writing test left this week. Create a free account for more tests."))
+        val live = Quota("community", SkillQuota(), SkillQuota(), SkillQuota(3, 5, 2, day, "month"), true)
+        assertTrue(FairUse.body(live, "examiner", guest = false).endsWith("You have 2 live sessions left this month."))
+        assertEquals("Please practise fairly", FairUse.TITLE)
+        assertTrue(quota("guest", SkillQuota()).free && quota("community", SkillQuota()).free)
+        assertFalse(quota("subscriber", SkillQuota()).free || quota("unlimited", SkillQuota()).free)
     }
 
     @Test fun acknowledgementIsPerUserAndUtcDay() {
@@ -94,19 +89,19 @@ class CommunityTest {
 
     @Test fun limitPanels() {
         val guestQuota = GateText.copy(Codes.QUOTA, "speaking", "guest", week, now = now, zone = dhaka)
-        assertEquals("You've used this week's free test", guestQuota.title)
+        assertEquals("You've used your free tests for now", guestQuota.title)
         assertEquals("It resets Monday 6:00.", guestQuota.body)
-        assertEquals("Create an account for 1 test a day" to GateAction.Account, guestQuota.primary)
+        assertEquals("Create a free account for more" to GateAction.Account, guestQuota.primary)
         val community = GateText.copy(Codes.QUOTA, "writing", "community", day, keep = "Your essay is still here.", now = now, zone = dhaka)
-        assertEquals("You've used today's free test", community.title)
+        assertEquals("You've used all your tests for now", community.title)
         assertEquals("It resets in 6 h. Your essay is still here.", community.body)
-        assertEquals("Add your own key" to GateAction.Keys, community.primary)
-        val balance = GateText.copy(Codes.BALANCE, "speaking", "community", null)
-        assertEquals("The community balance is used up for now", balance.title)
-        assertEquals("Free tests are paid from one shared balance, and it has run out. Add your own OpenRouter key to keep practising, or try again later.", balance.body)
-        assertTrue(GateText.copy(Codes.BALANCE, "speaking", "guest", null).body.contains("Create an account, then add your own OpenRouter key"))
-        assertEquals("Add your own OpenRouter key" to GateAction.Keys, balance.primary)
-        assertEquals("Create an account" to GateAction.Account, GateText.copy(Codes.BALANCE, "speaking", "guest", null).primary)
+        assertNull(community.primary)
+        assertEquals("Wait for the reset" to GateAction.Close, community.secondary)
+        val paused = GateText.copy(Codes.BALANCE, "speaking", "community", null)
+        assertEquals("Scoring is paused for now", paused.title)
+        assertEquals("Scoring is paused for a short while. Please try again later.", paused.body)
+        assertEquals(paused, GateText.copy(Codes.BALANCE, "speaking", "guest", null)) // the same words for everyone
+        assertNull(paused.primary)
         val busy = GateText.copy(Codes.BUSY, "speaking", "community", null)
         assertEquals("A lot of people are practising right now", busy.title)
         assertEquals("Try again in a few minutes.", busy.body)
@@ -119,15 +114,6 @@ class CommunityTest {
         assertNull(live.primary)
     }
 
-    @Test fun keyErrorsNameTheProvider() {
-        assertEquals("OpenRouter didn't accept that key. Check that you copied all of it.", KeyCopy.error("openrouter", 400, Codes.INVALID_KEY, "x"))
-        assertEquals("Couldn't reach OpenRouter to check the key. Try again.", KeyCopy.error("openrouter", 502, Codes.KEY_CHECK, "x"))
-        Clocks.zone = { ZoneId.of("UTC") }
-        assertEquals("•••• ab12, added Oct 3", KeyCopy.saved(KeyInfo("openrouter", "ab12", "2026-10-03T10:15:00.000Z")))
-        assertEquals("Unlimited tests", Providers.unlocks("openrouter"))
-        assertEquals("OpenRouter", Providers.name("openrouter"))
-    }
-
     // MARK: Models
 
     @Test fun meCarriesTheQuota() {
@@ -136,23 +122,35 @@ class CommunityTest {
             """{"user":{"id":"u","email":"","name":"Guest","isAnonymous":true},"settings":{"targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
               "tier":"guest","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$week","window":"week","blocked":null},
               "writing":{"used":1,"limit":1,"remaining":0,"resetAt":"$week","window":"week","blocked":"quota_exceeded"},
-              "live":true,"communityBalance":{"limit":20,"used":7.6,"remaining":12.4,"updatedAt":"x"}}""",
+              "examiner":{"used":1,"limit":3,"remaining":2,"resetAt":"$week","window":"month","blocked":null},"live":true}""",
         )
         assertTrue(me.user.isAnonymous)
         val q = assertNotNull(me.quota())
         assertEquals("guest", q.tier)
         assertEquals(Codes.QUOTA, q.writing.blocked)
         assertNull(q.speaking.blocked)
-        assertEquals(12.4, q.communityBalance?.remaining)
+        assertEquals(2, q.of("examiner").remaining)
         assertTrue(q.live)
     }
 
-    @Test fun anOwnKeyQuotaHasNullLimits() {
-        val q = AppJson.decodeFromString(Quota.serializer(), """{"tier":"own-key","speaking":{"used":3,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"writing":{"used":0,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"live":true,"communityBalance":{"limit":null,"used":null,"remaining":null,"updatedAt":null}}""")
+    @Test fun anUnlimitedQuotaHasNullLimits() {
+        val q = AppJson.decodeFromString(Quota.serializer(), """{"tier":"unlimited","speaking":{"used":3,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"writing":{"used":0,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"examiner":{"used":0,"limit":null,"remaining":null,"resetAt":null,"window":null,"blocked":null},"live":true}""")
         assertTrue(q.unlimited)
         assertNull(q.speaking.limit)
-        assertEquals("Unlimited with your key", QuotaCopy.left(q, "speaking"))
-        assertNull(BalanceCopy.line(q.communityBalance))
+        assertEquals("Unlimited", QuotaCopy.left(q, "speaking"))
+        assertEquals("Unlimited", QuotaCopy.left(q, "examiner"))
+    }
+
+    @Test fun anUnknownTierOrOldFieldsStillDecode() {
+        // A newer server's tier, an older server's own-key tier and communityBalance: none of them may crash decoding.
+        val q = AppJson.decodeFromString(Quota.serializer(), """{"tier":"team","speaking":{"used":0,"limit":2,"remaining":2,"resetAt":null,"window":"day","blocked":null},"writing":{"used":0,"limit":2,"remaining":2,"resetAt":null,"window":"day","blocked":null},"live":false}""")
+        assertEquals("team", q.tier)
+        assertFalse(q.unlimited)
+        assertFalse(q.free)
+        assertNull(q.examiner.limit) // missing: defaults
+        val old = AppJson.decodeFromString(Quota.serializer(), """{"tier":"own-key","speaking":{},"writing":{},"live":true,"communityBalance":{"limit":20,"used":1,"remaining":19}}""")
+        assertEquals("own-key", old.tier)
+        assertFalse(old.unlimited)
     }
 
     // MARK: Client against a fake server
@@ -179,7 +177,7 @@ class CommunityTest {
         """{"user":{"id":"${if (anonymous) "g1" else "u1"}","email":"${if (anonymous) "" else "a@b.c"}","name":"N","isAnonymous":$anonymous},
           "settings":{"targetBand":7,"writingAutoSubmit":true,"blockPaste":true},
           "tier":"$tier","speaking":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},
-          "writing":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},"live":true,"communityBalance":null}"""
+          "writing":{"used":0,"limit":1,"remaining":1,"resetAt":"$day","window":"day","blocked":null},"live":true}"""
 
     @Test fun guestSessionUsesTheBearerHeaderAndLinksOnVerify() = runBlocking {
         val server = FakeServer()
@@ -227,7 +225,7 @@ class CommunityTest {
         assertEquals("guest", e.tier)
         assertTrue(e.isLimit)
         Clocks.zone = { dhaka }; Clocks.now = { now }
-        assertEquals("You've used this week's free test. It resets Monday 6:00. Your recording is saved on this device.", GateText.sentence(e, "Your recording is saved on this device."))
+        assertEquals("You've used your free tests for now. It resets Monday 6:00. Your recording is saved on this device.", GateText.sentence(e, "Your recording is saved on this device."))
     }
 
     @Test fun aGuestOnAnAccountOnlyEndpointIsNotSignedOut() = runBlocking {
@@ -241,26 +239,6 @@ class CommunityTest {
         assertFalse(api.hasAccount.value) // the UI flips to its "Create an account" gate
     }
 
-    @Test fun keysAreSentOnceAndOnlyTheLast4ComeBack() = runBlocking {
-        val server = FakeServer()
-        server.respond = { r ->
-            when {
-                r.method == "PUT" && r.url.encodedPath == "/api/keys/openrouter" -> Triple(200, """{"provider":"openrouter","last4":"cdef","addedAt":"2026-10-03T10:15:00.000Z","valid":true}""", emptyMap())
-                r.url.encodedPath == "/api/me" -> Triple(200, me(false, "community"), emptyMap())
-                else -> Triple(200, "{}", emptyMap())
-            }
-        }
-        val api = ApiClient("https://t.test", MemoryTokenStore(), server, initialToken = "t")
-        val info = api.saveKey("openrouter", "  sk-abcdef  ")
-        assertEquals("cdef", info.last4)
-        assertEquals("""{"key":"sk-abcdef"}""", server.bodies.first()) // trimmed, sent once
-        assertTrue(server.seen.first().url.toString().endsWith("/api/keys/openrouter"))
-        assertFalse(info.toString().contains("sk-abcdef"))
-        server.respond = { Triple(400, """{"error":"Invalid key","code":"invalid_key"}""", emptyMap()) }
-        val bad = assertFailsWith<ApiError> { api.saveKey("openrouter", "sk-wrong-key") }
-        assertEquals("OpenRouter didn't accept that key. Check that you copied all of it.", KeyCopy.error("openrouter", bad.status, bad.code, bad.message))
-    }
-
     @Test fun demoOverlayBuildsTheCommunityStates() {
         DemoCommunity.pinClock()
         val base = mapOf("/api/me" to me(false, "x"))
@@ -271,7 +249,8 @@ class CommunityTest {
         assertEquals("community", AppJson.decodeFromString(Me.serializer(), spent.getValue("/api/me")).tier)
         val guest = DemoCommunity.overlay(base, "guest-result", null)
         assertTrue(AppJson.decodeFromString(Me.serializer(), guest.getValue("/api/me")).user.isAnonymous)
-        assertEquals("openrouter", DemoCommunity.keys("settings-own-key", null).single().provider)
+        assertEquals(Codes.BALANCE, AppJson.decodeFromString(Quota.serializer(), DemoCommunity.overlay(base, "gate-balance", null).getValue("/api/quota")).speaking.blocked)
+        assertFalse(base.containsKey("/api/keys") || spent.containsKey("/api/keys"))
         assertFalse(AppJson.decodeFromString(Quota.serializer(), DemoCommunity.overlay(base, "gate-live", null).getValue("/api/quota")).live)
         assertTrue(DemoCommunity.guest("gate-quota-guest"))
         assertFalse(DemoCommunity.anonymousSession("gate-quota-guest"))

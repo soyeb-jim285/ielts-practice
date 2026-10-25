@@ -29,11 +29,11 @@ import kotlinx.serialization.json.doubleOrNull
     val tier: String? = null,
     val speaking: SkillQuota? = null,
     val writing: SkillQuota? = null,
+    val examiner: SkillQuota? = null,
     val live: Boolean = false,
-    val communityBalance: Balance? = null,
 ) {
     /** The quota block of `/api/me`, or null from a server that predates community mode. */
-    fun quota(): Quota? = tier?.let { Quota(it, speaking ?: SkillQuota(), writing ?: SkillQuota(), live, communityBalance) }
+    fun quota(): Quota? = tier?.let { Quota(it, speaking ?: SkillQuota(), writing ?: SkillQuota(), examiner ?: SkillQuota(), live) }
 }
 
 /** An empty `{}` body (writes that return nothing useful). */

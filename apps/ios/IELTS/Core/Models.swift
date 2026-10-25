@@ -28,39 +28,24 @@ struct Me: Codable {
 
 struct SkillQuota: Codable, Equatable {
     let used: Int
-    let limit: Int? // nil: unlimited (own key, owner)
+    let limit: Int? // nil: unlimited
     let remaining: Int?
     let resetAt: String?
-    let window: String? // "day" | "week"
+    let window: String? // "day" | "week" | "month"
     let blocked: String? // quota_exceeded | community_balance_exhausted | community_busy
-}
-
-// openapi: CommunityBalance
-
-struct CommunityBalance: Codable, Equatable {
-    let limit: Double?
-    let used: Double?
-    let remaining: Double?
-    let updatedAt: String
 }
 
 // openapi: Quota
 
 struct Quota: Codable, Equatable {
-    let tier: String // guest | community | own-key
+    let tier: String // guest | community | subscriber | unlimited; a plain String so a new tier never fails decoding
     let speaking: SkillQuota
     let writing: SkillQuota
+    var examiner: SkillQuota? = nil // live examiner sessions; optional so an older server still decodes
     let live: Bool // the live examiner (LiveKit, server keys) is available
-    let communityBalance: CommunityBalance
-}
 
-// openapi: ApiKeyInfo
-
-struct ApiKeyInfo: Codable, Equatable {
-    let provider: String // openrouter
-    let last4: String
-    let addedAt: String
-    let valid: Bool
+    /// What limits the live examiner: its own quota, else (older server) speaking.
+    var liveQuota: SkillQuota { examiner ?? speaking }
 }
 
 /// Decodes to nil instead of failing the parent when the payload has an unexpected shape.

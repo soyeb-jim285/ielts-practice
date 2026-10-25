@@ -258,7 +258,7 @@ describe('full mock test', () => {
   });
 
   it('live mode is refused while the live examiner is not configured, and recorded checks the allowance again', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const m = await body(await create(headers));
     const row = (await db.query.mockExams.findFirst({ where: eq(mockExams.id, m.id) }))!;
     await submitLr(headers, (await body(await section(headers, m.id, 'listening'))).attemptId, 6);
@@ -274,15 +274,15 @@ describe('full mock test', () => {
   });
 
   it('create is blocked by the writing or speaking allowance before anything starts', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     await db.insert(quotaUsage).values({ userId: user.id, skill: 'writing', unitKey: 'used', tier: 'community', members: [] });
     const r = await create(headers);
     expect([r.status, await body(r)]).toEqual([429, expect.objectContaining({ code: 'quota_exceeded', skill: 'writing' })]);
     expect(await db.select().from(mockExams)).toHaveLength(0);
-    const second = await testUser(undefined, { key: false });
+    const second = await testUser(undefined, { unlimited: false });
     await db.insert(quotaUsage).values({ userId: second.user.id, skill: 'speaking', unitKey: 'used', tier: 'community', members: [] });
     expect((await create(second.headers)).status).toBe(429);
-    const free = await testUser(undefined, { key: false });
+    const free = await testUser(undefined, { unlimited: false });
     expect((await create(free.headers)).status).toBe(201);
     // the pre-check reserved nothing
     expect((await db.select().from(quotaUsage)).map((q) => q.userId).sort()).toEqual([user.id, second.user.id].sort());

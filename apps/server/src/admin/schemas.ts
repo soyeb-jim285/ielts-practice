@@ -16,16 +16,22 @@ export type CambridgeInfo = z.infer<typeof CambridgeInfo>;
 
 export const LimitsInfo = z
   .object({
-    speaking: z.number().int().nullable().openapi({ description: 'Speaking tests per day (live included); null = default' }),
-    writing: z.number().int().nullable().openapi({ description: 'Writing tests per day; null = default' }),
+    speaking: z.number().int().nullable().openapi({ description: 'Speaking practice tests per 30 days (live sessions not included); null = plan default' }),
+    writing: z.number().int().nullable().openapi({ description: 'Writing tests per 7 days; null = plan default' }),
     unlimited: z.boolean().openapi({ description: 'No test limits at all, including the LiveKit examiner' }),
-    default: z.number().int().openapi({ description: 'The default per skill and day for signed-in users' }),
+    subscribedUntil: z.string().nullable().openapi({ description: 'On the paid plan until this ISO instant; null = not subscribed' }),
+    defaults: z.object({ speaking: z.number().int(), writing: z.number().int() }).openapi({ description: 'The signed-in (free) plan counts the overrides replace' }),
     canEdit: z.boolean().openapi({ description: 'false for guests (limits belong to accounts)' }),
   })
   .openapi('AdminLimitsInfo');
 export type LimitsInfo = z.infer<typeof LimitsInfo>;
 export const LimitsBody = z
-  .object({ speaking: z.number().int().min(0).max(1000).nullable(), writing: z.number().int().min(0).max(1000).nullable(), unlimited: z.boolean() })
+  .object({
+    speaking: z.number().int().min(0).max(1000).nullable(),
+    writing: z.number().int().min(0).max(1000).nullable(),
+    unlimited: z.boolean(),
+    subscribedUntil: z.string().datetime().nullable().optional().openapi({ description: 'Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand.' }),
+  })
   .openapi('AdminLimitsBody');
 
 export const ReplayRef = z.object({ id: z.string(), startedAt: iso });

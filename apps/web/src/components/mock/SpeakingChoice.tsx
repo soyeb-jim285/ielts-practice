@@ -52,7 +52,7 @@ export function SpeakingChoice({ mockId, onLive, liveBusy, error }: { mockId: st
           body="An AI examiner asks the questions aloud and follows up on what you say."
           disabled={!live}
           note={
-            live ? undefined : (
+            live ? <QuotaNote skill="examiner" /> : (
               <p className="type-caption flex items-center gap-1.5">
                 <Lock className="size-3.5 shrink-0" aria-hidden />
                 <span>The live examiner isn't available right now.</span>

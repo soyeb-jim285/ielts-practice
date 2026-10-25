@@ -3,7 +3,6 @@ import { LogOut, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { AccountGate } from '@/components/community/AccountGate';
-import { ApiKeys } from '@/components/settings/ApiKeys';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
 import { Button, buttonStyles, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
@@ -13,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/settings')({ component: SettingsRoute });
 
-/** Guests have no settings or keys: they get the sign-up gate, not an error. */
+/** Guests have no settings: they get the sign-up gate, not an error. */
 function SettingsRoute() {
   return useAccount() ? <SettingsPage /> : <AccountGate what="settings" />;
 }
@@ -62,10 +61,6 @@ function SettingsPage() {
           <Row>
             <TargetBandSlider hint="Most universities ask for 6.5-7.0 overall." />
           </Row>
-        </Section>
-
-        <Section id="api-keys" title="Your API keys" description="Practise without limits with your own OpenRouter key.">
-          <ApiKeys />
         </Section>
 
         <Section title="Writing" description="How the timed essay editor behaves.">

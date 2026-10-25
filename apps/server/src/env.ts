@@ -51,17 +51,12 @@ const Env = z.object({
     .default('soyebjim@gmail.com')
     .transform((s) => s.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)),
   WEB_DIST: z.string().default('../web/dist'),
-  // Community mode (docs/community.md). Encrypts users' own API keys at rest (AES-256-GCM). Unset in production: saving keys is disabled (503) instead of using a weak default.
-  KEY_ENCRYPTION_SECRET: z.string().optional().transform((v) => {
-    if (v && v.length < 32 && !process.env.VITEST) console.warn('KEY_ENCRYPTION_SECRET is shorter than 32 characters: ignored, saving keys stays off (use `openssl rand -hex 32`)');
-    return v && v.length >= 32 ? v : undefined; // HKDF does not stretch a weak secret
-  }),
   // Community tests are blocked when the shared OpenRouter key has less than this many USD left.
   COMMUNITY_MIN_BALANCE: z.coerce.number().min(0).default(0.25),
   // Global cap on community-paid test submissions per rolling hour, across all users.
   COMMUNITY_MAX_PER_HOUR: z.coerce.number().int().min(1).default(60),
-  // Guests: max tests per client IP per skill per week, across all anonymous users (each anonymous user is also capped at 1).
-  GUEST_IP_WEEKLY_CAP: z.coerce.number().int().min(1).default(3),
+  // Guests per client IP: across all anonymous users an IP may use this many times one guest's allowance, per skill and window.
+  GUESTS_PER_IP: z.coerce.number().int().min(1).default(3),
   // Salt for hashing client IPs (never stored raw). Unset: derived from BETTER_AUTH_SECRET.
   IP_HASH_SALT: z.string().optional().transform((v) => v || undefined),
 });

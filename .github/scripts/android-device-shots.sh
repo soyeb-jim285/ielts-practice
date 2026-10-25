@@ -24,7 +24,6 @@ adb shell am broadcast -a com.android.systemui.demo -e command notifications -e 
 # screen[:tab]
 SCREENS="login guest-home guest-speaking guest-writing guest-review guest-settings guest-signin-sheet guest-result guest-history guest-recent-home guest-recent-writing guest-recent-speaking guest-recent-lr
   gate-fairuse gate-fairuse-guest gate-quota-guest gate-quota-community gate-balance gate-busy gate-live-guest gate-live-community quota-speaking-spent editor-blocked:Typing
-  settings-keys:Empty settings-keys:Saved settings-keys:Stopped settings-keys:Error settings-own-key
   home speaking speaking-pending writing review settings bank history mistakes
   session-p1 session session-prep session-recording session-saving editor editor-t1 editor-full live
   result-speaking:Overview result-speaking:Transcript result-speaking:Fluency result-speaking:Language result-speaking:Improve

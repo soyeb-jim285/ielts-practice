@@ -18,7 +18,7 @@ const SKILLS: SkillBandItem[] = [
 
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: Mic, title: 'Speaking test', body: 'All three parts, recorded. Four criteria scored, with your pauses timed in the transcript.' },
-  { icon: MessagesSquare, title: 'Live examiner', body: 'A spoken conversation: an AI examiner asks, listens and follows up. Runs on your own API key.' },
+  { icon: MessagesSquare, title: 'Live examiner', body: 'A spoken conversation: an AI examiner asks, listens and follows up.' },
   { icon: PenLine, title: 'Writing marked by criterion', body: 'Timed tasks marked against the public band descriptors, each mistake underlined and corrected.' },
   { icon: Layers, title: 'Fix what you repeat', body: 'The mistake log groups the errors you repeat. The review deck turns corrections into flashcards that return just before you forget.' },
 ];
@@ -108,7 +108,7 @@ export function GuestHome() {
         </Section>
 
         <Section title="Free to try" id="free">
-          <p className="type-lede max-w-[60ch]">One speaking test and one writing test a week, paid from a balance the community shares. Create an account for one of each a day, or add your own key for unlimited practice tests. Listening and Reading are unlimited.</p>
+          <p className="type-lede max-w-[60ch]">Try speaking and writing tests as a guest. Create a free account for more tests. Subscribers get unlimited speaking and writing. Listening and Reading are free.</p>
           <QuotaStrip className="border-0 py-0" />
           <p className="type-body flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>History, mistakes and the review deck need an account.</span>

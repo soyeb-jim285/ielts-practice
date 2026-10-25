@@ -9,9 +9,6 @@ export type ErrorCode =
   | 'otp_locked' // 429: too many wrong email codes for this address (auth-email.ts); `retryAfterSeconds` says when to try again
   | 'account_required' // 403
   | 'cambridge_required' // 403: Listening & Reading are for Cambridge-allow-listed users
-  | 'keys_unavailable' // 503
-  | 'invalid_key' // 400
-  | 'key_check_failed' // 502
   | 'mock_open' // 409: the person already has an open full mock test (`mockId` says which)
   | 'mock_closed' // 409: the mock is finished or closed
   | 'out_of_order' // 409: a mock section started before the one(s) before it were submitted

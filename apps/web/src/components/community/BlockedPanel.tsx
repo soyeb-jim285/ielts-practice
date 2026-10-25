@@ -1,11 +1,10 @@
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Clock, Gauge, Users, Wallet } from 'lucide-react';
+import { Clock, Gauge, PauseCircle, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Alert, Button, buttonStyles, IconTile } from '@/components/ui';
 import { blockerCopy, isGuestTier, type Blocker } from '@/lib/community';
-import { BalanceMeter } from './BalanceMeter';
 
-const ICON = { quota_exceeded: Clock, community_balance_exhausted: Wallet, community_busy: Users, too_many_requests: Gauge } as const;
+const ICON = { quota_exceeded: Clock, community_balance_exhausted: PauseCircle, community_busy: Users, too_many_requests: Gauge } as const;
 
 /** The ways out, per reason (docs/community.md, Client UX 3). The first is the primary action. */
 function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?: () => void; size?: 'sm'; back?: ReactNode }) {
@@ -13,11 +12,6 @@ function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?:
   const guest = isGuestTier(blocker.tier);
   const create = (label: string, primary: boolean) => (
     <Link to="/signup" search={{ redirect }} className={buttonStyles({ variant: primary ? 'primary' : 'outline', size })}>
-      {label}
-    </Link>
-  );
-  const addKey = (label: string, primary = true) => (
-    <Link to="/settings" hash="api-keys" className={buttonStyles({ variant: primary ? 'primary' : 'outline', size })}>
       {label}
     </Link>
   );
@@ -30,14 +24,7 @@ function Actions({ blocker, onRetry, size, back }: { blocker: Blocker; onRetry?:
     case 'quota_exceeded':
       return (
         <>
-          {guest ? create('Create an account for 1 test a day', true) : addKey('Add your own key')}
-          {back}
-        </>
-      );
-    case 'community_balance_exhausted':
-      return (
-        <>
-          {guest ? create('Create an account', true) : addKey('Add your own OpenRouter key')}
+          {guest && create('Create an account for more tests', true)}
           {back}
         </>
       );
@@ -64,7 +51,6 @@ export function BlockedPanel({ blocker, onRetry, back }: { blocker: Blocker; onR
         <h1 className="type-title-sm text-balance">{title}</h1>
         <p className="type-lede max-w-[52ch]">{body}</p>
       </div>
-      {(blocker.code === 'community_balance_exhausted' || blocker.code === 'quota_exceeded') && <BalanceMeter className="sm:max-w-xs" />}
       <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap [&>*]:max-sm:w-full">
         <Actions blocker={blocker} onRetry={onRetry} back={back} />
       </div>

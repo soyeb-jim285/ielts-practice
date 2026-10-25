@@ -716,7 +716,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as the speaking test (1 a day, guests 1 a week; owner exempt). Only the owner may send cfg. */
+        /** Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as one examiner session (plan limits, docs/community.md; owner exempt). Only the owner may send cfg. */
         post: {
             parameters: {
                 query?: never;
@@ -1587,42 +1587,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/community/balance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Shared community balance (public, cached 60 s) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Balance */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CommunityBalance"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/quota": {
         parameters: {
             query?: never;
@@ -1654,171 +1618,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Your saved API keys (provider, last 4 characters, date, whether it still works) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Keys */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiKeyList"];
-                    };
-                };
-                /** @description Guests have no keys (account_required) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/keys/{provider}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Save (or replace) your own key for a provider. It is checked with a free live call first and stored encrypted */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider: "openrouter";
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PutApiKey"];
-                };
-            };
-            responses: {
-                /** @description Saved */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiKeyInfo"];
-                    };
-                };
-                /** @description invalid_key: the provider rejected it */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-                /** @description account_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-                /** @description Too many requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-                /** @description key_check_failed: the provider could not be reached; try again */
-                502: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-                /** @description keys_unavailable: the server cannot store keys (KEY_ENCRYPTION_SECRET is not set) */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        /** Remove your key for a provider */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider: "openrouter";
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Removed (also when there was none) */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            ok: boolean;
-                        };
-                    };
-                };
-                /** @description account_required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CodedError"];
-                    };
-                };
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2967,7 +2766,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test. */
+        /** Set a user's test limits: counts per plan window (null = default), unlimited, or the paid plan until a date. Applies to their next test. */
         post: {
             parameters: {
                 query?: never;
@@ -4569,40 +4368,30 @@ export interface components {
             /** @description The site owner: shows the Admin area */
             isOwner: boolean;
             /** @enum {string} */
-            tier: "guest" | "community" | "own-key";
+            tier: "guest" | "community" | "subscriber" | "unlimited";
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
-            /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests) */
+            examiner: components["schemas"]["SkillQuota"] & unknown;
+            /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`) */
             live: boolean;
-            communityBalance: components["schemas"]["CommunityBalance"];
         };
         SkillQuota: {
             used: number;
             /** @description Tests per window; null = unlimited */
             limit: number | null;
             remaining: number | null;
-            /** @description ISO instant the window resets; show in local time. null when unlimited */
+            /** @description ISO instant the next test frees up (rolling window); show in local time. null when unlimited or nothing used yet */
             resetAt: string | null;
             /**
-             * @description day: resets 00:00 UTC; week: resets Monday 00:00 UTC
+             * @description Rolling window the limit counts over: last 24 h, 7 days or 30 days
              * @enum {string|null}
              */
-            window: "day" | "week" | null;
+            window: "day" | "week" | "month" | null;
             /**
              * @description Why a test cannot start now; null = it can
              * @enum {string|null}
              */
             blocked: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | null;
-        };
-        CommunityBalance: {
-            /** @description USD spend limit of the shared OpenRouter key; null if it has none */
-            limit: number | null;
-            /** @description USD spent so far; null if unknown */
-            used: number | null;
-            /** @description USD left; null if unknown or unlimited */
-            remaining: number | null;
-            /** @description ISO time of the reading (cached up to 60 s) */
-            updatedAt: string;
         };
         Settings: {
             targetBand: number;
@@ -4688,19 +4477,24 @@ export interface components {
             /** @description Friendly, safe to show */
             error: string;
             /** @enum {string} */
-            code: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | "too_many_requests" | "account_required" | "cambridge_required" | "keys_unavailable" | "invalid_key" | "key_check_failed";
+            code: "quota_exceeded" | "community_balance_exhausted" | "community_busy" | "too_many_requests" | "account_required" | "cambridge_required";
             /**
              * @description quota_exceeded
              * @enum {string}
              */
-            skill?: "speaking" | "writing";
-            /** @description quota_exceeded: ISO time the window resets (00:00 UTC daily, Monday 00:00 UTC weekly) */
+            skill?: "speaking" | "writing" | "examiner";
+            /** @description quota_exceeded: ISO time the next test frees up */
             resetAt?: string | null;
             /**
+             * @description quota_exceeded: the rolling window that is full
+             * @enum {string|null}
+             */
+            window?: "day" | "week" | "month" | null;
+            /**
              * @description quota_exceeded
              * @enum {string}
              */
-            tier?: "guest" | "community" | "own-key";
+            tier?: "guest" | "community" | "subscriber" | "unlimited";
         };
         CreateAttempt: {
             promptId: string;
@@ -5118,27 +4912,12 @@ export interface components {
         };
         Quota: {
             /** @enum {string} */
-            tier: "guest" | "community" | "own-key";
+            tier: "guest" | "community" | "subscriber" | "unlimited";
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
-            /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests) */
+            examiner: components["schemas"]["SkillQuota"] & unknown;
+            /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`) */
             live: boolean;
-            communityBalance: components["schemas"]["CommunityBalance"];
-        };
-        ApiKeyList: {
-            keys: components["schemas"]["ApiKeyInfo"][];
-        };
-        /** @description The key itself is never returned. */
-        ApiKeyInfo: {
-            /** @enum {string} */
-            provider: "openrouter";
-            last4: string;
-            addedAt: string;
-            /** @description false: the provider rejected this key; enter a new one */
-            valid: boolean;
-        };
-        PutApiKey: {
-            key: string;
         };
         LrTestListItem: {
             id: string;
@@ -5664,14 +5443,19 @@ export interface components {
             userAgent: string | null;
         };
         AdminLimitsInfo: {
-            /** @description Speaking tests per day (live included); null = default */
+            /** @description Speaking practice tests per 30 days (live sessions not included); null = plan default */
             speaking: number | null;
-            /** @description Writing tests per day; null = default */
+            /** @description Writing tests per 7 days; null = plan default */
             writing: number | null;
             /** @description No test limits at all, including the LiveKit examiner */
             unlimited: boolean;
-            /** @description The default per skill and day for signed-in users */
-            default: number;
+            /** @description On the paid plan until this ISO instant; null = not subscribed */
+            subscribedUntil: string | null;
+            /** @description The signed-in (free) plan counts the overrides replace */
+            defaults: {
+                speaking: number;
+                writing: number;
+            };
             /** @description false for guests (limits belong to accounts) */
             canEdit: boolean;
         };
@@ -5767,6 +5551,17 @@ export interface components {
             /** @description ISO-8601 UTC */
             cachedAt: string;
         };
+        /** @description Admin only: the server OpenRouter key spend */
+        CommunityBalance: {
+            /** @description USD spend limit of the shared OpenRouter key; null if it has none */
+            limit: number | null;
+            /** @description USD spent so far; null if unknown */
+            used: number | null;
+            /** @description USD left; null if unknown or unlimited */
+            remaining: number | null;
+            /** @description ISO time of the reading (cached up to 60 s) */
+            updatedAt: string;
+        };
         AdminHealth: {
             counts: {
                 failed24h: number;
@@ -5815,6 +5610,11 @@ export interface components {
             speaking: number | null;
             writing: number | null;
             unlimited: boolean;
+            /**
+             * Format: date-time
+             * @description Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand.
+             */
+            subscribedUntil?: string | null;
         };
         AdminFeedbackPage: {
             items: components["schemas"]["AdminFeedbackItem"][];

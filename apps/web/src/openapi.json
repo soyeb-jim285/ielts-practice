@@ -78,7 +78,8 @@
             "enum": [
               "guest",
               "community",
-              "own-key"
+              "subscriber",
+              "unlimited"
             ]
           },
           "speaking": {
@@ -87,12 +88,19 @@
           "writing": {
             "$ref": "#/components/schemas/SkillQuota"
           },
+          "examiner": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SkillQuota"
+              },
+              {
+                "description": "Live examiner sessions (LiveKit)"
+              }
+            ]
+          },
           "live": {
             "type": "boolean",
-            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests)"
-          },
-          "communityBalance": {
-            "$ref": "#/components/schemas/CommunityBalance"
+            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`)"
           }
         },
         "required": [
@@ -103,8 +111,8 @@
           "tier",
           "speaking",
           "writing",
-          "live",
-          "communityBalance"
+          "examiner",
+          "live"
         ]
       },
       "SkillQuota": {
@@ -131,7 +139,7 @@
               "string",
               "null"
             ],
-            "description": "ISO instant the window resets; show in local time. null when unlimited"
+            "description": "ISO instant the next test frees up (rolling window); show in local time. null when unlimited or nothing used yet"
           },
           "window": {
             "type": [
@@ -141,9 +149,10 @@
             "enum": [
               "day",
               "week",
+              "month",
               null
             ],
-            "description": "day: resets 00:00 UTC; week: resets Monday 00:00 UTC"
+            "description": "Rolling window the limit counts over: last 24 h, 7 days or 30 days"
           },
           "blocked": {
             "type": [
@@ -166,42 +175,6 @@
           "resetAt",
           "window",
           "blocked"
-        ]
-      },
-      "CommunityBalance": {
-        "type": "object",
-        "properties": {
-          "limit": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "description": "USD spend limit of the shared OpenRouter key; null if it has none"
-          },
-          "used": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "description": "USD spent so far; null if unknown"
-          },
-          "remaining": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "description": "USD left; null if unknown or unlimited"
-          },
-          "updatedAt": {
-            "type": "string",
-            "description": "ISO time of the reading (cached up to 60 s)"
-          }
-        },
-        "required": [
-          "limit",
-          "used",
-          "remaining",
-          "updatedAt"
         ]
       },
       "Settings": {
@@ -564,17 +537,15 @@
               "community_busy",
               "too_many_requests",
               "account_required",
-              "cambridge_required",
-              "keys_unavailable",
-              "invalid_key",
-              "key_check_failed"
+              "cambridge_required"
             ]
           },
           "skill": {
             "type": "string",
             "enum": [
               "speaking",
-              "writing"
+              "writing",
+              "examiner"
             ],
             "description": "quota_exceeded"
           },
@@ -583,14 +554,28 @@
               "string",
               "null"
             ],
-            "description": "quota_exceeded: ISO time the window resets (00:00 UTC daily, Monday 00:00 UTC weekly)"
+            "description": "quota_exceeded: ISO time the next test frees up"
+          },
+          "window": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "day",
+              "week",
+              "month",
+              null
+            ],
+            "description": "quota_exceeded: the rolling window that is full"
           },
           "tier": {
             "type": "string",
             "enum": [
               "guest",
               "community",
-              "own-key"
+              "subscriber",
+              "unlimited"
             ],
             "description": "quota_exceeded"
           }
@@ -2334,7 +2319,8 @@
             "enum": [
               "guest",
               "community",
-              "own-key"
+              "subscriber",
+              "unlimited"
             ]
           },
           "speaking": {
@@ -2343,76 +2329,27 @@
           "writing": {
             "$ref": "#/components/schemas/SkillQuota"
           },
+          "examiner": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SkillQuota"
+              },
+              {
+                "description": "Live examiner sessions (LiveKit)"
+              }
+            ]
+          },
           "live": {
             "type": "boolean",
-            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; one test a day, a week for guests)"
-          },
-          "communityBalance": {
-            "$ref": "#/components/schemas/CommunityBalance"
+            "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`)"
           }
         },
         "required": [
           "tier",
           "speaking",
           "writing",
-          "live",
-          "communityBalance"
-        ]
-      },
-      "ApiKeyList": {
-        "type": "object",
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApiKeyInfo"
-            }
-          }
-        },
-        "required": [
-          "keys"
-        ]
-      },
-      "ApiKeyInfo": {
-        "type": "object",
-        "properties": {
-          "provider": {
-            "type": "string",
-            "enum": [
-              "openrouter"
-            ]
-          },
-          "last4": {
-            "type": "string"
-          },
-          "addedAt": {
-            "type": "string"
-          },
-          "valid": {
-            "type": "boolean",
-            "description": "false: the provider rejected this key; enter a new one"
-          }
-        },
-        "required": [
-          "provider",
-          "last4",
-          "addedAt",
-          "valid"
-        ],
-        "description": "The key itself is never returned."
-      },
-      "PutApiKey": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string",
-            "minLength": 8,
-            "maxLength": 512,
-            "pattern": "^[\\x21-\\x7E]+$"
-          }
-        },
-        "required": [
-          "key"
+          "examiner",
+          "live"
         ]
       },
       "LrTestListItem": {
@@ -4527,22 +4464,41 @@
               "integer",
               "null"
             ],
-            "description": "Speaking tests per day (live included); null = default"
+            "description": "Speaking practice tests per 30 days (live sessions not included); null = plan default"
           },
           "writing": {
             "type": [
               "integer",
               "null"
             ],
-            "description": "Writing tests per day; null = default"
+            "description": "Writing tests per 7 days; null = plan default"
           },
           "unlimited": {
             "type": "boolean",
             "description": "No test limits at all, including the LiveKit examiner"
           },
-          "default": {
-            "type": "integer",
-            "description": "The default per skill and day for signed-in users"
+          "subscribedUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "On the paid plan until this ISO instant; null = not subscribed"
+          },
+          "defaults": {
+            "type": "object",
+            "properties": {
+              "speaking": {
+                "type": "integer"
+              },
+              "writing": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "speaking",
+              "writing"
+            ],
+            "description": "The signed-in (free) plan counts the overrides replace"
           },
           "canEdit": {
             "type": "boolean",
@@ -4553,7 +4509,8 @@
           "speaking",
           "writing",
           "unlimited",
-          "default",
+          "subscribedUntil",
+          "defaults",
           "canEdit"
         ]
       },
@@ -4988,6 +4945,43 @@
           "cachedAt"
         ]
       },
+      "CommunityBalance": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD spend limit of the shared OpenRouter key; null if it has none"
+          },
+          "used": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD spent so far; null if unknown"
+          },
+          "remaining": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "USD left; null if unknown or unlimited"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "ISO time of the reading (cached up to 60 s)"
+          }
+        },
+        "required": [
+          "limit",
+          "used",
+          "remaining",
+          "updatedAt"
+        ],
+        "description": "Admin only: the server OpenRouter key spend"
+      },
       "AdminHealth": {
         "type": "object",
         "properties": {
@@ -5190,6 +5184,14 @@
           },
           "unlimited": {
             "type": "boolean"
+          },
+          "subscribedUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand."
           }
         },
         "required": [
@@ -8282,7 +8284,7 @@
             "bearer": []
           }
         ],
-        "summary": "Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as the speaking test (1 a day, guests 1 a week; owner exempt). Only the owner may send cfg.",
+        "summary": "Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as one examiner session (plan limits, docs/community.md; owner exempt). Only the owner may send cfg.",
         "requestBody": {
           "required": true,
           "content": {
@@ -9222,32 +9224,6 @@
         }
       }
     },
-    "/api/community/balance": {
-      "get": {
-        "tags": [
-          "Community"
-        ],
-        "security": [
-          {
-            "bearer": []
-          },
-          {}
-        ],
-        "summary": "Shared community balance (public, cached 60 s)",
-        "responses": {
-          "200": {
-            "description": "Balance",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommunityBalance"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/quota": {
       "get": {
         "tags": [
@@ -9267,193 +9243,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Quota"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/keys": {
-      "get": {
-        "tags": [
-          "Keys"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Your saved API keys (provider, last 4 characters, date, whether it still works)",
-        "responses": {
-          "200": {
-            "description": "Keys",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiKeyList"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Guests have no keys (account_required)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/keys/{provider}": {
-      "put": {
-        "tags": [
-          "Keys"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Save (or replace) your own key for a provider. It is checked with a free live call first and stored encrypted",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "openrouter"
-              ]
-            },
-            "required": true,
-            "name": "provider",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PutApiKey"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Saved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiKeyInfo"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_key: the provider rejected it",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "account_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "key_check_failed: the provider could not be reached; try again",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "keys_unavailable: the server cannot store keys (KEY_ENCRYPTION_SECRET is not set)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Keys"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Remove your key for a provider",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "openrouter"
-              ]
-            },
-            "required": true,
-            "name": "provider",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Removed (also when there was none)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "account_required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodedError"
                 }
               }
             }
@@ -10723,7 +10512,7 @@
             "bearer": []
           }
         ],
-        "summary": "Set a user's test limits: per-day counts (null = default) or unlimited. Applies to their next test.",
+        "summary": "Set a user's test limits: counts per plan window (null = default), unlimited, or the paid plan until a date. Applies to their next test.",
         "parameters": [
           {
             "schema": {

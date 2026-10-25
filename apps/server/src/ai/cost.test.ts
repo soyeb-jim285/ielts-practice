@@ -19,10 +19,10 @@ const withUsage = (route: (u: string, i: RequestInit) => Response | Promise<Resp
   json({ ...((await (await route(u, i)).json()) as object), id: 'gen-1', provider: 'Acme', usage: { prompt_tokens: 100, completion_tokens: 20, cost } });
 
 it('recordCost writes one row from the request context: payer, owner, attempt', async () => {
-  keyCtx.run({ openrouter: 'sk-own', cost: ctx }, () => recordCost({ stage: 'score', provider: 'openrouter', model: 'm', costUsd: 0.0000001234567 }));
+  keyCtx.run({ cost: ctx }, () => recordCost({ stage: 'score', provider: 'openrouter', model: 'm', costUsd: 0.0000001234567 }));
   recordCost({ stage: 'examiner_llm', provider: 'openrouter', model: 'deepseek/deepseek-v4.1-flash', costUsd: 1, userId: 'u2', sessionId: 's2', paidBy: 'own_key' });
   const [a, b] = await all();
-  expect(a).toMatchObject({ userId: 'u1', attemptId: 'a1', sessionId: 's1', promptId: 'p1', skill: 'speaking', part: 2, stage: 'score', paidBy: 'own_key', costUsd: 0.000000123457, ok: true, retry: false });
+  expect(a).toMatchObject({ userId: 'u1', attemptId: 'a1', sessionId: 's1', promptId: 'p1', skill: 'speaking', part: 2, stage: 'score', paidBy: 'house', costUsd: 0.000000123457, ok: true, retry: false });
   expect(b).toMatchObject({ userId: 'u2', attemptId: null, paidBy: 'own_key', provider: 'openrouter' });
 });
 
@@ -40,9 +40,9 @@ it('recordCost never throws or rejects into the caller when the database fails',
   expect(await all()).toHaveLength(0);
 });
 
-it('usageCost sums the BYOK upstream cost and reports whether the cost was exact', () => {
+it('usageCost adds the BYOK upstream cost and reports whether the cost was exact', () => {
   const u = { prompt_tokens: 5, completion_tokens: 2, cost: 0.01, cost_details: { upstream_inference_cost: 0.04 } };
-  expect(keyCtx.run({ openrouter: 'sk-own-key' }, () => usageCost(u))).toMatchObject({ costUsd: 0.05, inputTokens: 5, outputTokens: 2, exact: true });
+  expect(usageCost(u)).toMatchObject({ inputTokens: 5, outputTokens: 2, exact: true });
   expect(usageCost(u).costUsd).toBe(0.01); // house key: upstream cost is already inside `cost`
   expect(usageCost({ cost: 0, is_byok: true, cost_details: { upstream_inference_cost: 0.0011 } }).costUsd).toBe(0.0011); // house BYOK (Anthropic key): cost is only the fee
   expect(usageCost(undefined)).toMatchObject({ costUsd: 0, exact: false });

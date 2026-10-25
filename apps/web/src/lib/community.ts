@@ -1,21 +1,17 @@
-// Community mode (docs/community.md): quota and balance queries, the error codes the server answers with, and the copy that goes with them.
+// Plans and limits (docs/community.md): the quota query, the error codes the server answers with, and the copy that goes with them.
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { ApiError, call, client, type Schemas } from './api';
 
 export type Quota = Schemas['Quota'];
 export type SkillQuota = Schemas['SkillQuota'];
-export type Balance = Schemas['CommunityBalance'];
 export type Tier = Quota['tier'];
-export type Skill = 'speaking' | 'writing';
-export type Provider = 'openrouter';
+/** examiner = live examiner sessions, speaking = recorded practice. */
+export type Skill = 'speaking' | 'writing' | 'examiner';
 
 /** What the person may start now, per skill. Without a session the server answers for a guest, so it is safe before the first sign-in. */
 export const quotaQuery = queryOptions({ queryKey: ['quota'], queryFn: () => call(client.GET('/api/quota')), staleTime: 20_000 });
-/** Public; the server caches it for 60 s, so the client asks at most once a minute too. */
-export const balanceQuery = queryOptions({ queryKey: ['balance'], queryFn: () => call(client.GET('/api/community/balance')), staleTime: 60_000 });
 
 export const useQuota = () => useQuery(quotaQuery);
-export const useBalance = () => useQuery(balanceQuery);
 
 // ---- Reset windows ----
 
@@ -39,25 +35,23 @@ export const resetLabel = (iso: string | null | undefined, now?: number) => `Res
 
 // ---- Quota copy ----
 
-const windowWord = (s: SkillQuota) => (s.window === 'week' ? 'this week' : 'today');
+/** Windows are rolling (last 24 h / 7 / 30 days); "this week" reads better and resetAt says when exactly. */
+export const windowWord = (s: Pick<SkillQuota, 'window'>) => (s.window === 'month' ? 'this month' : s.window === 'week' ? 'this week' : 'today');
+/** "writing test", "live session": one of what a skill counts. */
+export const UNIT: Record<Skill, string> = { speaking: 'speaking test', writing: 'writing test', examiner: 'live session' };
 
-/** The line next to a Start button: "1 test left today", "No tests left. Resets Monday 6:00", "Unlimited with your key". `warn` when there is none left. */
-export function quotaText(s: SkillQuota, tier: Tier, now?: number): { text: string; warn: boolean } {
-  if (s.limit == null) return { text: tier === 'own-key' ? 'Unlimited with your key' : 'Unlimited', warn: false };
+/** The line next to a Start button: "1 test left today", "No tests left. Resets Monday 6:00", "Unlimited". `warn` when there is none left. */
+export function quotaText(s: SkillQuota, now?: number): { text: string; warn: boolean } {
+  if (s.limit == null) return { text: 'Unlimited', warn: false };
   const left = s.remaining ?? 0;
   if (left > 0) return { text: `${left} ${left === 1 ? 'test' : 'tests'} left ${windowWord(s)}`, warn: false };
   return { text: `No tests left. ${resetLabel(s.resetAt, now)}`, warn: true };
 }
 
-/** "$12.40" below $100, whole dollars above. */
-export const usd = (n: number) => `$${n < 100 ? n.toFixed(2) : Math.round(n)}`;
-/** The limit as a round figure when it is one: "$20". */
-export const usdLimit = (n: number) => (Number.isInteger(n) ? `$${n}` : usd(n));
-
 // ---- Blockers: why a test cannot start (or finish), and the way out ----
 
 export type BlockCode = 'quota_exceeded' | 'community_balance_exhausted' | 'community_busy' | 'too_many_requests';
-export type Blocker = { code: BlockCode; skill?: Skill; resetAt?: string | null; tier?: Tier; provider?: Provider };
+export type Blocker = { code: BlockCode; skill?: Skill; resetAt?: string | null; tier?: Tier };
 
 const BLOCK_CODES: readonly string[] = ['quota_exceeded', 'community_balance_exhausted', 'community_busy', 'too_many_requests'];
 
@@ -74,7 +68,7 @@ export function blockerFromQuota(q: Quota, skill: Skill): Blocker | null {
   return s.blocked ? { code: s.blocked, skill, resetAt: s.resetAt, tier: q.tier } : null;
 }
 
-/** A guest's session, or a visitor with none yet: they get "Create an account", not "Add your own key". */
+/** A guest's session, or a visitor with none yet: they get "Create an account". */
 export const isGuestTier = (tier: Tier | undefined) => tier === 'guest';
 
 export type Copy = { title: string; body: string };
@@ -84,11 +78,9 @@ export function blockerCopy(b: Blocker, now?: number): Copy {
   const guest = isGuestTier(b.tier);
   switch (b.code) {
     case 'quota_exceeded':
-      return guest
-        ? { title: "You've used this week's free test", body: `It resets ${resetPhrase(b.resetAt, now)}.` }
-        : { title: "You've used today's free test", body: `It resets ${resetPhrase(b.resetAt, now)}.` };
+      return { title: `You've used all your ${UNIT[b.skill ?? 'writing']}s for now`, body: `Your next one frees up ${resetPhrase(b.resetAt, now)}.${guest ? ' Create a free account for more.' : ''}` };
     case 'community_balance_exhausted':
-      return { title: 'The community balance is used up for now', body: `Free tests are paid from one shared balance, and it has run out. ${guest ? 'Create an account, then add' : 'Add'} your own OpenRouter key to keep practising, or try again later.` };
+      return { title: 'Scoring is paused for now', body: 'Scoring is paused for a short while. Please try again later.' };
     case 'community_busy':
       return { title: 'A lot of people are practising right now', body: 'Try again in a few minutes.' };
     case 'too_many_requests':
@@ -115,8 +107,3 @@ export function acknowledgeFairUse(userId: string | null) {
   } catch {}
 }
 
-// ---- Your API keys ----
-
-export const PROVIDERS: Record<Provider, { name: string; unlocks: string; help: string; url: string; placeholder: string }> = {
-  openrouter: { name: 'OpenRouter', unlocks: 'Unlimited tests', help: 'Your tests are paid from your OpenRouter credit instead of the community balance.', url: 'https://openrouter.ai/keys', placeholder: 'sk-or-v1-…' },
-};

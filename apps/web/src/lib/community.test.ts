@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiError } from './api';
-import { acknowledgeFairUse, blockerCopy, blockerFromQuota, blockerOf, fairUseAcknowledged, quotaText, resetPhrase, usd, usdLimit, type Quota, type SkillQuota } from './community';
+import { acknowledgeFairUse, blockerCopy, blockerFromQuota, blockerOf, fairUseAcknowledged, quotaText, resetPhrase, type Quota, type SkillQuota } from './community';
 
 const NOW = Date.parse('2026-10-03T19:00:00Z');
 const skill = (p: Partial<SkillQuota>): SkillQuota => ({ used: 0, limit: 1, remaining: 1, resetAt: '2026-10-04T00:00:00Z', window: 'day', blocked: null, ...p });
@@ -23,14 +23,14 @@ describe('reset phrase', () => {
 
 describe('quota text', () => {
   it('says what is left, by window', () => {
-    expect(quotaText(skill({}), 'community', NOW)).toEqual({ text: '1 test left today', warn: false });
-    expect(quotaText(skill({ window: 'week', remaining: 2, limit: 3 }), 'guest', NOW).text).toBe('2 tests left this week');
+    expect(quotaText(skill({}), NOW)).toEqual({ text: '1 test left today', warn: false });
+    expect(quotaText(skill({ window: 'week', remaining: 2, limit: 3 }), NOW).text).toBe('2 tests left this week');
   });
   it('says when none is left and when it resets', () => {
-    expect(quotaText(skill({ remaining: 0 }), 'community', NOW)).toEqual({ text: 'No tests left. Resets in 5 h', warn: true });
+    expect(quotaText(skill({ remaining: 0 }), NOW)).toEqual({ text: 'No tests left. Resets in 5 h', warn: true });
   });
-  it('is unlimited with an own key', () => {
-    expect(quotaText(skill({ limit: null, remaining: null, resetAt: null, window: null }), 'own-key').text).toBe('Unlimited with your key');
+  it('is unlimited without a limit', () => {
+    expect(quotaText(skill({ limit: null, remaining: null, resetAt: null, window: null })).text).toBe('Unlimited');
   });
 });
 
@@ -50,15 +50,15 @@ describe('blockers', () => {
     expect(blockerFromQuota(q, 'writing')).toMatchObject({ code: 'quota_exceeded', skill: 'writing', tier: 'community' });
   });
   it('words guests and members differently', () => {
-    expect(blockerCopy({ code: 'quota_exceeded', tier: 'guest', resetAt: '2026-10-05T00:00:00Z' }, NOW).title).toBe("You've used this week's free test");
-    expect(blockerCopy({ code: 'quota_exceeded', tier: 'community', resetAt: '2026-10-04T00:00:00Z' }, NOW)).toEqual({ title: "You've used today's free test", body: 'It resets in 5 h.' });
+    expect(blockerCopy({ code: 'quota_exceeded', skill: 'examiner', tier: 'guest', resetAt: '2026-10-04T00:00:00Z' }, NOW)).toEqual({ title: "You've used all your live sessions for now", body: 'Your next one frees up in 5 h. Create a free account for more.' });
+    expect(blockerCopy({ code: 'quota_exceeded', skill: 'writing', tier: 'community', resetAt: '2026-10-04T00:00:00Z' }, NOW)).toEqual({ title: "You've used all your writing tests for now", body: 'Your next one frees up in 5 h.' });
   });
 });
 
 describe('blocker copy', () => {
-  it('sends a guest to an account, not to a key they cannot save', () => {
-    expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'guest' }).body).toContain('Create an account, then add your own OpenRouter key');
-    expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'community' }).body).toContain('Add your own OpenRouter key');
+  it('keeps a scoring pause neutral', () => {
+    expect(blockerCopy({ code: 'community_balance_exhausted', tier: 'community' }).body).toBe('Scoring is paused for a short while. Please try again later.');
+    expect(JSON.stringify(blockerCopy({ code: 'community_balance_exhausted', tier: 'guest' }))).not.toMatch(/balance|key/i);
   });
 });
 
@@ -77,10 +77,3 @@ describe('fair-use acknowledgement', () => {
   });
 });
 
-describe('money', () => {
-  it('formats the meter figures', () => {
-    expect(usd(12.4)).toBe('$12.40');
-    expect(usdLimit(20)).toBe('$20');
-    expect(usdLimit(7.5)).toBe('$7.50');
-  });
-});

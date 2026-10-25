@@ -71,7 +71,7 @@ import com.soyeb.ieltspractice.ui.theme.bandTextColor
 import com.soyeb.ieltspractice.ui.theme.ext
 
 // Mirrors: iOS Views/WritingHomeView.swift, web routes/_app/writing/index.tsx
-// Writing hub: full test (Academic or General), one-task practice, recent writing, prompt bank link. Guests can start a test without an account (one free test a week).
+// Writing hub: full test (Academic or General), one-task practice, recent writing, prompt bank link. Guests can start a test without an account (a few free tests).
 
 private class Kind(val id: String, val route: WritingEditor, val title: String, val blurb: String, val meta: String, @DrawableRes val icon: Int)
 

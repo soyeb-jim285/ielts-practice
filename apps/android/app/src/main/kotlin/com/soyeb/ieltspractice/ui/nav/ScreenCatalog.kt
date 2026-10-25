@@ -22,7 +22,7 @@ val screenCatalog: List<ScreenSpec> = listOf(
     ScreenSpec("guest-review", ReviewTab),
     ScreenSpec("guest-settings", SettingsTab),
     ScreenSpec("guest-signin-sheet", Login),
-    // Community mode: the guest's result and gates, the limit panels and fair-use dialog (drawn over their screen), tests left, the balance, own keys.
+    // Community mode: the guest's result and gates, the limit panels and fair-use dialog (drawn over their screen), tests left.
     ScreenSpec("guest-result", AttemptResult.of("as1")),
     ScreenSpec("guest-history", History()),
     // A guest with tests: "Your recent tests" on Home and on the hubs.
@@ -39,8 +39,6 @@ val screenCatalog: List<ScreenSpec> = listOf(
     ScreenSpec("gate-busy", WritingTab),
     ScreenSpec("gate-live", SpeakingTab),
     ScreenSpec("editor-blocked", WritingEditor("task2"), listOf("Typing")),
-    ScreenSpec("settings-keys", SettingsTab, listOf("Empty", "Saved", "Stopped", "Error", "Checking")),
-    ScreenSpec("settings-own-key", SettingsTab),
     ScreenSpec("home", HomeTab, listOf("Top", "Lower+end")),
     ScreenSpec("speaking", SpeakingTab),
     ScreenSpec("writing", WritingTab),

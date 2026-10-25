@@ -1,25 +1,24 @@
 import { createApp } from '../app';
 import { auth } from '../auth';
 import { db } from '../db/client';
-import { prompts, user as userTable } from '../db/schema';
-import { saveKey, type Provider } from '../keys';
+import { prompts, userLimits, user as userTable } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 export const app = createApp();
 
 let n = 0;
-/** Stores a user's own provider key (encrypted, as PUT /api/keys does after its live check). */
-export const setKey = (userId: string, provider: Provider, key = `sk-test-${provider}-0000`) => saveKey(userId, provider, key);
+/** Exempts a user from test limits, as the admin "No test limits" switch does. */
+export const setUnlimited = (userId: string) => db.insert(userLimits).values({ userId, unlimited: true, updatedBy: 'test' }).onConflictDoUpdate({ target: userLimits.userId, set: { unlimited: true } });
 
 /** Signs up a user and returns bearer auth headers. Verified by default (pass verified:false to test unverified).
- *  By default the user has their own OpenRouter key (unlimited, no community quota) so tests that are not about quotas are unaffected; pass key:false for a community-tier user. */
-export async function testUser(email = `user${++n}_${Math.random().toString(36).slice(2, 7)}@test.dev`, opts: { verified?: boolean; key?: boolean } = {}) {
+ *  By default the user has no test limits (tier unlimited) so tests that are not about quotas are unaffected; pass unlimited:false for a free-plan user. */
+export async function testUser(email = `user${++n}_${Math.random().toString(36).slice(2, 7)}@test.dev`, opts: { verified?: boolean; unlimited?: boolean } = {}) {
   const res = await auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'Test User' }, asResponse: true });
   const token = res.headers.get('set-auth-token');
   if (!token) throw new Error(`signup failed: ${res.status} ${await res.text()}`);
   const body = (await res.json()) as { user: { id: string; email: string } };
   if (opts.verified !== false) await db.update(userTable).set({ emailVerified: true }).where(eq(userTable.id, body.user.id));
-  if (opts.key !== false) await setKey(body.user.id, 'openrouter');
+  if (opts.unlimited !== false) await setUnlimited(body.user.id);
   const headers = new Headers({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
   return { headers, user: body.user };
 }

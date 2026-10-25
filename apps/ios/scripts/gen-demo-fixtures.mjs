@@ -222,30 +222,22 @@ const fx = {
   '/api/prompts/meta': { groups: [{ skill: 'speaking', part: 1, topics: ['Hometown', 'Music'], types: ['p1-topic'] }, { skill: 'speaking', part: 2, topics: ['Books'], types: ['cue-card'] }, { skill: 'speaking', part: 3, topics: ['Reading'], types: ['discussion'] }, { skill: 'writing', part: 1, topics: ['Energy', 'Housing'], types: ['line', 'letter-complaint'] }, { skill: 'writing', part: 2, topics: ['Technology'], types: ['opinion'] }] },
   '/api/live/start': { sessionId: 'live-demo', examinerText: 'Good morning. My name is Daniel and I will be your examiner today. Can you tell me your full name, please?', phase: 'intro', test: { part1: [sp1], part2: sp2, part3: sp3 } },
 };
-// Community mode (docs/community.md). "@@DAY@@" / "@@WEEK@@" in a resetAt are filled in at run time by the demo clients (next 00:00 UTC / next Monday 00:00 UTC),
+// Plans and limits (docs/community.md). "@@DAY@@" / "@@WEEK@@" in a resetAt are filled in at run time by the demo clients (next 00:00 UTC / next Monday 00:00 UTC),
 // so "Resets in 5 h" never goes stale. "path#screen" keys answer only that `-screen`; "path#guest" answers every guest-* screen.
 const sq = (used, limit, window, resetAt, blocked = null) => ({ used, limit, remaining: limit === null ? null : Math.max(0, limit - used), resetAt, window, blocked });
 const unlimited = { used: 0, limit: null, remaining: null, resetAt: null, window: null, blocked: null };
-const bal = (remaining) => ({ limit: 20, used: +(20 - remaining).toFixed(2), remaining, updatedAt: day(0) });
-const quota = (tier, speaking, writing, communityBalance = bal(12.4), live = true) => ({ tier, speaking, writing, live, communityBalance });
+const quota = (tier, speaking, writing, live = true, examiner = speaking) => ({ tier, speaking, writing, examiner, live });
 const community = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'));
 const guest = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'));
 fx['/api/quota'] = community;
 fx['/api/quota#guest'] = guest;
-fx['/api/quota#live'] = quota('own-key', unlimited, unlimited);
-fx['/api/quota#live-locked'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'), bal(12.4), false);
-fx['/api/quota#guest-live-locked'] = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'), bal(12.4), false);
+fx['/api/quota#live'] = quota('unlimited', unlimited, unlimited);
+fx['/api/quota#live-locked'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(0, 1, 'day', '@@DAY@@'), false);
+fx['/api/quota#guest-live-locked'] = quota('guest', sq(0, 1, 'week', '@@WEEK@@'), sq(0, 1, 'week', '@@WEEK@@'), false);
 fx['/api/quota#quota-exhausted'] = quota('community', sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), sq(0, 1, 'day', '@@DAY@@'));
 fx['/api/quota#writing-quota-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'));
 fx['/api/quota#guest-quota-exhausted'] = quota('guest', sq(1, 1, 'week', '@@WEEK@@', 'quota_exceeded'), sq(0, 1, 'week', '@@WEEK@@'));
-fx['/api/quota#balance-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), bal(0.18));
-fx['/api/quota#balance'] = quota('community', sq(0, 1, 'day', '@@DAY@@'), sq(1, 1, 'day', '@@DAY@@', 'quota_exceeded'), bal(1.4));
-fx['/api/quota#keys-settings'] = quota('own-key', unlimited, unlimited);
-fx['/api/keys'] = { keys: [] };
-fx['/api/keys#keys-settings'] = { keys: [
-  { provider: 'openrouter', last4: 'ab12', addedAt: day(2), valid: true },
-] };
-fx['/api/community/balance'] = bal(12.4);
+fx['/api/quota#balance-exhausted'] = quota('community', sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted'), sq(0, 1, 'day', '@@DAY@@', 'community_balance_exhausted')); // scoring paused
 for (const x of [w2, w1a, w1g, w1b, w1p, w1t, w1pr, w1m]) fx[`/api/prompts/${x.id}`] = x; // the editor and the prompt bank open a task by id
 mkdirSync(dirname(out), { recursive: true });
 

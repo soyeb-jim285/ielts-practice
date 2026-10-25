@@ -1,40 +1,9 @@
 import SwiftUI
 
-// Community mode UI (docs/community.md): balance meter, quota label, blocked panel, fair-use sheet, and the gates in front of tests.
-// Teal is for "act here", so the meter and the info states are neutral; only the buttons that do something are teal.
+// Plans and limits UI (docs/community.md): quota label, blocked panel, fair-use sheet, and the gates in front of tests.
+// Teal is for "act here", so the info states are neutral; only the buttons that do something are teal.
 
-/// "Community balance $12.40 of $20" with a thin neutral bar that turns amber under 10 %. Hidden while the balance is unknown or unlimited.
-struct BalanceMeter: View {
-    let balance: CommunityBalance?
-
-    var body: some View {
-        if let b = balance, let remaining = b.remaining, let limit = b.limit, limit > 0 {
-            let fraction = min(1, max(0, remaining / limit))
-            let low = fraction < 0.10
-            let text = "\(CommunityText.money(remaining)) of \(CommunityText.limit(limit))"
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    Label("Community balance", systemImage: "person.2").font(.subheadline).foregroundStyle(.ink)
-                    Spacer(minLength: 8)
-                    Text(text).font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(low ? Color.warnText : Color.ink)
-                }
-                GeometryReader { g in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.surface2)
-                        Capsule().fill(low ? Color.warn : Color.muted).frame(width: max(6, fraction * g.size.width))
-                    }
-                }
-                .frame(height: 6)
-                .accessibilityHidden(true)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Community balance")
-            .accessibilityValue("\(CommunityText.money(remaining)) left of \(CommunityText.limit(limit))\(low ? ", running low" : "")")
-        }
-    }
-}
-
-/// The line under a Start button: "1 test left today", "No tests left. Resets Monday 6:00", "Unlimited with your key".
+/// The line under a Start button: "1 test left today", "No tests left. Resets Monday 6:00", "Unlimited".
 struct QuotaLabel: View {
     @Environment(APIClient.self) private var api
     let skill: String
@@ -70,8 +39,7 @@ private struct IssueButtons: View {
     private func button(_ a: IssueAction) -> some View {
         Button {
             switch a {
-            case .createAccount: api.requestSignIn("Create an account for 1 test a day.", signUp: true)
-            case .addKey, .addOpenRouterKey: onDismiss?(); api.openKeys()
+            case .createAccount: api.requestSignIn("Create a free account for more tests.", signUp: true)
             case .retry: onRetry?()
             }
         } label: {
@@ -84,7 +52,6 @@ private struct IssueButtons: View {
 /// Full-screen "you can't start this test now" state: why, when it resets, and the way out.
 struct IssuePanel: View {
     let issue: CommunityIssue
-    var balance: CommunityBalance?
     var onRetry: (() -> Void)?
     var onDismiss: (() -> Void)?
 
@@ -102,7 +69,6 @@ struct IssuePanel: View {
                         .accessibilityAddTraits(.isHeader)
                     Text(issue.message()).foregroundStyle(.muted).multilineTextAlignment(.center)
                 }
-                if issue.showsBalance { BalanceMeter(balance: balance).card() }
                 IssueButtons(issue: issue, onRetry: onRetry, onDismiss: onDismiss).padding(.top, 4)
             }
             .frame(maxWidth: 420)
@@ -131,12 +97,12 @@ struct IssueNotice: View {
     }
 }
 
-/// "You're using the community balance", shown once a day before a test paid from the shared balance.
+/// "Before you start", shown once a day before a free test (guest and free account).
 struct FairUseSheet: View {
     let skill: String
     let quota: Quota
     let onStart: () -> Void
-    let onOwnKey: () -> Void
+    let onCreateAccount: () -> Void
 
     var body: some View {
         ScrollView {
@@ -147,16 +113,17 @@ struct FairUseSheet: View {
                     .frame(width: 52, height: 52)
                     .background(Color.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .accessibilityHidden(true)
-                Text("You're using the community balance")
+                Text("Before you start")
                     .font(.display(.title2, weight: .semibold)).foregroundStyle(.ink)
                     .accessibilityAddTraits(.isHeader)
                 Text(CommunityText.fairUseBody(skill: skill, quota: quota)).foregroundStyle(.ink)
-                BalanceMeter(balance: quota.communityBalance).card()
                 VStack(spacing: 12) {
                     Button(action: onStart) { Text("Start test").frame(maxWidth: .infinity, minHeight: 28) }
                         .primaryButton().controlSize(.large)
-                    Button(action: onOwnKey) { Text(quota.tier == "guest" ? "Create an account" : "Use my own key").frame(maxWidth: .infinity, minHeight: 28) }
-                        .secondaryButton().controlSize(.large)
+                    if quota.tier == "guest" {
+                        Button(action: onCreateAccount) { Text("Create a free account").frame(maxWidth: .infinity, minHeight: 28) }
+                            .secondaryButton().controlSize(.large)
+                    }
                 }
                 .padding(.top, 4)
             }
@@ -200,7 +167,7 @@ struct StartGate<Content: View>: View {
     @ViewBuilder private var screen: some View {
         switch phase {
         case let .blocked(issue):
-            IssuePanel(issue: issue, balance: api.quota?.communityBalance, onRetry: { check += 1 }, onDismiss: { dismiss() })
+            IssuePanel(issue: issue, onRetry: { check += 1 }, onDismiss: { dismiss() })
         case let .failed(message):
             ContentUnavailableView {
                 Label("Couldn't start the test", systemImage: "wifi.exclamationmark")
@@ -212,7 +179,7 @@ struct StartGate<Content: View>: View {
         case .fairUse:
             Color.canvas.ignoresSafeArea()
                 .sheet(isPresented: Binding(get: { phase == .fairUse }, set: { if !$0 && phase == .fairUse { dismiss() } })) {
-                    if let q = api.quota { FairUseSheet(skill: skill, quota: q, onStart: { Task { await begin() } }, onOwnKey: ownKey) }
+                    if let q = api.quota { FairUseSheet(skill: skill, quota: q, onStart: { Task { await begin() } }, onCreateAccount: createAccount) }
                 }
         default:
             ProgressView("Checking your tests").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.canvas)
@@ -230,7 +197,7 @@ struct StartGate<Content: View>: View {
         }
         let sq = CommunityText.skillQuota(q, skill)
         if let issue = CommunityIssue(blocked: sq.blocked, skill: skill, quota: sq, tier: q.tier) { phase = .blocked(issue); return }
-        if q.tier != "own-key" && !FairUse.acknowledged(user: userKey) { phase = .fairUse; return }
+        if (q.tier == "guest" || q.tier == "community") && !FairUse.acknowledged(user: userKey) { phase = .fairUse; return }
         await begin()
     }
 
@@ -248,17 +215,17 @@ struct StartGate<Content: View>: View {
         }
     }
 
-    /// "Use my own key" (or "Create an account" for a guest): leave the test, then open Settings or the sign-up sheet.
-    private func ownKey() {
+    /// "Create a free account" (guests): leave the test, then open the sign-up sheet.
+    private func createAccount() {
         dismiss()
         Task {
             try? await Task.sleep(for: .milliseconds(500))
-            api.openKeys()
+            api.requestSignIn("Create a free account for more tests.", signUp: true)
         }
     }
 }
 
-/// In front of the live examiner: the server must offer it, and it counts as a speaking test.
+/// In front of the live examiner: the server must offer it, and it counts against the plan's live sessions (`examiner`).
 struct LiveGate<Content: View>: View {
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
@@ -274,8 +241,8 @@ struct LiveGate<Content: View>: View {
             if let q = api.quota, loaded {
                 if !q.live {
                     IssuePanel(issue: CommunityIssue(kind: .liveOff, tier: q.tier), onRetry: { check += 1 }, onDismiss: { dismiss() })
-                } else if let issue = CommunityIssue(blocked: q.speaking.blocked, skill: "speaking", quota: q.speaking, tier: q.tier) {
-                    IssuePanel(issue: issue, balance: q.communityBalance, onRetry: { check += 1 }, onDismiss: { dismiss() })
+                } else if let issue = CommunityIssue(blocked: q.liveQuota.blocked, skill: q.examiner == nil ? "speaking" : "examiner", quota: q.liveQuota, tier: q.tier) {
+                    IssuePanel(issue: issue, onRetry: { check += 1 }, onDismiss: { dismiss() })
                 } else {
                     content()
                 }
@@ -293,41 +260,39 @@ struct LiveGate<Content: View>: View {
     }
 }
 
-/// Settings: the balance everyone shares, and what is left of this person's tests.
+/// Settings: what is left of this person's tests on their plan.
 struct CommunitySection: View {
     @Environment(APIClient.self) private var api
 
     var body: some View {
         Section {
             if let q = api.quota {
-                BalanceMeter(balance: q.communityBalance).padding(.vertical, 4)
                 LabeledContent("Speaking", value: CommunityText.left(q.speaking))
                 LabeledContent("Writing", value: CommunityText.left(q.writing))
+                if q.live, let e = q.examiner { LabeledContent("Live examiner", value: CommunityText.left(e)) }
             } else {
                 ProgressView().frame(maxWidth: .infinity)
             }
         } header: {
             Text("Your tests")
         } footer: {
-            Text(api.quota?.tier == "own-key" ? "Your own key pays for your tests."
-                 : api.quota?.tier == "guest" ? "Guests get 1 speaking and 1 writing test a week. Create an account for 1 of each a day. Tests are paid from a balance everyone shares, so please don't abuse it."
-                 : "Tests are paid from a balance the whole community shares. Please don't abuse it.")
+            Text(api.quota?.tier == "guest" ? "Guests get 1 speaking and 1 writing test a week. Create an account for 1 of each a day."
+                 : api.quota?.tier == "unlimited" ? "Your account has no test limits."
+                 : "Your plan sets how many tests you can take. Please practise fairly.")
         }
-        .id("community")
     }
 }
 
-/// Home: the shared balance and what is left of this person's tests, in one compact card.
+/// Home: what is left of this person's tests, in one compact card.
 struct CommunityCard: View {
     @Environment(APIClient.self) private var api
 
     var body: some View {
         if let q = api.quota {
             VStack(alignment: .leading, spacing: 12) {
-                BalanceMeter(balance: q.communityBalance)
-                if q.communityBalance.remaining != nil { Divider() }
                 row("mic", "Speaking", q.speaking)
                 row("pencil.line", "Writing", q.writing)
+                if q.live, let e = q.examiner { row("bubble.left.and.bubble.right", "Live examiner", e) }
             }
             .card()
             .accessibilityElement(children: .contain)

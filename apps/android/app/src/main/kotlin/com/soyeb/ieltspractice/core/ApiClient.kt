@@ -47,7 +47,7 @@ class ApiError(
     /** quota_exceeded extras (docs/community.md): when the window resets (ISO), which skill, and the caller's tier. */
     val resetAt: String? = null, val skill: String? = null, val tier: String? = null,
 ) : Exception(message) {
-    /** One of the "you can't start or finish a test now" codes (quota, balance, busy, too fast, live examiner unavailable). */
+    /** One of the "you can't start or finish a test now" codes (quota, scoring paused, busy, too fast, live examiner unavailable). */
     val isLimit: Boolean get() = code in Codes.limits
 }
 
@@ -92,7 +92,7 @@ class ApiClient(
     val isSignedIn: Boolean get() = _token.value != null
 
     private val _account = MutableStateFlow(initialToken != null)
-    /** True only for a real account. False for no session and for a guest session: History, Mistakes, Review and keys are account-only. */
+    /** True only for a real account. False for no session and for a guest session: History, Mistakes and Review are account-only. */
     val hasAccount: StateFlow<Boolean> = _account.asStateFlow()
     private var guest = false
 
@@ -103,7 +103,7 @@ class ApiClient(
     }
 
     private val _quota = MutableStateFlow<Quota?>(null)
-    /** Tests left, the community balance and the live providers this person may use. Null until first loaded. */
+    /** Tests left per skill and whether the live examiner is set up. Null until first loaded. */
     val quota: StateFlow<Quota?> = _quota.asStateFlow()
     private var quotaAt = 0L
     private val sessionLock = Mutex()
@@ -336,22 +336,6 @@ class ApiClient(
         try { runCatching { refreshQuota() } } finally { quotaBusy = false }
     }
     @Volatile private var quotaBusy = false
-
-    // MARK: Own API keys (account only)
-
-    suspend fun loadKeys(): List<KeyInfo> = get<KeysResponse>("/api/keys").keys
-
-    /** Validates the key with the provider, then saves it encrypted. The key is sent once and never kept or logged here. */
-    suspend fun saveKey(provider: String, key: String): KeyInfo {
-        val info: KeyInfo = send("PUT", "/api/keys/$provider", buildJsonObject { put("key", key.trim()) })
-        loadMe() // tier, live providers and unlimited tests may have changed
-        return info
-    }
-
-    suspend fun removeKey(provider: String) {
-        raw("DELETE", "/api/keys/$provider")
-        loadMe()
-    }
 
     /** The live examiner is set up on the server (docs/community.md). */
     val liveAvailable: Boolean get() = _quota.value?.live ?: _me.value?.live ?: false

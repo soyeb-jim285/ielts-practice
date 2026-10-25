@@ -14,7 +14,7 @@ import { checkStart, payerOf, quotaSnapshot, requireLive } from '../quota';
 import { lrSaveLimit } from '../ratelimit';
 import type { App, SessionUser } from '../types';
 import { CodedError, QuotaFields } from './community';
-import { canOpen, insertLrAttempt } from './lr';
+import { canOpen, insertLrAttempt, visibleWhere } from './lr';
 import { pick, pickSpeakingTest, PromptSchema, promptsByIds, SpeakingTestSchema, speakingTestByIds } from './prompts';
 
 type Row = typeof mockExams.$inferSelect;
@@ -214,7 +214,8 @@ async function pickContent(user: SessionUser, variant: 'academic' | 'general', s
     if (!ref || !isCambridgeAllowed(user) || !(await completeRefs(variant)).includes(ref)) throw noSet();
   } else if (!(await pickSpeakingTest(user, 'generated', null, false))) throw noSet();
   const cam = source === 'cambridge';
-  const at = (skill: 'listening' | 'reading') => and(eq(lrTests.source, source), cam ? eq(lrTests.ref, ref!) : undefined, skill === 'reading' ? eq(lrTests.variant, variant) : undefined)!;
+  const mine = cam ? undefined : await visibleWhere(user); // our own tests: only those this plan opens
+  const at = (skill: 'listening' | 'reading') => and(eq(lrTests.source, source), cam ? eq(lrTests.ref, ref!) : mine, skill === 'reading' ? eq(lrTests.variant, variant) : undefined)!;
   const task = (part: number) => and(eq(prompts.skill, 'writing'), eq(prompts.part, part), eq(prompts.source, source), part === 1 ? eq(prompts.variant, variant) : undefined, cam ? eq(prompts.sourceRef, ref!) : undefined);
   const [listening, reading, [w1], [w2]] = await Promise.all([pickLr(user.id, 'listening', variant, at('listening')), pickLr(user.id, 'reading', variant, at('reading')), pick(user, task(1), 1), pick(user, task(2), 1)]);
   if (!listening || !reading || !w1 || !w2) throw noSet();
@@ -357,7 +358,7 @@ export function register(app: App) {
       if (sec.state === 'done') throw new ApiError(409, { error: 'This section is already submitted.', code: 'section_done' });
       if (sec.attemptId && sec.state === 'in_progress') return c.json({ attemptId: sec.attemptId }, 200);
       const t = await db.query.lrTests.findFirst({ where: eq(lrTests.id, skill === 'listening' ? m.listeningTestId : m.readingTestId) });
-      if (!t || !canOpen(t, user)) throw new HTTPException(404, { message: 'Test not found' }); // Cambridge access lost mid-mock
+      if (!t || !(await canOpen(t, user))) throw new HTTPException(404, { message: 'Test not found' }); // Cambridge access lost mid-mock
       const a = await insertLrAttempt(user.id, t.id, 'exam', null);
       await db.update(mockExams).set(skill === 'listening' ? { listeningAttemptId: a.id } : { readingAttemptId: a.id }).where(eq(mockExams.id, m.id));
       return c.json({ attemptId: a.id }, 200);

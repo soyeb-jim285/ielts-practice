@@ -65,13 +65,13 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
     fun dismissGate() { gate = null }
 
     /**
-     * Start a speaking or writing test: check the quota BEFORE anything is recorded or typed, show the fair-use note once per day when the
-     * shared balance pays, create the guest session if there is none, then run [go]. Guests need no account to start.
+     * Start a speaking or writing test: check the quota BEFORE anything is recorded or typed, show the fair-use note once per day on a
+     * free plan, create the guest session if there is none, then run [go]. Guests need no account to start.
      */
     fun startTest(skill: String, go: () -> Unit) = begin(skill, live = false, go)
 
-    /** The live examiner: a speaking test, when the server has the examiner set up. */
-    fun startLive(go: () -> Unit) = begin("speaking", live = true, go)
+    /** The live examiner: one live session from the examiner allowance, when the server has the examiner set up. */
+    fun startLive(go: () -> Unit) = begin("examiner", live = true, go)
 
     private fun begin(skill: String, live: Boolean, go: () -> Unit) {
         if (checking) return
@@ -92,14 +92,14 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
         }
         val guest = !api.hasAccount.value
         if (live && !q.live) {
-            gate = Gate.Blocked(Codes.LIVE, skill, q.tier, null, q.communityBalance)
+            gate = Gate.Blocked(Codes.LIVE, skill, q.tier, null)
             return
         }
         val s = q.of(skill)
-        s.blocked?.let { gate = Gate.Blocked(it, skill, q.tier, s.resetAt, q.communityBalance); return }
+        s.blocked?.let { gate = Gate.Blocked(it, skill, q.tier, s.resetAt); return }
         val user = if (guest) "guest" else api.me.value?.user?.id ?: "account"
         val key = FairUse.ackKey(user)
-        if (!q.unlimited && !ack.has(key)) {
+        if (q.free && !ack.has(key)) {
             gate = Gate.FairUse(skill, q, guest) { ack.set(key); gate = null; scope.launch { proceed(skill, go) } }
             return
         }
@@ -119,14 +119,14 @@ class AppNav(private val controller: NavHostController, private val api: ApiClie
     }
 
     /**
-     * A request refused with a limit code (the quota ran out in another tab, the balance ran out, too fast): show the same panel as at start.
+     * A request refused with a limit code (the quota ran out in another tab, scoring is paused, too fast): show the same panel as at start.
      * [keep] says what was kept ("Your essay is still here."). Returns false when [e] is not a limit error.
      */
     fun reportBlocked(e: ApiError, skill: String, keep: String? = null): Boolean {
         if (!e.isLimit) return false
         val q = api.quota.value
         val tier = e.tier ?: if (!api.hasAccount.value) "guest" else q?.tier ?: "community"
-        gate = Gate.Blocked(e.code.orEmpty(), e.skill ?: skill, tier, e.resetAt, q?.communityBalance, keep)
+        gate = Gate.Blocked(e.code.orEmpty(), e.skill ?: skill, tier, e.resetAt, keep)
         return true
     }
 

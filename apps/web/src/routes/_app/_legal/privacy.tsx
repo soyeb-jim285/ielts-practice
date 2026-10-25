@@ -14,7 +14,7 @@ function Privacy() {
           <List>
             <li>Your name and email address, when you create an account.</li>
             <li>Your practice: answers, essays, speaking recordings and transcripts, scores and review cards.</li>
-            <li>Your settings, and any API keys you add (stored encrypted, never shown back in full).</li>
+            <li>Your settings.</li>
             <li>Session recordings and problem reports, described below.</li>
           </List>
           <p>If you practise as a guest, we keep the same things under a temporary guest profile with no name or email.</p>
@@ -30,7 +30,6 @@ function Privacy() {
           <p>It never includes:</p>
           <List>
             <li>passwords, or anything on the sign-in, sign-up and password-reset pages;</li>
-            <li>your API keys;</li>
             <li>audio. Session recording captures no sound at all. The microphone is used only for the speaking test itself.</li>
           </List>
           <p>Recordings are deleted automatically after 14 days. Only the site owner can view them, and we use them only to fix bugs and improve the site.</p>

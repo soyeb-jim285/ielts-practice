@@ -76,7 +76,7 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
   app.openapi(createRoute({
     method: 'post', path: '/api/live/livekit/start', tags: ['Live'], security: [{ bearer: [] }],
     middleware: [requireUser, withPayer, aiLimit],
-    summary: 'Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as the speaking test (1 a day, guests 1 a week; owner exempt). Only the owner may send cfg.',
+    summary: 'Create a private LiveKit room and dispatch its examiner. Runs on the server keys: the session is reserved as one examiner session (plan limits, docs/community.md; owner exempt). Only the owner may send cfg.',
     request: body(z.object({ sessionId: z.string().min(1).max(128), cfg: Config.optional() }).strict()),
     responses: {
       200: json(z.object({ url: z.string(), token: z.string(), roomName: z.string(), participantIdentity: z.string() }).openapi('LiveKitStart'), 'Room scoped candidate token'),
@@ -99,8 +99,8 @@ export function attachLiveKit(app: App, loadSession: (sessionId: string, userId:
       if (p.tts !== 'soniox' && (!rates[p.tts]?.trim() || !Number.isFinite(Number(rates[p.tts])) || Number(rates[p.tts]) < 0)) return c.json({ error: 'Set the selected LiveKit TTS provider plan rate before starting.' }, 503);
     }
     const payer = c.get('payer')!;
-    // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring).
-    if (!owner && !payer.limits?.unlimited) await reserve(payer.tier === 'own-key' ? { ...payer, tier: 'community' } : payer, 'speaking', b.sessionId, clientIpHash(c));
+    // The server pays for LiveKit, so own-key users are limited like everyone else (their own key only pays the scoring): see rulesOf.
+    if (!owner) await reserve(payer, 'examiner', b.sessionId, clientIpHash(c));
     // Reconnects of a dropped session are free, a few times; past that it would be an endless free test. One conditional update, so parallel starts cannot pass the cap.
     // The new room also becomes the session's only room: the one it replaces is closed once this one exists, so parallel starts cannot run several examiners.
     const roomName = `ielts-${crypto.randomUUID()}`, participantIdentity = `candidate-${crypto.randomUUID()}`;

@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // helpers first: it loads the app (and zod-openapi's zod extension) before the settings schema is built
-import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, setKey, testUser } from './test/helpers';
+import { app, chatReply, fakeFetch, guestUser, json, req, seedPrompt, testUser } from './test/helpers';
 import { eq } from 'drizzle-orm';
 import { db } from './db/client';
-import { analyses, attempts, mistakes, quotaUsage, user as userTable, userApiKeys, cards, lrAttempts, lrTests, emailLog } from './db/schema';
+import { analyses, attempts, mistakes, quotaUsage, user as userTable, userLimits, cards, lrAttempts, lrTests, emailLog } from './db/schema';
 import { sendsIdle } from './auth-email';
 import { auth } from './auth';
 import { env } from './env';
-import { keyCtx } from './ai/keyctx';
-import { chatText, setFetch, transcribe } from './ai/openrouter';
+import { setFetch } from './ai/openrouter';
 import { analyze, purgeGuests, recoverStale, setAnalyzer, setMaxTries } from './jobs';
 import { speakingLlm, sttWords, writingChat } from './ai/fixtures';
 import { clearBalanceCache } from './community';
-import { decryptKey, encryptKey } from './keys';
-import { refundAttempt, reserve, windowOf, payerOf } from './quota';
+import { PLANS, refundAttempt, reserve, payerOf } from './quota';
 import { hashIp } from './ip';
+import { realPlans } from './test/setup';
+import { LR_PLANS } from './routes/lr';
 import { storage } from './storage';
 
 const ESSAY = 'Many people has argued that technology makes life easier, and I strongly agree with this view for several reasons that I will explain in this short essay.';
@@ -49,49 +49,38 @@ const body = async (r: Response | undefined) => (await r!.json()) as any;
 
 const balanceFetch = (data: Record<string, unknown> | number) => fakeFetch({ '/api/v1/key': () => (typeof data === 'number' ? json({}, data) : json({ data })) });
 
-describe('windows', () => {
-  it('daily windows reset at 00:00 UTC, weekly at Monday 00:00 UTC', () => {
-    const d = (s: string) => new Date(s);
-    expect(windowOf('community', d('2031-03-05T23:59:59.999Z'))).toMatchObject({ kind: 'day', start: d('2031-03-05T00:00:00Z'), resetAt: d('2031-03-06T00:00:00Z') });
-    expect(windowOf('community', d('2031-03-06T00:00:00.000Z')).start).toEqual(d('2031-03-06T00:00:00Z'));
-    expect(windowOf('community', d('2031-12-31T12:00:00Z')).resetAt).toEqual(d('2032-01-01T00:00:00Z'));
-    // 2031-03-03 is a Monday
-    expect(windowOf('guest', d('2031-03-03T00:00:00Z'))).toMatchObject({ kind: 'week', start: d('2031-03-03T00:00:00Z'), resetAt: d('2031-03-10T00:00:00Z') });
-    expect(windowOf('guest', d('2031-03-09T23:59:59.999Z'))).toMatchObject({ start: d('2031-03-03T00:00:00Z'), resetAt: d('2031-03-10T00:00:00Z') }); // Sunday
-    expect(windowOf('guest', d('2031-03-10T00:00:00Z')).start).toEqual(d('2031-03-10T00:00:00Z'));
-  });
+const DAY = 86_400_000;
 
-  it('a community user gets a fresh test at midnight UTC; a guest at Monday 00:00 UTC (fake time)', async () => {
-    const nextMonday = new Date(windowOf('guest').resetAt.getTime() + 7 * 86_400_000); // a Monday at least a week out: sessions created after setSystemTime stay valid
+describe('rolling windows', () => {
+  it('a test frees up exactly one window after it was reserved, for accounts (24 h here) and guests (7 days)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(nextMonday.getTime() - 3_600_000)); // Sunday 23:00 UTC
+    const t0 = new Date(Date.now() + 30 * DAY); // in the future, so sessions created now stay valid
+    vi.setSystemTime(t0);
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    const c = await testUser(undefined, { key: false });
+    const c = await testUser(undefined, { unlimited: false });
     const g = await guestUser(ip());
-
     expect((await writing(c.headers, p)).submit!.status).toBe(200);
     expect((await writing(g.headers, p)).submit!.status).toBe(200);
     const blocked = await writing(c.headers, p);
     expect(blocked.create.status).toBe(429); // refused at create: before the essay
-    expect(await body(blocked.create)).toMatchObject({ code: 'quota_exceeded', skill: 'writing', tier: 'community', resetAt: new Date(nextMonday.getTime()).toISOString() });
-    expect((await writing(g.headers, p)).create.status).toBe(429);
+    const err = await body(blocked.create);
+    expect(err).toMatchObject({ code: 'quota_exceeded', skill: 'writing', tier: 'community', window: 'day' });
+    const reset = new Date(err.resetAt).getTime();
+    expect(Math.abs(reset - (t0.getTime() + DAY))).toBeLessThan(5_000);
 
-    vi.setSystemTime(new Date(nextMonday.getTime() + 60_000)); // Monday 00:01 → both windows rolled (day and week)
-    expect((await writing(c.headers, p)).submit!.status).toBe(200);
-    expect((await writing(g.headers, p)).submit!.status).toBe(200);
-
-    // later the same Monday: the community user's day has not rolled yet, the guest's week has not either
-    vi.setSystemTime(new Date(nextMonday.getTime() + 12 * 3_600_000));
+    vi.setSystemTime(t0.getTime() + DAY - 60_000); // one minute short: no midnight reset any more
     expect((await writing(c.headers, p)).create.status).toBe(429);
-    vi.setSystemTime(new Date(nextMonday.getTime() + 24 * 3_600_000 + 60_000)); // Tuesday 00:01
+    vi.setSystemTime(t0.getTime() + DAY + 60_000);
     expect((await writing(c.headers, p)).submit!.status).toBe(200);
-    expect((await writing(g.headers, p)).create.status).toBe(429); // the guest's week runs to next Monday
+    expect((await writing(g.headers, p)).create.status).toBe(429); // the guest's 7 days are not over
+    vi.setSystemTime(t0.getTime() + 7 * DAY + 60_000);
+    expect((await writing(g.headers, p)).submit!.status).toBe(200);
   });
 });
 
 describe('reserve, refund, retry', () => {
   it('speaking and writing have separate quotas; GET /api/quota shows used / remaining / resetAt', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const s = await seedPrompt();
     expect(await quota(headers)).toMatchObject({
@@ -102,29 +91,30 @@ describe('reserve, refund, retry', () => {
     });
     expect((await writing(headers, w)).submit!.status).toBe(200);
     const q = await quota(headers);
-    expect(q.writing).toMatchObject({ used: 1, remaining: 0, blocked: 'quota_exceeded', resetAt: windowOf('community').resetAt.toISOString() });
+    expect(q.writing).toMatchObject({ used: 1, remaining: 0, blocked: 'quota_exceeded', resetAt: expect.any(String) });
     expect(q.speaking).toMatchObject({ used: 0, remaining: 1 });
     expect((await speaking(headers, s)).submit!.status).toBe(200);
     expect((await quota(headers)).speaking.remaining).toBe(0);
   });
 
   it('429 shape: code, skill, resetAt, tier', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     await writing(headers, w);
     const second = await writing(headers, w);
     expect(second.create.status).toBe(429);
     expect(await body(second.create)).toEqual({
-      error: expect.stringContaining('Add your own OpenRouter key'),
+      error: "You've used your writing tests for today.",
       code: 'quota_exceeded',
       skill: 'writing',
-      resetAt: windowOf('community').resetAt.toISOString(),
+      resetAt: expect.any(String),
       tier: 'community',
+      window: 'day',
     });
   });
 
   it('submitting the same attempt again never costs again (409), and the ledger has one row', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const { id } = await writing(headers, w);
     expect((await req(`/api/attempts/${id}/submit`, { headers, body: { text: ESSAY } })).status).toBe(409);
@@ -135,7 +125,7 @@ describe('reserve, refund, retry', () => {
   });
 
   it('a failed analysis refunds the test; retrying the same attempt reserves it again (one charge in total)', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     setAnalyzer(analyze);
     setFetch(fakeFetch({ '/chat/completions': () => chatReply('garbage') }));
@@ -155,7 +145,7 @@ describe('reserve, refund, retry', () => {
   });
 
   it('a retry after the quota was spent elsewhere is refused (429) and the draft survives', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     setAnalyzer(analyze);
     setFetch(fakeFetch({ '/chat/completions': () => chatReply('garbage') }));
@@ -170,7 +160,7 @@ describe('reserve, refund, retry', () => {
   });
 
   it('a draft sent with a refused submit is kept on the attempt (second tab used the last test)', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const a = await req('/api/attempts', { headers, body: { promptId: w.id, skill: 'writing', part: 2 } });
     const b = await req('/api/attempts', { headers, body: { promptId: w.id, skill: 'writing', part: 2 } }); // both started before either submitted
@@ -182,7 +172,7 @@ describe('reserve, refund, retry', () => {
   });
 
   it('no speech heard refunds the test', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const s = await seedPrompt();
     setAnalyzer(analyze);
     setFetch(fakeFetch({ '/audio/transcriptions': () => json({ text: '', duration: 3, words: [] }), '/chat/completions': () => chatReply(speakingLlm) }));
@@ -194,7 +184,7 @@ describe('reserve, refund, retry', () => {
   });
 
   it('recoverStale refunds attempts that were interrupted', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const { id } = await writing(headers, w);
     await db.update(attempts).set({ updatedAt: new Date(Date.now() - 31 * 60_000) }).where(eq(attempts.id, id));
@@ -205,7 +195,7 @@ describe('reserve, refund, retry', () => {
 
 describe('full tests count once', () => {
   it('three speaking parts of one session cost one test; the next session is refused', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const [p1, p2, p3] = [await seedPrompt(), await seedPrompt({ part: 2, type: 'cue-card' }), await seedPrompt({ part: 3, type: 'p3-discussion' })];
     const sessionId = crypto.randomUUID();
     for (const [p, part] of [[p1, 1], [p2, 2], [p3, 3]] as const) expect((await speaking(headers, p, { sessionId }, part)).submit!.status).toBe(200);
@@ -215,7 +205,7 @@ describe('full tests count once', () => {
   });
 
   it('writing task 1 + task 2 of one session cost one test', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
+    const { headers, user } = await testUser(undefined, { unlimited: false });
     const t1 = await seedPrompt({ skill: 'writing', part: 1, variant: 'academic', type: 'bar' });
     const t2 = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const sessionId = crypto.randomUUID();
@@ -225,7 +215,7 @@ describe('full tests count once', () => {
   });
 
   it('reusing one sessionId for the same part again is a new test, so it cannot bundle unlimited tests', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const sessionId = crypto.randomUUID();
     expect((await writing(headers, p, { sessionId })).submit!.status).toBe(200);
@@ -234,7 +224,7 @@ describe('full tests count once', () => {
   });
 
   it('a session refunds only when no other part of it still counts', async () => {
-    const { user } = await testUser(undefined, { key: false });
+    const { user } = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt();
     const sessionId = crypto.randomUUID();
     const mk = (part: number, status: 'done' | 'failed') => db.insert(attempts).values({ userId: user.id, promptId: p.id, skill: 'speaking', part, sessionId, status }).returning().then((r) => r[0]!);
@@ -257,7 +247,7 @@ describe('guests', () => {
     expect(first.submit!.status).toBe(200);
     const second = await writing(g.headers, p);
     expect(second.create.status).toBe(429);
-    expect(await body(second.create)).toMatchObject({ code: 'quota_exceeded', tier: 'guest', skill: 'writing', resetAt: windowOf('guest').resetAt.toISOString() });
+    expect(await body(second.create)).toMatchObject({ code: 'quota_exceeded', tier: 'guest', skill: 'writing', resetAt: expect.any(String) });
     expect((await quota(g.headers)).writing).toMatchObject({ window: 'week', used: 1, remaining: 0 });
 
     expect((await req(`/api/attempts/${first.id}`, { headers: g.headers })).status).toBe(200); // the result page right after the test
@@ -265,7 +255,6 @@ describe('guests', () => {
     for (const path of ['/api/mistakes', '/api/cards/due', '/api/progress'])
       expect(await (async () => { const r = await req(path, { headers: g.headers }); return [r.status, (await r.json() as any).code]; })()).toEqual([403, 'account_required']);
     expect((await req('/api/settings', { method: 'PUT', headers: g.headers, body: { targetBand: 8 } })).status).toBe(403);
-    expect((await req('/api/keys', { headers: g.headers })).status).toBe(403);
   });
 
   it('GET /api/me for a guest: anonymous, no email, no live', async () => {
@@ -282,7 +271,7 @@ describe('guests', () => {
   it('per-IP cap: 3 guests per skill per IP per week, then the 4th anonymous user is refused; another IP is unaffected', async () => {
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const addr = ip();
-    for (let i = 0; i < env.GUEST_IP_WEEKLY_CAP; i++) expect((await writing((await guestUser(addr)).headers, p)).submit!.status).toBe(200);
+    for (let i = 0; i < env.GUESTS_PER_IP; i++) expect((await writing((await guestUser(addr)).headers, p)).submit!.status).toBe(200);
     const fourth = await guestUser(addr); // a fresh anonymous user (cleared storage)
     expect((await quota(fourth.headers)).writing).toMatchObject({ remaining: 0, blocked: 'quota_exceeded' });
     const refused = await writing(fourth.headers, p);
@@ -300,7 +289,7 @@ describe('guests', () => {
     await writing(g.headers, p);
     const { headers } = await signUp(g, `link${++n}@test.dev`);
     expect(((await quota(headers)) as any).tier).toBe('community');
-    for (let i = 0; i < env.GUEST_IP_WEEKLY_CAP - 1; i++) await writing((await guestUser(addr)).headers, p);
+    for (let i = 0; i < env.GUESTS_PER_IP - 1; i++) await writing((await guestUser(addr)).headers, p);
     expect((await writing((await guestUser(addr)).headers, p)).create.status).toBe(429);
   });
 
@@ -385,7 +374,7 @@ describe('guest → account linking', () => {
   });
 
   it('signing in to an existing account carries the guest result over too', async () => {
-    const existing = await testUser(undefined, { key: false });
+    const existing = await testUser(undefined, { unlimited: false });
     const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const g = await guestUser(ip());
     const wr = await writing(g.headers, p);
@@ -490,282 +479,37 @@ describe('guest retention', () => {
   });
 });
 
-describe('own keys', () => {
-  const store = (fetch: ReturnType<typeof fakeFetch>) => setFetch(fetch);
-  const put = (headers: Headers, provider: string, key: string) => req(`/api/keys/${provider}`, { method: 'PUT', headers, body: { key } });
-
-  it('encrypts with AES-256-GCM: round trip, random IV per row, bound to user and provider', () => {
-    const a = encryptKey('sk-or-v1-abcdef123456', 'u1', 'openrouter');
-    const b = encryptKey('sk-or-v1-abcdef123456', 'u1', 'openrouter');
-    expect(a.iv).not.toBe(b.iv);
-    expect(a.ciphertext).not.toBe(b.ciphertext);
-    expect(Buffer.from(a.iv, 'base64')).toHaveLength(12);
-    expect(Buffer.from(a.ciphertext, 'base64').toString('latin1')).not.toContain('abcdef');
-    expect(decryptKey(a, 'u1', 'openrouter')).toBe('sk-or-v1-abcdef123456');
-    expect(() => decryptKey(a, 'u2', 'openrouter')).toThrow(); // a row copied to another user
-    const tampered = { ...a, ciphertext: flip(a.ciphertext) };
-    expect(() => decryptKey(tampered, 'u1', 'openrouter')).toThrow();
-  });
-
-  it('PUT validates with the provider (their key in the right header), stores it encrypted, and never returns or logs it', async () => {
-    const spies = (['log', 'warn', 'error', 'info', 'debug'] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
-    const { headers, user } = await testUser(undefined, { key: false });
-    const f = fakeFetch({ '/api/v1/key': () => json({ data: {} }) });
-    store(f);
-    const secrets = { openrouter: 'sk-or-v1-SECRETSECRET1111' };
-    const out: string[] = [];
-    for (const [provider, key] of Object.entries(secrets)) {
-      const r = await put(headers, provider, key);
-      expect(r.status).toBe(200);
-      const text = JSON.stringify(await r.json());
-      out.push(text);
-      expect(JSON.parse(text)).toEqual({ provider, last4: key.slice(-4), addedAt: expect.any(String), valid: true });
-    }
-    expect(f.calls.map((c) => c.url)).toEqual(['https://openrouter.ai/api/v1/key']);
-    expect(f.calls[0]!.headers.authorization).toBe(`Bearer ${secrets.openrouter}`);
-
-    const list = await (await req('/api/keys', { headers })).text();
-    out.push(list);
-    expect(JSON.parse(list).keys.map((k: any) => k.provider)).toEqual(['openrouter']);
-    for (const s of Object.values(secrets)) {
-      for (const o of out) expect(o).not.toContain(s);
-      expect(JSON.stringify(await db.select().from(userApiKeys))).not.toContain(s); // at rest: ciphertext only
-      for (const spy of spies) expect(JSON.stringify(spy.mock.calls)).not.toContain(s);
-    }
-    // replacing a key overwrites the row
-    expect((await put(headers, 'openrouter', 'sk-or-v1-OTHERKEY9999')).status).toBe(200);
-    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(1);
-    expect((await put(headers, 'openai', 'sk-proj-OTHERKEY9999')).status).toBe(400); // only OpenRouter keys now
-    spies.forEach((s) => s.mockRestore());
-  });
-
-  it('PUT: a key the provider rejects (401/403) is refused with invalid_key and nothing is saved; an unreachable provider is 502', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
-    for (const status of [401, 403]) {
-      store(fakeFetch({ '/api/v1/key': () => json({ error: 'no' }, status) }));
-      const r = await put(headers, 'openrouter', 'sk-or-badbadbadbad');
-      expect(r.status).toBe(400);
-      expect(await body(r)).toMatchObject({ code: 'invalid_key', error: expect.stringContaining('OpenRouter') });
-    }
-    store(fakeFetch({ '/api/v1/key': () => json({}, 503) }));
-    const down = await put(headers, 'openrouter', 'sk-or-whatever1234');
-    expect([down.status, (await body(down)).code]).toEqual([502, 'key_check_failed']);
-    store(fakeFetch({}));
-    expect((await put(headers, 'openrouter', 'sk-or-whatever1234')).status).toBe(502); // network-level failure (599 from the stub)
-    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(0);
-  });
-
-  it('PUT: validates the body, requires an account, and is unavailable without KEY_ENCRYPTION_SECRET in production', async () => {
-    const { headers } = await testUser(undefined, { key: false });
-    store(fakeFetch({ '/api/v1/key': () => json({ data: {} }) }));
-    expect((await put(headers, 'openrouter', 'short')).status).toBe(400);
-    expect((await put(headers, 'openrouter', 'has a space in it')).status).toBe(400);
-    expect((await put(headers, 'mistral', 'sk-whatever12345')).status).toBe(400);
-    expect((await req('/api/keys/openrouter', { method: 'PUT', body: { key: 'sk-or-whatever1234' } })).status).toBe(401);
-    const g = await guestUser();
-    const r = await put(g.headers, 'openrouter', 'sk-or-whatever1234');
-    expect([r.status, (await body(r)).code]).toEqual([403, 'account_required']);
-
-    const before = [env.NODE_ENV, env.KEY_ENCRYPTION_SECRET] as const;
-    env.NODE_ENV = 'production';
-    try {
-      const off = await put(headers, 'openrouter', 'sk-or-whatever1234');
-      expect([off.status, (await body(off)).code]).toEqual([503, 'keys_unavailable']);
-      env.KEY_ENCRYPTION_SECRET = 'a-real-secret-for-the-test-0000';
-      expect((await put(headers, 'openrouter', 'sk-or-whatever1234')).status).toBe(200);
-    } finally {
-      [env.NODE_ENV, env.KEY_ENCRYPTION_SECRET] = before as [string, string | undefined];
-    }
-  });
-
-  it('DELETE removes the key and returns the user to the community tier', async () => {
-    const { headers, user } = await testUser(undefined, { key: false });
-    store(fakeFetch({ '/api/v1/key': () => json({ data: {} }) }));
-    await put(headers, 'openrouter', 'sk-or-v1-abcdefabcdef');
-    expect((await quota(headers)).tier).toBe('own-key');
-    expect((await req('/api/keys/openrouter', { method: 'DELETE', headers })).status).toBe(200);
-    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(0);
-    expect((await quota(headers)).tier).toBe('community');
-    expect((await req('/api/keys/openrouter', { method: 'DELETE', headers })).status).toBe(200); // idempotent
-  });
-
-  it('deleting the account removes the keys', async () => {
-    const { headers, user } = await testUser();
-    expect(await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id))).toHaveLength(1);
-    await req('/api/auth/delete-user', { headers, body: { password: 'password1234' } });
-    expect(await db.select().from(userApiKeys)).toHaveLength(0);
-  });
-});
-
-describe('routing to the user key', () => {
-  const auth = (f: ReturnType<typeof fakeFetch>, path: string) => f.calls.filter((c) => c.url.includes(path)).map((c) => c.headers.authorization);
-
-  it('every OpenRouter call of an analysis (STT, scoring) uses the user key; community users use the server key', async () => {
-    const mine = await testUser(undefined, { key: false });
-    await setKey(mine.user.id, 'openrouter', 'sk-or-USERKEY-0001');
-    const other = await testUser(undefined, { key: false });
-    const p = await seedPrompt();
-    setAnalyzer(analyze);
-    for (const [who, expected] of [[mine, 'Bearer sk-or-USERKEY-0001'], [other, 'Bearer test-openrouter']] as const) {
-      const f = fakeFetch({ '/audio/transcriptions': () => json(sttWords), '/chat/completions': speakingChat });
-      setFetch(f);
-      const { id } = await speaking(who.headers, p);
-      await settled(id, 'done');
-      const used = [...auth(f, '/audio/transcriptions'), ...auth(f, '/chat/completions')];
-      expect(used.length).toBeGreaterThan(2);
-      expect(new Set(used)).toEqual(new Set([expected]));
-    }
-  });
-
-  it('analysis primitives (STT, LLM) use the key in the request context', async () => {
-    const f = fakeFetch({
-      '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [] }),
-      '/chat/completions': () => chatReply('ok'),
-    });
-    setFetch(f);
-    await keyCtx.run({ openrouter: 'sk-or-CTXKEY-0002' }, async () => {
-      await transcribe({ model: 'openai/whisper-large-v3', audio: new Uint8Array([1]), format: 'webm' });
-      await chatText({ model: 'a/b', messages: [{ role: 'user', content: 'x' }] });
-    });
-    expect(f.calls).toHaveLength(2);
-    expect(new Set(f.calls.map((c) => c.headers.authorization))).toEqual(new Set(['Bearer sk-or-CTXKEY-0002']));
-  });
-
-  it('Scribe goes through OpenRouter on whichever key the request runs with: the server key for community users, their own key otherwise', async () => {
-    const f = fakeFetch({ '/audio/transcriptions': () => json({ text: 'hi', duration: 1, words: [{ word: 'hi', start: 0, end: 0.4 }] }) });
-    setFetch(f);
-    const scribe = (key?: string) => keyCtx.run({ openrouter: key }, () => transcribe({ model: 'elevenlabs/scribe-v2', audio: new Uint8Array([1]), format: 'webm' }));
-    expect((await scribe()).model).toBe('elevenlabs/scribe-v2');
-    expect((await scribe('sk-or-OWN-0003')).model).toBe('elevenlabs/scribe-v2');
-    expect(f.calls.every((c) => c.url.includes('openrouter.ai'))).toBe(true);
-    expect(f.calls.at(-1)!.headers.authorization).toBe('Bearer sk-or-OWN-0003');
-  });
-
-  it('analysis runs on the default models for everyone, own key or not', async () => {
-    const community = await testUser(undefined, { key: false });
-    const own = await testUser();
-    const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    setAnalyzer(analyze);
-    const modelsUsed = async (who: typeof own) => {
-      const f = fakeFetch({ '/chat/completions': writingChat() });
-      setFetch(f);
-      const { id } = await writing(who.headers, p);
-      await settled(id, 'done');
-      return new Set(f.calls.filter((c) => c.url.includes('/chat/completions')).map((c) => c.body.model));
-    };
-    expect([...(await modelsUsed(community))]).toEqual(['anthropic/claude-haiku-5.5']);
-    expect([...(await modelsUsed(own))]).toEqual(['anthropic/claude-haiku-5.5']);
-  });
-
-  it('a user key the provider rejects is flagged invalid, the attempt fails with a clear message, and the user is a community user again', async () => {
-    const { headers, user } = await testUser();
-    const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    setAnalyzer(analyze);
-    setFetch(fakeFetch({ '/chat/completions': () => json({ error: { message: 'No auth' } }, 401) }));
-    const { id } = await writing(headers, p);
-    await settled(id, 'failed');
-    expect((await db.query.attempts.findFirst({ where: eq(attempts.id, id) }))!.error).toContain('OpenRouter key was rejected');
-    await vi.waitFor(async () => expect((await db.select().from(userApiKeys).where(eq(userApiKeys.userId, user.id)))[0]!.valid).toBe(false));
-    expect(((await (await req('/api/keys', { headers })).json()) as any).keys[0]).toMatchObject({ provider: 'openrouter', valid: false });
-    expect((await quota(headers)).tier).toBe('community');
-  });
-
-  it('the user\'s key never reaches logs or stored errors when the provider fails', async () => {
-    const spies = (['log', 'warn', 'error'] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
-    const { headers, user } = await testUser(undefined, { key: false });
-    await setKey(user.id, 'openrouter', 'sk-or-LEAKYKEY-0004');
-    const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    setAnalyzer(analyze);
-    setFetch(fakeFetch({ '/chat/completions': () => new Response('Incorrect API key provided: sk-or-LEAKYKEY-0004', { status: 402 }) }));
-    const { id } = await writing(headers, p);
-    await settled(id, 'failed');
-    const a = await db.query.attempts.findFirst({ where: eq(attempts.id, id) });
-    expect(JSON.stringify(a)).not.toContain('LEAKYKEY');
-    for (const s of spies) expect(JSON.stringify(s.mock.calls)).not.toContain('LEAKYKEY');
-    spies.forEach((s) => s.mockRestore());
-  });
-});
-
 describe('live access', () => {
   it('live is open to everyone once the LiveKit examiner is configured, and refused (503) until then', async () => {
     const me = async (headers: Headers) => ((await (await req('/api/me', { headers })).json()) as any);
-    for (const u of [await guestUser(), await testUser(undefined, { key: false }), await testUser()]) {
+    for (const u of [await guestUser(), await testUser(undefined, { unlimited: false }), await testUser()]) {
       expect((await me(u.headers)).live).toBe(false);
       expect((await req('/api/live/start', { headers: u.headers, body: {} })).status).toBe(503);
     }
     Object.assign(env, { LIVEKIT_URL: 'wss://x', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 's', LIVEKIT_REPORT_SECRET: 'r'.repeat(32), SONIOX_API_KEY: 'sx' });
     try {
-      expect((await me((await testUser(undefined, { key: false })).headers)).live).toBe(true);
+      expect((await me((await testUser(undefined, { unlimited: false })).headers)).live).toBe(true);
     } finally {
       Object.assign(env, { LIVEKIT_URL: undefined, LIVEKIT_API_KEY: undefined, LIVEKIT_API_SECRET: undefined, LIVEKIT_REPORT_SECRET: undefined, SONIOX_API_KEY: undefined });
     }
   });
 });
 
-describe('community balance', () => {
-  it('GET /api/community/balance is public and maps limit / usage / limit_remaining', async () => {
-    setFetch(balanceFetch({ limit: 20, usage: 7.6, limit_remaining: 12.4 }));
-    const r = await req('/api/community/balance');
-    expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ limit: 20, used: 7.6, remaining: 12.4, updatedAt: expect.any(String) });
-  });
-
-  it('is cached for 60 seconds, then refreshed', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2031-01-01T00:00:00Z'));
-    const f = balanceFetch({ limit: 20, usage: 5, limit_remaining: 15 });
-    setFetch(f);
-    for (let i = 0; i < 5; i++) await req('/api/community/balance');
-    expect(f.calls).toHaveLength(1);
-    expect(f.calls[0]!.headers.authorization).toBe('Bearer test-openrouter'); // the server's key
-    vi.setSystemTime(new Date('2031-01-01T00:00:59Z'));
-    await req('/api/community/balance');
-    expect(f.calls).toHaveLength(1);
-    vi.setSystemTime(new Date('2031-01-01T00:01:01Z'));
-    await req('/api/community/balance');
-    expect(f.calls).toHaveLength(2);
-  });
-
-  it('derives remaining when only limit and usage are given; null limit means unlimited', async () => {
-    setFetch(balanceFetch({ limit: 10, usage: 4 }));
-    expect(await (await req('/api/community/balance')).json()).toMatchObject({ limit: 10, used: 4, remaining: 6 });
-    clearBalanceCache();
-    setFetch(balanceFetch({ limit: null, usage: 4, limit_remaining: null }));
-    expect(await (await req('/api/community/balance')).json()).toMatchObject({ limit: null, used: 4, remaining: null });
-  });
-
-  it('serves the last known value when OpenRouter is unreachable; with none, shows nulls and blocks nothing', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2031-01-01T00:00:00Z'));
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    setFetch(balanceFetch(500));
-    expect(await (await req('/api/community/balance')).json()).toMatchObject({ limit: null, used: null, remaining: null });
-    const { headers } = await testUser(undefined, { key: false });
-    const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    expect((await writing(headers, w)).submit!.status).toBe(200); // fail open
-    setFetch(balanceFetch({ limit: 20, usage: 5, limit_remaining: 15 }));
-    vi.setSystemTime(new Date('2031-01-01T00:02:00Z'));
-    expect((await (await req('/api/community/balance')).json() as any).remaining).toBe(15);
-    setFetch(balanceFetch(500));
-    vi.setSystemTime(new Date('2031-01-01T00:04:00Z'));
-    expect((await (await req('/api/community/balance')).json() as any).remaining).toBe(15); // stale, not nothing
-    spy.mockRestore();
-  });
-
-  it('below COMMUNITY_MIN_BALANCE community tests are refused with 402; own-key users and the owner are not affected', async () => {
+describe('server balance guard', () => {
+  it('below COMMUNITY_MIN_BALANCE limited tests are refused with 402; unlimited users and the owner are not affected', async () => {
     setFetch(balanceFetch({ limit: 20, usage: 19.9, limit_remaining: 0.1 }));
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    const community = await testUser(undefined, { key: false });
+    const community = await testUser(undefined, { unlimited: false });
     const guest = await guestUser(ip());
     for (const u of [community, guest]) {
       const r = await writing(u.headers, w);
       expect(r.create.status).toBe(402);
-      expect(await body(r.create)).toMatchObject({ code: 'community_balance_exhausted', error: expect.stringContaining('OpenRouter key') });
+      expect(await body(r.create)).toMatchObject({ code: 'community_balance_exhausted', error: expect.stringContaining('try again later') });
       expect((await quota(u.headers)).writing).toMatchObject({ blocked: 'community_balance_exhausted' });
     }
-    expect((await quota(community.headers)).communityBalance).toMatchObject({ remaining: 0.1 });
+    expect(await quota(community.headers)).not.toHaveProperty('communityBalance');
     expect((await writing((await testUser()).headers, w)).submit!.status).toBe(200);
-    expect((await writing((await testUser('soyebjim@gmail.com', { key: false })).headers, w)).submit!.status).toBe(200);
+    expect((await writing((await testUser('soyebjim@gmail.com', { unlimited: false })).headers, w)).submit!.status).toBe(200);
     // exactly at the floor is allowed
     clearBalanceCache();
     setFetch(balanceFetch({ limit: 20, usage: 19.75, limit_remaining: env.COMMUNITY_MIN_BALANCE }));
@@ -773,7 +517,7 @@ describe('community balance', () => {
   });
 
   it('the balance can run out between create and submit: 402 and the draft is kept', async () => {
-    const { headers } = await testUser(undefined, { key: false });
+    const { headers } = await testUser(undefined, { unlimited: false });
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     setFetch(balanceFetch({ limit: 20, usage: 1, limit_remaining: 19 }));
     const { id } = await body(await req('/api/attempts', { headers, body: { promptId: w.id, skill: 'writing', part: 2 } }));
@@ -786,17 +530,17 @@ describe('community balance', () => {
 });
 
 describe('rate limits and the global guard', () => {
-  it('COMMUNITY_MAX_PER_HOUR: past it everyone on the community balance gets a friendly 503 busy; own-key users are unaffected', async () => {
+  it('COMMUNITY_MAX_PER_HOUR: past it everyone with limits gets a friendly 503 busy; unlimited users are unaffected', async () => {
     const before = env.COMMUNITY_MAX_PER_HOUR;
     env.COMMUNITY_MAX_PER_HOUR = 2;
     try {
       const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-      expect((await writing((await testUser(undefined, { key: false })).headers, w)).submit!.status).toBe(200);
+      expect((await writing((await testUser(undefined, { unlimited: false })).headers, w)).submit!.status).toBe(200);
       expect((await writing((await guestUser(ip())).headers, w)).submit!.status).toBe(200);
-      const late = await writing((await testUser(undefined, { key: false })).headers, w);
+      const late = await writing((await testUser(undefined, { unlimited: false })).headers, w);
       expect(late.create.status).toBe(503);
       expect(await body(late.create)).toMatchObject({ code: 'community_busy', error: expect.stringContaining('try again') });
-      expect((await quota((await testUser(undefined, { key: false })).headers)).writing.blocked).toBe('community_busy');
+      expect((await quota((await testUser(undefined, { unlimited: false })).headers)).writing.blocked).toBe('community_busy');
       expect((await writing((await testUser()).headers, w)).submit!.status).toBe(200);
     } finally {
       env.COMMUNITY_MAX_PER_HOUR = before;
@@ -808,20 +552,20 @@ describe('rate limits and the global guard', () => {
     env.COMMUNITY_MAX_PER_HOUR = 1;
     try {
       const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-      const a = await testUser(undefined, { key: false });
+      const a = await testUser(undefined, { unlimited: false });
       const { id } = await writing(a.headers, w);
       const [att] = await db.select().from(attempts).where(eq(attempts.id, id));
       await refundAttempt(att!);
-      expect((await writing((await testUser(undefined, { key: false })).headers, w)).submit!.status).toBe(200);
+      expect((await writing((await testUser(undefined, { unlimited: false })).headers, w)).submit!.status).toBe(200);
     } finally {
       env.COMMUNITY_MAX_PER_HOUR = before;
     }
   });
 
-  it('per-IP burst limit on creating attempts for community users and guests; own-key users are not limited', async () => {
+  it('per-IP burst limit on creating attempts for free users and guests; unlimited users are not limited', async () => {
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
     const addr = ip();
-    const c = await testUser(undefined, { key: false });
+    const c = await testUser(undefined, { unlimited: false });
     c.headers.set('CF-Connecting-IP', addr);
     const codes: number[] = [];
     for (let i = 0; i < 22; i++) codes.push((await req('/api/attempts', { headers: c.headers, body: { promptId: w.id, skill: 'writing', part: 2 } })).status);
@@ -829,7 +573,7 @@ describe('rate limits and the global guard', () => {
     const limited = await req('/api/attempts', { headers: c.headers, body: { promptId: w.id, skill: 'writing', part: 2 } });
     expect([limited.status, (await body(limited)).code]).toEqual([429, 'too_many_requests']);
     // the address is the key: another community user behind the same address is limited too
-    const c2 = await testUser(undefined, { key: false });
+    const c2 = await testUser(undefined, { unlimited: false });
     c2.headers.set('CF-Connecting-IP', addr);
     expect((await req('/api/attempts', { headers: c2.headers, body: { promptId: w.id, skill: 'writing', part: 2 } })).status).toBe(429);
     const own = await testUser();
@@ -838,29 +582,28 @@ describe('rate limits and the global guard', () => {
   });
 });
 
-describe('owner and own-key exemption', () => {
-  it('the verified owner and own-key users have no limit; an unverified owner address gets none', async () => {
+describe('owner and unlimited exemption', () => {
+  it('the verified owner and admin-unlimited users have no limit; an unverified owner address gets none', async () => {
     const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
-    const owner = await testUser('soyebjim@gmail.com', { key: false });
-    expect(await quota(owner.headers)).toMatchObject({ tier: 'own-key', speaking: { limit: null, remaining: null, resetAt: null, window: null, blocked: null }, writing: { limit: null } });
+    const owner = await testUser('soyebjim@gmail.com', { unlimited: false });
+    expect(await quota(owner.headers)).toMatchObject({ tier: 'unlimited', speaking: { limit: null, remaining: null, resetAt: null, window: null, blocked: null }, writing: { limit: null } });
     for (let i = 0; i < 3; i++) expect((await writing(owner.headers, w)).submit!.status).toBe(200);
     expect(await rows(owner.user.id)).toHaveLength(0); // nothing to count
 
     const own = await testUser();
     for (let i = 0; i < 3; i++) expect((await writing(own.headers, w)).submit!.status).toBe(200);
 
-    const other = await testUser('someone@gmail.com', { key: false });
+    const other = await testUser('someone@gmail.com', { unlimited: false });
     expect((await quota(other.headers)).tier).toBe('community');
   });
 
   it('an allow-listed address that is not verified is not the owner', async () => {
-    const spoof = await testUser('SoyebJim@Gmail.com', { key: false, verified: false });
+    const spoof = await testUser('SoyebJim@Gmail.com', { unlimited: false, verified: false });
     expect((await quota(spoof.headers)).tier).toBe('community');
   });
 });
 
 // ---- helpers used above ----
-const flip = (b64: string) => { const b = Buffer.from(b64, 'base64'); b[0] = b[0]! ^ 1; return b.toString('base64'); };
 async function settled(id: string, status: 'done' | 'failed') {
   await vi.waitFor(async () => expect((await db.query.attempts.findFirst({ where: eq(attempts.id, id) }))!.status).toBe(status), { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 30)); // refund / flag writes that follow the status update
@@ -870,3 +613,83 @@ const speakingChat = (_: string, init: RequestInit) => {
   if (b.response_format?.json_schema?.name !== 'criterion_score') return chatReply(speakingLlm);
   return chatReply({ checks: [], evidence: [], descriptor: '', summary: '', injection: false, band: 6 });
 };
+
+describe('plans', () => {
+  beforeEach(() => {
+    const real = realPlans();
+    Object.assign(PLANS, real.plans);
+    Object.assign(LR_PLANS, real.lr);
+  });
+  const subscribe = (userId: string) => db.insert(userLimits).values({ userId, updatedBy: 'test', subscribedUntil: new Date(Date.now() + 30 * DAY) });
+  const examiner = async (_userId: string, u: object, addr: string) =>
+    reserve(await payerOf(u as Parameters<typeof payerOf>[0]), 'examiner', crypto.randomUUID(), hashIp(addr)).then(() => 200, (e) => e.status as number);
+
+  it('guests: 2 writing / 7 days, 5 practice speaking and 3 live sessions / 30 days, each counted on its own', async () => {
+    const addr = ip();
+    const g = await guestUser(addr);
+    const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+    const s = await seedPrompt();
+    expect(await quota(g.headers)).toMatchObject({
+      tier: 'guest',
+      writing: { limit: 2, window: 'week' },
+      speaking: { limit: 5, window: 'month' },
+      examiner: { limit: 3, window: 'month' },
+    });
+    for (let i = 0; i < 2; i++) expect((await writing(g.headers, w)).submit!.status).toBe(200);
+    expect((await writing(g.headers, w)).create.status).toBe(429);
+    for (let i = 0; i < 3; i++) expect(await examiner(g.user.id, g.user, addr)).toBe(200);
+    expect(await examiner(g.user.id, g.user, addr)).toBe(429);
+    // live sessions do not eat practice tests
+    for (let i = 0; i < 5; i++) expect((await speaking(g.headers, s)).submit!.status).toBe(200);
+    expect((await speaking(g.headers, s)).create.status).toBe(429);
+  });
+
+  it('signed in: 5 writing / 7 days, 10 practice and 5 live / 30 days; the 429 says which window', async () => {
+    const c = await testUser(undefined, { unlimited: false });
+    expect(await quota(c.headers)).toMatchObject({ tier: 'community', writing: { limit: 5, window: 'week' }, speaking: { limit: 10, window: 'month' }, examiner: { limit: 5, window: 'month' } });
+    for (let i = 0; i < 5; i++) expect(await examiner(c.user.id, c.user, ip())).toBe(200);
+    expect(await examiner(c.user.id, c.user, ip())).toBe(429);
+    expect((await quota(c.headers)).examiner).toMatchObject({ used: 5, remaining: 0, blocked: 'quota_exceeded', resetAt: expect.any(String) });
+  });
+
+  it('subscribers: unlimited writing and practice; live 5 a day and 40 a month', async () => {
+    const c = await testUser(undefined, { unlimited: false });
+    await subscribe(c.user.id);
+    const q = await quota(c.headers);
+    expect(q).toMatchObject({ tier: 'subscriber', writing: { limit: null }, speaking: { limit: null }, examiner: { limit: 5, window: 'day', remaining: 5 } });
+    for (let i = 0; i < 5; i++) expect(await examiner(c.user.id, c.user, ip())).toBe(200);
+    expect(await examiner(c.user.id, c.user, ip())).toBe(429);
+    // 35 more spread over earlier days: the month (40) binds even when today has room
+    await db.insert(quotaUsage).values(Array.from({ length: 35 }, (_, i) => ({ userId: c.user.id, skill: 'examiner' as const, unitKey: `old-${i}`, tier: 'subscriber', createdAt: new Date(Date.now() - (2 + (i % 20)) * DAY) })));
+    expect((await quota(c.headers)).examiner).toMatchObject({ window: 'month', used: 40, remaining: 0 });
+    const w = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion' });
+    for (let i = 0; i < 7; i++) expect((await writing(c.headers, w)).submit!.status).toBe(200);
+  });
+
+  it('a lapsed subscription is the free plan again', async () => {
+    const c = await testUser(undefined, { unlimited: false });
+    await db.insert(userLimits).values({ userId: c.user.id, updatedBy: 'test', subscribedUntil: new Date(Date.now() - 1000) });
+    expect((await quota(c.headers)).tier).toBe('community');
+  });
+
+  it('Listening & Reading: guests open the guest 10, accounts 20 more, subscribers every generated test; Cambridge stays allow-list only', async () => {
+    const seed = (slug: string, source: 'generated' | 'cambridge' = 'generated') =>
+      db.insert(lrTests).values({ slug, skill: 'reading', variant: 'academic', source, ref: slug, title: slug, data: { sections: [] } as never, restricted: source === 'cambridge' })
+        .onConflictDoUpdate({ target: lrTests.slug, set: { retired: false } }).returning().then((r) => r[0]!);
+    const [guestT, accountT, subT, camT] = [await seed('gen-r-10-v2'), await seed('gen-r-17'), await seed('gen-r-499'), await seed(`plans-cam-${++n}`, 'cambridge')]; // -v2: a replaced test keeps its plan
+    const slugs = async (headers?: Headers) => new Set(((await (await req('/api/lr/tests', { headers })).json()) as { items: { id: string }[] }).items.map((i) => i.id));
+    const open = async (headers: Headers | undefined, id: string) => (await req(`/api/lr/tests/${id}`, { headers })).status;
+    const g = await guestUser(ip());
+    const c = await testUser(undefined, { unlimited: false });
+    const s = await testUser(undefined, { unlimited: false });
+    await subscribe(s.user.id);
+    const see = { visitor: await slugs(), guest: await slugs(g.headers), account: await slugs(c.headers), subscriber: await slugs(s.headers) };
+    expect([see.visitor.has(guestT.id), see.visitor.has(accountT.id), see.visitor.has(subT.id)]).toEqual([true, false, false]);
+    expect([see.guest.has(guestT.id), see.guest.has(accountT.id), see.guest.has(subT.id)]).toEqual([true, false, false]);
+    expect([see.account.has(guestT.id), see.account.has(accountT.id), see.account.has(subT.id)]).toEqual([true, true, false]);
+    expect([see.subscriber.has(guestT.id), see.subscriber.has(accountT.id), see.subscriber.has(subT.id), see.subscriber.has(camT.id)]).toEqual([true, true, true, false]);
+    expect(await open(g.headers, accountT.id)).toBe(404);
+    expect(await open(c.headers, subT.id)).toBe(404);
+    expect(await open(s.headers, subT.id)).toBe(200);
+  });
+});

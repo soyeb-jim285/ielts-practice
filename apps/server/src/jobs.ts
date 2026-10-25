@@ -11,8 +11,7 @@ import { keyCtx } from './ai/keyctx';
 import { analyzeSpeaking, spokenQuestions } from './ai/speaking';
 import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } from './ai/types';
 import { analyzeWriting } from './ai/writing';
-import { markKeyInvalid } from './keys';
-import { payerOf, refundAttempt } from './quota';
+import { refundAttempt } from './quota';
 import { MODELS } from './settings';
 import { storage } from './storage';
 
@@ -40,7 +39,7 @@ const progress = (attemptId: string) => {
     (chain = chain.then(() => db.update(attempts).set(patch).where(and(eq(attempts.id, attemptId), eq(attempts.status, 'analyzing'))).then(() => undefined, (e) => console.error('progress update failed', attemptId, e))));
 };
 
-/** Analysis runs on the owner's shared OpenRouter key unless the user brought their own, in which case every call in it (STT, scoring, audio pronunciation) uses theirs. */
+/** Analysis runs on the server's OpenRouter key; keyCtx tags every call's cost with the attempt. */
 export async function analyze(attemptId: string): Promise<void> {
   // the claim: one UPDATE, so two workers can never both get the job
   const [claim] = await db.update(attempts).set({ claimedAt: sql`now()`, tries: sql`${attempts.tries} + 1` }).where(and(eq(attempts.id, attemptId), claimable)).returning({ tries: attempts.tries });
@@ -58,10 +57,7 @@ export async function analyze(attemptId: string): Promise<void> {
 }
 
 async function analyzeAs(a: typeof attempts.$inferSelect, tries: number): Promise<void> {
-  const u = await db.query.user.findFirst({ where: eq(user.id, a.userId), columns: { id: true, email: true, emailVerified: true, isAnonymous: true } });
-  const payer = u ? await payerOf(u) : undefined;
-  const ownKey = payer?.keys.openrouter;
-  return keyCtx.run({ openrouter: ownKey, cost: { userId: a.userId, attemptId: a.id, sessionId: a.sessionId ?? undefined, promptId: a.promptId, skill: a.skill === 'writing' ? 'writing' : 'speaking', part: a.part }, onAuthFail: () => void markKeyInvalid(a.userId, 'openrouter') }, () => analyzeAttempt(a, tries));
+  return keyCtx.run({ cost: { userId: a.userId, attemptId: a.id, sessionId: a.sessionId ?? undefined, promptId: a.promptId, skill: a.skill === 'writing' ? 'writing' : 'speaking', part: a.part } }, () => analyzeAttempt(a, tries));
 }
 
 /** Final failure: the user sees `error` and gets the test back (a retry reserves it again). */

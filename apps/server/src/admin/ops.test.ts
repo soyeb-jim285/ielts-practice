@@ -295,21 +295,29 @@ describe('test limits', () => {
 
   it('sets per-day counts and unlimited; clearing them restores the default; a Cambridge grant alone is not unlimited', async () => {
     const o = await testUser(OWNER);
-    const u = await testUser('limits@test.dev', { key: false });
+    const u = await testUser('limits@test.dev', { unlimited: false });
     expect((await quota(u.headers)).speaking).toMatchObject({ limit: 1 });
 
     expect((await req(`/api/admin/users/${u.user.id}/cambridge`, { headers: o.headers, body: { granted: true } })).status).toBe(200);
     expect(await quota(u.headers)).toMatchObject({ tier: 'community', speaking: { limit: 1 } }); // content access only
 
     const r = await set(o.headers, u.user.id, { speaking: 5, writing: null, unlimited: false });
-    expect(await r.json()).toEqual({ speaking: 5, writing: null, unlimited: false, default: 1, canEdit: true });
+    expect(await r.json()).toEqual({ speaking: 5, writing: null, unlimited: false, subscribedUntil: null, defaults: { speaking: 1, writing: 1 }, canEdit: true });
     expect(await quota(u.headers)).toMatchObject({ speaking: { limit: 5, remaining: 5 }, writing: { limit: 1 } });
 
     await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: true });
-    expect(await quota(u.headers)).toMatchObject({ tier: 'own-key', speaking: { limit: null, blocked: null } });
+    expect(await quota(u.headers)).toMatchObject({ tier: 'unlimited', speaking: { limit: null, blocked: null } });
 
     await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: false });
     expect(await quota(u.headers)).toMatchObject({ tier: 'community', speaking: { limit: 1 } });
+
+    // the paid plan by hand until payments exist; omitting it keeps it, null ends it
+    const until = new Date(Date.now() + 86_400_000).toISOString();
+    expect(await (await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: false, subscribedUntil: until })).json()).toMatchObject({ subscribedUntil: until });
+    await set(o.headers, u.user.id, { speaking: 2, writing: null, unlimited: false });
+    expect(await quota(u.headers)).toMatchObject({ tier: 'subscriber', speaking: { limit: null }, examiner: { window: 'day' } });
+    await set(o.headers, u.user.id, { speaking: null, writing: null, unlimited: false, subscribedUntil: null });
+    expect((await quota(u.headers)).tier).toBe('community');
     expect((await set(o.headers, (await guestUser()).user.id, { speaking: 3, writing: null, unlimited: false })).status).toBe(404);
     expect((await set(u.headers, u.user.id, { speaking: 99, writing: null, unlimited: true })).status).toBe(404); // owner only
   });

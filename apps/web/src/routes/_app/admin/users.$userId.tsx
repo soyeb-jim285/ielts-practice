@@ -33,30 +33,38 @@ function CambridgeToggle({ userId, info }: { userId: string; info: CambridgeInfo
   return <Switch label="Cambridge access" description="Lets this person use the Cambridge books. Takes effect within a minute." checked={info.allowed} disabled={m.isPending} onChange={(v) => m.mutate(v)} />;
 }
 
-/** Per-day test limits for this person (empty = the default), or none at all. Takes effect on their next test. */
+/** Test limits for this person (empty = the plan default), none at all, or the paid plan by hand until payments exist. Takes effect on their next test. */
 function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
   const qc = useQueryClient();
   const [speaking, setSpeaking] = useState(info.speaking?.toString() ?? '');
   const [writing, setWriting] = useState(info.writing?.toString() ?? '');
   const m = useMutation({
-    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
+    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean; subscribedUntil?: string | null }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
     onSuccess: () => (toast('Limits saved.'), qc.invalidateQueries({ queryKey: ['admin'] })),
     onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not save the limits.', { tone: 'bad' }),
   });
   const num = (v: string) => (v.trim() === '' ? null : Math.max(0, Math.min(1000, Math.round(Number(v)))));
   const bad = [speaking, writing].some((v) => v.trim() !== '' && !Number.isFinite(Number(v)));
-  const save = (unlimited = info.unlimited) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited });
+  const save = (unlimited = info.unlimited, subscribedUntil?: string | null) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited, subscribedUntil });
+  const subscribed = !!info.subscribedUntil && new Date(info.subscribedUntil) > new Date();
   return (
     <div className="space-y-4">
       <Switch label="No test limits" description="Unlimited speaking and writing tests, including the live examiner, paid by the house." checked={info.unlimited} disabled={m.isPending} onChange={(v) => save(v)} />
+      <Switch
+        label="Subscriber"
+        description={subscribed ? `Paid plan until ${new Date(info.subscribedUntil!).toLocaleDateString()}.` : 'Grants the paid plan for 30 days: unlimited writing and practice, 5 live sessions a day (40 a month), every test.'}
+        checked={subscribed}
+        disabled={m.isPending}
+        onChange={(v) => save(info.unlimited, v ? new Date(Date.now() + 30 * 86_400_000).toISOString() : null)}
+      />
       {!info.unlimited && (
         <form className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[9rem_9rem_auto]" onSubmit={(e) => (e.preventDefault(), save())}>
-          <Input label="Speaking a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} />
-          <Input label="Writing a day" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.default})`} value={writing} onChange={(e) => setWriting(e.target.value)} />
+          <Input label="Speaking / 30 days" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.defaults.speaking})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} />
+          <Input label="Writing / 7 days" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.defaults.writing})`} value={writing} onChange={(e) => setWriting(e.target.value)} />
           <Button type="submit" variant="outline" loading={m.isPending} disabled={bad} className="col-span-2 sm:col-span-1">
             Save limits
           </Button>
-          <p className="type-caption col-span-full">Tests per day; leave empty for the default. Speaking includes live tests.</p>
+          <p className="type-caption col-span-full">Leave empty for the plan default. Speaking is recorded practice; live sessions follow the plan.</p>
         </form>
       )}
     </div>

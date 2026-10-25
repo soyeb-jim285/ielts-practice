@@ -411,7 +411,7 @@ struct ResultView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var removing: RemovalTarget?
     @State private var removeFailed = false
-    @State private var retryNote: String? // a refused retry (no test left, balance used up); the attempt stays as it was
+    @State private var retryNote: String? // a refused retry (no test left, scoring paused); the attempt stays as it was
 
     /// Parts in part order (web sorts the same way), once every part has loaded; the given order until then.
     private var ordered: [String] {
@@ -900,9 +900,9 @@ struct AttemptResultView: View {
         }
     }
 
-    /// Community tests are refunded when scoring fails or no speech was heard.
+    /// Limited tests are refunded when scoring fails or no speech was heard.
     @ViewBuilder private var refundNote: some View {
-        if api.quota?.tier != "own-key" {
+        if api.quota?.tier != "unlimited" {
             Text("This one didn't count against your tests.").font(.subheadline).foregroundStyle(.muted)
         }
     }

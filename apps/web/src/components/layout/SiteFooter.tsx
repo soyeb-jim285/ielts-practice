@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { COMPANY, TRADEMARK } from '@/components/legal/Legal';
+import { COMPANY, TRADEMARK_SHORT } from '@/components/legal/Legal';
 
 const LINKS = [
   { to: '/terms', label: 'Terms' },
@@ -28,7 +28,7 @@ export function SiteFooter() {
           </ul>
         </nav>
       </div>
-      <p className="max-w-[80ch]">{TRADEMARK}</p>
+      <p>{TRADEMARK_SHORT}</p>
     </footer>
   );
 }
