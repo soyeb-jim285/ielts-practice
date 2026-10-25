@@ -7,12 +7,12 @@
     <meta name="theme-color" content="#0A111C" media="(prefers-color-scheme: dark)" />
     <!-- Defaults; the server rewrites this block per page (apps/server/src/seo.ts) so link previews and crawlers get the right card. -->
     <!--seo-->
-    <title>IELTS Practice: Free IELTS practice with instant band scores</title>
+    <title>NextBand: Free IELTS practice with instant band scores</title>
     <meta name="description" content="Practise IELTS Speaking, Writing, Listening and Reading online. Timed tests in the real exam format, an AI examiner, and band scores for every criterion with each mistake marked." />
     <meta property="og:image" content="/og/home.png" />
     <!--/seo-->
-    <meta name="application-name" content="IELTS Practice" />
-    <meta name="apple-mobile-web-app-title" content="IELTS Practice" />
+    <meta name="application-name" content="NextBand" />
+    <meta name="apple-mobile-web-app-title" content="NextBand" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
@@ -22,10 +22,10 @@
       {
         "@context": "https://schema.org",
         "@graph": [
-          { "@type": "WebSite", "name": "IELTS Practice", "url": "https://ielts.soyebjim.me/", "inLanguage": "en" },
+          { "@type": "WebSite", "name": "NextBand", "url": "https://ielts.soyebjim.me/", "inLanguage": "en" },
           {
             "@type": "WebApplication",
-            "name": "IELTS Practice",
+            "name": "NextBand",
             "url": "https://ielts.soyebjim.me/",
             "applicationCategory": "EducationalApplication",
             "operatingSystem": "Web, iOS, Android",
@@ -43,6 +43,15 @@
       try {
         var t = localStorage.getItem('theme');
         if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+      } catch (e) {}
+      // Installed app (home-screen launch): play the NextBand splash once per launch. Plain website visits never load it.
+      try {
+        if (matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('nb-splash')) {
+          sessionStorage.setItem('nb-splash', '1');
+          var s = document.createElement('script');
+          s.src = '/nextband/splash.js';
+          document.head.appendChild(s);
+        }
       } catch (e) {}
       // Start the session check now, in parallel with the entry bundle; lib/query.ts meQuery adopts this response.
       if (!/^\/(login|signup|forgot-password|reset-password)\b/.test(location.pathname)) (window.__me = fetch('/api/me')).catch(function () {});

@@ -47,7 +47,7 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url: api }, request) => {
       const url = webLink(api, request);
-      await sendEmail({ to: user.email, subject: 'Reset your IELTS Practice password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
+      await sendEmail({ to: user.email, subject: 'Reset your NextBand password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
     },
   },
   // Verification uses the OTP plugin's code (see below). Links already emailed still verify through GET /api/auth/verify-email.

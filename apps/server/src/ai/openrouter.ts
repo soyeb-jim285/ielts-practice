@@ -84,7 +84,7 @@ async function call(path: string, body: unknown, timeoutMs = 90_000, method = 'P
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': env.BETTER_AUTH_URL,
-          'X-Title': 'IELTS Practice',
+          'X-Title': 'NextBand',
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
@@ -270,7 +270,7 @@ export async function chatTextStream(o: Parameters<typeof chatText>[0] & { onDel
   try {
     res = await fetcher(`${BASE}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': env.BETTER_AUTH_URL, 'X-Title': 'IELTS Practice' },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': env.BETTER_AUTH_URL, 'X-Title': 'NextBand' },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(o.timeoutMs ?? 30_000),
     });

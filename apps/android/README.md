@@ -1,4 +1,4 @@
-# IELTS Practice for Android
+# NextBand for Android
 
 Native Kotlin + Jetpack Compose app with feature, flow and styling parity with the web app (`apps/web`, the reference for features,
 flow and copy) and the iOS app (`apps/ios`). Package `com.soyeb.ieltspractice`, minSdk 26, target/compile SDK 36.

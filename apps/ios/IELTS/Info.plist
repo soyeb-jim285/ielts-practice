@@ -8,5 +8,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>UILaunchScreen</key>
+	<dict>
+		<!-- NextBand launch screen: app canvas colour + the symbol (light/dark variants in Assets.xcassets) -->
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchMark</string>
+	</dict>
 </dict>
 </plist>

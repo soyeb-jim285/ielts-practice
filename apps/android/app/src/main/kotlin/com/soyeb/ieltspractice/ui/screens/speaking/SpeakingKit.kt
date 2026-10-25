@@ -106,7 +106,7 @@ fun ConfirmDialog(
 fun MicDeniedDialog(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     ConfirmDialog(
-        "Microphone access is off", "IELTS Practice needs the microphone to record your answers. Turn it on in the app's permissions in Settings.",
+        "Microphone access is off", "NextBand needs the microphone to record your answers. Turn it on in the app's permissions in Settings.",
         "Open Settings",
         onConfirm = {
             runCatching {

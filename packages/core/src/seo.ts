@@ -1,6 +1,6 @@
 /** Page titles, descriptions and share images. The server writes them into the HTML for crawlers and link previews
  *  (which do not run the SPA); the web app sets the same title as you navigate. */
-export const SITE_NAME = 'IELTS Practice';
+export const SITE_NAME = 'NextBand';
 export const SITE_TAGLINE = 'Free IELTS practice with instant band scores';
 
 export type PageMeta = { title: string; description: string; image: string; index: boolean };
@@ -48,7 +48,7 @@ const PAGES: Record<string, Omit<PageMeta, 'index'>> = {
   '/signup': { title: `Create your free account | ${SITE_NAME}`, description: DEFAULT.description, image: DEFAULT.image },
   '/privacy': {
     title: `Privacy policy | ${SITE_NAME}`,
-    description: 'What IELTS Practice collects, how session recording works, who sees it, and how long it is kept.',
+    description: 'What NextBand collects, how session recording works, who sees it, and how long it is kept.',
     image: DEFAULT.image,
   },
   '/login': { title: `Sign in | ${SITE_NAME}`, description: DEFAULT.description, image: DEFAULT.image },

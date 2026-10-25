@@ -45,7 +45,7 @@ const Env = z.object({
   LOCAL_STORAGE_DIR: z.string().default('../../data/local-storage'),
   R2_BUCKET: z.string().default('ielts-practice'),
   RESEND_API_KEY: z.string().optional().transform((v) => v || undefined),
-  EMAIL_FROM: z.string().default('IELTS Practice <noreply@example.com>'),
+  EMAIL_FROM: z.string().default('NextBand <noreply@example.com>'),
   CAMBRIDGE_ALLOWED_EMAILS: z
     .string()
     .default('soyebjim@gmail.com')

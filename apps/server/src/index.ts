@@ -45,4 +45,4 @@ setInterval(purgeLogs, 24 * 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute
-serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`IELTS Practice API on http://localhost:${i.port} (docs: /docs)`));
+serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`NextBand API on http://localhost:${i.port} (docs: /docs)`));

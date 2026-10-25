@@ -1,6 +1,6 @@
 {
-  "name": "IELTS Practice",
-  "short_name": "IELTS",
+  "name": "NextBand",
+  "short_name": "NextBand",
   "description": "Practise IELTS Speaking, Writing, Listening and Reading with timed real-format tests and band scores.",
   "start_url": "/",
   "scope": "/",

@@ -149,12 +149,12 @@ export function createApp() {
   app.doc31('/openapi.json', {
     openapi: '3.1.0',
     info: {
-      title: 'IELTS Practice API',
+      title: 'NextBand API',
       version: '1.0.0',
       description: 'Speaking + Writing practice API. Auth: Better Auth at /api/auth/* (cookie for web, `Authorization: Bearer <token>` for iOS — token returned in the `set-auth-token` header on sign-in).',
     },
   });
-  app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'IELTS Practice API' }));
+  app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'NextBand API' }));
 
   app.onError((err, c) => {
     if (err instanceof ApiError) return c.json(err.body, err.status);

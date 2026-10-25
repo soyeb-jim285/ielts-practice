@@ -56,7 +56,7 @@ class ApiResponse(val status: Int, val body: String, val headers: Headers)
 private val JSON_MEDIA = "application/json".toMediaType()
 
 /**
- * Typed client for the IELTS Practice API (port of iOS APIClient.swift). Auth is Better Auth's bearer plugin: the token comes
+ * Typed client for the NextBand API (port of iOS APIClient.swift). Auth is Better Auth's bearer plugin: the token comes
  * back in the `set-auth-token` header on sign-in, lives in [TokenStore] and is sent as `Authorization: Bearer`.
  *
  * Reads: `api.get<Progress>("/api/progress")`, `api.getList<Prompt>("/api/prompts")` (accepts a bare list or `{items|cards|models|data}`).
@@ -136,7 +136,7 @@ class ApiClient(
         val req = Request.Builder().url(baseUrl + path).method(method, payload)
             .apply { _token.value?.let { header("Authorization", "Bearer $it") } }
             .build()
-        val (status, text, headers) = execute(req, "Can't reach IELTS Practice. Check your internet connection and try again.")
+        val (status, text, headers) = execute(req, "Can't reach NextBand. Check your internet connection and try again.")
         if (status !in 200..299) {
             val err = runCatching { AppJson.parseToJsonElement(text) as? JsonObject }.getOrNull()
             fun field(k: String) = (err?.get(k) as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull

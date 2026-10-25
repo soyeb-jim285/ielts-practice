@@ -8,7 +8,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <main id="main" className="flex flex-col px-5 pt-8 pb-12 sm:px-10 lg:px-16 lg:pt-10">
-        <Link to="/" aria-label="IELTS Practice, home" className="-m-1 inline-flex w-fit rounded-md p-1">
+        <Link to="/" aria-label="NextBand, home" className="-m-1 inline-flex w-fit rounded-md p-1">
           <Logo />
         </Link>
         {/* my-auto centres the form in the space under the logo; the bottom padding lifts it to the optical centre. */}

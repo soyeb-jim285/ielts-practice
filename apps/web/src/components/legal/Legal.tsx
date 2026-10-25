@@ -4,7 +4,7 @@ import { PageContainer, PageHeader } from '@/components/ui';
 /** The business behind the site, as shown on the legal pages and in the footer. Fill in `address` and `phone` before applying to a gateway. */
 export const COMPANY = {
   name: 'Dolphin Commerce',
-  product: 'IELTS Practice',
+  product: 'NextBand',
   email: 'support@dolphincommerce.com',
   address: '', // ponytail: shown only once set; payment gateways ask for a postal address
   phone: '',
@@ -12,7 +12,7 @@ export const COMPANY = {
 };
 
 export const TRADEMARK =
-  'IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press & Assessment. IELTS Practice is not affiliated with, approved or endorsed by them.';
+  'IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press & Assessment. NextBand is not affiliated with, approved or endorsed by them.';
 
 export const Mail = () => (
   <a href={`mailto:${COMPANY.email}`} className="font-medium underline underline-offset-2">

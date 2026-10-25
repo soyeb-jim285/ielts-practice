@@ -164,7 +164,7 @@ function SidebarTop() {
     </button>
   ) : (
     <div className="flex h-9 items-center justify-between gap-2 pl-1.5">
-      <Link to="/" aria-label="IELTS Practice, dashboard" className="rounded-md  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <Link to="/" aria-label="NextBand, dashboard" className="rounded-md  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <Logo />
       </Link>
       <SidebarTrigger role="img" className="size-8 text-muted hover:text-ink" aria-label="Collapse sidebar" />

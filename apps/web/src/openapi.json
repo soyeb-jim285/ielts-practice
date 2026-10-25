@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "IELTS Practice API",
+    "title": "NextBand API",
     "version": "1.0.0",
     "description": "Speaking + Writing practice API. Auth: Better Auth at /api/auth/* (cookie for web, `Authorization: Bearer <token>` for iOS — token returned in the `set-auth-token` header on sign-in)."
   },

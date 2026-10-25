@@ -205,7 +205,7 @@ struct MicDeniedAlert: ViewModifier {
             Button("Open Settings") { if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("IELTS Practice needs the microphone to record your answers. Turn it on in Settings › IELTS Practice.")
+            Text("NextBand needs the microphone to record your answers. Turn it on in Settings › NextBand.")
         }
     }
 }

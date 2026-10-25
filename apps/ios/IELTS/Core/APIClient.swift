@@ -19,7 +19,7 @@ struct SignInRequest: Identifiable {
     var signUp = false
 }
 
-/// Typed client for the IELTS Practice API. Auth is Better Auth's bearer plugin: the token comes back in the
+/// Typed client for the NextBand API. Auth is Better Auth's bearer plugin: the token comes back in the
 /// `set-auth-token` header on sign-in, lives in the Keychain and is sent as `Authorization: Bearer`.
 @MainActor @Observable
 final class APIClient {
@@ -99,7 +99,7 @@ final class APIClient {
         } catch let e as URLError where e.code == .cancelled {
             throw CancellationError()
         } catch {
-            throw APIError(status: 0, message: "Can't reach IELTS Practice. Check your internet connection and try again.")
+            throw APIError(status: 0, message: "Can't reach NextBand. Check your internet connection and try again.")
         }
         guard let http = resp as? HTTPURLResponse else { throw APIError(status: 0, message: "No response from the server.") }
         guard (200..<300).contains(http.statusCode) else {

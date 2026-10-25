@@ -9,8 +9,8 @@ export type Purpose = 'email-verification' | 'forget-password';
 export const COOLDOWN_S = 30; // one code email per address+purpose; the code itself is reused while valid, so a skipped resend loses nothing
 const OTP_MINUTES = 10;
 const MAIL = {
-  'email-verification': { subject: 'Your IELTS Practice verification code', lead: 'Welcome to IELTS Practice! Enter this code to verify your email:' },
-  'forget-password': { subject: 'Your IELTS Practice password reset code', lead: 'Enter this code to reset your password:' },
+  'email-verification': { subject: 'Your NextBand verification code', lead: 'Welcome to NextBand! Enter this code to verify your email:' },
+  'forget-password': { subject: 'Your NextBand password reset code', lead: 'Enter this code to reset your password:' },
 } as const;
 export const isPurpose = (p: unknown): p is Purpose => p === 'email-verification' || p === 'forget-password';
 

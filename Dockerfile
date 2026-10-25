@@ -1,4 +1,4 @@
-# IELTS Practice: API + built web app in one image. The server runs its TypeScript through tsx (no emit step).
+# NextBand: API + built web app in one image. The server runs its TypeScript through tsx (no emit step).
 FROM node:24-alpine AS build
 WORKDIR /repo
 RUN corepack enable

@@ -1,3 +1,5 @@
 <resources>
     <color name="window_bg">#0A111C</color>
+    <color name="logo_symbol">#2DD4BF</color>
+    <color name="logo_word">#E6EDF5</color>
 </resources>

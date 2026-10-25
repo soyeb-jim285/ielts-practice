@@ -1,5 +1,6 @@
 // Renders the brand images into apps/web/public: link-preview cards (og/*.png, 1200x630), app icons and favicon.ico.
-// Uses the site's own fonts (Newsreader, Hanken Grotesk) and palette. Run: node scripts/gen-brand-assets.mjs (needs @playwright/test's Chromium).
+// Uses the site's own fonts (Newsreader, Hanken Grotesk) and palette; the logo and icon art come from apps/web/public/nextband/*.svg
+// (master files, made by the NextBand logo build). Run: node scripts/gen-brand-assets.mjs (needs @playwright/test's Chromium).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,8 @@ const { chromium } = require('@playwright/test');
 const out = root + 'apps/web/public/';
 mkdirSync(out + 'og', { recursive: true });
 
+const svg = (name) => readFileSync(`${out}nextband/${name}.svg`, 'utf8');
+const LOGO_DARK = svg('logo-dark');
 const font = (pkg, file) => readFileSync(`${root}apps/web/node_modules/@fontsource-variable/${pkg}/files/${file}`).toString('base64');
 const CSS = `
 @font-face { font-family: Newsreader; src: url(data:font/woff2;base64,${font('newsreader', 'newsreader-latin-opsz-normal.woff2')}) format('woff2'); font-weight: 200 800; }
@@ -23,8 +26,7 @@ body { width: 1200px; height: 630px; background: var(--bg); color: var(--ink); f
 .left { flex: 1.2; display: flex; flex-direction: column; justify-content: space-between; }
 .mid { display: flex; flex-direction: column; }
 .right { flex: 1; display: flex; align-items: center; justify-content: center; }
-.brand { display: flex; align-items: center; gap: 16px; font-family: Newsreader; font-size: 34px; font-weight: 500; letter-spacing: -.01em; }
-.mark { width: 52px; height: 52px; border-radius: 12px; background: var(--teal); color: #042f2c; display: grid; place-items: center; font-family: Newsreader; font-size: 40px; font-weight: 500; line-height: 1; padding-top: 2px; }
+.brand svg { display: block; height: 46px; width: auto; }
 .kicker { color: var(--teal); font-size: 22px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 h1 { margin-top: 12px; font-family: Newsreader; font-weight: 500; font-size: 58px; line-height: 1.04; letter-spacing: -.02em; }
 p.sub { margin-top: 18px; color: var(--muted); font-size: 23px; line-height: 1.4; max-width: 580px; }
@@ -52,7 +54,7 @@ p.sub { margin-top: 18px; color: var(--muted); font-size: 23px; line-height: 1.4
 const shell = (kicker, title, sub, chips, visual) => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
 <div class="glow"></div><div class="grid"></div>
 <div class="wrap"><div class="left">
-  <div class="brand"><div class="mark">I</div>IELTS Practice</div>
+  <div class="brand">${LOGO_DARK}</div>
   <div class="mid"><div class="kicker">${kicker}</div><h1>${title}</h1><p class="sub">${sub}</p></div>
   <div class="foot">${chips.map((c) => `<span class="chip">${c}</span>`).join('')}</div>
 </div><div class="right">${visual}</div></div>
@@ -74,13 +76,10 @@ const CARDS = {
     `<div class="card"><div class="label">Passage 2 · Question 17</div><div class="t" style="margin-top:12px;font-size:24px;line-height:1.7">The canal was finally completed in 1822, <span class="mark-hl">almost a decade later than its engineers had planned</span>, after funds ran short…</div><div class="row" style="margin-top:14px"><span class="q">17</span><span style="flex:1">Building finished on schedule.</span><span class="no">FALSE</span></div></div>`),
 };
 
-// Icons: the logo mark (serif "I" on a teal tile). `pad` keeps the maskable icon inside its safe zone.
-const icon = (size, { radius = 0.22, pad = 0, bg = '#2dd4bf' } = {}) => `<!doctype html><html><head><style>${CSS}
-body{width:${size}px;height:${size}px;background:${pad ? bg : 'transparent'};display:grid;place-items:center}
-.m{width:${size * (1 - pad * 2)}px;height:${size * (1 - pad * 2)}px;border-radius:${radius * 100}%;background:${bg};color:#042f2c;display:grid;place-items:center;font-family:Newsreader;font-weight:500;font-size:${size * (1 - pad * 2) * 0.78}px;line-height:1;padding-top:${size * 0.04}px}
-</style></head><body><div class="m">I</div></body></html>`;
+// Icons: one of the nextband/*.svg masters drawn at `size`.
+const icon = (size, file) => `<!doctype html><html><head><style>*{margin:0}body{width:${size}px;height:${size}px;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style></head><body>${svg(file)}</body></html>`;
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH }); // CHROME_PATH: use an installed Chrome instead of the Playwright download
 const page = await browser.newPage();
 const shot = async (html, w, h, file, transparent = false) => {
   await page.setViewportSize({ width: w, height: h });
@@ -91,12 +90,12 @@ const shot = async (html, w, h, file, transparent = false) => {
   return buf;
 };
 for (const [name, html] of Object.entries(CARDS)) await shot(html, 1200, 630, `og/${name}.png`);
-await shot(icon(180, { radius: 0 }), 180, 180, 'apple-touch-icon.png'); // iOS rounds the corners itself
-await shot(icon(192), 192, 192, 'icon-192.png', true);
-await shot(icon(512), 512, 512, 'icon-512.png', true);
-await shot(icon(512, { radius: 0, pad: 0.12 }), 512, 512, 'icon-maskable-512.png');
+await shot(icon(180, 'app-icon'), 180, 180, 'apple-touch-icon.png'); // full bleed: iOS rounds the corners itself
+await shot(icon(192, 'favicon'), 192, 192, 'icon-192.png', true);
+await shot(icon(512, 'favicon'), 512, 512, 'icon-512.png', true);
+await shot(icon(512, 'app-icon'), 512, 512, 'icon-maskable-512.png'); // symbol sits inside the maskable safe circle
 // favicon.ico = one 32x32 PNG in an ICO container (every browser accepts PNG-in-ICO).
-const png = await shot(icon(32, { radius: 0.2 }), 32, 32, null, true);
+const png = await shot(icon(32, 'favicon'), 32, 32, null, true);
 const ico = Buffer.alloc(22);
 ico.writeUInt16LE(1, 2); ico.writeUInt16LE(1, 4); // type icon, 1 image
 ico.writeUInt8(32, 6); ico.writeUInt8(32, 7); ico.writeUInt16LE(1, 10); ico.writeUInt16LE(32, 12);

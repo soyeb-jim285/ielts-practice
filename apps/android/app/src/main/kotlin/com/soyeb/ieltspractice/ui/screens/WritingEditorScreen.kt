@@ -210,7 +210,7 @@ private fun ExamScreen(session: ExamSession, nav: AppNav) {
     var showSubmit by remember { mutableStateOf(variant == "Submit" || variant == "Short") }
     var showExit by remember { mutableStateOf(variant == "Exit") }
     var submitting by remember { mutableStateOf(false) }
-    var submitError by remember { mutableStateOf(if (variant == "Error") "Can't reach IELTS Practice. Check your internet connection and try again." else null) }
+    var submitError by remember { mutableStateOf(if (variant == "Error") "Can't reach NextBand. Check your internet connection and try again." else null) }
     var toastCount by remember { mutableIntStateOf(0) }
     var toast by remember { mutableStateOf(demoToast(variant)) }
     fun show(text: String, tone: Tone, paste: Boolean = false) { toast = ExamToast(text, tone, ++toastCount, paste) }

@@ -2,4 +2,7 @@
     <!-- Window background before Compose draws (Ocean Teal bg token). -->
     <color name="window_bg">#F7F9FB</color>
     <color name="ic_launcher_background">#0F766E</color>
+    <!-- NextBand logo (logo_wordmark, splash_icon): symbol = brand, wordmark = ink -->
+    <color name="logo_symbol">#0F766E</color>
+    <color name="logo_word">#0F172A</color>
 </resources>

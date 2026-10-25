@@ -225,7 +225,7 @@ struct StartGate<Content: View>: View {
         phase = .checking
         await api.loadQuota(force: true)
         guard let q = api.quota else {
-            phase = .failed("Can't reach IELTS Practice. Check your internet connection and try again.")
+            phase = .failed("Can't reach NextBand. Check your internet connection and try again.")
             return
         }
         let sq = CommunityText.skillQuota(q, skill)

@@ -69,15 +69,12 @@ struct LoginView: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "waveform.and.mic")
-                            .font(.title2)
-                            .foregroundStyle(.brand)
-                            .frame(width: 48, height: 48)
-                            .background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .accessibilityHidden(true)
-                        Text("IELTS Practice").font(.display(.title3))
-                    }
+                    // NextBand logo (Assets.xcassets, light/dark vector)
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 28)
+                        .accessibilityLabel("NextBand")
                     Text(signUp ? "Create your account" : "Welcome back")
                         .font(.display(.largeTitle, weight: .bold))
                         .foregroundStyle(.ink)

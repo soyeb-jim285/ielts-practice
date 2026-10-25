@@ -1,6 +1,7 @@
 package com.soyeb.ieltspractice.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentType
@@ -149,12 +150,8 @@ fun LoginScreen(nav: AppNav) {
             when (mode) {
                 Mode.SignIn, Mode.SignUp -> {
                     Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(48.dp).background(e.brandSoft, RoundedCornerShape(12.dp)), Alignment.Center) {
-                                Icon(painterResource(R.drawable.ic_mic), null, Modifier.size(24.dp), tint = e.brand)
-                            }
-                            Text("IELTS Practice", style = MaterialTheme.typography.titleLarge, color = e.ink)
-                        }
+                        // NextBand logo; its colours follow night mode through values-night/colors.xml.
+                        Image(painterResource(R.drawable.logo_wordmark), "NextBand", Modifier.height(28.dp))
                         Text(if (signUp) "Create your account" else "Welcome back", style = MaterialTheme.typography.headlineMedium, color = e.ink)
                         Text(
                             nav.loginReason ?: if (signUp) "Timed Speaking and Writing practice with honest band feedback." else "Sign in to continue your practice.",
