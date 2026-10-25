@@ -84,8 +84,9 @@ export function WritingExam({
   const toMock = () => void navigate({ to: '/mock/$id', params: { id: mockId! } });
   const autoFired = useRef(false);
 
-  async function submit() {
-    if (busy) return;
+  /** true = submitted, false = failed and worth retrying, null = not retryable (quota ran out) or already busy. */
+  async function submit(): Promise<boolean | null> {
+    if (busy) return null;
     setBusy(true);
     setError(null);
     setBlocker(null);
@@ -111,14 +112,18 @@ export function WritingExam({
         void queryClient.invalidateQueries({ queryKey: ['mock'] });
         void navigate({ to: '/mock/$id', params: { id: mockId }, replace: true });
       } else void navigate({ to: '/writing/result/$attemptId', params: { attemptId: ids[0]! }, search: ids[1] ? { pair: ids[1] } : {} });
+      return true;
     } catch (e) {
       const b = blockerOf(e);
       if (b) setBlocker(b);
       else setError(e instanceof Error ? e.message : 'Could not submit. Your answer is still here; try again.');
       setBusy(false);
       setConfirm(null);
+      return b ? null : false;
     }
   }
+  const submitRef = useRef(submit);
+  submitRef.current = submit; // retries send the latest text, not the one captured at time-up
 
   // Mock test: keep the used time on the server (monotonic there), every 15 s and whenever the tab is hidden, so a reload resumes the clock.
   useEffect(() => {
@@ -141,7 +146,14 @@ export function WritingExam({
       autoFired.current = true;
       setConfirm(null);
       toast('Time is up. Submitting your answer…');
-      void submit();
+      // A deploy or a network blip can drop the one automatic try: keep trying for about a minute before leaving it to the Submit button.
+      void (async () => {
+        for (let i = 0; i < 12; i++) {
+          if ((await submitRef.current()) !== false) return;
+          if (i === 0) toast('Could not reach the server. Retrying…', { tone: 'bad' });
+          await new Promise((res) => setTimeout(res, 5_000));
+        }
+      })();
     }
   }, [left <= 0, left === 300, left === 60]);
 

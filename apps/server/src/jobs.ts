@@ -198,7 +198,12 @@ export function pump(): Promise<void> {
 export function startQueue() {
   pumping = true;
   void pump();
-  setInterval(() => void pump(), 10_000).unref();
+  setInterval(() => pumping && void pump(), 10_000).unref();
+}
+
+/** Shutdown: claim no more jobs. Running ones carry on until the process exits; a job cut off there is a stale claim the next process picks up. */
+export function stopQueue() {
+  pumping = false;
 }
 
 /** Last safety net behind the queue: an attempt `analyzing` for over 30 min (a running job refreshes its row every minute; a queued one waits

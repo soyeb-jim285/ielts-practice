@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { createApp } from './app';
 import { loadCambridgeGrants } from './auth';
 import { env } from './env';
-import { purgeGuests, recoverStale, startQueue } from './jobs';
+import { purgeGuests, recoverStale, startQueue, stopQueue } from './jobs';
+import { sendsIdle } from './auth-email';
 import { purgeAiLogs } from './ai/ailog';
 import { reconcileCosts } from './ai/cost';
 import { purgeReplays } from './replay';
@@ -45,4 +46,17 @@ setInterval(purgeLogs, 24 * 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute
-serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`NextBand API on http://localhost:${i.port} (docs: /docs)`));
+const server = serve({ fetch: app.fetch, port: env.PORT }, (i) => console.log(`NextBand API on http://localhost:${i.port} (docs: /docs)`));
+
+// Deploys stop this container with SIGTERM and SIGKILL it 10 s later: stop taking connections, let requests in flight and email sends finish, then exit.
+let closing = false;
+const shutdown = (sig: string) => {
+  if (closing) return;
+  closing = true;
+  console.log(`${sig}: draining`);
+  stopQueue();
+  setTimeout(() => process.exit(0), 8_000).unref(); // ponytail: an upload or analysis still running at 8 s is cut off; the client retries / the queue reclaims it
+  server.close(() => void sendsIdle().finally(() => process.exit(0)));
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
