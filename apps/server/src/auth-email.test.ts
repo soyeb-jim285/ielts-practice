@@ -1,8 +1,8 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth } from './auth';
 import { db } from './db/client';
-import { emailLog } from './db/schema';
+import { emailLog, user } from './db/schema';
 import { sendsIdle } from './auth-email';
 import { retryDelaysMs } from './email';
 import { app } from './test/helpers';
@@ -319,6 +319,7 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
     const opts = auth.options.emailAndPassword!;
     opts.requireEmailVerification = true;
     try {
+      send.mockResolvedValue(ok); // 'real' now gets a real email (onExistingUserSignUp)
       const real = fresh();
       const ghost = fresh();
       await signUp(real);
@@ -330,6 +331,26 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
         return { http: r.status, token: j.token, userKeys: Object.keys(j.user).sort(), headers: [...r.headers.keys()].filter((k) => k !== 'set-auth-token').sort(), status: st.status, again: st.alreadySent, error: st.error };
       };
       expect(await go(ghost)).toEqual(await go(real)); // 'ghost' is brand new here, 'real' already has an account
+    } finally {
+      opts.requireEmailVerification = false;
+    }
+  });
+
+  it('sign-up of an existing address (production setting) still emails it: a fresh code when unverified, an "account exists" note when verified', async () => {
+    const opts = auth.options.emailAndPassword!;
+    opts.requireEmailVerification = true;
+    try {
+      send.mockResolvedValue(ok);
+      const unverified = fresh();
+      const verified = fresh();
+      await signUp(unverified);
+      await signUp(verified);
+      await db.update(user).set({ emailVerified: true }).where(eq(user.email, verified));
+      for (const e of [unverified, verified]) await post('/sign-up/email', { email: e, password: 'password1234', name: 'U' });
+      await sendsIdle();
+      const sent = send.mock.calls.map(([m]) => m as { to: string; subject: string; html: string });
+      expect(sent.find((m) => m.to === unverified)).toMatchObject({ subject: 'Your NextBand verification code', html: expect.stringMatching(/\d{6}/) });
+      expect(sent.find((m) => m.to === verified)).toMatchObject({ subject: 'You already have a NextBand account' });
     } finally {
       opts.requireEmailVerification = false;
     }

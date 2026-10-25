@@ -24,6 +24,8 @@ import com.soyeb.ieltspractice.core.UploadTarget
 import com.soyeb.ieltspractice.core.mockAttach
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -176,8 +178,34 @@ class LiveExam(private val app: AppContainer, private val context: Context, priv
     }
 
     private fun closePart() {
-        currentPart?.let { p -> audio.endPart()?.let { recordings[p] = it } }
+        currentPart?.let { p -> audio.endPart()?.let { recordings[p] = it; send(p) } }
         currentPart = null
+    }
+
+    /** Upload keys per part (an upload is never repeated), and the parts sent with /live/part while the test went on: true once its attempt exists. */
+    private val keys = mutableMapOf<Int, String>()
+    private val sent = mutableMapOf<Int, Deferred<Boolean>>()
+
+    /** The /live body of one part, uploading its recording first if that has not happened yet. */
+    private suspend fun partBody(part: Int, r: PartRecording): JsonObject {
+        val key = keys[part] ?: uploadFile(r.file).also { keys[part] = it }
+        return buildJsonObject {
+            put("part", part); put("audioKey", key); put("durationMs", r.durationMs)
+            putJsonArray("energy") { r.energy.take(20000).forEach { add(JsonPrimitive(it)) } }
+        }
+    }
+
+    /** Sends a finished part now, so its analysis runs while the test goes on (web live/turn.ts). Best effort: a failure leaves it to [finish]. */
+    private fun send(part: Int) {
+        val r = recordings[part] ?: return
+        if (sessionId.isEmpty() || demo != null || part in sent) return
+        sent[part] = scope.async {
+            try {
+                val body = partBody(part, r)
+                api.send<JsonObject>("POST", "/api/live/part", buildJsonObject { put("sessionId", sessionId); put("part", body) })
+                true
+            } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
+        }
     }
 
     private suspend fun uploadFile(file: File): String {
@@ -295,15 +323,11 @@ class LiveExam(private val app: AppContainer, private val context: Context, priv
         audio.stop()
         stage = LiveStage.Uploading
         try {
+            if (recordings.isEmpty()) { stage = LiveStage.Failed("Nothing was recorded, so there's nothing to score."); return@withContext }
+            // parts already sent during the test are not sent again (their analysis is running); a failed send is retried here
+            val done = sent.filter { (_, job) -> runCatching { job.await() }.getOrDefault(false) }.keys
             val parts = ArrayList<JsonObject>()
-            for ((part, r) in recordings) {
-                val key = uploadFile(r.file)
-                parts += buildJsonObject {
-                    put("part", part); put("audioKey", key); put("durationMs", r.durationMs)
-                    putJsonArray("energy") { r.energy.take(20000).forEach { add(JsonPrimitive(it)) } }
-                }
-            }
-            if (parts.isEmpty()) { stage = LiveStage.Failed("Nothing was recorded, so there's nothing to score."); return@withContext }
+            for ((part, r) in recordings) if (part !in done) parts += partBody(part, r)
             val res: FinishResult = api.send("POST", "/api/live/finish", buildJsonObject {
                 put("sessionId", sessionId)
                 put("parts", buildJsonArray { parts.forEach { add(it) } })

@@ -3,6 +3,7 @@
 // Reads data/cambridge-lr/*.json and data/lr-generated/*.json (assets in <dir>/assets/<key>); PRIVATE data, never commit it.
 // Usage: pnpm tsx scripts/lr-import.ts [--dry] [--force] [--dev] [--retire slug,slug] [dir...]   (--dev adds the committed dev fixtures; --force imports tests that fail validation;
 //        --retire marks replaced tests retired: hidden from lists and new attempts, past results still open)
+//        A listening test whose audio files are missing is "audio pending" (PEND): always skipped, so it is never listed as playable.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,18 +51,24 @@ function mergeSidecars(t: LrTest, dir: string): string {
   return enrich || timings ? ` [+${q} reviews, ${v} vocab, ${w} timings]` : '';
 }
 
-let ok = 0, skipped = 0, uploaded = 0;
+let ok = 0, skipped = 0, pending = 0, uploaded = 0;
 for (const dir of dirs) {
   if (!existsSync(dir)) {
     console.log(`${dir}: not found, skipping`);
     continue;
   }
-  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json')).sort()) {
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json') && !x.startsWith('.')).sort()) {
     const t = normalizeLrTest(JSON.parse(readFileSync(join(dir, f), 'utf8')) as LrTest);
     const merged = mergeSidecars(t, dir);
     const problems = validateLrTest(t);
     const keys = [...new Set(t.sections.flatMap((s) => [s.audio, ...s.groups.map((g) => g.image)]).filter((k): k is string => !!k))];
     const missing = keys.filter((k) => !existsSync(join(dir, 'assets', k)));
+    const noAudio = missing.filter((k) => t.sections.some((s) => s.audio === k));
+    if (noAudio.length) { // audio pending (agent-written, not rendered yet): never import a test users cannot play, not even with --force
+      pending++;
+      console.log(`PEND ${f}: audio not rendered yet (${noAudio.length}/${t.sections.length} parts); render: python3 scripts/gen-lr-elevenlabs.py ${t.slug}, then re-run the import`);
+      continue;
+    }
     if (missing.length) problems.push(`missing assets: ${missing.join(', ')}`);
     if (problems.length && !force) {
       skipped++;
@@ -92,5 +99,5 @@ if (retire.length) {
     console.log(`retired: ${done.map((r) => r.slug).join(', ') || 'none'}${done.length < retire.length ? ` (not found: ${retire.filter((x) => !done.some((r) => r.slug === x)).join(', ')})` : ''}`);
   } else console.log(`would retire: ${retire.join(', ')} [dry run]`);
 }
-console.log(`lr-import: ${ok} ${dry ? 'valid' : 'upserted'}, ${skipped} skipped, ${uploaded} assets uploaded${dry ? ' [dry run]' : ''}`);
+console.log(`lr-import: ${ok} ${dry ? 'valid' : 'upserted'}, ${skipped} skipped, ${pending} audio pending, ${uploaded} assets uploaded${dry ? ' [dry run]' : ''}`);
 if (server) await server.sql.end();

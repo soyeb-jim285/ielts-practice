@@ -13,6 +13,7 @@ import com.soyeb.ieltspractice.core.PendingStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
 /**
@@ -26,6 +27,13 @@ class AppContainer(context: Context, val demo: DemoConfig? = null) {
     val api: ApiClient
     val pending: PendingStore
     private val prefs = context.applicationContext.getSharedPreferences("ielts", Context.MODE_PRIVATE)
+
+    /** Settings > Appearance: "light", "dark" or "system" (default), remembered on this device like the web's per-browser theme. */
+    val appearance = MutableStateFlow(prefs.getString("appearance", null) ?: "system")
+    fun setAppearance(v: String) {
+        appearance.value = v
+        prefs.edit().putString("appearance", v).apply()
+    }
 
     /** Question bank for random speaking tests (web: useQuestionSource): "any", "cambridge" or "generated", remembered on this device. */
     var speakingSource: String

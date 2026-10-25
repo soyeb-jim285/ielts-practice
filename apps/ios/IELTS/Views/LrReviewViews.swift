@@ -109,6 +109,7 @@ struct LrQuestionDetail: View {
                                 .accessibilityLabel("\(t), should be \(w)")
                         }
                     }
+                    if let o = e.other { Text("This is the answer to question \(o).").font(.subheadline).foregroundStyle(Color.ink) }
                     Text(e.message).font(.subheadline).foregroundStyle(Color.ink)
                     if e.kind == "spelling", let b = e.before, b > 0, let w = e.word {
                         Text("You've misspelt '\(w)' \(lrTimesText(b)) before.").font(.subheadline.weight(.semibold)).foregroundStyle(Color.warnText)

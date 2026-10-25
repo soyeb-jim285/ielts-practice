@@ -5,16 +5,20 @@ import SwiftUI
 /// ProgressData does not carry; everything beyond the original contract is optional so older servers and demo fixtures still decode.
 private struct DashProgress: Decodable {
     struct Point: Decodable {
+        let attemptId: String?
+        let date: String?
         let skill: String?
         let part: Int?
+        let overall: Double?
         let criteria: [String: Double]
     }
+    struct Weakest: Decodable { let key: String; let avg: Double; let skill: String? }
     struct Failed: Decodable { let id: String; let skill: String }
     let trend: [Point]
     let streak: Int
     let minutesThisWeek: Double
     let attempts: Int
-    let weakest: ProgressData.Weakest?
+    let weakest: Weakest?
     let topMistakes: [ProgressData.CategoryCount]
     let predicted: ProgressData.Predicted
     let lastFailed: Failed?
@@ -25,24 +29,17 @@ private let practiceDefault: [String: (skill: String, part: Int)] = [
     "fc": ("speaking", 2), "gra": ("speaking", 2), "lr": ("speaking", 2), "p": ("speaking", 1), "ta": ("writing", 2), "cc": ("writing", 2),
 ]
 private let criterionShort = ["fc": "Fluency", "gra": "Grammar", "lr": "Vocabulary", "p": "Pronunciation", "ta": "Task response", "cc": "Coherence"]
+private let skillOrder = ["listening", "reading", "writing", "speaking"]
+private let skillIcon = ["listening": "headphones", "reading": "book", "writing": "pencil.line", "speaking": "mic"]
+private let mockDuration = ["listening": "30 min plus review", "reading": "60 min", "writing": "60 min", "speaking": "11-14 min"]
 
-/// Chart series: teal, sky, slate, ink (the fourth also dashed). Green, amber and red stay reserved for good, warn and bad.
-private func seriesColor(_ key: String) -> Color {
-    switch key {
-    case "fc", "ta": .brand
-    case "lr": .sky
-    case "gra": .muted
-    default: .ink
-    }
-}
-private func seriesDashed(_ key: String) -> Bool { key == "p" || key == "cc" }
-
+/// Midnight to 5am is "Hello": nobody wants "Good evening" at 3am (web greeting).
 private func greeting(_ date: Date = Date()) -> String {
     let h = Calendar.current.component(.hour, from: date)
-    return h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
+    return h < 5 ? "Hello" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
 }
 
-/// Track with a fill and an optional target tick (web ProgressBar plus marker).
+/// Track with a fill and an optional target tick (web BandMeter / ProgressBar).
 private struct BandBar: View {
     let value: Double // 0...1
     var marker: Double? // 0...1
@@ -67,14 +64,18 @@ private struct BandBar: View {
     }
 }
 
+/// Signed-in Home (web routes/_app/index.tsx): your picture (overall estimate and the four skills), next up, the mock, practise,
+/// progress in five tabs, and what to fix next.
 struct DashboardView: View {
     @Environment(APIClient.self) private var api
     @State private var progress: DashProgress?
-    @State private var trends: [String: ProgressData] = [:]
-    @State private var trendSkill = "speaking"
     @State private var due: DueResponse?
     @State private var lr: LrProgress?
+    @State private var mock: MockExam?
+    @State private var lastMock: MockExam?
+    @State private var progressTab = Demo.screen == "dashboard-lr" ? "listening" : "overall"
     @State private var lrBusy = false
+    @State private var lrPick: LrTestItem?
     @State private var lrStarted: String?
     @State private var error: String?
     @State private var targetDraft = 7.0
@@ -84,22 +85,16 @@ struct DashboardView: View {
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 28) {
                 if let p = progress {
                     header(p)
                     if let f = p.lastFailed { failedAlert(f) }
-                    CommunityCard()
-                    if p.attempts == 0 {
-                        onboarding
-                    } else {
-                        nextUp(p)
-                        predictedCard(p)
-                        trendCard
-                    }
-                    MockEntryCard()
-                    lrCard.id("lr")
-                    practiseCard
-                    if !p.topMistakes.isEmpty { mistakesCard(p.topMistakes) }
+                    yourPicture(p)
+                    if p.attempts == 0 { onboarding } else { nextUp(p) }
+                    mockPanel(continuedAbove: p.attempts > 0)
+                    practiseList
+                    if !p.trend.isEmpty || !(lr?.trend.isEmpty ?? true) { progressTabs(p).id("progress") }
+                    if !p.topMistakes.isEmpty { fixNext(p.topMistakes) }
                 } else if let error {
                     ContentUnavailableView {
                         Label("Couldn't load your dashboard", systemImage: "wifi.exclamationmark")
@@ -116,8 +111,8 @@ struct DashboardView: View {
             .padding(.vertical, 12)
         }
         .demoScroll()
-        .task(id: lr?.trend.count) { // demo: bring the Listening & Reading section into view
-            if Demo.screen == "dashboard-lr", lr != nil { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("lr", anchor: .top) }
+        .task(id: lr?.trend.count) { // demo: bring the Listening progress tab into view
+            if Demo.screen == "dashboard-lr", lr != nil { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("progress", anchor: .top) }
         }
         }
         .background(Color.canvas)
@@ -128,114 +123,42 @@ struct DashboardView: View {
         .task { await api.loadQuota() }
         .onAppear { targetDraft = target }
         .navigationDestination(item: $lrStarted) { LrAttemptScreen(id: $0) }
-    }
-
-    // MARK: Listening and Reading (web LrInsights)
-
-    @ViewBuilder private var lrCard: some View {
-        if let d = lr, !d.trend.isEmpty {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Listening and Reading").font(.display(.title3)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 8)
-                    NavigationLink(value: Route.history(skill: "listening")) { Text("All results").font(.subheadline.weight(.medium)).frame(minHeight: 44) }
-                }
-                ForEach(["listening", "reading"], id: \.self) { k in
-                    let rows = d.trend.filter { $0.skill == k }
-                    if let last = rows.last {
-                        let name = k == "listening" ? "Listening" : "Reading"
-                        HStack(alignment: .center, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("\(name), latest of \(rows.count)").font(.subheadline).foregroundStyle(.muted)
-                                Text(fmt(last.band)).font(.system(size: 34, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(bandTextColor(last.band, target))
-                                if rows.count > 1, let first = rows.first {
-                                    let d = last.band - first.band
-                                    Text(d == 0 ? "Same as your first" : "\(d > 0 ? "Up" : "Down") \(fmt(abs(d))) from your first").font(.caption).foregroundStyle(.muted)
-                                }
-                            }
-                            Spacer(minLength: 8)
-                            Chart {
-                                RuleMark(y: .value("Target", target)).foregroundStyle(Color.line).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                                ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
-                                    LineMark(x: .value("Attempt", i), y: .value("Band", r.band)).foregroundStyle(Color.brand).interpolationMethod(.monotone)
-                                    PointMark(x: .value("Attempt", i), y: .value("Band", r.band)).foregroundStyle(Color.brand).symbolSize(i == rows.count - 1 ? 50 : 18)
-                                }
-                            }
-                            .chartYScale(domain: 0...9).chartXAxis(.hidden).chartYAxis(.hidden)
-                            .frame(width: 150, height: 52)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(name) band over \(rows.count) attempts, latest \(fmt(last.band)). Dashed line is your \(fmt(target)) target.")
-                        }
-                    }
-                }
-                Divider().overlay(Color.line)
-                Text("Weakest question types").font(.headline).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
-                if d.weakest.isEmpty {
-                    Text("Your weak spots appear after a few more answered questions.").font(.subheadline).foregroundStyle(.muted)
-                } else {
-                    ForEach(d.weakest) { w in
-                        let r = Double(w.right) / Double(max(1, w.total))
-                        VStack(spacing: 6) {
-                            HStack {
-                                (Text(w.label).foregroundStyle(.ink) + Text(" (\(w.skill == "listening" ? "Listening" : "Reading"))").font(.caption).foregroundStyle(.muted)).font(.body)
-                                Spacer(minLength: 8)
-                                Text("\(Int((r * 100).rounded()))%").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(r < 0.5 ? Color.bad : Color.warnText)
-                            }
-                            ProgressView(value: r).tint(r >= 0.75 ? .good : r >= 0.5 ? .warn : .bad)
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(w.label), \(w.skill): \(w.right) of \(w.total) correct")
-                    }
-                }
-                if let sg = d.suggested {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Suggested next test").font(.caption).foregroundStyle(.muted)
-                            Text(sg.title).font(.body.weight(.medium)).foregroundStyle(.ink)
-                            Text("\(sg.count) \(sg.label.lowercased()) questions").font(.caption).foregroundStyle(.muted)
-                        }
-                        Spacer(minLength: 8)
-                        Button { Task { await startLr(sg.id) } } label: { if lrBusy { ProgressView() } else { Text("Practise") } }
-                            .primaryButton().controlSize(.large).disabled(lrBusy)
-                            .accessibilityLabel("Practise \(sg.title)")
-                    }
-                    .padding(12)
-                    .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-            }
-            .card()
+        .sheet(item: $lrPick) { t in
+            LrModeSheet(test: t) { lrStarted = $0 }
+                .presentationDetents([.height(540), .large])
+                .presentationDragIndicator(.visible)
         }
-    }
-
-    private func startLr(_ testId: String) async {
-        lrBusy = true
-        defer { lrBusy = false }
-        if let a: LrAttempt = try? await api.send("POST", "/api/lr/tests/\(testId)/attempts", ["mode": "practice"]) { lrStarted = a.id }
     }
 
     private func load() async {
         do {
             async let p: DashProgress = api.get("/api/progress")
             async let d: DueResponse = api.get("/api/cards/due")
-            async let sp: ProgressData = api.get("/api/progress", query: ["skill": "speaking"])
-            async let wr: ProgressData = api.get("/api/progress", query: ["skill": "writing"])
-            let first = progress == nil
+            async let l: LrProgress = api.get("/api/lr/progress")
+            async let open = api.mockCurrent()
+            async let mocks = api.mockList()
             progress = try await p
             due = try? await d
-            lr = try? await api.get("/api/lr/progress")
-            var t: [String: ProgressData] = [:]
-            t["speaking"] = try? await sp
-            t["writing"] = try? await wr
-            trends = t
-            // Open on the skill that has a line to show (web: needs three scored attempts).
-            if first {
-                let has = { (s: String) in (t[s]?.trend.count ?? 0) >= 3 }
-                trendSkill = has("speaking") || !has("writing") ? "speaking" : "writing"
-            }
+            lr = try? await l
+            mock = try? await open
+            lastMock = (try? await mocks)?.first { $0.overall != nil }
             error = nil
         } catch is CancellationError {
         } catch {
             if progress == nil { self.error = error.localizedDescription }
+        }
+    }
+
+    /// The suggested Listening or Reading test opens the same Exam/Practice and part choice as the hub; it starts practice directly
+    /// only if the test is no longer listed.
+    private func startLr(_ s: LrProgress.Suggested) async {
+        lrBusy = true
+        defer { lrBusy = false }
+        struct R: Decodable { let items: [LrTestItem] }
+        if let r: R = try? await api.get("/api/lr/tests", query: ["skill": s.skill]), let t = r.items.first(where: { $0.id == s.id }) {
+            lrPick = t
+        } else if let a: LrAttempt = try? await api.send("POST", "/api/lr/tests/\(s.id)/attempts", ["mode": "practice"]) {
+            lrStarted = a.id
         }
     }
 
@@ -281,6 +204,96 @@ struct DashboardView: View {
         .background(Color.warn.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    // MARK: Your picture (web YourPicture + SkillBandStrip)
+
+    /// Band points per skill, oldest first: speaking and writing from the progress trend, listening and reading from the L/R trend.
+    private func points(_ p: DashProgress, _ skill: String) -> [Double] {
+        skill == "speaking" || skill == "writing"
+            ? p.trend.filter { $0.skill == skill }.compactMap(\.overall)
+            : (lr?.trend ?? []).filter { $0.skill == skill }.map(\.band)
+    }
+
+    /// Per-skill average of the last up to 5 results; speaking and writing use the server's predicted band when it has one.
+    private func skillBand(_ p: DashProgress, _ skill: String) -> (band: Double?, n: Int) {
+        let avg = DashboardMath.averageBand(points(p, skill))
+        switch skill {
+        case "speaking": return (p.predicted.speaking ?? avg.band, avg.n)
+        case "writing": return (p.predicted.writing ?? avg.band, avg.n)
+        default: return avg
+        }
+    }
+
+    private func yourPicture(_ p: DashProgress) -> some View {
+        let bands = skillOrder.map { skillBand(p, $0) }
+        let overall = DashboardMath.overallEstimate(bands.map(\.band))
+        let weak = DashboardMath.weakestSkill(bands.map(\.band))
+        return VStack(alignment: .leading, spacing: 16) {
+            SectionTitle("Your IELTS picture")
+            HStack(alignment: .center, spacing: 20) {
+                Text(overall.value.map { fmt($0) } ?? "–")
+                    .font(.system(size: 64, weight: .bold, design: .serif).monospacedDigit())
+                    .foregroundStyle(overall.value.map { bandTextColor($0, target) } ?? Color.muted)
+                    .accessibilityLabel(overall.value.map { "Overall band estimate \(fmt($0))" } ?? "No overall band estimate yet")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Overall band estimate").font(.subheadline).foregroundStyle(.muted)
+                    if let v = overall.value {
+                        (Text(v >= target ? "At or above" : "\(fmt(target - v)) below").fontWeight(.medium).foregroundStyle(bandTextColor(v, target))
+                            + Text(" your \(fmt(target)) target").foregroundStyle(Color.ink))
+                            .font(.subheadline)
+                        Text("From \(overall.count) of 4 skills, average of your last results").font(.caption).foregroundStyle(.muted)
+                    } else {
+                        Text("Take two skills to see an overall estimate. Your target is \(fmt(target)).").font(.subheadline).foregroundStyle(.ink)
+                    }
+                }
+            }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12, alignment: .top), GridItem(.flexible(), spacing: 12, alignment: .top)], spacing: 12) {
+                ForEach(Array(skillOrder.enumerated()), id: \.offset) { i, k in
+                    skillLink(k) { skillCell(k, bands[i], weakest: weak == i) }
+                }
+            }
+        }
+    }
+
+    private func skillCell(_ skill: String, _ b: (band: Double?, n: Int), weakest: Bool) -> some View {
+        let name = MockFlow.label(skill)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: skillIcon[skill] ?? "circle").accessibilityHidden(true)
+                Text(name)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            }
+            .font(.subheadline).foregroundStyle(.muted)
+            if let band = b.band {
+                Text(fmt(band)).font(.system(size: 30, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(.ink)
+                BandBar(value: band / 9, marker: target / 9, fill: bandColor(band, target), height: 6, label: "\(name) band \(fmt(band)), target \(fmt(target))")
+            } else {
+                Text("Not tried").font(.body).foregroundStyle(.muted).frame(minHeight: 36, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                if weakest { Text("Weakest skill").font(.caption.weight(.medium)).foregroundStyle(Color.warnText) }
+                if b.band == nil {
+                    Text(skill == "listening" || skill == "reading" ? "Take a free test" : "Take a test").font(.caption).foregroundStyle(Color.brand)
+                } else {
+                    Text(b.n > 1 ? "average of last \(b.n)" : "latest").font(.caption).foregroundStyle(.muted)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card(padding: 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens \(name)")
+    }
+
+    /// Each skill's home: the Listening/Reading hub, or the Speaking/Writing home pushed on this stack (not a tab switch).
+    @ViewBuilder private func skillLink<L: View>(_ skill: String, @ViewBuilder _ label: () -> L) -> some View {
+        switch skill {
+        case "speaking": NavigationLink { SpeakingHomeView() } label: { label() }.buttonStyle(.plain)
+        case "writing": NavigationLink { WritingHomeView() } label: { label() }.buttonStyle(.plain)
+        default: NavigationLink(value: Route.lrHub(skill: skill)) { label() }.buttonStyle(.plain)
+        }
+    }
+
     // MARK: Onboarding (no scored attempts yet)
 
     private var onboarding: some View {
@@ -314,6 +327,10 @@ struct DashboardView: View {
                 .controlSize(.large)
             }
             .card(padding: 20)
+            NavigationLink(value: Route.lrHub(skill: "listening")) {
+                Text("Or take a free Listening or Reading test").font(.subheadline.weight(.medium)).foregroundStyle(.brand).underline().frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Target band").font(.subheadline.weight(.medium))
@@ -338,51 +355,78 @@ struct DashboardView: View {
         do { try await api.saveSettings(s); error = nil } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
 
-    // MARK: Where you stand
+    // MARK: Next up (web NextUp)
 
-    /// The one hero: what to practise next. The weakest criterion when known (at the part where the user scores lowest on it), else a full test.
+    /// The one action the page asks for. Priority: an open mock, then the weakest criterion, then a suggested Listening or Reading test, then a full speaking test.
     private func nextUp(_ p: DashProgress) -> some View {
-        let weakest: ProgressData.Weakest? = p.weakest.flatMap { practiceDefault[$0.key] == nil ? nil : $0 }
-        let practice = weakest.flatMap { practiceTarget($0.key, p.trend) }
+        let weakest: DashProgress.Weakest? = p.weakest.flatMap { practiceDefault[$0.key] == nil ? nil : $0 }
+        let practice = weakest.flatMap { practiceTarget($0.key, p.trend, judgedIn: $0.skill) }
         let partLabel = practice.map { ($0.skill == "speaking" ? "Part " : "Task ") + String($0.part) }
         let avg = weakest.map { ($0.avg * 2).rounded() / 2 } ?? 0
-        let cta = weakest != nil && partLabel != nil ? "Practise \(partLabel!) (\(criterionShort[weakest!.key] ?? ""))" : "Start a full speaking test"
-        let route: Route = {
-            guard let practice else { return .speaking(.full) }
-            if practice.skill == "writing" { return practice.part == 1 ? .writing(.task1(variant: "academic")) : .writing(.task2) }
-            return .speaking(.part(practice.part))
-        }()
-        return VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Next up").font(.caption.weight(.semibold)).foregroundStyle(.brand)
-                Text(weakest.map { "\(Crit.label($0.key)) is holding your band back" } ?? "Ready for another round?")
-                    .font(.display(.title2))
-                    .foregroundStyle(.ink)
-                if let weakest, let partLabel {
-                    Text("You average \(fmt(avg)) here\(avg < target ? ", \(fmt(target - avg)) below your \(fmt(target)) target" : ""), and your lowest scores came in \(partLabel). Focused practice there moves it fastest.")
-                        .font(.subheadline).foregroundStyle(.muted)
-                        .accessibilityLabel("Weakest criterion \(Crit.label(weakest.key)). You average \(fmt(avg)) here.")
-                } else {
-                    Text("A full test gives the most complete picture of your band.").font(.subheadline).foregroundStyle(.muted)
+        let suggested = weakest == nil ? lr?.suggested : nil
+        let headline: String, lede: String
+        if let mock {
+            headline = "Continue your mock test"
+            lede = "\(nextLine(mock, "Open")). Pick up where you stopped."
+        } else if let weakest, let partLabel {
+            headline = "\(Crit.label(weakest.key)) is holding your band back"
+            lede = "You average \(fmt(avg)) here\(avg < target ? ", \(fmt(target - avg)) below your \(fmt(target)) target" : ""), and your lowest scores came in \(partLabel). Focused practice there moves it fastest."
+        } else if let s = suggested {
+            headline = "\(s.label) is your weakest question type"
+            lede = "\(s.title) has \(s.count) \(s.label.lowercased()) questions. Practising them is the fastest way up."
+        } else {
+            headline = "Ready for another round?"
+            lede = "A full test gives the most complete picture of your band."
+        }
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionTitle("Next up")
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(headline).font(.display(.title2)).foregroundStyle(.ink)
+                    Text(lede).font(.subheadline).foregroundStyle(.muted)
+                }
+                Group {
+                    if let mock {
+                        NavigationLink(value: Route.mockHub(id: mock.id)) { ctaLabel("Continue") }
+                    } else if let weakest, let practice, let partLabel {
+                        let route: Route = practice.skill == "writing" ? (practice.part == 1 ? .writing(.task1(variant: "academic")) : .writing(.task2)) : .speaking(.part(practice.part))
+                        NavigationLink(value: route) { ctaLabel("Practise \(partLabel) \((criterionShort[weakest.key] ?? "").lowercased())") }
+                    } else if let s = suggested {
+                        Button { Task { await startLr(s) } } label: {
+                            HStack { if lrBusy { ProgressView() }; Text("Practise \(s.label.lowercased())"); Image(systemName: "arrow.right").accessibilityHidden(true) }
+                                .frame(maxWidth: .infinity, minHeight: 28)
+                        }
+                        .disabled(lrBusy)
+                    } else {
+                        NavigationLink(value: Route.speaking(.full)) { ctaLabel("Start a full speaking test") }
+                    }
+                }
+                .primaryButton()
+                .controlSize(.large)
+                if let n = due?.dueTotal, n > 0 {
+                    NavigationLink(value: Route.review) {
+                        Text("Review deck, \(n) \(n == 1 ? "card" : "cards") due").font(.subheadline.weight(.medium)).foregroundStyle(.brand).underline().frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            NavigationLink(value: route) {
-                HStack { Text(cta); Image(systemName: "arrow.right").accessibilityHidden(true) }
-                    .frame(maxWidth: .infinity, minHeight: 28)
-            }
-            .primaryButton()
-            .controlSize(.large)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    /// Skill, and the part/task where the user's own scores on `key` are lowest (web practiceTarget).
-    private func practiceTarget(_ key: String, _ trend: [DashProgress.Point]) -> (skill: String, part: Int)? {
-        guard let d = practiceDefault[key] else { return nil }
+    private func ctaLabel(_ text: String) -> some View {
+        HStack { Text(text); Image(systemName: "arrow.right").accessibilityHidden(true) }.frame(maxWidth: .infinity, minHeight: 28)
+    }
+
+    /// Skill, and the part/task where the user's own scores on `key` are lowest (web practiceTarget); `judgedIn` is the skill the criterion came from.
+    private func practiceTarget(_ key: String, _ trend: [DashProgress.Point], judgedIn: String?) -> (skill: String, part: Int)? {
+        guard let usual = practiceDefault[key] else { return nil }
+        let skill = judgedIn ?? usual.skill
+        let fallback = skill == usual.skill ? usual.part : skill == "speaking" ? 1 : 2
         var byPart: [Int: [Double]] = [:]
-        for t in trend where t.skill == d.skill {
+        for t in trend where t.skill == skill {
             if let v = t.criteria[key], let part = t.part { byPart[part, default: []].append(v) }
         }
         let mean = { (a: [Double]) in a.reduce(0, +) / Double(max(1, a.count)) }
@@ -390,143 +434,68 @@ struct DashboardView: View {
             let (ma, mb) = (mean(a.value), mean(b.value))
             return ma != mb ? ma < mb : a.key < b.key
         }
-        return (d.skill, best?.key ?? d.part)
+        return (skill, best?.key ?? fallback)
     }
 
-    private func predictedCard(_ p: DashProgress) -> some View {
-        VStack(spacing: 0) {
-            predictedRow("speaking", p.predicted.speaking, n: p.trend.filter { $0.skill == "speaking" }.count)
-            Divider().padding(.vertical, 14)
-            predictedRow("writing", p.predicted.writing, n: p.trend.filter { $0.skill == "writing" }.count)
-        }
-        .card()
-    }
+    // MARK: Full mock test (web MockPanel)
 
-    /// One predicted band: label + bar + target on the left, the number on the right. With no scores the row holds the invitation and its action.
-    private func predictedRow(_ skill: String, _ band: Double?, n: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let band {
-                HStack(alignment: .center, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Predicted \(skill) band").font(.caption).foregroundStyle(.muted)
-                        BandBar(value: band / 9, marker: target / 9, label: "\(skill.capitalized) band \(fmt(band)) of 9, target \(fmt(target))")
-                        HStack(spacing: 8) {
-                            Text("Target \(fmt(target))").font(.caption).foregroundStyle(.muted)
-                            if band >= target { Chip(text: "On target", color: .goodText) } else { Chip(text: "\(fmt(target - band)) to go", color: .muted) }
-                        }
-                    }
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(fmt(band)).font(.display(.largeTitle, weight: .bold).monospacedDigit()).foregroundStyle(.ink)
-                        Text(n > 1 ? "Avg of last \(min(n, 5))" : "Latest score").font(.caption).foregroundStyle(.muted)
-                    }
-                    .accessibilityElement(children: .combine)
+    /// What the mock is, the four steps, one button. With an open mock that Next up already continues, only the steps.
+    private func mockPanel(continuedAbove: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle("Full mock test")
+            if !(mock != nil && continuedAbove) {
+                Text(mock.map { "Continue: \(nextLine($0, "open")). Pick up where you stopped." } ?? "Listening, Reading, Writing and Speaking in one sitting, with an overall band.")
+                    .font(.subheadline).foregroundStyle(.ink)
+                NavigationLink(value: mock.map { Route.mockHub(id: $0.id) } ?? Route.mock) {
+                    HStack { Text(mock == nil ? "Start a mock test" : "Continue"); Image(systemName: "arrow.right").accessibilityHidden(true) }.frame(maxWidth: .infinity, minHeight: 28)
                 }
-            } else {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Predicted \(skill) band").font(.caption).foregroundStyle(.muted)
-                        Text("No \(skill) scores yet.").font(.subheadline)
-                    }
-                    Spacer()
-                    NavigationLink(value: skill == "speaking" ? Route.speaking(.part(1)) : Route.writing(.task2)) {
-                        Text(skill == "speaking" ? "Try Part 1" : "Try Task 2").frame(minHeight: 28)
-                    }
-                    .secondaryButton()
-                }
+                .secondaryButton().controlSize(.large)
             }
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: Band by criterion
-
-    private var trendCard: some View {
-        let rows = trends[trendSkill]?.trend ?? []
-        let keys = Crit.order(trendSkill)
-        return VStack(alignment: .leading, spacing: 14) {
-            Text("Band by criterion").font(.display(.title3)).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
-            Picker("Skill", selection: $trendSkill) {
-                Text("Speaking").tag("speaking")
-                Text("Writing").tag("writing")
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], alignment: .leading, spacing: 14) {
+                ForEach(skillOrder, id: \.self) { k in mockStep(k) }
             }
-            .pickerStyle(.segmented)
-            if rows.isEmpty {
-                Text("Your \(trendSkill) criteria appear after your first scored attempt.").font(.subheadline).foregroundStyle(.muted).padding(.vertical, 12)
-            } else if rows.count < 3 {
-                // A line needs three points to say anything: until then show the latest attempt's bands side by side.
-                let latest = rows.last?.criteria ?? [:]
-                ForEach(keys, id: \.self) { k in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text(Crit.label(k)).font(.subheadline)
-                            Spacer()
-                            Text(latest[k].map { fmt($0) } ?? "–").font(.display(.headline).monospacedDigit())
-                        }
-                        BandBar(value: (latest[k] ?? 0) / 9, marker: target / 9, label: "\(Crit.label(k)) band \(latest[k].map { fmt($0) } ?? "none") of 9")
-                    }
-                    .accessibilityElement(children: .combine)
+            if let last = lastMock, let band = last.overall {
+                NavigationLink(value: Route.mockHub(id: last.id)) {
+                    (Text("Last mock: ").foregroundStyle(.muted) + Text("\(fmt(band)) on \(ShellDate.date(last.completedAt ?? last.startedAt))").fontWeight(.medium).foregroundStyle(Color.brand))
+                        .font(.subheadline.monospacedDigit()).frame(minHeight: 44)
                 }
-                Text("From your latest \(trendSkill) attempt; the marker is your \(fmt(target)) target. The trend line appears after three scored attempts.")
-                    .font(.caption).foregroundStyle(.muted)
-            } else {
-                trendChart(rows, keys)
+                .buttonStyle(.plain)
             }
         }
         .card()
     }
 
-    private func trendChart(_ rows: [ProgressData.TrendPoint], _ keys: [String]) -> some View {
-        let all = rows.flatMap { $0.criteria.values }
-        let lo = max(0, min(floor(all.min() ?? 0), target) - 0.5)
-        let ticks = stride(from: ceil(lo), through: 9, by: 1).map { $0 }
-        return Chart {
-            ForEach(Array(rows.enumerated()), id: \.offset) { i, point in
-                ForEach(keys, id: \.self) { k in
-                    if let v = point.criteria[k] {
-                        LineMark(x: .value("Attempt", i + 1), y: .value("Band", v))
-                            .foregroundStyle(by: .value("Criterion", Crit.label(k)))
-                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round, dash: seriesDashed(k) ? [5, 3] : []))
-                            .interpolationMethod(.monotone)
-                    }
-                }
+    /// "Writing next", or `fallback` when the server names no next section.
+    private func nextLine(_ m: MockExam, _ fallback: String) -> String { m.next.map { "\(MockFlow.label($0)) next" } ?? fallback }
+
+    private func mockStep(_ skill: String) -> some View {
+        let s = mock?.section(skill)
+        let step = mock == nil ? "todo" : s.map(MockFlow.isFinished) == true ? "done" : mock?.next == skill ? "next" : "todo"
+        let word = ["done": "Done", "next": "Next", "todo": "To do"][step] ?? ""
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Image(systemName: step == "done" ? "checkmark.circle.fill" : step == "next" ? "smallcircle.filled.circle" : "circle").accessibilityHidden(true)
+                Text(MockFlow.label(skill)).font(.headline)
+                if mock != nil { Text(word).font(.caption).foregroundStyle(.muted) }
             }
-            RuleMark(y: .value("Target", target))
-                .foregroundStyle(Color.muted)
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [2, 4]))
-                .annotation(position: .top, alignment: .trailing) {
-                    Text("Target \(fmt(target))").font(.caption2).foregroundStyle(.muted)
-                }
+            .foregroundStyle(step == "next" ? Color.brand : Color.ink)
+            Text(mockDuration[skill] ?? "").font(.caption).foregroundStyle(.muted).padding(.leading, 24)
         }
-        .chartForegroundStyleScale(domain: keys.map { Crit.label($0) }, range: keys.map { seriesColor($0) })
-        .chartYScale(domain: lo...9)
-        .chartYAxis { AxisMarks(values: ticks) }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine()
-                AxisValueLabel { if let i = value.as(Int.self) { Text("#\(i)") } }
-            }
-        }
-        .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
-        .frame(height: 240)
-        .accessibilityLabel("Band trend over your last \(rows.count) attempts, oldest first")
+        .accessibilityElement(children: .combine)
     }
 
-    // MARK: Practise
+    // MARK: Practise (web PractiseList)
 
-    private var practiseCard: some View {
+    private var practiseList: some View {
         VStack(alignment: .leading, spacing: 4) {
             SectionTitle("Practise").padding(.bottom, 4)
-            practiseRow("Full speaking test", "11-14 min, all three parts", "mic", .speaking(.full))
+            practiseRow("Listening", "Free practice tests, 40 questions, or one part at a time", "headphones", left: nil) { l in NavigationLink(value: Route.lrHub(skill: "listening")) { l } }
             Divider()
-            practiseRow("Live examiner", "A spoken conversation with an AI examiner", "bubble.left.and.bubble.right", .live)
+            practiseRow("Reading", "Free practice tests, 40 questions, or one passage", "book", left: nil) { l in NavigationLink(value: Route.lrHub(skill: "reading")) { l } }
             Divider()
-            practiseRow("Task 2 essay", "40 min, at least 250 words", "pencil.line", .writing(.task2))
+            practiseRow("Writing", "Task 1 and Task 2, feedback by criterion. A Task 2 essay is 40 min, at least 250 words", "pencil.line", left: api.quota?.writing) { l in NavigationLink { WritingHomeView() } label: { l } }
             Divider()
-            practiseRow("Listening test", "Four recordings, 40 questions", "headphones", .lrHub(skill: "listening"))
-            Divider()
-            practiseRow("Reading test", "Three passages, 40 questions, 60 min", "book", .lrHub(skill: "reading"))
-            Divider()
-            practiseRow("Review deck", reviewMeta, "rectangle.on.rectangle.angled", .review, badge: (due?.dueTotal ?? 0) > 0 ? "\(due?.dueTotal ?? 0) due" : nil)
+            practiseRow("Speaking", "Full test 11-14 min, or one part. Live examiner: \(api.quota?.live == false ? "not available right now" : "a spoken conversation with an AI examiner")", "mic", left: api.quota?.speaking) { l in NavigationLink { SpeakingHomeView() } label: { l } }
             Divider().padding(.bottom, 4)
             // One row when it fits without wrapping; a vertical list on narrow or large-text screens.
             ViewThatFits(in: .horizontal) {
@@ -539,33 +508,30 @@ struct DashboardView: View {
 
     @ViewBuilder private var footerLinks: some View {
         footerLink("Prompt bank", "books.vertical", .bank(skill: ""))
-        footerLink("Past attempts", "clock.arrow.circlepath", .history(skill: nil))
         footerLink("Mistakes", "exclamationmark.triangle", .mistakes(category: nil))
+        footerLink("Review deck", "rectangle.on.rectangle.angled", .review)
+        footerLink("All attempts", "clock.arrow.circlepath", .history(skill: nil))
     }
 
-    private var reviewMeta: String {
-        guard let due else { return "Nothing due today" }
-        if due.dueTotal > 0 { return "A few minutes keeps corrections from slipping" }
-        if due.deck == 0 { return "Add corrections from Mistakes to start your deck" }
-        return due.deck != nil ? "All caught up for today" : "Nothing due today"
-    }
-
-    private func practiseRow(_ title: String, _ meta: String, _ icon: String, _ route: Route, badge: String? = nil) -> some View {
-        NavigationLink(value: route) {
-            HStack(spacing: 12) {
-                Image(systemName: icon).font(.body).foregroundStyle(.muted).frame(width: 28).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
+    private func practiseRow<L: View>(_ title: String, _ meta: String, _ icon: String, left: SkillQuota?, link: (AnyView) -> L) -> some View {
+        let label = HStack(spacing: 12) {
+            Image(systemName: icon).font(.body).foregroundStyle(.muted).frame(width: 28).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(title).font(.body).foregroundStyle(.ink)
-                    Text(meta).font(.caption).foregroundStyle(.muted).multilineTextAlignment(.leading)
+                    if let q = left {
+                        let out = q.blocked != nil || q.remaining == 0
+                        Text(CommunityText.left(q)).font(.caption.monospacedDigit()).foregroundStyle(out ? Color.warnText : Color.muted)
+                    }
                 }
-                Spacer(minLength: 8)
-                if let badge { Chip(text: badge, color: .brand) }
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+                Text(meta).font(.caption).foregroundStyle(.muted).multilineTextAlignment(.leading)
             }
-            .frame(minHeight: 52)
-            .contentShape(Rectangle())
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
         }
-        .buttonStyle(.plain)
+        .frame(minHeight: 52)
+        .contentShape(Rectangle())
+        return link(AnyView(label)).buttonStyle(.plain)
     }
 
     private func footerLink(_ title: String, _ icon: String, _ route: Route) -> some View {
@@ -575,13 +541,189 @@ struct DashboardView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: Recurring mistakes
+    // MARK: Progress (web ProgressTabs)
 
-    private func mistakesCard(_ m: [ProgressData.CategoryCount]) -> some View {
+    private func progressTabs(_ p: DashProgress) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle("Progress")
+            Picker("Progress", selection: $progressTab) {
+                Text("Overall").tag("overall")
+                ForEach(skillOrder, id: \.self) { Text(MockFlow.label($0)).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            switch progressTab {
+            case "speaking", "writing": criteriaPanel(p, progressTab)
+            case "listening", "reading": lrPanel(progressTab)
+            default: overallPanel(p)
+            }
+        }
+    }
+
+    /// Four skill cards: the latest band, a sparkline against the target (a meter with one result), the average and the change since the first.
+    private func overallPanel(_ p: DashProgress) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12, alignment: .top), GridItem(.flexible(), spacing: 12, alignment: .top)], spacing: 12) {
+            ForEach(skillOrder, id: \.self) { k in
+                let pts = points(p, k)
+                let name = MockFlow.label(k)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(name).font(.headline).foregroundStyle(.ink)
+                        Spacer(minLength: 4)
+                        Text(pts.last.map { fmt($0) } ?? "–").font(.system(size: 26, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(.ink)
+                    }
+                    if let latest = pts.last {
+                        Text("Average \(skillBand(p, k).band.map { fmt($0) } ?? "–") · \(pts.count) \(pts.count == 1 ? "attempt" : "attempts")").font(.caption.monospacedDigit()).foregroundStyle(.muted)
+                        if pts.count > 1 {
+                            bandChart(pts, domain: 0...9, height: 48, compact: true, label: "\(name) band over \(pts.count) attempts, latest \(fmt(latest)), target \(fmt(target))")
+                        } else {
+                            BandBar(value: latest / 9, marker: target / 9, fill: bandColor(latest, target), height: 6, label: "\(name) band \(fmt(latest)) of 9")
+                        }
+                        changeLine(pts)
+                    } else {
+                        Text("No scored \(name.lowercased()) test yet.").font(.caption).foregroundStyle(.muted)
+                    }
+                }
+                .card(padding: 14)
+            }
+        }
+    }
+
+    @ViewBuilder private func changeLine(_ pts: [Double]) -> some View {
+        if let t = DashboardMath.changeText(pts), let d = DashboardMath.changeSinceFirst(pts) {
+            Text(t).font(.caption.monospacedDigit()).foregroundStyle(d > 0 ? Color.goodText : d < 0 ? Color.bad : Color.muted)
+        }
+    }
+
+    /// One small chart per criterion on a shared band scale (four lines on one chart overlap); latest bands as meters until there are three attempts.
+    @ViewBuilder private func criteriaPanel(_ p: DashProgress, _ skill: String) -> some View {
+        let rows = p.trend.filter { $0.skill == skill }
+        let keys = Crit.order(skill)
+        let latest = rows.last?.criteria ?? [:]
+        if rows.isEmpty {
+            Text("Your \(skill) criteria appear after your first scored attempt.").font(.subheadline).foregroundStyle(.muted)
+        } else if rows.count < 3 {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("From your latest \(skill) attempt; the marker is your \(fmt(target)) target. Each criterion's trend appears after three scored attempts.")
+                    .font(.caption).foregroundStyle(.muted)
+                ForEach(keys, id: \.self) { k in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(Crit.label(k)).font(.subheadline)
+                            Spacer()
+                            Text(latest[k].map { fmt($0) } ?? "–").font(.display(.title3).monospacedDigit())
+                        }
+                        BandBar(value: (latest[k] ?? 0) / 9, marker: target / 9, fill: latest[k].map { bandColor($0, target) } ?? .brand, height: 6, label: "\(Crit.label(k)) band \(latest[k].map { fmt($0) } ?? "none") of 9")
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .card()
+        } else {
+            let all = rows.flatMap { r in keys.compactMap { r.criteria[$0] } }
+            let lo = max(0, floor(min(all.min() ?? target, target)) - 1)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Your last \(rows.count) \(skill) attempts, oldest on the left. The dashed line is your \(fmt(target)) target.").font(.caption).foregroundStyle(.muted)
+                ForEach(keys, id: \.self) { k in
+                    let pts = rows.compactMap { $0.criteria[k] }
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(Crit.label(k)).font(.headline).foregroundStyle(.ink)
+                                changeLine(pts)
+                            }
+                            Spacer(minLength: 8)
+                            Text(latest[k].map { fmt($0) } ?? "–").font(.system(size: 26, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(.ink)
+                        }
+                        bandChart(pts, domain: lo...9, height: 120, compact: false, label: "\(Crit.label(k)) over \(pts.count) \(skill) attempts, latest \(latest[k].map { fmt($0) } ?? "none"), target \(fmt(target))")
+                    }
+                    .card(padding: 14)
+                }
+            }
+        }
+    }
+
+    /// Listening or Reading: the band over attempts, the weakest question types of this skill, and one test to practise them on (web LrPanel).
+    @ViewBuilder private func lrPanel(_ skill: String) -> some View {
+        let name = MockFlow.label(skill)
+        let rows = (lr?.trend ?? []).filter { $0.skill == skill }
+        let weakest = (lr?.weakest ?? []).filter { $0.skill == skill }
+        VStack(alignment: .leading, spacing: 16) {
+            if let last = rows.last {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(name), latest of \(rows.count)").font(.caption).foregroundStyle(.muted)
+                    Text(fmt(last.band)).font(.system(size: 34, weight: .bold, design: .serif).monospacedDigit()).foregroundStyle(.ink)
+                    if let d = DashboardMath.changeSinceFirst(rows.map(\.band)) {
+                        Text(d == 0 ? "Same as your first" : "\(d > 0 ? "Up" : "Down") \(fmt(abs(d))) from your first").font(.subheadline).foregroundStyle(.ink)
+                    }
+                    if rows.count > 1 {
+                        bandChart(rows.map(\.band), domain: 0...9, height: 150, compact: false, label: "\(name) band over \(rows.count) attempts, latest \(fmt(last.band)), target \(fmt(target))")
+                    }
+                }
+            } else {
+                Text("Your \(name) band trend appears after your first scored whole test.").font(.subheadline).foregroundStyle(.muted)
+            }
+            Divider().overlay(Color.line)
+            Text("Weakest question types").font(.headline).foregroundStyle(.ink).accessibilityAddTraits(.isHeader)
+            if weakest.isEmpty {
+                Text("Your weak spots appear after a few more answered questions.").font(.subheadline).foregroundStyle(.muted)
+            } else {
+                ForEach(weakest) { w in
+                    let r = Double(w.right) / Double(max(1, w.total))
+                    VStack(spacing: 6) {
+                        HStack {
+                            Text(w.label).font(.body).foregroundStyle(.ink)
+                            Spacer(minLength: 8)
+                            Text("\(Int((r * 100).rounded()))%").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(r < 0.5 ? Color.bad : Color.warnText)
+                        }
+                        ProgressView(value: r).tint(r >= 0.75 ? .good : r >= 0.5 ? .warn : .bad)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(w.label): \(w.right) of \(w.total) correct")
+                }
+            }
+            if let sg = lr?.suggested, sg.skill == skill {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Suggested next test").font(.caption).foregroundStyle(.muted)
+                        Text(sg.title).font(.body.weight(.medium)).foregroundStyle(.ink)
+                        Text("has \(sg.count) \(sg.label.lowercased()) questions").font(.caption).foregroundStyle(.muted)
+                    }
+                    Spacer(minLength: 8)
+                    Button { Task { await startLr(sg) } } label: { if lrBusy { ProgressView() } else { Text("Practise") } }
+                        .primaryButton().controlSize(.large).disabled(lrBusy)
+                        .accessibilityLabel("Practise \(sg.title)")
+                }
+                .padding(12)
+                .background(Color.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+        .card()
+    }
+
+    /// Band line, oldest first, with the target as a dashed rule (web BandTrend).
+    private func bandChart(_ pts: [Double], domain: ClosedRange<Double>, height: CGFloat, compact: Bool, label: String) -> some View {
+        Chart {
+            RuleMark(y: .value("Target", target)).foregroundStyle(Color.muted).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+            ForEach(Array(pts.enumerated()), id: \.offset) { i, b in
+                LineMark(x: .value("Attempt", i + 1), y: .value("Band", b)).foregroundStyle(Color.brand).interpolationMethod(.monotone)
+                PointMark(x: .value("Attempt", i + 1), y: .value("Band", b)).foregroundStyle(Color.brand).symbolSize(i == pts.count - 1 ? 40 : 14)
+            }
+        }
+        .chartYScale(domain: domain)
+        .chartXAxis(.hidden)
+        .chartYAxis(compact ? .hidden : .automatic)
+        .frame(height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+
+    // MARK: Fix next (web FixNext)
+
+    private func fixNext(_ m: [ProgressData.CategoryCount]) -> some View {
         let most = Double(max(1, m.map(\.count).max() ?? 1))
         return VStack(alignment: .leading, spacing: 4) {
-            SectionTitle("Recurring mistakes")
-            Text("Last 30 days").font(.caption).foregroundStyle(.muted).padding(.bottom, 8)
+            SectionTitle("Fix next")
+            Text("Recurring mistakes, last 30 days").font(.caption).foregroundStyle(.muted).padding(.bottom, 8)
             ForEach(m, id: \.category) { c in
                 NavigationLink(value: Route.mistakes(category: c.category)) {
                     VStack(alignment: .leading, spacing: 8) {

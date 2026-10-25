@@ -187,6 +187,7 @@ fun QuestionDetail(
                     Modifier.semantics { contentDescription = "${entry.typed}, should be ${entry.word}" }, style = MaterialTheme.typography.bodyMedium.merge(AppText.num),
                 )
             }
+            entry.other?.let { Text("This is the answer to question $it.", style = MaterialTheme.typography.bodyMedium, color = e.ink) }
             Text(entry.message, style = MaterialTheme.typography.bodyMedium, color = e.ink)
             val before = entry.before ?: 0
             if (before > 0 && entry.kind == "spelling") Text("You've misspelt '${entry.word}' ${timesText(before)} before.", style = MaterialTheme.typography.bodyMedium, color = e.warnText, fontWeight = FontWeight.Medium)

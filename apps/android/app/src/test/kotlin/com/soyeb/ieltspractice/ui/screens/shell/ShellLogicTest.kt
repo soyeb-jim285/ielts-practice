@@ -101,7 +101,7 @@ class ShellLogicTest {
         val n = nextUp(progress, 7.0)
         assertEquals("Pronunciation is holding your band back", n.title)
         assertEquals("speaking-1", n.route) // default part for pronunciation (the fixture trend has no skill/part)
-        assertEquals("Practise Part 1 (Pronunciation)", n.cta)
+        assertEquals("Practise Part 1 pronunciation", n.cta)
         assertTrue(n.body.startsWith("You average 6.0 here, 1.0 below your 7.0 target, and your lowest scores came in Part 1."))
         val none = nextUp(progress.copy(weakest = null), 7.0)
         assertEquals("speaking-full", none.route)
@@ -119,8 +119,44 @@ class ShellLogicTest {
         assertNull(practiceTarget("nope", trend))
     }
 
+    @Test fun nextUpPrefersAnOpenMockThenAnLrTest() {
+        val progress = AppJson.decodeFromString(DashProgress.serializer(), fixtures.getValue("/api/progress"))
+        val mock = com.soyeb.ieltspractice.core.Mock("m1", next = "reading")
+        val m = nextUp(progress, 7.0, mock)
+        assertEquals("mock", m.route)
+        assertEquals("Reading next. Pick up where you stopped.", m.body)
+        val sg = com.soyeb.ieltspractice.core.LrSuggested("t1", "Test 3", "reading", "Matching headings", 6)
+        val lr = nextUp(progress.copy(weakest = null), 7.0, null, sg)
+        assertEquals("lr", lr.route)
+        assertEquals("Matching headings is your weakest question type", lr.title)
+        assertEquals("Practise matching headings", lr.cta)
+        assertEquals("Pronunciation is holding your band back", nextUp(progress, 7.0, null, sg).title) // a weak criterion wins over the LR suggestion
+    }
+
+    @Test fun practiceTargetFollowsTheSkillItWasJudgedIn() {
+        val trend = listOf(DashPoint("writing", 1, mapOf("lr" to 5.0)), DashPoint("writing", 2, mapOf("lr" to 6.0)))
+        assertEquals("writing" to 1, practiceTarget("lr", trend, "writing"))
+        assertEquals("writing" to 2, practiceTarget("lr", emptyList(), "writing")) // writing's usual task
+        assertEquals("speaking" to 2, practiceTarget("lr", trend))
+    }
+
+    @Test fun overallBandEstimate() {
+        assertEquals(SkillBand(6.5, 5), averageBand(listOf(9.0, 6.0, 6.0, 7.0, 7.0, 7.0))) // only the last five
+        assertEquals(SkillBand(null, 0), averageBand(emptyList()))
+        assertEquals(null to 1, overallEstimate(listOf(7.0, null, null, null))) // needs two skills
+        assertEquals(7.0 to 4, overallEstimate(listOf(7.5, 7.0, 6.5, 7.0)))
+        assertEquals(6.5, overallEstimate(listOf(6.0, 6.5, null, null)).first)
+        assertEquals(1.5, changeSinceFirst(listOf(5.0, 6.0, 6.5)))
+        assertEquals("+1.5 since your first", changeLabel(listOf(5.0, 6.5)))
+        assertEquals("−0.5 since your first", changeLabel(listOf(6.5, 6.0)))
+        assertEquals("Same as your first", changeLabel(listOf(6.0, 6.0)))
+        assertNull(changeLabel(listOf(6.0)))
+        assertEquals(2, weakestSkill(listOf(6.0, null, 5.5, 5.5))) // ties go to the first
+        assertNull(weakestSkill(listOf(6.0, null, null, null)))
+    }
+
     @Test fun greetingsAndLabels() {
-        assertEquals("Good evening", greeting(3))
+        assertEquals("Hello", greeting(3))
         assertEquals("Good morning", greeting(9))
         assertEquals("Good afternoon", greeting(14))
         assertEquals("Good evening", greeting(20))

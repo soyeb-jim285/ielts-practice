@@ -136,11 +136,15 @@ val practiceDefault = mapOf(
 )
 val criterionShort = mapOf("fc" to "Fluency", "gra" to "Grammar", "lr" to "Vocabulary", "p" to "Pronunciation", "ta" to "Task response", "cc" to "Coherence")
 
-fun greeting(hour: Int): String = if (hour < 5) "Good evening" else if (hour < 12) "Good morning" else if (hour < 18) "Good afternoon" else "Good evening"
+/** Midnight to 5am is "Hello": nobody wants "Good evening" at 3am. */
+fun greeting(hour: Int): String = if (hour < 5) "Hello" else if (hour < 12) "Good morning" else if (hour < 18) "Good afternoon" else "Good evening"
 
 /** Skill, and the part/task where the user's own scores on [key] are lowest (web practiceTarget); null for an unknown criterion. */
-fun practiceTarget(key: String, trend: List<DashPoint>): Pair<String, Int>? {
-    val d = practiceDefault[key] ?: return null
+fun practiceTarget(key: String, trend: List<DashPoint>, judgedIn: String? = null): Pair<String, Int>? {
+    val usual = practiceDefault[key] ?: return null
+    // judgedIn: the skill the weak criterion came from (lr / gra exist in both); its fallback part is that skill's usual one
+    val skill = judgedIn ?: usual.first
+    val d = skill to if (skill == usual.first) usual.second else if (skill == "speaking") 1 else 2
     val byPart = mutableMapOf<Int, MutableList<Double>>()
     for (t in trend) if (t.skill == d.first) {
         val v = t.criteria[key]
@@ -154,9 +158,16 @@ fun practiceTarget(key: String, trend: List<DashPoint>): Pair<String, Int>? {
 /** The "Next up" hero's content. [route] is "speaking-full", "speaking-<part>", "writing-1" or "writing-2". */
 class NextUp(val title: String, val body: String, val cta: String, val route: String, val a11y: String?)
 
-fun nextUp(p: DashProgress, target: Double): NextUp {
+/** Priority (web NextUp): an open [mock] (route "mock"), the weakest criterion, a [suggested] Listening/Reading test (route "lr"), a full speaking test. */
+fun nextUp(p: DashProgress, target: Double, mock: com.soyeb.ieltspractice.core.Mock? = null, suggested: com.soyeb.ieltspractice.core.LrSuggested? = null): NextUp {
+    if (mock != null) return NextUp("Continue your mock test", com.soyeb.ieltspractice.core.MockFlow.continueLine(mock), "Continue", "mock", null)
     val weakest = p.weakest?.takeIf { practiceDefault[it.key] != null }
-    val practice = weakest?.let { practiceTarget(it.key, p.trend) }
+    val practice = weakest?.let { practiceTarget(it.key, p.trend, it.skill) }
+    if (practice == null && suggested != null) return NextUp(
+        "${suggested.label} is your weakest question type",
+        "${suggested.title} has ${suggested.count} ${suggested.label.lowercase()} questions. Practising them is the fastest way up.",
+        "Practise ${suggested.label.lowercase()}", "lr", null,
+    )
     val partLabel = practice?.let { (if (it.first == "speaking") "Part " else "Task ") + it.second }
     val route = when {
         practice == null -> "speaking-full"
@@ -171,9 +182,37 @@ fun nextUp(p: DashProgress, target: Double): NextUp {
     return NextUp(
         "${Crit.label(weakest.key)} is holding your band back",
         "You average ${fmt(avg)} here$below, and your lowest scores came in $partLabel. Focused practice there moves it fastest.",
-        "Practise $partLabel (${criterionShort[weakest.key].orEmpty()})", route,
+        "Practise $partLabel ${criterionShort[weakest.key].orEmpty().lowercase()}", route,
         "Weakest criterion ${Crit.label(weakest.key)}. You average ${fmt(avg)} here.",
     )
+}
+
+/** Average of the last up-to-5 bands (oldest first), IELTS-rounded; band null with no results (web dashboard/overall.ts). */
+data class SkillBand(val band: Double?, val n: Int)
+fun averageBand(bands: List<Double>): SkillBand {
+    val last = bands.takeLast(5)
+    return SkillBand(if (last.isEmpty()) null else com.soyeb.ieltspractice.core.Band.round(last.average()), last.size)
+}
+
+/** Overall estimate from the skill bands that exist; needs two skills, so one lucky test never poses as an overall band. */
+fun overallEstimate(bands: List<Double?>): Pair<Double?, Int> {
+    val have = bands.filterNotNull()
+    return (if (have.size >= 2) com.soyeb.ieltspractice.core.Band.round(have.average()) else null) to have.size
+}
+
+/** Last minus first; null with fewer than two. */
+fun changeSinceFirst(bands: List<Double>): Double? = if (bands.size > 1) bands.last() - bands.first() else null
+
+/** "+1.0 since your first", "−0.5 since your first", "Same as your first"; null with one result. */
+fun changeLabel(bands: List<Double>): String? = changeSinceFirst(bands)?.let { d ->
+    if (d == 0.0) "Same as your first" else "${if (d > 0) "+" else "−"}${fmt(kotlin.math.abs(d))} since your first"
+}
+
+/** Index of the lowest band among those that exist; null unless at least two exist. Ties go to the first. */
+fun weakestSkill(bands: List<Double?>): Int? {
+    val have = bands.withIndex().filter { it.value != null }
+    if (have.size < 2) return null
+    return have.minByOrNull { it.value!! }!!.index
 }
 
 fun minutesLabel(m: Double): String = if (m < 1) "<1 min practised this week" else m.toInt().let { "$it ${if (it == 1) "minute" else "minutes"} practised this week" }

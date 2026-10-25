@@ -72,7 +72,7 @@ struct HomeView: View {
     }
 }
 
-/// Settings tab: settings when signed in, otherwise the way to sign in (plus the one public page, the prompt bank).
+/// Settings tab (the web's More): settings when signed in, otherwise the way to sign in, the public pages (Listening, Reading, the prompt bank) and help.
 struct SettingsTab: View {
     @Environment(APIClient.self) private var api
     var body: some View {
@@ -98,13 +98,19 @@ struct SettingsTab: View {
                     Text("Account")
                 }
                 Section {
+                    NavigationLink(value: Route.lrHub(skill: "listening")) { Label("Listening", systemImage: "headphones") }
+                    NavigationLink(value: Route.lrHub(skill: "reading")) { Label("Reading", systemImage: "book") }
                     NavigationLink(value: Route.bank(skill: "")) { Label("Prompt bank", systemImage: "books.vertical") }
                 } header: {
-                    Text("More")
+                    Text("Practise")
+                } footer: {
+                    Text("Listening and Reading are free, no account needed.")
                 }
+                HelpSection()
             }
             .canvasList()
             .demoScroll()
+            .inAppBrowser()
             .navigationTitle("Settings")
             .task { await api.loadQuota() }
         }

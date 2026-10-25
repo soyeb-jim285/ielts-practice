@@ -195,6 +195,13 @@ private fun LeanChips(rows: List<Repeated>, hint: String, lean: Repeated?, onLea
     }
 }
 
+/** How developed each answer was (Jev), and what a fuller answer adds (web LanguagePanel DEVELOPED). */
+private val developed = mapOf(
+    "none" to ("Not developed" to "Add a reason, then a detail or an example from your own life."),
+    "some" to ("Partly developed" to "Good start. Extend it with an example, a comparison or a consequence."),
+    "full" to ("Well developed" to ""),
+)
+
 @Composable
 private fun Relevance(r: AnalysisResult, scrollTo: Boolean, onScrolled: () -> Unit) {
     val e = MaterialTheme.ext
@@ -205,6 +212,10 @@ private fun Relevance(r: AnalysisResult, scrollTo: Boolean, onScrolled: () -> Un
         if (scrollTo) { delay(150); requester.bringIntoView(); onScrolled() }
     }
     SectionTitle("Did you answer the question?", Modifier.bringIntoViewRequester(requester))
+    if (rel.any { it.development != null }) Text(
+        "IELTS rewards answers you extend with a reason and an example. Each answer is marked for how far you developed it.",
+        style = MaterialTheme.typography.bodySmall, color = e.muted,
+    )
     RowsCard {
         rel.forEachIndexed { i, x ->
             if (i > 0) RowDivider()
@@ -218,7 +229,13 @@ private fun Relevance(r: AnalysisResult, scrollTo: Boolean, onScrolled: () -> Un
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(head, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium), color = e.ink)
                     if (rest.isNotEmpty()) Text(rest, style = MaterialTheme.typography.bodySmall, color = e.muted)
+                    val dev = if (x.onTopic) x.development?.let { developed[it] } else null
+                    if (dev != null) Text(
+                        dev.first, style = MaterialTheme.typography.labelLarge,
+                        color = when (x.development) { "none" -> e.warnText; "full" -> e.goodText; else -> e.ink },
+                    )
                     if (x.note.isNotEmpty()) Text(x.note, style = MaterialTheme.typography.bodySmall, color = e.muted)
+                    if (dev != null && dev.second.isNotEmpty()) Text(dev.second, style = MaterialTheme.typography.bodySmall, color = e.muted)
                 }
             }
         }

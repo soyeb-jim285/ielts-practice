@@ -25,11 +25,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.R
+import com.soyeb.ieltspractice.core.ApiClient
 import com.soyeb.ieltspractice.core.ApiError
 import com.soyeb.ieltspractice.core.AppSettings
 import com.soyeb.ieltspractice.core.Band
@@ -45,6 +47,7 @@ import com.soyeb.ieltspractice.ui.rememberLoad
 import com.soyeb.ieltspractice.ui.screens.shell.AppField
 import com.soyeb.ieltspractice.ui.screens.shell.NavRow
 import com.soyeb.ieltspractice.ui.screens.shell.RowDivider
+import com.soyeb.ieltspractice.ui.screens.shell.Segmented
 import com.soyeb.ieltspractice.ui.theme.AppCard
 import com.soyeb.ieltspractice.ui.theme.ErrorLine
 import com.soyeb.ieltspractice.ui.theme.PrimaryButton
@@ -53,6 +56,8 @@ import com.soyeb.ieltspractice.ui.theme.SectionTitle
 import com.soyeb.ieltspractice.ui.theme.ext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 // Mirrors: iOS Views/SettingsView.swift, SignInGate.swift (SettingsTab), web routes/_app/settings.tsx, components/settings/*
 
@@ -86,6 +91,8 @@ private fun GuestSettings(nav: AppNav) {
         SectionTitle("More")
         NavRow("Prompt bank", null, { nav.go(Bank("")) }, icon = R.drawable.ic_books)
     }
+    AppearanceCard()
+    HelpCard()
 }
 
 @Composable
@@ -149,6 +156,8 @@ private fun SettingsBody(initial: AppSettings, email: String, nav: AppNav) {
         SwitchRow("Block pasting", "Matches the real test, where you type every word.", s.blockPaste) { update(s.copy(blockPaste = it)) }
     }
 
+    AppearanceCard()
+
     AppCard {
         SectionTitle("Account")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -157,6 +166,8 @@ private fun SettingsBody(initial: AppSettings, email: String, nav: AppNav) {
         }
         SecondaryButton("Sign out", { container.scope.launch { api.signOut() } }, Modifier.fillMaxWidth())
     }
+
+    HelpCard()
 
     AppCard {
         SectionTitle("Danger zone")
@@ -226,6 +237,89 @@ private fun DeleteAccountDialog(onClose: () -> Unit) {
                 },
                 enabled = password.isNotEmpty() && !busy,
             ) { Text("Delete forever", color = if (password.isNotEmpty() && !busy) e.badText else e.muted) }
+        },
+    )
+}
+
+/** Web settings "Appearance": light, dark or follow the device, saved on this device (AppContainer.appearance, applied in IeltsApp). */
+@Composable
+private fun AppearanceCard() {
+    val container = LocalApp.current
+    val appearance by container.appearance.collectAsState()
+    AppCard {
+        SectionTitle("Appearance")
+        Text("Light, dark, or follow your device. Saved on this device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.ext.muted)
+        Segmented(listOf("light" to "Light", "system" to "System", "dark" to "Dark"), appearance, container::setAppearance)
+    }
+}
+
+/** Report a problem (web FeedbackDialog) and the legal pages, which open on the website (web settings Account section). */
+@Composable
+private fun HelpCard() {
+    val e = MaterialTheme.ext
+    val uri = LocalUriHandler.current
+    var reporting by remember { mutableStateOf(false) }
+    var sent by remember { mutableStateOf(false) }
+    fun openPage(path: String) { runCatching { uri.openUri(ApiClient.SERVER + path) } } // no browser: nothing to open
+    AppCard {
+        SectionTitle("Help and legal")
+        Column {
+            NavRow("Report a problem", "Tell us what went wrong.", { sent = false; reporting = true }, icon = R.drawable.ic_alert)
+            if (sent) Text("Thanks, we got it.", Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.bodySmall, color = e.goodText)
+            RowDivider()
+            NavRow("Privacy policy", "What we collect, including session recording, and how long we keep it.", { openPage("/privacy") })
+            RowDivider()
+            NavRow("Terms and refunds", "The rules for using the service and getting your money back.", { openPage("/terms") })
+            RowDivider()
+            NavRow("Contact", null, { openPage("/contact") })
+        }
+    }
+    if (reporting) FeedbackDialog(onClose = { reporting = false }, onSent = { reporting = false; sent = true })
+}
+
+private const val FEEDBACK_MAX = 2000
+
+/** POST /api/feedback (no account needed). `page` names the app screen, as the web sends its path. */
+@Composable
+private fun FeedbackDialog(onClose: () -> Unit, onSent: () -> Unit) {
+    val e = MaterialTheme.ext
+    val api = LocalApp.current.api
+    val scope = rememberCoroutineScope()
+    var message by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val canSend = message.isNotBlank() && !busy
+    AlertDialog(
+        onDismissRequest = { if (!busy) onClose() },
+        containerColor = e.surface,
+        title = { Text("Report a problem", style = MaterialTheme.typography.titleLarge, color = e.ink) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Tell us what went wrong. We also get the screen you are on.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+                AppField(message, { message = it.take(FEEDBACK_MAX) }, "What happened?", Modifier.heightIn(min = 140.dp), singleLine = false)
+                Text("${message.length}/$FEEDBACK_MAX", style = MaterialTheme.typography.bodySmall.merge(com.soyeb.ieltspractice.ui.theme.AppText.num), color = e.muted)
+                error?.let { ErrorLine(it) }
+            }
+        },
+        dismissButton = { TextButton(onClose, enabled = !busy) { Text("Cancel", color = e.ink) } },
+        confirmButton = {
+            TextButton(
+                {
+                    busy = true; error = null
+                    scope.launch {
+                        try {
+                            api.raw("POST", "/api/feedback", buildJsonObject { put("message", message.trim()); put("page", "android:settings") })
+                            onSent()
+                        } catch (x: CancellationException) {
+                            throw x
+                        } catch (x: Exception) {
+                            error = if ((x as? ApiError)?.status == 429) "You have sent a few already. Try again in a while." else "Couldn't send that. Try again."
+                        }
+                        busy = false
+                    }
+                },
+                enabled = canSend,
+            ) { Text("Send", color = if (canSend) e.brand else e.muted) }
         },
     )
 }

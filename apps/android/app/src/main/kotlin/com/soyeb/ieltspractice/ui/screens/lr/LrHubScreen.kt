@@ -217,6 +217,7 @@ private fun ModeSheet(t: LrTestItem, nav: AppNav, onClose: () -> Unit) {
         busy = true; error = null
         scope.launch {
             try {
+                api.ensureSession() // a signed-out visitor gets a guest session on the first test start, like Speaking and Writing
                 // fresh: an unfinished attempt of this test is discarded (the user chose Start new)
                 val a = api.send<LrAttempt>("POST", "/api/lr/tests/${t.id}/attempts", buildJsonObject {
                     put("mode", mode)

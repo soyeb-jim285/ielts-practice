@@ -94,6 +94,22 @@ func resWasAnswered(_ r: AnalysisResult, _ i: Int) -> Bool {
     return q.startWord >= 0 && q.startWord < (r.words?.count ?? 0) && (next == nil || (next?.startWord ?? 0) > q.startWord)
 }
 
+/// " Off-topic speech can’t count as evidence, so your band is about 1.0 lower." (web Overview), or "" with no penalty.
+func resOffTopicPenaltyText(_ penalty: Double?) -> String {
+    guard let p = penalty, p > 0 else { return "" }
+    return " Off-topic speech can’t count as evidence, so your band is about \(fmt(max(0.5, (p * 2).rounded() / 2))) lower."
+}
+
+/// How developed an on-topic answer was (web LanguagePanel DEVELOPED): label, tone, and what a fuller answer adds ("" when full).
+func resDevelopment(_ d: String?) -> (label: String, tone: Color, tip: String)? {
+    switch d {
+    case "none": return ("Not developed", Color.warnText, "Add a reason, then a detail or an example from your own life.")
+    case "some": return ("Partly developed", Color.ink, "Good start. Extend it with an example, a comparison or a consequence.")
+    case "full": return ("Well developed", Color.goodText, "")
+    default: return nil
+    }
+}
+
 func resAnsweredRelevance(_ r: AnalysisResult) -> [AnalysisResult.Relevance] {
     (r.relevance ?? []).filter { resWasAnswered(r, $0.questionIdx) }
 }
@@ -679,6 +695,9 @@ struct AttemptResultView: View {
     // Demo screenshots: "Transcript+Lean" opens that tab with the top repeated word highlighted.
     @State private var tab = (Demo.arg("tab") ?? "Overview").replacingOccurrences(of: "+Lean", with: "")
     @State private var player = Player()
+    /// Live parts can also play the whole conversation with the examiner; the word-synced bar stays on the candidate-only recording.
+    @State private var conversation = Player()
+    @State private var listen = "answers"
     @State private var selectedError: AnalysisError?
     @State private var toast: String?
     @State private var parentText: String?
@@ -698,13 +717,17 @@ struct AttemptResultView: View {
     private var timeline: Timeline { attempt.analysis.map { Timeline($0) } ?? .empty }
 
     private var speaking: Bool { attempt.skill == "speaking" }
-    private var tabs: [String] { speaking ? ["Overview", "Transcript", "Fluency", "Language", "Improve"] : ["Overview", "Essay", "Structure", "Language", "Improve"] }
+    private var tabs: [String] {
+        guard speaking else { return ["Overview", "Essay", "Structure", "Language", "Improve"] }
+        // Pronunciation only when the phoneme model ran on this recording (web result.$attemptId tabs).
+        return ["Overview", "Transcript", "Fluency", "Language"] + (attempt.analysis?.pronunciation?.audio != nil ? ["Pronunciation"] : []) + ["Improve"]
+    }
     private var current: String { tabs.contains(tab) ? tab : "Overview" }
     private var target: Double { api.me?.settings.targetBand ?? 7 }
     private var order: [String] { Crit.order(attempt.skill) }
 
     private var showAudio: Bool {
-        speaking && player.isLoaded && attempt.status == "done" && ["Transcript", "Fluency", "Language"].contains(current)
+        speaking && player.isLoaded && attempt.status == "done" && ["Transcript", "Fluency", "Language", "Pronunciation"].contains(current)
     }
 
     var body: some View {
@@ -730,7 +753,23 @@ struct AttemptResultView: View {
         }
         .background(.canvas)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if showAudio { ResAudioBar(player: player, timeline: timeline, focus: $focus).padding(.horizontal, 16).padding(.bottom, 8) }
+            if showAudio {
+                VStack(spacing: 6) {
+                    if attempt.conversationUrl != nil {
+                        Picker("Recording", selection: $listen) {
+                            Text("Your answers").tag("answers")
+                            Text("With the examiner").tag("conversation")
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    if listen == "conversation" && conversation.isLoaded {
+                        ResAudioBar(player: conversation, focus: $focus)
+                    } else {
+                        ResAudioBar(player: player, timeline: timeline, focus: $focus)
+                    }
+                }
+                .padding(.horizontal, 16).padding(.bottom, 8)
+            }
         }
         .task(id: attempt.audioUrl) {
             guard speaking, let u = attempt.audioUrl, !player.isLoaded else { return }
@@ -741,7 +780,13 @@ struct AttemptResultView: View {
             parentText = p.answerText
         }
         .onAppear { if lean == nil { lean = demoLean } }
-        .onDisappear { player.stop() }
+        .onChange(of: listen) { _, l in
+            // one recording plays at a time; the conversation is fetched the first time it is picked
+            if l == "conversation" { player.pause() } else { conversation.pause() }
+            guard l == "conversation", !conversation.isLoaded, let u = attempt.conversationUrl else { return }
+            Task { if let d = try? await api.download(u) { try? conversation.load(d) } else { listen = "answers" } }
+        }
+        .onDisappear { player.stop(); conversation.stop() }
         .sheet(item: $selectedError) { e in
             ErrorSheet(error: e, onPlay: sheetPlay(e))
                 .presentationDetents([.medium, .large])
@@ -1025,6 +1070,8 @@ struct AttemptResultView: View {
                 lean = w
                 if w != nil { tab = speaking ? "Transcript" : "Essay" }
             }
+            case "Pronunciation":
+                if let a = r.pronunciation?.audio { PronunciationPanel(pron: a, player: player) }
             case "Improve": improve(r)
             default: overview(r)
             }
@@ -1037,7 +1084,7 @@ struct AttemptResultView: View {
         let s = resScore(r)
         if speaking, let off = resOffTopic(r) {
             ResAlert(tone: .bad, title: "Off topic",
-                     message: "\(off.total > 1 ? "\(off.off) of \(off.total) answers didn’t" : "Your answer didn’t") address the question.",
+                     message: "\(off.total > 1 ? "\(off.off) of \(off.total) answers didn’t" : "Your answer didn’t") address the question." + resOffTopicPenaltyText(r.offTopicPenalty),
                      action: AnyView(Button("See details in Language") { openRelevance() }.buttonStyle(.plain).foregroundStyle(.brand).frame(minHeight: 44)))
         }
         if !speaking { writingAlert(r, s) }
@@ -1124,7 +1171,7 @@ struct AttemptResultView: View {
                                        description: Text("Write a full-length answer to get a band-higher version to compare against."))
             }
         } else if speaking {
-            SectionTitle("Your answer, one band higher")
+            SectionTitle("Your answer at Band 9")
             Text(r.rewrite.text).font(.system(.body, design: .serif)).lineSpacing(4).textSelection(.enabled).card()
             if !r.rewrite.note.isEmpty { ResAlert(tone: .info, message: r.rewrite.note) }
         } else {
@@ -1884,6 +1931,9 @@ struct LanguageView: View {
         let rel = resAnsweredRelevance(result)
         if !rel.isEmpty {
             SectionTitle("Did you answer the question?").id("relevance")
+            if rel.contains(where: { $0.development != nil }) {
+                Text("IELTS rewards answers you extend with a reason and an example. Each answer is marked for how far you developed it.").font(.footnote).foregroundStyle(.muted)
+            }
             VStack(spacing: 0) {
                 ForEach(Array(rel.enumerated()), id: \.offset) { i, r in
                     if i > 0 { Divider() }
@@ -1895,7 +1945,13 @@ struct LanguageView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(q.head).font(.body.weight(.medium))
                             if !q.rest.isEmpty { Text(q.rest).font(.caption).foregroundStyle(.muted) }
+                            if r.onTopic, let d = resDevelopment(r.development) {
+                                Text(d.label).font(.footnote.weight(.semibold)).foregroundStyle(d.tone)
+                            }
                             if !r.note.isEmpty { Text(r.note).font(.footnote).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true) }
+                            if r.onTopic, let d = resDevelopment(r.development), !d.tip.isEmpty {
+                                Text(d.tip).font(.footnote).foregroundStyle(.ink).fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

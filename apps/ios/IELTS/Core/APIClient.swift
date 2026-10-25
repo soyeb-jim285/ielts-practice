@@ -235,11 +235,6 @@ final class APIClient {
         signOutLocal()
     }
 
-    func deleteAccount() async throws {
-        try await raw("POST", "/api/auth/delete-user", [String: String]())
-        signOutLocal()
-    }
-
     func signOutLocal() {
         token = nil
         me = nil

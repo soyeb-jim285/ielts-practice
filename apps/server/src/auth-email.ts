@@ -31,21 +31,27 @@ const sends = new Set<Promise<unknown>>();
 /** Resolves when every background send has finished (tests; also lets a shutdown drain). */
 export const sendsIdle = () => Promise.all([...sends]);
 
-/** Better Auth's code hook. Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
- *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
- *  Never throws; GET /api/auth-email/status is how the user learns the outcome. */
+/** Better Auth's code hook (see claimAndSend). */
 export async function sendOtpEmail({ email: raw, otp, type }: { email: string; otp: string; type: string }) {
   if (!isPurpose(type)) return; // sign-in codes are not offered: passwords only
-  const email = raw.toLowerCase();
-  const id = await claim(email, type, null); // same work as an unknown address's stand-in claim (finishRequest): no user lookup before the response
-  if (!id) return;
   const mail = MAIL[type];
+  await claimAndSend(raw, type, mail.subject, `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`);
+}
+
+/** Sign-up with the address of a verified account: Better Auth answers it like a new sign-up and sends nothing, so the person waits for a code that never comes.
+ *  This tells them instead, under the same cooldown row a code would take (the status endpoint reads it as sent, as for any sign-up). */
+export const sendAccountExistsEmail = (email: string) =>
+  claimAndSend(email, 'email-verification', 'You already have a NextBand account', `<p>Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.</p><p>Sign in with your password, or use "Forgot password?" on the sign-in screen to get a reset code. If this wasn't you, you can ignore this email.</p>`);
+
+/** Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
+ *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
+ *  Never throws; GET /api/auth-email/status is how the user learns the outcome. */
+async function claimAndSend(raw: string, purpose: Purpose, subject: string, html: string) {
+  const email = raw.toLowerCase();
+  const id = await claim(email, purpose, null); // same work as an unknown address's stand-in claim (finishRequest): no user lookup before the response
+  if (!id) return;
   const p = (async () => {
-    const r = await sendEmail({
-      to: email,
-      subject: mail.subject,
-      html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
-    });
+    const r = await sendEmail({ to: email, subject, html });
     const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
     await db.update(emailLog).set({ userId: u?.id ?? null, ...(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }) }).where(eq(emailLog.id, id));
   })().catch((e) => console.error('[email] send/log failed', e instanceof Error ? e.message : e));

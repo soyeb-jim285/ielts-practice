@@ -32,4 +32,26 @@ final class AuthTests: XCTestCase {
         XCTAssertTrue(failed.failed)
         XCTAssertEqual(AuthText.statusLine(nil).text, "Sending the code…")
     }
+
+    func testAuthCheckSaysWhyTheFormCantGo() {
+        XCTAssertEqual(AuthCheck.email(""), "Enter your email address.")
+        XCTAssertNotNil(AuthCheck.email("name@example"))
+        XCTAssertNotNil(AuthCheck.email("@example.com"))
+        XCTAssertNotNil(AuthCheck.email("a b@example.com"))
+        XCTAssertNil(AuthCheck.email(" name@example.com "))
+        XCTAssertEqual(AuthCheck.newPassword("short"), "Use at least 8 characters. This one has 5.")
+        XCTAssertNil(AuthCheck.newPassword("12345678"))
+        XCTAssertNotNil(AuthCheck.newPassword(String(repeating: "x", count: 129)))
+        XCTAssertEqual(AuthCheck.confirm("12345678", "12345679"), "The two passwords don't match.")
+        XCTAssertNil(AuthCheck.confirm("", ""))
+
+        let signIn = AuthCheck.problems(signUp: false, name: "", email: "me@example.com", password: "", confirm: "")
+        XCTAssertEqual(signIn, [.password: "Enter your password."]) // sign-in never asks for a name or the 8-character rule
+        XCTAssertTrue(AuthCheck.problems(signUp: false, name: "", email: "me@example.com", password: "x", confirm: "").isEmpty)
+        let signUp = AuthCheck.problems(signUp: true, name: " ", email: "me@example.com", password: "1234567", confirm: "1234567")
+        XCTAssertEqual(Set(signUp.keys), [.name, .password])
+        XCTAssertTrue(AuthCheck.problems(signUp: true, name: "Mina", email: "me@example.com", password: "12345678", confirm: "12345678").isEmpty)
+        XCTAssertTrue(AuthCheck.passwordHint("12345678").met)
+        XCTAssertFalse(AuthCheck.passwordHint("1234").met)
+    }
 }

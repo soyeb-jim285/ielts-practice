@@ -1,7 +1,9 @@
 package com.soyeb.ieltspractice.ui.screens.lr
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +56,9 @@ import com.soyeb.ieltspractice.LocalApp
 import com.soyeb.ieltspractice.LocalDemo
 import com.soyeb.ieltspractice.core.Accuracy
 import com.soyeb.ieltspractice.core.LrAttempt
+import com.soyeb.ieltspractice.core.LrCause
+import com.soyeb.ieltspractice.core.causeTrend
+import com.soyeb.ieltspractice.core.slipCount
 import com.soyeb.ieltspractice.core.partsLabel
 import com.soyeb.ieltspractice.core.readingSeconds
 import com.soyeb.ieltspractice.core.LrMark
@@ -153,6 +159,36 @@ private fun AccuracyList(rows: List<Accuracy>) {
     }
 }
 
+/** Lost marks by cause, largest first: label, count of the wrong answers with a bar, what it means, and a chip per question that opens it. */
+@Composable
+private fun CauseList(causes: List<LrCause>, wrong: Int, onOpen: (Int) -> Unit) {
+    val e = MaterialTheme.ext
+    AppCard(padding = 0.dp) {
+        causes.forEachIndexed { i, c ->
+            if (i > 0) HorizontalDivider(color = e.line)
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row {
+                    Text(c.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = e.ink, fontWeight = FontWeight.Medium)
+                    Text("${c.questions.size}", style = MaterialTheme.typography.titleSmall.merge(AppText.num), color = e.ink)
+                }
+                BandBar(if (wrong > 0) c.questions.size.toDouble() / wrong else 0.0, "${c.label}: ${c.questions.size} of $wrong lost marks", fill = e.warn, height = 6.dp)
+                if (c.message.isNotBlank()) Text(c.message, style = MaterialTheme.typography.bodySmall, color = e.muted)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    c.questions.forEach { n ->
+                        Box(
+                            Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).clickable(role = Role.Button, onClickLabel = "see why") { onOpen(n) }
+                                .semantics { contentDescription = "Question $n: see why" },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("$n", Modifier.border(1.dp, e.line, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge.merge(AppText.num), color = e.brand)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun Results(a: LrAttempt, nav: AppNav) {
     val e = MaterialTheme.ext
@@ -188,6 +224,7 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     var scrollKey by remember { mutableIntStateOf(if (demoSel != null) 1 else 0) }
     var cue by remember { mutableStateOf<Pair<Int, AudioCue>?>(null) }
     var cueId by remember { mutableIntStateOf(0) }
+    var paceOpen by remember { mutableIntStateOf(0) }
     var dict by remember { mutableStateOf(if (demoScreen == "lr-dictation") demoSel else null) }
     val tabsReq = remember { BringIntoViewRequester() }
     val paceReq = remember { BringIntoViewRequester() }
@@ -209,14 +246,16 @@ private fun Results(a: LrAttempt, nav: AppNav) {
     val byType = accuracyBy(test, a.marks ?: emptyList()) { typeLabel(it.group) }
     val wrongCount = flat.count { marks[it.n]?.correct != true }
     val blank = flat.filter { marks[it.n]?.given.isNullOrEmpty() }.map { it.n }
-    val slips = (a.analysis?.gaps ?: emptyList()).count { it.kind == "spelling" || it.kind == "plural" }
+    val causes = a.analysis?.causes.orEmpty()
+    val slips = a.analysis.slipCount()
+    val trend = causeTrend(test.skill, (insights.state as? Load.Ready)?.value?.causes.orEmpty())
     val weak = byType.filter { it.total >= 3 && it.right < it.total }.minByOrNull { it.right.toDouble() / it.total }
+    // two plain sentences at most, each with the place that explains it; the weakest type leads "Where you lost marks" instead
     val takeaways = listOfNotNull(
-        weak?.let { "Weakest: ${it.label.lowercase()}, ${it.right} of ${it.total} right." },
-        if (slips > 0) "$slips ${if (slips == 1) "answer was" else "answers were"} the right word with a spelling or plural slip." else null,
-        if (blank.isNotEmpty()) "${blank.size} left blank. There is no penalty for guessing." else null,
-        if (wrongCount == 0) "Every answer was correct." else null,
-    ).take(3)
+        if (wrongCount == 0) "Every answer was correct." to null else null,
+        if (slips > 0) "$slips ${if (slips == 1) "answer had" else "answers had"} the right idea but lost the mark on spelling, wording or the box." to "See ${if (slips == 1) "it" else "them"}" else null,
+        if (blank.isNotEmpty()) "${blank.size} left blank." to "See which" else null,
+    ).take(2)
 
     fun go(t: String) { tab = t; scope.launch { delay(60); runCatching { tabsReq.bringIntoView() } } }
     fun focus(n: Int) {
@@ -298,11 +337,19 @@ private fun Results(a: LrAttempt, nav: AppNav) {
                 )
             }
         }
-        if (takeaways.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            takeaways.forEach { t ->
+        if (takeaways.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Worth a second look", Modifier.semantics { heading() }, style = MaterialTheme.typography.titleSmall, color = e.ink)
+            takeaways.forEach { (t, link) ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.padding(top = 9.dp).size(6.dp).background(e.brand, CircleShape))
-                    Text(t, style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                    Column {
+                        Text(t, style = MaterialTheme.typography.bodyMedium, color = e.ink)
+                        if (link != null) LinkButton(link, {
+                            // blanks: the pacing panel shows which were left (when the runner measured it); everything else opens the mistakes
+                            if (link == "See which" && a.stats != null) { tab = "summary"; paceOpen++; scope.launch { delay(120); runCatching { paceReq.bringIntoView() } } }
+                            else { wrongOnly = true; go("answers") }
+                        })
+                    }
                 }
             }
         }
@@ -319,16 +366,20 @@ private fun Results(a: LrAttempt, nav: AppNav) {
 
     when (tab) {
         "summary" -> {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle("Where you lost marks")
+            if (causes.isNotEmpty()) {
+                SectionTitle("Why you lost marks")
+                Text(trend ?: "Every wrong or blank answer, grouped by what went wrong. Tap a number to see that answer.", style = MaterialTheme.typography.bodyMedium, color = e.muted)
+                CauseList(causes, wrongCount) { n -> wrongOnly = true; selected = n; go("answers") }
             }
+            SectionTitle("Where you lost marks")
+            weak?.let { Text("Weakest: ${it.label.lowercase()}, ${it.right} of ${it.total} right.", style = MaterialTheme.typography.bodyMedium, color = e.muted) }
             Segmented(listOf("type" to "Question type", "part" to noun), by, { by = it })
             AccuracyList(if (by == "type") byType else byPart)
             val st = a.stats
             if (st != null && (st.partS.values.sum() >= 5 || st.changes.isNotEmpty())) Column(Modifier.bringIntoViewRequester(paceReq)) {
-                Disclose("How you used your time", "Minutes per ${noun.lowercase()}, answers you changed, last-minute answers", initiallyOpen = demoScreen == "lr-result-pacing") {
+                androidx.compose.runtime.key(paceOpen) { Disclose("How you used your time", "Minutes per ${noun.lowercase()}, answers you changed, last-minute answers", initiallyOpen = demoScreen == "lr-result-pacing" || paceOpen > 0) {
                     PacingPanel(st, test.sections.map { s -> s.part to s.groups.flatMap { g -> g.questions.map { q -> q.n } } }, noun, if (listening) null else readingSeconds(a.parts).toDouble(), marks, blank)
-                }
+                } }
             }
             val tfng = a.analysis?.tfng.orEmpty()
             if (tfng.any { it.kind == "tfng" || it.kind == "ynng" }) Disclose("True / False / Not Given", "Which statements you mix up, and the rule for each") {

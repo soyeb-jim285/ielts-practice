@@ -87,6 +87,7 @@ import com.soyeb.ieltspractice.core.minWords
 import com.soyeb.ieltspractice.core.notAssessed
 import com.soyeb.ieltspractice.ui.community.RefundNote
 import com.soyeb.ieltspractice.core.offTopic
+import com.soyeb.ieltspractice.core.offTopicPenaltyText
 import com.soyeb.ieltspractice.core.pronUnsupported
 import com.soyeb.ieltspractice.core.repeatedWords
 import com.soyeb.ieltspractice.core.resScore
@@ -144,10 +145,11 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
     val target = me?.settings?.targetBand ?: 7.0
 
     val speaking = attempt.skill == "speaking"
-    val tabs = if (speaking) listOf("Overview", "Transcript", "Fluency", "Language", "Improve") else listOf("Overview", "Essay", "Structure", "Language", "Improve")
+    val result = attempt.analysis
+    val pron = result?.pronunciation?.audio
+    val tabs = if (speaking) listOfNotNull("Overview", "Transcript", "Fluency", "Language", if (pron != null) "Pronunciation" else null, "Improve") else listOf("Overview", "Essay", "Structure", "Language", "Improve")
     var tab by rememberSaveable { mutableStateOf(demoView?.tab ?: "Overview") }
     val current = if (tab in tabs) tab else "Overview"
-    val result = attempt.analysis
     val timeline = remember(result) { result?.let { Timeline.of(it) } ?: Timeline.Empty }
     var focus by remember { mutableStateOf<String?>(null) }
     // The "Words you leaned on" entry whose every use is highlighted in the transcript or essay.
@@ -171,6 +173,14 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
         val url = attempt.audioUrl
         if (speaking && url != null && demo == null) { player.load(context, url); player.poll() }
     }
+    // Live examiner: "Your answers" (the scored recording) or "With the examiner" (the conversation, for playback only)
+    var listen by rememberSaveable { mutableStateOf(0) }
+    val conversation = remember(attempt.id) { ResultPlayer() }
+    DisposableEffect(conversation) { onDispose { conversation.release() } }
+    LaunchedEffect(listen, attempt.conversationUrl) {
+        val url = attempt.conversationUrl
+        if (listen == 1 && url != null && demo == null) { conversation.load(context, url); conversation.poll() }
+    }
     LaunchedEffect(attempt.parentAttemptId) {
         val id = attempt.parentAttemptId ?: return@LaunchedEffect
         parentText = runCatching { api.get<Attempt>("/api/attempts/$id") }.getOrNull()?.answerText
@@ -185,7 +195,7 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
         }
     }
 
-    val showAudio = speaking && player.isLoaded && attempt.status == "done" && current in listOf("Transcript", "Fluency", "Language")
+    val showAudio = speaking && player.isLoaded && attempt.status == "done" && current in listOf("Transcript", "Fluency", "Language", "Pronunciation")
     fun openRelevance() { scrollToRelevance = true; tab = "Language" }
     fun playFor(err: AnalysisError): (() -> Unit)? {
         val t = err.time ?: return null
@@ -260,7 +270,11 @@ fun AttemptResultView(attempt: Attempt, stage: String?, retryable: Boolean, nav:
                 }
             }
         }
-        if (showAudio) ResAudioBar(player, timeline, focus, { focus = it }, Modifier.padding(bottom = 8.dp))
+        if (showAudio) {
+            if (attempt.conversationUrl != null) Segmented(listOf("Your answers", "With the examiner"), listen, { i -> if (i == 1) player.pause() else conversation.pause(); listen = i }, Modifier.padding(bottom = 4.dp))
+            if (listen == 1 && attempt.conversationUrl != null) ResAudioBar(conversation, Timeline.Empty, null, {}, Modifier.padding(bottom = 8.dp))
+            else ResAudioBar(player, timeline, focus, { focus = it }, Modifier.padding(bottom = 8.dp))
+        }
     }
 
     if (demo == null) selectedError?.let { err ->
@@ -383,6 +397,7 @@ private fun Panel(
             }
             "Structure" -> r.structure?.let { StructurePanel(it) } ?: ResUnavailable("No structure analysis", "The answer was too short to map its paragraphs.")
             "Language" -> LanguagePanel(r, player, scrollToRelevance, onScrolled, lean, onLean)
+            "Pronunciation" -> r.pronunciation?.audio?.let { PronunciationPanel(it, player) }
             "Improve" -> Improve(r, attempt, speaking, parentText, addedFixes, nav, retryLabel, retryRoute, onAddFixes)
             else -> Overview(r, attempt, speaking, target, openRelevance, nav)
         }
@@ -400,7 +415,7 @@ private fun Overview(r: AnalysisResult, attempt: Attempt, speaking: Boolean, tar
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (off != null) {
             ResAlert(
-                AlertTone.Bad, "${if (off.second > 1) "${off.first} of ${off.second} answers didn’t" else "Your answer didn’t"} address the question.",
+                AlertTone.Bad, "${if (off.second > 1) "${off.first} of ${off.second} answers didn’t" else "Your answer didn’t"} address the question.${offTopicPenaltyText(r)}",
                 title = "Off topic", action = { LinkButton("See details in Language", openRelevance) },
             )
         }
@@ -557,7 +572,7 @@ private fun Improve(
         if (r.rewrite.text.isEmpty()) {
             if (!speaking) ResUnavailable("No rewrite for this answer", "Write a full-length answer to get a band-higher version to compare against.")
         } else if (speaking) {
-            SectionTitle("Your answer, one band higher")
+            SectionTitle("Your answer at Band 9")
             AppCard { SelectionContainer { Text(r.rewrite.text, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = AppText.reading.fontFamily, lineHeight = 26.sp), color = e.ink) } }
             if (r.rewrite.note.isNotEmpty()) ResAlert(AlertTone.Info, r.rewrite.note)
         } else {

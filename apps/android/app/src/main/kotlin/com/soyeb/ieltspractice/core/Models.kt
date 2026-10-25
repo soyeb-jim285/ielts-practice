@@ -123,6 +123,8 @@ import kotlinx.serialization.json.doubleOrNull
     val sessionId: String? = null,
     val parentAttemptId: String? = null,
     val audioUrl: String? = null,
+    /** Live examiner: the whole conversation (candidate mixed with the examiner), for playback. */
+    val conversationUrl: String? = null,
     val text: String? = null,
     val plan: String? = null,
     val durationMs: Int? = null,
@@ -239,8 +241,19 @@ import kotlinx.serialization.json.doubleOrNull
 
 @Serializable data class Rewrite(val text: String, val note: String)
 @Serializable data class AnalysisQuestion(val text: String, val startWord: Int)
-@Serializable data class Pronunciation(val unclear: List<Unclear>, val llm: PronunciationLlm? = null)
-@Serializable data class Relevance(val questionIdx: Int, val onTopic: Boolean, val note: String)
+@Serializable data class Pronunciation(val unclear: List<Unclear>, val llm: PronunciationLlm? = null, val audio: PronunciationAudio? = null)
+/** Phoneme-model findings (server PronunciationAudio): accuracy 0-100, the words to practise worst first, sound swaps made more than once. */
+@Serializable data class PronunciationAudio(
+    val accuracy: Double? = null,
+    val words: List<PronAudioWord> = emptyList(),
+    val confusions: List<PronConfusion> = emptyList(),
+    val wordsPerMinute: Double? = null,
+)
+/** accent: us | gb | null (the one the model found closer). */
+@Serializable data class PronAudioWord(val word: String, val score: Double = 0.0, val accent: String? = null, val start: Double, val end: Double, val phones: List<PronPhone> = emptyList())
+@Serializable data class PronPhone(val expected: String, val heard: String, val ok: Boolean)
+@Serializable data class PronConfusion(val expected: String, val heard: String, val count: Int)
+@Serializable data class Relevance(val questionIdx: Int, val onTopic: Boolean, val note: String, /** none | some | full; absent on older analyses */ val development: String? = null)
 @Serializable data class Comparison(val parentAttemptId: String, val parentOverall: Double, val deltas: Map<String, Double>)
 
 @Serializable data class AnalysisResult(
@@ -261,6 +274,8 @@ import kotlinx.serialization.json.doubleOrNull
     val questions: List<AnalysisQuestion>? = null,
     val pronunciation: Pronunciation? = null,
     val relevance: List<Relevance>? = null,
+    /** Speaking: bands taken off because some answers did not address the question. */
+    val offTopicPenalty: Double? = null,
     val noSpeech: Boolean? = null,
     // writing
     val text: String? = null,
@@ -304,7 +319,7 @@ object DisfluencyKinds {
 // MARK: - Progress, cards, live
 
 @Serializable data class TrendPoint(val date: String, val overall: Double, val criteria: Map<String, Double>)
-@Serializable data class Weakest(val key: String, val avg: Double)
+@Serializable data class Weakest(val key: String, val avg: Double, /** speaking | writing: where it was judged (lr / gra exist in both) */ val skill: String? = null)
 @Serializable data class CategoryCount(val category: String, val count: Int)
 @Serializable data class Predicted(val speaking: Double? = null, val writing: Double? = null)
 

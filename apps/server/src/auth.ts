@@ -7,7 +7,7 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
-import { sendOtpEmail } from './auth-email';
+import { sendAccountExistsEmail, sendOtpEmail } from './auth-email';
 import { sendEmail } from './email';
 import { ApiError } from './errors';
 import { linkGuest } from './link';
@@ -45,6 +45,12 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: env.NODE_ENV === 'production',
     revokeSessionsOnPasswordReset: true,
+    // Sign-up with an existing address gets a generic success and no email (anti-enumeration), which left people waiting for a code (mobile apps, 2026-10).
+    // Unverified: send the verification code again. Verified: say the account exists. Either way the response is unchanged.
+    onExistingUserSignUp: async ({ user }) => {
+      if (user.emailVerified) await sendAccountExistsEmail(user.email);
+      else await auth.api.sendVerificationOTP({ body: { email: user.email, type: 'email-verification' } });
+    },
     sendResetPassword: async ({ user, url: api }, request) => {
       const url = webLink(api, request);
       await sendEmail({ to: user.email, subject: 'Reset your NextBand password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });

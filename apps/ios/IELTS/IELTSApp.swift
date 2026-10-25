@@ -135,7 +135,7 @@ struct MainTabs: View {
             NavigationStack { SignInGate(icon: "rectangle.on.rectangle.angled", title: "Your review deck", reason: "Sign in to turn your corrections into flashcards.") { ReviewView() }.appRoutes() }
                 .tabItem { Label("Review", systemImage: "rectangle.on.rectangle.angled") }.tag(3)
             NavigationStack { SettingsTab().appRoutes() }
-                .tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
+                .tabItem { Label("More", systemImage: "ellipsis.circle") }.tag(4) // web's More: Listening, Reading, bank, history, settings
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.soyeb.ieltspractice.core
 
+import com.soyeb.ieltspractice.ui.screens.result.parseDictionary
+import com.soyeb.ieltspractice.ui.screens.result.pronTip
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -128,5 +130,29 @@ class ResultLogicTest {
         val r = attempt("as1").analysis!!
         assertTrue(answeredRelevance(r).size <= r.relevance.orEmpty().size)
         assertTrue(wasAnswered(r, 99)) // unknown boundaries count as answered
+    }
+
+    @Test fun speakingPronunciationAndRelevance() {
+        val a = attempt("as1")
+        val r = a.analysis!!.copy(offTopicPenalty = 0.8)
+        assertEquals(" Off-topic speech can’t count as evidence, so your band is about 1.0 lower.", offTopicPenaltyText(r))
+        assertEquals(" Off-topic speech can’t count as evidence, so your band is about 0.5 lower.", offTopicPenaltyText(r.copy(offTopicPenalty = 0.1)))
+        assertEquals("", offTopicPenaltyText(r.copy(offTopicPenalty = null)))
+        val json = """{"unclear":[],"audio":{"accuracy":82.4,"words":[{"word":"three","score":40,"accent":"gb","start":1.2,"end":1.6,"phones":[{"expected":"θ","heard":"t","ok":false},{"expected":"ɹ","heard":"ɹ","ok":true}]}],"confusions":[{"expected":"θ","heard":"t","count":3}],"wordsPerMinute":null}}"""
+        val p = AppJson.decodeFromString(Pronunciation.serializer(), json).audio!!
+        assertEquals("three", p.words[0].word)
+        assertEquals(pronTip(p.words[0])?.startsWith("Put your tongue"), true)
+        assertEquals("some", AppJson.decodeFromString(Relevance.serializer(), """{"questionIdx":0,"onTopic":true,"note":"","development":"some"}""").development)
+    }
+
+    @Test fun dictionaryLookupParsing() {
+        val parse = ::parseDictionary
+        val d = parse("""[{"phonetic":"/θɹiː/","phonetics":[{"text":"/θɹiː/","audio":""},{"audio":"https://x/three-uk.mp3"},{"audio":"https://x/three-us.mp3"}]}]""")
+        assertEquals("https://x/three-uk.mp3", d.uk)
+        assertEquals("https://x/three-us.mp3", d.us)
+        assertEquals("/θɹiː/", d.ipa)
+        // only an unlabelled recording: it plays as US
+        assertEquals("https://x/a.mp3", parse("""[{"phonetics":[{"text":"/a/","audio":"https://x/a.mp3"}]}]""").us)
+        assertNull(parse("""{"title":"No Definitions Found"}""").uk)
     }
 }

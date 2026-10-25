@@ -276,7 +276,7 @@ struct CommunitySection: View {
         } header: {
             Text("Your tests")
         } footer: {
-            Text(api.quota?.tier == "guest" ? "Guests get 1 speaking and 1 writing test a week. Create an account for 1 of each a day."
+            Text(api.quota?.tier == "guest" ? "Try speaking and writing tests as a guest. Create a free account for more tests. Listening and Reading are free."
                  : api.quota?.tier == "unlimited" ? "Your account has no test limits."
                  : "Your plan sets how many tests you can take. Please practise fairly.")
         }

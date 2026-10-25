@@ -18,6 +18,7 @@ struct LrResultView: View {
     @State private var selected: Int?
     @State private var dictOpen = false
     @State private var tfngPattern: String?
+    @State private var causeTrend: String?
     @State private var busy = false
     @State private var removing: RemovalTarget?
     @State private var removeFailed = false
@@ -137,7 +138,7 @@ struct LrResultView: View {
         .sheet(isPresented: $dictOpen) {
             if let f = sel, let ss = selSection { LrDictationSheet(q: f.q, section: ss, url: Lr.assetURL(attempt.assets[ss.audio ?? ""])) }
         }
-        .task { if let p: LrProgress = try? await api.get("/api/lr/progress") { tfngPattern = p.tfng.pattern?.text } }
+        .task { if let p: LrProgress = try? await api.get("/api/lr/progress") { tfngPattern = p.tfng.pattern?.text; causeTrend = p.causeTrend(test.skill) } }
         .onAppear {
             if wrongCount == 0 { wrongOnly = false }
             switch Demo.screen {
@@ -168,16 +169,18 @@ struct LrResultView: View {
         }
     }
 
-    /// Two or three plain sentences about what to fix first.
+    private var causes: [LrCause] { attempt.analysis?.causes ?? [] }
+    /// Two plain sentences at most (web Results takeaways). The weakest type leads "Where you lost marks" instead.
     private var takeaways: [String] {
-        let weak = byType.filter { $0.total >= 3 && $0.right < $0.total }.min { Double($0.right) / Double($0.total) < Double($1.right) / Double($1.total) }
-        let slips = (attempt.analysis?.gaps ?? []).filter { $0.kind == "spelling" || $0.kind == "plural" }.count
+        let slips = causes.first { $0.family == "slip" }?.questions.count ?? (attempt.analysis?.gaps ?? []).filter { $0.kind == "spelling" || $0.kind == "plural" }.count
         var out: [String] = []
-        if let w = weak { out.append("Weakest: \(w.label.lowercased()), \(w.right) of \(w.total) right.") }
-        if slips > 0 { out.append("\(slips) \(slips == 1 ? "answer was" : "answers were") the right word with a spelling or plural slip.") }
-        if !blankNs.isEmpty { out.append("\(blankNs.count) left blank. There is no penalty for guessing.") }
         if wrongCount == 0 { out.append("Every answer was correct.") }
-        return Array(out.prefix(3))
+        if slips > 0 { out.append("\(slips) \(slips == 1 ? "answer had" : "answers had") the right idea but lost the mark on spelling, wording or the box.") }
+        if !blankNs.isEmpty { out.append("\(blankNs.count) left blank.") }
+        return Array(out.prefix(2))
+    }
+    private var weakest: (label: String, right: Int, total: Int)? {
+        byType.filter { $0.total >= 3 && $0.right < $0.total }.min { Double($0.right) / Double($0.total) < Double($1.right) / Double($1.total) }
     }
 
     private var hero: some View {
@@ -230,8 +233,10 @@ struct LrResultView: View {
 
     private var summary: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if !causes.isEmpty { causesList }
             VStack(alignment: .leading, spacing: 12) {
                 SectionTitle("Where you lost marks")
+                if let w = weakest { Text("Weakest: \(w.label.lowercased()), \(w.right) of \(w.total) right.").font(.subheadline).foregroundStyle(Color.muted) }
                 Picker("Group by", selection: $byPart) {
                     Text("Question type").tag(false)
                     Text(test.partNoun).tag(true)
@@ -251,6 +256,47 @@ struct LrResultView: View {
                 }
             }
         }
+    }
+
+    /// "Why you lost marks" (web Results): every wrong or blank answer grouped by cause, largest first; each number opens that answer.
+    private var causesList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle("Why you lost marks")
+            Text(causeTrend ?? "Every wrong or blank answer, grouped by what went wrong. Tap a number to see that answer.").font(.subheadline).foregroundStyle(Color.muted)
+            VStack(spacing: 0) {
+                ForEach(Array(causes.enumerated()), id: \.element.family) { i, c in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(c.label).font(.body.weight(.semibold)).foregroundStyle(Color.ink)
+                            Spacer(minLength: 8)
+                            Text("\(c.questions.count) of \(wrongCount)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.ink)
+                        }
+                        .accessibilityElement(children: .combine)
+                        Text(c.message).font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                        FlowLayout(spacing: 6, lineSpacing: 6) {
+                            ForEach(c.questions, id: \.self) { n in
+                                Button { openAnswer(n) } label: {
+                                    Text("\(n)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(Color.brand)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.line))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Question \(n): see why")
+                            }
+                        }
+                    }
+                    .padding(.vertical, 10)
+                    if i < causes.count - 1 { Divider().overlay(Color.line) }
+                }
+            }
+            .card(padding: 14)
+        }
+    }
+
+    private func openAnswer(_ n: Int) {
+        wrongOnly = true
+        tab = .answers
+        select(n)
     }
 
     private func worstFirst(_ rows: [(label: String, right: Int, total: Int)]) -> [(label: String, right: Int, total: Int)] {

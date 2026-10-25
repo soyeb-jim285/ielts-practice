@@ -100,10 +100,15 @@ fun partsLabel(skill: String, parts: List<Int>?): String =
     }
 }
 /** A wrong gap answer with a deterministic reason (server `analysis.gaps`). */
-@Serializable data class LrGapEntry(val n: Int, val kind: String, val label: String, val message: String, val word: String? = null, val typed: String? = null, val before: Int? = null)
+@Serializable data class LrGapEntry(val n: Int, val kind: String, val label: String, val message: String, val word: String? = null, val typed: String? = null, val before: Int? = null,
+    /** lost-place: the question this answer belongs to */
+    val other: Int? = null,
+)
+/** Lost marks grouped by cause, largest first. family: slip (had the answer, lost the mark) | trap (picked a distractor) | missed (different detail) | blank */
+@Serializable data class LrCause(val family: String, val label: String, val message: String = "", val questions: List<Int> = emptyList())
 @Serializable data class LrTfngRow(val n: Int, val kind: String, val chose: String, val answer: String)
 @Serializable data class LrTypeAcc(val label: String, val right: Int, val total: Int)
-@Serializable data class LrAnalysis(val gaps: List<LrGapEntry> = emptyList(), val tfng: List<LrTfngRow> = emptyList(), val byType: List<LrTypeAcc> = emptyList())
+@Serializable data class LrAnalysis(val gaps: List<LrGapEntry> = emptyList(), val tfng: List<LrTfngRow> = emptyList(), val byType: List<LrTypeAcc> = emptyList(), val causes: List<LrCause> = emptyList())
 
 /** `GET /api/lr/progress` */
 @Serializable data class LrTrendPoint(val attemptId: String = "", val skill: String, val date: String, val band: Double)
@@ -111,12 +116,15 @@ fun partsLabel(skill: String, parts: List<Int>?): String =
 @Serializable data class LrSuggested(val id: String, val title: String, val skill: String, val label: String, val count: Int)
 @Serializable data class LrTfngPattern(val kind: String = "tfng", val answer: String = "", val chose: String = "", val count: Int = 0, val of: Int = 0, val pct: Int = 0, val text: String = "")
 @Serializable data class LrTfngSummary(val pattern: LrTfngPattern? = null, val rows: Int = 0)
+/** Lost marks by cause across past attempts, per skill, largest first. */
+@Serializable data class LrCauseStat(val skill: String, val family: String, val label: String, val count: Int)
 @Serializable data class LrProgress(
     val trend: List<LrTrendPoint> = emptyList(),
     val byType: List<LrTypeStat> = emptyList(),
     val weakest: List<LrTypeStat> = emptyList(),
     val suggested: LrSuggested? = null,
     val tfng: LrTfngSummary = LrTfngSummary(),
+    val causes: List<LrCauseStat> = emptyList(),
 )
 /** `GET /api/lr/spelling`: words misspelt (or wrongly pluralised) in gap answers, most frequent first. */
 @Serializable data class LrSpellingItem(val word: String, val kind: String = "spelling", val count: Int = 1, val typed: List<String> = emptyList(), val lastAt: String = "")
@@ -337,6 +345,18 @@ fun parseContent(md: String): List<Block> {
 /** "C17 T2" gives book 17, test 2. */
 fun parseRef(ref: String): Pair<Int, Int>? =
     Regex("""^C(\d+)\s*T(\d+)""", RegexOption.IGNORE_CASE).find(ref)?.let { it.groupValues[1].toInt() to it.groupValues[2].toInt() }
+
+/** Answers that had the right idea but lost the mark (spelling, wording, the box); older attempts without causes count spelling/plural gaps. */
+fun LrAnalysis?.slipCount(): Int =
+    this?.causes?.firstOrNull { it.family == "slip" }?.questions?.size ?: this?.gaps.orEmpty().count { it.kind == "spelling" || it.kind == "plural" }
+
+/** "Across your listening tests, … costs you the most" once at least 10 marks have been lost to a known cause, else null (web Results trend). */
+fun causeTrend(skill: String, causes: List<LrCauseStat>): String? {
+    val mine = causes.filter { it.skill == skill }
+    val lost = mine.sumOf { it.count }
+    val top = mine.firstOrNull() ?: return null
+    return if (lost >= 10) "Across your $skill tests, \"${top.label.lowercase()}\" costs you the most: ${top.count} of $lost lost marks." else null
+}
 
 class LrHubGroup(val key: String, val heading: String, val tests: List<LrTestItem>)
 

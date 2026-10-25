@@ -107,8 +107,12 @@ const speakingAnalysis = {
     },
   },
   questions: [{ text: sp2.title, startWord: 0 }, { text: 'Do you think people read enough history?', startWord: Math.floor(words.length * 0.6) }],
-  pronunciation: { unclear: [{ wordIdx: words.findIndex((w) => w.w === 'Sapiens'), w: 'Sapiens', conf: 0.62, tier: 2 }, { wordIdx: words.findIndex((w) => w.w === 'species'), w: 'species', conf: 0.71, tier: 1 }] },
-  relevance: [{ questionIdx: 0, onTopic: true, note: 'Covers all four cue-card points.' }],
+  pronunciation: { unclear: [{ wordIdx: words.findIndex((w) => w.w === 'Sapiens'), w: 'Sapiens', conf: 0.62, tier: 2 }, { wordIdx: words.findIndex((w) => w.w === 'species'), w: 'species', conf: 0.71, tier: 1 }],
+    // the phoneme model's findings (Pronunciation tab); times come from the transcript words
+    audio: { accuracy: 84, wordsPerMinute: 132, confusions: [{ expected: 'θ', heard: 't', count: 3 }, { expected: 'v', heard: 'w', count: 2 }],
+      words: [['species', [['s', 's'], ['p', 'p'], ['iː', 'iː'], ['ʃ', 's'], ['iː', 'ɪ'], ['z', 'z']], 'gb', 54], ['think', [['θ', 't'], ['ɪ', 'ɪ'], ['ŋ', 'ŋ'], ['k', 'k']], 'us', 61], ['humans', [['h', 'h'], ['j', 'j'], ['uː', 'uː'], ['m', 'm'], ['ə', 'ə'], ['n', 'n'], ['z', 's']], 'gb', 68]]
+        .map(([word, ph, accent, score]) => { const t = words.find((x) => x.w.toLowerCase().replace(/[^a-z]/g, '') === word) ?? words[0]; return { word, score, accent, start: t.start, end: t.end, phones: ph.map(([expected, heard]) => ({ expected, heard, ok: expected === heard })) }; }) } },
+  relevance: [{ questionIdx: 0, onTopic: true, note: 'Covers all four cue-card points.', development: 'some' }],
   noSpeech: false,
 };
 
@@ -174,6 +178,8 @@ const list = [
 
 const trendS = [5.5, 6, 6, 6.5, 6.5, 6.5].map((o, i) => ({ date: day(14 - i * 2), overall: o, criteria: { fc: o, lr: o + 0.5, gra: o - 0.5 + (i % 2) * 0.5, p: o - 0.5 } }));
 const trendW = [6, 6, 6.5, 6.5, 7].map((o, i) => ({ date: day(14 - i * 3), overall: o, criteria: { ta: o, cc: o, lr: o + (i % 2) * 0.5, gra: o - 0.5 } }));
+// GET /api/progress (no skill filter): both skills, oldest first, with what the dashboard groups by
+const trendAll = [...trendS.map((t, i) => ({ ...t, attemptId: `ts${i}`, skill: 'speaking', part: [1, 2, 3][i % 3] })), ...trendW.map((t, i) => ({ ...t, attemptId: `tw${i}`, skill: 'writing', part: i % 2 ? 1 : 2 }))].sort((a, b) => a.date.localeCompare(b.date));
 const progress = (trend) => ({ trend, streak: 5, minutesThisWeek: 96, attempts: 14, weakest: { key: 'p', avg: 5.9 }, topMistakes: [{ category: 'grammar.article', count: 9 }, { category: 'grammar.verb-tense', count: 6 }, { category: 'vocabulary.collocation', count: 4 }], predicted: { speaking: 6.5, writing: 7 } });
 
 const mistakes = [
@@ -193,7 +199,10 @@ const cards = [
 
 const fx = {
   '/api/me': me,
-  '/api/progress': progress(trendS),
+  '/api/progress': progress(trendAll),
+  // one finished mock, so the dashboard shows "Last mock"
+  '/api/mock': { items: [{ id: 'mk1', variant: 'academic', source: 'cambridge', ref: 'C18 T2', status: 'completed', startedAt: day(9), expiresAt: day(2), completedAt: day(8), next: null, overall: 6.5,
+    sections: [['listening', 7], ['reading', 6.5], ['writing', 6], ['speaking', 6.5]].map(([skill, band]) => ({ skill, state: 'done', band, attemptId: null, sessionId: null, elapsedS: null, limitS: null, mode: skill === 'speaking' ? 'recorded' : null })) }] },
   '/api/progress?skill=speaking': progress(trendS),
   '/api/progress?skill=writing': progress(trendW),
   '/api/attempts': { items: list, total: list.length },
@@ -395,6 +404,8 @@ mkdirSync(dirname(out), { recursive: true });
     weakest: [{ skill: 'reading', label: 'True / False / Not Given', right: 3, total: 6 }, { skill: 'listening', label: 'Note completion', right: 4, total: 10 }, { skill: 'reading', label: 'Matching headings', right: 3, total: 5 }],
     suggested: { id: 'lt-r2', title: 'Original practice: Reading 2', skill: 'reading', label: 'True / False / Not Given', count: 6 },
     tfng: { pattern: tfngPattern([...tfRows, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }, { kind: 'tfng', chose: 'FALSE', answer: 'NOT GIVEN' }]), rows: tfRows.length + 3 },
+    // a few earlier tests' worth on top of these two, so the cross-test line shows (it needs 10+ lost marks)
+    causes: [[lraLs, 'listening'], [lraRs, 'reading']].flatMap(([a, skill]) => a.analysis.causes.map((c) => ({ skill, family: c.family, label: c.label, count: c.questions.length * 3 }))),
   };
   fx['/api/lr/spelling'] = { items: [
     { word: 'sediment', kind: 'spelling', count: 3, typed: ['sedement', 'sediments'], lastAt: day(1) },

@@ -23,7 +23,15 @@ import kotlinx.serialization.Serializable
 @Serializable data class DashFailed(val id: String, val skill: String)
 
 /** Everything the dashboard shows, fetched together: the per-skill trends and the due count may fail without hiding the rest. */
-data class DashData(val progress: DashProgress, val due: DueResponse?, val trends: Map<String, List<TrendPoint>>)
+data class DashData(
+    val progress: DashProgress,
+    val due: DueResponse?,
+    val trends: Map<String, List<TrendPoint>>,
+    val lr: com.soyeb.ieltspractice.core.LrProgress? = null,
+    /** The open mock, and the latest one with an overall band. */
+    val mock: com.soyeb.ieltspractice.core.Mock? = null,
+    val lastMock: com.soyeb.ieltspractice.core.Mock? = null,
+)
 
 /** A row of GET /api/prompts. Local so it can read `sourceRef`. */
 @Serializable data class BankPrompt(

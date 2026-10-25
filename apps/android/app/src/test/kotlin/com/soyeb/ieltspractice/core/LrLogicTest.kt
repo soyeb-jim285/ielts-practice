@@ -189,4 +189,30 @@ class LrLogicTest {
         assertEquals(0, readingTone(100, 600)) // a limit of 10 minutes or less never warns
         assertEquals(false, readingPulse(300, 600))
     }
+
+    @Test fun lostMarkCauses() {
+        val json = """{"gaps":[{"n":3,"kind":"lost-place","label":"Lost place","message":"m","other":4}],"causes":[{"family":"slip","label":"Spelling","message":"x","questions":[1,2]}]}"""
+        val a = AppJson.decodeFromString(LrAnalysis.serializer(), json)
+        assertEquals(4, a.gaps[0].other)
+        assertEquals(2, a.slipCount())
+        // older attempts without causes count spelling and plural gaps
+        assertEquals(1, LrAnalysis(gaps = listOf(LrGapEntry(1, "plural", "", ""), LrGapEntry(2, "misheard", "", ""))).slipCount())
+        assertEquals(0, (null as LrAnalysis?).slipCount())
+        val past = listOf(LrCauseStat("listening", "trap", "Picked a distractor", 7), LrCauseStat("listening", "blank", "Left blank", 3), LrCauseStat("reading", "slip", "S", 40))
+        assertEquals("Across your listening tests, \"picked a distractor\" costs you the most: 7 of 10 lost marks.", causeTrend("listening", past))
+        assertEquals(null, causeTrend("listening", past.take(1))) // under 10 lost marks: not enough to say
+    }
+
+    @Test fun demoFixturesGetLostMarkCauses() {
+        val f = DemoFixtures.withLrCauses(fixtures)
+        val a = AppJson.decodeFromString(LrAttempt.serializer(), f.getValue("/api/lr/attempts/lra-rs"))
+        val causes = a.analysis!!.causes
+        val wrong = a.marks!!.count { !it.correct }
+        assertEquals(wrong, causes.sumOf { it.questions.size }) // every lost mark has one cause
+        assertTrue(listOf(8, 9).all { it in causes.first { c -> c.family == "slip" }.questions })
+        assertTrue(13 in causes.first { it.family == "blank" }.questions)
+        assertEquals(causes.sortedByDescending { it.questions.size }, causes)
+        val progress = AppJson.decodeFromString(LrProgress.serializer(), f.getValue("/api/lr/progress"))
+        assertTrue(progress.causes.any { it.skill == "reading" } && progress.causes.any { it.skill == "listening" })
+    }
 }

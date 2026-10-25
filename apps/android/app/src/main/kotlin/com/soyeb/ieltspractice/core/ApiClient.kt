@@ -255,14 +255,6 @@ class ApiClient(
     // A guest token, when there is one, is sent on sign-up, sign-in and verify-email (see [raw]): the server moves the guest's tests to the
     // new account and answers with the account's token, which replaces the guest's here. Until then the guest session keeps working.
 
-    suspend fun resendVerification(email: String) {
-        raw("POST", "/api/auth/send-verification-email", buildJsonObject { put("email", email); put("callbackURL", "$baseUrl/") })
-    }
-
-    suspend fun requestPasswordReset(email: String) {
-        raw("POST", "/api/auth/request-password-reset", buildJsonObject { put("email", email); put("redirectTo", "$baseUrl/reset-password") })
-    }
-
     /** Emails a 6-digit code (Better Auth emailOTP): [type] is "email-verification" or "forget-password". The answer is the same whether or not the address has an account. */
     suspend fun sendOtp(email: String, type: String): String? {
         val r = raw("POST", "/api/auth/email-otp/send-verification-otp", buildJsonObject { put("email", email); put("type", type) })

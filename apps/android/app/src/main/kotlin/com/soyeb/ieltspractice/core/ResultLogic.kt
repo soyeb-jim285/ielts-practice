@@ -83,6 +83,12 @@ fun offTopic(r: AnalysisResult): Pair<Int, Int>? {
     return if (off * 2 > rel.size) off to rel.size else null
 }
 
+/** The off-topic alert's second sentence: about how much the band lost (to the nearest half, at least 0.5); empty without a penalty. */
+fun offTopicPenaltyText(r: AnalysisResult): String {
+    val p = r.offTopicPenalty?.takeIf { it > 0 } ?: return ""
+    return " Off-topic speech can’t count as evidence, so your band is about ${fmt(maxOf(0.5, Math.round(p * 2) / 2.0))} lower."
+}
+
 /** Transcript heading for a question: its first line, plus the rest (cue card) without a repeat of that line. */
 fun questionHead(text: String): Pair<String, String> {
     val parts = text.split("\n")

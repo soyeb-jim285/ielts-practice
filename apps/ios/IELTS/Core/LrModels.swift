@@ -151,10 +151,12 @@ struct LrAudioState: Codable, Hashable {
     }
 }
 
-struct LrGapEntry: Codable, Hashable { let n: Int; let kind: String; let label: String; let message: String; let word: String?; let typed: String?; let before: Int? }
+struct LrGapEntry: Codable, Hashable { let n: Int; let kind: String; let label: String; let message: String; let word: String?; let typed: String?; let before: Int?; var other: Int? = nil /* lost-place: the question this answer belongs to */ }
 struct LrTfngRow: Codable, Hashable { let n: Int; let kind: String; let chose: String; let answer: String }
 struct LrTypeAcc: Codable, Hashable { let label: String; let right: Int; let total: Int }
-struct LrAnalysis: Codable, Hashable { let gaps: [LrGapEntry]; let tfng: [LrTfngRow]; let byType: [LrTypeAcc] }
+/// Lost marks grouped by cause: slip (had the answer, lost the mark), trap (picked a distractor), missed (different detail), blank.
+struct LrCause: Codable, Hashable { let family: String; let label: String; let message: String; let questions: [Int] }
+struct LrAnalysis: Codable, Hashable { let gaps: [LrGapEntry]; let tfng: [LrTfngRow]; let byType: [LrTypeAcc]; var causes: [LrCause]? = nil /* largest first; nil on old attempts */ }
 
 /// GET /api/lr/progress
 struct LrProgress: Codable {
@@ -163,10 +165,20 @@ struct LrProgress: Codable {
     struct Suggested: Codable { let id: String; let title: String; let skill: String; let label: String; let count: Int }
     struct Pattern: Codable { let text: String }
     struct Tfng: Codable { let pattern: Pattern?; let rows: Int }
+    struct Cause: Codable { let skill: String; let family: String; let label: String; let count: Int }
     let trend: [Trend]
     let weakest: [Weak]
     let suggested: Suggested?
     let tfng: Tfng
+    var causes: [Cause]? = nil // per skill, largest first
+
+    /// "Across your listening tests, … costs you the most: X of Y lost marks." once 10+ marks have been lost (web Results trend).
+    func causeTrend(_ skill: String) -> String? {
+        let past = (causes ?? []).filter { $0.skill == skill }
+        let lost = past.reduce(0) { $0 + $1.count }
+        guard lost >= 10, let top = past.first else { return nil }
+        return "Across your \(skill) tests, \"\(top.label.lowercased())\" costs you the most: \(top.count) of \(lost) lost marks."
+    }
 }
 
 /// GET /api/lr/spelling

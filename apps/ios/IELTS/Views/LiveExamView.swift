@@ -3,7 +3,8 @@ import Observation
 import SwiftUI
 
 /// Live examiner session over LiveKit (web live/livekit.ts + duplex.ts): the worker runs the script, client timers drive the part changes
-/// with cues, and the app records one m4a per part from LiveKit's mic audio → /api/live/finish.
+/// with cues, and the app records one m4a per part from LiveKit's mic audio. Each part goes to /api/live/part as soon as it ends, so its
+/// analysis runs during the test (web live/turn.ts); /api/live/finish sends whatever is left and closes the session.
 @MainActor @Observable
 final class LiveExam {
     enum Stage: Equatable { case ready, running, uploading, finished([String]), failed(String) }
@@ -33,6 +34,8 @@ final class LiveExam {
     @ObservationIgnored private var test: SpeakingTest?
     @ObservationIgnored private var currentPart: Int?
     @ObservationIgnored private var recordings: [Int: LiveAudio.PartRecording] = [:]
+    @ObservationIgnored private var keys: [Int: String] = [:] // upload keys, so a part is uploaded once
+    @ObservationIgnored private var sent: [Int: Task<Bool, Never>] = [:] // parts sent with /live/part during the test: true once accepted
     @ObservationIgnored private var ending = false
     @ObservationIgnored private var lost = false // the room dropped: the run stops without scoring
     @ObservationIgnored private var micLoudSeconds = 0.0
@@ -145,8 +148,27 @@ final class LiveExam {
     }
 
     private func closePart() {
-        if let p = currentPart, let r = audio.endPart() { recordings[p] = r }
+        if let p = currentPart, let r = audio.endPart() { recordings[p] = r; keys[p] = nil; send(p) }
         currentPart = nil
+    }
+
+    /// The /live body of one part, uploading its recording first if that has not happened yet.
+    private func partBody(_ part: Int, _ r: LiveAudio.PartRecording) async throws -> [String: Any] {
+        let key: String
+        if let k = keys[part] { key = k } else { key = try await uploadFile(r.url); keys[part] = key }
+        return ["part": part, "audioKey": key, "durationMs": r.durationMs, "energy": Array(r.energy.prefix(20000))]
+    }
+
+    /// Sends a finished part now, so its analysis runs while the test goes on. Best effort: a failure leaves it to finish().
+    private func send(_ part: Int) {
+        guard !sessionId.isEmpty, let r = recordings[part], sent[part] == nil else { return }
+        let sid = sessionId
+        sent[part] = Task {
+            struct Sent: Decodable { let attemptId: String }
+            guard let body = try? await partBody(part, r) else { return false }
+            let res: Sent? = try? await api.send("POST", "/api/live/part", ["sessionId": sid, "part": body] as [String: Any])
+            return res != nil
+        }
     }
 
     private func tmp(_ name: String) -> URL { FileManager.default.temporaryDirectory.appendingPathComponent(name) }
@@ -283,12 +305,14 @@ final class LiveExam {
         audio.stop()
         stage = .uploading
         do {
+            guard !recordings.isEmpty else { stage = .failed("Nothing was recorded, so there's nothing to score."); return }
+            // Only the parts not already accepted by /live/part (the list may be empty); finish returns every attempt of the session.
             var parts: [[String: Any]] = []
             for (part, r) in recordings.sorted(by: { $0.key < $1.key }) {
-                let key = try await uploadFile(r.url)
-                parts.append(["part": part, "audioKey": key, "durationMs": r.durationMs, "energy": Array(r.energy.prefix(20000))])
+                if let job = sent[part], await job.value { continue }
+                sent[part] = nil // a failed send is retried here, so a later finish() does not skip it
+                parts.append(try await partBody(part, r))
             }
-            guard !parts.isEmpty else { stage = .failed("Nothing was recorded, so there's nothing to score."); return }
             let res: FinishResult = try await api.send("POST", "/api/live/finish", ["sessionId": sessionId, "parts": parts] as [String: Any])
             if let mockId { await attach(mockId) }
             stage = .finished(res.attemptIds)

@@ -65,6 +65,14 @@ class ResultPlayer(private val demoDuration: Double? = null) {
         if (play) play()
     }
 
+    /** Plays [from] to [to] seconds, then pauses (one word). Call from a coroutine; a pause or a seek outside the span ends it early. */
+    suspend fun playSpan(from: Double, to: Double) {
+        seek(from)
+        delay(150) // let poll() catch up with the seek
+        while (isPlaying && currentTime >= from - 0.5 && currentTime < to) delay(30)
+        if (isPlaying && currentTime >= to) pause()
+    }
+
     /** 1x and 0.75x (web AudioBar). */
     fun toggleSpeed() {
         speed = if (speed == 1f) 0.75f else 1f

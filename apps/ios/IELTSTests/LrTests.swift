@@ -165,4 +165,15 @@ final class LrTests: XCTestCase {
         XCTAssertEqual(LrClockRule.announcement(600), "10 minutes remaining")
         XCTAssertEqual(LrClockRule.announcement(300), "5 minutes remaining")
     }
+
+    func testCausesDecodeAndTrend() throws {
+        let a = try JSONDecoder().decode(LrAnalysis.self, from: Data(#"{"gaps":[{"n":3,"kind":"lost-place","label":"Answer in the wrong box","message":"m","other":4}],"tfng":[],"byType":[],"causes":[{"family":"slip","label":"Right idea, lost the mark","message":"m","questions":[3]}]}"#.utf8))
+        XCTAssertEqual(a.gaps.first?.other, 4)
+        XCTAssertEqual(a.causes?.first?.questions, [3])
+        let old = try JSONDecoder().decode(LrAnalysis.self, from: Data(#"{"gaps":[],"tfng":[],"byType":[]}"#.utf8))
+        XCTAssertNil(old.causes)
+        let p = try JSONDecoder().decode(LrProgress.self, from: Data(#"{"trend":[],"weakest":[],"suggested":null,"tfng":{"pattern":null,"rows":0},"causes":[{"skill":"listening","family":"trap","label":"Picked a distractor","count":6},{"skill":"listening","family":"blank","label":"Left blank","count":4},{"skill":"reading","family":"slip","label":"X","count":30}]}"#.utf8))
+        XCTAssertEqual(p.causeTrend("listening"), "Across your listening tests, \"picked a distractor\" costs you the most: 6 of 10 lost marks.")
+        XCTAssertNil(LrProgress(trend: [], weakest: [], suggested: nil, tfng: .init(pattern: nil, rows: 0), causes: [.init(skill: "listening", family: "trap", label: "T", count: 9)]).causeTrend("listening")) // under 10 lost
+    }
 }

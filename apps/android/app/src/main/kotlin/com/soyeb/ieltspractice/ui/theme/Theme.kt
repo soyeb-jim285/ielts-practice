@@ -25,3 +25,10 @@ fun IeltsTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () ->
         )
     }
 }
+
+/** Settings > Appearance ("light" | "dark" | "system", web ThemeToggle) to dark or not; anything unknown follows the device. */
+fun appearanceDark(appearance: String, systemDark: Boolean): Boolean = when (appearance) {
+    "light" -> false
+    "dark" -> true
+    else -> systemDark
+}

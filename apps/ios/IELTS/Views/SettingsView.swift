@@ -12,6 +12,8 @@ struct SettingsView: View {
             if let error { Section { ErrorLine(message: error) } }
             CommunitySection()
             Section {
+                NavigationLink(value: Route.lrHub(skill: "listening")) { Label("Listening", systemImage: "headphones") }
+                NavigationLink(value: Route.lrHub(skill: "reading")) { Label("Reading", systemImage: "book") }
                 NavigationLink(value: Route.history(skill: nil)) { Label("Past attempts", systemImage: "clock.arrow.circlepath") }
                 NavigationLink(value: Route.mistakes(category: nil)) { Label("Mistakes", systemImage: "exclamationmark.triangle") }
                 NavigationLink(value: Route.bank(skill: "")) { Label("Prompt bank", systemImage: "books.vertical") }
@@ -25,6 +27,7 @@ struct SettingsView: View {
             } header: {
                 Text("Account")
             }
+            HelpSection()
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Delete account")
@@ -37,6 +40,7 @@ struct SettingsView: View {
         }
         .canvasList()
         .demoScroll()
+        .inAppBrowser()
         .navigationTitle("Settings")
         .onAppear {
             s = api.me?.settings

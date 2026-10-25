@@ -203,6 +203,7 @@ struct Attempt: Decodable, Identifiable {
     let createdAt: String
     let analysis: AnalysisResult?
     let prompt: Prompt
+    var conversationUrl: String? = nil // live parts: the whole conversation (candidate and examiner), for playback
 
     var finished: Bool { status == "done" || status == "failed" }
     /// The essay, or the transcript for speaking.
@@ -322,6 +323,16 @@ struct TextMetrics: Decodable {
     let repeated: [Repeated]
 }
 
+/// The phoneme model's findings (server ai/types PronunciationAudio): times are seconds in the candidate's recording.
+struct PronunciationAudio: Decodable {
+    struct Phone: Decodable { let expected: String; let heard: String; let ok: Bool }
+    struct Word: Decodable { let word: String; let score: Double; let accent: String?; let start: Double; let end: Double; let phones: [Phone] }
+    struct Confusion: Decodable { let expected: String; let heard: String; let count: Int }
+    let accuracy: Double?
+    let words: [Word]
+    let confusions: [Confusion]
+}
+
 struct PronunciationLlm: Decodable {
     struct W: Decodable { let word: String; let time: Double; let issue: String; let tip: String }
     let words: [W]
@@ -343,8 +354,9 @@ struct WritingStructure: Decodable {
 struct AnalysisResult: Decodable {
     struct Rewrite: Decodable { let text: String; let note: String }
     struct Question: Decodable { let text: String; let startWord: Int }
-    struct Pronunciation: Decodable { let unclear: [Unclear]; let llm: PronunciationLlm? }
-    struct Relevance: Decodable { let questionIdx: Int; let onTopic: Bool; let note: String }
+    struct Pronunciation: Decodable { let unclear: [Unclear]; let llm: PronunciationLlm?; var audio: PronunciationAudio? = nil }
+    /// development (absent on older analyses): none | some | full.
+    struct Relevance: Decodable { let questionIdx: Int; let onTopic: Bool; let note: String; var development: String? = nil }
     struct Comparison: Decodable { let parentAttemptId: String; let parentOverall: Double; let deltas: [String: Double] }
 
     let skill: String
@@ -365,6 +377,7 @@ struct AnalysisResult: Decodable {
     let pronunciation: Pronunciation?
     let relevance: [Relevance]?
     let noSpeech: Bool?
+    var offTopicPenalty: Double? = nil // speaking: bands taken off because some answers did not address the question
     // writing
     let text: String?
     let structure: WritingStructure?

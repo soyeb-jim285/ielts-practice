@@ -22,10 +22,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.enableEdgeToEdge
 import android.content.Context
 import com.soyeb.ieltspractice.core.FairUseAck
 import com.soyeb.ieltspractice.ui.community.GateHost
@@ -88,7 +90,19 @@ import com.soyeb.ieltspractice.ui.theme.ext
 /** The whole app. [demo] (null in production) picks the start screen and theme for screenshots. */
 @Composable
 fun IeltsApp(container: AppContainer, demo: DemoConfig? = null) {
-    val dark = demo?.dark ?: isSystemInDarkTheme()
+    val appearance by container.appearance.collectAsState()
+    val dark = demo?.dark ?: com.soyeb.ieltspractice.ui.theme.appearanceDark(appearance, isSystemInDarkTheme())
+    // System bar icons follow the app's theme, not the device's, when Settings > Appearance overrides it.
+    val activity = LocalContext.current as? androidx.activity.ComponentActivity
+    LaunchedEffect(dark, appearance) {
+        if (activity == null || demo != null) return@LaunchedEffect
+        if (appearance == "system") activity.enableEdgeToEdge()
+        else {
+            val bars = if (dark) androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            else androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+            activity.enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+        }
+    }
     CompositionLocalProvider(LocalApp provides container, LocalDemo provides demo) {
         IeltsTheme(dark) {
             LaunchedEffect(container) { container.api.restoreSession() }
