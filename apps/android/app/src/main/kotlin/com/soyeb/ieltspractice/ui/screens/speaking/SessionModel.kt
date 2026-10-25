@@ -1,6 +1,9 @@
 package com.soyeb.ieltspractice.ui.screens.speaking
 
 import android.content.Context
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -22,6 +25,7 @@ import com.soyeb.ieltspractice.core.mockChoose
 import com.soyeb.ieltspractice.core.newSessionId
 import com.soyeb.ieltspractice.ui.nav.SpeakingSession
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,6 +76,10 @@ class SessionModel(
     /** Answer window of each question on the recording clock. */
     private var windows = mutableListOf<AnswerWindow>()
     private val player by lazy { AudioPlayer(context.applicationContext) }
+    // Device voice for lines with no rendered recording (most generated prompts, every Cambridge one, 2026-10-26).
+    private val ttsReady = CompletableDeferred<Boolean>()
+    private val ttsLazy = lazy { TextToSpeech(context.applicationContext) { ttsReady.complete(it == TextToSpeech.SUCCESS) } }
+    private val tts by ttsLazy
     private var askJob: Job? = null
     private var introduced = -1
     private var recId = newSessionId()
@@ -123,7 +131,25 @@ class SessionModel(
 
     // MARK: Examiner
 
-    fun lineFor(p: Prompt, text: String) = p.audio?.questions?.firstOrNull { it.text == text }
+    /** A question with no rendered line is still asked: [ask] reads its text with the device voice. */
+    fun lineFor(p: Prompt, text: String) = p.audio?.questions?.firstOrNull { it.text == text } ?: AudioLine(text)
+
+    /** Reads [text] with the device's English voice and returns when it finishes (or after a length-based timeout, so the test never waits). */
+    private suspend fun speak(text: String) {
+        if (text.isBlank()) return
+        tts // creates the engine; its init callback completes ttsReady
+        if (withTimeoutOrNull(2_000) { ttsReady.await() } != true) return
+        val done = CompletableDeferred<Unit>()
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(id: String?) {}
+            override fun onDone(id: String?) { done.complete(Unit) }
+            @Deprecated("Deprecated in Java") override fun onError(id: String?) { done.complete(Unit) }
+            override fun onError(id: String?, code: Int) { done.complete(Unit) }
+        })
+        tts.language = if (tts.isLanguageAvailable(Locale.UK) >= TextToSpeech.LANG_AVAILABLE) Locale.UK else Locale.ENGLISH
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "examiner")
+        try { withTimeoutOrNull(2_000L + text.length * 90L) { done.await() } } finally { tts.stop() }
+    }
 
     /**
      * The examiner reads [lines] (microphone held meanwhile, so the recording holds only the candidate), then the answer window opens
@@ -132,11 +158,13 @@ class SessionModel(
     private fun ask(lines: List<AudioLine?>, resume: Boolean = true) {
         askJob?.cancel()
         askJob = scope.launch {
-            val urls = lines.mapNotNull { it?.url }
-            if (urls.isNotEmpty()) {
+            val spoken = lines.filterNotNull().filter { it.url != null || it.text.isNotBlank() }
+            if (spoken.isNotEmpty()) {
                 examiner = Examiner.Asking
                 recorder.paused = true
-                for (u in urls) {
+                for (l in spoken) {
+                    val u = l.url
+                    if (u == null) { speak(l.text); continue }
                     player.load(u); player.play()
                     withTimeoutOrNull(60_000) { player.ended.first { it } }
                 }
@@ -274,6 +302,7 @@ class SessionModel(
     override fun onCleared() {
         discardLive()
         runCatching { player.release() }
+        if (ttsLazy.isInitialized()) runCatching { tts.shutdown() }
         scope.cancel()
     }
 

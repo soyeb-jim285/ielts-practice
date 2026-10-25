@@ -28,6 +28,7 @@ struct SpeakingSessionView: View {
     @State private var windows: [AnswerWindow] = []
     @State private var examinerState: Examiner = .idle
     @State private var examinerPlayer = Player()
+    @State private var deviceVoice = DeviceVoice()
     @State private var askGen = 0
     @State private var introduced = -1
     @State private var phase: Phase = .loading
@@ -277,7 +278,7 @@ struct SpeakingSessionView: View {
                     }
                 }
             }
-            if line(p, questionText(p))?.url != nil && shownQ != "\(index):\(question)" {
+            if line(p, questionText(p)).url != nil && shownQ != "\(index):\(question)" {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Listen to the examiner", systemImage: "speaker.wave.2.fill")
                         .font(.display(.title))
@@ -674,7 +675,8 @@ struct SpeakingSessionView: View {
         Task { await ask([next]) }
     }
 
-    private func line(_ p: Prompt, _ text: String) -> AudioLine? { p.audio?.questions?.first { $0.text == text } }
+    /// A question with no rendered line is still asked: `ask` reads its text with the device voice.
+    private func line(_ p: Prompt, _ text: String) -> AudioLine { p.audio?.questions?.first { $0.text == text } ?? AudioLine(text: text, url: nil) }
 
     /// The examiner reads `lines` (microphone held meanwhile, so the recording holds only the candidate), then the answer window opens
     /// with a "Speak now" cue. No pause, seek or speed. A line without audio, a failed download or a bad file never blocks the test.
@@ -682,13 +684,18 @@ struct SpeakingSessionView: View {
         askGen += 1
         let gen = askGen
         examinerPlayer.stop()
-        let urls = lines.compactMap { $0?.url }.compactMap(URL.init(string:))
-        if !urls.isEmpty {
+        deviceVoice.stop()
+        let spoken = lines.compactMap { $0 }.filter { $0.url != nil || !$0.text.isEmpty }
+        if !spoken.isEmpty {
             examinerState = .asking
             recorder.pause()
-            for u in urls {
+            for l in spoken {
                 guard gen == askGen else { return }
-                if let (data, _) = try? await URLSession.shared.data(from: u) { await examinerPlayer.playToEnd(data) }
+                if let s = l.url, let u = URL(string: s), let (data, _) = try? await URLSession.shared.data(from: u) {
+                    await examinerPlayer.playToEnd(data)
+                } else {
+                    await deviceVoice.speak(l.text) // no recording, or it failed to download
+                }
             }
         }
         guard gen == askGen else { return }
@@ -729,6 +736,7 @@ struct SpeakingSessionView: View {
     private func discardLive() {
         askGen += 1
         examinerPlayer.stop()
+        deviceVoice.stop()
         examinerState = .idle
         if recorder.isRecording {
             _ = recorder.stop()

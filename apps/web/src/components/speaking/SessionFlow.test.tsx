@@ -112,3 +112,10 @@ it('lets the candidate start the long turn early without starting a second recor
   expect(mocks.stop).not.toHaveBeenCalled();
   expect(screen.getByText('Recording')).toBeTruthy();
 });
+
+it('asks questions without a rendered recording too (Cambridge, unrendered prompts): playLine gets the text for the device voice', async () => {
+  const cambridge = { ...prompt(1, 'Home'), audio: null } as unknown as Prompt;
+  render(<SessionFlow segments={[toSegment(cambridge)]} />);
+  await click('Start recording');
+  expect(mocks.play).toHaveBeenCalledWith(null, expect.anything(), 'First question?');
+});

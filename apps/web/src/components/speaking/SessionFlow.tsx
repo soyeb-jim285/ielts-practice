@@ -94,11 +94,11 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
   const ask = async (lines: (AudioLine | null | undefined)[], resume = true) => {
     askCtl.current?.abort();
     const ctl = (askCtl.current = new AbortController());
-    const spoken = lines.filter((l) => l?.url);
+    const spoken = lines.filter((l) => l?.url || l?.text);
     if (spoken.length) {
       setExaminer('asking');
       rec.pause();
-      for (const l of spoken) await playLine(l!.url, ctl.signal);
+      for (const l of spoken) await playLine(l!.url, ctl.signal, l!.text);
     }
     if (ctl.signal.aborted) return;
     if (!resume) return setExaminer('idle');
@@ -107,7 +107,8 @@ export function SessionFlow({ segments, sessionId, parentAttemptId, mockId }: { 
     setExaminer('cue');
     setTimeout(() => setExaminer((e) => (e === 'cue' ? 'idle' : e)), 2500);
   };
-  const lineFor = (s: Segment, text: string) => s.prompt.audio?.questions.find((l) => l.text === text);
+  // A question with no rendered line (Cambridge prompts, unrendered generated ones) is still asked: playLine reads it with the device voice.
+  const lineFor = (s: Segment, text: string): AudioLine => s.prompt.audio?.questions.find((l) => l.text === text) ?? { text, url: null };
   /** P2: the examiner introduces the card; Part 1 and 3 begin by opening the mic (held) and asking the first question. */
   const introduce = async () => {
     marks.current = [];

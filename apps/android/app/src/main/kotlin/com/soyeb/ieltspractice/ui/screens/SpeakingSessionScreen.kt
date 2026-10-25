@@ -172,7 +172,7 @@ fun SpeakingSessionScreen(route: SpeakingSession, nav: AppNav) {
             Phase.Finishing -> Finishing(vm, ::stateOf, doneIds.size)
             else -> if (p != null) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    if (p.part == 2) CueCard(p) else QuestionHeader(p, vm.question, vm.index, spoken = vm.lineFor(p, p.questions.getOrNull(vm.question) ?: "")?.url != null)
+                    if (p.part == 2) CueCard(p) else QuestionHeader(p, vm.question, vm.index, spoken = vm.lineFor(p, p.questions.getOrNull(vm.question) ?: "").url != null)
                     vm.startError?.let { ErrorLine(it) }
                     when (vm.phase) {
                         Phase.Recording -> RecordingPanel(vm, p)
