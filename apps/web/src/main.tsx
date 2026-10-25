@@ -24,6 +24,15 @@ const router = createRouter({
 // router doesn't discover them only after the entry has rendered. _app's loader awaits me in parallel with the page loaders.
 for (const r of router.getMatchedRoutes(location.pathname)[0]) router.loadRouteChunk(r)?.catch(() => {}); // the router retries and reports on navigation
 
+// The boot mark (index.html) stays until the first page has resolved, so the hard load never shows a blank screen.
+const unboot = router.subscribe('onResolved', () => {
+  unboot();
+  const boot = document.getElementById('boot');
+  if (!boot) return;
+  boot.style.opacity = '0';
+  setTimeout(() => boot.remove(), 200);
+});
+
 // The tab title follows the page (the server writes the same one into the HTML for crawlers and link previews).
 router.subscribe('onResolved', ({ toLocation }) => {
   document.title = pageMeta(toLocation.pathname).title;

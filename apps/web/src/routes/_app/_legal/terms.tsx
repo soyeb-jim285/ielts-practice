@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { COMPANY, LegalPage, List, Mail, Section, TRADEMARK } from '@/components/legal/Legal';
 
-export const Route = createFileRoute('/_app/terms')({ component: Terms });
+export const Route = createFileRoute('/_app/_legal/terms')({ component: Terms });
 
-const link = 'font-medium underline underline-offset-2';
+const link = 'font-medium text-accent-text underline decoration-accent/40 underline-offset-[3px] hover:decoration-accent';
 
 function Terms() {
   return (

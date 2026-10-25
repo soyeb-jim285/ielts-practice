@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { COMPANY, LegalPage, List, Mail, Section } from '@/components/legal/Legal';
 
-export const Route = createFileRoute('/_app/privacy')({ component: Privacy });
+export const Route = createFileRoute('/_app/_legal/privacy')({ component: Privacy });
 
 function Privacy() {
   return (

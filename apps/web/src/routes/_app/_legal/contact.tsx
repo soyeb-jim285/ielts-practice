@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { COMPANY, LegalPage, Mail, Section } from '@/components/legal/Legal';
 
-export const Route = createFileRoute('/_app/contact')({ component: Contact });
+export const Route = createFileRoute('/_app/_legal/contact')({ component: Contact });
 
 function Contact() {
   return (
@@ -16,7 +16,7 @@ function Contact() {
           {COMPANY.phone && (
             <>
               <dt className="text-muted">Phone</dt>
-              <dd><a href={`tel:${COMPANY.phone.replace(/\s/g, '')}`} className="font-medium underline underline-offset-2">{COMPANY.phone}</a></dd>
+              <dd><a href={`tel:${COMPANY.phone.replace(/\s/g, '')}`} className="font-medium text-accent-text underline decoration-accent/40 underline-offset-[3px] hover:decoration-accent">{COMPANY.phone}</a></dd>
             </>
           )}
           {COMPANY.address && (

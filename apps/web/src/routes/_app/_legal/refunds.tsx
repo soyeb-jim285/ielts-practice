@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { COMPANY, LegalPage, List, Mail, Section } from '@/components/legal/Legal';
 
-export const Route = createFileRoute('/_app/refunds')({ component: Refunds });
+export const Route = createFileRoute('/_app/_legal/refunds')({ component: Refunds });
 
 function Refunds() {
   return (
