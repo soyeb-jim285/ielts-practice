@@ -26,7 +26,8 @@ def test_shared_defaults_and_model_allowlists():
     defaults = shared.split("export const DEFAULT_LIVEKIT: LiveKitConfig = {")[1].split("};")[0]
     values = {k: json.loads(v.replace("'", '"')) for k, v in
               re.findall(r"(\w+): ('[^']*'|true|false|[\d.]+)", defaults)}
-    assert Config().model_dump() == values
+    # llmHost/sttFinalize/sttEndpointMs are optional on the TS side (kept out of DEFAULT_LIVEKIT so older workers never receive it); "fastest" when absent
+    assert Config().model_dump() == {**values, "llmHost": "fastest", "sttFinalize": True, "sttEndpointMs": 1000}
     models = shared.split("export const LIVEKIT_TTS_MODELS = {")[1].split("} as const")[0]
     assert TTS_MODELS == {k: json.loads(v.replace("'", '"')) for k, v in
                           re.findall(r"(\w+): (\[[^\]]*\])", models)}

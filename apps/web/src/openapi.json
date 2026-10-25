@@ -1214,6 +1214,21 @@
           "preemptiveGeneration": {
             "type": "boolean"
           },
+          "llmHost": {
+            "type": "string",
+            "enum": [
+              "fastest",
+              "auto"
+            ]
+          },
+          "sttFinalize": {
+            "type": "boolean"
+          },
+          "sttEndpointMs": {
+            "type": "integer",
+            "minimum": 500,
+            "maximum": 3000
+          },
           "temperature": {
             "type": "number",
             "minimum": 0,
@@ -1298,6 +1313,21 @@
                   },
                   "preemptiveGeneration": {
                     "type": "boolean"
+                  },
+                  "llmHost": {
+                    "type": "string",
+                    "enum": [
+                      "fastest",
+                      "auto"
+                    ]
+                  },
+                  "sttFinalize": {
+                    "type": "boolean"
+                  },
+                  "sttEndpointMs": {
+                    "type": "integer",
+                    "minimum": 500,
+                    "maximum": 3000
                   },
                   "temperature": {
                     "type": "number",
@@ -1384,6 +1414,21 @@
                   "preemptiveGeneration": {
                     "type": "boolean"
                   },
+                  "llmHost": {
+                    "type": "string",
+                    "enum": [
+                      "fastest",
+                      "auto"
+                    ]
+                  },
+                  "sttFinalize": {
+                    "type": "boolean"
+                  },
+                  "sttEndpointMs": {
+                    "type": "integer",
+                    "minimum": 500,
+                    "maximum": 3000
+                  },
                   "temperature": {
                     "type": "number",
                     "minimum": 0,
@@ -1468,6 +1513,21 @@
                   },
                   "preemptiveGeneration": {
                     "type": "boolean"
+                  },
+                  "llmHost": {
+                    "type": "string",
+                    "enum": [
+                      "fastest",
+                      "auto"
+                    ]
+                  },
+                  "sttFinalize": {
+                    "type": "boolean"
+                  },
+                  "sttEndpointMs": {
+                    "type": "integer",
+                    "minimum": 500,
+                    "maximum": 3000
                   },
                   "temperature": {
                     "type": "number",

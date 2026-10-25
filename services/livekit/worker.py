@@ -7,6 +7,7 @@ import math
 import os
 import time
 import uuid
+import weakref
 
 import httpx
 from livekit import rtc
@@ -113,9 +114,38 @@ def _sentence_end(text):
     return None
 
 
+# OpenRouter routes by price by default; for deepseek that picked hosts with multi-second first tokens (p90 3.5 s, p99 22 s on
+# OpenInference, 2026-10-26). InferenceNet measured p50 ~0.29 s / p90 ~0.55 s; fallbacks stay on so an outage degrades, not fails.
+PROVIDERS = {"deepseek/deepseek-v4.1-flash": {"order": ["inference-net/fp8", "inference-net/us"], "allow_fallbacks": True,
+                                              "preferred_max_latency": {"p90": 1.5}}}
+
+
+class FinalizingSoniox(soniox.STT):
+    """LiveKit can't end a turn before a FINAL transcript, and the Soniox plugin only gets one when Soniox's own endpoint fires (up to
+    max_endpoint_delay_ms, 2 s by default: the 2.2-2.7 s spikes, 2026-10-26). finalize() asks Soniox to finalize now, on VAD end of speech
+    (https://soniox.com/docs/stt/rt/manual-finalization). The plugin sends str queue items as text frames; the queue is rebuilt on reconnect,
+    so it is read at call time."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self._streams = weakref.WeakSet()
+
+    def stream(self, *a, **kw):
+        s = super().stream(*a, **kw)
+        self._streams.add(s)
+        return s
+
+    def finalize(self):
+        for s in list(self._streams):
+            q = getattr(s, "audio_queue", None)
+            if q is not None:
+                q.put_nowait('{"type": "finalize"}')
+
+
 class Examiner(Agent):
     def __init__(self, d, c, floor, meter, prices, emit, chat_ctx=None):
-        stt = (soniox.STT(api_key=os.environ["SONIOX_API_KEY"], params=soniox.STTOptions(model=c.sttModel, language_hints=["en"]))
+        stt = (FinalizingSoniox(api_key=os.environ["SONIOX_API_KEY"], params=soniox.STTOptions(model=c.sttModel, language_hints=["en"],
+                                                                                              max_endpoint_delay_ms=c.sttEndpointMs))
                if c.stt == "soniox" else elevenlabs.STT(api_key=os.environ["ELEVENLABS_API_KEY"], model=c.sttModel,
                                                        use_realtime=True, language_code="en", enable_logging=False))
         voice = c.voice
@@ -138,7 +168,8 @@ class Examiner(Agent):
                          model=c.llm, temperature=c.temperature, max_completion_tokens=c.maxTokens,
                          # Hidden reasoning shares max_completion_tokens: a provider that starts thinking spends the whole budget
                          # there and the turn ends with no words to speak, leaving the examiner silent.
-                         extra_body={"reasoning": {"enabled": False}})
+                         extra_body={"reasoning": {"enabled": False}, **({"provider": PROVIDERS[c.llm]} if c.llmHost == "fastest" and c.llm in PROVIDERS else {})})
+        self.part_cfg = c
         super().__init__(instructions=d.prompt, chat_ctx=chat_ctx, stt=stt, tts=tts, llm=llm,
                          # ponytail: fixed, stricter than Silero's 0.5 so room noise (fans, traffic, a TV) reads as silence and
                          # the turn can end; make it a per-part setting if quiet speakers start getting cut off.
@@ -403,6 +434,9 @@ class Runtime:
         @self.session.on("user_state_changed")
         def user_state(event):
             self.last_activity = time.monotonic()
+            stt = getattr(self.agent, "stt", None)
+            if event.new_state == "listening" and isinstance(stt, FinalizingSoniox) and self.agent.part_cfg.sttFinalize:
+                stt.finalize()
             self.emit({"type": "pending", "on": event.new_state == "speaking"})
 
         @self.session.on("agent_state_changed")

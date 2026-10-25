@@ -31,15 +31,21 @@ it('the introduction follows the real frame and varies per session', () => {
   }
 });
 
-it('the LiveKit prompt scripts the introduction word for word and guides Part 1 with the work/study branch', () => {
+it('the LiveKit prompt scripts the introduction word for word and gives Parts 1 and 3 as topics only, no question list', () => {
   const s = newState('s', { ...test, script: { intro: ['Hello. Full name?', 'Thank you. And what shall I call you?'], p1Lead: 'Thank you. In this first part, I have some questions about yourself.', moveOn: "Let's move on to talk about" } }, 0);
   expect(s.history[0]!.text).toBe('Hello. Full name?');
-  expect(examinerPrompt(s.test)).toContain('Say "Hello. Full name?" and wait for the answer. Then say "Thank you. And what shall I call you?" and wait for the answer.');
+  const p = examinerPrompt({ ...s.test, part3: { ...test.part3, bullets: ['reading habits', 'libraries'] } });
+  expect(p).toContain('Say "Hello. Full name?" and wait for the answer. Then say "Thank you. And what shall I call you?" and wait for the answer.');
+  expect(p).toContain('Topics, in this order: "topic a", "topic b", "topic c".');
+  expect(p).toContain('first "reading habits", then "libraries"');
+  // the owner's rule (2026-10-26): no forced questions; the model asks what fits the conversation
+  for (const q of ['a question 1?', 'Do people read less now?']) expect(p).not.toContain(q);
+  expect(p).toContain('there is no question list');
+  expect(p).toContain('Never ask for information they have already given'); // "I work at a software company" was followed by "What kind of work do you do?"
+  expect(p).toContain('Describe a book'); // Part 2 card stays word for word
+  expect(p).toContain('read aloud by a text-to-speech voice');
   const ws = { ...test, part1: [prompt('ws', 1, { topic: 'Work or study', followUps: ['Do you work or are you a student?'] })], branches: { work: ['What kind of work do you do?'], study: ['What subject are you studying?'] } };
-  expect(examinerPrompt(ws)).toContain('What kind of work do you do?');
-  expect(examinerPrompt(ws)).toContain('If they neither work nor study, drop the rest of this topic');
-  expect(examinerPrompt(ws)).not.toMatch(/ask (its questions|these questions) in (this )?order|script exactly/i);
-  expect(examinerPrompt(ws)).toContain('read aloud by a text-to-speech voice');
+  expect(examinerPrompt(ws)).not.toContain('What kind of work do you do?');
 });
 
 it('live Part 1 is marked against the examiner lines, else the scripted questions', () => {

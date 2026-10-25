@@ -28,6 +28,9 @@ const Part = z.object({
   vadSilence: z.number().min(0.1).max(2),
   interruptions: z.boolean(),
   preemptiveGeneration: z.boolean(),
+  llmHost: z.enum(['fastest', 'auto']),
+  sttFinalize: z.boolean(),
+  sttEndpointMs: z.number().int().min(500).max(3000),
   temperature: z.number().min(0).max(2),
   maxTokens: z.number().int().min(16).max(2048),
 }).strict();

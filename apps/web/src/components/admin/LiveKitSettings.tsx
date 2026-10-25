@@ -22,6 +22,10 @@ export function LiveKitSettings({ cfg, set, disabled }: { cfg: LiveKitConfig; se
         <Select label="Transcription provider / model" value={effective.stt} disabled={disabled} onChange={(e) => edit(e.target.value === 'soniox' ? { stt: 'soniox', sttModel: 'stt-rt-v5' } : { stt: 'elevenlabs', sttModel: 'scribe_v2_realtime' })}>
           <option value="soniox">Soniox / stt-rt-v5</option><option value="elevenlabs">ElevenLabs / scribe_v2_realtime</option>
         </Select>
+        {effective.stt === 'soniox' && <>
+          <Switch label="Finalize on end of speech" checked={effective.sttFinalize ?? true} disabled={disabled} onChange={(v) => edit({ sttFinalize: v })} description="Ask Soniox for the final transcript as soon as you stop talking, instead of waiting for its own endpoint." />
+          <Input label="Soniox endpoint cap (ms)" type="number" min={500} max={3000} step={100} value={effective.sttEndpointMs ?? 1000} disabled={disabled} onChange={(e) => { const n = Math.round(Number(e.target.value)); if (Number.isFinite(n)) edit({ sttEndpointMs: Math.min(3000, Math.max(500, n)) }); }} />
+        </>}
         <Select label="Turn detection" value={effective.turnDetection} disabled={disabled} onChange={(e) => edit({ turnDetection: e.target.value as 'audio' | 'vad' })}><option value="audio">Audio / local v1-mini (worker)</option><option value="vad">VAD only</option></Select>
         {num('minEndpointDelay', 'Minimum endpoint delay (s)', 0, 10, 0.1)}
         {num('maxEndpointDelay', 'Maximum endpoint delay (s)', Math.max(0.1, effective.minEndpointDelay), 10, 0.1)}
@@ -29,6 +33,7 @@ export function LiveKitSettings({ cfg, set, disabled }: { cfg: LiveKitConfig; se
       </fieldset>
       <fieldset className="space-y-3"><legend className="type-caption font-medium">Reply</legend>
         <Select label="LLM (OpenRouter)" value={effective.llm} disabled={disabled} onChange={(e) => edit({ llm: e.target.value as LiveKitPartConfig['llm'] })}><option value="deepseek/deepseek-v4.1-flash">DeepSeek V4.1 Flash</option><option value="openai/gpt-6-luna">GPT-6 Luna</option></Select>
+        <Select label="LLM host" value={effective.llmHost ?? 'fastest'} disabled={disabled || effective.llm !== 'deepseek/deepseek-v4.1-flash'} onChange={(e) => edit({ llmHost: e.target.value as 'fastest' | 'auto' })}><option value="fastest">Fastest (InferenceNet first)</option><option value="auto">OpenRouter default (cheapest first)</option></Select>
         {num('temperature', 'Temperature', 0, 2, 0.1)}{num('maxTokens', 'Maximum reply tokens', 16, 2048, 1)}
         <Switch label="Interruptions" checked={effective.interruptions} disabled={disabled} onChange={(v) => edit({ interruptions: v })} />
         <Switch label="Preemptive generation" checked={effective.preemptiveGeneration} disabled={disabled} onChange={(v) => edit({ preemptiveGeneration: v })} />

@@ -96,7 +96,9 @@ async def test_all_actual_plugin_constructors(monkeypatch):
             await resource.aclose()
     d = Dispatch.model_validate(metadata(stt="elevenlabs", sttModel="scribe_v2_realtime"))
     a = Examiner(d, d.config(1), Floor(), Meter(), {}, Mock())
-    assert a.resources[2]._opts.extra_body == {"reasoning": {"enabled": False}}  # thinking would eat the whole reply budget
+    body = a.resources[2]._opts.extra_body
+    assert body["reasoning"] == {"enabled": False}  # thinking would eat the whole reply budget
+    assert body["provider"]["order"][0] == "inference-net/fp8" and body["provider"]["allow_fallbacks"]  # deepseek: fast host first
     for resource in a.resources:
         await resource.aclose()
 
@@ -401,3 +403,22 @@ async def test_noise_cannot_hold_the_turn_open_once_the_words_stop():
     assert r.stalled(200 + limit + 0.5)
     r.floor.listen(False, True)  # Part 2 long turn: the candidate's floor, never closed for them
     assert not r.stalled(200 + limit + 5)
+
+
+async def test_soniox_finalize_on_end_of_speech(monkeypatch):
+    # LiveKit waits for a FINAL transcript; Soniox only sends one on its own endpoint (up to 2 s) unless asked to finalize.
+    monkeypatch.setenv("SONIOX_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-not-a-real-key")
+    from contract import Floor
+    from worker import FinalizingSoniox
+    d = Dispatch.model_validate(metadata())
+    a = Examiner(d, d.config(1), Floor(), Meter(), {}, Mock())
+    assert isinstance(a.stt, FinalizingSoniox) and a.stt._params.max_endpoint_delay_ms == 1000
+    s = a.stt.stream()
+    while not s.audio_queue.empty():
+        s.audio_queue.get_nowait()
+    a.stt.finalize()
+    assert s.audio_queue.get_nowait() == '{"type": "finalize"}'
+    await s.aclose()
+    for resource in a.resources:
+        await resource.aclose()

@@ -33,6 +33,9 @@ class Config(BaseModel):
     vadSilence: float = Field(default=0.3, ge=0.1, le=2)
     interruptions: bool = True
     preemptiveGeneration: bool = False
+    llmHost: Literal["fastest", "auto"] = "fastest"
+    sttFinalize: bool = True
+    sttEndpointMs: int = Field(default=1000, ge=500, le=3000)
     temperature: float = Field(default=0.5, ge=0, le=2)
     maxTokens: int = Field(default=400, ge=16, le=2048)
 

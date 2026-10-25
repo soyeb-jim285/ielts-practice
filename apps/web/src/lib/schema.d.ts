@@ -4646,6 +4646,10 @@ export interface components {
             vadSilence?: number;
             interruptions?: boolean;
             preemptiveGeneration?: boolean;
+            /** @enum {string} */
+            llmHost?: "fastest" | "auto";
+            sttFinalize?: boolean;
+            sttEndpointMs?: number;
             temperature?: number;
             maxTokens?: number;
             parts?: {
@@ -4667,6 +4671,10 @@ export interface components {
                     vadSilence?: number;
                     interruptions?: boolean;
                     preemptiveGeneration?: boolean;
+                    /** @enum {string} */
+                    llmHost?: "fastest" | "auto";
+                    sttFinalize?: boolean;
+                    sttEndpointMs?: number;
                     temperature?: number;
                     maxTokens?: number;
                 };
@@ -4688,6 +4696,10 @@ export interface components {
                     vadSilence?: number;
                     interruptions?: boolean;
                     preemptiveGeneration?: boolean;
+                    /** @enum {string} */
+                    llmHost?: "fastest" | "auto";
+                    sttFinalize?: boolean;
+                    sttEndpointMs?: number;
                     temperature?: number;
                     maxTokens?: number;
                 };
@@ -4709,6 +4721,10 @@ export interface components {
                     vadSilence?: number;
                     interruptions?: boolean;
                     preemptiveGeneration?: boolean;
+                    /** @enum {string} */
+                    llmHost?: "fastest" | "auto";
+                    sttFinalize?: boolean;
+                    sttEndpointMs?: number;
                     temperature?: number;
                     maxTokens?: number;
                 };

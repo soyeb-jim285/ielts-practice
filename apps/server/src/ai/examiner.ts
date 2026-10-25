@@ -70,17 +70,9 @@ const LINES = {
 
 const p1Questions = (t: SpeakingTest) =>
   t.part1.flatMap((p) => (p.followUps?.length ? p.followUps : [p.body]).map((q) => ({ topic: p.topic, q }))).slice(0, P1_MAX_QUESTIONS);
-const NEUTRAL_TOPIC = 'Work or study';
-/** The branch sets as instructions for a live model that sees the answer itself. */
-const branchGuide = (t: SpeakingTest) => {
-  const b = (t as LiveTest).branches;
-  const hasNeutral = t.part1.some((p) => p.topic === NEUTRAL_TOPIC);
-  return b && hasNeutral
-    ? `\nWork or study branch: after the candidate answers "Do you work or are you a student?", drop the rest of the "${NEUTRAL_TOPIC}" questions and ask these instead (about three), one at a time. If they only work: ${b.work.join(' | ')}. If they only study: ${b.study.join(' | ')}. If they do both, keep the neutral questions. If they neither work nor study, drop the rest of this topic and go on to the next one.`
-    : '';
-};
-const P1_ADAPT = `Part 1 questions are close guides, not a script: you may make small edits so they fit the candidate (drop "or studies" or "or school", change pronouns or tense). Skip a question the candidate has already answered, repeat one if asked. Do not add new topics. Keep your own talk short.`;
-const P3_ADAPT = `Part 3 questions are suggestions: rephrase them, follow up on the candidate's own ideas, probe with "Why?" or "Can you give me an example?", and make them easier or harder to suit the candidate's level. Stay within the two sub-topics, aim for five or six exchanges, keep your own talk short, and never lecture or give an opinion.`;
+/** Part 1 and Part 3 are topic-led: the model picks every question from the conversation, as a real examiner adapts (owner, 2026-10-26).
+ *  The bank's questions are not shown to it, so it cannot read them out or ask for something the candidate already said. */
+const FREE = `You choose every question yourself from the conversation so far: there is no question list. Decide how many questions to ask, which angle to take and whether to cover a topic at all. Build on what the candidate actually said and ask about details they mentioned. Never ask for information they have already given (their job, company, subject, where they live), not even in different words. Repeat a question only if asked. Keep your own talk short.`;
 const MEMORY = `Remember what the candidate says about themselves (work or study, where they live) and keep later questions consistent with it. Only mention it when natural ("You said you work as a nurse, ..."): real examiners rarely do. Use the candidate's name rarely, and only the name they asked you to call them, never their full name.`;
 
 /** The questions a live part's recording was marked against: the examiner's lines in that part (one client mark each).
@@ -91,7 +83,6 @@ export function liveQuestions(s: LiveState, part: 1 | 3): string[] | null {
 }
 /** The Part 2 title as a topic phrase: "Describe a hotel that you know." becomes "a hotel that you know". */
 const aboutTopic = (t: SpeakingTest) => t.part2.title.replace(/^describe\s+/i, '').replace(/\.$/, '');
-const p3Questions = (t: SpeakingTest) => (t.part3.followUps?.length ? t.part3.followUps : [t.part3.body]);
 
 export function newState(sessionId: string, test: LiveTest, now: number): LiveState {
   return {
@@ -130,24 +121,21 @@ const p1Opening = (sc: Script) => `say "${sc.p1Lead}" Then for each topic say "L
 /** Instructions for the LiveKit examiner, which runs the whole test. The client times the parts and nudges the model with cues. */
 function instructions(t: SpeakingTest): string {
   const sc = scriptOf(t);
-  const p1 = t.part1.map((p) => `Topic "${p.topic}":\n${(p.followUps?.length ? p.followUps : [p.body]).map((q) => `- ${q}`).join('\n')}`).join('\n');
-  const q = t.part2.followUps?.[0];
-  const rounding = q ? `ask this rounding-off question, adapted if needed to what they said: "${q}"` : 'ask one short, simple rounding-off question linked to the topic (for example "Do you often …?")';
+  const topics = t.part1.map((p) => `"${p.topic}"`).join(', ');
+  const [sub1, sub2] = [t.part3.bullets?.[0] ?? t.part3.topic, t.part3.bullets?.[1]];
   return `${PERSONA}
 Ask one question at a time, then stop and listen. Keep every turn brief: a sentence or two plus the question. Never ask two questions at once. Give the candidate time to think; do not fill pauses.
 ${TURN_RULE}
 Messages that begin with "${CUE_PREFIX.trim()}" come from the test application, not from the candidate. Follow them immediately, even in the middle of a sentence, and never read them aloud, answer them or mention them. You only start speaking when you receive the first cue, "${CUE_PREFIX}Begin the test."
 The app keeps the time: Parts 1 and 3 each last about 4-5 minutes, and you never move on to the next part until you are told to.
 
-Follow this plan. The introduction, the Part 2 card and the closing are word for word; the Part 1 and Part 3 questions are guides you adapt to the candidate. ${MEMORY}
+Follow this plan. The introduction, the Part 2 card and the closing are word for word; in Parts 1 and 3 you only get topics. ${FREE} ${MEMORY}
 1. Introduction (not assessed: no comments on the answers, no other questions). ${introPlan(sc, 'and wait for the answer.')}
-2. Part 1 (interview on familiar topics): ${p1Opening(sc)} and work through its questions roughly in order, one at a time. ${P1_ADAPT} Expect short answers. After a one-word answer you may ask "Why?" or "Why not?", otherwise just move to the next question:
-${p1}${branchGuide(t)}
+2. Part 1 (interview on familiar, everyday topics about the candidate's own life): ${p1Opening(sc)} Topics, in this order: ${topics}. Ask short, simple, personal questions (likes, habits, routines, experiences, preferences) and expect short answers; after a one-word answer you may ask "Why?" or "Why not?". Stay on these topics: do not add others.
 3. Part 2 (long turn): when told to move to Part 2, say "${LINES.prep(t.part2.title)}" The candidate sees this cue card:
 ${cueCard(t)}
-Then stay completely silent for the one-minute preparation, whatever you hear. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks: you cannot hear them during the long turn. When told the candidate has finished, say "Thank you." and ${rounding}. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
-4. Part 3 (two-way discussion): say "We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this." Then discuss these suggested questions, one at a time${t.part3.bullets?.[1] ? ` (before the fourth, say "Now let's move on to consider ${t.part3.bullets[1]}.")` : ''}. They are more abstract: invite the candidate to explain, compare, evaluate or speculate. ${P3_ADAPT} Follow-ups such as "Why do you think that is?", "Can you give me an example?", "Do you think it will change in the future?" or "Is it the same in other countries?" are welcome:
-${p3Questions(t).map((x) => `- ${x}`).join('\n')}
+Then stay completely silent for the one-minute preparation, whatever you hear. When told preparation is over, say "${LINES.talk}" Then say nothing while the candidate speaks: you cannot hear them during the long turn. When told the candidate has finished, say "Thank you." and ask one short, simple rounding-off question linked to what they talked about. If instead you are told the two minutes are up, say "Thank you. That's the end of your time." and then ask it. Then listen to the answer.
+4. Part 3 (two-way discussion): say "We've been talking about ${aboutTopic(t)}, and I'd like to discuss with you one or two more general questions related to this." Then discuss ${sub2 ? `two sub-topics: first "${sub1}", then "${sub2}" (when you switch, say "Now let's move on to consider ${sub2}.")` : `the theme "${sub1}"`}. Questions here are abstract and general, about society and people in general, not the candidate's own life: invite them to explain, compare, evaluate or speculate, probe with "Why do you think that is?" or "Can you give me an example?", follow their own ideas, and make questions easier or harder to suit their level. Never lecture or give an opinion.
 5. When told the test is over, say "${LINES.closing}" and nothing more.`;
 }
 

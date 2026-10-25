@@ -14,6 +14,13 @@ export type LiveKitPartConfig = {
   vadSilence: number;
   interruptions: boolean;
   preemptiveGeneration: boolean;
+  /** OpenRouter host for DeepSeek: 'fastest' tries InferenceNet first (worker PROVIDERS), 'auto' is OpenRouter's default price routing.
+   *  Optional and absent from DEFAULT_LIVEKIT, so a worker without the field never receives it unless the owner picks one. */
+  llmHost?: 'fastest' | 'auto';
+  /** Soniox only, optional like llmHost (worker defaults: true, 1000). Finalize the transcript on end of speech instead of waiting for Soniox's
+   *  own endpoint, and the cap on that endpoint in ms (500-3000; Soniox's default 2000 caused the 2+ s reply spikes). */
+  sttFinalize?: boolean;
+  sttEndpointMs?: number;
   temperature: number;
   maxTokens: number;
 };

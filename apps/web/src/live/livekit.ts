@@ -27,6 +27,11 @@ export function loadLiveKitConfig(): LiveKitConfig {
       if (!(LIVEKIT_TTS_MODELS[c.tts] as readonly string[]).includes(c.ttsModel)) c.ttsModel = LIVEKIT_TTS_MODELS[c.tts][0];
       if (!['openai/gpt-6-luna', 'deepseek/deepseek-v4.1-flash'].includes(c.llm)) c.llm = base.llm;
       if (!['audio', 'vad'].includes(c.turnDetection)) c.turnDetection = base.turnDetection;
+      const host = input.llmHost ?? base.llmHost;
+      if (host === 'fastest' || host === 'auto') c.llmHost = host;
+      const fin = input.sttFinalize ?? base.sttFinalize, cap = input.sttEndpointMs ?? base.sttEndpointMs;
+      if (typeof fin === 'boolean') c.sttFinalize = fin;
+      if (typeof cap === 'number' && Number.isInteger(cap) && cap >= 500 && cap <= 3000) c.sttEndpointMs = cap;
       return c;
     };
     const base = normalize(raw, DEFAULT_LIVEKIT), parts: LiveKitConfig['parts'] = {};
@@ -40,7 +45,7 @@ const ms = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0
 
 /** The label used for this engine in the playground (run header, past sessions, timeline). */
 export const liveKitLabel = (c: LiveKitConfig) =>
-  ['LiveKit', c.sttModel, c.turnDetection === 'audio' ? `v1-mini ${c.minEndpointDelay}–${c.maxEndpointDelay} s` : `VAD ${c.vadSilence} s`, c.llm.replace(/^.*\//, ''), c.ttsModel, c.voice, c.parts && Object.keys(c.parts).length ? 'part overrides' : '']
+  ['LiveKit', c.stt === 'soniox' ? `${c.sttModel}${c.sttFinalize === false ? '' : ' finalize'} ${c.sttEndpointMs ?? 1000} ms` : c.sttModel, c.turnDetection === 'audio' ? `v1-mini ${c.minEndpointDelay}–${c.maxEndpointDelay} s` : `VAD ${c.vadSilence} s`, c.llm.replace(/^.*\//, '') + (c.llmHost === 'auto' ? ' (auto host)' : ''), c.ttsModel, c.voice, c.parts && Object.keys(c.parts).length ? 'part overrides' : '']
     .filter(Boolean).join(' · ');
 
 /** Speaking is the worker's state (its audio starts going out), as Pipecat's bot-started-speaking. */
