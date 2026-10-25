@@ -608,10 +608,10 @@
             "type": "string",
             "enum": [
               "practice",
-              "live",
               "exam"
             ],
-            "default": "practice"
+            "default": "practice",
+            "description": "Live attempts are created by the live examiner only (they count as examiner sessions)"
           },
           "sessionId": {
             "type": "string"

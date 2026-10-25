@@ -54,6 +54,13 @@ it('rejects unsupported audio types', async () => {
   expect((await speaking(headers, p.id, { audioContentType: 'audio/mp4' })).body.audioKey).toMatch(/\.m4a$/);
 });
 
+// live attempts count against the examiner allowance, so only the live examiner may create them
+it('rejects mode live from clients', async () => {
+  const { headers } = await testUser();
+  const p = await seedPrompt();
+  expect((await speaking(headers, p.id, { mode: 'live' })).res.status).toBe(400);
+});
+
 it('writing: stores text and plan; failed attempt can be re-run', async () => {
   const { headers } = await testUser();
   const p = await seedPrompt({ skill: 'writing', part: 2, type: 'opinion', imageKey: 'images/x.png' });

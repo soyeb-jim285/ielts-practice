@@ -4502,10 +4502,11 @@ export interface components {
             skill: "speaking" | "writing";
             part: number;
             /**
+             * @description Live attempts are created by the live examiner only (they count as examiner sessions)
              * @default practice
              * @enum {string}
              */
-            mode: "practice" | "live" | "exam";
+            mode: "practice" | "exam";
             sessionId?: string;
             /** @description Full mock test: the attempt belongs to this open mock of the caller; sessionId must be the mock's writing/speaking session */
             mockId?: string;

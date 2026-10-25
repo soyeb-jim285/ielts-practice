@@ -40,7 +40,7 @@ const CreateAttempt = z
     promptId: z.string(),
     skill: Skill,
     part: z.number().int().min(1).max(3),
-    mode: Mode.default('practice'),
+    mode: z.enum(['practice', 'exam']).default('practice').openapi({ description: 'Live attempts are created by the live examiner only (they count as examiner sessions)' }),
     sessionId: z.string().optional(),
     mockId: z.string().optional().openapi({ description: 'Full mock test: the attempt belongs to this open mock of the caller; sessionId must be the mock\'s writing/speaking session' }),
     parentAttemptId: z.string().optional(),
