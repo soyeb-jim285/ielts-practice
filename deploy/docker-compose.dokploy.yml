@@ -1,4 +1,4 @@
-# Production stack for Dokploy (Compose service). Set the variables in Dokploy's Environment tab (they become .env here).
+# Production stack for Dokploy (Compose service, type "Stack": Docker Swarm). Set the variables in Dokploy's Environment tab (they become .env here).
 # Test limits (docs/community.md): optionally COMMUNITY_MIN_BALANCE, COMMUNITY_MAX_PER_HOUR, GUESTS_PER_IP, IP_HASH_SALT.
 # OPENROUTER_API_KEY should carry a spend limit: below COMMUNITY_MIN_BALANCE limited tests pause.
 # Guest limits use the client IP from the Cloudflare Tunnel (CF-Connecting-IP): keep the app reachable only through the tunnel.
@@ -11,10 +11,13 @@
 # Deploys: CI (.github/workflows/ci.yml) pushes the image, then calls the DOKPLOY_DEPLOY_WEBHOOK repo secret; keep Dokploy's
 # own Autodeploy off so it doesn't redeploy the old image before the build finishes.
 # Memory caps keep this app from squeezing other projects on the same VPS.
+# Zero-downtime deploys: the app updates start-first and the tunnel only reaches it once /api/health answers, so the old task
+# serves until the new one is ready (and stays if the new one never gets healthy: rollback). Migrations run at boot while the old
+# task still serves, so a migration must keep the previous release working (add columns/tables; drop or rename one release later).
+# The same file still works as a plain Compose service (Swarm-only keys are ignored there).
 services:
   db:
     image: postgres:17
-    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ielts
@@ -24,48 +27,58 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 10
-    mem_limit: 512m
-    networks: [internal]
+    deploy:
+      update_config: { order: stop-first } # never two Postgres processes on one data volume
+      restart_policy: { condition: any }
+      resources: { limits: { memory: 512m } }
+    networks: [backend]
 
   # API + web (same origin). Migrates and seeds the prompt bank on start (docker/entrypoint.sh).
   app:
-    image: ghcr.io/soyeb-jim285/ielts-practice:latest
-    pull_policy: always # every deploy fetches the newest :latest
-    restart: unless-stopped
+    image: ghcr.io/soyeb-jim285/ielts-practice:latest # Swarm re-resolves :latest on every deploy (no pull_policy: Swarm rejects it)
     env_file: .env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
-    extra_hosts: ["host.docker.internal:host-gateway"]
-    depends_on:
-      db:
-        condition: service_healthy
-    mem_limit: 512m
+    depends_on: [db] # list form: Swarm rejects conditions (and ignores order); the boot migration fails until db is up and the task restarts
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 10s # the server drains in 8 s on SIGTERM
+    deploy:
+      update_config: { order: start-first, failure_action: rollback, monitor: 30s }
+      rollback_config: { order: start-first }
+      restart_policy: { condition: any }
+      resources: { limits: { memory: 512m } }
     networks:
-      internal:
+      backend:
       dokploy-network:
         aliases: [ielts-app] # unique name the tunnel targets; "app" alone could clash with other stacks
 
   # Nightly pg_dump → R2 under backups/ (uses the R2_* variables).
   backup:
     image: postgres:17-alpine
-    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/ielts
     volumes:
       - ../docker/backup.sh:/backup.sh:ro
     entrypoint: ["/bin/sh", "-c", "apk add --no-cache aws-cli >/dev/null && exec /backup.sh"]
-    depends_on:
-      db:
-        condition: service_healthy
-    mem_limit: 256m
-    networks: [internal]
+    depends_on: [db]
+    deploy:
+      restart_policy: { condition: any }
+      resources: { limits: { memory: 256m } }
+    networks: [backend]
 
 networks:
-  internal:
+  backend: # not "internal": the old Compose bridge of that name would clash with the Swarm overlay during the switch
   dokploy-network:
     external: true
 
 volumes:
-  ielts-pgdata:
+  ielts-pgdata: # the existing data volume, pinned by name so the Compose → Stack switch reuses it
+    external: true
+    name: ielts-ielts-wyilz6_ielts-pgdata
