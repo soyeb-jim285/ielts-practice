@@ -71,3 +71,48 @@ it('falls back to templates with model null when both models fail', async () => 
   expect(r).toEqual({ words: templateWords(f), model: null });
   expect(fake.calls.map((c) => c.body.model)).toContain('deepseek/deepseek-v4.1-flash');
 });
+
+const plan3 = (action: CoachWords['plan'][number]['action'], day = 'Mon') => [day, 'Wed', 'Fri'].map((d) => ({ day: d, text: 'Take a Listening test.', action }));
+
+it('drops repeated candidate ids in focus and cheat', () => {
+  const c = cand('listening', 'plural');
+  const v = validateWords({ ...words([item(c), item(c), item(c)]), cheat: [{ candidateId: c.id, text: 'a' }, { candidateId: c.id, text: 'b' }] }, facts([c]));
+  expect(v.focus).toHaveLength(1);
+  expect(v.cheat).toHaveLength(1);
+});
+
+it('template plan always has 3 or 4 lines, padded with weak skills', () => {
+  const f = facts([cand('listening', 'plural')]);
+  const p = templateWords(f).plan;
+  expect(p.length).toBeGreaterThanOrEqual(3);
+  expect(p.length).toBeLessThanOrEqual(4);
+  expect(templateWords(facts([])).plan.length).toBeGreaterThanOrEqual(3);
+});
+
+it('within 14 days of the exam only full timed tests are accepted', () => {
+  const f = facts([cand('listening', 'plural')], { daysToExam: 10 });
+  const v = validateWords({ ...words([]), summary: 'Ten days left.'.replace('Ten', 'x'), plan: plan3('speak-part') }, f);
+  expect(v.plan).toEqual(templateWords(f).plan);
+  expect(v.plan.every((p) => ['listening-test', 'reading-test', 'write-task2', 'speak-full'].includes(p.action))).toBe(true);
+  expect(v.plan.map((p) => p.text).join(' ')).not.toMatch(/cheat/i);
+  expect(validateWords({ ...words([]), plan: plan3('listening-test') }, f).plan).toEqual(plan3('listening-test'));
+});
+
+it('plan days are restricted to weekday names, Today and Tomorrow', () => {
+  const f = facts([cand('listening', 'plural')]);
+  expect(validateWords({ ...words([]), plan: plan3('listening-test', 'Day 1') }, f).plan).toEqual(templateWords(f).plan);
+  expect(validateWords({ ...words([]), plan: plan3('listening-test', 'Today') }, f).plan[0]!.day).toBe('Today');
+});
+
+it('rejects spelled-out numbers like an invented digit', () => {
+  const c = cand('listening', 'plural');
+  const f = facts([c]);
+  expect(validateWords(words([item(c, 'You lost nine marks')]), f).focus[0]).toEqual(templateWords(f).focus[0]);
+});
+
+it('template copy is plain and pluralised', () => {
+  const f = facts([cand('listening', 'plural', 1, 1)]);
+  const x = templateWords(f).focus[0]!;
+  expect(x.title).toBe('Check plurals before you move on');
+  expect(x.why).toBe('Came up 1 time across 1 test.');
+});
