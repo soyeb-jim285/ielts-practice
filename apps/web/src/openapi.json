@@ -625,7 +625,7 @@
           },
           "text": {
             "type": "string",
-            "maxLength": 20000
+            "maxLength": 12000
           },
           "audioContentType": {
             "type": "string",
@@ -694,7 +694,7 @@
           },
           "text": {
             "type": "string",
-            "maxLength": 20000
+            "maxLength": 12000
           },
           "plan": {
             "type": "string",
