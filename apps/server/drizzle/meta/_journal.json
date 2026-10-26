@@ -183,6 +183,13 @@
       "when": 1793048483411,
       "tag": "0025_coach",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793056045690,
+      "tag": "0026_plan_reminders",
+      "breakpoints": true
     }
   ]
 }

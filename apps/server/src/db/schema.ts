@@ -518,3 +518,11 @@ export const coachWeekly = pgTable('coach_weekly', {
   week: text('week').notNull(), // ISO week YYYY-Www in the student's timezone
   sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.week] })]);
+
+// One row per "your paid plan ends soon" email (plan-reminders.ts): days is 7, 3 or 1; a new end date (renewal) starts a fresh set.
+export const planReminders = pgTable('plan_reminders', {
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  until: timestamp('until', { withTimezone: true }).notNull(),
+  days: integer('days').notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.until, t.days] })]);

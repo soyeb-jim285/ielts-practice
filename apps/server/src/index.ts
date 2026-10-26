@@ -11,6 +11,7 @@ import { purgeAiLogs } from './ai/ailog';
 import { reconcileCosts } from './ai/cost';
 import { coachSweep } from './coach/report';
 import { weeklySweep } from './coach/weekly';
+import { planReminderSweep } from './plan-reminders';
 import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
@@ -48,6 +49,7 @@ setInterval(purgeLogs, 24 * 3_600_000).unref();
 const coach = async () => {
   await coachSweep().catch((e) => console.error('coachSweep failed', e));
   await weeklySweep().catch((e) => console.error('weeklySweep failed', e));
+  await planReminderSweep().catch((e) => console.error('planReminderSweep failed', e));
 };
 // production only: local dev has real OpenRouter/Resend keys, and a sweep would write paid reports and send weekly emails for every local user. Opening /coach still generates one.
 if (env.NODE_ENV === 'production') {

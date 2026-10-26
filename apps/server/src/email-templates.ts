@@ -102,6 +102,21 @@ export const TEMPLATES = {
       ],
     },
   },
+  'plan-ending': {
+    name: 'Paid plan ending soon',
+    description: 'Sent 7 days, 3 days and 1 day before a paid plan ends. A new end date starts the reminders again.',
+    reason: 'You got this because your paid plan is ending soon.',
+    vars: { name: 'Ayesha', when: 'in 3 days', until: '31 December 2026' },
+    defaults: {
+      subject: 'Your NextBand paid plan ends {{when}}',
+      preheader: 'Active until {{until}}.',
+      blocks: [
+        { type: 'hero', eyebrow: 'Paid plan', title: 'Your paid plan ends {{when}}', subtitle: 'Active until {{until}}', tone: 'brand' },
+        { type: 'text', text: "Hi {{name}}, after that you go back to the free limits. To keep unlimited practice, open NextBand and tap Upgrade. We'll be in touch." },
+        { type: 'button', label: 'Open NextBand', url: '/', variant: 'solid' },
+      ],
+    },
+  },
   'weekly-report': {
     name: 'Weekly coach report',
     description: 'Sent on Monday morning (from 9am local time) to students who practised that week and have news and tips on. The headline is the win line when there is one; stats are added when it sends.',
