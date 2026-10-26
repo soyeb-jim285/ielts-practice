@@ -491,3 +491,30 @@ export const emailCampaigns = pgTable('email_campaigns', {
   updatedAt: updatedAt(),
   sentAt: timestamp('sent_at', { withTimezone: true }),
 });
+
+// ---------- Coach ----------
+export const coachReports = pgTable('coach_reports', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  day: text('day').notNull(), // YYYY-MM-DD, the student's local day
+  lastTestAt: timestamp('last_test_at', { withTimezone: true }).notNull(), // newest finished test the report includes
+  facts: jsonb('facts').$type<import('../coach/types').CoachFacts>().notNull(),
+  words: jsonb('words').$type<import('../coach/types').CoachWords>().notNull(),
+  model: text('model'), // null = templates only
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('coach_reports_user_day_idx').on(t.userId, t.day), index('coach_reports_user_created_idx').on(t.userId, t.createdAt)]);
+
+export const coachFeedback = pgTable('coach_feedback', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  reportId: text('report_id').notNull().references(() => coachReports.id, { onDelete: 'cascade' }),
+  itemKey: text('item_key').notNull(),
+  note: text('note').notNull().default(''),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('coach_feedback_report_item_idx').on(t.reportId, t.itemKey)]);
+
+export const coachWeekly = pgTable('coach_weekly', {
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  week: text('week').notNull(), // ISO week YYYY-Www in the student's timezone
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.week] })]);
