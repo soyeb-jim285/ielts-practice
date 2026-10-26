@@ -350,7 +350,7 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
       for (const e of [unverified, verified]) await post('/sign-up/email', { email: e, password: 'password1234', name: 'U' });
       await sendsIdle();
       const sent = send.mock.calls.map(([m]) => m as { to: string; subject: string; html: string });
-      expect(sent.filter((m) => m.to === unverified).at(-1)).toMatchObject({ subject: 'Your NextBand verification code', html: expect.stringMatching(/\d{6}/) });
+      expect(sent.filter((m) => m.to === unverified).at(-1)).toMatchObject({ subject: expect.stringMatching(/^Your NextBand code: \d{6}$/), html: expect.stringMatching(/\d{6}/) });
       expect(sent.find((m) => m.to === verified)).toMatchObject({ subject: 'You already have a NextBand account' });
     } finally {
       opts.requireEmailVerification = false;

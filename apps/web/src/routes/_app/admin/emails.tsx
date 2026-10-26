@@ -6,7 +6,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { dhakaTime } from '@/components/admin/format';
 import { Load } from '@/components/admin/Load';
 import { docValid, DocFields, Preview, sameDoc, type Doc } from '@/components/admin/email/DocEditor';
-import { Alert, Badge, Button, Dialog, EmptyState, Input, PageContainer, Select, Tabs, toast, type Tone } from '@/components/ui';
+import { Badge, Button, Dialog, EmptyState, Input, PageContainer, Select, Tabs, toast, type Tone } from '@/components/ui';
 import { useAdmin } from '@/lib/admin';
 import { api, ApiError, type Schemas } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -295,9 +295,8 @@ function BrandForm({ s }: { s: Settings }) {
   });
   return (
     <form className="max-w-xl space-y-5" onSubmit={(e) => (e.preventDefault(), save.mutate())}>
-      {!v.address.trim() && <Alert tone="warn" title="Add a postal address before sending campaigns">Anti-spam laws (and Gmail) expect promotional emails to show where the sender is.</Alert>}
       <Input label="Name in emails" value={v.company} maxLength={80} required onChange={(e) => setV({ ...v, company: e.target.value })} />
-      <Input label="Postal address" hint="Shown in every footer." value={v.address} maxLength={300} onChange={(e) => setV({ ...v, address: e.target.value })} />
+      <Input label="Footer line" hint="Optional. One short line after the copyright, in every email." value={v.note} maxLength={160} onChange={(e) => setV({ ...v, note: e.target.value })} />
       <Input label="Support email" hint="Adds a Help link to the footer." type="email" value={v.supportEmail} maxLength={200} onChange={(e) => setV({ ...v, supportEmail: e.target.value })} />
       <fieldset className="space-y-3">
         <legend className="mb-2 text-sm font-medium">Social links</legend>

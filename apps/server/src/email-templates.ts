@@ -7,95 +7,103 @@ import { env } from './env';
 import { DEFAULT_SETTINGS, EmailSettings, type EmailDoc } from './emails/blocks';
 import { Email, type EmailKind } from './emails/Email';
 
-/** Account emails (admin → Emails → Account emails edits them). `vars` are the placeholders each one fills, with the sample values previews use. */
-type Template = { name: string; description: string; vars: Record<string, string>; defaults: EmailDoc };
+/** Account emails (admin → Emails → Account emails edits them). `vars` are the placeholders each one fills, with the sample values previews use.
+ *  `reason` is the footer line saying why this email arrived. */
+type Template = { name: string; description: string; reason: string; vars: Record<string, string>; defaults: EmailDoc };
 
 export const TEMPLATES = {
   'verification-code': {
     name: 'Verification code',
     description: 'Sent on sign-up and when someone asks for a new code.',
+    reason: 'You got this because this email was used to sign up for NextBand.',
     vars: { code: '482913', minutes: '10' },
     defaults: {
-      subject: 'Your NextBand verification code',
-      preheader: 'Your code is {{code}}. It expires in {{minutes}} minutes.',
+      subject: 'Your NextBand code: {{code}}',
+      preheader: 'Enter it in the app to confirm your email. It works for {{minutes}} minutes.',
       blocks: [
-        { type: 'hero', eyebrow: 'Verify your email', title: 'Welcome to NextBand', subtitle: '', tone: 'brand' },
-        { type: 'text', text: 'Enter this code in the app to confirm your email address:' },
+        { type: 'hero', eyebrow: 'Confirm your email', title: 'Welcome to NextBand', subtitle: '', tone: 'brand' },
+        { type: 'text', text: 'Here is your code. Enter it in the app to confirm your email:' },
         { type: 'code', value: '{{code}}' },
-        { type: 'text', text: 'It expires in **{{minutes}} minutes**. If you did not sign up, you can ignore this email.' },
+        { type: 'text', text: 'It works for **{{minutes}} minutes**. If you did not sign up, ignore this email and nothing will happen.' },
       ],
     },
   },
   'reset-code': {
     name: 'Password reset code',
     description: 'Sent from "Forgot password?".',
+    reason: 'You got this because someone asked to reset the password for this account.',
     vars: { code: '715204', minutes: '10' },
     defaults: {
-      subject: 'Your NextBand password reset code',
-      preheader: 'Your reset code is {{code}}.',
+      subject: 'Your NextBand reset code: {{code}}',
+      preheader: 'Use it to choose a new password. It works for {{minutes}} minutes.',
       blocks: [
-        { type: 'hero', eyebrow: 'Security', title: 'Reset your password', subtitle: '', tone: 'ink' },
-        { type: 'text', text: 'Enter this code to choose a new password:' },
+        { type: 'hero', eyebrow: 'Password reset', title: 'Choose a new password', subtitle: '', tone: 'ink' },
+        { type: 'text', text: 'Enter this code in the app, then pick your new password:' },
         { type: 'code', value: '{{code}}' },
-        { type: 'callout', tone: 'info', title: 'Did not ask for this?', text: 'You can ignore this email. Your password stays the same.' },
+        { type: 'text', text: 'It works for **{{minutes}} minutes**.' },
+        { type: 'callout', tone: 'info', title: 'Not you?', text: 'Ignore this email. Your password stays the same.' },
       ],
     },
   },
   'account-exists': {
     name: 'Account already exists',
     description: 'Someone signed up with the address of a verified account.',
+    reason: 'You got this because someone tried to sign up for NextBand with this email.',
     vars: {},
     defaults: {
       subject: 'You already have a NextBand account',
-      preheader: 'Sign in with your password, or reset it.',
+      preheader: 'Sign in with your password, or reset it if you forgot.',
       blocks: [
         { type: 'hero', eyebrow: 'Your account', title: 'You already have an account', subtitle: '', tone: 'soft' },
-        { type: 'text', text: 'Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.\n\nSign in with your password, or use **Forgot password?** on the sign-in screen to get a reset code.' },
+        { type: 'text', text: 'Someone just tried to sign up with this email, but it already has a NextBand account.\n\nIf that was you, sign in with your password. Forgot it? Tap **Forgot password?** on the sign-in screen and we will send you a code.' },
         { type: 'button', label: 'Sign in', url: '/login', variant: 'solid' },
-        { type: 'text', text: 'If this was not you, you can ignore this email.' },
+        { type: 'text', text: 'If it was not you, ignore this email. Your account is safe.' },
       ],
     },
   },
   'finish-setup': {
     name: 'Finish setting up',
     description: 'Sign-up on an address whose earlier, unverified sign-up is older than 10 minutes (sent instead of a code).',
+    reason: 'You got this because someone tried to sign up for NextBand with this email.',
     vars: {},
     defaults: {
       subject: 'Finish setting up your NextBand account',
-      preheader: 'Set your password to finish signing up.',
+      preheader: 'Set a password to finish signing up.',
       blocks: [
-        { type: 'hero', eyebrow: 'Your account', title: 'Finish setting up your account', subtitle: '', tone: 'soft' },
-        { type: 'text', text: 'Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.\n\nTo finish, set your password with a reset code. That also confirms your email.' },
+        { type: 'hero', eyebrow: 'Your account', title: 'Finish setting up', subtitle: '', tone: 'soft' },
+        { type: 'text', text: 'You started signing up with this email earlier but did not finish.\n\nSet a password to finish. We will send a code to this email, which also confirms it is yours.' },
         { type: 'button', label: 'Set my password', url: '/forgot-password', variant: 'solid' },
-        { type: 'text', text: 'If this was not you, you can ignore this email.' },
+        { type: 'text', text: 'If you did not sign up, ignore this email.' },
       ],
     },
   },
   'plan-granted': {
     name: 'Paid plan is on',
     description: 'Sent when you grant the paid plan on a user page with "Email them" ticked.',
+    reason: 'You got this because the paid plan was turned on for your account.',
     vars: { name: 'Ayesha', until: '31 December 2026' },
     defaults: {
       subject: 'Your NextBand paid plan is on',
       preheader: 'Unlimited practice until {{until}}.',
       blocks: [
         { type: 'hero', eyebrow: 'Paid plan', title: 'Your paid plan is on', subtitle: 'Active until {{until}}', tone: 'brand' },
-        { type: 'text', text: 'Hi {{name}}, here is everything you now have:' },
+        { type: 'text', text: 'Hi {{name}}, here is what you get now:' },
         {
           type: 'details',
           title: 'Included',
           rows: [
-            { label: 'Writing and speaking practice', value: 'Unlimited' },
+            { label: 'Writing and Speaking practice', value: 'Unlimited' },
             { label: 'Live examiner', value: '5 a day, 40 a month' },
             { label: 'Listening and Reading', value: 'Every test' },
           ],
         },
         { type: 'button', label: 'Start practising', url: '/', variant: 'solid' },
-        { type: 'text', text: 'Good luck with your practice.' },
+        { type: 'text', text: 'Happy practising!' },
       ],
     },
   },
 } satisfies Record<string, Template>;
+const PROMO_REASON = 'You got this because you have a NextBand account with news and tips turned on.';
 export type EmailKey = keyof typeof TEMPLATES;
 export const isEmailKey = (k: string): k is EmailKey => k in TEMPLATES;
 
@@ -112,8 +120,8 @@ export async function getEmailSettings(): Promise<EmailSettings> {
 }
 
 /** Renders once with the placeholders in place, so a campaign renders one HTML and fills it per recipient. */
-export async function renderDoc(doc: EmailDoc, kind: EmailKind, settings?: EmailSettings) {
-  const html = await render(createElement(Email, { preheader: doc.preheader, blocks: doc.blocks, settings: settings ?? (await getEmailSettings()), origin: origin(), kind, unsubscribeUrl: '{{unsubscribeUrl}}' }));
+export async function renderDoc(doc: EmailDoc, kind: EmailKind, reason = PROMO_REASON) {
+  const html = await render(createElement(Email, { preheader: doc.preheader, blocks: doc.blocks, settings: await getEmailSettings(), origin: origin(), kind, reason, unsubscribeUrl: '{{unsubscribeUrl}}' }));
   return { subject: doc.subject, html };
 }
 
@@ -131,5 +139,5 @@ export async function docOf(key: EmailKey): Promise<EmailDoc & { custom: boolean
 
 /** Ready to send. `doc` previews unsaved edits; otherwise the saved copy (or the default). */
 export async function renderEmail(key: EmailKey, vars: Record<string, string>, doc?: EmailDoc) {
-  return personalise(await renderDoc(doc ?? (await docOf(key)), 'account'), vars);
+  return personalise(await renderDoc(doc ?? (await docOf(key)), 'account', TEMPLATES[key].reason), vars);
 }

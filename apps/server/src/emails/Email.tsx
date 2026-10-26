@@ -9,7 +9,7 @@ const SERIF = "Georgia, 'Times New Roman', serif";
 const PAD = 32;
 
 export type EmailKind = 'account' | 'promo';
-export type EmailProps = { preheader: string; blocks: Block[]; settings: EmailSettings; origin: string; kind: EmailKind; unsubscribeUrl: string };
+export type EmailProps = { preheader: string; blocks: Block[]; settings: EmailSettings; origin: string; kind: EmailKind; reason: string; unsubscribeUrl: string };
 
 const abs = (origin: string, u: string) => (u.startsWith('/') ? `${origin}${u}` : u);
 
@@ -169,53 +169,52 @@ function BlockView({ b, origin }: { b: Block; origin: string }) {
 const SOCIAL = ['facebook', 'instagram', 'youtube', 'x', 'tiktok'] as const;
 const SOCIAL_NAME = { facebook: 'Facebook', instagram: 'Instagram', youtube: 'YouTube', x: 'X', tiktok: 'TikTok' };
 
-function Footer({ settings: s, origin, kind, unsubscribeUrl }: Pick<EmailProps, 'settings' | 'origin' | 'kind' | 'unsubscribeUrl'>) {
-  const small: CSSProperties = { margin: '0 0 8px', fontSize: 12, lineHeight: '18px', color: '#9fb0c4' };
+function Footer({ settings: s, origin, kind, reason, unsubscribeUrl }: Pick<EmailProps, 'settings' | 'origin' | 'kind' | 'reason' | 'unsubscribeUrl'>) {
+  const small: CSSProperties = { margin: 0, fontSize: 12, lineHeight: '18px', color: '#9fb0c4' };
   const link: CSSProperties = { color: '#d6e0eb', textDecoration: 'underline' };
   const socials = SOCIAL.filter((k) => s.social[k]);
   const links = [
     { label: 'Privacy', href: `${origin}/privacy` },
     ...(s.supportEmail ? [{ label: 'Help', href: `mailto:${s.supportEmail}` }] : []),
-    ...(kind === 'promo' ? [{ label: 'Manage preferences', href: `${origin}/settings` }, { label: 'Unsubscribe', href: unsubscribeUrl }] : []),
+    ...(kind === 'promo' ? [{ label: 'Preferences', href: `${origin}/settings` }, { label: 'Unsubscribe', href: unsubscribeUrl }] : []),
   ];
   return (
-    <Section style={{ background: C.ink, borderRadius: 12, padding: `28px ${PAD}px`, marginTop: 16 }}>
-      <Img src={`${origin}/nextband/logo-dark.png`} width="120" height="24" alt={s.company} style={{ display: 'block', width: 120, height: 'auto', margin: '0 0 10px' }} />
-      <Text style={{ margin: '0 0 18px', fontSize: 14, lineHeight: '20px', color: '#d6e0eb' }}>IELTS practice with instant band scores.</Text>
-      {socials.length > 0 && (
-        <Section style={{ margin: '0 0 16px' }}>
-          {socials.map((k) => (
-            <Link key={k} href={s.social[k]} style={{ display: 'inline-block', marginRight: 14 }}>
-              <Img src={`${origin}/email/${k}.png`} width="20" height="20" alt={SOCIAL_NAME[k]} style={{ display: 'block', width: 20, height: 20, opacity: 0.85 }} />
-            </Link>
-          ))}
-        </Section>
-      )}
-      <Text style={{ ...small, margin: '0 0 14px', fontSize: 13 }}>
+    <Section style={{ background: C.ink, borderRadius: 12, padding: `18px ${PAD}px`, marginTop: 12 }}>
+      <Row>
+        <Column>
+          <Img src={`${origin}/nextband/logo-dark.png`} width="96" height="19" alt={s.company} style={{ display: 'block', width: 96, height: 'auto' }} />
+        </Column>
+        {socials.length > 0 && (
+          <Column align="right">
+            {socials.map((k) => (
+              <Link key={k} href={s.social[k]} style={{ display: 'inline-block', marginLeft: 12 }}>
+                <Img src={`${origin}/email/${k}.png`} width="16" height="16" alt={SOCIAL_NAME[k]} style={{ display: 'block', width: 16, height: 16, opacity: 0.85 }} />
+              </Link>
+            ))}
+          </Column>
+        )}
+      </Row>
+      <Text style={{ ...small, margin: '12px 0 4px' }}>
         {links.map((l, i) => (
           <span key={l.label}>
-            {i > 0 && <span style={{ color: '#5b6b80' }}>{'  ·  '}</span>}
+            {i > 0 && <span style={{ color: '#5b6b80' }}>{' · '}</span>}
             <Link href={l.href} style={link}>
               {l.label}
             </Link>
           </span>
         ))}
       </Text>
+      <Text style={{ ...small, margin: '0 0 4px' }}>{reason}</Text>
       <Text style={small}>
-        {kind === 'promo'
-          ? `You are getting this because you have a ${s.company} account with product news turned on.`
-          : `You are getting this because of activity on your ${s.company} account. Account and security emails are always sent.`}
-      </Text>
-      {s.address && <Text style={small}>{s.address}</Text>}
-      <Text style={small}>
-        © {new Date().getFullYear()} {s.company}. IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press &amp; Assessment. {s.company} is not affiliated with, approved or endorsed by them.
+        © {new Date().getFullYear()} {s.company}
+        {s.note && ` · ${s.note}`}
       </Text>
     </Section>
   );
 }
 
 /** The house layout: logo + "Open NextBand" link, a white card (a leading hero runs edge to edge), then the dark footer. */
-export function Email({ preheader, blocks, settings, origin, kind, unsubscribeUrl }: EmailProps) {
+export function Email({ preheader, blocks, settings, origin, kind, reason, unsubscribeUrl }: EmailProps) {
   const [first, ...rest] = blocks;
   const hero = first?.type === 'hero' ? first : null;
   const body = hero ? rest : blocks;
@@ -255,7 +254,7 @@ export function Email({ preheader, blocks, settings, origin, kind, unsubscribeUr
               </Section>
             )}
           </Section>
-          <Footer settings={settings} origin={origin} kind={kind} unsubscribeUrl={unsubscribeUrl} />
+          <Footer settings={settings} origin={origin} kind={kind} reason={reason} unsubscribeUrl={unsubscribeUrl} />
             </Column>
           </Row>
         </Container>

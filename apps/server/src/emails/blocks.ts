@@ -29,15 +29,15 @@ export const EmailDoc = z
   .openapi('EmailDoc');
 export type EmailDoc = z.infer<typeof EmailDoc>;
 
-/** Footer and links shared by every email (admin → Emails → Brand). A postal address is required by anti-spam law for promotional emails. */
+/** Footer and links shared by every email (admin → Emails → Brand). */
 export const EmailSettings = z
   .object({
     company: s(80),
-    address: s(300),
+    note: s(160).openapi({ description: 'One short line in every footer, after the copyright' }),
     supportEmail: s(200),
     social: z.object({ facebook: url, instagram: url, youtube: url, x: url, tiktok: url }),
   })
   .openapi('EmailSettings');
 export type EmailSettings = z.infer<typeof EmailSettings>;
 
-export const DEFAULT_SETTINGS: EmailSettings = { company: 'NextBand', address: '', supportEmail: '', social: { facebook: '', instagram: '', youtube: '', x: '', tiktok: '' } };
+export const DEFAULT_SETTINGS: EmailSettings = { company: 'NextBand', note: '', supportEmail: '', social: { facebook: '', instagram: '', youtube: '', x: '', tiktok: '' } };

@@ -22,7 +22,8 @@ describe('account emails', () => {
     expect(m.html).toContain('&lt;b&gt;1&lt;/b&gt;');
     expect(m.html).not.toContain('<b>1</b>');
     const ok = await renderEmail('verification-code', { code: '123456', minutes: '10' });
-    expect(ok.subject).toBe('Your NextBand verification code');
+    expect(ok.subject).toBe('Your NextBand code: 123456');
+    expect(ok.html).toContain('this email was used to sign up');
     expect(ok.html).toMatch(/>123456<\/p>/);
     expect(ok.html).not.toContain('Unsubscribe'); // account emails cannot be unsubscribed from
     expect(ok.text).toContain('123456');
@@ -46,10 +47,10 @@ describe('account emails', () => {
 
   it('footer settings show up in emails', async () => {
     const o = await testUser(OWNER);
-    const s = { company: 'NextBand', address: '12 Road, Dhaka 1205, Bangladesh', supportEmail: 'help@nextband.app', social: { facebook: 'https://facebook.com/nextband', instagram: '', youtube: '', x: '', tiktok: '' } };
+    const s = { company: 'NextBand', note: 'Practice that moves your band.', supportEmail: 'help@nextband.app', social: { facebook: 'https://facebook.com/nextband', instagram: '', youtube: '', x: '', tiktok: '' } };
     expect((await req('/api/admin/email-settings', { method: 'PUT', headers: o.headers, body: s })).status).toBe(200);
     const m = await renderEmail('reset-code', { code: '111111', minutes: '10' });
-    expect(m.html).toContain('12 Road, Dhaka 1205');
+    expect(m.html).toContain('Practice that moves your band.');
     expect(m.html).toContain('/email/facebook.png');
     expect(m.html).not.toContain('/email/youtube.png');
   });

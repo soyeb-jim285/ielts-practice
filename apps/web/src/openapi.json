@@ -5856,9 +5856,10 @@
             "type": "string",
             "maxLength": 80
           },
-          "address": {
+          "note": {
             "type": "string",
-            "maxLength": 300
+            "maxLength": 160,
+            "description": "One short line in every footer, after the copyright"
           },
           "supportEmail": {
             "type": "string",
@@ -5899,7 +5900,7 @@
         },
         "required": [
           "company",
-          "address",
+          "note",
           "supportEmail",
           "social"
         ]

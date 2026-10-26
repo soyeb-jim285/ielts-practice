@@ -6360,7 +6360,8 @@ export interface components {
         };
         EmailSettings: {
             company: string;
-            address: string;
+            /** @description One short line in every footer, after the copyright */
+            note: string;
             supportEmail: string;
             social: {
                 facebook: string;
