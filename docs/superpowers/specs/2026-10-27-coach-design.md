@@ -145,7 +145,7 @@ Gaps the project fills: no cross-test aggregation of vocabulary, structure, flue
 
 ### 7.8 Cost
 
-- One model call per user per local day, only on days they finished a new test. Model: `openai/gpt-6-luna` (fallback `deepseek/deepseek-v4.1-flash`). Input is the facts JSON (target well under 6k tokens; trim lists to the top candidates), output under 1k tokens.
+- One model call per user per local day, only on days they finished a new test. Model: `anthropic/claude-haiku-5.5` on the house Anthropic key (OpenRouter BYOK, falls back to `openai/gpt-6-luna` in the same call; then `deepseek/deepseek-v4.1-flash`) — owner's call, 2026-10-27. Input is the facts JSON (target well under 6k tokens; trim lists to the top candidates), output under 1k tokens.
 - Recorded in `aiCosts` with stage `coach`.
 - Before the first paid run the builder looks up current prices on the OpenRouter model pages and states the estimated cost per report and per 1,000 active users per day to the owner.
 - Weekly email: no model call.
