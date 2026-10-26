@@ -34,7 +34,7 @@ export const TEMPLATES = {
     reason: 'You got this because someone asked to reset the password for this account.',
     vars: { code: '715204', minutes: '10' },
     defaults: {
-      subject: 'Your NextBand reset code: {{code}}',
+      subject: 'Reset your NextBand password', // no code in the subject: lock-screen previews would expose a reset credential
       preheader: 'Use it to choose a new password. It works for {{minutes}} minutes.',
       blocks: [
         { type: 'hero', eyebrow: 'Password reset', title: 'Choose a new password', subtitle: '', tone: 'ink' },

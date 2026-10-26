@@ -23,7 +23,7 @@ describe('email OTP', () => {
     await signUp('reset@x.com');
     expect((await post('/email-otp/request-password-reset', { email: 'reset@x.com' })).status).toBe(200);
     expect(mail).toHaveBeenCalledOnce();
-    expect(mail.mock.calls[0]![0]).toMatchObject({ to: 'reset@x.com', subject: expect.stringContaining('password reset') });
+    expect(mail.mock.calls[0]![0]).toMatchObject({ to: 'reset@x.com', subject: 'Reset your NextBand password' });
     const otp = lastCode();
     expect(otp).toMatch(/^\d{6}$/);
 
@@ -75,7 +75,7 @@ describe('email OTP', () => {
     await signUp('verify@x.com');
     mail.mockClear();
     expect((await post('/email-otp/send-verification-otp', { email: 'verify@x.com', type: 'email-verification' })).status).toBe(200);
-    expect(mail.mock.calls[0]![0].subject).toContain('verification');
+    expect(mail.mock.calls[0]![0].subject).toMatch(/^Your NextBand code: \d{6}$/);
     const res = await post('/email-otp/verify-email', { email: 'verify@x.com', otp: lastCode() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { token: string; user: { emailVerified: boolean } };
