@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ArrowLeft, BookOpen, ChevronsUpDown, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, MessageSquareWarning, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronsUpDown, Compass, Ellipsis, Headphones, History, House, Layers, LibraryBig, LogIn, LogOut, Mic, Palette, PanelLeft, PenLine, Settings, ShieldCheck, TriangleAlert, MessageSquareWarning, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button, buttonStyles, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Separator, Sheet } from '@/components/ui';
 import {
@@ -28,7 +28,7 @@ import { openFeedback } from './FeedbackButton';
 import { Logo, LogoMark } from './Logo';
 import { SiteFooter } from './SiteFooter';
 
-type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/mistakes' | '/review' | '/history' | '/settings' | '/admin'; label: string; short?: string; icon: LucideIcon };
+type NavItem = { to: '/' | '/speaking' | '/writing' | '/listening' | '/reading' | '/bank' | '/coach' | '/mistakes' | '/review' | '/history' | '/settings' | '/admin'; label: string; short?: string; icon: LucideIcon };
 
 const DASHBOARD: NavItem = { to: '/', label: 'Dashboard', short: 'Home', icon: House };
 const SPEAKING: NavItem = { to: '/speaking', label: 'Speaking', short: 'Speak', icon: Mic };
@@ -36,6 +36,7 @@ const WRITING: NavItem = { to: '/writing', label: 'Writing', short: 'Write', ico
 const LISTENING: NavItem = { to: '/listening', label: 'Listening', short: 'Listen', icon: Headphones };
 const READING: NavItem = { to: '/reading', label: 'Reading', short: 'Read', icon: BookOpen };
 const BANK: NavItem = { to: '/bank', label: 'Prompt bank', short: 'Bank', icon: LibraryBig };
+const COACH: NavItem = { to: '/coach', label: 'Coach', icon: Compass };
 const MISTAKES: NavItem = { to: '/mistakes', label: 'Mistakes', icon: TriangleAlert };
 const REVIEW: NavItem = { to: '/review', label: 'Review', icon: Layers };
 const HISTORY: NavItem = { to: '/history', label: 'History', icon: History };
@@ -46,11 +47,11 @@ const ADMIN: NavItem = { to: '/admin', label: 'Admin', icon: ShieldCheck }; // o
 const GROUPS: { label?: string; items: NavItem[] }[] = [
   { items: [DASHBOARD] },
   { label: 'Practise', items: [SPEAKING, WRITING, LISTENING, READING, BANK] },
-  { label: 'Improve', items: [MISTAKES, REVIEW, HISTORY] },
+  { label: 'Improve', items: [COACH, MISTAKES, REVIEW, HISTORY] },
 ];
 const TABS = [DASHBOARD, SPEAKING, WRITING, REVIEW];
 // Listening & Reading are for Cambridge-allow-listed accounts only (me.cambridgeAccess); nobody else sees them.
-const MORE = [LISTENING, READING, BANK, MISTAKES, HISTORY, SETTINGS];
+const MORE = [LISTENING, READING, BANK, COACH, MISTAKES, HISTORY, SETTINGS];
 
 function useSignOut() {
   const navigate = useNavigate();

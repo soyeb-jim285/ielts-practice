@@ -1,6 +1,7 @@
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Flame } from 'lucide-react';
+import { ArrowRight, Compass, Flame } from 'lucide-react';
+import { coachQuery } from '@/components/coach/data';
 import { FixNext } from '@/components/dashboard/FixNext';
 import { GuestHome } from '@/components/dashboard/GuestHome';
 import { MockPanel } from '@/components/dashboard/MockPanel';
@@ -9,7 +10,7 @@ import { Onboarding } from '@/components/dashboard/Onboarding';
 import { PractiseList } from '@/components/dashboard/PractiseList';
 import { ProgressTabs } from '@/components/dashboard/ProgressTabs';
 import { YourPicture } from '@/components/dashboard/YourPicture';
-import { Alert, buttonStyles, PageContainer, PageHeader } from '@/components/ui';
+import { Alert, buttonStyles, Card, PageContainer, PageHeader } from '@/components/ui';
 import { call, client } from '@/lib/api';
 import { formatMinutes, plural } from '@/lib/format';
 import { lrProgressQuery } from '@/lib/lr';
@@ -82,6 +83,7 @@ function Dashboard() {
           </Alert>
         )}
         <YourPicture p={p} target={target} />
+        <CoachCard />
         {p.attempts === 0 ? <Onboarding /> : <NextUp p={p} target={target} due={due.total} lr={lr} />}
         <MockPanel continuedAbove={p.attempts > 0} />
         <PractiseList liveReady={me.live} />
@@ -89,5 +91,24 @@ function Dashboard() {
         <FixNext mistakes={p.topMistakes} />
       </div>
     </PageContainer>
+  );
+}
+
+/** The coach's summary sentence and a way in; nothing until the first report exists. */
+function CoachCard() {
+  const report = useQuery(coachQuery).data?.report;
+  if (!report) return null;
+  return (
+    <Card className="flex items-start gap-4 max-sm:flex-col">
+      <Compass className="mt-0.5 size-5 shrink-0 text-accent-text max-sm:hidden" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <h2 className="type-overline text-accent-text">Your coach</h2>
+        <p className="type-body mt-1 line-clamp-3 text-ink">{report.words.summary}</p>
+      </div>
+      <Link to="/coach" className={buttonStyles({ variant: 'outline', size: 'sm', className: 'shrink-0' })}>
+        Open your coach
+        <ArrowRight aria-hidden />
+      </Link>
+    </Card>
   );
 }

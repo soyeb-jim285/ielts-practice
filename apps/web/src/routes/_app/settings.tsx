@@ -3,6 +3,7 @@ import { LogOut, Trash2 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { AccountGate } from '@/components/community/AccountGate';
+import { ExamDateInput } from '@/components/coach/GoalControls';
 import { TargetBandSlider } from '@/components/settings/TargetBandSlider';
 import { useUpdateSettings } from '@/components/settings/useUpdateSettings';
 import { Button, buttonStyles, Dialog, Input, PageContainer, PageHeader, Switch } from '@/components/ui';
@@ -60,6 +61,9 @@ function SettingsPage() {
         <Section title="Goal" description="Scores at or above your target show green; up to one band below, amber; further below, red.">
           <Row>
             <TargetBandSlider hint="Most universities ask for 6.5-7.0 overall." />
+          </Row>
+          <Row>
+            <ExamDateInput className="sm:w-56" />
           </Row>
         </Section>
 

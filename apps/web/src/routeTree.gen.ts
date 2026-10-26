@@ -19,6 +19,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppLegalRouteImport } from './routes/_app/_legal'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppCoachRouteImport } from './routes/_app/coach'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
@@ -105,6 +106,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
 const AppBankRoute = AppBankRouteImport.update({
   id: '/bank',
   path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoachRoute = AppCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHistoryRoute = AppHistoryRouteImport.update({
@@ -315,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/bank': typeof AppBankRoute
+  '/coach': typeof AppCoachRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
   '/review': typeof AppReviewRoute
@@ -363,6 +370,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/': typeof AppIndexRoute
   '/bank': typeof AppBankRoute
+  '/coach': typeof AppCoachRoute
   '/history': typeof AppHistoryRoute
   '/mistakes': typeof AppMistakesRoute
   '/review': typeof AppReviewRoute
@@ -414,6 +422,7 @@ export interface FileRoutesById {
   '/_app/_legal': typeof AppLegalRouteWithChildren
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/bank': typeof AppBankRoute
+  '/_app/coach': typeof AppCoachRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/mistakes': typeof AppMistakesRoute
   '/_app/review': typeof AppReviewRoute
@@ -466,6 +475,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/bank'
+    | '/coach'
     | '/history'
     | '/mistakes'
     | '/review'
@@ -514,6 +524,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/'
     | '/bank'
+    | '/coach'
     | '/history'
     | '/mistakes'
     | '/review'
@@ -564,6 +575,7 @@ export interface FileRouteTypes {
     | '/_app/_legal'
     | '/_app/admin'
     | '/_app/bank'
+    | '/_app/coach'
     | '/_app/history'
     | '/_app/mistakes'
     | '/_app/review'
@@ -685,6 +697,13 @@ declare module '@tanstack/react-router' {
       path: '/bank'
       fullPath: '/bank'
       preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/coach': {
+      id: '/_app/coach'
+      path: '/coach'
+      fullPath: '/coach'
+      preLoaderRoute: typeof AppCoachRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/history': {
@@ -1027,6 +1046,7 @@ interface AppRouteChildren {
   AppLegalRoute: typeof AppLegalRouteWithChildren
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRoute
+  AppCoachRoute: typeof AppCoachRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMistakesRoute: typeof AppMistakesRoute
   AppReviewRoute: typeof AppReviewRoute
@@ -1053,6 +1073,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLegalRoute: AppLegalRouteWithChildren,
   AppAdminRoute: AppAdminRouteWithChildren,
   AppBankRoute: AppBankRoute,
+  AppCoachRoute: AppCoachRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMistakesRoute: AppMistakesRoute,
   AppReviewRoute: AppReviewRoute,
