@@ -440,7 +440,7 @@ describe('guest → account linking with email verification (production flow)', 
       const sent = await app.request('/api/auth/email-otp/send-verification-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, type: 'email-verification' }) });
       expect(sent.status).toBe(200);
       await sendsIdle();
-      const otp = logs.mock.calls.map((c) => String(c[0])).join('\n').match(/letter-spacing:6px[^>]*>(\d{6})</)?.[1];
+      const otp = logs.mock.calls.map((c) => String(c[0])).join('\n').match(/letter-spacing:8px[^>]*>(\d{6})</)?.[1];
       expect(otp).toBeTruthy();
       const verified = await app.request('/api/auth/email-otp/verify-email', { method: 'POST', headers: new Headers(g.headers), body: JSON.stringify({ email, otp }) });
       expect(verified.status).toBe(200);

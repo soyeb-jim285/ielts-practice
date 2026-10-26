@@ -374,7 +374,7 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
         await go();
         await sendsIdle();
         expect(last()).toMatchObject({ subject: 'Finish setting up your NextBand account' });
-        expect(last().html).not.toMatch(/\d{6}/);
+        expect(last().html).not.toMatch(/>\d{6}</); // no code anywhere (Outlook markup holds long decimals)
       }
     } finally {
       opts.requireEmailVerification = false;

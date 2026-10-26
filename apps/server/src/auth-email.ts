@@ -4,14 +4,12 @@ import { db } from './db/client';
 import { emailLog, user } from './db/schema';
 import { env } from './env';
 import { sendEmail, type ErrorKind } from './email';
+import { renderEmail } from './email-templates';
 
 export type Purpose = 'email-verification' | 'forget-password';
 export const COOLDOWN_S = 30; // one code email per address+purpose; the code itself is reused while valid, so a skipped resend loses nothing
 const OTP_MINUTES = 10;
-const MAIL = {
-  'email-verification': { subject: 'Your NextBand verification code', lead: 'Welcome to NextBand! Enter this code to verify your email:' },
-  'forget-password': { subject: 'Your NextBand password reset code', lead: 'Enter this code to reset your password:' },
-} as const;
+const TEMPLATE = { 'email-verification': 'verification-code', 'forget-password': 'reset-code' } as const;
 export const isPurpose = (p: unknown): p is Purpose => p === 'email-verification' || p === 'forget-password';
 
 /** Takes the cooldown slot for this address+purpose, atomically (an advisory lock serialises concurrent requests, so N at once yield one slot and N-1 skips).
@@ -31,35 +29,29 @@ const sends = new Set<Promise<unknown>>();
 /** Resolves when every background send has finished (tests; also lets a shutdown drain). */
 export const sendsIdle = () => Promise.all([...sends]);
 
-type Mail = { subject: string; html: string };
+type Mail = { subject: string; html: string; text?: string };
 
 /** An unverified account this old gets no verification code, only a pointer to the password reset. Verifying activates the password its sign-up chose,
  *  and a stranger can pre-register someone's address (account pre-hijack). The window equals the code lifetime: the stranger's own sign-up already mails
  *  the owner a code valid this long (Better Auth), so codes sent here add no exposure beyond it. Residual risk: a pre-registration made in the minutes
  *  right before the owner signs up; closing that needs the password checked at verification (all clients). */
 export const UNVERIFIED_CODE_WINDOW_MS = OTP_MINUTES * 60_000;
-const FINISH_SETUP: Mail = {
-  subject: 'Finish setting up your NextBand account',
-  html: `<p>Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.</p><p>To finish, choose "Forgot password?" on the sign-in screen and set your password with the code we send. That also confirms your email. If this wasn't you, you can ignore this email.</p>`,
-};
 
 /** Better Auth's code hook (see claimAndSend). Every verification code goes through here: sign-up, resend, and sign-up again on an existing address. */
 export async function sendOtpEmail({ email: raw, otp, type }: { email: string; otp: string; type: string }) {
   if (!isPurpose(type)) return; // sign-in codes are not offered: passwords only
-  const mail = MAIL[type];
-  const code: Mail = { subject: mail.subject, html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>` };
+  const code = () => renderEmail(TEMPLATE[type], { code: otp, minutes: String(OTP_MINUTES) });
   if (type !== 'email-verification') return claimAndSend(raw, type, code);
   // decided in the background (after the response), so the lookup adds no timing difference between addresses
   await claimAndSend(raw, type, async () => {
     const [u] = await db.select({ verified: user.emailVerified, createdAt: user.createdAt }).from(user).where(eq(user.email, raw.toLowerCase())).limit(1);
-    return u && !u.verified && Date.now() - u.createdAt.getTime() > UNVERIFIED_CODE_WINDOW_MS ? FINISH_SETUP : code;
+    return u && !u.verified && Date.now() - u.createdAt.getTime() > UNVERIFIED_CODE_WINDOW_MS ? renderEmail('finish-setup', {}) : code();
   });
 }
 
 /** Sign-up with the address of a verified account: Better Auth answers it like a new sign-up and sends nothing, so the person waits for a code that never comes.
  *  This tells them instead, under the same cooldown row a code would take (the status endpoint reads it as sent, as for any sign-up). */
-export const sendAccountExistsEmail = (email: string) =>
-  claimAndSend(email, 'email-verification', { subject: 'You already have a NextBand account', html: `<p>Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.</p><p>Sign in with your password, or use "Forgot password?" on the sign-in screen to get a reset code. If this wasn't you, you can ignore this email.</p>` });
+export const sendAccountExistsEmail = (email: string) => claimAndSend(email, 'email-verification', () => renderEmail('account-exists', {}));
 
 /** Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
  *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
@@ -69,8 +61,8 @@ async function claimAndSend(raw: string, purpose: Purpose, mail: Mail | (() => P
   const id = await claim(email, purpose, null); // same work as an unknown address's stand-in claim (finishRequest): no user lookup before the response
   if (!id) return;
   const p = (async () => {
-    const { subject, html } = typeof mail === 'function' ? await mail() : mail;
-    const r = await sendEmail({ to: email, subject, html });
+    const { subject, html, text } = typeof mail === 'function' ? await mail() : mail;
+    const r = await sendEmail({ to: email, subject, html, text });
     const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
     await db.update(emailLog).set({ userId: u?.id ?? null, ...(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }) }).where(eq(emailLog.id, id));
   })().catch((e) => console.error('[email] send/log failed', e instanceof Error ? e.message : e));

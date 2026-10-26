@@ -13,6 +13,7 @@ import { anonSignInOk, authStatusOk, codeCheckOk, codeRequestOk } from './rateli
 import { MAX_AUDIO_BYTES, requestOrigin, storage, verifyLocal } from './storage';
 import type { AppEnv } from './types';
 import { registerRoutes } from './routes';
+import { register as registerUnsubscribe } from './emails/unsubscribe';
 import { registerSeo } from './seo';
 
 /** Endpoints that make Better Auth send (or pretend to send) a code: which address and purpose, read from a copy of the body. */
@@ -110,6 +111,7 @@ export function createApp() {
     return res;
   });
   registerSeo(app);
+  registerUnsubscribe(app); // public: opened from emails, often signed out
   app.use('/api/*', sessionMiddleware);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'bearer', { type: 'http', scheme: 'bearer' });

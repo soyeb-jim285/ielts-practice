@@ -58,12 +58,16 @@
               },
               "blockPaste": {
                 "type": "boolean"
+              },
+              "productEmails": {
+                "type": "boolean"
               }
             },
             "required": [
               "targetBand",
               "writingAutoSubmit",
-              "blockPaste"
+              "blockPaste",
+              "productEmails"
             ]
           },
           "cambridgeAccess": {
@@ -239,12 +243,16 @@
           },
           "blockPaste": {
             "type": "boolean"
+          },
+          "productEmails": {
+            "type": "boolean"
           }
         },
         "required": [
           "targetBand",
           "writingAutoSubmit",
-          "blockPaste"
+          "blockPaste",
+          "productEmails"
         ]
       },
       "SettingsPatch": {
@@ -259,6 +267,9 @@
             "type": "boolean"
           },
           "blockPaste": {
+            "type": "boolean"
+          },
+          "productEmails": {
             "type": "boolean"
           }
         }
@@ -5350,6 +5361,10 @@
             ],
             "format": "date-time",
             "description": "Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand."
+          },
+          "notify": {
+            "type": "boolean",
+            "description": "Email them the \"Paid plan is on\" message when this sets a future subscribedUntil"
           }
         },
         "required": [
@@ -5459,6 +5474,550 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "AdminEmailTemplate": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "vars": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Placeholder → sample value used in previews and tests"
+          },
+          "doc": {
+            "$ref": "#/components/schemas/EmailDoc"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/EmailDoc"
+          },
+          "custom": {
+            "type": "boolean",
+            "description": "Edited (a saved row); false = the built-in default"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "vars",
+          "doc",
+          "defaults",
+          "custom"
+        ]
+      },
+      "EmailDoc": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "preheader": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The grey line inboxes show after the subject"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmailBlock"
+            },
+            "minItems": 1,
+            "maxItems": 40
+          }
+        },
+        "required": [
+          "subject",
+          "preheader",
+          "blocks"
+        ]
+      },
+      "EmailBlock": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "hero"
+                ]
+              },
+              "eyebrow": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "subtitle": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "tone": {
+                "type": "string",
+                "enum": [
+                  "brand",
+                  "ink",
+                  "soft"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "eyebrow",
+              "title",
+              "subtitle",
+              "tone"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 8000
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "button"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "solid",
+                  "outline"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "label",
+              "url",
+              "variant"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "code"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "details"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ]
+                },
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "type",
+              "title",
+              "rows"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "stats"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string",
+                      "maxLength": 30
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "change": {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    "trend": {
+                      "type": "string",
+                      "enum": [
+                        "up",
+                        "down",
+                        "none"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label",
+                    "change",
+                    "trend"
+                  ]
+                },
+                "maxItems": 6
+              }
+            },
+            "required": [
+              "type",
+              "items"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "callout"
+                ]
+              },
+              "tone": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "good",
+                  "warn"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "type",
+              "tone",
+              "title",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "image"
+                ]
+              },
+              "src": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "alt": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "href": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "type",
+              "src",
+              "alt",
+              "href"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "divider"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        ]
+      },
+      "AdminEmailRendered": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "html"
+        ]
+      },
+      "AdminEmailTestSent": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "EmailSettings": {
+        "type": "object",
+        "properties": {
+          "company": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "supportEmail": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "social": {
+            "type": "object",
+            "properties": {
+              "facebook": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "instagram": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "youtube": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "x": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "tiktok": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "facebook",
+              "instagram",
+              "youtube",
+              "x",
+              "tiktok"
+            ]
+          }
+        },
+        "required": [
+          "company",
+          "address",
+          "supportEmail",
+          "social"
+        ]
+      },
+      "AdminCampaigns": {
+        "type": "object",
+        "properties": {
+          "campaigns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminCampaign"
+            }
+          },
+          "vars": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "audience": {
+            "type": "object",
+            "properties": {
+              "all": {
+                "type": "integer"
+              },
+              "free": {
+                "type": "integer"
+              },
+              "paid": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "all",
+              "free",
+              "paid"
+            ],
+            "description": "Accounts each audience reaches now (product emails on)"
+          }
+        },
+        "required": [
+          "campaigns",
+          "vars",
+          "audience"
+        ]
+      },
+      "AdminCampaign": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminCampaignBody"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "sending",
+                  "sent",
+                  "failed"
+                ]
+              },
+              "recipients": {
+                "type": "integer"
+              },
+              "sent": {
+                "type": "integer"
+              },
+              "failed": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "sentAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "status",
+              "recipients",
+              "sent",
+              "failed",
+              "createdAt",
+              "sentAt"
+            ]
+          }
+        ]
+      },
+      "AdminCampaignBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EmailDoc"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "audience": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "free",
+                  "paid"
+                ]
+              }
+            },
+            "required": [
+              "audience"
+            ]
+          }
         ]
       },
       "AdminSpendSummary": {
@@ -10988,6 +11547,671 @@
           },
           "404": {
             "description": "Unknown id"
+          }
+        }
+      }
+    },
+    "/api/admin/emails": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Account email templates with their current content",
+        "responses": {
+          "200": {
+            "description": "Templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminEmailTemplate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/emails/{key}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save an account email (used from the next send)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDoc"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailTemplate"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Back to the built-in default",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailTemplate"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/emails/{key}/preview": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Render unsaved content with the sample values",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDoc"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rendered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailRendered"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/emails/{key}/test": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send unsaved content with the sample values to your own address",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDoc"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailTestSent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The email provider refused it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/email-settings": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Footer details every email shares",
+        "responses": {
+          "200": {
+            "description": "Settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save the footer details",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/campaigns": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Promotional emails, newest first, and how many people each audience reaches",
+        "responses": {
+          "200": {
+            "description": "Campaigns",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCampaigns"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "New draft",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCampaignBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCampaign"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/campaigns/{id}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit a draft",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCampaignBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCampaign"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent, or not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a draft",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent, or not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/campaigns/preview": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Render unsaved campaign content as you would get it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDoc"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rendered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailRendered"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/campaigns/test": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send unsaved campaign content to your own address",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDoc"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEmailTestSent"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The email provider refused it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/campaigns/{id}/send": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a draft to its audience now (in the background; poll the list for progress)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCampaign"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already sent, or not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }

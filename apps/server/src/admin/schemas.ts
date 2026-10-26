@@ -31,6 +31,7 @@ export const LimitsBody = z
     writing: z.number().int().min(0).max(1000).nullable(),
     unlimited: z.boolean(),
     subscribedUntil: z.string().datetime().nullable().optional().openapi({ description: 'Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand.' }),
+    notify: z.boolean().optional().openapi({ description: 'Email them the "Paid plan is on" message when this sets a future subscribedUntil' }),
   })
   .openapi('AdminLimitsBody');
 

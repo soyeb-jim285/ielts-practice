@@ -72,6 +72,12 @@ function SettingsPage() {
           </Row>
         </Section>
 
+        <Section title="Email" description="Account emails, like sign-in codes, always arrive.">
+          <Row>
+            <Switch label="Product news and tips" description="New tests, features and practice advice. A few emails a month at most." checked={s.productEmails} onChange={(v) => mutate({ productEmails: v })} />
+          </Row>
+        </Section>
+
         <Section title="Appearance" description="Saved in this browser.">
           <InlineRow title="Theme" description="Light, dark, or follow your device.">
             <ThemeToggle />

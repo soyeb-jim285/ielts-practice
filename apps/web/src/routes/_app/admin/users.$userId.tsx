@@ -39,21 +39,22 @@ function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
   const [speaking, setSpeaking] = useState(info.speaking?.toString() ?? '');
   const [writing, setWriting] = useState(info.writing?.toString() ?? '');
   const m = useMutation({
-    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean; subscribedUntil?: string | null }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
+    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean; subscribedUntil?: string | null; notify?: boolean }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
     onSuccess: () => (toast('Limits saved.'), qc.invalidateQueries({ queryKey: ['admin'] })),
     onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not save the limits.', { tone: 'bad' }),
   });
   const num = (v: string) => (v.trim() === '' ? null : Math.max(0, Math.min(1000, Math.round(Number(v)))));
   const bad = [speaking, writing].some((v) => v.trim() !== '' && !Number.isFinite(Number(v)));
-  const save = (unlimited = info.unlimited, subscribedUntil?: string | null) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited, subscribedUntil });
+  const save = (unlimited = info.unlimited, subscribedUntil?: string | null, notify?: boolean) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited, subscribedUntil, notify });
   const subscribed = !!info.subscribedUntil && new Date(info.subscribedUntil) > new Date();
   // Dates are Dhaka calendar days (UTC+6, no DST); the plan runs to the end of the chosen day.
   const ymd = (t: number) => new Date(t + 6 * 3_600_000).toISOString().slice(0, 10);
+  const [notify, setNotify] = useState(true);
   const [until, setUntil] = useState(subscribed ? ymd(new Date(info.subscribedUntil!).getTime()) : ymd(Date.now() + 30 * 86_400_000));
   return (
     <div className="space-y-4">
       <Switch label="No test limits" description="Unlimited speaking and writing tests, including the live examiner, paid by the house." checked={info.unlimited} disabled={m.isPending} onChange={(v) => save(v)} />
-      <form className="space-y-2" onSubmit={(e) => (e.preventDefault(), save(info.unlimited, new Date(`${until}T23:59:59+06:00`).toISOString()))}>
+      <form className="space-y-2" onSubmit={(e) => (e.preventDefault(), save(info.unlimited, new Date(`${until}T23:59:59+06:00`).toISOString(), notify))}>
         <p className="text-sm font-medium">
           Subscriber {subscribed ? <Badge tone="good">Until {dhakaDay(ymd(new Date(info.subscribedUntil!).getTime()))}</Badge> : <Badge>None</Badge>}
         </p>
@@ -63,6 +64,10 @@ function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
           <Button type="submit" variant="outline" loading={m.isPending} disabled={!until}>
             {subscribed ? 'Change date' : 'Grant plan'}
           </Button>
+          <label className="flex h-10 items-center gap-2 text-sm">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-brand" />
+            Email them
+          </label>
           {subscribed && (
             <Button type="button" variant="ghost" disabled={m.isPending} onClick={() => save(info.unlimited, null)}>
               End subscription

@@ -3022,6 +3022,593 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/admin/emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account email templates with their current content */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Templates */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailTemplate"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save an account email (used from the next send) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailDoc"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailTemplate"];
+                    };
+                };
+                /** @description Unknown template */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Back to the built-in default */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Reset */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailTemplate"];
+                    };
+                };
+                /** @description Unknown template */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails/{key}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Render unsaved content with the sample values */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailDoc"];
+                };
+            };
+            responses: {
+                /** @description Rendered */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailRendered"];
+                    };
+                };
+                /** @description Unknown template */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails/{key}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send unsaved content with the sample values to your own address */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailDoc"];
+                };
+            };
+            responses: {
+                /** @description Sent */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailTestSent"];
+                    };
+                };
+                /** @description Unknown template */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description The email provider refused it */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/email-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Footer details every email shares */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Settings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailSettings"];
+                    };
+                };
+            };
+        };
+        /** Save the footer details */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailSettings"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailSettings"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Promotional emails, newest first, and how many people each audience reaches */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Campaigns */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCampaigns"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** New draft */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminCampaignBody"];
+                };
+            };
+            responses: {
+                /** @description Draft */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCampaign"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/campaigns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit a draft */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminCampaignBody"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCampaign"];
+                    };
+                };
+                /** @description Already sent, or not found */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete a draft */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                /** @description Already sent, or not found */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/campaigns/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Render unsaved campaign content as you would get it */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailDoc"];
+                };
+            };
+            responses: {
+                /** @description Rendered */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailRendered"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/campaigns/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send unsaved campaign content to your own address */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailDoc"];
+                };
+            };
+            responses: {
+                /** @description Sent */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminEmailTestSent"];
+                    };
+                };
+                /** @description The email provider refused it */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/campaigns/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a draft to its audience now (in the background; poll the list for progress) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Sending */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCampaign"];
+                    };
+                };
+                /** @description Already sent, or not found */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/spend/summary": {
         parameters: {
             query?: never;
@@ -4363,6 +4950,7 @@ export interface components {
                 targetBand: number;
                 writingAutoSubmit: boolean;
                 blockPaste: boolean;
+                productEmails: boolean;
             };
             cambridgeAccess: boolean;
             /** @description The site owner: shows the Admin area */
@@ -4410,11 +4998,13 @@ export interface components {
             targetBand: number;
             writingAutoSubmit: boolean;
             blockPaste: boolean;
+            productEmails: boolean;
         };
         SettingsPatch: {
             targetBand?: number;
             writingAutoSubmit?: boolean;
             blockPaste?: boolean;
+            productEmails?: boolean;
         };
         PromptPage: {
             items: components["schemas"]["Prompt"][];
@@ -5658,6 +6248,8 @@ export interface components {
              * @description Grant the paid plan until then (null ends it; omitted keeps it). Until payments exist, the admin sets it by hand.
              */
             subscribedUntil?: string | null;
+            /** @description Email them the "Paid plan is on" message when this sets a future subscribedUntil */
+            notify?: boolean;
         };
         AdminFeedbackPage: {
             items: components["schemas"]["AdminFeedbackItem"][];
@@ -5681,6 +6273,128 @@ export interface components {
         AdminFeedbackPatch: {
             /** @enum {string} */
             status: "new" | "seen" | "done";
+        };
+        AdminEmailTemplate: {
+            key: string;
+            name: string;
+            description: string;
+            /** @description Placeholder → sample value used in previews and tests */
+            vars: {
+                [key: string]: string;
+            };
+            doc: components["schemas"]["EmailDoc"];
+            defaults: components["schemas"]["EmailDoc"];
+            /** @description Edited (a saved row); false = the built-in default */
+            custom: boolean;
+        };
+        EmailDoc: {
+            subject: string;
+            /** @description The grey line inboxes show after the subject */
+            preheader: string;
+            blocks: components["schemas"]["EmailBlock"][];
+        };
+        EmailBlock: {
+            /** @enum {string} */
+            type: "hero";
+            eyebrow: string;
+            title: string;
+            subtitle: string;
+            /** @enum {string} */
+            tone: "brand" | "ink" | "soft";
+        } | {
+            /** @enum {string} */
+            type: "text";
+            text: string;
+        } | {
+            /** @enum {string} */
+            type: "button";
+            label: string;
+            url: string;
+            /** @enum {string} */
+            variant: "solid" | "outline";
+        } | {
+            /** @enum {string} */
+            type: "code";
+            value: string;
+        } | {
+            /** @enum {string} */
+            type: "details";
+            title: string;
+            rows: {
+                label: string;
+                value: string;
+            }[];
+        } | {
+            /** @enum {string} */
+            type: "stats";
+            items: {
+                value: string;
+                label: string;
+                change: string;
+                /** @enum {string} */
+                trend: "up" | "down" | "none";
+            }[];
+        } | {
+            /** @enum {string} */
+            type: "callout";
+            /** @enum {string} */
+            tone: "info" | "good" | "warn";
+            title: string;
+            text: string;
+        } | {
+            /** @enum {string} */
+            type: "image";
+            src: string;
+            alt: string;
+            href: string;
+        } | {
+            /** @enum {string} */
+            type: "divider";
+        };
+        AdminEmailRendered: {
+            subject: string;
+            html: string;
+        };
+        AdminEmailTestSent: {
+            to: string;
+        };
+        EmailSettings: {
+            company: string;
+            address: string;
+            supportEmail: string;
+            social: {
+                facebook: string;
+                instagram: string;
+                youtube: string;
+                x: string;
+                tiktok: string;
+            };
+        };
+        AdminCampaigns: {
+            campaigns: components["schemas"]["AdminCampaign"][];
+            vars: {
+                [key: string]: string;
+            };
+            /** @description Accounts each audience reaches now (product emails on) */
+            audience: {
+                all: number;
+                free: number;
+                paid: number;
+            };
+        };
+        AdminCampaign: components["schemas"]["AdminCampaignBody"] & {
+            id: string;
+            /** @enum {string} */
+            status: "draft" | "sending" | "sent" | "failed";
+            recipients: number;
+            sent: number;
+            failed: number;
+            createdAt: string;
+            sentAt: string | null;
+        };
+        AdminCampaignBody: components["schemas"]["EmailDoc"] & {
+            /** @enum {string} */
+            audience: "all" | "free" | "paid";
         };
         AdminSpendSummary: {
             /** @description First recorded call; earlier attempts have no cost rows ("not recorded") */

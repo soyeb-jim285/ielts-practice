@@ -15,13 +15,14 @@ export const SettingsSchema = z.object({
   targetBand: z.number().min(4).max(9).multipleOf(0.5),
   writingAutoSubmit: z.boolean(),
   blockPaste: z.boolean(),
+  productEmails: z.boolean(), // product news and practice tips by email (campaigns); account emails are always sent
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
 export const SettingsPatchSchema = SettingsSchema.partial();
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>;
 
-export const DEFAULT_SETTINGS: Settings = { targetBand: 7, writingAutoSubmit: true, blockPaste: true };
+export const DEFAULT_SETTINGS: Settings = { targetBand: 7, writingAutoSubmit: true, blockPaste: true, productEmails: true };
 
 /** Stored rows may still carry removed fields (models, liveProvider): the schema drops them. */
 export const mergeSettings = (patch: SettingsPatch | Record<string, unknown> | undefined): Settings => SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });

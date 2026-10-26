@@ -5,7 +5,9 @@ import { db } from '../db/client';
 import { attempts, cambridgeAccess, emailLog, user, userLimits } from '../db/schema';
 import { runAnalysis } from '../jobs';
 import type { App } from '../types';
-import { adminRoute as readonlyRoute } from './common';
+import { sendEmail } from '../email';
+import { renderEmail } from '../email-templates';
+import { adminRoute as readonlyRoute, DHAKA } from './common';
 import { getCosts } from './costs';
 import { CambridgeInfo, Costs, Health, LimitsBody, LimitsInfo } from './schemas';
 import { limitsInfo } from './stats';
@@ -148,7 +150,7 @@ export function register(app: App) {
     async (c) => {
       const { id } = c.req.valid('param');
       const b = c.req.valid('json');
-      const [u] = await db.select({ isAnonymous: user.isAnonymous }).from(user).where(eq(user.id, id));
+      const [u] = await db.select({ isAnonymous: user.isAnonymous, email: user.email, name: user.name }).from(user).where(eq(user.id, id));
       if (!u || u.isAnonymous) return c.json({ error: 'User not found' }, 404);
       const [cur] = await db.select({ until: userLimits.subscribedUntil }).from(userLimits).where(eq(userLimits.userId, id));
       const until = b.subscribedUntil === undefined ? (cur?.until ?? null) : b.subscribedUntil ? new Date(b.subscribedUntil) : null;
@@ -156,6 +158,13 @@ export function register(app: App) {
       else {
         const row = { speaking: b.speaking, writing: b.writing, unlimited: b.unlimited, subscribedUntil: until, updatedBy: c.get('user')!.email.toLowerCase(), updatedAt: new Date() };
         await db.insert(userLimits).values({ userId: id, ...row }).onConflictDoUpdate({ target: userLimits.userId, set: row });
+      }
+      if (b.notify && until && until > new Date()) {
+        const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: DHAKA }).format(until);
+        void renderEmail('plan-granted', { name: u.name?.trim() || 'there', until: day })
+          .then((m) => sendEmail({ to: u.email, ...m }))
+          .then((r) => !r.ok && console.error('[email] plan-granted failed', r.kind))
+          .catch((e) => console.error('[email] plan-granted threw', e instanceof Error ? e.message : e));
       }
       return c.json(await limitsInfo(id, false), 200);
     },

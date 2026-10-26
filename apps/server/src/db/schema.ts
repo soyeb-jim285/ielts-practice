@@ -457,3 +457,37 @@ export const mockExams = pgTable('mock_exams', {
   index('mock_exams_user_started_idx').on(t.userId, t.startedAt),
   uniqueIndex('mock_exams_one_open_idx').on(t.userId).where(sql`status = 'in_progress'`),
 ]);
+
+// Admin-edited account emails (src/email-templates.ts). No row = the built-in default.
+export const emailTemplates = pgTable('email_templates', {
+  key: text('key').primaryKey(),
+  subject: text('subject').notNull(),
+  preheader: text('preheader').notNull(),
+  blocks: jsonb('blocks').$type<import('../emails/blocks').Block[]>().notNull(),
+  updatedBy: text('updated_by').notNull(),
+  updatedAt: updatedAt(),
+});
+
+// Footer details every email shares (one row, id 'default').
+export const emailSettings = pgTable('email_settings', {
+  id: text('id').primaryKey(),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+  updatedAt: updatedAt(),
+});
+
+// Promotional emails (admin → Emails → Campaigns). Sent to accounts with productEmails on, each with its own unsubscribe link.
+export const emailCampaigns = pgTable('email_campaigns', {
+  id: id(),
+  subject: text('subject').notNull(),
+  preheader: text('preheader').notNull(),
+  blocks: jsonb('blocks').$type<import('../emails/blocks').Block[]>().notNull(),
+  audience: text('audience').$type<'all' | 'free' | 'paid'>().notNull().default('all'),
+  status: text('status').$type<'draft' | 'sending' | 'sent' | 'failed'>().notNull().default('draft'),
+  recipients: integer('recipients').notNull().default(0),
+  sent: integer('sent').notNull().default(0),
+  failed: integer('failed').notNull().default(0),
+  createdBy: text('created_by').notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+});

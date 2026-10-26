@@ -32,6 +32,7 @@ import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
 import { Route as AppAdminContentRouteImport } from './routes/_app/admin/content'
 import { Route as AppAdminCostsRouteImport } from './routes/_app/admin/costs'
+import { Route as AppAdminEmailsRouteImport } from './routes/_app/admin/emails'
 import { Route as AppAdminFeedbackRouteImport } from './routes/_app/admin/feedback'
 import { Route as AppAdminFunnelRouteImport } from './routes/_app/admin/funnel'
 import { Route as AppAdminGrowthRouteImport } from './routes/_app/admin/growth'
@@ -169,6 +170,11 @@ const AppAdminContentRoute = AppAdminContentRouteImport.update({
 const AppAdminCostsRoute = AppAdminCostsRouteImport.update({
   id: '/costs',
   path: '/costs',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminEmailsRoute = AppAdminEmailsRouteImport.update({
+  id: '/emails',
+  path: '/emails',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminFeedbackRoute = AppAdminFeedbackRouteImport.update({
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/content': typeof AppAdminContentRoute
   '/admin/costs': typeof AppAdminCostsRoute
+  '/admin/emails': typeof AppAdminEmailsRoute
   '/admin/feedback': typeof AppAdminFeedbackRoute
   '/admin/funnel': typeof AppAdminFunnelRoute
   '/admin/growth': typeof AppAdminGrowthRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/content': typeof AppAdminContentRoute
   '/admin/costs': typeof AppAdminCostsRoute
+  '/admin/emails': typeof AppAdminEmailsRoute
   '/admin/feedback': typeof AppAdminFeedbackRoute
   '/admin/funnel': typeof AppAdminFunnelRoute
   '/admin/growth': typeof AppAdminGrowthRoute
@@ -419,6 +427,7 @@ export interface FileRoutesById {
   '/_app/admin/activity': typeof AppAdminActivityRoute
   '/_app/admin/content': typeof AppAdminContentRoute
   '/_app/admin/costs': typeof AppAdminCostsRoute
+  '/_app/admin/emails': typeof AppAdminEmailsRoute
   '/_app/admin/feedback': typeof AppAdminFeedbackRoute
   '/_app/admin/funnel': typeof AppAdminFunnelRoute
   '/_app/admin/growth': typeof AppAdminGrowthRoute
@@ -469,6 +478,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/content'
     | '/admin/costs'
+    | '/admin/emails'
     | '/admin/feedback'
     | '/admin/funnel'
     | '/admin/growth'
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/content'
     | '/admin/costs'
+    | '/admin/emails'
     | '/admin/feedback'
     | '/admin/funnel'
     | '/admin/growth'
@@ -566,6 +577,7 @@ export interface FileRouteTypes {
     | '/_app/admin/activity'
     | '/_app/admin/content'
     | '/_app/admin/costs'
+    | '/_app/admin/emails'
     | '/_app/admin/feedback'
     | '/_app/admin/funnel'
     | '/_app/admin/growth'
@@ -764,6 +776,13 @@ declare module '@tanstack/react-router' {
       path: '/costs'
       fullPath: '/admin/costs'
       preLoaderRoute: typeof AppAdminCostsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/emails': {
+      id: '/_app/admin/emails'
+      path: '/emails'
+      fullPath: '/admin/emails'
+      preLoaderRoute: typeof AppAdminEmailsRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/feedback': {
@@ -966,6 +985,7 @@ interface AppAdminRouteChildren {
   AppAdminActivityRoute: typeof AppAdminActivityRoute
   AppAdminContentRoute: typeof AppAdminContentRoute
   AppAdminCostsRoute: typeof AppAdminCostsRoute
+  AppAdminEmailsRoute: typeof AppAdminEmailsRoute
   AppAdminFeedbackRoute: typeof AppAdminFeedbackRoute
   AppAdminFunnelRoute: typeof AppAdminFunnelRoute
   AppAdminGrowthRoute: typeof AppAdminGrowthRoute
@@ -984,6 +1004,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminActivityRoute: AppAdminActivityRoute,
   AppAdminContentRoute: AppAdminContentRoute,
   AppAdminCostsRoute: AppAdminCostsRoute,
+  AppAdminEmailsRoute: AppAdminEmailsRoute,
   AppAdminFeedbackRoute: AppAdminFeedbackRoute,
   AppAdminFunnelRoute: AppAdminFunnelRoute,
   AppAdminGrowthRoute: AppAdminGrowthRoute,
