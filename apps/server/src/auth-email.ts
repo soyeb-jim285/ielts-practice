@@ -34,9 +34,10 @@ export const sendsIdle = () => Promise.all([...sends]);
 type Mail = { subject: string; html: string };
 
 /** An unverified account this old gets no verification code, only a pointer to the password reset. Verifying activates the password its sign-up chose,
- *  and a stranger can pre-register someone's address (account pre-hijack). They can't re-create an existing address, so a pre-registration is almost
- *  always older than this when the owner arrives, while the owner retrying their own sign-up is minutes old and still gets a code. */
-export const UNVERIFIED_CODE_WINDOW_MS = 30 * 60_000;
+ *  and a stranger can pre-register someone's address (account pre-hijack). The window equals the code lifetime: the stranger's own sign-up already mails
+ *  the owner a code valid this long (Better Auth), so codes sent here add no exposure beyond it. Residual risk: a pre-registration made in the minutes
+ *  right before the owner signs up; closing that needs the password checked at verification (all clients). */
+export const UNVERIFIED_CODE_WINDOW_MS = OTP_MINUTES * 60_000;
 const FINISH_SETUP: Mail = {
   subject: 'Finish setting up your NextBand account',
   html: `<p>Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.</p><p>To finish, choose "Forgot password?" on the sign-in screen and set your password with the code we send. That also confirms your email. If this wasn't you, you can ignore this email.</p>`,
