@@ -3,7 +3,7 @@ import { chatJson } from '../ai/openrouter.js';
 import { ACTIONS } from './actions.js';
 import type { ActionType, Candidate, CoachFacts, CoachWords } from './types.js';
 
-const PRIMARY = 'openai/gpt-6-luna';
+const PRIMARY = 'anthropic/claude-haiku-5.5'; // house Anthropic key (BYOK); openrouter.ts falls back to luna inside the same call
 const FALLBACK = 'deepseek/deepseek-v4.1-flash';
 const ACTION_TYPES = Object.keys(ACTIONS) as [ActionType, ...ActionType[]];
 

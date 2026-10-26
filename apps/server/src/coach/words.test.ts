@@ -28,7 +28,7 @@ it('returns valid model output as-is and records a coach cost row', async () => 
   const w = { ...words([item(c)]), plan: ['Mon', 'Wed', 'Fri'].map((day) => ({ day, text: 'Take a Listening test.', action: 'listening-test' as const })) };
   setFetch(fakeFetch(reply(w)));
   const r = await writeWords(facts([c]));
-  expect(r).toEqual({ words: w, model: 'openai/gpt-6-luna' });
+  expect(r).toEqual({ words: w, model: 'anthropic/claude-haiku-5.5' });
   await flushCosts();
   expect((await db.select().from(aiCosts).where(eq(aiCosts.stage, 'coach'))).length).toBeGreaterThan(0);
 });
