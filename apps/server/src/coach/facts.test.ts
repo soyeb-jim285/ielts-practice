@@ -57,6 +57,14 @@ describe('buildFacts', () => {
     expect(f.totalTests).toBe(3);
   });
 
+  it('reports passage-timing facts in whole minutes', async () => {
+    const { user } = await testUser();
+    for (let i = 0; i < 3; i++) await lr(user.id, 'reading', i + 1, { band: 6, stats: { partS: { '1': 1500, '2': 1200 } } }); // passage 3 starts at 45 min
+    const f = await buildFacts(user.id, now);
+    expect(f.candidates.find((x) => x.id === 'reading:passage-timing')!.facts).toMatchObject({ minutes: 135, averageMinutes: 45 });
+    expect(f.timing.readingPassage3StartMin).toBe(45);
+  });
+
   it('groups swaps, spelling and counts the week', async () => {
     const { user } = await testUser();
     const a = await ws(user.id, 'writing', 1, 6);

@@ -118,7 +118,7 @@ function lrOccs(rows: Awaited<ReturnType<typeof loadLr>>): Occ[] {
     for (const t of a?.byType ?? []) if (t.total >= 5 && t.right / t.total < 0.6) out.push({ ...base, kind: `question-type:${t.label}`, amount: t.total - t.right });
     const p = l.stats?.partS;
     const start = p ? (p['1'] ?? 0) + (p['2'] ?? 0) : 0;
-    if (l.skill === 'reading' && !l.parts && start > LATE_P3_S) out.push({ ...base, kind: 'passage-timing', amount: start });
+    if (l.skill === 'reading' && !l.parts && start > LATE_P3_S) out.push({ ...base, kind: 'passage-timing', amount: Math.round(start / 60) });
     return out;
   });
 }
@@ -152,7 +152,9 @@ function candidatesOf(occs: Occ[], testCount: Record<Skill, number>, gapOf: (s: 
     const examples = uniq(g.flatMap((o) => (o.example ? [o.example] : []))).slice(0, 2);
     const facts: Candidate['facts'] = {
       count: g.length, tests, outOf: testCount[skill],
-      ...(amounts.length && { total: Math.round(total * 10) / 10, average: Math.round((total / amounts.length) * 10) / 10 }),
+      ...(amounts.length && (kind === 'passage-timing'
+        ? { minutes: Math.round(total), averageMinutes: Math.round(total / amounts.length) }
+        : { total: Math.round(total * 10) / 10, average: Math.round((total / amounts.length) * 10) / 10 })),
       ...Object.fromEntries(examples.map((e, i) => [`example${i + 1}`, e])),
     };
     return {
