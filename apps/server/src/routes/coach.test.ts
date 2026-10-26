@@ -37,3 +37,9 @@ it('another user report is 404 for feedback; admin list is 404 for non-owners', 
   expect((await req('/api/coach/feedback', { headers: b.headers, body: { reportId: id, itemKey: 'c1' } })).status).toBe(404);
   expect((await req('/api/admin/coach-feedback', { headers: b.headers })).status).toBe(404);
 });
+
+it('a report that is not stale is not updating', async () => {
+  const u = await testUser();
+  await seed(u.user.id);
+  expect((await get(u.headers)).updating).toBe(false);
+});

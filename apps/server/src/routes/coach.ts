@@ -16,6 +16,8 @@ const Report = z
 const Coach = z.object({ state: z.enum(['empty', 'ready']), updating: z.boolean(), report: Report.nullable() }).openapi('Coach');
 const FeedbackBody = z.object({ reportId: z.string(), itemKey: z.string().min(1).max(100), note: z.string().max(1000).optional() }).openapi('CoachFeedbackBody');
 
+const running = new Set<string>(); // ponytail: per process; repeated polls must not stack transactions while stale
+
 export function register(app: App) {
   app.openapi(
     createRoute({
@@ -30,7 +32,10 @@ export function register(app: App) {
     async (c) => {
       const id = c.get('user')!.id;
       const updating = await isStale(id, new Date());
-      if (updating) void generateReport(id).catch(console.error);
+      if (updating && !running.has(id)) {
+        running.add(id);
+        void generateReport(id).catch(console.error).finally(() => running.delete(id));
+      }
       const r = await latestReport(id);
       if (!r) return c.json({ state: 'empty' as const, updating, report: null }, 200);
       const hidden = (await db.select({ k: coachFeedback.itemKey }).from(coachFeedback).where(eq(coachFeedback.reportId, r.id))).map((x) => x.k);
