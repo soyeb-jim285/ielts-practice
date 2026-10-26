@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth } from './auth';
 import { db } from './db/client';
 import { emailLog, user } from './db/schema';
-import { sendsIdle } from './auth-email';
+import { UNVERIFIED_CODE_WINDOW_MS, sendsIdle } from './auth-email';
 import { retryDelaysMs } from './email';
 import { app } from './test/helpers';
 
@@ -336,7 +336,7 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
     }
   });
 
-  it('sign-up of an existing address (production setting) still emails it: a reset pointer when unverified, an "account exists" note when verified', async () => {
+  it('sign-up of an existing address (production setting) still emails it: a code when unverified and recent, an "account exists" note when verified', async () => {
     const opts = auth.options.emailAndPassword!;
     opts.requireEmailVerification = true;
     try {
@@ -346,14 +346,36 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
       await signUp(unverified);
       await signUp(verified);
       await db.update(user).set({ emailVerified: true }).where(eq(user.email, verified));
+      await ageRows(unverified); // past the send cooldown
       for (const e of [unverified, verified]) await post('/sign-up/email', { email: e, password: 'password1234', name: 'U' });
       await sendsIdle();
       const sent = send.mock.calls.map(([m]) => m as { to: string; subject: string; html: string });
-      // no code: verifying would activate the earlier sign-up's password (pre-hijack)
-      const u = sent.filter((m) => m.to === unverified).at(-1)!;
-      expect(u).toMatchObject({ subject: 'Finish setting up your NextBand account' });
-      expect(u.html).not.toMatch(/\d{6}/);
+      expect(sent.filter((m) => m.to === unverified).at(-1)).toMatchObject({ subject: 'Your NextBand verification code', html: expect.stringMatching(/\d{6}/) });
       expect(sent.find((m) => m.to === verified)).toMatchObject({ subject: 'You already have a NextBand account' });
+    } finally {
+      opts.requireEmailVerification = false;
+    }
+  });
+
+  it('account pre-hijack: an old unverified account gets no verification code, by sign-up again or by resend, only a password-reset pointer', async () => {
+    const opts = auth.options.emailAndPassword!;
+    opts.requireEmailVerification = true;
+    try {
+      send.mockResolvedValue(ok);
+      const victim = fresh();
+      await signUp(victim); // the stranger's pre-registration, with the stranger's password
+      await db.update(user).set({ createdAt: new Date(Date.now() - UNVERIFIED_CODE_WINDOW_MS - 60_000) }).where(eq(user.email, victim));
+      const last = () => send.mock.calls.map(([m]) => m as { to: string; subject: string; html: string }).filter((m) => m.to === victim).at(-1)!;
+      for (const go of [
+        () => post('/sign-up/email', { email: victim, password: 'owners-password-1', name: 'V' }), // the owner signs up
+        () => post('/email-otp/send-verification-otp', { email: victim, type: 'email-verification' }), // the owner taps "Resend code"
+      ]) {
+        await ageRows(victim);
+        await go();
+        await sendsIdle();
+        expect(last()).toMatchObject({ subject: 'Finish setting up your NextBand account' });
+        expect(last().html).not.toMatch(/\d{6}/);
+      }
     } finally {
       opts.requireEmailVerification = false;
     }

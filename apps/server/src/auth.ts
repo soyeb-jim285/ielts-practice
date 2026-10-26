@@ -7,7 +7,7 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
-import { sendAccountExistsEmail, sendFinishSetupEmail, sendOtpEmail } from './auth-email';
+import { sendAccountExistsEmail, sendOtpEmail } from './auth-email';
 import { ApiError } from './errors';
 import { linkGuest } from './link';
 import { replayPrefix } from './replay';
@@ -31,10 +31,11 @@ export const auth = betterAuth({
     requireEmailVerification: env.NODE_ENV === 'production',
     revokeSessionsOnPasswordReset: true,
     // Sign-up with an existing address gets a generic success and no email (anti-enumeration), which left people waiting for a code (mobile apps, 2026-10).
-    // Verified: say the account exists. Unverified: point to a password reset, never a verification code, which would activate the password of the
-    // earlier sign-up (account pre-hijack: a stranger registers your address first, you verify, they sign in). Either way the response is unchanged.
+    // Verified: say the account exists. Unverified: the code again; sendOtpEmail swaps it for a password-reset pointer once the account is older than
+    // UNVERIFIED_CODE_WINDOW_MS (account pre-hijack). Either way the response is unchanged.
     onExistingUserSignUp: async ({ user }) => {
-      await (user.emailVerified ? sendAccountExistsEmail : sendFinishSetupEmail)(user.email);
+      if (user.emailVerified) await sendAccountExistsEmail(user.email);
+      else await auth.api.sendVerificationOTP({ body: { email: user.email, type: 'email-verification' } });
     },
     // No link-based reset (POST /api/auth/request-password-reset): it skipped the per-address email cooldown, and every client resets with the email-OTP code.
   },

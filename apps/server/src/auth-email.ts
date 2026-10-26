@@ -31,31 +31,44 @@ const sends = new Set<Promise<unknown>>();
 /** Resolves when every background send has finished (tests; also lets a shutdown drain). */
 export const sendsIdle = () => Promise.all([...sends]);
 
-/** Better Auth's code hook (see claimAndSend). */
+type Mail = { subject: string; html: string };
+
+/** An unverified account this old gets no verification code, only a pointer to the password reset. Verifying activates the password its sign-up chose,
+ *  and a stranger can pre-register someone's address (account pre-hijack). They can't re-create an existing address, so a pre-registration is almost
+ *  always older than this when the owner arrives, while the owner retrying their own sign-up is minutes old and still gets a code. */
+export const UNVERIFIED_CODE_WINDOW_MS = 30 * 60_000;
+const FINISH_SETUP: Mail = {
+  subject: 'Finish setting up your NextBand account',
+  html: `<p>Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.</p><p>To finish, choose "Forgot password?" on the sign-in screen and set your password with the code we send. That also confirms your email. If this wasn't you, you can ignore this email.</p>`,
+};
+
+/** Better Auth's code hook (see claimAndSend). Every verification code goes through here: sign-up, resend, and sign-up again on an existing address. */
 export async function sendOtpEmail({ email: raw, otp, type }: { email: string; otp: string; type: string }) {
   if (!isPurpose(type)) return; // sign-in codes are not offered: passwords only
   const mail = MAIL[type];
-  await claimAndSend(raw, type, mail.subject, `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`);
+  const code: Mail = { subject: mail.subject, html: `<p>${mail.lead}</p><p style="font-size:28px;font-weight:600;letter-spacing:6px;font-family:monospace">${otp}</p><p>It expires in ${OTP_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>` };
+  if (type !== 'email-verification') return claimAndSend(raw, type, code);
+  // decided in the background (after the response), so the lookup adds no timing difference between addresses
+  await claimAndSend(raw, type, async () => {
+    const [u] = await db.select({ verified: user.emailVerified, createdAt: user.createdAt }).from(user).where(eq(user.email, raw.toLowerCase())).limit(1);
+    return u && !u.verified && Date.now() - u.createdAt.getTime() > UNVERIFIED_CODE_WINDOW_MS ? FINISH_SETUP : code;
+  });
 }
 
 /** Sign-up with the address of a verified account: Better Auth answers it like a new sign-up and sends nothing, so the person waits for a code that never comes.
  *  This tells them instead, under the same cooldown row a code would take (the status endpoint reads it as sent, as for any sign-up). */
 export const sendAccountExistsEmail = (email: string) =>
-  claimAndSend(email, 'email-verification', 'You already have a NextBand account', `<p>Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.</p><p>Sign in with your password, or use "Forgot password?" on the sign-in screen to get a reset code. If this wasn't you, you can ignore this email.</p>`);
-
-/** Sign-up again on an address whose earlier sign-up was never verified. No verification code here: verifying would activate the earlier sign-up's
- *  password, which whoever typed the address chose (a stranger can pre-register someone's email). A password reset sets the owner's password and verifies the address. */
-export const sendFinishSetupEmail = (email: string) =>
-  claimAndSend(email, 'email-verification', 'Finish setting up your NextBand account', `<p>Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.</p><p>To finish, choose "Forgot password?" on the sign-in screen and set your password with the code we send. That also confirms your email. If this wasn't you, you can ignore this email.</p>`);
+  claimAndSend(email, 'email-verification', { subject: 'You already have a NextBand account', html: `<p>Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.</p><p>Sign in with your password, or use "Forgot password?" on the sign-in screen to get a reset code. If this wasn't you, you can ignore this email.</p>` });
 
 /** Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
  *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
  *  Never throws; GET /api/auth-email/status is how the user learns the outcome. */
-async function claimAndSend(raw: string, purpose: Purpose, subject: string, html: string) {
+async function claimAndSend(raw: string, purpose: Purpose, mail: Mail | (() => Promise<Mail>)) {
   const email = raw.toLowerCase();
   const id = await claim(email, purpose, null); // same work as an unknown address's stand-in claim (finishRequest): no user lookup before the response
   if (!id) return;
   const p = (async () => {
+    const { subject, html } = typeof mail === 'function' ? await mail() : mail;
     const r = await sendEmail({ to: email, subject, html });
     const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
     await db.update(emailLog).set({ userId: u?.id ?? null, ...(r.ok ? { providerId: r.id, attempts: r.attempts } : { status: 'failed', error: r.kind, attempts: r.attempts }) }).where(eq(emailLog.id, id));
