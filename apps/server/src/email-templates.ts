@@ -104,7 +104,7 @@ export const TEMPLATES = {
   },
   'weekly-report': {
     name: 'Weekly coach report',
-    description: 'Sent on Monday morning (from 9am local time) to students who practised that week and have news and tips on. Stats and the win line are added when it sends.',
+    description: 'Sent on Monday morning (from 9am local time) to students who practised that week and have news and tips on. The headline is the win line when there is one; stats are added when it sends.',
     reason: 'You got this because you have a NextBand account with news and tips turned on.',
     kind: 'promo',
     vars: { firstName: 'Ayesha', headline: 'Listening is at your target' },

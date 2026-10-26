@@ -18,7 +18,7 @@ const change = (now: number, before: number) => ({ change: now === before ? 'sam
 const deep = (v: unknown, vars: Record<string, string>): any =>
   typeof v === 'string' ? fill(v, vars) : Array.isArray(v) ? v.map((x) => deep(x, vars)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x, vars)])) : v;
 
-/** The saved weekly template with {{headline}} filled and the week's numbers added after the intro. */
+/** The saved weekly template with {{headline}} (the win when there is one, so it is not repeated) filled and the week's numbers added after the intro. */
 export function weeklyDoc(base: EmailDoc, report: { facts: Pick<CoachFacts, 'skills'>; words: Pick<CoachWords, 'summary' | 'win' | 'focus'> }, w: CoachFacts['weekStats']): EmailDoc {
   const { words } = report;
   const headline = words.win || words.summary.split(/(?<=[.!?])\s/)[0]!;
@@ -29,10 +29,10 @@ export function weeklyDoc(base: EmailDoc, report: { facts: Pick<CoachFacts, 'ski
   if (up) items.push({ value: String(up.band), label: `${cap(up.skill)} band`, change: `${up.trendDelta! > 0 ? '+' : ''}${up.trendDelta}`, trend: 'up' });
   const extra: Block[] = [
     ...(items.length ? [{ type: 'stats' as const, items }] : []),
-    ...(words.win ? [{ type: 'text' as const, text: `**Win:** ${words.win}` }] : []),
     ...(words.focus[0] ? [{ type: 'text' as const, text: `**This week:** ${words.focus[0].title}` }] : []),
   ];
-  const i = base.blocks.findIndex((b) => b.type === 'text') + 1;
+  const intro = base.blocks.findIndex((b) => b.type === 'text');
+  const i = (intro >= 0 ? intro : base.blocks.findIndex((b) => b.type === 'hero')) + 1; // an admin may have removed the intro
   const d = { ...base, blocks: [...base.blocks.slice(0, i), ...extra, ...base.blocks.slice(i)] };
   return deep(d, { headline });
 }

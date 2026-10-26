@@ -86,6 +86,18 @@ it('weeklyDoc omits zero stats and a missing win', () => {
   expect(d.subject).toBe('You are steady.');
 });
 
+it('weeklyDoc shows the win once, as the headline', () => {
+  const d = weeklyDoc(TEMPLATES['weekly-report'].defaults, { facts: facts(), words: words() }, facts().weekStats);
+  expect(d.subject).toBe('Listening is at your target.');
+  expect(JSON.stringify(d.blocks).split('Listening is at your target.')).toHaveLength(2); // once, in the hero
+});
+
+it('weeklyDoc puts the numbers after the hero when the intro text is gone', () => {
+  const base = TEMPLATES['weekly-report'].defaults;
+  const d = weeklyDoc({ ...base, blocks: base.blocks.filter((b) => b.type !== 'text') }, { facts: facts(), words: words() }, facts().weekStats);
+  expect(d.blocks.map((b) => b.type).slice(0, 3)).toEqual(['hero', 'stats', 'text']);
+});
+
 it('the weekly template is listed for editing', async () => {
   const o = await testUser(OWNER_EMAILS[0]!);
   const list = (await (await req('/api/admin/emails', { headers: o.headers })).json()) as { key: string }[];

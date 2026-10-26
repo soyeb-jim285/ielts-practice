@@ -157,8 +157,9 @@ export function validateWords(raw: CoachWords, f: CoachFacts): CoachWords {
 export async function writeWords(f: CoachFacts): Promise<{ words: CoachWords; model: string | null }> {
   for (const model of [PRIMARY, FALLBACK]) {
     try {
-      const raw = await chatJson({ model, system: SYSTEM, user: JSON.stringify({ facts: modelView(f) }), schema: WordsSchema, schemaName: 'coach_words', effort: 'low', timeoutMs: 60_000, cost: { stage: 'coach' } });
-      return { words: validateWords(raw, f), model };
+      let served: string | undefined; // openrouter.ts may fall back to luna inside the call
+      const raw = await chatJson({ model, system: SYSTEM, user: JSON.stringify({ facts: modelView(f) }), schema: WordsSchema, schemaName: 'coach_words', effort: 'low', timeoutMs: 60_000, cost: { stage: 'coach' }, onServed: (s) => (served = s.model ?? served) });
+      return { words: validateWords(raw, f), model: served ?? model };
     } catch (e) {
       console.error(`coach words failed on ${model}`, (e as Error).message);
     }
@@ -166,8 +167,8 @@ export async function writeWords(f: CoachFacts): Promise<{ words: CoachWords; mo
   return { words: templateWords(f), model: null };
 }
 
-/** Only what the wording needs: ids, counts and numbers, not evidence ids or series. */
+/** Only what the wording needs: ids, counts and numbers, not evidence ids, series or the student's own text (example* facts: prompt-injection surface). */
 function modelView(f: CoachFacts) {
-  const c = ({ id, kind, count, tests, facts, actions }: Candidate) => ({ id, kind, count, tests, facts, actions });
+  const c = ({ id, kind, count, tests, facts, actions }: Candidate) => ({ id, kind, count, tests, facts: Object.fromEntries(Object.entries(facts).filter(([k]) => !k.startsWith('example'))), actions });
   return { target: f.target, daysToExam: f.daysToExam, overall: f.overall, skills: f.skills.map(({ skill, tests, band, trend, trendDelta, gap }) => ({ skill, tests, band, trend, trendDelta, gap })), reviewDue: f.reviewDue, candidates: f.candidates.map(c), win: f.win && c(f.win) };
 }
