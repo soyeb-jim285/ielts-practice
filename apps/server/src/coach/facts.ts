@@ -20,7 +20,7 @@ type Occ = {
   mistakeId?: string; n?: number; example?: string; amount?: number;
   from?: string; to?: string[]; source?: Swap['source']; typed?: string; correct?: string;
 };
-type Test = { at: Date; skill: Skill; attemptId: string; band: number | null; minutes: number };
+type Test = { at: Date; skill: Skill; attemptId: string; band: number | null; minutes: number; part?: number };
 
 const dayOf = (d: Date, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
 
@@ -213,11 +213,14 @@ export async function buildFacts(userId: string, now: Date): Promise<CoachFacts>
   const target = 'targetBand' in stored ? settings.targetBand : null;
 
   const tests: Test[] = [
-    ...wsRows.map((w) => ({ at: w.at, skill: w.skill, attemptId: w.id, band: w.overall, minutes: (w.ms ?? 0) / 60000 })),
+    ...wsRows.map((w) => ({ at: w.at, skill: w.skill, attemptId: w.id, band: w.overall, minutes: (w.ms ?? 0) / 60000, part: w.part })),
     ...lrRows.map((l) => ({ at: l.at ?? l.started, skill: l.skill as Skill, attemptId: l.id, band: l.band, minutes: l.elapsedS / 60 })),
   ];
   const skills: SkillFacts[] = SKILLS.map((s) => {
-    const f = skillFacts(s, tests.filter((t) => t.skill === s && t.band !== null).map((t) => ({ at: t.at, band: t.band! })), target);
+    const scored = tests.filter((t) => t.skill === s && t.band !== null);
+    const at = (a: Test[]) => a.map((t) => ({ at: t.at, band: t.band! }));
+    // Writing: the band shows Task 1 and Task 2 combined; the trend (and so the win and the weekly band stat) uses Task 2 only (spec 7.2)
+    const f = skillFacts(s, at(scored), target, s === 'writing' ? at(scored.filter((t) => t.part === 2)) : undefined);
     return { ...f, series: f.series.slice(-10) };
   });
   const gapOf = (s: Skill) => skills.find((x) => x.skill === s)!.gap;

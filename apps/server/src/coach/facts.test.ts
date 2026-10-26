@@ -78,6 +78,15 @@ describe('buildFacts', () => {
     expect(f.spelling).toMatchObject([{ rule: 'ie-ei', count: 2 }]);
     expect(f.weekStats).toMatchObject({ tests: 2, days: 2, prev: { tests: 0 } });
   });
+
+  it('takes the Writing trend from Task 2 only: alternating low Task 1 and high Task 2 is not improving', async () => {
+    const { user } = await testUser();
+    for (let i = 0; i < 6; i++) await ws(user.id, 'writing', 6 - i, i % 2 ? 7 : 5, {}, i % 2 ? 2 : 1); // oldest T1 5, newest T2 7
+    const f = await buildFacts(user.id, now);
+    const w = f.skills.find((s) => s.skill === 'writing')!;
+    expect(w).toMatchObject({ tests: 6, band: 6, trend: 'steady', trendDelta: null });
+    expect(f.win).toBeNull();
+  });
 });
 
 describe('lastTestAt', () => {

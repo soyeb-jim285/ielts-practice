@@ -4,14 +4,18 @@ import type { Candidate, CoachFacts, Skill, SkillFacts, SpellGroup } from './typ
 const mean = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
 const DAY = 86_400_000;
 
-export function skillFacts(skill: Skill, scored: { at: Date; band: number }[], target: number | null): SkillFacts {
-  const s = [...scored].sort((a, b) => a.at.getTime() - b.at.getTime());
+type Scored = { at: Date; band: number };
+const byTime = (a: Scored[]) => [...a].sort((x, y) => x.at.getTime() - y.at.getTime());
+
+/** `trendFrom`: the tests the trend compares (Writing: Task 2 only, so Task 1 and Task 2 scores never mix in it). */
+export function skillFacts(skill: Skill, scored: Scored[], target: number | null, trendFrom: Scored[] = scored): SkillFacts {
+  const s = byTime(scored);
   const tests = s.length;
   const band = tests ? roundBand(mean(s.slice(-5).map((x) => x.band))) : null;
   let trend: SkillFacts['trend'] = tests < 3 ? 'calibrating' : 'steady';
   let trendDelta: number | null = null;
-  if (tests >= 6) {
-    const b = s.map((x) => x.band);
+  if (trendFrom.length >= 6) {
+    const b = byTime(trendFrom).map((x) => x.band);
     // bands are halves, so integer-ish sums compare exactly (float means can miss a true 0.5)
     const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     const diff = sum(b.slice(-3)) - sum(b.slice(-6, -3));
