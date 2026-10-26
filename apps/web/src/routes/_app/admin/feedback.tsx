@@ -68,7 +68,7 @@ function CoachFeedbackList() {
   return (
     <section className="mt-12" aria-labelledby="coach-feedback">
       <h2 id="coach-feedback" className="type-h4">Coach feedback</h2>
-      <p className="type-caption mt-1">Thumbs on coach report items, latest 100.</p>
+      <p className="type-caption mt-1">Coach items students marked as wrong, latest 100.</p>
       <Load q={q}>
         {(rows) =>
           rows.length ? (
