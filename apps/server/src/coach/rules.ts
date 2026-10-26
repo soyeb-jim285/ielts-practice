@@ -12,8 +12,11 @@ export function skillFacts(skill: Skill, scored: { at: Date; band: number }[], t
   let trendDelta: number | null = null;
   if (tests >= 6) {
     const b = s.map((x) => x.band);
-    trendDelta = mean(b.slice(-3)) - mean(b.slice(-6, -3));
-    trend = trendDelta >= 0.5 ? 'improving' : trendDelta <= -0.5 ? 'slipping' : 'steady';
+    // bands are halves, so integer-ish sums compare exactly (float means can miss a true 0.5)
+    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+    const diff = sum(b.slice(-3)) - sum(b.slice(-6, -3));
+    trendDelta = Math.round((diff / 3) * 100) / 100;
+    trend = diff >= 1.5 ? 'improving' : diff <= -1.5 ? 'slipping' : 'steady';
   }
   return {
     skill, tests, band,
@@ -66,17 +69,24 @@ export function pickCandidates(all: Candidate[]): Candidate[] {
   return [...all].sort((a, b) => b.score - a.score).slice(0, 6);
 }
 
+/**
+ * `older`: candidates built only from tests older than the last 3 of their skill.
+ * `recentTests[skill]`: attempt ids, newest first. Returns the qualifying candidate with the highest count.
+ * Fallback: a synthetic Candidate for an `improving` skill (id `win:<skill>`, kind 'improving', score/share 0).
+ * Its evidence is that skill's last 3 attempt ids from `recentTests` (empty if none), actions ['see-evidence'] when evidence exists.
+ * Task 5's validator must accept facts.win.id as a citable id.
+ */
 export function findWin(older: Candidate[], recentTests: Record<Skill, string[]>, skills: SkillFacts[]): Candidate | null {
-  for (const c of older) {
-    const recent = new Set(recentTests[c.skill].slice(0, 3));
-    const hit = c.evidence.attemptIds.some((id) => recent.has(id));
-    if (new Set(c.evidence.attemptIds).size >= 3 && !hit) return c;
-  }
+  const fixed = older
+    .filter((c) => new Set(c.evidence.attemptIds).size >= 3 && !c.evidence.attemptIds.some((id) => recentTests[c.skill].slice(0, 3).includes(id)))
+    .sort((a, b) => b.count - a.count)[0];
+  if (fixed) return fixed;
   const s = skills.find((x) => x.trend === 'improving');
   if (!s) return null;
+  const attemptIds = recentTests[s.skill].slice(0, 3);
   return {
     id: `win:${s.skill}`, skill: s.skill, kind: 'improving', count: s.tests, tests: s.tests, share: 0, score: 0,
-    facts: { band: s.band ?? 0, delta: s.trendDelta ?? 0 }, evidence: { attemptIds: [] }, actions: [],
+    facts: { band: s.band ?? 0, delta: s.trendDelta ?? 0 }, evidence: { attemptIds }, actions: attemptIds.length ? ['see-evidence'] : [],
   };
 }
 

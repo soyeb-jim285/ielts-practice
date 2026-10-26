@@ -26,6 +26,9 @@ describe('skillFacts', () => {
   it('6 with one noisy jump steady', () => {
     expect(skillFacts('listening', sc(6, 6, 6, 6, 6, 7), 7).trend).toBe('steady');
   });
+  it('mixed halves still improving (float regression)', () => {
+    expect(skillFacts('listening', sc(6, 6.5, 6, 6.5, 6.5, 7), 7)).toMatchObject({ trend: 'improving', trendDelta: 0.5 });
+  });
   it('slipping', () => {
     expect(skillFacts('listening', sc(6, 6, 6, 5.5, 5.5, 5.5), 7).trend).toBe('slipping');
   });
@@ -87,7 +90,13 @@ describe('findWin', () => {
   });
   it('falls back to improving skill', () => {
     const f = skillFacts('listening', sc(5, 5, 5, 5.5, 5.5, 5.5), 7);
-    expect(findWin([], none, [f])).toMatchObject({ skill: 'listening', kind: 'improving' });
+    const w = findWin([], { ...none, listening: ['l6', 'l5', 'l4', 'l3'] }, [f]);
+    expect(w).toMatchObject({ skill: 'listening', kind: 'improving', actions: ['see-evidence'], evidence: { attemptIds: ['l6', 'l5', 'l4'] } });
+    expect(findWin([], none, [f])?.actions).toEqual([]);
+  });
+  it('picks highest count', () => {
+    const a = cand(['a', 'b', 'c']), b = { ...cand(['d', 'e', 'f', 'g']), id: 'w:big' };
+    expect(findWin([a, b], none, [])?.id).toBe('w:big');
   });
 });
 
