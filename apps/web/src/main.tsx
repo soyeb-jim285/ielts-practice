@@ -27,6 +27,9 @@ for (const r of router.getMatchedRoutes(location.pathname)[0]) router.loadRouteC
 // The boot mark (index.html) stays until the first page has resolved, so the hard load never shows a blank screen.
 const unboot = router.subscribe('onResolved', () => {
   unboot();
+  const w = window as { __nbReady?: boolean; __nbSplashClose?: () => void };
+  w.__nbReady = true; // a slow-load splash (index.html) that has not started yet stays away
+  w.__nbSplashClose?.();
   const boot = document.getElementById('boot');
   if (!boot) return;
   boot.style.opacity = '0';

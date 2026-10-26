@@ -51,6 +51,15 @@
           var s = document.createElement('script');
           s.src = '/nextband/splash.js';
           document.head.appendChild(s);
+        } else {
+          // Website: a slow first load (still loading after 700 ms) gets the full splash instead of the static mark; main.tsx closes it.
+          setTimeout(function () {
+            if (window.__nbReady || !document.getElementById('boot')) return;
+            window.__nbSplashWait = true;
+            var w = document.createElement('script');
+            w.src = '/nextband/splash.js';
+            document.head.appendChild(w);
+          }, 700);
         }
       } catch (e) {}
       // Start the session check now, in parallel with the entry bundle; lib/query.ts meQuery adopts this response.
