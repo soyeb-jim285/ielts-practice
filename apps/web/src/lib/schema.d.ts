@@ -4178,6 +4178,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/coach-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest 100 coach feedback notes */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Items */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCoachFeedback"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replay/{sessionId}/chunks": {
         parameters: {
             query?: never;
@@ -4923,6 +4959,87 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["MockError"];
                     };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/coach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest coach report; refreshes it in the background when new tests exist */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Coach"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/coach/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Flag a coach item as wrong or unhelpful */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CoachFeedbackBody"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not your report */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -6855,6 +6972,14 @@ export interface components {
                 p95: number;
             }[];
         };
+        AdminCoachFeedback: {
+            id: string;
+            email: string;
+            itemKey: string;
+            note: string;
+            day: string;
+            createdAt: string;
+        };
         FeedbackCreated: {
             id: string;
         };
@@ -6950,6 +7075,32 @@ export interface components {
             /** @enum {string} */
             source?: "cambridge" | "generated";
             ref?: string | null;
+        };
+        Coach: {
+            /** @enum {string} */
+            state: "empty" | "ready";
+            updating: boolean;
+            report: components["schemas"]["CoachReport"];
+        };
+        CoachReport: {
+            id: string;
+            day: string;
+            createdAt: string;
+            facts?: components["schemas"]["CoachFacts"];
+            words?: components["schemas"]["CoachWords"];
+            /** @description Item keys the student gave feedback on */
+            hidden: string[];
+        } | null;
+        CoachFacts: {
+            [key: string]: unknown;
+        };
+        CoachWords: {
+            [key: string]: unknown;
+        };
+        CoachFeedbackBody: {
+            reportId: string;
+            itemKey: string;
+            note?: string;
         };
     };
     responses: never;

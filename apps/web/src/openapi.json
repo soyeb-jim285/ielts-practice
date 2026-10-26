@@ -7800,6 +7800,37 @@
           "recent"
         ]
       },
+      "AdminCoachFeedback": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "itemKey": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "day": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "itemKey",
+          "note",
+          "day",
+          "createdAt"
+        ]
+      },
       "FeedbackCreated": {
         "type": "object",
         "properties": {
@@ -8190,6 +8221,94 @@
         },
         "required": [
           "mode"
+        ]
+      },
+      "Coach": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "ready"
+            ]
+          },
+          "updating": {
+            "type": "boolean"
+          },
+          "report": {
+            "$ref": "#/components/schemas/CoachReport"
+          }
+        },
+        "required": [
+          "state",
+          "updating",
+          "report"
+        ]
+      },
+      "CoachReport": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "day": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "facts": {
+            "$ref": "#/components/schemas/CoachFacts"
+          },
+          "words": {
+            "$ref": "#/components/schemas/CoachWords"
+          },
+          "hidden": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Item keys the student gave feedback on"
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "createdAt",
+          "hidden"
+        ]
+      },
+      "CoachFacts": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CoachWords": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CoachFeedbackBody": {
+        "type": "object",
+        "properties": {
+          "reportId": {
+            "type": "string"
+          },
+          "itemKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reportId",
+          "itemKey"
         ]
       }
     },
@@ -12982,6 +13101,34 @@
         }
       }
     },
+    "/api/admin/coach-feedback": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Latest 100 coach feedback notes",
+        "responses": {
+          "200": {
+            "description": "Items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminCoachFeedback"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/replay/{sessionId}/chunks": {
       "post": {
         "tags": [
@@ -13793,6 +13940,62 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/coach": {
+      "get": {
+        "tags": [
+          "Coach"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Latest coach report; refreshes it in the background when new tests exist",
+        "responses": {
+          "200": {
+            "description": "Report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Coach"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/coach/feedback": {
+      "post": {
+        "tags": [
+          "Coach"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Flag a coach item as wrong or unhelpful",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoachFeedbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "404": {
+            "description": "Not your report"
           }
         }
       }
