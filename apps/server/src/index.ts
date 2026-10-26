@@ -49,7 +49,8 @@ const coach = async () => {
   await coachSweep().catch((e) => console.error('coachSweep failed', e));
   await weeklySweep().catch((e) => console.error('weeklySweep failed', e));
 };
-setInterval(coach, 3_600_000).unref();
+// production only: local dev has real OpenRouter/Resend keys, and a sweep would write paid reports and send weekly emails for every local user. Opening /coach still generates one.
+if (env.NODE_ENV === 'production') setInterval(coach, 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute

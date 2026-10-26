@@ -14,5 +14,6 @@ export const Route = createFileRoute('/_app/coach')({
 });
 
 function CoachPage() {
-  return <CoachView data={useSuspenseQuery(coachQuery).data} />;
+  // only this page polls while a report is being written; the dashboard card reads once
+  return <CoachView data={useSuspenseQuery({ ...coachQuery, refetchInterval: (q) => (q.state.data?.updating ? 5000 : false) }).data} />;
 }

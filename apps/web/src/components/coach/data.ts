@@ -12,7 +12,6 @@ export const coachQuery = queryOptions({
   queryKey: ['coach'],
   queryFn: async () => (await call(client.GET('/api/coach'))) as Coach,
   staleTime: 0,
-  refetchInterval: (q) => (q.state.data?.updating ? 5000 : false),
 });
 
 /** Mirrors ACTIONS in apps/server/src/coach/actions.ts (routes and minutes); the server only sends the action type. */
@@ -27,10 +26,10 @@ export const ACTION: Record<ActionType, { minutes: number; to?: LinkProps['to'] 
   'review-deck': { minutes: 10, to: '/review' },
 };
 
-/** The result page of the newest test behind a pattern, or null when it has none. */
-export function evidenceLink(c: Pick<Candidate, 'skill' | 'evidence'>): LinkProps | null {
+/** The result page of the newest test behind a pattern; History when it names none. */
+export function evidenceLink(c: Pick<Candidate, 'skill' | 'evidence'>): LinkProps {
   const attemptId = c.evidence.attemptIds[0] ?? c.evidence.lr?.[0]?.attemptId;
-  if (!attemptId) return null;
+  if (!attemptId) return { to: '/history' }; // as the server's seeEvidence
   if (c.skill === 'writing') return { to: '/writing/result/$attemptId', params: { attemptId }, search: {} };
   if (c.skill === 'speaking') return { to: '/speaking/result/$attemptId', params: { attemptId }, search: {} };
   return { to: '/lr/result/$attemptId', params: { attemptId } };

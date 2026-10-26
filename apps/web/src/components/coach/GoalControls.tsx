@@ -21,7 +21,7 @@ export function ExamDateInput({ className }: { className?: string }) {
     <Input
       type="date"
       label="Exam date"
-      min={today()}
+      min={value ? undefined : today()} // a saved past date must not show as invalid
       value={value}
       className={className}
       onChange={(e) => {
