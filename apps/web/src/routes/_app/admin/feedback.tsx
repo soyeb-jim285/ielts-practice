@@ -1,3 +1,4 @@
+import type { components } from '@/lib/schema';
 import type { FeedbackItem } from '@server/admin/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -60,6 +61,43 @@ function Item({ f }: { f: FeedbackItem }) {
   );
 }
 
+type CoachFeedback = components['schemas']['AdminCoachFeedback'];
+
+function CoachFeedbackList() {
+  const q = useAdmin<CoachFeedback[]>('/coach-feedback');
+  return (
+    <section className="mt-12" aria-labelledby="coach-feedback">
+      <h2 id="coach-feedback" className="type-h4">Coach feedback</h2>
+      <p className="type-caption mt-1">Thumbs on coach report items, latest 100.</p>
+      <Load q={q}>
+        {(rows) =>
+          rows.length ? (
+            <ul className="mt-3 divide-y divide-line border-y border-line">
+              {rows.map((r) => {
+                const [section, ...id] = r.itemKey.split(':');
+                return (
+                  <li key={r.id} className="py-4">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <Badge tone="neutral">{section}</Badge>
+                      <span className="break-all">{id.join(':')}</span>
+                    </div>
+                    <p className="type-caption mt-1 break-all">
+                      <span className="type-num">{r.day}</span> · {r.email}
+                    </p>
+                    {r.note && <p className="mt-2 break-words whitespace-pre-wrap">{r.note}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState icon={<Inbox />} title="No coach feedback yet" />
+          )
+        }
+      </Load>
+    </section>
+  );
+}
+
 function FeedbackPage() {
   const { status = 'all', page = 1 } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -89,6 +127,7 @@ function FeedbackPage() {
           )
         }
       </Load>
+      <CoachFeedbackList />
     </PageContainer>
   );
 }
