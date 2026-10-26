@@ -20,6 +20,8 @@ FROM node:24-alpine
 RUN apk add --no-cache tini
 WORKDIR /app
 COPY --from=build /app/apps/server apps/server
+# tsx reads apps/server/tsconfig.json, which extends this; without it JSX compiles to React.createElement and every email render fails.
+COPY tsconfig.base.json ./
 COPY --from=build /repo/apps/web/dist apps/web/dist
 COPY scripts/seed-bank.ts scripts/
 # The script uses top-level await: mark it ESM (the repo root package.json, which says so, isn't in the image).
