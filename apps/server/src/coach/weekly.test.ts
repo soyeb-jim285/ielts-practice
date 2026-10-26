@@ -12,6 +12,7 @@ import { weeklyDoc, weeklySweep } from './weekly';
 vi.mock('../email', () => ({ sendEmail: vi.fn(async () => ({ ok: true, id: 'e1', attempts: 1 })), sendBatch: vi.fn(async () => ({ ok: true })) }));
 const batch = vi.mocked(sendBatch);
 const MON_0915 = new Date('2026-10-26T03:15:00Z'); // Monday 09:15 in Asia/Dhaka
+const MON_1400 = new Date('2026-10-26T08:00:00Z');
 const MON_0859 = new Date('2026-10-26T02:59:00Z');
 let n = 0;
 const sentTo = () => batch.mock.calls.flatMap(([items]) => items);
@@ -52,16 +53,24 @@ it('skips opted-out, guests, idle students, no report and the wrong local time',
   await student({ email: 'wk-off@test.dev', productEmails: false });
   await student({ email: 'wk-idle@test.dev', tested: false });
   await student({ email: 'wk-norep@test.dev', report: false });
-  await student({ email: 'wk-early@test.dev', tz: 'Asia/Dhaka' });
   const g = await guestUser();
   await db.insert(userSettings).values({ userId: g.user.id, data: { timeZone: 'Asia/Dhaka' } });
   batch.mockClear();
   await weeklySweep(MON_0915);
   expect(sentTo().map((m) => m.to).filter((t) => /^wk-(off|idle|norep)/.test(t))).toEqual([]);
+  expect(sentTo()).toEqual([]); // the guest included
   batch.mockClear();
+  await student({ email: 'wk-early@test.dev', tz: 'Asia/Dhaka' });
   await student({ email: 'wk-late@test.dev', tz: 'America/Los_Angeles' }); // Sunday evening there
-  await weeklySweep(MON_0859);
+  await weeklySweep(MON_0859); // 08:59 in Dhaka
   expect(sentTo().map((m) => m.to).filter((t) => /^wk-(early|late)/.test(t))).toEqual([]);
+});
+
+it('sends any time Monday morning onward, once', async () => {
+  await student({ email: 'wk-2pm@test.dev' });
+  batch.mockClear();
+  await weeklySweep(MON_1400); // 14:00 in Dhaka
+  expect(sentTo().filter((m) => m.to === 'wk-2pm@test.dev')).toHaveLength(1);
 });
 
 it('weeklyDoc omits zero stats and a missing win', () => {

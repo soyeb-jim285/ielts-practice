@@ -21,7 +21,7 @@ const deep = (v: unknown, vars: Record<string, string>): any =>
 /** The saved weekly template with {{headline}} filled and the week's numbers added after the intro. */
 export function weeklyDoc(base: EmailDoc, report: { facts: Pick<CoachFacts, 'skills'>; words: Pick<CoachWords, 'summary' | 'win' | 'focus'> }, w: CoachFacts['weekStats']): EmailDoc {
   const { words } = report;
-  const headline = words.win ?? words.summary.split(/(?<=[.!?])\s/)[0]!;
+  const headline = words.win || words.summary.split(/(?<=[.!?])\s/)[0]!;
   const items: Extract<Block, { type: 'stats' }>['items'] = [];
   for (const [label, key] of [['Tests', 'tests'], ['Minutes', 'minutes'], ['Days practised', 'days']] as const)
     if (w[key]) items.push({ value: String(w[key]), label, ...change(w[key], w.prev[key]) });
@@ -45,10 +45,10 @@ function isoWeek(day: string): string {
   return `${y}-W${String(Math.ceil(((d.getTime() - Date.UTC(y, 0, 1)) / DAY + 1) / 7)).padStart(2, '0')}`;
 }
 
-/** Monday 09:xx in the zone. */
-function mondayNine(now: Date, timeZone: string): boolean {
+/** Monday, 09:00 or later, in the zone. */
+function mondayMorning(now: Date, timeZone: string): boolean {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map((x) => [x.type, x.value]));
-  return p.weekday === 'Mon' && p.hour === '09';
+  return p.weekday === 'Mon' && Number(p.hour) >= 9;
 }
 
 /** ponytail: walks every verified opted-in account hourly (settings read per user); filter by zone in SQL if the user count grows. */
@@ -63,14 +63,15 @@ export async function weeklySweep(now = new Date()): Promise<number> {
       for (const u of await audienceOf('all')) {
         try {
           const tz = (await getSettings(u.id)).timeZone;
-          if (!mondayNine(now, tz)) continue;
+          if (!mondayMorning(now, tz)) continue;
           const t = await lastTestAt(u.id);
           const report = await latestReport(u.id);
           if (!t || t.getTime() <= now.getTime() - 7 * DAY || !report) continue;
           const week = isoWeek(localDay(now, tz));
-          if (!(await db.insert(coachWeekly).values({ userId: u.id, week }).onConflictDoNothing().returning()).length) continue; // claimed before sending: a double run sends once
+          if (await db.query.coachWeekly.findFirst({ where: and(eq(coachWeekly.userId, u.id), eq(coachWeekly.week, week)) })) continue;
           const { weekStats } = await buildFacts(u.id, now);
           const r = await renderDoc(weeklyDoc(doc, report, weekStats), 'promo');
+          if (!(await db.insert(coachWeekly).values({ userId: u.id, week }).onConflictDoNothing().returning()).length) continue; // claimed right before sending: a double run sends once, a failed build keeps the week open
           const res = await sendBatch([campaignEmail(r, u)], `coach-weekly-${u.id}-${week}`);
           if (res.ok) sent++;
           else await db.delete(coachWeekly).where(and(eq(coachWeekly.userId, u.id), eq(coachWeekly.week, week)));

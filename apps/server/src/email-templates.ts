@@ -104,16 +104,16 @@ export const TEMPLATES = {
   },
   'weekly-report': {
     name: 'Weekly coach report',
-    description: 'Sent Monday 9am local time to students who practised that week and have news and tips on. Stats and the win line are added when it sends.',
+    description: 'Sent on Monday morning (from 9am local time) to students who practised that week and have news and tips on. Stats and the win line are added when it sends.',
     reason: 'You got this because you have a NextBand account with news and tips turned on.',
     kind: 'promo',
-    vars: { name: 'Ayesha', headline: 'Listening is at your target' },
+    vars: { firstName: 'Ayesha', headline: 'Listening is at your target' },
     defaults: {
       subject: '{{headline}}',
       preheader: 'Your week on NextBand',
       blocks: [
         { type: 'hero', eyebrow: 'Your week', title: '{{headline}}', subtitle: '', tone: 'brand' },
-        { type: 'text', text: "Hi {{name}}, here's your week." },
+        { type: 'text', text: "Hi {{firstName}}, here's your week." },
         { type: 'button', label: 'Open your coach', url: '/coach', variant: 'solid' },
       ],
     },
