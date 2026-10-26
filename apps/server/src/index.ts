@@ -9,6 +9,7 @@ import { purgeGuests, recoverStale, startQueue, stopQueue } from './jobs';
 import { sendsIdle } from './auth-email';
 import { purgeAiLogs } from './ai/ailog';
 import { reconcileCosts } from './ai/cost';
+import { coachSweep } from './coach/report';
 import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
@@ -43,6 +44,8 @@ setInterval(purgeRec, 24 * 3_600_000).unref();
 const purgeLogs = () => purgeAiLogs().catch((e) => console.error('purgeAiLogs failed', e));
 void purgeLogs();
 setInterval(purgeLogs, 24 * 3_600_000).unref();
+const coach = () => coachSweep().catch((e) => console.error('coachSweep failed', e));
+setInterval(coach, 3_600_000).unref();
 const grants = () => loadCambridgeGrants().catch((e) => console.error('loadCambridgeGrants failed', e));
 await grants();
 setInterval(grants, 60_000).unref(); // another process's toggle is honoured within a minute
