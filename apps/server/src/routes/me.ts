@@ -3,6 +3,7 @@ import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { clientIpHash } from '../ip';
 import { payerOf, quotaSnapshot } from '../quota';
 import { QuotaFields } from './community';
+import { lrCounts } from './lr';
 import { getSettings, SettingsSchema } from '../settings';
 import type { App } from '../types';
 
@@ -43,6 +44,7 @@ export function register(app: App) {
           cambridgeAccess: isCambridgeAllowed(user),
           isOwner: isOwner(user),
           ...(await quotaSnapshot(payer, clientIpHash(c))),
+          lr: await lrCounts(user),
         },
         200,
       );

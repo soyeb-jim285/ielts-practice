@@ -59,6 +59,18 @@ export async function visibleWhere(u: Viewer): Promise<SQL | undefined> {
   return a.cambridge ? undefined : and(eq(lrTests.restricted, false), a.slugs ? inArray(baseSlugSql, a.slugs) : undefined);
 }
 
+/** Per skill: tests this viewer can open, of all the ones a plan can open (Cambridge counts only for those who can open it). For the usage panel. */
+export async function lrCounts(u: Viewer) {
+  const where = await visibleWhere(u);
+  const rows = await db
+    .select({ skill: lrTests.skill, open: sql<number>`(count(*) filter (where ${where ?? sql`true`}))::int`, total: sql<number>`(count(*) filter (where ${where ? sql`not ${lrTests.restricted}` : sql`true`}))::int` })
+    .from(lrTests)
+    .where(eq(lrTests.retired, false))
+    .groupBy(lrTests.skill);
+  const of = (skill: 'listening' | 'reading') => rows.find((r) => r.skill === skill) ?? { open: 0, total: 0 };
+  return { listening: { open: of('listening').open, total: of('listening').total }, reading: { open: of('reading').open, total: of('reading').total } };
+}
+
 const Option = z.object({ key: z.string(), text: z.string() });
 const QuestionReview = z
   .object({

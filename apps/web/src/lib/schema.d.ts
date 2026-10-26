@@ -4369,11 +4369,24 @@ export interface components {
             isOwner: boolean;
             /** @enum {string} */
             tier: "guest" | "community" | "subscriber" | "unlimited";
+            /** @description ISO end of the paid plan when on it (tier subscriber, or unlimited with a plan too); otherwise null */
+            subscribedUntil: string | null;
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
             examiner: components["schemas"]["SkillQuota"] & unknown;
             /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`) */
             live: boolean;
+            /** @description Listening and Reading tests the caller can open, of all a plan can open (no usage limit; the plan decides which) */
+            lr: {
+                listening: {
+                    open: number;
+                    total: number;
+                };
+                reading: {
+                    open: number;
+                    total: number;
+                };
+            };
         };
         SkillQuota: {
             used: number;
@@ -4930,11 +4943,24 @@ export interface components {
         Quota: {
             /** @enum {string} */
             tier: "guest" | "community" | "subscriber" | "unlimited";
+            /** @description ISO end of the paid plan when on it (tier subscriber, or unlimited with a plan too); otherwise null */
+            subscribedUntil: string | null;
             speaking: components["schemas"]["SkillQuota"];
             writing: components["schemas"]["SkillQuota"];
             examiner: components["schemas"]["SkillQuota"] & unknown;
             /** @description The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`) */
             live: boolean;
+            /** @description Listening and Reading tests the caller can open, of all a plan can open (no usage limit; the plan decides which) */
+            lr: {
+                listening: {
+                    open: number;
+                    total: number;
+                };
+                reading: {
+                    open: number;
+                    total: number;
+                };
+            };
         };
         LrTestListItem: {
             id: string;

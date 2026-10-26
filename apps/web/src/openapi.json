@@ -82,6 +82,13 @@
               "unlimited"
             ]
           },
+          "subscribedUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO end of the paid plan when on it (tier subscriber, or unlimited with a plan too); otherwise null"
+          },
           "speaking": {
             "$ref": "#/components/schemas/SkillQuota"
           },
@@ -101,6 +108,46 @@
           "live": {
             "type": "boolean",
             "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`)"
+          },
+          "lr": {
+            "type": "object",
+            "properties": {
+              "listening": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "open",
+                  "total"
+                ]
+              },
+              "reading": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "open",
+                  "total"
+                ]
+              }
+            },
+            "required": [
+              "listening",
+              "reading"
+            ],
+            "description": "Listening and Reading tests the caller can open, of all a plan can open (no usage limit; the plan decides which)"
           }
         },
         "required": [
@@ -109,10 +156,12 @@
           "cambridgeAccess",
           "isOwner",
           "tier",
+          "subscribedUntil",
           "speaking",
           "writing",
           "examiner",
-          "live"
+          "live",
+          "lr"
         ]
       },
       "SkillQuota": {
@@ -2383,6 +2432,13 @@
               "unlimited"
             ]
           },
+          "subscribedUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO end of the paid plan when on it (tier subscriber, or unlimited with a plan too); otherwise null"
+          },
           "speaking": {
             "$ref": "#/components/schemas/SkillQuota"
           },
@@ -2402,14 +2458,56 @@
           "live": {
             "type": "boolean",
             "description": "The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`)"
+          },
+          "lr": {
+            "type": "object",
+            "properties": {
+              "listening": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "open",
+                  "total"
+                ]
+              },
+              "reading": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "open",
+                  "total"
+                ]
+              }
+            },
+            "required": [
+              "listening",
+              "reading"
+            ],
+            "description": "Listening and Reading tests the caller can open, of all a plan can open (no usage limit; the plan decides which)"
           }
         },
         "required": [
           "tier",
+          "subscribedUntil",
           "speaking",
           "writing",
           "examiner",
-          "live"
+          "live",
+          "lr"
         ]
       },
       "LrTestListItem": {

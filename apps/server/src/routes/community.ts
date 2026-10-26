@@ -2,6 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { clientIpHash } from '../ip';
 import { payerOf, quotaSnapshot, type Payer } from '../quota';
 import type { App } from '../types';
+import { lrCounts } from './lr';
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { 'application/json': { schema } } });
 
@@ -39,10 +40,12 @@ const SkillQuota = z
 
 export const QuotaFields = {
   tier: z.enum(['guest', 'community', 'subscriber', 'unlimited']),
+  subscribedUntil: z.string().nullable().openapi({ description: 'ISO end of the paid plan when on it (tier subscriber, or unlimited with a plan too); otherwise null' }),
   speaking: SkillQuota,
   writing: SkillQuota,
   examiner: SkillQuota.openapi({ description: 'Live examiner sessions (LiveKit)' }),
   live: z.boolean().openapi({ description: 'The LiveKit examiner is configured: live speaking tests are available (server keys, for everyone; limited by `examiner`)' }),
+  lr: z.object({ listening: z.object({ open: z.number().int(), total: z.number().int() }), reading: z.object({ open: z.number().int(), total: z.number().int() }) }).openapi({ description: 'Listening and Reading tests the caller can open, of all a plan can open (no usage limit; the plan decides which)' }),
 };
 const QuotaSchema = z.object(QuotaFields).openapi('Quota');
 
@@ -60,6 +63,6 @@ export function register(app: App) {
       summary: 'Tests left, reset times and live access for the caller. Works without a session (a guest, counted by IP). Call it when a test is about to start',
       responses: { 200: json(QuotaSchema, 'Quota') },
     }),
-    async (c) => c.json(await quotaSnapshot(await requestPayer(c.get('user')), clientIpHash(c)), 200),
+    async (c) => c.json({ ...(await quotaSnapshot(await requestPayer(c.get('user')), clientIpHash(c))), lr: await lrCounts(c.get('user')) }, 200),
   );
 }

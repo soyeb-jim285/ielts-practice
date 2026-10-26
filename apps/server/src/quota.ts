@@ -31,7 +31,7 @@ const WINDOW = { 1: 'day', 7: 'week', 30: 'month' } as const;
  *  An admin Cambridge grant is content access only. `limits`: the owner's per-user overrides (admin, user_limits); `unlimited` is exempt like an owner.
  *  `subscribed`: on the paid plan (user_limits.subscribed_until in the future). */
 export type Limits = { speaking: number | null; writing: number | null; unlimited: boolean };
-export type Payer = { userId: string; tier: Tier; owner: boolean; limits?: Limits; subscribed?: boolean };
+export type Payer = { userId: string; tier: Tier; owner: boolean; limits?: Limits; subscribed?: boolean; subscribedUntil?: string };
 
 type Who = { id: string; email: string; emailVerified: boolean; isAnonymous?: boolean | null };
 export async function payerOf(u: Who): Promise<Payer> {
@@ -40,7 +40,7 @@ export async function payerOf(u: Who): Promise<Payer> {
   const [row] = await db.select({ speaking: userLimits.speaking, writing: userLimits.writing, unlimited: userLimits.unlimited, until: userLimits.subscribedUntil }).from(userLimits).where(eq(userLimits.userId, u.id));
   const limits = row && { speaking: row.speaking, writing: row.writing, unlimited: row.unlimited };
   const subscribed = !!row?.until && row.until > new Date();
-  return { userId: u.id, owner, limits, subscribed, tier: owner || limits?.unlimited ? 'unlimited' : subscribed ? 'subscriber' : 'community' };
+  return { userId: u.id, owner, limits, subscribed, subscribedUntil: subscribed ? row!.until!.toISOString() : undefined, tier: owner || limits?.unlimited ? 'unlimited' : subscribed ? 'subscriber' : 'community' };
 }
 
 /** Is this account on the paid plan now (for content gates that do not need the whole payer). */
@@ -106,7 +106,7 @@ async function evaluate(x: Executor, p: Payer, skill: Skill, ipHash: string | nu
 export async function quotaSnapshot(p: Payer, ipHash: string | null) {
   const shared = { balance: await communityBalance(), hourly: await hourlyCount(db) };
   const [speaking, writing, examiner] = await Promise.all(SKILLS.map((s) => evaluate(db, p, s, ipHash, shared)));
-  return { tier: p.tier, speaking: speaking!, writing: writing!, examiner: examiner!, live: livekitReady() };
+  return { tier: p.tier, subscribedUntil: p.subscribedUntil ?? null, speaking: speaking!, writing: writing!, examiner: examiner!, live: livekitReady() };
 }
 
 const SKILL_NAME: Record<Skill, string> = { speaking: 'speaking practice tests', writing: 'writing tests', examiner: 'live examiner sessions' };

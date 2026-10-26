@@ -23,6 +23,7 @@ import { signOut, useIsOwner } from '@/lib/auth';
 import { ADMIN_ITEMS, Marker, useAdminNav } from '@/components/admin/AdminNav';
 import { useAccount } from '@/lib/query';
 import { cn } from '@/lib/utils';
+import { UsagePanel } from '@/components/community/QuotaNote';
 import { openFeedback } from './FeedbackButton';
 import { Logo, LogoMark } from './Logo';
 import { SiteFooter } from './SiteFooter';
@@ -230,6 +231,8 @@ function AppSidebar() {
             </SidebarGroup>
           ))}
         </nav>}
+        {/* In the scrolling area, pinned to its bottom when there is room, so short screens keep the nav reachable. */}
+        {state !== 'collapsed' && !inAdmin && <UsagePanel className="mt-auto px-2 pt-4 pb-3" />}
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border px-2 py-2">
         <SidebarMenu>
@@ -351,6 +354,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link to="/privacy" onClick={() => setMore(false)} className="mt-2 inline-block px-1 text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Privacy
         </Link>
+        <UsagePanel className="mt-4 rounded-md border border-line p-3" />
         <Separator className="my-4" />
         {me ? (
           <Button variant="ghost" icon={<LogOut />} onClick={doSignOut}>
