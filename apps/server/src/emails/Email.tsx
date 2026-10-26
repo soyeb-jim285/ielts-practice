@@ -1,5 +1,6 @@
 import { Body, Button, Column, Container, Head, Hr, Html, Img, Link, Markdown, Preview, Row, Section, Text } from '@react-email/components';
 import type { CSSProperties } from 'react';
+import type React from 'react';
 import type { Block, EmailSettings } from './blocks';
 
 /** Brand: teal #0f766e (AA on white), ink #0f172a, muted #5b6b80, line #e3e8ef. */
@@ -10,6 +11,16 @@ const PAD = 32;
 
 export type EmailKind = 'account' | 'promo';
 export type EmailProps = { preheader: string; blocks: Block[]; settings: EmailSettings; origin: string; kind: EmailKind; reason: string; unsubscribeUrl: string };
+
+/** Gmail on iPhone forces dark mode by inverting colours; it leaves background images alone, so a one-colour gradient keeps a brand surface as designed. */
+const lock = (c: string): CSSProperties => ({ backgroundColor: c, backgroundImage: `linear-gradient(${c},${c})` });
+/** White text on a locked surface: Gmail's inversion would turn it dark; the screen/difference blend pair (styles in <Head>) undoes that. Other clients ignore it. */
+const Keep = ({ children }: { children: React.ReactNode }) => (
+  <div className="gm-s">
+    <div className="gm-d">{children}</div>
+  </div>
+);
+const GMAIL_DARK = 'u + .body .gm-s { background: #000; mix-blend-mode: screen; } u + .body .gm-d { background: #000; mix-blend-mode: difference; }';
 
 const abs = (origin: string, u: string) => (u.startsWith('/') ? `${origin}${u}` : u);
 
@@ -38,15 +49,21 @@ const CALLOUT = { info: { bg: '#e8f1fb', title: '#1e3a8a', mark: 'i' }, good: { 
 
 function Hero({ b, top }: { b: Extract<Block, { type: 'hero' }>; top?: boolean }) {
   const t = TONE[b.tone];
+  const dark = b.tone !== 'soft'; // soft is a light surface: letting Gmail invert it reads fine
+  const Wrap = dark ? Keep : ({ children }: { children: React.ReactNode }) => <>{children}</>;
   return (
-    <Section style={{ background: t.bg, borderRadius: top ? '12px 12px 0 0' : 10 }}>
+    <Section style={{ ...(dark ? lock(t.bg) : { background: t.bg }), borderRadius: top ? 0 : 10 }}>
       <Section style={{ padding: `28px ${PAD}px ${b.subtitle ? 24 : 28}px` }}>
-        {b.eyebrow && <Text style={{ margin: '0 0 8px', fontSize: 13, lineHeight: '18px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: t.eyebrow }}>{b.eyebrow}</Text>}
-        <Text style={{ margin: 0, fontFamily: SERIF, fontSize: 28, lineHeight: '34px', fontWeight: 600, color: t.text }}>{b.title}</Text>
+        <Wrap>
+          {b.eyebrow && <Text style={{ margin: '0 0 8px', fontSize: 13, lineHeight: '18px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: t.eyebrow }}>{b.eyebrow}</Text>}
+          <Text style={{ margin: 0, fontFamily: SERIF, fontSize: 28, lineHeight: '34px', fontWeight: 600, color: t.text }}>{b.title}</Text>
+        </Wrap>
       </Section>
       {b.subtitle && (
-        <Section style={{ background: t.strip, padding: `12px ${PAD}px` }}>
-          <Text style={{ margin: 0, fontSize: 14, lineHeight: '20px', fontWeight: 500, color: t.text }}>{b.subtitle}</Text>
+        <Section style={{ ...(dark ? lock(t.strip) : { background: t.strip }), padding: `12px ${PAD}px` }}>
+          <Wrap>
+            <Text style={{ margin: 0, fontSize: 14, lineHeight: '20px', fontWeight: 500, color: t.text }}>{b.subtitle}</Text>
+          </Wrap>
         </Section>
       )}
     </Section>
@@ -113,16 +130,17 @@ function BlockView({ b, origin }: { b: Block; origin: string }) {
     case 'button':
       return (
         <Section style={{ margin: '8px 0 20px' }}>
-          <Button
-            href={abs(origin, b.url)}
-            style={
-              b.variant === 'solid'
-                ? { background: C.brand, color: C.white, borderRadius: 8, padding: '13px 26px', fontSize: 16, fontWeight: 600, lineHeight: '20px', textDecoration: 'none' }
-                : { background: C.white, color: C.brand, border: `2px solid ${C.brand}`, borderRadius: 8, padding: '11px 24px', fontSize: 16, fontWeight: 600, lineHeight: '20px', textDecoration: 'none' }
-            }
-          >
-            {b.label}
-          </Button>
+          {b.variant === 'solid' ? (
+            <Keep>
+              <Button href={abs(origin, b.url)} style={{ ...lock(C.brand), color: C.white, borderRadius: 8, padding: '13px 26px', fontSize: 16, fontWeight: 600, lineHeight: '20px', textDecoration: 'none' }}>
+                {b.label}
+              </Button>
+            </Keep>
+          ) : (
+            <Button href={abs(origin, b.url)} style={{ background: C.white, color: C.brand, border: `2px solid ${C.brand}`, borderRadius: 8, padding: '11px 24px', fontSize: 16, fontWeight: 600, lineHeight: '20px', textDecoration: 'none' }}>
+              {b.label}
+            </Button>
+          )}
         </Section>
       );
     case 'code':
@@ -170,8 +188,8 @@ const SOCIAL = ['facebook', 'instagram', 'youtube', 'x', 'tiktok'] as const;
 const SOCIAL_NAME = { facebook: 'Facebook', instagram: 'Instagram', youtube: 'YouTube', x: 'X', tiktok: 'TikTok' };
 
 function Footer({ settings: s, origin, kind, reason, unsubscribeUrl }: Pick<EmailProps, 'settings' | 'origin' | 'kind' | 'reason' | 'unsubscribeUrl'>) {
-  const small: CSSProperties = { margin: 0, fontSize: 12, lineHeight: '18px', color: '#9fb0c4' };
-  const link: CSSProperties = { color: '#d6e0eb', textDecoration: 'underline' };
+  const small: CSSProperties = { margin: 0, fontSize: 12, lineHeight: '18px', color: '#ffffff', opacity: 0.72 };
+  const link: CSSProperties = { color: '#ffffff', textDecoration: 'underline' };
   const socials = SOCIAL.filter((k) => s.social[k]);
   const links = [
     { label: 'Privacy', href: `${origin}/privacy` },
@@ -179,7 +197,7 @@ function Footer({ settings: s, origin, kind, reason, unsubscribeUrl }: Pick<Emai
     ...(kind === 'promo' ? [{ label: 'Preferences', href: `${origin}/settings` }, { label: 'Unsubscribe', href: unsubscribeUrl }] : []),
   ];
   return (
-    <Section style={{ background: C.ink, borderRadius: 12, padding: `18px ${PAD}px`, marginTop: 12 }}>
+    <Section style={{ ...lock(C.ink), borderRadius: 12, padding: `18px ${PAD}px`, marginTop: 12 }}>
       <Row>
         <Column>
           <Img src={`${origin}/nextband/logo-dark.png`} width="96" height="19" alt={s.company} style={{ display: 'block', width: 96, height: 'auto' }} />
@@ -194,10 +212,11 @@ function Footer({ settings: s, origin, kind, reason, unsubscribeUrl }: Pick<Emai
           </Column>
         )}
       </Row>
+      <Keep>
       <Text style={{ ...small, margin: '12px 0 4px' }}>
         {links.map((l, i) => (
           <span key={l.label}>
-            {i > 0 && <span style={{ color: '#5b6b80' }}>{' · '}</span>}
+            {i > 0 && <span style={{ opacity: 0.5 }}>{' · '}</span>}
             <Link href={l.href} style={link}>
               {l.label}
             </Link>
@@ -209,11 +228,12 @@ function Footer({ settings: s, origin, kind, reason, unsubscribeUrl }: Pick<Emai
         © {new Date().getFullYear()} {s.company}
         {s.note && ` · ${s.note}`}
       </Text>
+      </Keep>
     </Section>
   );
 }
 
-/** The house layout: logo + "Open NextBand" link, a white card (a leading hero runs edge to edge), then the dark footer. */
+/** The house layout: a white card topped by a navy logo band (a leading hero runs edge to edge under it), then the dark footer. */
 export function Email({ preheader, blocks, settings, origin, kind, reason, unsubscribeUrl }: EmailProps) {
   const [first, ...rest] = blocks;
   const hero = first?.type === 'hero' ? first : null;
@@ -223,28 +243,32 @@ export function Email({ preheader, blocks, settings, origin, kind, reason, unsub
       <Head>
         <meta name="color-scheme" content="light" />
         <meta name="supported-color-schemes" content="light" />
+        <style>{GMAIL_DARK}</style>
       </Head>
       {preheader && <Preview>{preheader}</Preview>}
-      <Body style={{ margin: 0, background: C.page, fontFamily: FONT, WebkitTextSizeAdjust: '100%' }}>
+      <Body className="body" style={{ margin: 0, background: C.page, fontFamily: FONT, WebkitTextSizeAdjust: '100%' }}>
         <Container style={{ maxWidth: 584, width: '100%' }}>
           {/* padding on a cell, not the table: a padded width:100% table overflows narrow screens */}
           <Row>
             <Column style={{ padding: '32px 12px' }}>
-          <Section style={{ padding: '0 4px 18px' }}>
-            <Row>
-              <Column>
-                <Link href={origin}>
-                  <Img src={`${origin}/nextband/logo.png`} width="132" height="26" alt={settings.company} style={{ display: 'block', width: 132, height: 'auto' }} />
-                </Link>
-              </Column>
-              <Column align="right">
-                <Link href={origin} style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: C.brand, textDecoration: 'none' }}>
-                  Open {settings.company}
-                </Link>
-              </Column>
-            </Row>
-          </Section>
           <Section style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden' }}>
+            {/* navy band with the light logo: images and locked colours survive Gmail's forced dark mode, so the brand looks the same everywhere */}
+            <Section style={{ ...lock(C.ink), padding: `16px ${PAD}px` }}>
+              <Row>
+                <Column>
+                  <Link href={origin}>
+                    <Img src={`${origin}/nextband/logo-dark.png`} width="120" height="24" alt={settings.company} style={{ display: 'block', width: 120, height: 'auto' }} />
+                  </Link>
+                </Column>
+                <Column align="right">
+                  <Keep>
+                    <Link href={origin} style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: C.white, textDecoration: 'none' }}>
+                      Open {settings.company}
+                    </Link>
+                  </Keep>
+                </Column>
+              </Row>
+            </Section>
             {hero && <Hero b={hero} top />}
             {body.length > 0 && (
               <Section style={{ padding: `${hero ? 28 : PAD}px ${PAD}px 12px` }}>
