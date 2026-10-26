@@ -11920,7 +11920,7 @@
             "bearer": []
           }
         ],
-        "summary": "Send unsaved content with the sample values to your own address",
+        "summary": "Send unsaved content to your own address (sample values; the weekly email uses your own coach report when you have one)",
         "parameters": [
           {
             "schema": {

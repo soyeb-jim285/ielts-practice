@@ -6,6 +6,8 @@ import { renderEmail, TEMPLATES } from '../email-templates';
 import type { EmailDoc } from '../emails/blocks';
 import { pause, unsubscribeToken } from '../emails/campaigns';
 import { getSettings } from '../settings';
+import { db } from '../db/client';
+import { coachReports } from '../db/schema';
 
 vi.mock('../email', () => ({ sendEmail: vi.fn(async () => ({ ok: true, id: 'e1', attempts: 1 })), sendBatch: vi.fn(async () => ({ ok: true })) }));
 const send = vi.mocked(sendEmail);
@@ -43,6 +45,19 @@ describe('account emails', () => {
     expect(send.mock.calls.at(-1)![0]).toMatchObject({ to: OWNER, subject: '[Test] Hello again' });
     expect(await body(await req('/api/admin/emails/account-exists', { method: 'DELETE', headers: o.headers }))).toMatchObject({ custom: false, doc: { subject: 'You already have a NextBand account' } });
     expect((await req('/api/admin/emails/account-exists', { method: 'PUT', headers: o.headers, body: { ...doc, blocks: [{ type: 'nope' }] } })).status).toBe(400);
+  });
+
+  it('the weekly test send uses your own coach report when you have one', async () => {
+    const o = await testUser(OWNER);
+    const doc = TEMPLATES['weekly-report'].defaults;
+    await req('/api/admin/emails/weekly-report/test', { headers: o.headers, body: doc });
+    expect(send.mock.calls.at(-1)![0].subject).toBe('[Test] Listening is at your target'); // no report: the sample
+    const words = { summary: 'You are close. Keep going.', win: 'Reading moved up to 7.', focus: [], cheat: [], plan: [] };
+    await db.insert(coachReports).values({ userId: o.user.id, day: '2026-10-27', lastTestAt: new Date(), facts: { skills: [] } as never, words, model: null });
+    expect((await req('/api/admin/emails/weekly-report/test', { headers: o.headers, body: doc })).status).toBe(200);
+    const m = send.mock.calls.at(-1)![0];
+    expect(m).toMatchObject({ to: OWNER, subject: '[Test] Reading moved up to 7.' });
+    expect(m.html).toContain('/api/email/unsubscribe?t=');
   });
 
   it('footer settings show up in emails', async () => {

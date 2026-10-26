@@ -3206,7 +3206,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send unsaved content with the sample values to your own address */
+        /** Send unsaved content to your own address (sample values; the weekly email uses your own coach report when you have one) */
         post: {
             parameters: {
                 query?: never;

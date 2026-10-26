@@ -51,6 +51,12 @@ function mondayMorning(now: Date, timeZone: string): boolean {
   return p.weekday === 'Mon' && Number(p.hour) >= 9;
 }
 
+/** This week's email for one student, from their latest report and this week's numbers (the sweep, and the admin "Send test"). */
+export async function weeklyEmail(u: { id: string; email: string; name: string | null }, doc: EmailDoc, report: { facts: CoachFacts; words: CoachWords }, now = new Date()) {
+  const { weekStats } = await buildFacts(u.id, now);
+  return campaignEmail(await renderDoc(weeklyDoc(doc, report, weekStats), 'promo'), u);
+}
+
 /** ponytail: walks every verified opted-in account hourly (settings read per user); filter by zone in SQL if the user count grows. */
 export async function weeklySweep(now = new Date()): Promise<number> {
   const conn = await sql.reserve(); // session locks live on one connection
@@ -69,10 +75,9 @@ export async function weeklySweep(now = new Date()): Promise<number> {
           if (!t || t.getTime() <= now.getTime() - 7 * DAY || !report) continue;
           const week = isoWeek(localDay(now, tz));
           if (await db.query.coachWeekly.findFirst({ where: and(eq(coachWeekly.userId, u.id), eq(coachWeekly.week, week)) })) continue;
-          const { weekStats } = await buildFacts(u.id, now);
-          const r = await renderDoc(weeklyDoc(doc, report, weekStats), 'promo');
+          const m = await weeklyEmail(u, doc, report, now);
           if (!(await db.insert(coachWeekly).values({ userId: u.id, week }).onConflictDoNothing().returning()).length) continue; // claimed right before sending: a double run sends once, a failed build keeps the week open
-          const res = await sendBatch([campaignEmail(r, u)], `coach-weekly-${u.id}-${week}`);
+          const res = await sendBatch([m], `coach-weekly-${u.id}-${week}`);
           if (res.ok) sent++;
           else await db.delete(coachWeekly).where(and(eq(coachWeekly.userId, u.id), eq(coachWeekly.week, week)));
         } catch (e) {

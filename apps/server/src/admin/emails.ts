@@ -7,6 +7,8 @@ import { docOf, getEmailSettings, isEmailKey, personalise, renderDoc, renderEmai
 import { EmailDoc, EmailSettings } from '../emails/blocks';
 import { audienceSize, CAMPAIGN_VARS, campaignEmail, startCampaign, unsubscribeUrl } from '../emails/campaigns';
 import type { App } from '../types';
+import { latestReport } from '../coach/report';
+import { weeklyEmail } from '../coach/weekly';
 import { adminRoute } from './common';
 
 const route = { ...adminRoute, middleware: [...adminRoute.middleware] }; // ponytail: common.ts declares the tuple `as const`, which createRoute rejects (as in ops.ts)
@@ -96,12 +98,14 @@ export function register(app: App) {
     },
   );
   app.openapi(
-    createRoute({ ...route, method: 'post', path: '/api/admin/emails/{key}/test', summary: 'Send unsaved content with the sample values to your own address', request: { params: Key, body: body(EmailDoc) }, responses: { 200: json(Sent, 'Sent'), 404: json(Err, 'Unknown template'), 502: json(Err, 'The email provider refused it') } }),
+    createRoute({ ...route, method: 'post', path: '/api/admin/emails/{key}/test', summary: 'Send unsaved content to your own address (sample values; the weekly email uses your own coach report when you have one)', request: { params: Key, body: body(EmailDoc) }, responses: { 200: json(Sent, 'Sent'), 404: json(Err, 'Unknown template'), 502: json(Err, 'The email provider refused it') } }),
     async (c) => {
       const { key } = c.req.valid('param');
       if (!isEmailKey(key)) return c.json({ error: 'Unknown template' }, 404);
-      const m = await renderEmail(key, TEMPLATES[key].vars, c.req.valid('json'));
-      const r = await sendEmail({ to: me(c).email, ...m, subject: `[Test] ${m.subject}` });
+      // the weekly email is built from your own latest coach report when you have one, as it would send on Monday
+      const report = key === 'weekly-report' ? await latestReport(me(c).id) : null;
+      const m = report ? await weeklyEmail(me(c), c.req.valid('json'), report) : await renderEmail(key, TEMPLATES[key].vars, c.req.valid('json'));
+      const r = await sendEmail({ ...m, to: me(c).email, subject: `[Test] ${m.subject}` });
       return r.ok ? c.json({ to: me(c).email }, 200) : c.json({ error: `Could not send (${r.kind}).` }, 502);
     },
   );
