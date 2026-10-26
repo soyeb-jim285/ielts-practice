@@ -11,7 +11,7 @@ export const localDay = (now: Date, timeZone: string): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: isTimeZone(timeZone) ? timeZone : 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 
 /** Read raw: getSettings() throws on a stored zone the runtime no longer knows. */
-async function zoneOf(userId: string): Promise<string> {
+export async function zoneOf(userId: string): Promise<string> {
   const row = await db.query.userSettings.findFirst({ where: eq(userSettings.userId, userId) });
   const tz = row?.data?.timeZone;
   return typeof tz === 'string' ? tz : 'UTC';

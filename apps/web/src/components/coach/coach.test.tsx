@@ -70,6 +70,13 @@ it('empty state says what the coach will show and links to a first test', () => 
   expect(screen.getByRole('link', { name: /first essay/i }).getAttribute('href')).toBe('/writing');
 });
 
+it('empty while updating says the coach is reading, without the first-test link', () => {
+  view({ state: 'empty', updating: true, report: null });
+  expect(screen.getByText(/reading your tests/i)).toBeTruthy();
+  expect(screen.queryByText(/after your first test/i)).toBeNull();
+  expect(screen.queryByRole('link', { name: /first essay/i })).toBeNull();
+});
+
 it('a calibrating skill says how many more tests it needs', () => {
   view(ready);
   expect(screen.getByText(/1 more test/)).toBeTruthy();

@@ -25,18 +25,23 @@ export function CoachView({ data }: { data: Coach }) {
     return (
       <PageContainer>
         <PageHeader title="Your coach" />
-        {data.updating && <Updating />}
-        <EmptyState
-          icon={<Compass />}
-          title="Your coach starts after your first test"
-          action={
-            <Link to="/writing" className={buttonStyles()}>
-              Write your first essay
-            </Link>
-          }
-        >
-          It reads all your tests together and shows where you stand in each skill, the 3 things most worth fixing this week, the habits that keep coming back, and a short plan for your week.
-        </EmptyState>
+        {data.updating ? (
+          <EmptyState icon={<LoaderCircle className="animate-spin" />} title="Your coach is reading your tests…">
+            <span role="status">Your first report takes about a minute. This page updates by itself.</span>
+          </EmptyState>
+        ) : (
+          <EmptyState
+            icon={<Compass />}
+            title="Your coach starts after your first test"
+            action={
+              <Link to="/writing" className={buttonStyles()}>
+                Write your first essay
+              </Link>
+            }
+          >
+            It reads all your tests together and shows where you stand in each skill, the 3 things most worth fixing this week, the habits that keep coming back, and a short plan for your week.
+          </EmptyState>
+        )}
       </PageContainer>
     );
   return <Ready report={data.report} updating={data.updating} />;

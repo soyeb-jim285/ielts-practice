@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { and, eq, sql } from 'drizzle-orm';
 import { requireUser } from '../auth';
-import { generateReport, isStale, latestReport } from '../coach/report';
+import { generateReport, isStale, latestReport, localDay, zoneOf } from '../coach/report';
 import type { CoachFacts, CoachWords } from '../coach/types';
 import { db } from '../db/client';
 import { coachFeedback, coachReports } from '../db/schema';
@@ -17,6 +17,7 @@ const Coach = z.object({ state: z.enum(['empty', 'ready']), updating: z.boolean(
 const FeedbackBody = z.object({ reportId: z.string(), itemKey: z.string().min(1).max(100), note: z.string().max(1000).optional() }).openapi('CoachFeedbackBody');
 
 const running = new Set<string>(); // ponytail: per process; repeated polls must not stack transactions while stale
+const failed = new Map<string, string>(); // userId -> local day its generation failed; no retry (and no "Updating") until the next day. ponytail: per process, never pruned
 
 export function register(app: App) {
   app.openapi(
@@ -31,10 +32,14 @@ export function register(app: App) {
     }),
     async (c) => {
       const id = c.get('user')!.id;
-      const updating = await isStale(id, new Date());
+      const now = new Date();
+      const today = localDay(now, await zoneOf(id));
+      const updating = failed.get(id) !== today && (await isStale(id, now));
       if (updating && !running.has(id) && running.size < 2) { // ponytail: cap 2 per process so free guests cannot exhaust the pool (max 10); upgrade is a queue or worker
         running.add(id);
-        void generateReport(id).catch(console.error).finally(() => running.delete(id));
+        void generateReport(id)
+          .catch((e) => (failed.set(id, today), console.error('coach report failed', id, e)))
+          .finally(() => running.delete(id));
       }
       const r = await latestReport(id);
       if (!r) return c.json({ state: 'empty' as const, updating, report: null }, 200);

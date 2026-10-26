@@ -1,7 +1,7 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { OWNER_EMAILS } from '../auth';
 import { db } from '../db/client';
-import { coachReports } from '../db/schema';
+import { coachReports, lrAttempts, lrTests, userSettings } from '../db/schema';
 import { guestUser, req, testUser } from '../test/helpers';
 import type { CoachFacts, CoachWords } from '../coach/types';
 
@@ -42,4 +42,16 @@ it('a report that is not stale is not updating', async () => {
   const u = await testUser();
   await seed(u.user.id);
   expect((await get(u.headers)).updating).toBe(false);
+});
+
+it('a failed generation stops updating for the rest of the local day', async () => {
+  const u = await testUser();
+  await db.insert(userSettings).values({ userId: u.user.id, data: { timeZone: 'Mars/Base' } }); // getSettings throws, so buildFacts fails
+  const [t] = await db.insert(lrTests).values({ slug: `coach-fail-${Math.random().toString(36).slice(2, 8)}`, skill: 'listening', variant: 'academic', source: 'generated', ref: 'X', title: 'x', data: { sections: [] } as never, restricted: false }).returning();
+  await db.insert(lrAttempts).values({ userId: u.user.id, testId: t!.id, mode: 'practice', status: 'submitted', band: 6.5, elapsedS: 600, submittedAt: new Date(), startedAt: new Date() });
+  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+  expect((await get(u.headers)).updating).toBe(true); // starts the (failing) generation
+  await vi.waitFor(() => expect(err).toHaveBeenCalled());
+  expect(await get(u.headers)).toEqual({ state: 'empty', updating: false, report: null });
+  err.mockRestore();
 });
