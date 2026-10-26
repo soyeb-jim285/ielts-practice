@@ -30,12 +30,13 @@ export async function isStale(userId: string, now: Date): Promise<boolean> {
 }
 
 export async function generateReport(userId: string, now = new Date()): Promise<'created' | 'skipped'> {
+  // ponytail: tx holds a pool connection across the model call while helpers use another from db (max 10), so ~10 concurrent generations can exhaust the pool; pass tx into the helpers or move the model call outside the lock.
   return db.transaction(async (tx) => {
     await tx.execute(q`select pg_advisory_xact_lock(hashtextextended(${'coach:' + userId}, 0))`);
     if (!(await isStale(userId, now))) return 'skipped';
+    const t = (await lastTestAt(userId))!; // read before the model call: a test submitted meanwhile is not covered
     const facts = await buildFacts(userId, now);
     const { words, model } = await writeWords(facts);
-    const t = (await lastTestAt(userId))!;
     const day = localDay(now, await zoneOf(userId));
     const ins = await tx.insert(coachReports).values({ userId, day, lastTestAt: t, facts, words, model }).onConflictDoNothing().returning({ id: coachReports.id });
     return ins.length ? 'created' : 'skipped';
