@@ -24,7 +24,7 @@ const router = createRouter({
 // router doesn't discover them only after the entry has rendered. _app's loader awaits me in parallel with the page loaders.
 for (const r of router.getMatchedRoutes(location.pathname)[0]) router.loadRouteChunk(r)?.catch(() => {}); // the router retries and reports on navigation
 
-// The boot mark (index.html) stays until the first page has resolved, so the hard load never shows a blank screen.
+// The boot cover (index.html) stays until the first page has resolved, so a hard load never flashes an unstyled page.
 const unboot = router.subscribe('onResolved', () => {
   unboot();
   const w = window as { __nbReady?: boolean; __nbSplashClose?: () => void };
