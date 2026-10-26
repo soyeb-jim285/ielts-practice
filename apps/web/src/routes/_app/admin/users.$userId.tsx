@@ -47,16 +47,29 @@ function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
   const bad = [speaking, writing].some((v) => v.trim() !== '' && !Number.isFinite(Number(v)));
   const save = (unlimited = info.unlimited, subscribedUntil?: string | null) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited, subscribedUntil });
   const subscribed = !!info.subscribedUntil && new Date(info.subscribedUntil) > new Date();
+  // Dates are Dhaka calendar days (UTC+6, no DST); the plan runs to the end of the chosen day.
+  const ymd = (t: number) => new Date(t + 6 * 3_600_000).toISOString().slice(0, 10);
+  const [until, setUntil] = useState(subscribed ? ymd(new Date(info.subscribedUntil!).getTime()) : ymd(Date.now() + 30 * 86_400_000));
   return (
     <div className="space-y-4">
       <Switch label="No test limits" description="Unlimited speaking and writing tests, including the live examiner, paid by the house." checked={info.unlimited} disabled={m.isPending} onChange={(v) => save(v)} />
-      <Switch
-        label="Subscriber"
-        description={subscribed ? `Paid plan until ${new Date(info.subscribedUntil!).toLocaleDateString()}.` : 'Grants the paid plan for 30 days: unlimited writing and practice, 5 live sessions a day (40 a month), every test.'}
-        checked={subscribed}
-        disabled={m.isPending}
-        onChange={(v) => save(info.unlimited, v ? new Date(Date.now() + 30 * 86_400_000).toISOString() : null)}
-      />
+      <form className="space-y-2" onSubmit={(e) => (e.preventDefault(), save(info.unlimited, new Date(`${until}T23:59:59+06:00`).toISOString()))}>
+        <p className="text-sm font-medium">
+          Subscriber {subscribed ? <Badge tone="good">Until {dhakaDay(ymd(new Date(info.subscribedUntil!).getTime()))}</Badge> : <Badge>None</Badge>}
+        </p>
+        <p className="type-caption">Paid plan to the end of the chosen day (Dhaka): unlimited writing and practice, 5 live sessions a day (40 a month), every test.</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <Input label="Paid until" type="date" required min={ymd(Date.now())} value={until} onChange={(e) => setUntil(e.target.value)} className="w-44" />
+          <Button type="submit" variant="outline" loading={m.isPending} disabled={!until}>
+            {subscribed ? 'Change date' : 'Grant plan'}
+          </Button>
+          {subscribed && (
+            <Button type="button" variant="ghost" disabled={m.isPending} onClick={() => save(info.unlimited, null)}>
+              End subscription
+            </Button>
+          )}
+        </div>
+      </form>
       {!info.unlimited && (
         <form className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[9rem_9rem_auto]" onSubmit={(e) => (e.preventDefault(), save())}>
           <Input label="Speaking / 30 days" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.defaults.speaking})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} />
