@@ -9,7 +9,7 @@ import { Email, type EmailKind } from './emails/Email';
 
 /** Account emails (admin → Emails → Account emails edits them). `vars` are the placeholders each one fills, with the sample values previews use.
  *  `reason` is the footer line saying why this email arrived. */
-type Template = { name: string; description: string; reason: string; vars: Record<string, string>; defaults: EmailDoc };
+type Template = { name: string; description: string; reason: string; kind?: 'promo'; vars: Record<string, string>; defaults: EmailDoc };
 
 export const TEMPLATES = {
   'verification-code': {
@@ -102,6 +102,22 @@ export const TEMPLATES = {
       ],
     },
   },
+  'weekly-report': {
+    name: 'Weekly coach report',
+    description: 'Sent Monday 9am local time to students who practised that week and have news and tips on. Stats and the win line are added when it sends.',
+    reason: 'You got this because you have a NextBand account with news and tips turned on.',
+    kind: 'promo',
+    vars: { name: 'Ayesha', headline: 'Listening is at your target' },
+    defaults: {
+      subject: '{{headline}}',
+      preheader: 'Your week on NextBand',
+      blocks: [
+        { type: 'hero', eyebrow: 'Your week', title: '{{headline}}', subtitle: '', tone: 'brand' },
+        { type: 'text', text: "Hi {{name}}, here's your week." },
+        { type: 'button', label: 'Open your coach', url: '/coach', variant: 'solid' },
+      ],
+    },
+  },
 } satisfies Record<string, Template>;
 const PROMO_REASON = 'You got this because you have a NextBand account with news and tips turned on.';
 export type EmailKey = keyof typeof TEMPLATES;
@@ -139,5 +155,7 @@ export async function docOf(key: EmailKey): Promise<EmailDoc & { custom: boolean
 
 /** Ready to send. `doc` previews unsaved edits; otherwise the saved copy (or the default). */
 export async function renderEmail(key: EmailKey, vars: Record<string, string>, doc?: EmailDoc) {
-  return personalise(await renderDoc(doc ?? (await docOf(key)), 'account', TEMPLATES[key].reason), vars);
+  const t: Template = TEMPLATES[key];
+  const kind = t.kind ?? 'account';
+  return personalise(await renderDoc(doc ?? (await docOf(key)), kind, t.reason), kind === 'promo' ? { unsubscribeUrl: '#', ...vars } : vars); // '#': previews have no recipient
 }
