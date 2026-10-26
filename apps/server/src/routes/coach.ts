@@ -32,7 +32,7 @@ export function register(app: App) {
     async (c) => {
       const id = c.get('user')!.id;
       const updating = await isStale(id, new Date());
-      if (updating && !running.has(id)) {
+      if (updating && !running.has(id) && running.size < 2) { // ponytail: cap 2 per process so free guests cannot exhaust the pool (max 10); upgrade is a queue or worker
         running.add(id);
         void generateReport(id).catch(console.error).finally(() => running.delete(id));
       }
