@@ -61,13 +61,25 @@
               },
               "productEmails": {
                 "type": "boolean"
+              },
+              "examDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "timeZone": {
+                "type": "string"
               }
             },
             "required": [
               "targetBand",
               "writingAutoSubmit",
               "blockPaste",
-              "productEmails"
+              "productEmails",
+              "examDate",
+              "timeZone"
             ]
           },
           "cambridgeAccess": {
@@ -246,13 +258,25 @@
           },
           "productEmails": {
             "type": "boolean"
+          },
+          "examDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "timeZone": {
+            "type": "string"
           }
         },
         "required": [
           "targetBand",
           "writingAutoSubmit",
           "blockPaste",
-          "productEmails"
+          "productEmails",
+          "examDate",
+          "timeZone"
         ]
       },
       "SettingsPatch": {
@@ -271,6 +295,16 @@
           },
           "productEmails": {
             "type": "boolean"
+          },
+          "examDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "timeZone": {
+            "type": "string"
           }
         }
       },

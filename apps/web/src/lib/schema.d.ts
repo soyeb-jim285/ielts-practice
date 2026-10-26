@@ -4951,6 +4951,8 @@ export interface components {
                 writingAutoSubmit: boolean;
                 blockPaste: boolean;
                 productEmails: boolean;
+                examDate: string | null;
+                timeZone: string;
             };
             cambridgeAccess: boolean;
             /** @description The site owner: shows the Admin area */
@@ -4999,12 +5001,16 @@ export interface components {
             writingAutoSubmit: boolean;
             blockPaste: boolean;
             productEmails: boolean;
+            examDate: string | null;
+            timeZone: string;
         };
         SettingsPatch: {
             targetBand?: number;
             writingAutoSubmit?: boolean;
             blockPaste?: boolean;
             productEmails?: boolean;
+            examDate?: string | null;
+            timeZone?: string;
         };
         PromptPage: {
             items: components["schemas"]["Prompt"][];
