@@ -7,8 +7,7 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { env, IS_TEST } from './env';
-import { sendAccountExistsEmail, sendOtpEmail } from './auth-email';
-import { sendEmail } from './email';
+import { sendAccountExistsEmail, sendFinishSetupEmail, sendOtpEmail } from './auth-email';
 import { ApiError } from './errors';
 import { linkGuest } from './link';
 import { replayPrefix } from './replay';
@@ -17,20 +16,6 @@ import type { AppEnv } from './types';
 
 const ORIGINS = [env.WEB_ORIGIN, env.BETTER_AUTH_URL, ...env.EXTRA_ORIGINS];
 
-/** Email links open in the browser, so they point at the web origin the user signed up from (the Origin header when trusted, else WEB_ORIGIN), not at the API host:
- *  the web dev server proxies /api and production serves both from one origin. A relative callbackURL is made absolute against the same origin. */
-export function webLink(url: string, request?: Request) {
-  const o = request?.headers.get('origin');
-  const base = new URL(o && ORIGINS.includes(o) ? o : env.WEB_ORIGIN);
-  const u = new URL(url);
-  u.protocol = base.protocol;
-  u.host = base.host;
-  for (const k of ['callbackURL', 'redirectTo']) {
-    const v = u.searchParams.get(k);
-    if (v?.startsWith('/')) u.searchParams.set(k, new URL(v, base).toString());
-  }
-  return u.toString();
-}
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -38,7 +23,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema }),
   trustedOrigins: ORIGINS,
   // Web: session + user come from a signed cookie for 5 min instead of two DB lookups per request.
-  session: { cookieCache: { enabled: true, maxAge: 300 } },
+  session: { cookieCache: { enabled: true, maxAge: 60 } },
   // Behind the Cloudflare Tunnel the client address is cf-connecting-ip; Better Auth's built-in limiter (on in production) keys on it.
   advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] } },
   emailAndPassword: {
@@ -46,15 +31,12 @@ export const auth = betterAuth({
     requireEmailVerification: env.NODE_ENV === 'production',
     revokeSessionsOnPasswordReset: true,
     // Sign-up with an existing address gets a generic success and no email (anti-enumeration), which left people waiting for a code (mobile apps, 2026-10).
-    // Unverified: send the verification code again. Verified: say the account exists. Either way the response is unchanged.
+    // Verified: say the account exists. Unverified: point to a password reset, never a verification code, which would activate the password of the
+    // earlier sign-up (account pre-hijack: a stranger registers your address first, you verify, they sign in). Either way the response is unchanged.
     onExistingUserSignUp: async ({ user }) => {
-      if (user.emailVerified) await sendAccountExistsEmail(user.email);
-      else await auth.api.sendVerificationOTP({ body: { email: user.email, type: 'email-verification' } });
+      await (user.emailVerified ? sendAccountExistsEmail : sendFinishSetupEmail)(user.email);
     },
-    sendResetPassword: async ({ user, url: api }, request) => {
-      const url = webLink(api, request);
-      await sendEmail({ to: user.email, subject: 'Reset your NextBand password', html: `<p>Reset your password:</p><p><a href="${url}">${url}</a></p>` });
-    },
+    // No link-based reset (POST /api/auth/request-password-reset): it skipped the per-address email cooldown, and every client resets with the email-OTP code.
   },
   // Verification uses the OTP plugin's code (see below). Links already emailed still verify through GET /api/auth/verify-email.
   emailVerification: { sendOnSignUp: !IS_TEST, autoSignInAfterVerification: true },

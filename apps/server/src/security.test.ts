@@ -125,3 +125,23 @@ describe('client address', () => {
   });
 });
 
+
+describe('transport hardening', () => {
+  it('rejects oversized bodies before parsing (413), even unauthenticated', async () => {
+    const r = await req('/api/feedback', { body: { message: 'x'.repeat(3 * 1024 * 1024) } });
+    expect(r.status).toBe(413);
+  });
+  it('forbids framing and MIME sniffing on every response', async () => {
+    const r = await req('/api/health');
+    expect(r.headers.get('x-frame-options')).toBe('DENY');
+    expect(r.headers.get('content-security-policy')).toBe("frame-ancestors 'none'");
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+  it('limits Listening/Reading submits per account (each may call the model)', async () => {
+    const { headers } = await testUser();
+    const codes: number[] = [];
+    for (let i = 0; i < 10; i++) codes.push((await req(`/api/lr/attempts/${crypto.randomUUID()}/submit`, { headers, body: {} })).status);
+    expect(codes.slice(0, 8).every((s) => s !== 429)).toBe(true); // 404: unknown attempt, but past the limiter
+    expect(codes.slice(8)).toEqual([429, 429]);
+  });
+});

@@ -336,7 +336,7 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
     }
   });
 
-  it('sign-up of an existing address (production setting) still emails it: a fresh code when unverified, an "account exists" note when verified', async () => {
+  it('sign-up of an existing address (production setting) still emails it: a reset pointer when unverified, an "account exists" note when verified', async () => {
     const opts = auth.options.emailAndPassword!;
     opts.requireEmailVerification = true;
     try {
@@ -349,7 +349,10 @@ describe('real and unknown addresses are indistinguishable to the requester', ()
       for (const e of [unverified, verified]) await post('/sign-up/email', { email: e, password: 'password1234', name: 'U' });
       await sendsIdle();
       const sent = send.mock.calls.map(([m]) => m as { to: string; subject: string; html: string });
-      expect(sent.find((m) => m.to === unverified)).toMatchObject({ subject: 'Your NextBand verification code', html: expect.stringMatching(/\d{6}/) });
+      // no code: verifying would activate the earlier sign-up's password (pre-hijack)
+      const u = sent.filter((m) => m.to === unverified).at(-1)!;
+      expect(u).toMatchObject({ subject: 'Finish setting up your NextBand account' });
+      expect(u.html).not.toMatch(/\d{6}/);
       expect(sent.find((m) => m.to === verified)).toMatchObject({ subject: 'You already have a NextBand account' });
     } finally {
       opts.requireEmailVerification = false;

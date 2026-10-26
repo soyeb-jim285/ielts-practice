@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { currentUser } from './auth';
+import { clientIpHash } from './ip';
 import type { AppEnv } from './types';
 
 // A full live test makes ~25 paid calls in ~14 min (bursty in Part 1), so 20 tokens + 1 per 20 s never blocks a real session.
@@ -17,7 +18,8 @@ function take(map: Buckets, key: string, capacity: number, refillMs: number) {
   const b = map.get(key);
   const t = b ? Math.min(capacity, b.t + (now - b.at) / refillMs) : capacity;
   if (t < 1) return false;
-  if (map.size > 20_000) map.clear();
+  if (map.size > 20_000) for (const k of [...map.keys()].slice(0, 2_000)) map.delete(k); // oldest first (insertion order); clearing all would reset every bucket
+  map.delete(key); // re-insert so an active key counts as newest
   map.set(key, { t: t - 1, at: now });
   return true;
 }
@@ -42,6 +44,14 @@ export const anonSignInOk = (ipHash: string) => take(ipBuckets, `anon:${ipHash}`
 /** Autosave of an in-progress Listening/Reading attempt: the client debounces to ~1 s, so 30 tokens + 1 per 2 s never blocks a real session. Use after requireUser. */
 export const lrSaveLimit = createMiddleware<AppEnv>(async (c, next) => {
   if (!take(buckets, `lr:${currentUser(c).id}`, 30, 2_000)) throw new HTTPException(429, { message: 'Too many requests, slow down' });
+  await next();
+});
+
+/** Listening/Reading submit: each one may ask the model to explain up to 15 wrong gap answers. A person submits a part every few minutes at most;
+ *  per account and per client address, so minting guests does not multiply it. Use after requireUser. */
+export const lrSubmitLimit = createMiddleware<AppEnv>(async (c, next) => {
+  const ip = clientIpHash(c) ?? currentUser(c).id;
+  if (!take(buckets, `lrsubmit:${currentUser(c).id}`, 8, 60_000) || !take(ipBuckets, `lrsubmit-ip:${ip}`, 20, 30_000)) throw new HTTPException(429, { message: 'Too many submissions, slow down' });
   await next();
 });
 

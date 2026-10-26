@@ -43,6 +43,11 @@ export async function sendOtpEmail({ email: raw, otp, type }: { email: string; o
 export const sendAccountExistsEmail = (email: string) =>
   claimAndSend(email, 'email-verification', 'You already have a NextBand account', `<p>Someone (hopefully you) tried to create a NextBand account with this email, but you already have one.</p><p>Sign in with your password, or use "Forgot password?" on the sign-in screen to get a reset code. If this wasn't you, you can ignore this email.</p>`);
 
+/** Sign-up again on an address whose earlier sign-up was never verified. No verification code here: verifying would activate the earlier sign-up's
+ *  password, which whoever typed the address chose (a stranger can pre-register someone's email). A password reset sets the owner's password and verifies the address. */
+export const sendFinishSetupEmail = (email: string) =>
+  claimAndSend(email, 'email-verification', 'Finish setting up your NextBand account', `<p>Someone (hopefully you) tried to create a NextBand account with this email. An earlier sign-up with this address was never finished.</p><p>To finish, choose "Forgot password?" on the sign-in screen and set your password with the code we send. That also confirms your email. If this wasn't you, you can ignore this email.</p>`);
+
 /** Claims the cooldown slot, then sends in the BACKGROUND with retries (so a real address answers as fast as an unknown one), and records the outcome on the claimed row:
  *  attempts/providerId on success, status 'failed' + a short error kind otherwise (which also frees the slot, so an immediate resend goes through).
  *  Never throws; GET /api/auth-email/status is how the user learns the outcome. */

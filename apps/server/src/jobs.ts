@@ -13,7 +13,7 @@ import type { AnalysisPartial, AnalysisResult, AnalysisStage, CriterionKey } fro
 import { analyzeWriting } from './ai/writing';
 import { refundAttempt } from './quota';
 import { MODELS } from './settings';
-import { storage } from './storage';
+import { storage, uploadError } from './storage';
 
 const FORMATS = ['webm', 'm4a', 'wav', 'mp3', 'ogg'] as const;
 type Format = (typeof FORMATS)[number];
@@ -89,7 +89,11 @@ async function analyzeAttempt(a: typeof attempts.$inferSelect, tries: number): P
             (p.followUps?.length ? (a.sessionId && part === 1 ? p.followUps.slice(0, P1_TEST_QUESTIONS) : p.followUps) : [p.body]));
       result = await analyzeSpeaking({
         onStage: (stage) => void setStage({ stage }),
-        audio: await storage.get(audioKey),
+        audio: await (async () => {
+          const bad = await uploadError(audioKey);
+          if (bad) throw new Error(bad); // checked at submit too; the presigned URL could have overwritten it since
+          return storage.get(audioKey);
+        })(),
         format: FORMATS.includes(ext) ? ext : 'webm',
         durationMs: a.durationMs ?? 0,
         energy: a.energy,

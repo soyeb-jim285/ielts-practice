@@ -160,6 +160,7 @@ export function register(app: App) {
   app.openapi(
     createRoute({
       ...authed,
+      middleware: [requireUser, aiLimit], // every call mints a fresh upload URL into our bucket
       method: 'post',
       path: '/api/live/upload-url',
       summary: "Presigned PUT for a candidate recording (a turn or a whole part) in this session",

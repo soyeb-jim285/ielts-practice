@@ -33,7 +33,7 @@ const s3 = new S3Client({
 const Bucket = env.R2_BUCKET;
 
 const r2: Storage = {
-  presignPut: (key, contentType, expiresS = 900) =>
+  presignPut: (key, contentType, expiresS = 300) =>
     getSignedUrl(s3, new PutObjectCommand({ Bucket, Key: key, ContentType: contentType }), { expiresIn: expiresS }),
   presignGet: (key, expiresS = 3600) => getSignedUrl(s3, new GetObjectCommand({ Bucket, Key: key }), { expiresIn: expiresS }),
   async size(key) {

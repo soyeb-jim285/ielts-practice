@@ -7,7 +7,7 @@ import { currentUser, isCambridgeAllowed, isOwner, requireUser } from '../auth';
 import { db } from '../db/client';
 import { cards, lrAttempts, lrTests } from '../db/schema';
 import { isSubscribed } from '../quota';
-import { lrSaveLimit } from '../ratelimit';
+import { lrSaveLimit, lrSubmitLimit } from '../ratelimit';
 import { storage } from '../storage';
 import type { App } from '../types';
 import { insertCards } from './cards';
@@ -443,6 +443,7 @@ export function register(app: App) {
       method: 'post',
       path: '/api/lr/attempts/{id}/submit',
       ...common,
+      middleware: [requireUser, lrSubmitLimit], // may call the model for up to 15 wrong gaps
       summary: 'Submit and score (objective, no AI, no quota)',
       request: {
         params: z.object({ id: z.string() }),

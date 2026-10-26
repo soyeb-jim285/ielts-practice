@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Scalar } from '@scalar/hono-api-reference';
+import { bodyLimit } from 'hono/body-limit';
 import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -54,6 +55,18 @@ export function createApp() {
     await next();
     if (cf) c.header('Strict-Transport-Security', 'max-age=31536000');
   });
+
+  // Nobody may frame the app (clickjacking on settings / delete account / admin); no MIME sniffing; no full URLs in Referer to other sites.
+  app.use('*', async (c, next) => {
+    await next();
+    c.header('X-Frame-Options', 'DENY');
+    c.header('Content-Security-Policy', "frame-ancestors 'none'");
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  });
+
+  // No JSON body anywhere comes near this (an essay is 12k chars; replay chunks have their own, tighter 1 MB cap with its own error); without a cap a few 100 MB bodies exhaust memory.
+  app.use('/api/*', bodyLimit({ maxSize: 2 * 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }));
 
   // gzip/deflate for JSON and (in production) static files; skips responses already encoded (precompressed assets) or < 1 KB.
   app.use('*', compress());
