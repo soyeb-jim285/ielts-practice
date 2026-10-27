@@ -19,7 +19,7 @@ async def runtime():
     await r.client.aclose()
     r.client = AsyncMock()
     r.session = SimpleNamespace(interrupt=AsyncMock(), commit_user_turn=AsyncMock(),
-                                generate_reply=AsyncMock(), input=SimpleNamespace(set_audio_enabled=Mock()),
+                                generate_reply=Mock(), input=SimpleNamespace(set_audio_enabled=Mock()),
                                 clear_user_turn=Mock(), aclose=AsyncMock())
     r.replace = AsyncMock()
     return r
@@ -158,7 +158,7 @@ async def test_part_handoff_resumes_an_owed_reply_without_adding_another_user_tu
     r.answer_pending = True
     await r.command({"type": "configure", "part": 3})
     r.replace.assert_awaited_once()
-    r.session.generate_reply.assert_awaited_once_with()
+    r.session.generate_reply.assert_called_once_with()
 
 
 async def test_moving_into_part_2_drops_the_owed_part_1_reply():
@@ -170,26 +170,50 @@ async def test_moving_into_part_2_drops_the_owed_part_1_reply():
     r.session.generate_reply.assert_not_called()
 
 
-async def test_explicit_cue_waits_for_playout_before_next_control():
+async def test_a_cued_line_longer_than_the_control_deadline_finishes_and_holds_the_next_control(monkeypatch):
+    # 2026-10-27: the Part 2 instructions took ~30 s to say; counted against the control deadline, they ended the session.
+    monkeypatch.setattr("worker.CONTROL_S", 0.05)
     r = await runtime()
     r.floor.started = True
-    speaking = asyncio.Event()
     finished = asyncio.Event()
 
-    async def reply(**_):
-        speaking.set()
+    async def line():
         await finished.wait()
 
-    r.session.generate_reply.side_effect = reply
-    cue = asyncio.create_task(r.command({"type": "cue", "text": "Rounding-off question"}))
+    r.session.generate_reply = Mock(side_effect=lambda **_: line())
+    task = asyncio.create_task(r.commands())
     try:
-        await asyncio.wait_for(speaking.wait(), 2)
-        assert not cue.done()
+        r.queue.put_nowait({"type": "cue", "text": "Part 2"})
+        r.queue.put_nowait({"type": "listen", "on": False, "fresh": False})
+        await asyncio.sleep(0.2)  # well past CONTROL_S, still speaking
+        assert not r.done.is_set() and r.outbox.empty()
+        r.replace.assert_not_awaited()  # the listen waits for the line
         finished.set()
-        await asyncio.wait_for(cue, 2)
+        await asyncio.sleep(0.05)
+        r.replace.assert_awaited_once()
+        assert not r.done.is_set()
     finally:
-        cue.cancel()
-        await asyncio.gather(cue, return_exceptions=True)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_a_control_that_hangs_still_ends_the_session(monkeypatch):
+    monkeypatch.setattr("worker.CONTROL_S", 0.05)
+    r = await runtime()
+    r.floor.started = True
+
+    async def hang():
+        await asyncio.sleep(1)
+
+    r.replace = AsyncMock(side_effect=hang)
+    task = asyncio.create_task(r.commands())
+    try:
+        r.queue.put_nowait({"type": "configure", "part": 3})
+        await asyncio.wait_for(r.done.wait(), 1)
+        assert r.outbox.get_nowait()["type"] == "error"
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 def test_meter_uses_provider_usage_not_wall_time():
@@ -381,7 +405,7 @@ async def test_captions_stream_per_sentence_and_text_passes_through(monkeypatch)
 async def test_cues_outside_the_server_list_are_ignored():
     r = Runtime(SimpleNamespace(), Dispatch.model_validate({**metadata(), "cues": ["Say the closing line."]}))
     await r.client.aclose()
-    r.session = SimpleNamespace(interrupt=AsyncMock(), commit_user_turn=AsyncMock(), generate_reply=AsyncMock(),
+    r.session = SimpleNamespace(interrupt=AsyncMock(), commit_user_turn=AsyncMock(), generate_reply=Mock(),
                                 input=SimpleNamespace(set_audio_enabled=Mock()), clear_user_turn=Mock(), aclose=AsyncMock())
     r.replace = AsyncMock()
     await r.command({"type": "start"})

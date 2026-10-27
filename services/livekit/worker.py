@@ -1,6 +1,7 @@
 """Self-hosted LiveKit examiner. All inference uses local models or direct keys."""
 
 import asyncio
+import contextlib
 import json
 import logging
 import math
@@ -27,8 +28,9 @@ class PrivacyFilter(logging.Filter):
     def filter(self, record):
         # SDK exceptions can contain URLs, provider payloads, or transcript text.
         if record.name.startswith(("livekit", "openai", "httpx", "httpcore")):
-            record.msg = "SDK diagnostic suppressed (%s)"
-            record.args = (record.levelname,)
+            # The exception's class name says what failed without carrying any of its text.
+            record.msg = "SDK diagnostic suppressed (%s%s)"
+            record.args = (record.levelname, f" {record.exc_info[0].__name__}" if record.exc_info and record.exc_info[0] else "")
             record.exc_info = None
             record.exc_text = None
             for key in list(record.__dict__):
@@ -44,6 +46,10 @@ def privacy():
     os.environ["OTEL_SDK_DISABLED"] = "true"
 
 
+CONTROL_S = 30  # one control's own work (interrupts, handoffs, transcript flushes)
+# The examiner's line a control starts is waited for apart from CONTROL_S: the Part 2 instructions and topic run ~30 s, and counting them
+# against the control deadline ended sessions as the examiner finished reading the card (2026-10-27).
+PLAYOUT_S = 180
 REPORT_BATCH = 500  # the server takes at most 1000 entries per report
 REPORT_EVERY_S = 60
 
@@ -287,6 +293,7 @@ class Runtime:
             self.committing_audio = False
 
     async def command(self, d):
+        """Applies one control; returns the examiner line it started (a SpeechHandle), if any."""
         if self.done.is_set():
             return
         self.last_activity = time.monotonic()
@@ -296,7 +303,7 @@ class Runtime:
             self.floor.started = True
             await self.replace()
             self.session.input.set_audio_enabled(True)
-            await self.session.generate_reply(user_input=self.d.cuePrefix + "Begin the test.")
+            return self.session.generate_reply(user_input=self.d.cuePrefix + "Begin the test.")
         elif not self.floor.started:
             return
         elif d["type"] == "listen":
@@ -313,22 +320,29 @@ class Runtime:
             # Handoff cancels the old activity's generation, not the candidate's owed reply. Not into Part 2: Part 1 is over, and the
             # Part 2 cue follows at once (an owed reply there was the next Part 1 question, spoken before the Part 2 instructions).
             if pending and self.floor.replies and self.part != 2:
-                await self.session.generate_reply()
+                return self.session.generate_reply()
         elif d["type"] == "cue":
             if self.d.cues is not None and d["text"] not in self.d.cues:
                 return
             await self.session.interrupt(force=True)
             await self.commit_audio()
-            await self.session.generate_reply(user_input=self.d.cuePrefix + d["text"])
+            return self.session.generate_reply(user_input=self.d.cuePrefix + d["text"])
 
     async def commands(self):
         while True:
             d = await self.queue.get()
             try:
-                await asyncio.wait_for(self.command(d), 30)
-            except Exception:
+                speech = await asyncio.wait_for(self.command(d), CONTROL_S)
+            except Exception as e:
+                log.warning("Examiner control %s failed: %s", d.get("type"), type(e).__name__)
                 self.emit({"type": "error", "message": "Examiner control failed; please reconnect."})
                 self.done.set()
+                continue
+            # The next control still waits for this line (a "listen" must not cut off the question just cued), but a long line is not
+            # a failure. The handle's wait is shielded: timing out stops the waiting, not the speech.
+            if speech is not None:
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(asyncio.ensure_future(speech), PLAYOUT_S)
 
     async def announce(self):
         # The browser drops events from a participant it has not seen join yet. When it joins before the examiner (a
