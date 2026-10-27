@@ -273,7 +273,7 @@ const SpendItem = z.object({
 });
 export const SpendAttempt = z
   .object({
-    attempt: z.object({ id: z.string(), skill: SkillS, part: int, status: z.string(), createdAt: iso, userId: z.string(), email: z.string().openapi({ description: "'' for a guest" }), isGuest: z.boolean(), title: z.string() }),
+    attempt: z.object({ id: z.string(), skill: SkillS, part: int.nullable().openapi({ description: 'null for a Listening/Reading attempt' }), status: z.string(), createdAt: iso, userId: z.string(), email: z.string().openapi({ description: "'' for a guest" }), isGuest: z.boolean(), title: z.string() }),
     recorded: z.boolean().openapi({ description: 'false: no cost rows exist (the attempt ran before tracking started); show "not recorded", not $0' }),
     items: z.array(SpendItem),
     stages: z.array(z.object({ stage: z.string(), costUsd: Usd, calls: int })),

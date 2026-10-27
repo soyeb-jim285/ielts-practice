@@ -474,7 +474,7 @@ export function register(app: App) {
       const prior = await priorGaps(user.id);
       const given = Object.fromEntries(Object.entries(responses).map(([k, v]) => [+k, v]));
       // answers no rule explains get a model reason (same meaning / misheard), within a short budget; without one they read "Different detail"
-      const ai = await aiGapReasons(residualGaps(test, score.marks, given), user.id);
+      const ai = await aiGapReasons(residualGaps(test, score.marks, given), user.id, a.id);
       const analysis = analyseAttempt(test, score.marks, given, (w) => prior.filter((g) => g.word === w).length, ai);
       // status guard in WHERE: two concurrent submits cannot both score
       const [row] = await db

@@ -14,7 +14,7 @@ const MIN_CONFIDENCE = 0.65;
 const MAX_ITEMS = 15;
 
 /** Never throws and never takes longer than `budgetMs`: a reason it cannot get in time is simply left out (shown as "Different detail"). */
-export async function aiGapReasons(items: ResidualGap[], userId: string, budgetMs = 4000): Promise<Map<number, AiGapKind>> {
+export async function aiGapReasons(items: ResidualGap[], userId: string, attemptId: string, budgetMs = 4000): Promise<Map<number, AiGapKind>> {
   const out = new Map<number, AiGapKind>();
   if (!items.length) return out;
   const ask = (x: ResidualGap) => {
@@ -27,7 +27,7 @@ export async function aiGapReasons(items: ResidualGap[], userId: string, budgetM
       cost: { stage: 'lr_mistake', meta: { n: x.n } },
     }).then((r) => void (r.confidence >= MIN_CONFIDENCE && out.set(x.n, r.choice as AiGapKind)));
   };
-  const all = keyCtx.run({ cost: { userId, skill: items[0]!.skill } }, () => Promise.allSettled(items.slice(0, MAX_ITEMS).map(ask)));
+  const all = keyCtx.run({ cost: { userId, attemptId, skill: items[0]!.skill } }, () => Promise.allSettled(items.slice(0, MAX_ITEMS).map(ask)));
   await Promise.race([all, new Promise((r) => setTimeout(r, budgetMs))]);
   return new Map(out); // a copy: calls that finish after the budget must not change the result
 }

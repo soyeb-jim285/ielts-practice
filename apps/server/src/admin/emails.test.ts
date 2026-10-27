@@ -111,3 +111,8 @@ describe('campaigns', () => {
     expect((await getSettings(u.user.id)).productEmails).toBe(false);
   });
 });
+
+it('first names skip a leading Md. prefix', async () => {
+  const { firstName } = await import('../emails/campaigns');
+  expect(['MD. Alamin Mridha', 'Md Rahim', 'Ayesha Rahman', 'Md.', null].map(firstName)).toEqual(['Alamin', 'Rahim', 'Ayesha', 'Md.', 'there']);
+});

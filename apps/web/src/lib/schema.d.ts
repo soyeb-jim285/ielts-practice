@@ -6631,7 +6631,8 @@ export interface components {
             attempt: {
                 id: string;
                 skill: components["schemas"]["AdminSkill"];
-                part: number;
+                /** @description null for a Listening/Reading attempt */
+                part: number | null;
                 status: string;
                 /** @description ISO-8601 UTC */
                 createdAt: string;

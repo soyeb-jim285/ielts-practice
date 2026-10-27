@@ -34,7 +34,11 @@ export async function audienceOf(a: Audience): Promise<Recipient[]> {
 }
 export const audienceSize = async (a: Audience) => (await audienceOf(a)).length;
 
-const firstName = (n: string | null) => n?.trim().split(/\s+/)[0] || 'there';
+/** "Md. Al-Amin Mridha" → "Al-Amin": a leading Md./Mohammad is a common prefix here, not the name anyone is called by. */
+export const firstName = (n: string | null) => {
+  const w = n?.trim().split(/\s+/).filter(Boolean) ?? [];
+  return (w.length > 1 && /^(md|mohd|mohammad|mohammed|muhammad)\.?$/i.test(w[0]!) ? w[1] : w[0]) || 'there';
+};
 /** Placeholders a campaign may use. */
 export const CAMPAIGN_VARS = { name: 'Ayesha Rahman', firstName: 'Ayesha' };
 

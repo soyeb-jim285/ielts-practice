@@ -44,7 +44,7 @@ export function ActivityTable({ items, withUser = true }: { items: ActivityItem[
         </span>
       ),
     },
-    { head: 'Cost', cell: (r) => (r.skill === 'speaking' || r.skill === 'writing' ? <CostLink id={r.id} /> : <span className="text-muted" aria-label="none">&ndash;</span>) },
+    { head: 'Cost', cell: (r) => <CostLink id={r.id} /> },
     { head: 'Status', cell: (r) => <Badge tone={TONE[r.status]}>{r.status.replace('_', ' ')}</Badge> },
     {
       head: 'Open',

@@ -142,9 +142,13 @@ export function register(app: App) {
     }),
     async (c) => {
       const { id } = c.req.valid('param');
-      const [a] = await rows<{ id: string; skill: 'speaking' | 'writing'; part: number; status: string; at: string; session_id: string | null; mode: string; user_id: string; email: string; guest: boolean; title: string }>(sql`
+      // speaking/writing attempt, else a Listening/Reading one (its only paid calls are the mistake reasons at submit)
+      const [a] = await rows<{ id: string; skill: 'speaking' | 'writing' | 'listening' | 'reading'; part: number | null; status: string; at: string; session_id: string | null; mode: string; user_id: string; email: string; guest: boolean; title: string }>(sql`
         select a.id, a.skill::text as skill, a.part, a.status::text as status, ${iso('a.created_at')} as at, a.session_id, a.mode::text as mode, a.user_id, u.email, coalesce(u.is_anonymous, false) as guest, p.title
-        from attempts a join "user" u on u.id = a.user_id join prompts p on p.id = a.prompt_id where a.id = ${id}`);
+        from attempts a join "user" u on u.id = a.user_id join prompts p on p.id = a.prompt_id where a.id = ${id}
+        union all
+        select l.id, t.skill::text, null::int, l.status::text, ${iso('l.started_at')}, null, l.mode::text, l.user_id, u.email, coalesce(u.is_anonymous, false), t.title
+        from lr_attempts l join "user" u on u.id = l.user_id join lr_tests t on t.id = l.test_id where l.id = ${id}`);
       if (!a) throw new HTTPException(404, { message: 'Attempt not found' });
       type Row = { at: string; stage: string; provider: string; model: string; paid_by: 'house' | 'own_key'; input_tokens: number | null; output_tokens: number | null; audio_seconds: string | null; characters: number | null; cost: string; ok: boolean; retry: boolean; w: boolean; meta: Record<string, unknown> | null };
       const cols = sql`${iso('c.created_at')} as at, c.stage, c.provider, c.model, c.paid_by, c.input_tokens, c.output_tokens, c.audio_seconds, c.characters, c.cost_usd as cost, c.ok, c.retry, ${KIND} is not null as w, c.meta`;

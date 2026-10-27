@@ -376,7 +376,7 @@ export const aiCosts = pgTable('ai_costs', {
   id: id(),
   createdAt: createdAt(),
   userId: text('user_id'),
-  attemptId: text('attempt_id'), // speaking/writing attempt; null for live turns
+  attemptId: text('attempt_id'), // attempts.id (speaking/writing) or lr_attempts.id; null for live turns
   sessionId: text('session_id'), // test session (attempts.sessionId) or live_sessions.id
   promptId: text('prompt_id'),
   skill: text('skill'), // 'speaking' | 'writing'

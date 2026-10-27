@@ -4,7 +4,7 @@ import { setFetch } from '../ai/openrouter';
 import { OWNER_EMAILS } from '../auth';
 import { clearBalanceCache } from '../community';
 import { db } from '../db/client';
-import { aiCosts, attempts, liveSessions, quotaUsage } from '../db/schema';
+import { aiCosts, attempts, liveSessions, lrAttempts, lrTests, quotaUsage } from '../db/schema';
 import { env } from '../env';
 import { clearCostsCache } from './costs';
 
@@ -148,6 +148,15 @@ describe('aggregation', () => {
     expect(r.live.totalUsd).toBeCloseTo(0.502);
     expect(r.live.transcript.map((t: any) => [t.role, t.text])).toEqual([['examiner', 'Do you work or study?'], ['candidate', 'I study physics.']]); // blank turns dropped
     expect((await get(`/api/admin/spend/attempt/${(await attempt('done')).id}`)).live).toBeNull();
+  });
+
+  it('a Listening/Reading attempt shows its mistake-reason calls', async () => {
+    const [t] = await db.insert(lrTests).values({ slug: `sp-lr-${Date.now()}`, skill: 'listening', variant: 'academic', source: 'generated', ref: 'X', title: 'Ferry timetable', data: { sections: [] } as never, restricted: false }).returning();
+    const [l] = await db.insert(lrAttempts).values({ userId: uid, testId: t!.id, mode: 'practice', status: 'submitted' }).returning();
+    await db.insert(aiCosts).values([cost({ stage: 'lr_mistake', costUsd: 0.00002, attemptId: l!.id }), cost({ stage: 'lr_mistake', costUsd: 0.00003, attemptId: l!.id })]);
+    const r = await get(`/api/admin/spend/attempt/${l!.id}`);
+    expect(r.attempt).toMatchObject({ skill: 'listening', part: null, title: 'Ferry timetable' });
+    expect(r.stages).toEqual([{ stage: 'lr_mistake', costUsd: 0.00005, calls: 2 }]);
   });
 
   it('attempt without cost rows is "not recorded", not zero; unknown attempt is 404', async () => {

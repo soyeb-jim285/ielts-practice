@@ -6429,7 +6429,11 @@
                 "$ref": "#/components/schemas/AdminSkill"
               },
               "part": {
-                "type": "integer"
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "null for a Listening/Reading attempt"
               },
               "status": {
                 "type": "string"
