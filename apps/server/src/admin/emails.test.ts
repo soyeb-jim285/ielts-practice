@@ -51,12 +51,12 @@ describe('account emails', () => {
     const o = await testUser(OWNER);
     const doc = TEMPLATES['weekly-report'].defaults;
     await req('/api/admin/emails/weekly-report/test', { headers: o.headers, body: doc });
-    expect(send.mock.calls.at(-1)![0].subject).toBe('[Test] Listening is at your target'); // no report: the sample
+    expect(send.mock.calls.at(-1)![0]).toMatchObject({ subject: '[Test] Ayesha, your week on NextBand', html: expect.stringContaining('Listening is at your target') }); // no report: the sample
     const words = { summary: 'You are close. Keep going.', win: 'Reading moved up to 7.', focus: [], cheat: [], plan: [] };
     await db.insert(coachReports).values({ userId: o.user.id, day: '2026-10-27', lastTestAt: new Date(), facts: { skills: [] } as never, words, model: null });
     expect((await req('/api/admin/emails/weekly-report/test', { headers: o.headers, body: doc })).status).toBe(200);
     const m = send.mock.calls.at(-1)![0];
-    expect(m).toMatchObject({ to: OWNER, subject: '[Test] Reading moved up to 7.' });
+    expect(m).toMatchObject({ to: OWNER, subject: expect.stringMatching(/^\[Test\] .+, your week on NextBand$/), html: expect.stringContaining('Reading moved up to 7.') });
     expect(m.html).toContain('/api/email/unsubscribe?t=');
   });
 

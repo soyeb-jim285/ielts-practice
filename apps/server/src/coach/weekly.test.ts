@@ -38,7 +38,8 @@ it('sends the weekly email once to an eligible student', async () => {
   await weeklySweep(MON_0915);
   const mine = sentTo().filter((m) => m.to === 'wk-ok@test.dev');
   expect(mine).toHaveLength(1);
-  expect(mine[0]).toMatchObject({ subject: 'Listening is at your target.' });
+  expect(mine[0]!.subject).toMatch(/, your week on NextBand$/);
+  expect(mine[0]!.html).toContain('Listening is at your target.');
   expect(mine[0]!.html).toContain('Open your coach');
   expect(mine[0]!.html).toContain('Tests');
   expect(mine[0]!.html).toContain('30'); // minutes
@@ -83,12 +84,12 @@ it('weeklyDoc omits zero stats and a missing win', () => {
   expect(s.items.find((i) => i.label === 'Days practised')).toMatchObject({ trend: 'none' });
   expect(JSON.stringify(d.blocks)).not.toContain('Win:');
   expect(JSON.stringify(d.blocks)).toContain('**This week:** Fix article errors');
-  expect(d.subject).toBe('You are steady.');
+  expect(d.preheader).toBe('You are steady.');
 });
 
 it('weeklyDoc shows the win once, as the headline', () => {
   const d = weeklyDoc(TEMPLATES['weekly-report'].defaults, { facts: facts(), words: words() }, facts().weekStats);
-  expect(d.subject).toBe('Listening is at your target.');
+  expect(d.preheader).toBe('Listening is at your target.');
   expect(JSON.stringify(d.blocks).split('Listening is at your target.')).toHaveLength(2); // once, in the hero
 });
 

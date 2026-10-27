@@ -124,8 +124,9 @@ export const TEMPLATES = {
     kind: 'promo',
     vars: { firstName: 'Ayesha', headline: 'Listening is at your target' },
     defaults: {
-      subject: '{{headline}}',
-      preheader: 'Your week on NextBand',
+      // the headline is a whole sentence: it reads as the inbox preview, the subject stays short and says what the email is
+      subject: '{{firstName}}, your week on NextBand',
+      preheader: '{{headline}}',
       blocks: [
         { type: 'hero', eyebrow: 'Your week', title: '{{headline}}', subtitle: '', tone: 'brand' },
         { type: 'text', text: "Hi {{firstName}}, here's your week." },
