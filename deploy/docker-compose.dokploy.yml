@@ -35,7 +35,9 @@ services:
 
   # API + web (same origin). Migrates and seeds the prompt bank on start (docker/entrypoint.sh).
   app:
-    image: ghcr.io/soyeb-jim285/ielts-practice:latest # Swarm re-resolves :latest on every deploy (no pull_policy: Swarm rejects it)
+    image: ghcr.io/soyeb-jim285/ielts-practice:latest
+    # Dokploy runs this as plain compose (`up -d --build`), which never re-pulls a tag it already has: without this every deploy kept the old image (2026-10-27)
+    pull_policy: always
     env_file: .env
     environment:
       NODE_ENV: production
