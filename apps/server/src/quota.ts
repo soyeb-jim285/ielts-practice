@@ -28,19 +28,18 @@ export const PLANS: Record<Plan, Record<Skill, [number, number][] | null>> = {
 const WINDOW = { 1: 'day', 7: 'week', 30: 'month' } as const;
 
 /** Who is paying and what they may do. `owner` (OWNER_EMAILS or CAMBRIDGE_ALLOWED_EMAILS, verified) is exempt from quotas.
- *  An admin Cambridge grant is content access only. `limits`: the owner's per-user overrides (admin, user_limits); `unlimited` is exempt like an owner.
+ *  An admin Cambridge grant is content access only. `unlimited` (admin, user_limits) is exempt like an owner.
  *  `subscribed`: on the paid plan (user_limits.subscribed_until in the future). */
-export type Limits = { speaking: number | null; writing: number | null; unlimited: boolean };
-export type Payer = { userId: string; tier: Tier; owner: boolean; limits?: Limits; subscribed?: boolean; subscribedUntil?: string };
+export type Payer = { userId: string; tier: Tier; owner: boolean; unlimited?: boolean; subscribed?: boolean; subscribedUntil?: string };
 
 type Who = { id: string; email: string; emailVerified: boolean; isAnonymous?: boolean | null };
 export async function payerOf(u: Who): Promise<Payer> {
   if (u.isAnonymous) return { userId: u.id, tier: 'guest', owner: false };
   const owner = isCambridgeAllowed(u) && cambridgeSource(u.email) !== 'granted';
-  const [row] = await db.select({ speaking: userLimits.speaking, writing: userLimits.writing, unlimited: userLimits.unlimited, until: userLimits.subscribedUntil }).from(userLimits).where(eq(userLimits.userId, u.id));
-  const limits = row && { speaking: row.speaking, writing: row.writing, unlimited: row.unlimited };
+  const [row] = await db.select({ unlimited: userLimits.unlimited, until: userLimits.subscribedUntil }).from(userLimits).where(eq(userLimits.userId, u.id));
+  const unlimited = !!row?.unlimited;
   const subscribed = !!row?.until && row.until > new Date();
-  return { userId: u.id, owner, limits, subscribed, subscribedUntil: subscribed ? row!.until!.toISOString() : undefined, tier: owner || limits?.unlimited ? 'unlimited' : subscribed ? 'subscriber' : 'community' };
+  return { userId: u.id, owner, unlimited, subscribed, subscribedUntil: subscribed ? row!.until!.toISOString() : undefined, tier: owner || unlimited ? 'unlimited' : subscribed ? 'subscriber' : 'community' };
 }
 
 /** Is this account on the paid plan now (for content gates that do not need the whole payer). */
@@ -51,10 +50,8 @@ export const isSubscribed = async (userId: string) => {
 
 /** The windows this payer is held to for one skill; null = no limit. */
 export function rulesOf(p: Payer, skill: Skill): [number, number][] | null {
-  if (p.owner || p.limits?.unlimited) return null;
-  const rules = PLANS[p.subscribed ? 'subscriber' : p.tier === 'guest' ? 'guest' : 'community'][skill];
-  const override = skill === 'examiner' ? null : p.limits?.[skill];
-  return rules && override != null ? rules.map(([n, d], i) => [i === rules.length - 1 ? override : n, d]) : rules;
+  if (p.owner || p.unlimited) return null;
+  return PLANS[p.subscribed ? 'subscriber' : p.tier === 'guest' ? 'guest' : 'community'][skill];
 }
 
 /** The LiveKit examiner runs on the server's keys (Soniox + OpenRouter) for everyone, limited like a test (see attachLiveKit). */

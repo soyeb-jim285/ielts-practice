@@ -324,11 +324,11 @@ export const promptSeen = pgTable('prompt_seen', {
   seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.promptId] })]);
 
-// Per-user test limits set by the owner in admin (quota.ts). null = the default for the person's tier; unlimited = no quota at all (incl. the LiveKit examiner).
+// Per-user limits set by the owner in admin (quota.ts): unlimited = no quota at all (incl. the LiveKit examiner), or the paid plan until subscribed_until.
 export const userLimits = pgTable('user_limits', {
   userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
-  speaking: integer('speaking'), // practice speaking tests per window (replaces the plan's count; live sessions are not affected)
-  writing: integer('writing'),
+  speaking: integer('speaking'), // unused since per-user count overrides were removed (2026-10-27); always null
+  writing: integer('writing'), // unused, as speaking
   unlimited: boolean('unlimited').notNull().default(false),
   /** Paid plan (docs/community.md): subscriber limits until this instant. Set by the admin now, by the payment webhook later. */
   subscribedUntil: timestamp('subscribed_until', { withTimezone: true }),

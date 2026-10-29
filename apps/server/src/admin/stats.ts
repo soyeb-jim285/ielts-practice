@@ -6,7 +6,6 @@ import { renderedHashes, speakingAudioHash } from '../ai/speaking-audio';
 import { cambridgeSource, requireOwner } from '../auth';
 import { db } from '../db/client';
 import { feedback, lrAttempts, lrTests, prompts, replaySessions, user as userT, userLimits } from '../db/schema';
-import { PLANS } from '../quota';
 import { storage } from '../storage';
 import type { App } from '../types';
 import { ACTIVITY, daysAgo, dhakaDay, pageQuery } from './common';
@@ -25,11 +24,10 @@ const like = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
 const r2 = (x: number | string | null) => (x === null ? null : Math.round(Number(x) * 100) / 100);
 const SKILLS = ['speaking', 'writing', 'listening', 'reading'] as const;
 
-/** A user's test-limit overrides (user_limits) with the default they replace. */
+/** A user's limits (user_limits): no limits at all, or the paid plan until a date. */
 export async function limitsInfo(userId: string, guest: boolean): Promise<LimitsInfo> {
   const [l] = await db.select().from(userLimits).where(eq(userLimits.userId, userId));
-  const d = PLANS.community;
-  return { speaking: l?.speaking ?? null, writing: l?.writing ?? null, unlimited: l?.unlimited ?? false, subscribedUntil: l?.subscribedUntil?.toISOString() ?? null, defaults: { speaking: d.speaking![0]![0], writing: d.writing![0]![0] }, canEdit: !guest };
+  return { unlimited: l?.unlimited ?? false, subscribedUntil: l?.subscribedUntil?.toISOString() ?? null, canEdit: !guest };
 }
 
 const cambridgeInfo = (email: string, verified: boolean, guest: boolean): CambridgeInfo => {

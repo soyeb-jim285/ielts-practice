@@ -100,7 +100,7 @@ When a guest signs up or signs in, their attempts, recordings, live sessions, mi
 
 ## Database
 
-`quota_usage`: one row per counted test (user, skill, unit key, tier at the time, IP hash, created, refunded). Rows before 2026-10-25 may carry tier `own-key`. `user_limits`: the admin's per-user overrides and `subscribed_until`. The old `user_api_keys` table is no longer read or written. The server sweeps guests older than 30 days every 6 hours.
+`quota_usage`: one row per counted test (user, skill, unit key, tier at the time, IP hash, created, refunded). Rows before 2026-10-25 may carry tier `own-key`. `user_limits`: the admin's `unlimited` switch and `subscribed_until` (its speaking/writing count columns are no longer read). The old `user_api_keys` table is no longer read or written. The server sweeps guests older than 30 days every 6 hours.
 
 ## Client UX requirements
 

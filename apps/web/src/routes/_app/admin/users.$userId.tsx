@@ -33,19 +33,15 @@ function CambridgeToggle({ userId, info }: { userId: string; info: CambridgeInfo
   return <Switch label="Cambridge access" description="Lets this person use the Cambridge books. Takes effect within a minute." checked={info.allowed} disabled={m.isPending} onChange={(v) => m.mutate(v)} />;
 }
 
-/** Test limits for this person (empty = the plan default), none at all, or the paid plan by hand until payments exist. Takes effect on their next test. */
+/** Test limits for this person: none at all, or the paid plan by hand until payments exist. Takes effect on their next test. */
 function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
   const qc = useQueryClient();
-  const [speaking, setSpeaking] = useState(info.speaking?.toString() ?? '');
-  const [writing, setWriting] = useState(info.writing?.toString() ?? '');
   const m = useMutation({
-    mutationFn: (b: { speaking: number | null; writing: number | null; unlimited: boolean; subscribedUntil?: string | null; notify?: boolean }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
-    onSuccess: () => (toast('Limits saved.'), qc.invalidateQueries({ queryKey: ['admin'] })),
+    mutationFn: (b: { unlimited: boolean; subscribedUntil?: string | null; notify?: boolean }) => api.post<LimitsInfo>(`/admin/users/${userId}/limits`, b),
+    onSuccess: () => (toast('Saved.'), qc.invalidateQueries({ queryKey: ['admin'] })),
     onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not save the limits.', { tone: 'bad' }),
   });
-  const num = (v: string) => (v.trim() === '' ? null : Math.max(0, Math.min(1000, Math.round(Number(v)))));
-  const bad = [speaking, writing].some((v) => v.trim() !== '' && !Number.isFinite(Number(v)));
-  const save = (unlimited = info.unlimited, subscribedUntil?: string | null, notify?: boolean) => m.mutate({ speaking: num(speaking), writing: num(writing), unlimited, subscribedUntil, notify });
+  const save = (unlimited = info.unlimited, subscribedUntil?: string | null, notify?: boolean) => m.mutate({ unlimited, subscribedUntil, notify });
   const subscribed = !!info.subscribedUntil && new Date(info.subscribedUntil) > new Date();
   // Dates are Dhaka calendar days (UTC+6, no DST); the plan runs to the end of the chosen day.
   const ymd = (t: number) => new Date(t + 6 * 3_600_000).toISOString().slice(0, 10);
@@ -75,16 +71,6 @@ function LimitsEditor({ userId, info }: { userId: string; info: LimitsInfo }) {
           )}
         </div>
       </form>
-      {!info.unlimited && (
-        <form className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[9rem_9rem_auto]" onSubmit={(e) => (e.preventDefault(), save())}>
-          <Input label="Speaking / 30 days" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.defaults.speaking})`} value={speaking} onChange={(e) => setSpeaking(e.target.value)} />
-          <Input label="Writing / 7 days" type="number" inputMode="numeric" min={0} max={1000} placeholder={`Default (${info.defaults.writing})`} value={writing} onChange={(e) => setWriting(e.target.value)} />
-          <Button type="submit" variant="outline" loading={m.isPending} disabled={bad} className="col-span-2 sm:col-span-1">
-            Save limits
-          </Button>
-          <p className="type-caption col-span-full">Leave empty for the plan default. Speaking is recorded practice; live sessions follow the plan.</p>
-        </form>
-      )}
     </div>
   );
 }
