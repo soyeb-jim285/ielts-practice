@@ -79,7 +79,7 @@ export const TEMPLATES = {
   },
   'plan-granted': {
     name: 'Paid plan is on',
-    description: 'Sent when you grant the paid plan on a user page with "Email them" ticked.',
+    description: 'Sent when a PayStation payment is confirmed, or when you grant the paid plan on a user page with "Email them" ticked.',
     reason: 'You got this because the paid plan was turned on for your account.',
     vars: { name: 'Ayesha', until: '31 December 2026' },
     defaults: {
@@ -112,8 +112,8 @@ export const TEMPLATES = {
       preheader: 'Active until {{until}}.',
       blocks: [
         { type: 'hero', eyebrow: 'Paid plan', title: 'Your paid plan ends {{when}}', subtitle: 'Active until {{until}}', tone: 'brand' },
-        { type: 'text', text: "Hi {{name}}, after that you go back to the free limits. To keep unlimited practice, open NextBand and tap Upgrade. We'll be in touch." },
-        { type: 'button', label: 'Open NextBand', url: '/', variant: 'solid' },
+        { type: 'text', text: 'Hi {{name}}, after that you go back to the free limits. Plans do not renew by themselves: buy another month or three to keep unlimited practice. The new time is added to the end, so you lose nothing by renewing early.' },
+        { type: 'button', label: 'Renew from ৳499', url: '/pricing', variant: 'solid' },
       ],
     },
   },

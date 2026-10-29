@@ -12,6 +12,7 @@ import { reconcileCosts } from './ai/cost';
 import { coachSweep } from './coach/report';
 import { weeklySweep } from './coach/weekly';
 import { planReminderSweep } from './plan-reminders';
+import { settlePending } from './routes/pay';
 import { purgeReplays } from './replay';
 import { renderShell } from './seo';
 
@@ -33,7 +34,7 @@ if (existsSync(env.WEB_DIST)) {
   app.get('*', (c) => (c.req.path.startsWith('/api') || c.req.path.startsWith('/assets/') ? c.notFound() : c.html(renderShell(indexHtml, c.req.path))));
 }
 
-const sweep = () => Promise.all([recoverStale().catch((e) => console.error('recoverStale failed', e)), reconcileCosts().catch((e) => console.error('reconcileCosts failed', e))]);
+const sweep = () => Promise.all([settlePending().catch((e) => console.error('settlePending failed', e)), recoverStale().catch((e) => console.error('recoverStale failed', e)), reconcileCosts().catch((e) => console.error('reconcileCosts failed', e))]);
 await sweep();
 setInterval(sweep, 5 * 60_000).unref();
 startQueue(); // analyses: queued jobs, retries, and jobs a restart interrupted

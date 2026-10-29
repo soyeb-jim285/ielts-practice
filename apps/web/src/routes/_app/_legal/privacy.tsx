@@ -5,7 +5,7 @@ export const Route = createFileRoute('/_app/_legal/privacy')({ component: Privac
 
 function Privacy() {
   return (
-    <LegalPage title="Privacy policy" updated="21 October 2026">
+    <LegalPage title="Privacy policy" updated="29 October 2026">
         <Section title="Who we are">
           <p>{COMPANY.product} is run by {COMPANY.name}, {COMPANY.country}. {COMPANY.name} is responsible for the data described here.</p>
         </Section>
@@ -40,7 +40,7 @@ function Privacy() {
             <li>AI model providers, through OpenRouter and similar services, receive your essays, transcripts and (for the optional pronunciation check) audio so they can score your work.</li>
             <li>Speech and voice providers turn your speech into text and play the examiner&apos;s voice.</li>
             <li>An email service delivers sign-in codes and password resets.</li>
-            <li>Payment providers (such as bKash, SSLCommerz or Paddle) process your payments. We receive the amount, the status and a transaction ID, never your full card or wallet details.</li>
+            <li>PayStation, our payment gateway, processes your payments; it receives your name, email and mobile number to do so. We receive the amount, the status, the payment method and a transaction ID, never your full card or wallet details.</li>
           </List>
           <p>We do not sell your data and we do not show ads.</p>
         </Section>

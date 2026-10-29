@@ -51,6 +51,16 @@ const PAGES: Record<string, Omit<PageMeta, 'index'>> = {
     description: 'What NextBand collects, how session recording works, who sees it, and how long it is kept.',
     image: DEFAULT.image,
   },
+  '/about': {
+    title: `About us | ${SITE_NAME}`,
+    description: 'NextBand is made by Dolphin Commerce, a software company in Mymensingh, Bangladesh: why we built it and how it works.',
+    image: DEFAULT.image,
+  },
+  '/pricing': {
+    title: `Pricing in BDT | ${SITE_NAME}`,
+    description: 'Practise free, or get unlimited Speaking and Writing tests, the live examiner and every Listening and Reading test from ৳499 a month.',
+    image: DEFAULT.image,
+  },
   '/login': { title: `Sign in | ${SITE_NAME}`, description: DEFAULT.description, image: DEFAULT.image },
 };
 
@@ -66,6 +76,7 @@ const NOINDEX_TITLES: [RegExp, string][] = [
   [/^\/mistakes/, 'Mistakes'],
   [/^\/settings/, 'Settings'],
   [/^\/admin/, 'Admin'],
+  [/^\/checkout/, 'Checkout'],
   [/^\/(forgot|reset)-password/, 'Reset password'],
 ];
 

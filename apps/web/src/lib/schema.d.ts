@@ -2766,7 +2766,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Set a user's test limits: counts per plan window (null = default), unlimited, or the paid plan until a date. Applies to their next test. */
+        /** Set a user's limits: none at all (unlimited), or the paid plan until a date. Applies to their next test. */
         post: {
             parameters: {
                 query?: never;
@@ -5049,6 +5049,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pay/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a PayStation payment for a paid plan; returns the hosted checkout URL */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CheckoutBody"];
+                };
+            };
+            responses: {
+                /** @description Redirect the browser here */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutStarted"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6199,19 +6239,10 @@ export interface components {
             userAgent: string | null;
         };
         AdminLimitsInfo: {
-            /** @description Speaking practice tests per 30 days (live sessions not included); null = plan default */
-            speaking: number | null;
-            /** @description Writing tests per 7 days; null = plan default */
-            writing: number | null;
             /** @description No test limits at all, including the LiveKit examiner */
             unlimited: boolean;
             /** @description On the paid plan until this ISO instant; null = not subscribed */
             subscribedUntil: string | null;
-            /** @description The signed-in (free) plan counts the overrides replace */
-            defaults: {
-                speaking: number;
-                writing: number;
-            };
             /** @description false for guests (limits belong to accounts) */
             canEdit: boolean;
         };
@@ -6363,8 +6394,6 @@ export interface components {
             }[];
         };
         AdminLimitsBody: {
-            speaking: number | null;
-            writing: number | null;
             unlimited: boolean;
             /**
              * Format: date-time
@@ -7102,6 +7131,19 @@ export interface components {
             reportId: string;
             itemKey: string;
             note?: string;
+        };
+        CheckoutStarted: {
+            url: string;
+        };
+        CheckoutBody: {
+            /** @enum {string} */
+            plan: "month" | "quarter";
+            phone: string;
+            /**
+             * @description The customer ticked "I agree to the Terms, Refund policy and Privacy policy"
+             * @enum {boolean}
+             */
+            acceptTerms: true;
         };
     };
     responses: never;

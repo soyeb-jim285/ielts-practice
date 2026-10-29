@@ -1,8 +1,7 @@
 import { quotaText, resetLabel, useQuota, windowWord, type Skill, type SkillQuota, type Tier } from '@/lib/community';
 import { Sparkles } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { Button, Dialog, toast } from '@/components/ui';
-import { api, ApiError } from '@/lib/api';
+import { Link } from '@tanstack/react-router';
+import { buttonStyles } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 /** The line that sits with a Start button: "1 test left today". Amber when none is left (the start screen then explains and offers a way out). */
@@ -70,52 +69,12 @@ function QuotaMeter({ label, s }: { label: string; s: SkillQuota }) {
 const LrMeter = ({ label, c }: { label: string; c: { open: number; total: number } }) =>
   c.total > 0 ? <Meter label={label} text={c.open >= c.total ? `All ${c.open} tests` : `${c.open} of ${c.total} tests`} frac={c.open / c.total} /> : null;
 
-/** Payments are not live yet: the request lands in the admin feedback inbox and the owner grants the plan by hand (admin user page). */
 function UpgradeButton() {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const request = async () => {
-    setBusy(true);
-    try {
-      await api.post('/feedback', { message: 'Upgrade request: I would like the paid plan.', page: location.pathname.slice(0, 300) });
-      toast('Request sent. We will email you when your plan is on.', { tone: 'good' });
-      setOpen(false);
-    } catch (e) {
-      toast(e instanceof ApiError && e.status === 429 ? 'You have sent a few messages already. Try again in a while.' : "Couldn't send that. Try again.", { tone: 'bad' });
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
-    <>
-      <Button ref={trigger} variant="secondary" size="sm" className="w-full" icon={<Sparkles />} onClick={() => setOpen(true)}>
-        Upgrade
-      </Button>
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        returnFocusRef={trigger}
-        title="Paid plan"
-        description="Payments open soon. Until then, ask for it and we will turn it on for your account."
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Not now
-            </Button>
-            <Button loading={busy} onClick={request}>
-              Request the paid plan
-            </Button>
-          </>
-        }
-      >
-        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink">
-          <li>Unlimited writing and speaking practice tests</li>
-          <li>Live examiner: 5 sessions a day, 40 a month</li>
-          <li>Every Listening and Reading test</li>
-        </ul>
-      </Dialog>
-    </>
+    <Link to="/pricing" className={buttonStyles({ variant: 'secondary', size: 'sm', className: 'w-full' })}>
+      <Sparkles aria-hidden />
+      Upgrade
+    </Link>
   );
 }
 

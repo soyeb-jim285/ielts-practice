@@ -11,3 +11,4 @@ export * from './lr-review';
 export * from './speaking-audio';
 export * from './seo';
 export * from './livekit';
+export * from './pricing';

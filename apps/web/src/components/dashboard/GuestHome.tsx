@@ -1,137 +1,166 @@
+import { bdt, PAID_PLANS } from '@ielts/core';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, ClipboardCheck, Layers, LibraryBig, MessagesSquare, Mic, PenLine, type LucideIcon } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, LibraryBig } from 'lucide-react';
 import { listStyles, RowChevron, RowIcon, rowStyles, RowText } from '@/components/bank/ListRow';
 import { speakingSession, StartWritingButton } from '@/components/bank/PracticeLink';
-import { GuestRecent } from '@/components/dashboard/GuestRecent';
 import { QuotaStrip } from '@/components/community/QuotaNote';
+import { GuestRecent } from '@/components/dashboard/GuestRecent';
+import { FREE, PlanCards } from '@/components/pricing/Plans';
 import { CriteriaStrip, ScoreHero, Section, SkillBandStrip, type SkillBandItem } from '@/components/result';
-import { Badge, buttonStyles, PageContainer, PageHeader } from '@/components/ui';
+import { Badge, buttonStyles, Card, PageContainer } from '@/components/ui';
 
 const link = 'font-medium text-accent-text underline underline-offset-4 hover:no-underline';
 
 const SKILLS: SkillBandItem[] = [
-  { skill: 'listening', band: null, to: { to: '/listening' }, offer: 'Unlimited free practice tests, 40 questions or one part, marked at once with a band' },
-  { skill: 'reading', band: null, to: { to: '/reading' }, offer: 'Unlimited free practice tests, 40 questions or one passage, marked at once with a band' },
-  { skill: 'writing', band: null, to: { to: '/writing' }, offer: 'Task 1 and Task 2, feedback by criterion' },
-  { skill: 'speaking', band: null, to: { to: '/speaking' }, offer: 'Live examiner 11-14 min, or practise one part' },
-];
-
-const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: Mic, title: 'Speaking test', body: 'All three parts, recorded. Four criteria scored, with your pauses timed in the transcript.' },
-  { icon: MessagesSquare, title: 'Live examiner', body: 'A spoken conversation: an AI examiner asks, listens and follows up.' },
-  { icon: PenLine, title: 'Writing marked by criterion', body: 'Timed tasks marked against the public band descriptors, each mistake underlined and corrected.' },
-  { icon: Layers, title: 'Fix what you repeat', body: 'The mistake log groups the errors you repeat. The review deck turns corrections into flashcards that return just before you forget.' },
-];
-
-const MOCK_EXAMPLE: SkillBandItem[] = [
-  { skill: 'listening', band: 7.5, target: 7 },
-  { skill: 'reading', band: 6.5, target: 7 },
-  { skill: 'writing', band: 7, target: 7 },
-  { skill: 'speaking', band: 7, target: 7 },
+  { skill: 'listening', band: null, to: { to: '/listening' }, offer: 'Full 40-question tests or one part, marked at once with a band. Free.' },
+  { skill: 'reading', band: null, to: { to: '/reading' }, offer: 'Academic and General Training, with where each answer sits in the passage. Free.' },
+  { skill: 'writing', band: null, to: { to: '/writing' }, offer: 'Task 1 and Task 2, marked by criterion, every mistake corrected.' },
+  { skill: 'speaking', band: null, to: { to: '/speaking' }, offer: 'A live AI examiner, or recorded parts you can replay.' },
 ];
 
 // Illustration only: fixed numbers that show the layout of a result, never a real score.
 const EXAMPLE = [
-  { key: 'fc', label: 'Fluency and coherence', band: 6.5 },
-  { key: 'lr', label: 'Lexical resource', band: 7 },
-  { key: 'gra', label: 'Grammatical range and accuracy', band: 6 },
-  { key: 'p', label: 'Pronunciation', band: 6.5 },
+  { key: 'fc', label: 'Fluency and coherence', band: 6.5, target: 7 },
+  { key: 'lr', label: 'Lexical resource', band: 7, target: 7 },
+  { key: 'gra', label: 'Grammar', band: 6, target: 7 },
+  { key: 'p', label: 'Pronunciation', band: 6.5, target: 7 },
 ];
 
-/** Dashboard for a signed-out visitor: the four skills and the mock, an example result (labelled) built from the same components as the signed-in page, and the pages open without an account. */
+const STEPS = [
+  { title: 'Take a timed test', body: 'The same parts, timings and question types as the real exam, on your laptop or phone.' },
+  { title: 'See exactly where the band went', body: 'A band for each criterion against the public descriptors, and every mistake underlined in your own words with the fix beside it.' },
+  { title: 'Fix what you repeat', body: 'Your mistakes are grouped across tests, turned into review cards, and your coach tells you what to work on this week.' },
+];
+
+/** The example result that stands in for a product shot: built from the same components as a real result page. */
+function ExampleResult() {
+  return (
+    <Card role="group" aria-label="Example Speaking result, not a real score" className="space-y-6 p-6 shadow-lg">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="type-subheading">Speaking, Part 2</h2>
+        <Badge>Example result</Badge>
+      </div>
+      <ScoreHero value={6.5} label="Example Speaking band" secondary="Target 7" />
+      <CriteriaStrip cols={2} items={EXAMPLE} />
+      <figure className="rounded-lg bg-surface-2 p-4">
+        <figcaption className="type-caption">From your answer, 0:42</figcaption>
+        <p className="type-reading-sm mt-2 text-ink">
+          Last summer I{' '}
+          <del className="text-bad-text decoration-bad decoration-2">have visited</del>{' '}
+          <ins className="rounded-sm bg-good-soft px-1 text-good-text no-underline">visited</ins> my grandmother in Sylhet.
+        </p>
+        <p className="type-caption mt-2">A finished time in the past takes the past simple.</p>
+      </figure>
+    </Card>
+  );
+}
+
+/** Home for a signed-out visitor or a guest: what NextBand does, a free test one click away, and the paid plans in BDT. Built from the same components as the signed-in pages. */
 export function GuestHome() {
   return (
     <PageContainer>
-      <PageHeader
-        className="mb-6 md:mb-6"
-        title="Practise all four IELTS skills"
-        description="Listening, Reading, Writing and Speaking, plus a full mock test. Free to try, no account. Timed practice with a band for every criterion, and each mistake marked exactly where you made it."
-      />
-      <div className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-3 md:mb-12">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Link {...speakingSession('p1')} className={buttonStyles({ size: 'lg', className: 'h-11 sm:h-10' })}>
-            Try a speaking test
-          </Link>
-          <StartWritingButton variant="outline" size="lg" className="h-11 sm:h-10">
-            Try a writing test
-          </StartWritingButton>
+      <div className="grid items-center gap-10 pt-2 pb-12 md:pb-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14">
+        <div className="stagger">
+          <h1 className="type-display max-w-[16ch] text-balance">Know your IELTS band before test day</h1>
+          <p className="type-lede mt-5 max-w-[52ch] text-pretty">
+            Timed Listening, Reading, Writing and Speaking tests, marked against the band descriptors. You see every mistake where you made it, with the fix.
+          </p>
+          <div className="mt-8 flex flex-col gap-2 sm:flex-row">
+            <Link {...speakingSession('p1')} className={buttonStyles({ size: 'lg', className: 'h-11' })}>
+              Take a free Speaking test
+            </Link>
+            <StartWritingButton variant="outline" size="lg" className="h-11">
+              Try a Writing task
+            </StartWritingButton>
+          </div>
+          <p className="type-caption mt-4">
+            Free to start: no account, no card.{' '}
+            <Link to="/listening" className={link}>
+              Listening and Reading tests are free
+            </Link>
+            .
+          </p>
         </div>
-        <Link to="/listening" className={`type-body inline-flex min-h-11 items-center ${link}`}>
-          Take a free Listening or Reading test
-        </Link>
+        <div className="animate-[rise-in_var(--dur-slow)_var(--ease-out-expo)_120ms_backwards]">
+          <ExampleResult />
+        </div>
       </div>
 
-      <div className="space-y-8 md:space-y-12">
+      <div className="space-y-12 md:space-y-16">
         <GuestRecent />
 
-        <Section title="Four skills, one mock test" id="skills">
+        <Section title="Start with a free test" id="skills">
           <SkillBandStrip variant="guest" items={SKILLS} />
           <ul className={listStyles}>
             <li>
-            <Link to="/mock" className={rowStyles}>
-            <RowIcon>
-              <ClipboardCheck />
-            </RowIcon>
-            <RowText title="Full mock test" meta="All four back to back, overall band at the end" />
-            <RowChevron />
-            </Link>
+              <Link to="/mock" className={rowStyles}>
+                <RowIcon>
+                  <ClipboardCheck />
+                </RowIcon>
+                <RowText title="Full mock test" meta="All four skills back to back, with an overall band at the end" />
+                <RowChevron />
+              </Link>
             </li>
             <li>
-            <Link to="/bank" className={rowStyles}>
-            <RowIcon>
-              <LibraryBig />
-            </RowIcon>
-            <RowText title="Prompt bank" meta="Browse every question and task, no account needed" />
-            <RowChevron />
-            </Link>
+              <Link to="/bank" className={rowStyles}>
+                <RowIcon>
+                  <LibraryBig />
+                </RowIcon>
+                <RowText title="Question bank" meta="Every Speaking topic and Writing task, open without an account" />
+                <RowChevron />
+              </Link>
             </li>
           </ul>
         </Section>
 
-        <Section title="What a result looks like" id="example" caption="After each attempt you see the band for every criterion, then the exact words behind it.">
-          <div role="group" aria-label="Example full mock result, not a real score" className="space-y-6">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h3 className="type-subheading">Full mock test</h3>
-              <Badge>Example, not a real score</Badge>
-            </div>
-            <ScoreHero value={7} label="Example mock overall band" secondary="Mean of four sections" />
-            <SkillBandStrip items={MOCK_EXAMPLE} />
-          </div>
-          <div role="group" aria-label="Example speaking result, not a real score" className="space-y-6">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h3 className="type-subheading">Speaking, Part 2</h3>
-              <Badge>Example, not a real score</Badge>
-            </div>
-            <ScoreHero value={6.5} label="Example Speaking Part 2 band" secondary="Speaking, Part 2" />
-            <CriteriaStrip items={EXAMPLE.map((c) => ({ ...c, target: 7 }))} />
-          </div>
+        <Section title="How it works" id="how">
+          <ol className="grid gap-x-10 gap-y-8 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="space-y-2">
+                <span aria-hidden className="font-serif text-3xl leading-none text-accent-text">
+                  {i + 1}
+                </span>
+                <h3 className="type-subheading pt-2">{s.title}</h3>
+                <p className="type-lede">{s.body}</p>
+              </li>
+            ))}
+          </ol>
         </Section>
 
-        <Section title="Free to try" id="free">
-          <p className="type-lede max-w-[60ch]">Try speaking and writing tests as a guest. Create a free account for more tests. Subscribers get unlimited speaking and writing. Listening and Reading are free.</p>
-          <QuotaStrip className="border-0 py-0" />
-          <p className="type-body flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>History, mistakes and the review deck need an account.</span>
-            <Link to="/signup" className={`inline-flex min-h-11 items-center gap-1 ${link}`}>
-              Create one <ArrowRight className="size-4" aria-hidden />
-            </Link>
-            <Link to="/login" className={`inline-flex min-h-11 items-center ${link}`}>
-              Sign in
+        <Section title={`Free, or unlimited from ${bdt(PAID_PLANS.month.bdt)} a month`} id="plans" caption="Prices in BDT. One payment, no auto-renewal. Pay with bKash, Nagad, Rocket, Upay or card.">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,2fr)] lg:gap-10">
+            <div>
+              <h3 className="type-heading">Free</h3>
+              <p className="type-lede mt-2">With a free account you get:</p>
+              <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm marker:text-accent">
+                {FREE.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              <p className="type-caption mt-4">As a guest you can already try a few tests. Your tests left:</p>
+              <QuotaStrip className="mt-2 border-0 py-0" />
+              <Link to="/signup" className={buttonStyles({ variant: 'outline', className: 'mt-5 w-full sm:w-auto' })}>
+                Create a free account
+              </Link>
+            </div>
+            <PlanCards />
+          </div>
+          <p className="type-body">
+            <Link to="/pricing" className={`inline-flex min-h-11 items-center gap-1 ${link}`}>
+              Pricing, refunds and delivery <ArrowRight className="size-4" aria-hidden />
             </Link>
           </p>
         </Section>
 
-        <Section title="What you get" id="features">
-          <ul className="grid gap-x-12 gap-y-8 sm:grid-cols-2">
-            {FEATURES.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="space-y-2">
-                <Icon className="size-5 text-muted" aria-hidden />
-                <h3 className="type-subheading mt-3">{title}</h3>
-                <p className="type-lede">{body}</p>
-              </li>
-            ))}
-          </ul>
-        </Section>
+        <Card tone="hero" className="flex flex-col items-start gap-5 p-6 md:flex-row md:items-center md:justify-between md:p-8">
+          <div>
+            <h2 className="type-title-sm text-balance">Your first test is free</h2>
+            <p className="type-lede mt-2 max-w-[52ch]">Fifteen minutes, and you will know which criterion is holding your band back.</p>
+          </div>
+          <Link {...speakingSession('p1')} className={buttonStyles({ size: 'lg', className: 'h-11 shrink-0 max-md:w-full' })}>
+            Start now
+          </Link>
+        </Card>
       </div>
     </PageContainer>
   );

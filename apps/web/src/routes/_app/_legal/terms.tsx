@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { COMPANY, LegalPage, List, Mail, Section, TRADEMARK } from '@/components/legal/Legal';
+import { COMPANY, LegalPage, List, Mail, Section } from '@/components/legal/Legal';
 
 export const Route = createFileRoute('/_app/_legal/terms')({ component: Terms });
 
@@ -7,10 +7,10 @@ const link = 'font-medium text-accent-text underline decoration-accent/40 underl
 
 function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="21 October 2026">
+    <LegalPage title="Terms of service" updated="29 October 2026">
       <Section title="Who we are">
         <p>
-          {COMPANY.product} is a product of {COMPANY.name}, a business registered in {COMPANY.country} (&quot;we&quot;, &quot;us&quot;). These terms apply when you use the website or the apps. By using them you agree to these terms and to our{' '}
+          {COMPANY.product} is a product of {COMPANY.name}, a business registered in {COMPANY.country} under trade licence {COMPANY.tradeLicense} (&quot;we&quot;, &quot;us&quot;). These terms apply when you use the website or the apps. By using them you agree to these terms and to our{' '}
           <Link to="/privacy" className={link}>privacy policy</Link>.
         </p>
       </Section>
@@ -45,8 +45,14 @@ function Terms() {
 
       <Section title="Payments">
         <List>
-          <li>Prices are shown before you pay, including VAT where it applies.</li>
-          <li>Payments are handled by our payment providers (for example bKash, SSLCommerz or Paddle). We never see or store your full card or wallet details.</li>
+          <li>
+            Prices are in Bangladeshi Taka (BDT) and are listed on the <Link to="/pricing" className={link}>pricing page</Link>. The price shown at checkout is the full amount you pay, including VAT where it applies.
+          </li>
+          <li>Each plan is a one-time payment for a fixed period. It does not renew by itself; you can buy again when it ends.</li>
+          <li>Payments are processed by PayStation (bKash, Nagad, Rocket, Upay and cards). We never see or store your full card or wallet details.</li>
+          <li>
+            How the plan reaches you is set out in the <Link to="/delivery" className={link}>delivery policy</Link>.
+          </li>
           <li>
             Refunds follow our <Link to="/refunds" className={link}>refund policy</Link>.
           </li>
@@ -63,10 +69,6 @@ function Terms() {
 
       <Section title="Law and changes">
         <p>These terms are governed by the laws of {COMPANY.country}, and the courts of Dhaka have jurisdiction. If we change them in a way that matters, we will update the date at the top and, for paid users, tell you by email.</p>
-      </Section>
-
-      <Section title="Trademark">
-        <p>{TRADEMARK}</p>
       </Section>
 
       <Section title="Contact">

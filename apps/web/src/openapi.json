@@ -4662,20 +4662,6 @@
       "AdminLimitsInfo": {
         "type": "object",
         "properties": {
-          "speaking": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Speaking practice tests per 30 days (live sessions not included); null = plan default"
-          },
-          "writing": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Writing tests per 7 days; null = plan default"
-          },
           "unlimited": {
             "type": "boolean",
             "description": "No test limits at all, including the LiveKit examiner"
@@ -4687,33 +4673,14 @@
             ],
             "description": "On the paid plan until this ISO instant; null = not subscribed"
           },
-          "defaults": {
-            "type": "object",
-            "properties": {
-              "speaking": {
-                "type": "integer"
-              },
-              "writing": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "speaking",
-              "writing"
-            ],
-            "description": "The signed-in (free) plan counts the overrides replace"
-          },
           "canEdit": {
             "type": "boolean",
             "description": "false for guests (limits belong to accounts)"
           }
         },
         "required": [
-          "speaking",
-          "writing",
           "unlimited",
           "subscribedUntil",
-          "defaults",
           "canEdit"
         ]
       },
@@ -5369,22 +5336,6 @@
       "AdminLimitsBody": {
         "type": "object",
         "properties": {
-          "speaking": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 1000
-          },
-          "writing": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 1000
-          },
           "unlimited": {
             "type": "boolean"
           },
@@ -5402,8 +5353,6 @@
           }
         },
         "required": [
-          "speaking",
-          "writing",
           "unlimited"
         ]
       },
@@ -8313,6 +8262,45 @@
         "required": [
           "reportId",
           "itemKey"
+        ]
+      },
+      "CheckoutStarted": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "CheckoutBody": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "month",
+              "quarter"
+            ]
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^(\\+?88)?01[3-9]\\d{8}$"
+          },
+          "acceptTerms": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "The customer ticked \"I agree to the Terms, Refund policy and Privacy policy\""
+          }
+        },
+        "required": [
+          "plan",
+          "phone",
+          "acceptTerms"
         ]
       }
     },
@@ -11387,7 +11375,7 @@
             "bearer": []
           }
         ],
-        "summary": "Set a user's test limits: counts per plan window (null = default), unlimited, or the paid plan until a date. Applies to their next test.",
+        "summary": "Set a user's limits: none at all (unlimited), or the paid plan until a date. Applies to their next test.",
         "parameters": [
           {
             "schema": {
@@ -14000,6 +13988,41 @@
           },
           "404": {
             "description": "Not your report"
+          }
+        }
+      }
+    },
+    "/api/pay/checkout": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Start a PayStation payment for a paid plan; returns the hosted checkout URL",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redirect the browser here",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutStarted"
+                }
+              }
+            }
           }
         }
       }

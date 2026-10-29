@@ -13,7 +13,7 @@ Plans (all windows are rolling: the last 24 h, 7 days or 30 days; a test frees u
 | Subscriber (`subscriber`, `user_limits.subscribed_until` in the future) | Unlimited | Unlimited | 5 / 24 h and 40 / 30 days | All |
 | Owner, or admin "No test limits" (`unlimited`) | Unlimited | Unlimited | Unlimited | All (+ Cambridge for the owner) |
 
-- Payments are not live yet: the admin user page has a "Subscriber" switch that grants 30 days. The payment webhook will set `subscribed_until`.
+- Payments: PayStation hosted checkout (`apps/server/src/routes/pay.ts`), prices in `packages/core/src/pricing.ts` (৳499 / 30 days, ৳1,199 / 90 days, one-time, no auto-renewal). A paid invoice is verified with PayStation's transaction-status API (never the return URL or IPN body) and extends `subscribed_until` once; renewals add to the time left. Return URL `/api/pay/return/:invoice`, IPN `/api/pay/ipn`, plus a 5-minute sweep of the last day's pending invoices. Needs `PAYSTATION_MERCHANT_ID`, `PAYSTATION_PASSWORD`, `PAYSTATION_URL` (sandbox by default); unset, checkout answers 503. The admin user page can still grant the plan by hand.
 - Cambridge tests stay allow-list only (`CAMBRIDGE_ALLOWED_EMAILS`, admin grants) on every plan.
 - Analysis always uses the default models.
 - **One test** is one speaking session (one practice part, or a full test with all parts sharing one `sessionId`) or one writing submission (one task, or Task 1 + Task 2 sharing one `sessionId`). Clients MUST send the same `sessionId` on every attempt of a full test. A part is paid once per `sessionId`: sending a part again under another attempt (even after deleting the first) counts as a separate test, and retrying the same attempt is free. Concurrent submits are serialised.

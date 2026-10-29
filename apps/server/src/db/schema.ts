@@ -330,7 +330,7 @@ export const userLimits = pgTable('user_limits', {
   speaking: integer('speaking'), // unused since per-user count overrides were removed (2026-10-27); always null
   writing: integer('writing'), // unused, as speaking
   unlimited: boolean('unlimited').notNull().default(false),
-  /** Paid plan (docs/community.md): subscriber limits until this instant. Set by the admin now, by the payment webhook later. */
+  /** Paid plan (docs/community.md): subscriber limits until this instant. Set by a PayStation payment (routes/pay.ts) or by the admin. */
   subscribedUntil: timestamp('subscribed_until', { withTimezone: true }),
   updatedBy: text('updated_by').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -526,3 +526,17 @@ export const planReminders = pgTable('plan_reminders', {
   days: integer('days').notNull(),
   sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.until, t.days] })]);
+
+// One row per PayStation checkout (routes/pay.ts). `invoice` is what PayStation knows the payment by; paid rows extend user_limits.subscribed_until once.
+export const payments = pgTable('payments', {
+  invoice: text('invoice').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  plan: text('plan').$type<'month' | 'quarter'>().notNull(),
+  amount: integer('amount').notNull(), // BDT
+  status: text('status').$type<'pending' | 'paid' | 'failed'>().notNull().default('pending'),
+  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }).notNull(), // the checkout checkbox (Terms, Refund and Privacy)
+  trxId: text('trx_id'),
+  method: text('method'), // bKash, Nagad, Visa, ...
+  createdAt: createdAt(),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+}, (t) => [index('payments_user_idx').on(t.userId, t.createdAt)]);

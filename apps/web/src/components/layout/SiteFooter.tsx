@@ -1,14 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import { COMPANY, TRADEMARK_SHORT } from '@/components/legal/Legal';
+import { COMPANY, PAGES } from '@/components/legal/Legal';
 
-const LINKS = [
-  { to: '/terms', label: 'Terms' },
-  { to: '/privacy', label: 'Privacy' },
-  { to: '/refunds', label: 'Refunds' },
-  { to: '/contact', label: 'Contact' },
-] as const;
-
-/** Who runs the site, the legal pages, and the IELTS trademark notice: what payment gateways look for on every page. */
+/** Who runs the site and the legal pages: what payment gateways look for on every page. */
 export function SiteFooter() {
   return (
     <footer className="mt-16 space-y-3 border-t border-line pt-6 text-caption text-muted">
@@ -18,7 +11,7 @@ export function SiteFooter() {
         </p>
         <nav aria-label="Legal">
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
-            {LINKS.map((l) => (
+            {PAGES.map((l) => (
               <li key={l.to}>
                 <Link to={l.to} className="underline-offset-2 hover:text-ink hover:underline">
                   {l.label}
@@ -28,7 +21,9 @@ export function SiteFooter() {
           </ul>
         </nav>
       </div>
-      <p>{TRADEMARK_SHORT}</p>
+      <p>
+        {COMPANY.address} · Trade licence {COMPANY.tradeLicense} · <a href={`mailto:${COMPANY.email}`} className="underline-offset-2 hover:text-ink hover:underline">{COMPANY.email}</a>
+      </p>
     </footer>
   );
 }

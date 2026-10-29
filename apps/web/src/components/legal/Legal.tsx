@@ -3,25 +3,25 @@ import { Children, isValidElement, useEffect, useState, type ReactNode } from 'r
 import { PageContainer } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
-/** The business behind the site, as shown on the legal pages and in the footer. Fill in `address` and `phone` before applying to a gateway. */
+/** The business behind the site, as on its trade licence; shown on the legal pages and in the footer (payment gateways check these). */
 export const COMPANY = {
   name: 'Dolphin Commerce',
   product: 'NextBand',
   email: 'support@dolphincommerce.com',
-  address: '', // ponytail: shown only once set; payment gateways ask for a postal address
-  phone: '',
+  address: 'Sutia Bazar, Ward 6, Jatia Union, Ishwarganj, Mymensingh 2280, Bangladesh',
+  phone: '+880 1718-007639', // Contact page only, not the footer
   country: 'Bangladesh',
+  tradeLicense: '46813125039', // Jatia Union Parishad, Ishwarganj
+  since: 2025,
 };
 
-const IELTS_TM = 'IELTS is a registered trademark of the British Council, IDP: IELTS Australia and Cambridge University Press & Assessment.';
-export const TRADEMARK = `${IELTS_TM} NextBand is not affiliated with, approved or endorsed by them.`;
-/** Footer version: fits one line on a laptop-width page. */
-export const TRADEMARK_SHORT = `${IELTS_TM} NextBand is not affiliated with them.`;
-
-const PAGES = [
+export const PAGES = [
+  { to: '/about', label: 'About' },
+  { to: '/pricing', label: 'Pricing' },
   { to: '/privacy', label: 'Privacy' },
   { to: '/terms', label: 'Terms' },
   { to: '/refunds', label: 'Refunds' },
+  { to: '/delivery', label: 'Delivery' },
   { to: '/contact', label: 'Contact' },
 ] as const;
 

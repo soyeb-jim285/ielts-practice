@@ -59,6 +59,10 @@ const Env = z.object({
   GUESTS_PER_IP: z.coerce.number().int().min(1).default(3),
   // Salt for hashing client IPs (never stored raw). Unset: derived from BETTER_AUTH_SECRET.
   IP_HASH_SALT: z.string().optional().transform((v) => v || undefined),
+  // PayStation hosted checkout (routes/pay.ts). Unset: checkout answers 503 "payments open soon". Sandbox URL until the live account is approved.
+  PAYSTATION_MERCHANT_ID: z.string().optional().transform((v) => v || undefined),
+  PAYSTATION_PASSWORD: z.string().optional().transform((v) => v || undefined),
+  PAYSTATION_URL: z.string().default('https://sandbox.paystation.com.bd'), // live: https://api.paystation.com.bd
 });
 
 export const env = Env.parse(process.env);

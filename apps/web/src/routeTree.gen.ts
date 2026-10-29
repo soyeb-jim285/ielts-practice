@@ -25,7 +25,10 @@ import { Route as AppMistakesRouteImport } from './routes/_app/mistakes'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStyleguideRouteImport } from './routes/_app/styleguide'
+import { Route as AppLegalAboutRouteImport } from './routes/_app/_legal/about'
 import { Route as AppLegalContactRouteImport } from './routes/_app/_legal/contact'
+import { Route as AppLegalDeliveryRouteImport } from './routes/_app/_legal/delivery'
+import { Route as AppLegalPricingRouteImport } from './routes/_app/_legal/pricing'
 import { Route as AppLegalPrivacyRouteImport } from './routes/_app/_legal/privacy'
 import { Route as AppLegalRefundsRouteImport } from './routes/_app/_legal/refunds'
 import { Route as AppLegalTermsRouteImport } from './routes/_app/_legal/terms'
@@ -41,6 +44,8 @@ import { Route as AppAdminHealthRouteImport } from './routes/_app/admin/health'
 import { Route as AppAdminLogsRouteImport } from './routes/_app/admin/logs'
 import { Route as AppAdminPlaygroundRouteImport } from './routes/_app/admin/playground'
 import { Route as AppAdminTestsRouteImport } from './routes/_app/admin/tests'
+import { Route as AppCheckoutIndexRouteImport } from './routes/_app/checkout/index'
+import { Route as AppCheckoutDoneRouteImport } from './routes/_app/checkout/done'
 import { Route as AppListeningIndexRouteImport } from './routes/_app/listening/index'
 import { Route as AppMockIndexRouteImport } from './routes/_app/mock/index'
 import { Route as AppMockIdRouteImport } from './routes/_app/mock/$id'
@@ -138,9 +143,24 @@ const AppStyleguideRoute = AppStyleguideRouteImport.update({
   path: '/styleguide',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLegalAboutRoute = AppLegalAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => AppLegalRoute,
+} as any)
 const AppLegalContactRoute = AppLegalContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => AppLegalRoute,
+} as any)
+const AppLegalDeliveryRoute = AppLegalDeliveryRouteImport.update({
+  id: '/delivery',
+  path: '/delivery',
+  getParentRoute: () => AppLegalRoute,
+} as any)
+const AppLegalPricingRoute = AppLegalPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => AppLegalRoute,
 } as any)
 const AppLegalPrivacyRoute = AppLegalPrivacyRouteImport.update({
@@ -217,6 +237,16 @@ const AppAdminTestsRoute = AppAdminTestsRouteImport.update({
   id: '/tests',
   path: '/tests',
   getParentRoute: () => AppAdminRoute,
+} as any)
+const AppCheckoutIndexRoute = AppCheckoutIndexRouteImport.update({
+  id: '/checkout/',
+  path: '/checkout/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCheckoutDoneRoute = AppCheckoutDoneRouteImport.update({
+  id: '/checkout/done',
+  path: '/checkout/done',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppListeningIndexRoute = AppListeningIndexRouteImport.update({
   id: '/listening/',
@@ -327,7 +357,10 @@ export interface FileRoutesByFullPath {
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
+  '/about': typeof AppLegalAboutRoute
   '/contact': typeof AppLegalContactRoute
+  '/delivery': typeof AppLegalDeliveryRoute
+  '/pricing': typeof AppLegalPricingRoute
   '/privacy': typeof AppLegalPrivacyRoute
   '/refunds': typeof AppLegalRefundsRoute
   '/terms': typeof AppLegalTermsRoute
@@ -342,11 +375,13 @@ export interface FileRoutesByFullPath {
   '/admin/logs': typeof AppAdminLogsRoute
   '/admin/playground': typeof AppAdminPlaygroundRoute
   '/admin/tests': typeof AppAdminTestsRoute
+  '/checkout/done': typeof AppCheckoutDoneRoute
   '/mock/$id': typeof AppMockIdRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
   '/admin/': typeof AppAdminIndexRoute
+  '/checkout/': typeof AppCheckoutIndexRoute
   '/listening/': typeof AppListeningIndexRoute
   '/mock/': typeof AppMockIndexRoute
   '/reading/': typeof AppReadingIndexRoute
@@ -376,7 +411,10 @@ export interface FileRoutesByTo {
   '/review': typeof AppReviewRoute
   '/settings': typeof AppSettingsRoute
   '/styleguide': typeof AppStyleguideRoute
+  '/about': typeof AppLegalAboutRoute
   '/contact': typeof AppLegalContactRoute
+  '/delivery': typeof AppLegalDeliveryRoute
+  '/pricing': typeof AppLegalPricingRoute
   '/privacy': typeof AppLegalPrivacyRoute
   '/refunds': typeof AppLegalRefundsRoute
   '/terms': typeof AppLegalTermsRoute
@@ -391,11 +429,13 @@ export interface FileRoutesByTo {
   '/admin/logs': typeof AppAdminLogsRoute
   '/admin/playground': typeof AppAdminPlaygroundRoute
   '/admin/tests': typeof AppAdminTestsRoute
+  '/checkout/done': typeof AppCheckoutDoneRoute
   '/mock/$id': typeof AppMockIdRoute
   '/speaking/live': typeof AppSpeakingLiveRoute
   '/speaking/session': typeof AppSpeakingSessionRoute
   '/writing/full': typeof AppWritingFullRoute
   '/admin': typeof AppAdminIndexRoute
+  '/checkout': typeof AppCheckoutIndexRoute
   '/listening': typeof AppListeningIndexRoute
   '/mock': typeof AppMockIndexRoute
   '/reading': typeof AppReadingIndexRoute
@@ -429,7 +469,10 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/styleguide': typeof AppStyleguideRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/_legal/about': typeof AppLegalAboutRoute
   '/_app/_legal/contact': typeof AppLegalContactRoute
+  '/_app/_legal/delivery': typeof AppLegalDeliveryRoute
+  '/_app/_legal/pricing': typeof AppLegalPricingRoute
   '/_app/_legal/privacy': typeof AppLegalPrivacyRoute
   '/_app/_legal/refunds': typeof AppLegalRefundsRoute
   '/_app/_legal/terms': typeof AppLegalTermsRoute
@@ -444,11 +487,13 @@ export interface FileRoutesById {
   '/_app/admin/logs': typeof AppAdminLogsRoute
   '/_app/admin/playground': typeof AppAdminPlaygroundRoute
   '/_app/admin/tests': typeof AppAdminTestsRoute
+  '/_app/checkout/done': typeof AppCheckoutDoneRoute
   '/_app/mock/$id': typeof AppMockIdRoute
   '/_app/speaking/live': typeof AppSpeakingLiveRoute
   '/_app/speaking/session': typeof AppSpeakingSessionRoute
   '/_app/writing/full': typeof AppWritingFullRoute
   '/_app/admin/': typeof AppAdminIndexRoute
+  '/_app/checkout/': typeof AppCheckoutIndexRoute
   '/_app/listening/': typeof AppListeningIndexRoute
   '/_app/mock/': typeof AppMockIndexRoute
   '/_app/reading/': typeof AppReadingIndexRoute
@@ -481,7 +526,10 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/styleguide'
+    | '/about'
     | '/contact'
+    | '/delivery'
+    | '/pricing'
     | '/privacy'
     | '/refunds'
     | '/terms'
@@ -496,11 +544,13 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/playground'
     | '/admin/tests'
+    | '/checkout/done'
     | '/mock/$id'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
     | '/admin/'
+    | '/checkout/'
     | '/listening/'
     | '/mock/'
     | '/reading/'
@@ -530,7 +580,10 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/styleguide'
+    | '/about'
     | '/contact'
+    | '/delivery'
+    | '/pricing'
     | '/privacy'
     | '/refunds'
     | '/terms'
@@ -545,11 +598,13 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/playground'
     | '/admin/tests'
+    | '/checkout/done'
     | '/mock/$id'
     | '/speaking/live'
     | '/speaking/session'
     | '/writing/full'
     | '/admin'
+    | '/checkout'
     | '/listening'
     | '/mock'
     | '/reading'
@@ -582,7 +637,10 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/styleguide'
     | '/_app/'
+    | '/_app/_legal/about'
     | '/_app/_legal/contact'
+    | '/_app/_legal/delivery'
+    | '/_app/_legal/pricing'
     | '/_app/_legal/privacy'
     | '/_app/_legal/refunds'
     | '/_app/_legal/terms'
@@ -597,11 +655,13 @@ export interface FileRouteTypes {
     | '/_app/admin/logs'
     | '/_app/admin/playground'
     | '/_app/admin/tests'
+    | '/_app/checkout/done'
     | '/_app/mock/$id'
     | '/_app/speaking/live'
     | '/_app/speaking/session'
     | '/_app/writing/full'
     | '/_app/admin/'
+    | '/_app/checkout/'
     | '/_app/listening/'
     | '/_app/mock/'
     | '/_app/reading/'
@@ -741,11 +801,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStyleguideRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/_legal/about': {
+      id: '/_app/_legal/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AppLegalAboutRouteImport
+      parentRoute: typeof AppLegalRoute
+    }
     '/_app/_legal/contact': {
       id: '/_app/_legal/contact'
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof AppLegalContactRouteImport
+      parentRoute: typeof AppLegalRoute
+    }
+    '/_app/_legal/delivery': {
+      id: '/_app/_legal/delivery'
+      path: '/delivery'
+      fullPath: '/delivery'
+      preLoaderRoute: typeof AppLegalDeliveryRouteImport
+      parentRoute: typeof AppLegalRoute
+    }
+    '/_app/_legal/pricing': {
+      id: '/_app/_legal/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof AppLegalPricingRouteImport
       parentRoute: typeof AppLegalRoute
     }
     '/_app/_legal/privacy': {
@@ -852,6 +933,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/tests'
       preLoaderRoute: typeof AppAdminTestsRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/_app/checkout/': {
+      id: '/_app/checkout/'
+      path: '/checkout'
+      fullPath: '/checkout/'
+      preLoaderRoute: typeof AppCheckoutIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/checkout/done': {
+      id: '/_app/checkout/done'
+      path: '/checkout/done'
+      fullPath: '/checkout/done'
+      preLoaderRoute: typeof AppCheckoutDoneRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/listening/': {
       id: '/_app/listening/'
@@ -983,14 +1078,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppLegalRouteChildren {
+  AppLegalAboutRoute: typeof AppLegalAboutRoute
   AppLegalContactRoute: typeof AppLegalContactRoute
+  AppLegalDeliveryRoute: typeof AppLegalDeliveryRoute
+  AppLegalPricingRoute: typeof AppLegalPricingRoute
   AppLegalPrivacyRoute: typeof AppLegalPrivacyRoute
   AppLegalRefundsRoute: typeof AppLegalRefundsRoute
   AppLegalTermsRoute: typeof AppLegalTermsRoute
 }
 
 const AppLegalRouteChildren: AppLegalRouteChildren = {
+  AppLegalAboutRoute: AppLegalAboutRoute,
   AppLegalContactRoute: AppLegalContactRoute,
+  AppLegalDeliveryRoute: AppLegalDeliveryRoute,
+  AppLegalPricingRoute: AppLegalPricingRoute,
   AppLegalPrivacyRoute: AppLegalPrivacyRoute,
   AppLegalRefundsRoute: AppLegalRefundsRoute,
   AppLegalTermsRoute: AppLegalTermsRoute,
@@ -1053,10 +1154,12 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppStyleguideRoute: typeof AppStyleguideRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppCheckoutDoneRoute: typeof AppCheckoutDoneRoute
   AppMockIdRoute: typeof AppMockIdRoute
   AppSpeakingLiveRoute: typeof AppSpeakingLiveRoute
   AppSpeakingSessionRoute: typeof AppSpeakingSessionRoute
   AppWritingFullRoute: typeof AppWritingFullRoute
+  AppCheckoutIndexRoute: typeof AppCheckoutIndexRoute
   AppListeningIndexRoute: typeof AppListeningIndexRoute
   AppMockIndexRoute: typeof AppMockIndexRoute
   AppReadingIndexRoute: typeof AppReadingIndexRoute
@@ -1080,10 +1183,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppStyleguideRoute: AppStyleguideRoute,
   AppIndexRoute: AppIndexRoute,
+  AppCheckoutDoneRoute: AppCheckoutDoneRoute,
   AppMockIdRoute: AppMockIdRoute,
   AppSpeakingLiveRoute: AppSpeakingLiveRoute,
   AppSpeakingSessionRoute: AppSpeakingSessionRoute,
   AppWritingFullRoute: AppWritingFullRoute,
+  AppCheckoutIndexRoute: AppCheckoutIndexRoute,
   AppListeningIndexRoute: AppListeningIndexRoute,
   AppMockIndexRoute: AppMockIndexRoute,
   AppReadingIndexRoute: AppReadingIndexRoute,
