@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils';
 export const COMPANY = {
   name: 'Dolphin Commerce',
   product: 'NextBand',
-  email: 'support@dolphincommerce.com',
+  email: 'support@nextband.app',
   address: 'Sutia Bazar, Ward 6, Jatia Union, Ishwarganj, Mymensingh 2280, Bangladesh',
   phone: '+880 1718-007639', // Contact page only, not the footer
   country: 'Bangladesh',
   tradeLicense: '46813125039', // Jatia Union Parishad, Ishwarganj
-  since: 2025,
+  since: 2026,
 };
 
 export const PAGES = [
